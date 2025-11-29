@@ -9,7 +9,9 @@ import {
   type Notification, type InsertNotification,
   type Admin, type InsertAdmin,
   type CrawledLink, type InsertCrawledLink,
-  merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks,
+  type Agent, type InsertAgent,
+  type Source, type InsertSource,
+  merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -502,6 +504,86 @@ export class DatabaseStorage implements IStorage {
   async deleteCrawledLink(id: string): Promise<boolean> {
     const result = await db.delete(crawledLinks)
       .where(eq(crawledLinks.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  async getAgents(merchantId: string): Promise<Agent[]> {
+    return db.select().from(agents)
+      .where(eq(agents.merchantId, merchantId))
+      .orderBy(desc(agents.createdAt));
+  }
+
+  async getAgent(id: string): Promise<Agent | undefined> {
+    const result = await db.select().from(agents).where(eq(agents.id, id));
+    return result[0];
+  }
+
+  async createAgent(data: InsertAgent): Promise<Agent> {
+    const id = generateId("ag_");
+    const result = await db.insert(agents).values({
+      id,
+      merchantId: data.merchantId,
+      name: data.name,
+      description: data.description || "",
+      knowledgeContent: data.knowledgeContent || "",
+      isActive: data.isActive ?? true,
+    }).returning();
+    return result[0];
+  }
+
+  async updateAgent(id: string, data: Partial<Agent>): Promise<Agent | undefined> {
+    const result = await db.update(agents)
+      .set(data)
+      .where(eq(agents.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteAgent(id: string): Promise<boolean> {
+    const result = await db.delete(agents)
+      .where(eq(agents.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  async getSources(merchantId: string): Promise<Source[]> {
+    return db.select().from(sources)
+      .where(eq(sources.merchantId, merchantId))
+      .orderBy(desc(sources.createdAt));
+  }
+
+  async getSource(id: string): Promise<Source | undefined> {
+    const result = await db.select().from(sources).where(eq(sources.id, id));
+    return result[0];
+  }
+
+  async createSource(data: InsertSource): Promise<Source> {
+    const id = generateId("src_");
+    const result = await db.insert(sources).values({
+      id,
+      merchantId: data.merchantId,
+      type: data.type,
+      name: data.name,
+      content: data.content || "",
+      url: data.url || "",
+      isActive: data.isActive ?? true,
+      charCount: data.charCount || 0,
+    }).returning();
+    return result[0];
+  }
+
+  async updateSource(id: string, data: Partial<Source>): Promise<Source | undefined> {
+    const result = await db.update(sources)
+      .set(data)
+      .where(eq(sources.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteSource(id: string): Promise<boolean> {
+    const result = await db.delete(sources)
+      .where(eq(sources.id, id))
       .returning();
     return result.length > 0;
   }

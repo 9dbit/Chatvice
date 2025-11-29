@@ -116,6 +116,18 @@ Preferred communication style: Simple, everyday language.
     - Stripe subscription and customer IDs
     - Status tracking (trial, active, canceled, past_due)
 
+11. **Agents** - AI agents with plan-based limits
+    - Each merchant can have multiple agents based on subscription plan
+    - Plan limits: Starter (1), Pro (2), Enterprise (5)
+    - Server-side enforcement prevents exceeding limits
+    - Active/inactive toggle for enabling/disabling agents
+
+12. **Sources** - Knowledge sources for training AI
+    - Types: text snippets, files (doc/txt/pdf), website links
+    - Active/inactive toggle per source
+    - Character count tracking
+    - Used to build knowledge context for AI responses
+
 ### AI Integration
 
 **Provider**: OpenAI API (via Replit AI Integrations)
@@ -171,11 +183,16 @@ Preferred communication style: Simple, everyday language.
 
 **Merchant Dashboard Sections** (sidebar navigation):
 - Overview - Real-time analytics with active sessions, message counts, AI resolution rate, daily trends chart
+- Agents - AI agents management with plan-based limits (Starter: 1, Pro: 2, Enterprise: 5)
+- Sources - Knowledge sources management (text snippets, files, website links) with activation toggles
+- Analytics - Detailed performance metrics, chat topics, keywords, response times (Pro/Enterprise feature)
 - Chat Sessions - List and monitor active/past conversations with transcript export
 - Knowledge Base - Edit AI training content with web crawler for FAQ extraction
 - Triggers - Manage escalation keywords
 - Widget - Customize appearance and get embed code
 - Supervisors - Manage team members
+- Plans - Subscription plan management with upgrade options
+- Billing - Billing details and payment history
 - Settings - Account configuration
 
 **Key Features**:

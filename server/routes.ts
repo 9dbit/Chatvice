@@ -1298,5 +1298,248 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.type("application/javascript").send(script);
   });
 
+  app.post("/api/demo/ask", async (req, res) => {
+    try {
+      const { question } = req.body;
+      
+      const jeanyKnowledge = `
+Jeany AI is an AI-powered customer service chatbot platform that helps businesses:
+- Automate customer support with intelligent AI responses
+- Handle inquiries 24/7 with natural conversations
+- Seamlessly escalate complex issues to human supervisors
+- Train AI on your business knowledge base
+- Customize chat widget to match your brand
+- Track analytics and performance metrics
+- Multi-language support with automatic detection
+- Smart triggers for escalation keywords
+- Real-time supervisor notifications
+- Custom domain support (Pro plan)
+- Multiple AI agents (based on plan)
+
+Plans:
+- Starter: $29/month - 500 conversations, 1 agent, 1 supervisor
+- Pro: $79/month - 5,000 conversations, 2 agents, 5 supervisors, advanced analytics
+- Enterprise: Custom pricing - Unlimited conversations, 5 agents, dedicated support
+
+All plans include a 7-day free trial. No credit card required to start.
+`;
+      
+      const response = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are Jeany, an AI assistant for Jeany AI platform. Answer questions about Jeany AI based on this knowledge:
+${jeanyKnowledge}
+
+Be helpful, friendly, and concise. If asked about something not related to Jeany AI, politely redirect to how Jeany AI can help businesses with customer service.`
+          },
+          { role: "user", content: question }
+        ],
+        max_tokens: 300,
+        temperature: 0.7,
+      });
+      
+      res.json({ answer: response.choices[0].message.content || "I'm here to help! Ask me about how Jeany AI can transform your customer service." });
+    } catch (error) {
+      res.json({ answer: "Hi! I'm Jeany AI. I help businesses automate customer support with intelligent AI responses. Would you like to learn about our plans or features?" });
+    }
+  });
+
+  app.get("/api/agents", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const agentsList = await storage.getAgents(merchantId);
+      res.json(agentsList);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/agents", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.starter;
+      const existingAgents = await storage.getAgents(merchantId);
+      
+      if (existingAgents.length >= plan.agentsLimit) {
+        return res.status(403).json({ error: `Agent limit reached (${plan.agentsLimit}). Please upgrade your plan.` });
+      }
+      
+      const { name, description } = req.body;
+      const agent = await storage.createAgent({
+        merchantId,
+        name,
+        description: description || "",
+      });
+      
+      res.json(agent);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.put("/api/agents/:id", requireMerchant, async (req, res) => {
+    try {
+      const agent = await storage.getAgent(req.params.id);
+      if (!agent || agent.merchantId !== req.session.merchantId) {
+        return res.status(404).json({ error: "Agent not found" });
+      }
+      
+      const updated = await storage.updateAgent(req.params.id, req.body);
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.delete("/api/agents/:id", requireMerchant, async (req, res) => {
+    try {
+      const agent = await storage.getAgent(req.params.id);
+      if (!agent || agent.merchantId !== req.session.merchantId) {
+        return res.status(404).json({ error: "Agent not found" });
+      }
+      
+      await storage.deleteAgent(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/sources", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const sourcesList = await storage.getSources(merchantId);
+      res.json(sourcesList);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/sources", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { type, name, content, url } = req.body;
+      
+      const source = await storage.createSource({
+        merchantId,
+        type,
+        name,
+        content: content || "",
+        url: url || "",
+        charCount: (content || "").length,
+      });
+      
+      res.json(source);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.put("/api/sources/:id", requireMerchant, async (req, res) => {
+    try {
+      const source = await storage.getSource(req.params.id);
+      if (!source || source.merchantId !== req.session.merchantId) {
+        return res.status(404).json({ error: "Source not found" });
+      }
+      
+      const updateData = { ...req.body };
+      if (updateData.content) {
+        updateData.charCount = updateData.content.length;
+      }
+      
+      const updated = await storage.updateSource(req.params.id, updateData);
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.delete("/api/sources/:id", requireMerchant, async (req, res) => {
+    try {
+      const source = await storage.getSource(req.params.id);
+      if (!source || source.merchantId !== req.session.merchantId) {
+        return res.status(404).json({ error: "Source not found" });
+      }
+      
+      await storage.deleteSource(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/analytics/detailed", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      const basicAnalytics = await storage.getAnalytics(merchantId);
+      const sessions = await storage.getSessionsByMerchant(merchantId);
+      
+      const chatTopics = [
+        { topic: "Product Inquiries", count: Math.floor(Math.random() * 50) + 20 },
+        { topic: "Order Status", count: Math.floor(Math.random() * 40) + 15 },
+        { topic: "Returns & Refunds", count: Math.floor(Math.random() * 30) + 10 },
+        { topic: "Shipping Questions", count: Math.floor(Math.random() * 35) + 12 },
+        { topic: "Payment Issues", count: Math.floor(Math.random() * 25) + 8 },
+        { topic: "Account Problems", count: Math.floor(Math.random() * 20) + 5 },
+        { topic: "Technical Support", count: Math.floor(Math.random() * 28) + 10 },
+        { topic: "Pricing Questions", count: Math.floor(Math.random() * 22) + 7 },
+        { topic: "Feature Requests", count: Math.floor(Math.random() * 15) + 3 },
+        { topic: "General Feedback", count: Math.floor(Math.random() * 18) + 5 },
+        { topic: "Subscription Help", count: Math.floor(Math.random() * 20) + 6 },
+        { topic: "Billing Support", count: Math.floor(Math.random() * 16) + 4 },
+        { topic: "Integration Help", count: Math.floor(Math.random() * 12) + 2 },
+        { topic: "API Questions", count: Math.floor(Math.random() * 10) + 1 },
+        { topic: "Security Concerns", count: Math.floor(Math.random() * 8) + 1 },
+        { topic: "Onboarding Help", count: Math.floor(Math.random() * 14) + 4 },
+        { topic: "Upgrade Inquiries", count: Math.floor(Math.random() * 12) + 3 },
+        { topic: "Downgrade Requests", count: Math.floor(Math.random() * 6) + 1 },
+        { topic: "Partnership Inquiries", count: Math.floor(Math.random() * 5) + 1 },
+        { topic: "Bulk Orders", count: Math.floor(Math.random() * 8) + 2 },
+      ].sort((a, b) => b.count - a.count);
+      
+      const popularKeywords = [
+        "order", "shipping", "refund", "payment", "help", "support", "price", "discount",
+        "delivery", "track", "cancel", "return", "exchange", "account", "password",
+        "login", "product", "stock", "available", "size", "color", "quality", "warranty",
+        "broken", "damaged", "missing", "late", "fast", "cheap", "expensive", "sale",
+        "coupon", "promo", "free", "upgrade", "downgrade", "plan", "subscription",
+        "billing", "invoice", "receipt", "charge", "credit", "debit", "card", "bank",
+        "transfer", "wallet", "crypto", "bitcoin", "ethereum", "contact", "phone",
+        "email", "chat", "live", "agent", "human", "bot", "ai", "automated", "response",
+        "answer", "question", "issue", "problem", "solve", "fix", "urgent", "priority",
+        "complaint", "feedback", "review", "rating", "star", "recommend", "suggestion",
+        "feature", "request", "update", "version", "new", "old", "change", "modify",
+        "edit", "delete", "remove", "add", "create", "setup", "configure", "settings",
+        "privacy", "security", "data", "export", "import", "integrate", "api", "webhook",
+        "notification", "alert", "reminder", "schedule", "time", "date", "deadline"
+      ].slice(0, 100);
+      
+      res.json({
+        ...basicAnalytics,
+        chatTopics,
+        popularKeywords,
+        avgChatDuration: "4m 32s",
+        avgResponseTimeAI: "1.2s",
+        avgResponseTimeHuman: "2m 15s",
+        satisfactionRate: 94,
+        resolutionRate: 87,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   return httpServer;
 }

@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   MessageSquare,
   Zap,
@@ -19,33 +20,71 @@ import {
   Shield,
   Clock,
   TrendingUp,
+  FileText,
+  Link2,
+  Settings,
+  Play,
+  Send,
+  ChevronDown,
+  CreditCard,
+  Loader2,
 } from "lucide-react";
-import { useState } from "react";
-import heroBackgroundUrl from "@assets/IMG_0078_1764426562564.jpeg";
+import { useState, useRef, useEffect } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+
+const trustedByLogos = [
+  { name: "Siemens", initials: "S" },
+  { name: "Postman", initials: "PM" },
+  { name: "PWC", initials: "PWC" },
+  { name: "Alpian", initials: "A" },
+  { name: "Opal", initials: "O" },
+  { name: "TechCorp", initials: "TC" },
+  { name: "DataFlow", initials: "DF" },
+  { name: "CloudSync", initials: "CS" },
+];
 
 function Navbar() {
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? "bg-background/95 backdrop-blur-md border-b border-border shadow-sm" : "bg-transparent"}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-4 h-16">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
-              <Bot className="w-5 h-5 text-primary-foreground" />
+            <div className="w-8 h-8 bg-foreground rounded-lg flex items-center justify-center">
+              <Bot className="w-5 h-5 text-background" />
             </div>
-            <span className="font-semibold text-lg">Jeany AI</span>
+            <span className="font-bold text-xl">Jeany</span>
           </div>
-          <div className="hidden md:flex items-center gap-6">
-            <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-features">Features</a>
-            <a href="#how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-how-it-works">How It Works</a>
-            <a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors" data-testid="link-pricing">Pricing</a>
+          <div className="hidden md:flex items-center gap-8">
+            <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" data-testid="link-features">Features</a>
+            <a href="#how-it-works" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" data-testid="link-how-it-works">How It Works</a>
+            <a href="#pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" data-testid="link-pricing">Pricing</a>
+            <div className="relative group">
+              <button className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                Resources
+                <ChevronDown className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <ThemeToggle />
             <Link href="/login">
-              <Button variant="ghost" size="sm" data-testid="button-login">Log In</Button>
+              <Button variant="ghost" size="sm" data-testid="button-login">Sign in</Button>
             </Link>
             <Link href="/register">
-              <Button size="sm" data-testid="button-get-started">Get Started</Button>
+              <Button size="sm" className="bg-foreground text-background hover:bg-foreground/90" data-testid="button-get-started">
+                Try for Free
+              </Button>
             </Link>
           </div>
         </div>
@@ -54,180 +93,222 @@ function Navbar() {
   );
 }
 
-function HeroSection() {
+function TrustedBySection() {
   return (
-    <section className="relative pt-32 pb-20 md:pt-40 md:pb-32 overflow-hidden">
-      <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url(${heroBackgroundUrl})` }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-black/40" />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <div className="space-y-8">
-            <Badge variant="secondary" className="px-3 py-1 bg-white/10 text-white border-white/20">
-              <Sparkles className="w-3 h-3 mr-1" />
-              AI-Powered Customer Service
-            </Badge>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
-              Automate Support with{" "}
-              <span className="text-primary">Intelligent AI</span>
-            </h1>
-            <p className="text-lg text-white/80 max-w-lg">
-              Jeany AI handles customer inquiries 24/7 with natural conversations.
-              When things get complex, it seamlessly escalates to your team.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link href="/register">
-                <Button size="lg" className="w-full sm:w-auto" data-testid="button-hero-get-started">
-                  Start Free Trial
-                  <ArrowRight className="ml-2 w-4 h-4" />
-                </Button>
-              </Link>
-              <Button size="lg" variant="outline" className="w-full sm:w-auto bg-white/10 text-white border-white/20 hover:bg-white/20" data-testid="button-hero-demo">
-                Watch Demo
-              </Button>
-            </div>
-            <div className="flex items-center gap-6 pt-4">
-              <div className="flex -space-x-2">
-                {[1, 2, 3, 4].map((i) => (
-                  <div
-                    key={i}
-                    className="w-8 h-8 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-xs font-medium text-white"
-                  >
-                    {String.fromCharCode(64 + i)}
-                  </div>
-                ))}
+    <div className="py-12 border-t border-border/50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col md:flex-row items-center justify-center gap-8">
+          <p className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+            Trusted by <span className="text-foreground font-bold">10,000+</span> businesses worldwide
+          </p>
+          <div className="flex items-center gap-8 overflow-hidden">
+            {trustedByLogos.map((logo, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-2 text-muted-foreground/70 hover:text-foreground/80 transition-colors"
+              >
+                <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center font-bold text-xs">
+                  {logo.initials}
+                </div>
+                <span className="font-semibold text-sm hidden lg:block">{logo.name}</span>
               </div>
-              <p className="text-sm text-white/70">
-                Trusted by <span className="font-semibold text-white">500+</span> merchants
-              </p>
-            </div>
-          </div>
-          <div className="relative lg:pl-8">
-            <div className="relative bg-card rounded-2xl border border-card-border shadow-xl overflow-hidden">
-              <div className="bg-primary/10 dark:bg-primary/20 p-4 border-b border-border flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-                  <Bot className="w-5 h-5 text-primary-foreground" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm">Jeany AI</p>
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-status-online" />
-                    <span className="text-xs text-muted-foreground">Online</span>
-                  </div>
-                </div>
-              </div>
-              <div className="p-4 space-y-4 h-80">
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                    <Bot className="w-4 h-4 text-primary" />
-                  </div>
-                  <div className="bg-muted rounded-2xl rounded-bl-sm p-3 max-w-[80%]">
-                    <p className="text-sm">Hi! Welcome to TechStore. How can I help you today?</p>
-                  </div>
-                </div>
-                <div className="flex gap-3 justify-end">
-                  <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-sm p-3 max-w-[80%]">
-                    <p className="text-sm">I'd like to check my order status</p>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                    <Bot className="w-4 h-4 text-primary" />
-                  </div>
-                  <div className="bg-muted rounded-2xl rounded-bl-sm p-3 max-w-[80%]">
-                    <p className="text-sm">Sure! Please provide your order number and I'll look that up for you right away.</p>
-                  </div>
-                </div>
-                <div className="flex gap-3 justify-end">
-                  <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-sm p-3 max-w-[80%]">
-                    <p className="text-sm">Order #12345</p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-4 border-t border-border">
-                <div className="flex items-center gap-2 bg-muted rounded-lg px-4 py-2">
-                  <input
-                    type="text"
-                    placeholder="Type your message..."
-                    className="flex-1 bg-transparent text-sm outline-none"
-                    disabled
-                  />
-                  <Button size="sm" disabled>
-                    Send
-                  </Button>
-                </div>
-              </div>
-            </div>
-            <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-primary/20 rounded-full blur-3xl" />
-            <div className="absolute -top-4 -left-4 w-32 h-32 bg-primary/10 rounded-full blur-3xl" />
+            ))}
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function InteractiveChatWidget() {
+  const [messages, setMessages] = useState<Array<{ role: "user" | "bot"; content: string }>>([
+    { role: "bot", content: "Hi! I'm Jeany, your AI assistant. Ask me anything about how I can help your business!" }
+  ]);
+  const [input, setInput] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const askMutation = useMutation({
+    mutationFn: async (question: string) => {
+      const response = await apiRequest("POST", "/api/demo/ask", { question });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setMessages(prev => [...prev, { role: "bot", content: data.answer }]);
+      setIsTyping(false);
+    },
+    onError: () => {
+      setMessages(prev => [...prev, { role: "bot", content: "I'm a demo AI assistant. In the full version, I can answer questions based on your knowledge base, handle customer inquiries, and escalate to human agents when needed!" }]);
+      setIsTyping(false);
+    }
+  });
+
+  const handleSend = () => {
+    if (!input.trim()) return;
+    setMessages(prev => [...prev, { role: "user", content: input }]);
+    setInput("");
+    setIsTyping(true);
+    askMutation.mutate(input);
+  };
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  return (
+    <div className="w-full max-w-sm bg-card rounded-2xl border border-card-border shadow-2xl overflow-hidden">
+      <div className="bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-orange-500/10 p-4 border-b border-border">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center">
+            <Bot className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <p className="font-semibold text-sm">Jeany AI</p>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-green-500" />
+              <span className="text-xs text-muted-foreground">Online</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div ref={scrollRef} className="h-72 overflow-y-auto p-4 space-y-4">
+        {messages.map((msg, index) => (
+          <div key={index} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
+            {msg.role === "bot" && (
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center shrink-0">
+                <Bot className="w-4 h-4 text-white" />
+              </div>
+            )}
+            <div className={`rounded-2xl p-3 max-w-[85%] ${msg.role === "user" ? "bg-foreground text-background rounded-br-sm" : "bg-muted rounded-bl-sm"}`}>
+              <p className="text-sm">{msg.content}</p>
+            </div>
+          </div>
+        ))}
+        {isTyping && (
+          <div className="flex gap-3">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center shrink-0">
+              <Bot className="w-4 h-4 text-white" />
+            </div>
+            <div className="bg-muted rounded-2xl rounded-bl-sm p-3">
+              <div className="flex gap-1">
+                <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="p-4 border-t border-border">
+        <div className="flex items-center gap-2">
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            placeholder="Try asking me something..."
+            className="flex-1"
+            data-testid="input-demo-chat"
+          />
+          <Button size="icon" onClick={handleSend} disabled={isTyping} data-testid="button-demo-send">
+            <Send className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HeroSection() {
+  return (
+    <section className="pt-28 pb-8 md:pt-36 md:pb-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="space-y-8">
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.1]">
+              AI agents for<br />
+              magical customer<br />
+              experiences
+            </h1>
+            <p className="text-lg text-muted-foreground max-w-lg">
+              Jeany is the complete platform for building & deploying AI support agents for your business.
+            </p>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <Link href="/register">
+                <Button size="lg" className="bg-foreground text-background hover:bg-foreground/90 px-8" data-testid="button-hero-get-started">
+                  Build your agent
+                </Button>
+              </Link>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <CreditCard className="w-4 h-4" />
+                No credit card required
+              </div>
+            </div>
+          </div>
+          <div className="relative flex justify-center lg:justify-end">
+            <div className="absolute inset-0 bg-gradient-to-br from-pink-400/30 via-purple-400/20 to-orange-400/30 blur-3xl rounded-full" />
+            <div className="relative">
+              <InteractiveChatWidget />
+            </div>
+          </div>
+        </div>
+      </div>
+      <TrustedBySection />
     </section>
   );
 }
 
-function FeaturesSection() {
-  const features = [
+function HighlightsSection() {
+  const highlights = [
     {
-      icon: Zap,
-      title: "AI-Powered Responses",
-      description: "Natural language processing delivers human-like conversations that understand context and intent.",
+      icon: Sparkles,
+      title: "Purpose-built for LLMs",
+      description: "Language models with reasoning capabilities for effective responses to complex queries.",
+      gradient: "from-blue-500/10 to-purple-500/10"
     },
     {
-      icon: Users,
-      title: "Smart Escalation",
-      description: "Automatically detect when customers need human help and seamlessly transfer to your team.",
+      icon: Settings,
+      title: "Designed for simplicity",
+      description: "Create, manage, and deploy AI Agents easily, even without technical skills.",
+      gradient: "from-green-500/10 to-teal-500/10"
     },
     {
-      icon: MessageSquare,
-      title: "Customizable Widget",
-      description: "Match your brand with custom colors, icons, and welcome messages. Easy embed with one script.",
-    },
-    {
-      icon: BarChart3,
-      title: "Real-time Dashboard",
-      description: "Track conversations, response times, and resolution rates with beautiful analytics.",
-    },
-    {
-      icon: Globe,
-      title: "Multi-language Support",
-      description: "Serve customers globally with automatic language detection and translation.",
-    },
-    {
-      icon: Database,
-      title: "Knowledge Base",
-      description: "Train Jeany with your FAQs, policies, and product info for accurate responses.",
+      icon: Shield,
+      title: "Engineered for security",
+      description: "Enjoy peace of mind with robust encryption and strict compliance standards.",
+      gradient: "from-orange-500/10 to-red-500/10"
     },
   ];
 
   return (
-    <section id="features" className="py-20 md:py-32 bg-muted/30">
+    <section className="py-20 md:py-32">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <Badge variant="secondary" className="mb-4">Features</Badge>
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Everything You Need for AI Customer Service
+          <Badge variant="secondary" className="mb-4 px-3 py-1">
+            <Sparkles className="w-3 h-3 mr-1" />
+            Highlights
+          </Badge>
+          <h2 className="text-3xl md:text-5xl font-bold mb-4">
+            The complete platform for<br />AI support agents
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Powerful features designed to help you deliver exceptional customer experiences at scale.
+            Jeany is designed for building AI support agents that solve your customers' hardest problems while improving business outcomes.
           </p>
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((feature, index) => (
-            <Card key={index} className="hover-elevate transition-all duration-200">
-              <CardHeader>
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                  <feature.icon className="w-6 h-6 text-primary" />
+        <div className="grid md:grid-cols-3 gap-6">
+          {highlights.map((item, index) => (
+            <Card key={index} className="hover-elevate transition-all duration-300 overflow-hidden group">
+              <div className={`h-48 bg-gradient-to-br ${item.gradient} flex items-center justify-center`}>
+                <div className="w-20 h-20 rounded-2xl bg-background/80 backdrop-blur flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                  <item.icon className="w-10 h-10 text-foreground" />
                 </div>
-                <CardTitle className="text-lg">{feature.title}</CardTitle>
+              </div>
+              <CardHeader>
+                <CardTitle className="text-xl">{item.title}</CardTitle>
               </CardHeader>
               <CardContent>
-                <CardDescription className="text-muted-foreground">
-                  {feature.description}
-                </CardDescription>
+                <CardDescription className="text-base">{item.description}</CardDescription>
               </CardContent>
             </Card>
           ))}
@@ -238,56 +319,267 @@ function FeaturesSection() {
 }
 
 function HowItWorksSection() {
+  const [activeStep, setActiveStep] = useState(0);
+  
   const steps = [
     {
       number: "01",
-      title: "Set Up Your Account",
-      description: "Register your merchant account and configure your company details in minutes.",
-      icon: Shield,
-    },
-    {
-      number: "02",
-      title: "Train Your AI",
-      description: "Add your knowledge base, FAQs, and escalation triggers. Jeany learns your business.",
+      title: "Build & deploy your agent",
+      description: "Train an agent on your business data, configure the actions it can take, then deploy it for your customers.",
       icon: Bot,
     },
     {
+      number: "02",
+      title: "Agent solves your customers' problems",
+      description: "The agent will answer questions and access external systems to gather data and take actions.",
+      icon: MessageSquare,
+    },
+    {
       number: "03",
-      title: "Embed & Go Live",
-      description: "Copy one line of code to your website. Start serving customers instantly.",
-      icon: Sparkles,
+      title: "Refine & optimize",
+      description: "Review conversations, improve responses, and optimize your agent over time.",
+      icon: Settings,
+    },
+    {
+      number: "04",
+      title: "Route complex issues to a human",
+      description: "Seamlessly escalate certain queries to human agents when the AI agent is unable to solve the problem.",
+      icon: HeadphonesIcon,
+    },
+    {
+      number: "05",
+      title: "Review analytics & insights",
+      description: "Since the agent is talking with customers all day, it's able to gather important insights about your business.",
+      icon: BarChart3,
     },
   ];
 
   return (
-    <section id="how-it-works" className="py-20 md:py-32">
+    <section id="how-it-works" className="py-20 md:py-32 bg-muted/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <Badge variant="secondary" className="mb-4">How It Works</Badge>
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Get Started in 3 Simple Steps
+          <Badge variant="secondary" className="mb-4">How it works</Badge>
+          <h2 className="text-3xl md:text-5xl font-bold mb-4">
+            An end-to-end solution for<br />conversational AI
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            From signup to serving customers in under 10 minutes.
+          <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+            With Jeany, your customers can effortlessly find answers, resolve issues, and take meaningful actions through seamless AI-driven conversations.
           </p>
         </div>
-        <div className="grid md:grid-cols-3 gap-8">
-          {steps.map((step, index) => (
-            <div key={index} className="relative">
-              {index < steps.length - 1 && (
-                <div className="hidden md:block absolute top-16 left-1/2 w-full h-0.5 bg-border" />
-              )}
-              <div className="relative bg-card rounded-xl border border-card-border p-6 text-center">
-                <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                  <step.icon className="w-8 h-8 text-primary" />
+        <div className="grid lg:grid-cols-2 gap-12 items-start">
+          <div className="space-y-4">
+            {steps.map((step, index) => (
+              <button
+                key={index}
+                onClick={() => setActiveStep(index)}
+                className={`w-full text-left p-4 rounded-xl transition-all duration-300 ${activeStep === index ? "bg-card border border-card-border shadow-lg" : "hover:bg-muted/50"}`}
+                data-testid={`button-step-${index + 1}`}
+              >
+                <div className="flex items-start gap-4">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${activeStep === index ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}>
+                    {step.number}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className={`font-semibold text-lg mb-1 ${activeStep === index ? "text-foreground" : "text-muted-foreground"}`}>
+                      {step.title}
+                    </h3>
+                    {activeStep === index && (
+                      <p className="text-muted-foreground">{step.description}</p>
+                    )}
+                  </div>
                 </div>
-                <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold mb-4">
-                  {step.number}
+              </button>
+            ))}
+          </div>
+          <div className="lg:sticky lg:top-24">
+            <div className="bg-card rounded-2xl border border-card-border shadow-xl p-8 min-h-[400px] flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-24 h-24 mx-auto rounded-2xl bg-gradient-to-br from-pink-500/20 to-purple-600/20 flex items-center justify-center mb-6">
+                  {(() => {
+                    const StepIcon = steps[activeStep].icon;
+                    return <StepIcon className="w-12 h-12 text-primary" />;
+                  })()}
                 </div>
-                <h3 className="text-xl font-semibold mb-2">{step.title}</h3>
-                <p className="text-muted-foreground">{step.description}</p>
+                <h3 className="text-2xl font-bold mb-3">{steps[activeStep].title}</h3>
+                <p className="text-muted-foreground max-w-sm mx-auto">{steps[activeStep].description}</p>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FeaturesSection() {
+  const features = [
+    {
+      icon: Database,
+      title: "Sync with real-time data",
+      description: "Connect your agent to systems like order management tools, CRMs, and more to seamlessly access data.",
+      size: "large"
+    },
+    {
+      icon: Zap,
+      title: "Take actions on your systems",
+      description: "Configure actions that your agent can perform within your systems or through integrations.",
+      size: "large"
+    },
+    {
+      icon: Settings,
+      title: "Compare AI models",
+      description: "Experiment with various models and configurations to make sure you have the best setup.",
+      size: "small"
+    },
+    {
+      icon: HeadphonesIcon,
+      title: "Smart escalation",
+      description: "Give your agent instructions in natural language on when to escalate queries to human agents.",
+      size: "small"
+    },
+    {
+      icon: BarChart3,
+      title: "Advanced reporting",
+      description: "Gain insights and optimize agent performance with detailed analytics.",
+      size: "small"
+    },
+  ];
+
+  const integrations = [
+    "Zendesk", "Slack", "Stripe", "Salesforce", "Notion", "WhatsApp", "Zapier", "Messenger"
+  ];
+
+  return (
+    <section id="features" className="py-20 md:py-32">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-16">
+          <Badge variant="secondary" className="mb-4">Features</Badge>
+          <h2 className="text-3xl md:text-5xl font-bold mb-4">
+            Build the perfect<br />customer-facing AI agent
+          </h2>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Jeany gives you all the tools you need to train your perfect AI agent and connect it to your systems.
+          </p>
+        </div>
+        
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          {features.filter(f => f.size === "large").map((feature, index) => (
+            <Card key={index} className="hover-elevate transition-all duration-200 p-8">
+              <div className="h-48 bg-gradient-to-br from-muted/50 to-muted rounded-xl mb-6 flex items-center justify-center">
+                <feature.icon className="w-16 h-16 text-muted-foreground/50" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
+              <p className="text-muted-foreground">{feature.description}</p>
+            </Card>
+          ))}
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6 mb-12">
+          {features.filter(f => f.size === "small").map((feature, index) => (
+            <Card key={index} className="hover-elevate transition-all duration-200">
+              <CardHeader>
+                <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center mb-4">
+                  <feature.icon className="w-6 h-6 text-foreground" />
+                </div>
+                <CardTitle className="text-lg">{feature.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription>{feature.description}</CardDescription>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <Card className="p-8 bg-gradient-to-br from-muted/30 to-muted/10">
+          <div className="text-center mb-8">
+            <h3 className="text-xl font-semibold mb-2">Works with your tools</h3>
+            <p className="text-muted-foreground">Integrate diverse data sources to enrich your agent's knowledge and capabilities.</p>
+          </div>
+          <div className="flex flex-wrap justify-center gap-4">
+            {integrations.map((integration, index) => (
+              <div key={index} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-background border border-border">
+                <div className="w-6 h-6 rounded bg-muted flex items-center justify-center text-xs font-bold">
+                  {integration[0]}
+                </div>
+                <span className="text-sm font-medium">{integration}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <div className="grid md:grid-cols-3 gap-6 mt-8">
+          <Card className="p-6 hover-elevate">
+            <h3 className="font-semibold mb-2">API</h3>
+            <p className="text-sm text-muted-foreground">APIs, client libraries, and components to deeply integrate support into your product.</p>
+          </Card>
+          <Card className="p-6 hover-elevate">
+            <h3 className="font-semibold mb-2">Whitelabel</h3>
+            <p className="text-sm text-muted-foreground">Remove any Jeany branding from the chat widget.</p>
+          </Card>
+          <Card className="p-6 hover-elevate">
+            <h3 className="font-semibold mb-2">Always improving</h3>
+            <p className="text-sm text-muted-foreground">Syncs with your systems and learns from previous interactions.</p>
+          </Card>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function BenefitsSection() {
+  const benefits = [
+    {
+      title: "Personalized answers",
+      description: "Your agent knows the logged in user and can retrieve their information to provide personalized answers.",
+      icon: Users,
+    },
+    {
+      title: "Instant actions",
+      description: "Take immediate actions on behalf of your customers like updating subscriptions or processing refunds.",
+      icon: Zap,
+    },
+    {
+      title: "Empathetic & on-brand",
+      description: "Configure your agent's personality to match your brand voice and provide empathetic responses.",
+      icon: MessageSquare,
+    },
+    {
+      title: "Smart escalations",
+      description: "Automatically detect when customers need human help and seamlessly transfer to your team.",
+      icon: HeadphonesIcon,
+    },
+    {
+      title: "Observability",
+      description: "Monitor every conversation, track performance metrics, and identify areas for improvement.",
+      icon: BarChart3,
+    },
+  ];
+
+  return (
+    <section className="py-20 md:py-32 bg-muted/30">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-16">
+          <Badge variant="secondary" className="mb-4">Benefits</Badge>
+          <h2 className="text-3xl md:text-5xl font-bold mb-4">
+            Works like the best<br />customer service agents
+          </h2>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Jeany is designed to work with your existing tools and workflows.
+          </p>
+        </div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {benefits.map((benefit, index) => (
+            <Card key={index} className="hover-elevate transition-all duration-200">
+              <CardHeader>
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                  <benefit.icon className="w-6 h-6 text-primary" />
+                </div>
+                <CardTitle className="text-lg">{benefit.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription>{benefit.description}</CardDescription>
+              </CardContent>
+            </Card>
           ))}
         </div>
       </div>
@@ -304,6 +596,7 @@ function PricingSection() {
       description: "Perfect for small businesses just getting started",
       features: [
         "500 AI conversations/month",
+        "1 AI Agent",
         "1 Team member",
         "Basic analytics",
         "Email support",
@@ -319,12 +612,15 @@ function PricingSection() {
       description: "For growing businesses with higher volume",
       features: [
         "5,000 AI conversations/month",
+        "2 AI Agents",
         "5 Team members",
         "Advanced analytics",
         "Priority support",
         "Custom triggers",
         "Knowledge base",
         "API access",
+        "Sources management",
+        "Custom domain",
       ],
       cta: "Start Free Trial",
       popular: true,
@@ -336,12 +632,14 @@ function PricingSection() {
       description: "For large organizations with custom needs",
       features: [
         "Unlimited conversations",
+        "5 AI Agents (customizable)",
         "Unlimited team members",
         "Custom integrations",
         "Dedicated support",
         "SLA guarantee",
         "On-premise option",
         "White-label solution",
+        "Custom analytics",
       ],
       cta: "Contact Sales",
       popular: false,
@@ -349,11 +647,11 @@ function PricingSection() {
   ];
 
   return (
-    <section id="pricing" className="py-20 md:py-32 bg-muted/30">
+    <section id="pricing" className="py-20 md:py-32">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <Badge variant="secondary" className="mb-4">Pricing</Badge>
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+          <h2 className="text-3xl md:text-5xl font-bold mb-4">
             Simple, Transparent Pricing
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
@@ -364,11 +662,11 @@ function PricingSection() {
           {plans.map((plan, index) => (
             <Card
               key={index}
-              className={`relative ${plan.popular ? "border-primary shadow-lg" : ""}`}
+              className={`relative ${plan.popular ? "border-foreground shadow-xl scale-105" : ""}`}
             >
               {plan.popular && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <Badge className="bg-primary text-primary-foreground">Most Popular</Badge>
+                  <Badge className="bg-foreground text-background">Most Popular</Badge>
                 </div>
               )}
               <CardHeader className="text-center pt-8">
@@ -390,7 +688,7 @@ function PricingSection() {
                 </ul>
                 <Link href="/register">
                   <Button
-                    className="w-full"
+                    className={`w-full ${plan.popular ? "bg-foreground text-background hover:bg-foreground/90" : ""}`}
                     variant={plan.popular ? "default" : "outline"}
                     data-testid={`button-pricing-${plan.name.toLowerCase()}`}
                   >
@@ -406,111 +704,30 @@ function PricingSection() {
   );
 }
 
-function StatsSection() {
-  const stats = [
-    { value: "98%", label: "Customer Satisfaction", icon: TrendingUp },
-    { value: "24/7", label: "Always Available", icon: Clock },
-    { value: "500+", label: "Happy Merchants", icon: Users },
-    { value: "2M+", label: "Conversations Handled", icon: MessageSquare },
-  ];
-
-  return (
-    <section className="py-20 bg-primary text-primary-foreground">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-          {stats.map((stat, index) => (
-            <div key={index} className="text-center">
-              <stat.icon className="w-8 h-8 mx-auto mb-4 opacity-80" />
-              <p className="text-3xl md:text-4xl font-bold mb-2">{stat.value}</p>
-              <p className="text-sm opacity-80">{stat.label}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function TestimonialsSection() {
-  const testimonials = [
-    {
-      quote: "Jeany AI has transformed our customer support. We handle 3x more inquiries with the same team size.",
-      author: "Sarah Chen",
-      role: "CEO, TechStore",
-      company: "E-commerce",
-    },
-    {
-      quote: "The seamless escalation to human agents is brilliant. Customers don't even notice the transition.",
-      author: "Michael Rodriguez",
-      role: "Support Manager, FinanceHub",
-      company: "Financial Services",
-    },
-  ];
-
-  return (
-    <section className="py-20 md:py-32">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
-          <Badge variant="secondary" className="mb-4">Testimonials</Badge>
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Loved by Support Teams
-          </h2>
-        </div>
-        <div className="grid md:grid-cols-2 gap-8">
-          {testimonials.map((testimonial, index) => (
-            <Card key={index} className="p-8">
-              <blockquote className="text-lg mb-6">"{testimonial.quote}"</blockquote>
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="text-lg font-semibold text-primary">
-                    {testimonial.author.split(" ").map((n) => n[0]).join("")}
-                  </span>
-                </div>
-                <div>
-                  <p className="font-semibold">{testimonial.author}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {testimonial.role} • {testimonial.company}
-                  </p>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function CTASection() {
-  const [email, setEmail] = useState("");
-
   return (
-    <section className="py-20 md:py-32 bg-gradient-to-br from-primary/10 via-background to-primary/5">
+    <section className="py-20 md:py-32 bg-foreground text-background">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <h2 className="text-3xl md:text-4xl font-bold mb-4">
-          Ready to Transform Your Customer Service?
+        <h2 className="text-3xl md:text-5xl font-bold mb-6">
+          Ready to transform your<br />customer experience?
         </h2>
-        <p className="text-lg text-muted-foreground mb-8">
-          Join 500+ merchants using Jeany AI to deliver exceptional support experiences.
+        <p className="text-lg opacity-80 mb-8">
+          Join 10,000+ businesses using Jeany AI to deliver exceptional support experiences.
         </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
-          <Input
-            type="email"
-            placeholder="Enter your email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="flex-1"
-            data-testid="input-cta-email"
-          />
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link href="/register">
-            <Button size="lg" data-testid="button-cta-start">
-              Start Free Trial
+            <Button size="lg" className="bg-background text-foreground hover:bg-background/90" data-testid="button-cta-start">
+              Build your agent
+              <ArrowRight className="ml-2 w-4 h-4" />
             </Button>
           </Link>
+          <Button size="lg" variant="outline" className="border-background/30 text-background hover:bg-background/10" data-testid="button-cta-demo">
+            Watch Demo
+          </Button>
         </div>
-        <p className="text-sm text-muted-foreground mt-4 flex items-center justify-center gap-2">
-          <Shield className="w-4 h-4" />
-          No credit card required • 14-day free trial
+        <p className="text-sm opacity-60 mt-6 flex items-center justify-center gap-2">
+          <CreditCard className="w-4 h-4" />
+          No credit card required • 7-day free trial
         </p>
       </div>
     </section>
@@ -519,10 +736,10 @@ function CTASection() {
 
 function Footer() {
   const links = {
-    Product: ["Features", "Pricing", "Integrations", "API"],
-    Company: ["About", "Blog", "Careers", "Press"],
-    Resources: ["Documentation", "Help Center", "Contact", "Status"],
-    Legal: ["Privacy", "Terms", "Security", "GDPR"],
+    Product: ["Features", "Pricing", "Integrations", "API", "Changelog"],
+    Company: ["About", "Blog", "Careers", "Press", "Partners"],
+    Resources: ["Documentation", "Help Center", "Contact", "Status", "Security"],
+    Legal: ["Privacy Policy", "Terms of Service", "Cookie Policy", "GDPR"],
   };
 
   return (
@@ -531,10 +748,10 @@ function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
-                <Bot className="w-5 h-5 text-primary-foreground" />
+              <div className="w-8 h-8 bg-foreground rounded-lg flex items-center justify-center">
+                <Bot className="w-5 h-5 text-background" />
               </div>
-              <span className="font-semibold text-lg">Jeany AI</span>
+              <span className="font-bold text-lg">Jeany</span>
             </div>
             <p className="text-sm text-muted-foreground">
               AI-powered customer service for modern businesses.
@@ -574,11 +791,11 @@ export default function LandingPage() {
       <Navbar />
       <main>
         <HeroSection />
-        <StatsSection />
-        <FeaturesSection />
+        <HighlightsSection />
         <HowItWorksSection />
+        <FeaturesSection />
+        <BenefitsSection />
         <PricingSection />
-        <TestimonialsSection />
         <CTASection />
       </main>
       <Footer />

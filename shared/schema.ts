@@ -180,6 +180,36 @@ export const insertAdminSchema = createInsertSchema(admins).omit({ id: true, cre
 export type InsertAdmin = z.infer<typeof insertAdminSchema>;
 export type Admin = typeof admins.$inferSelect;
 
+export const agents = pgTable("agents", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  name: text("name").notNull(),
+  description: text("description").default(""),
+  knowledgeContent: text("knowledge_content").default(""),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertAgentSchema = createInsertSchema(agents).omit({ id: true, createdAt: true });
+export type InsertAgent = z.infer<typeof insertAgentSchema>;
+export type Agent = typeof agents.$inferSelect;
+
+export const sources = pgTable("sources", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  type: text("type").notNull(),
+  name: text("name").notNull(),
+  content: text("content").default(""),
+  url: text("url").default(""),
+  isActive: boolean("is_active").default(true),
+  charCount: integer("char_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSourceSchema = createInsertSchema(sources).omit({ id: true, createdAt: true });
+export type InsertSource = z.infer<typeof insertSourceSchema>;
+export type Source = typeof sources.$inferSelect;
+
 export const subscriptionPlans = {
   starter: {
     id: "starter" as const,
@@ -189,7 +219,8 @@ export const subscriptionPlans = {
     annualPrice: 24,
     conversationsLimit: 500,
     supervisorsLimit: 1,
-    features: ["500 AI conversations/month", "1 Team member", "Basic analytics", "Email support", "Widget customization"] as const,
+    agentsLimit: 1,
+    features: ["500 AI conversations/month", "1 AI Agent", "1 Team member", "Basic analytics", "Email support", "Widget customization"] as const,
   },
   pro: {
     id: "pro" as const,
@@ -199,7 +230,8 @@ export const subscriptionPlans = {
     annualPrice: 66,
     conversationsLimit: 5000,
     supervisorsLimit: 5,
-    features: ["5,000 AI conversations/month", "5 Team members", "Advanced analytics", "Priority support", "Custom triggers", "Knowledge base", "API access"] as const,
+    agentsLimit: 2,
+    features: ["5,000 AI conversations/month", "2 AI Agents", "5 Team members", "Advanced analytics", "Priority support", "Custom triggers", "Knowledge base", "API access", "Sources management", "Custom domain"] as const,
   },
   enterprise: {
     id: "enterprise" as const,
@@ -209,7 +241,8 @@ export const subscriptionPlans = {
     annualPrice: 167,
     conversationsLimit: -1,
     supervisorsLimit: -1,
-    features: ["Unlimited conversations", "Unlimited team members", "Custom integrations", "Dedicated support", "SLA guarantee", "White-label solution"],
+    agentsLimit: 5,
+    features: ["Unlimited conversations", "5 AI Agents (customizable)", "Unlimited team members", "Custom integrations", "Dedicated support", "SLA guarantee", "White-label solution", "Advanced analytics", "Custom domain"],
   },
 } as const;
 

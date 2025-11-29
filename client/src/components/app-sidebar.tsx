@@ -24,6 +24,8 @@ import {
   CreditCard,
   Coins,
   Calendar,
+  BarChart3,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -35,6 +37,9 @@ import { Receipt } from "lucide-react";
 
 const menuItems = [
   { title: "Overview", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Agents", url: "/dashboard/agents", icon: Bot },
+  { title: "Sources", url: "/dashboard/sources", icon: FileText },
+  { title: "Analytics", url: "/dashboard/analytics", icon: BarChart3 },
   { title: "Chat Sessions", url: "/dashboard/sessions", icon: MessageSquare },
   { title: "Knowledge Base", url: "/dashboard/knowledge", icon: Database },
   { title: "Triggers", url: "/dashboard/triggers", icon: Zap },

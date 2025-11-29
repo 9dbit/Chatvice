@@ -1,0 +1,119 @@
+{
+  "colorScheme": "light",
+  "fonts": [
+    {
+      "family": "Inter",
+      "role": "body"
+    }
+  ],
+  "colors": {
+    "primary": "#000000",
+    "accent": "#09090B",
+    "background": "#FFFFFF",
+    "textPrimary": "#09090B",
+    "link": "#000000"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "Inter",
+      "heading": "Inter"
+    },
+    "fontStacks": {
+      "heading": [
+        "Inter",
+        "ui-sans-serif",
+        "system-ui",
+        "sans-serif",
+        "Apple Color Emoji",
+        "Segoe UI Emoji",
+        "Segoe UI Symbol",
+        "Noto Color Emoji"
+      ],
+      "body": [
+        "Inter",
+        "ui-sans-serif",
+        "system-ui",
+        "sans-serif",
+        "Apple Color Emoji",
+        "Segoe UI Emoji",
+        "Segoe UI Symbol",
+        "Noto Color Emoji"
+      ],
+      "paragraph": [
+        "Inter",
+        "ui-sans-serif",
+        "system-ui",
+        "sans-serif",
+        "Apple Color Emoji",
+        "Segoe UI Emoji",
+        "Segoe UI Symbol",
+        "Noto Color Emoji"
+      ]
+    },
+    "fontSizes": {
+      "h1": "70.4px",
+      "h2": "48px",
+      "body": "20px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 8,
+    "borderRadius": "6px"
+  },
+  "components": {
+    "input": {
+      "borderColor": "#CCCCCC",
+      "borderRadius": "6px"
+    },
+    "buttonPrimary": {
+      "background": "#09090B",
+      "textColor": "#FFFFFF",
+      "borderRadius": "8px",
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklch(0 0 0 / 0.04) 0px -1.5px 0px 0px inset"
+    },
+    "buttonSecondary": {
+      "background": "#E4E4E7",
+      "textColor": "#09090B",
+      "borderRadius": "8px",
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px"
+    }
+  },
+  "images": {
+    "logo": "File saved at: attached_assets/logo.svg",
+    "favicon": "File saved at: attached_assets/favicon.ico",
+    "ogImage": "File saved at: attached_assets/ogImage.png"
+  },
+  "__framework_hints": [],
+  "__llm_logo_reasoning": {
+    "selectedIndex": 0,
+    "reasoning": "Logo #0 is the only one that visually represents the brand name 'AI Agents for Customer Service' and is located in the header, linking to the homepage, making it the most suitable choice.",
+    "confidence": 0.9
+  },
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": 2,
+      "text": "Build your agent",
+      "reasoning": "Button #2 has a dark background color (#09090B) with white text, making it stand out as a vibrant and action-oriented call-to-action. The text 'Build your agent' is clear and indicative of a primary action."
+    },
+    "secondary": {
+      "index": 0,
+      "text": "Contact",
+      "reasoning": "Button #0 has a light blue background (#E4E4E7) and is less prominent compared to Button #2. It serves as a secondary action with the text 'Contact', which is less urgent than the primary action."
+    },
+    "confidence": 0.95
+  },
+  "personality": {
+    "tone": "modern",
+    "energy": "medium",
+    "targetAudience": "businesses looking for AI solutions in customer service"
+  },
+  "designSystem": {
+    "framework": "tailwind",
+    "componentLibrary": null
+  },
+  "confidence": {
+    "buttons": 0.95,
+    "colors": 0.9,
+    "overall": 0.925
+  }
+}

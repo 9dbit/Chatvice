@@ -1,0 +1,307 @@
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useToast } from "@/hooks/use-toast";
+import { Bot, Plus, Edit, Trash2, Sparkles, Crown, ArrowUpRight } from "lucide-react";
+import { Link } from "wouter";
+import type { Agent, Merchant } from "@shared/schema";
+import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
+
+const agentSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  description: z.string().optional(),
+});
+
+type AgentFormData = z.infer<typeof agentSchema>;
+
+export default function AgentsPage() {
+  const merchantId = localStorage.getItem("merchantId") || "";
+  const { toast } = useToast();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
+
+  const { data: merchant } = useQuery<Merchant>({
+    queryKey: ["/api/merchant", merchantId],
+    enabled: !!merchantId,
+  });
+
+  const { data: agents, isLoading } = useQuery<Agent[]>({
+    queryKey: ["/api/agents"],
+  });
+
+  const plan = merchant ? subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.starter : subscriptionPlans.starter;
+  const agentLimit = plan.agentsLimit;
+  const currentCount = agents?.length || 0;
+  const canAddMore = currentCount < agentLimit;
+
+  const form = useForm<AgentFormData>({
+    resolver: zodResolver(agentSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: AgentFormData) => {
+      return apiRequest("POST", "/api/agents", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      setIsDialogOpen(false);
+      form.reset();
+      toast({
+        title: "Agent created",
+        description: "Your new AI agent has been created successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to create agent",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Agent> }) => {
+      return apiRequest("PUT", `/api/agents/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      setEditingAgent(null);
+      toast({
+        title: "Agent updated",
+        description: "Your agent has been updated successfully.",
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/agents/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      toast({
+        title: "Agent deleted",
+        description: "The agent has been removed.",
+      });
+    },
+  });
+
+  const onSubmit = (data: AgentFormData) => {
+    if (editingAgent) {
+      updateMutation.mutate({ id: editingAgent.id, data });
+    } else {
+      createMutation.mutate(data);
+    }
+  };
+
+  const handleEdit = (agent: Agent) => {
+    setEditingAgent(agent);
+    form.setValue("name", agent.name);
+    form.setValue("description", agent.description || "");
+    setIsDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    setEditingAgent(null);
+    form.reset();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-48 w-full" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">AI Agents</h1>
+          <p className="text-muted-foreground">
+            Manage your AI agents. Each agent can be trained with different knowledge bases.
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+          <Badge variant="secondary" className="px-3 py-1">
+            {currentCount} / {agentLimit} Agents
+          </Badge>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button disabled={!canAddMore} data-testid="button-new-agent">
+                <Plus className="w-4 h-4 mr-2" />
+                New AI Agent
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{editingAgent ? "Edit Agent" : "Create New Agent"}</DialogTitle>
+                <DialogDescription>
+                  {editingAgent ? "Update your agent settings." : "Create a new AI agent for your chatbot."}
+                </DialogDescription>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Agent Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Support Agent" data-testid="input-agent-name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description (Optional)</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Describe what this agent specializes in..."
+                            data-testid="input-agent-description"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={handleCloseDialog}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+                      {createMutation.isPending || updateMutation.isPending ? "Saving..." : editingAgent ? "Update" : "Create"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      {!canAddMore && (
+        <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
+          <CardContent className="flex items-center justify-between p-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
+                <Crown className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Upgrade to add more agents</h3>
+                <p className="text-sm text-muted-foreground">
+                  You've reached your plan limit of {agentLimit} agent{agentLimit !== 1 ? "s" : ""}. Upgrade to Pro or Enterprise for more.
+                </p>
+              </div>
+            </div>
+            <Link href="/dashboard/plans">
+              <Button data-testid="button-upgrade-agents">
+                Upgrade Plan
+                <ArrowUpRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {agents && agents.length > 0 ? (
+          agents.map((agent) => (
+            <Card key={agent.id} className="hover-elevate transition-all" data-testid={`agent-card-${agent.id}`}>
+              <CardHeader className="flex flex-row items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
+                    <Bot className="w-6 h-6 text-primary-foreground" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">{agent.name}</CardTitle>
+                    <div className="flex items-center gap-2 mt-1">
+                      {agent.isActive ? (
+                        <Badge variant="default" className="text-xs">Active</Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <Switch
+                  checked={agent.isActive ?? false}
+                  onCheckedChange={(checked) => updateMutation.mutate({ id: agent.id, data: { isActive: checked } })}
+                  data-testid={`switch-agent-${agent.id}`}
+                />
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {agent.description || "No description provided."}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={() => handleEdit(agent)} data-testid={`button-edit-agent-${agent.id}`}>
+                    <Edit className="w-4 h-4 mr-1" />
+                    Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => deleteMutation.mutate(agent.id)}
+                    data-testid={`button-delete-agent-${agent.id}`}
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Delete
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <Card className="col-span-full">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                <Sparkles className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <h3 className="font-semibold mb-2">No agents yet</h3>
+              <p className="text-sm text-muted-foreground text-center max-w-sm">
+                Create your first AI agent to start automating customer support.
+              </p>
+              <Button className="mt-4" onClick={() => setIsDialogOpen(true)} data-testid="button-create-first-agent">
+                <Plus className="w-4 h-4 mr-2" />
+                Create First Agent
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}

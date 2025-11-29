@@ -11,6 +11,9 @@ import SupervisorsPage from "./supervisors";
 import SettingsPage from "./settings";
 import PlansPage from "./billing";
 import BillingDetailsPage from "./billing-details";
+import AgentsPage from "./agents";
+import SourcesPage from "./sources";
+import AnalyticsPage from "./analytics";
 
 export default function DashboardLayout() {
   const [location] = useLocation();
@@ -37,6 +40,9 @@ export default function DashboardLayout() {
           <main className="flex-1 overflow-auto p-6 bg-background">
             <Switch>
               <Route path="/dashboard" component={DashboardOverview} />
+              <Route path="/dashboard/agents" component={AgentsPage} />
+              <Route path="/dashboard/sources" component={SourcesPage} />
+              <Route path="/dashboard/analytics" component={AnalyticsPage} />
               <Route path="/dashboard/sessions" component={SessionsPage} />
               <Route path="/dashboard/knowledge" component={KnowledgePage} />
               <Route path="/dashboard/triggers" component={TriggersPage} />
