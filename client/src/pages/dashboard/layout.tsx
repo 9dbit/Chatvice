@@ -2,6 +2,7 @@ import { Route, Switch, useLocation, Redirect } from "wouter";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { AIHelpBubble } from "@/components/ai-help-bubble";
 import DashboardOverview from "./overview";
 import SessionsPage from "./sessions";
 import KnowledgePage from "./knowledge";
@@ -53,6 +54,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/settings" component={SettingsPage} />
             </Switch>
           </main>
+          <AIHelpBubble />
         </div>
       </div>
     </SidebarProvider>

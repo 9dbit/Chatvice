@@ -912,6 +912,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return res.status(404).json({ error: "Session not found" });
       }
       
+      const supervisor = await storage.getSupervisor(supervisorId);
+      const supervisorName = supervisor?.name || "Support Agent";
+      
       const updated = await storage.updateSession(sessionId, {
         mode: "HUMAN",
         supervisorId,
@@ -920,10 +923,17 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return res.status(404).json({ error: "Session not found" });
       }
       
+      const joinMessage = `Supervisor ${supervisorName} has joined the conversation and will be assisting you shortly.`;
+      
       await storage.createMessage({
         sessionId,
         from: "system",
-        content: "A support agent has joined the conversation and will be assisting you shortly.",
+        content: joinMessage,
+      });
+      
+      broadcastToSession(sessionId, {
+        type: "message",
+        message: { from: "system", content: joinMessage },
       });
       
       res.json({ success: true });
@@ -1023,6 +1033,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return res.status(403).json({ error: "Forbidden" });
       }
       
+      const merchant = await storage.getMerchant(merchantId);
+      const agentName = merchant?.companyName || "Support Agent";
+      
       const updated = await storage.updateSession(sessionId, {
         mode: "HUMAN",
         supervisorId: merchantId,
@@ -1031,15 +1044,17 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return res.status(404).json({ error: "Session not found" });
       }
       
+      const joinMessage = `Supervisor ${agentName} has joined the conversation and will be assisting you shortly.`;
+      
       await storage.createMessage({
         sessionId,
         from: "system",
-        content: "A support agent has joined the conversation and will be assisting you shortly.",
+        content: joinMessage,
       });
       
       broadcastToSession(sessionId, {
         type: "message",
-        message: { from: "system", content: "A support agent has joined the conversation and will be assisting you shortly." },
+        message: { from: "system", content: joinMessage },
       });
       
       res.json({ success: true });
@@ -1392,9 +1407,11 @@ Jeany AI is an AI-powered customer service chatbot platform that helps businesse
 - Multiple AI agents (based on plan)
 
 Plans:
-- Starter: $29/month - 500 conversations, 1 agent, 1 supervisor
-- Pro: $79/month - 5,000 conversations, 2 agents, 5 supervisors, advanced analytics
-- Enterprise: Custom pricing - Unlimited conversations, 5 agents, dedicated support
+- Free: $0/month - 50 conversations, 1 agent, 1 team member
+- Starter: $29/month - 500 conversations, 1 agent, 2 team members
+- Pro: $79/month - 5,000 conversations, 3 agents, 5 team members, advanced analytics
+- Enterprise: $299/month - 50,000 conversations, 10 agents, unlimited team members
+- Custom: Contact sales - Unlimited everything, white-label solution
 
 All plans include a 7-day free trial. No credit card required to start.
 `;
@@ -1418,6 +1435,70 @@ Be helpful, friendly, and concise. If asked about something not related to Jeany
       res.json({ answer: response.choices[0].message.content || "I'm here to help! Ask me about how Jeany AI can transform your customer service." });
     } catch (error) {
       res.json({ answer: "Hi! I'm Jeany AI. I help businesses automate customer support with intelligent AI responses. Would you like to learn about our plans or features?" });
+    }
+  });
+
+  app.post("/api/help/ask", requireMerchant, async (req, res) => {
+    try {
+      const { question } = req.body;
+      
+      const dashboardGuide = `
+You are Jeany AI Guide, helping merchants use the Jeany AI dashboard. Here's what you know about the platform:
+
+DASHBOARD SECTIONS:
+1. Overview - Real-time analytics showing active sessions, message counts, AI resolution rate, and daily trends
+2. Agents - Manage AI agents (plan limits: Free/Starter: 1, Pro: 3, Enterprise: 10, Custom: unlimited)
+3. Sources - Add knowledge sources: text snippets, files (doc/txt/pdf), or website links
+4. Analytics - View chat topics, keyword rankings, response times (Pro/Enterprise only)
+5. Chat Sessions - Monitor all customer conversations, view transcripts, export history
+6. Knowledge Base - Edit AI training content, crawl websites for FAQs
+7. Triggers - Set keywords that escalate to human agents (e.g., "refund", "speak to manager")
+8. Widget - Customize chat widget appearance, get embed code, configure allowed domains
+9. Supervisors - Add team members who can handle escalated conversations
+10. Plans - View subscription plans, upgrade options
+11. Billing - Manage payment details, view invoices
+12. Settings - Account settings, profile, preferences
+
+HOW TO SET UP:
+1. Add knowledge sources in Sources menu
+2. Create AI agents in Agents menu
+3. Customize your widget in Widget menu
+4. Add triggers for escalation keywords
+5. Copy embed code and add to your website
+
+SUBSCRIPTION PLANS:
+- Free: 50 conversations/month, 1 agent, basic features
+- Starter ($29/mo): 500 conversations, 1 agent, email support
+- Pro ($79/mo): 5,000 conversations, 3 agents, analytics, custom domain
+- Enterprise ($299/mo): 50,000 conversations, 10 agents, dedicated support
+- Custom: Contact sales for unlimited features
+
+TIPS:
+- Train your AI with quality knowledge sources for better responses
+- Use triggers strategically to catch important customer issues
+- Review analytics to identify common questions and improve responses
+- Test your widget before going live
+`;
+      
+      const response = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: [
+          {
+            role: "system",
+            content: `${dashboardGuide}
+
+You are friendly, helpful, and concise. Guide merchants on how to use Jeany AI dashboard features. If they ask about something unrelated, gently redirect them to dashboard features.`
+          },
+          { role: "user", content: question }
+        ],
+        max_tokens: 400,
+        temperature: 0.7,
+      });
+      
+      res.json({ answer: response.choices[0].message.content || "I'm here to help you with the Jeany AI dashboard! What would you like to know?" });
+    } catch (error) {
+      console.error("Help ask error:", error);
+      res.json({ answer: "I apologize, but I'm having trouble responding right now. Please try again later or contact support at support@jeany.ai." });
     }
   });
 
