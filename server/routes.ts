@@ -857,6 +857,122 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  app.post("/api/supervisor/return-to-bot", requireSupervisor, async (req, res) => {
+    try {
+      const { sessionId, supervisorId } = req.body;
+      
+      if (req.session.userId !== supervisorId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      const session = await storage.getSession(sessionId);
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      
+      const updated = await storage.updateSession(sessionId, {
+        mode: "AI",
+        supervisorId: null,
+      });
+      if (!updated) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      
+      await storage.createMessage({
+        sessionId,
+        from: "system",
+        content: "The conversation has been returned to the AI assistant. How may I help you?",
+      });
+      
+      broadcastToSession(sessionId, {
+        type: "message",
+        message: { from: "system", content: "The conversation has been returned to the AI assistant. How may I help you?" },
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/session/return-to-bot", requireMerchant, async (req, res) => {
+    try {
+      const { sessionId } = req.body;
+      const merchantId = req.session.merchantId!;
+      
+      const session = await storage.getSession(sessionId);
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      
+      if (session.merchantId !== merchantId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      const updated = await storage.updateSession(sessionId, {
+        mode: "AI",
+        supervisorId: null,
+      });
+      if (!updated) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      
+      await storage.createMessage({
+        sessionId,
+        from: "system",
+        content: "The conversation has been returned to the AI assistant. How may I help you?",
+      });
+      
+      broadcastToSession(sessionId, {
+        type: "message",
+        message: { from: "system", content: "The conversation has been returned to the AI assistant. How may I help you?" },
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/session/takeover", requireMerchant, async (req, res) => {
+    try {
+      const { sessionId } = req.body;
+      const merchantId = req.session.merchantId!;
+      
+      const session = await storage.getSession(sessionId);
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      
+      if (session.merchantId !== merchantId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      const updated = await storage.updateSession(sessionId, {
+        mode: "HUMAN",
+        supervisorId: merchantId,
+      });
+      if (!updated) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      
+      await storage.createMessage({
+        sessionId,
+        from: "system",
+        content: "A support agent has joined the conversation and will be assisting you shortly.",
+      });
+      
+      broadcastToSession(sessionId, {
+        type: "message",
+        message: { from: "system", content: "A support agent has joined the conversation and will be assisting you shortly." },
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/stats/:merchantId", requireAuth, async (req, res) => {
     try {
       if (req.session.userType === "merchant" && req.session.merchantId !== req.params.merchantId) {

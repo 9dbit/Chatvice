@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageSquare, Bot, HeadphonesIcon, Send, Search, User, Download, Users } from "lucide-react";
+import { MessageSquare, Bot, HeadphonesIcon, Send, Search, User, Download, Users, Hand, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Session, Message, Supervisor } from "@shared/schema";
 
@@ -47,6 +47,48 @@ export default function SessionsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/messages", selectedSession] });
       setNewMessage("");
+    },
+  });
+
+  const takeoverMutation = useMutation({
+    mutationFn: async (sessionId: string) => {
+      return apiRequest("POST", "/api/session/takeover", { sessionId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sessions", merchantId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/messages", selectedSession] });
+      toast({
+        title: "Session taken over",
+        description: "You are now handling this conversation.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to take over",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const returnToBotMutation = useMutation({
+    mutationFn: async (sessionId: string) => {
+      return apiRequest("POST", "/api/session/return-to-bot", { sessionId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sessions", merchantId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/messages", selectedSession] });
+      toast({
+        title: "Returned to AI",
+        description: "The conversation is now being handled by the AI assistant.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to return to bot",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -226,6 +268,28 @@ export default function SessionsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    {selectedSessionData?.mode === "AI" ? (
+                      <Button
+                        size="sm"
+                        onClick={() => takeoverMutation.mutate(selectedSession)}
+                        disabled={takeoverMutation.isPending}
+                        data-testid="button-takeover-session"
+                      >
+                        <Hand className="w-4 h-4 mr-1" />
+                        Take Over
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => returnToBotMutation.mutate(selectedSession)}
+                        disabled={returnToBotMutation.isPending}
+                        data-testid="button-return-to-bot"
+                      >
+                        <ArrowLeft className="w-4 h-4 mr-1" />
+                        Return to Bot
+                      </Button>
+                    )}
                     <Button
                       size="icon"
                       variant="ghost"

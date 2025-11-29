@@ -43,10 +43,11 @@ export default function SupervisorsPage() {
 
   const addSupervisorMutation = useMutation({
     mutationFn: async (data: AddSupervisorData) => {
-      return apiRequest("POST", "/api/supervisors/add", {
+      const response = await apiRequest("POST", "/api/supervisors/add", {
         merchantId,
         ...data,
       });
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/supervisors", merchantId] });
@@ -57,10 +58,16 @@ export default function SupervisorsPage() {
         description: "They can now log in to handle escalated chats.",
       });
     },
-    onError: () => {
+    onError: (error: Error) => {
+      const errorMessage = error.message || "Something went wrong";
+      const isDuplicate = errorMessage.toLowerCase().includes("already registered") || 
+                          errorMessage.toLowerCase().includes("email already");
+      
       toast({
-        title: "Failed to add supervisor",
-        description: "Something went wrong. Please try again.",
+        title: isDuplicate ? "Email already exists" : "Failed to add supervisor",
+        description: isDuplicate 
+          ? "This email address has already been registered. Please use a different email."
+          : "Something went wrong. Please try again.",
         variant: "destructive",
       });
     },

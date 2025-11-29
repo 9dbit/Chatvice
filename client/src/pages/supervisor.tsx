@@ -34,6 +34,7 @@ import {
   Hand,
   Volume2,
   VolumeX,
+  ArrowLeft,
 } from "lucide-react";
 import type { Session, Message, Notification } from "@shared/schema";
 
@@ -131,6 +132,23 @@ export default function SupervisorPanel() {
       toast({
         title: "Session taken over",
         description: "You are now handling this conversation. The customer has been notified.",
+      });
+    },
+  });
+
+  const returnToBotMutation = useMutation({
+    mutationFn: async (sessionId: string) => {
+      return apiRequest("POST", "/api/supervisor/return-to-bot", {
+        sessionId,
+        supervisorId: merchantId,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/supervisor/sessions", merchantId] });
+      setSelectedSession(null);
+      toast({
+        title: "Returned to AI",
+        description: "The conversation is now being handled by the AI assistant.",
       });
     },
   });
@@ -357,10 +375,22 @@ export default function SupervisorPanel() {
                       </p>
                     </div>
                   </div>
-                  <Badge variant="default">
-                    <HeadphonesIcon className="w-3 h-3 mr-1" />
-                    You're handling this
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => returnToBotMutation.mutate(selectedSession)}
+                      disabled={returnToBotMutation.isPending}
+                      data-testid="button-return-to-bot"
+                    >
+                      <ArrowLeft className="w-4 h-4 mr-1" />
+                      Return to Bot
+                    </Button>
+                    <Badge variant="default">
+                      <HeadphonesIcon className="w-3 h-3 mr-1" />
+                      You're handling this
+                    </Badge>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">

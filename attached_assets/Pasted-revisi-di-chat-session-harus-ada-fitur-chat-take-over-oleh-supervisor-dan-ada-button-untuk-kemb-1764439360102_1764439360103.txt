@@ -1,0 +1,54 @@
+revisi:
+
+di chat session harus ada fitur chat take over oleh supervisor, dan ada button untuk kembalikan lagi kepada chat bot
+Knowledge base harus tersimpan dalam database per user login account, jangan sampai hilang
+Pada bar sebelah kiri bawah (di atas online status) berikan info jumlah kredit yang sudah dipakai dan sisa kredit, dan masa berlaku
+Buatkan menu "sources" yang berisi source knowledge dengan beberapa alternatif: files (doc/txt/sheet/image), text snippet, website link (crawl links, sitemap, individual link dan berikan check box list sources mana saja yang mau di aktifkan, berikan info jumlah result sources nya (pro plan, CTA biutton upgrade jika belum pro subscribtion)
+berikan tambahan halaman analytics, analisa chat topics, berikan 20 different chat topics, 100 popular keywords, what answer they need, time and chat duration average, respond time speed human & chat bot
+pada menu setting terdapat drop down menu: general, security chat limit setting, limit total messages every 300 second, show message when limit is hit : Too many messages in a row
+setting custom domain option (name server info, domain checking button, connect button, etc
+sebelum memulai chat, customer harus isi form: nama, email, phone number, tampilkan nama customer pada chat session, tampilkan chat log history (automatic end session after 2 minutes no respond with custom greetings setting) & active chat (still active within 2 minutes from last chat)
+Tampilkan preview Pertanyaan dan jawaban pada masing masing chat log active & history, tampilkan juga kapan lst chat di history masing masing chat
+berikan tombol revise answer pada history chat untuk memperbaiki knowledge dan harus di pelajari sebagai improvement
+Berikan option progress bar seberapa baku (paling kiri) dan kreatif (paling kanan) value 1-10
+berikan fitur suggested messages pada chat widget, tampilkan berupa pertanyaan template, bisa + add suggested message, dan berikan field knowledge cara jawab nya, max 5 suggest
+agent customization bukan pro feature, buat general saja
+pilihan theme light or dark pada widget setting, pilihan left or right alignment bubble button
+pelajari : Widget setup
+Paste this code on your site (e.g., www.chatbase.co) to install the chat widget and enable AI-powered support.
+copy cript: <script>
+(function(){if(!window.chatbase||window.chatbase("getState")!=="initialized"){window.chatbase=(...arguments)=>{if(!window.chatbase.q){window.chatbase.q=[]}window.chatbase.q.push(arguments)};window.chatbase=new Proxy(window.chatbase,{get(target,prop){if(prop==="q"){return target.q}return(...args)=>target(prop,...args)}})}const onLoad=function(){const script=document.createElement("script");script.src="https://www.chatbase.co/embed.min.js";script.id="n4i64Y5XYz7Va1YF0NZbj";script.domain="www.chatbase.co";document.body.appendChild(script)};if(document.readyState==="complete"){onLoad()}else{window.addEventListener("load",onLoad)}})(); </script>
+Identity verification*
+Secure your AI Agent by generating an JWT for each logged-in user and sending it to Chatbase. This enables secure identity verification for your AI Agent with various actions.
+Read more in the Identity Verification Docs.
+•••••••••6ipd
+Keep your secret key safe! Never commit it directly to your repository, client-side code, or anywhere a third party can find it.
+
+copy code: // --- SERVER CODE ---
+const jwt = require('jsonwebtoken');
+const secret = process.env.CHATBOT_IDENTITY_SECRET; // Your chatbase secret key (should be stored as a secret not in the code)
+
+const user = await getSignedInUser(); // Get the current user signed in to your site
+
+const token = jwt.sign(
+{
+user_id: user.id, // Your user's id
+email: user.email, // User's email
+stripe_accounts: user.stripe_accounts, // User's stripe accounts for stripe integration
+// ... other custom attributes
+},
+secret,
+{ expiresIn: '1h' }
+);
+
+// --- CLIENT CODE ---
+const token = await getUserToken(); // Get the token from your server
+window.chatbase('identify', { token }); // identify the user with Chatbase
+
+berikan ai agent juga sebagai guide yang menguasai semua knowledge jeany ai ini, bubble chat letakkan pada sebelah kanan bawah halaman
+ganti meu billing menjadi plans
+tambahkan menu billing dengan informasi billing details, billing email (email used for invoices), tax id, billing method (existing & nanother option) & billing history
+buatkan menu Agents, karena dalam pilihan Plans terdapat perbedaan list services,: starter hanya 1 agent, Pro Plan 2 Agents, Enterprise plan 5 Agents & custom plan dengan contact sales, berikan button + New AI Agent
+Redesign Landing page seperti Chatbase.co dengan semua graphic style dan konten di dalam nya, berikan dummy logo logo untuk Trusted by....
+berikan juga fitur interaktif try conversation pada landing page
+aktifkan semua halaman pada landing page

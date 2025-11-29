@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Palette, Save, Copy, Check, Bot, Code, Moon, Sun, AlignLeft, AlignRight, Loader2, Camera } from "lucide-react";
+import { Palette, Save, Copy, Check, Bot, Code, Moon, Sun, AlignLeft, AlignRight, Loader2, Camera, RefreshCw, X, Send, Paperclip, Smile, ImageIcon } from "lucide-react";
 import type { Merchant } from "@shared/schema";
 
 export default function WidgetPage() {
@@ -346,7 +346,7 @@ export default function WidgetPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="relative bg-muted/30 rounded-lg h-[400px] flex items-end justify-end p-4">
+              <div className="relative bg-muted/30 rounded-lg h-[500px] flex items-end justify-end p-4">
                 <div className="absolute top-4 left-4 right-4 h-8 bg-muted rounded flex items-center px-3">
                   <div className="flex gap-1.5">
                     <div className="w-2.5 h-2.5 rounded-full bg-destructive/50" />
@@ -384,47 +384,135 @@ export default function WidgetPage() {
                   />
                 </div>
 
-                <div className={`absolute bottom-20 ${config.bubblePosition === "left" ? "left-4" : "right-4"} w-[280px] bg-card rounded-xl shadow-xl overflow-hidden border border-card-border`}>
+                <div 
+                  className={`absolute bottom-20 ${config.bubblePosition === "left" ? "left-4" : "right-4"} w-[300px] rounded-xl shadow-xl overflow-hidden border`}
+                  style={{
+                    backgroundColor: config.widgetTheme === "dark" ? "#1a1a2e" : "#ffffff",
+                    borderColor: config.widgetTheme === "dark" ? "#2d2d44" : "#e5e7eb",
+                  }}
+                >
                   <div
-                    className="p-3 flex items-center gap-2"
+                    className="p-3 flex items-center justify-between"
                     style={{ backgroundColor: config.primaryColor }}
                   >
-                    {config.agentPhotoUrl ? (
-                      <img
-                        src={config.agentPhotoUrl}
-                        alt={config.agentName}
-                        className="w-8 h-8 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                        <Bot className="w-4 h-4 text-white" />
+                    <div className="flex items-center gap-2">
+                      {config.agentPhotoUrl ? (
+                        <img
+                          src={config.agentPhotoUrl}
+                          alt={config.agentName}
+                          className="w-9 h-9 rounded-full object-cover border-2 border-white/30"
+                        />
+                      ) : (
+                        <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center border-2 border-white/30">
+                          <Bot className="w-5 h-5 text-white" />
+                        </div>
+                      )}
+                      <div className="text-white">
+                        <p className="text-sm font-semibold">{config.agentName}</p>
+                        <div className="flex items-center gap-1">
+                          <div className={`w-2 h-2 rounded-full ${config.online ? "bg-green-400" : "bg-gray-400"}`} />
+                          <p className="text-xs opacity-90">{config.online ? "Online" : "Offline"}</p>
+                        </div>
                       </div>
-                    )}
-                    <div className="text-white">
-                      <p className="text-sm font-medium">{config.agentName}</p>
-                      <p className="text-xs opacity-80">Always here to help</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button className="p-1.5 hover:bg-white/20 rounded-full transition-colors">
+                        <RefreshCw className="w-4 h-4 text-white" />
+                      </button>
+                      <button className="p-1.5 hover:bg-white/20 rounded-full transition-colors">
+                        <X className="w-4 h-4 text-white" />
+                      </button>
                     </div>
                   </div>
-                  <div className="p-3">
+                  
+                  <div 
+                    className="p-3 min-h-[150px]"
+                    style={{
+                      backgroundColor: config.widgetTheme === "dark" ? "#1a1a2e" : "#ffffff",
+                    }}
+                  >
                     <div className="flex gap-2">
                       {config.agentPhotoUrl ? (
                         <img
                           src={config.agentPhotoUrl}
                           alt={config.agentName}
-                          className="w-6 h-6 rounded-full object-cover shrink-0"
+                          className="w-7 h-7 rounded-full object-cover shrink-0"
                         />
                       ) : (
                         <div
-                          className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+                          className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
                           style={{ backgroundColor: `${config.primaryColor}20` }}
                         >
-                          <Bot className="w-3 h-3" style={{ color: config.primaryColor }} />
+                          <Bot className="w-4 h-4" style={{ color: config.primaryColor }} />
                         </div>
                       )}
-                      <div className="bg-muted rounded-lg rounded-bl-sm p-2 text-xs">
+                      <div 
+                        className="rounded-lg rounded-tl-sm p-2.5 text-xs max-w-[200px]"
+                        style={{
+                          backgroundColor: config.widgetTheme === "dark" ? "#2d2d44" : "#f3f4f6",
+                          color: config.widgetTheme === "dark" ? "#e5e7eb" : "#374151",
+                        }}
+                      >
                         {config.welcomeMessage}
                       </div>
                     </div>
+                  </div>
+
+                  <div 
+                    className="p-2 border-t flex items-center gap-2"
+                    style={{
+                      backgroundColor: config.widgetTheme === "dark" ? "#1a1a2e" : "#ffffff",
+                      borderColor: config.widgetTheme === "dark" ? "#2d2d44" : "#e5e7eb",
+                    }}
+                  >
+                    <button 
+                      className="p-1.5 rounded-full transition-colors"
+                      style={{ color: config.widgetTheme === "dark" ? "#9ca3af" : "#6b7280" }}
+                    >
+                      <Paperclip className="w-4 h-4" />
+                    </button>
+                    <button 
+                      className="p-1.5 rounded-full transition-colors"
+                      style={{ color: config.widgetTheme === "dark" ? "#9ca3af" : "#6b7280" }}
+                    >
+                      <ImageIcon className="w-4 h-4" />
+                    </button>
+                    <button 
+                      className="p-1.5 rounded-full transition-colors"
+                      style={{ color: config.widgetTheme === "dark" ? "#9ca3af" : "#6b7280" }}
+                    >
+                      <Smile className="w-4 h-4" />
+                    </button>
+                    <div 
+                      className="flex-1 text-xs px-3 py-2 rounded-full"
+                      style={{
+                        backgroundColor: config.widgetTheme === "dark" ? "#2d2d44" : "#f3f4f6",
+                        color: config.widgetTheme === "dark" ? "#9ca3af" : "#9ca3af",
+                      }}
+                    >
+                      Type a message...
+                    </div>
+                    <button 
+                      className="p-2 rounded-full"
+                      style={{ backgroundColor: config.primaryColor }}
+                    >
+                      <Send className="w-4 h-4 text-white" />
+                    </button>
+                  </div>
+
+                  <div 
+                    className="py-1.5 text-center border-t"
+                    style={{
+                      backgroundColor: config.widgetTheme === "dark" ? "#151524" : "#f9fafb",
+                      borderColor: config.widgetTheme === "dark" ? "#2d2d44" : "#e5e7eb",
+                    }}
+                  >
+                    <span 
+                      className="text-[10px]"
+                      style={{ color: config.widgetTheme === "dark" ? "#6b7280" : "#9ca3af" }}
+                    >
+                      Powered by <span className="font-medium" style={{ color: config.primaryColor }}>Jeany AI</span>
+                    </span>
                   </div>
                 </div>
               </div>

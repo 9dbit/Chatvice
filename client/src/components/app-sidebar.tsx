@@ -22,12 +22,16 @@ import {
   LogOut,
   Users,
   CreditCard,
+  Coins,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+
+import { Receipt } from "lucide-react";
 
 const menuItems = [
   { title: "Overview", url: "/dashboard", icon: LayoutDashboard },
@@ -36,9 +40,21 @@ const menuItems = [
   { title: "Triggers", url: "/dashboard/triggers", icon: Zap },
   { title: "Widget", url: "/dashboard/widget", icon: Palette },
   { title: "Supervisors", url: "/dashboard/supervisors", icon: Users },
-  { title: "Billing", url: "/dashboard/billing", icon: CreditCard },
+  { title: "Plans", url: "/dashboard/plans", icon: CreditCard },
+  { title: "Billing", url: "/dashboard/billing", icon: Receipt },
   { title: "Settings", url: "/dashboard/settings", icon: Settings },
 ];
+
+interface BillingStatus {
+  status: string;
+  planId: string;
+  planName: string;
+  conversationsUsed: number;
+  conversationsLimit: number;
+  trialEndsAt: string | null;
+  currentPeriodEnd: string | null;
+  isTrialExpired: boolean;
+}
 
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
@@ -47,6 +63,11 @@ export function AppSidebar() {
 
   const { data: merchant } = useQuery<{ online?: boolean; companyName?: string }>({
     queryKey: ["/api/merchant", merchantId],
+    enabled: !!merchantId,
+  });
+
+  const { data: billingStatus } = useQuery<BillingStatus>({
+    queryKey: ["/api/billing/status"],
     enabled: !!merchantId,
   });
 
@@ -120,7 +141,43 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="p-4 space-y-4">
+      <SidebarFooter className="p-4 space-y-3">
+        {billingStatus && (
+          <div className="p-3 rounded-lg bg-muted/50 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-medium">
+              <Coins className="w-3.5 h-3.5 text-primary" />
+              <span>Usage & Plan</span>
+            </div>
+            <div className="text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Credits Used</span>
+                <span className="font-medium">{billingStatus.conversationsUsed} / {billingStatus.conversationsLimit === -1 ? "∞" : billingStatus.conversationsLimit}</span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-1.5">
+                <div 
+                  className="bg-primary h-1.5 rounded-full transition-all"
+                  style={{ 
+                    width: billingStatus.conversationsLimit === -1 
+                      ? "10%" 
+                      : `${Math.min((billingStatus.conversationsUsed / billingStatus.conversationsLimit) * 100, 100)}%` 
+                  }}
+                />
+              </div>
+              {billingStatus.status === "trial" && billingStatus.trialEndsAt && (
+                <div className="flex justify-between pt-1">
+                  <span className="text-muted-foreground">Trial Ends</span>
+                  <span className="font-medium">{new Date(billingStatus.trialEndsAt).toLocaleDateString()}</span>
+                </div>
+              )}
+              {billingStatus.status === "active" && billingStatus.currentPeriodEnd && (
+                <div className="flex justify-between pt-1">
+                  <span className="text-muted-foreground">Renews</span>
+                  <span className="font-medium">{new Date(billingStatus.currentPeriodEnd).toLocaleDateString()}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${online ? "bg-status-online" : "bg-status-offline"}`} />
