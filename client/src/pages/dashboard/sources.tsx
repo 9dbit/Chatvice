@@ -47,8 +47,11 @@ export default function SourcesPage() {
     queryKey: ["/api/sources"],
   });
 
-  const plan = merchant ? subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.starter : subscriptionPlans.starter;
-  const isPro = plan.id === "pro" || plan.id === "enterprise";
+  const plan = merchant ? subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free : subscriptionPlans.free;
+  const isPro = plan.id === "pro" || plan.id === "enterprise" || plan.id === "custom";
+  const sourcesLimit = (plan as any).sourcesLimit || 1;
+  const currentSourceCount = sources?.length || 0;
+  const canAddMoreSources = sourcesLimit === -1 || currentSourceCount < sourcesLimit;
 
   const form = useForm<SourceFormData>({
     resolver: zodResolver(sourceSchema),

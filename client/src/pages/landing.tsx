@@ -590,17 +590,32 @@ function BenefitsSection() {
 function PricingSection() {
   const plans = [
     {
+      name: "Free",
+      price: "$0",
+      period: "/month",
+      description: "Get started with basic AI support",
+      features: [
+        "50 AI conversations/month",
+        "1 AI Agent",
+        "1 Team member",
+        "Basic widget",
+        "Community support",
+      ],
+      cta: "Get Started Free",
+      popular: false,
+    },
+    {
       name: "Starter",
       price: "$29",
       period: "/month",
-      description: "Perfect for small businesses just getting started",
+      description: "Perfect for small businesses",
       features: [
         "500 AI conversations/month",
         "1 AI Agent",
-        "1 Team member",
-        "Basic analytics",
-        "Email support",
+        "2 Team members",
         "Widget customization",
+        "Email support",
+        "Basic analytics",
       ],
       cta: "Start Free Trial",
       popular: false,
@@ -609,39 +624,38 @@ function PricingSection() {
       name: "Pro",
       price: "$79",
       period: "/month",
-      description: "For growing businesses with higher volume",
+      description: "For growing businesses",
       features: [
         "5,000 AI conversations/month",
-        "2 AI Agents",
+        "3 AI Agents",
         "5 Team members",
         "Advanced analytics",
         "Priority support",
         "Custom triggers",
         "Knowledge base",
         "API access",
-        "Sources management",
         "Custom domain",
+        "Identity verification",
       ],
       cta: "Start Free Trial",
       popular: true,
     },
     {
       name: "Enterprise",
-      price: "Custom",
-      period: "",
-      description: "For large organizations with custom needs",
+      price: "$299",
+      period: "/month",
+      description: "For large organizations",
       features: [
-        "Unlimited conversations",
-        "5 AI Agents (customizable)",
+        "50,000 AI conversations/month",
+        "10 AI Agents",
         "Unlimited team members",
         "Custom integrations",
         "Dedicated support",
         "SLA guarantee",
-        "On-premise option",
         "White-label solution",
-        "Custom analytics",
+        "Advanced security",
       ],
-      cta: "Contact Sales",
+      cta: "Start Free Trial",
       popular: false,
     },
   ];
@@ -658,11 +672,11 @@ function PricingSection() {
             Start free, upgrade as you grow. No hidden fees.
           </p>
         </div>
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {plans.map((plan, index) => (
             <Card
               key={index}
-              className={`relative ${plan.popular ? "border-foreground shadow-xl scale-105" : ""}`}
+              className={`relative ${plan.popular ? "border-foreground shadow-xl lg:scale-105 z-10" : ""}`}
             >
               {plan.popular && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">

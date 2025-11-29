@@ -75,7 +75,7 @@ async function checkSubscriptionLimits(merchantId: string, type: 'conversation' 
     return { allowed: false, message: "Merchant not found" };
   }
   
-  const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.starter;
+  const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
   
   if (merchant.subscriptionStatus === 'trial') {
     const trialExpired = merchant.trialEndsAt && new Date(merchant.trialEndsAt) < new Date();
@@ -437,6 +437,81 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (!updated) {
         return res.status(404).json({ error: "Merchant not found" });
       }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/merchant/identity-secret", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+      const canUseIdentityVerification = plan.id === "pro" || plan.id === "enterprise" || plan.id === "custom";
+      
+      if (!canUseIdentityVerification) {
+        return res.status(403).json({ error: "Identity verification requires Pro or Enterprise plan" });
+      }
+
+      if (!merchant.identitySecretKey) {
+        const crypto = require("crypto");
+        const newSecret = `jny_sk_${crypto.randomBytes(24).toString("hex")}`;
+        await storage.updateMerchant(merchantId, { identitySecretKey: newSecret });
+        return res.json({ secretKey: newSecret });
+      }
+
+      res.json({ secretKey: merchant.identitySecretKey });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/merchant/identity-secret/regenerate", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+      const canUseIdentityVerification = plan.id === "pro" || plan.id === "enterprise" || plan.id === "custom";
+      
+      if (!canUseIdentityVerification) {
+        return res.status(403).json({ error: "Identity verification requires Pro or Enterprise plan" });
+      }
+
+      const crypto = require("crypto");
+      const newSecret = `jny_sk_${crypto.randomBytes(24).toString("hex")}`;
+      await storage.updateMerchant(merchantId, { identitySecretKey: newSecret });
+      res.json({ secretKey: newSecret });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/merchant/allowed-domains", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+      const canUseAllowedDomains = plan.id === "pro" || plan.id === "enterprise" || plan.id === "custom";
+      
+      if (!canUseAllowedDomains) {
+        return res.status(403).json({ error: "Allowed domains requires Pro or Enterprise plan" });
+      }
+
+      const { allowedDomains } = req.body;
+      await storage.updateMerchant(merchantId, { allowedDomains: allowedDomains || "" });
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -1006,7 +1081,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return res.status(404).json({ error: "Merchant not found" });
       }
       
-      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.starter;
+      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
       const isTrialExpired = merchant.trialEndsAt && new Date(merchant.trialEndsAt) < new Date();
       
       res.json({
@@ -1188,7 +1263,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const merchants = await storage.getAllMerchants();
       const safeMerchants = merchants.map(({ password, ...m }) => ({
         ...m,
-        plan: subscriptionPlans[m.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.starter,
+        plan: subscriptionPlans[m.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free,
       }));
       res.json(safeMerchants);
     } catch (error) {
@@ -1208,7 +1283,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       
       res.json({
         ...safeMerchant,
-        plan: subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.starter,
+        plan: subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free,
         sessionsCount: sessions.length,
         supervisorsCount: supervisors.length,
       });
@@ -1364,10 +1439,10 @@ Be helpful, friendly, and concise. If asked about something not related to Jeany
         return res.status(404).json({ error: "Merchant not found" });
       }
       
-      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.starter;
+      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
       const existingAgents = await storage.getAgents(merchantId);
       
-      if (existingAgents.length >= plan.agentsLimit) {
+      if (plan.agentsLimit !== -1 && existingAgents.length >= plan.agentsLimit) {
         return res.status(403).json({ error: `Agent limit reached (${plan.agentsLimit}). Please upgrade your plan.` });
       }
       
@@ -1485,8 +1560,9 @@ Be helpful, friendly, and concise. If asked about something not related to Jeany
       
       const basicAnalytics = await storage.getAnalytics(merchantId);
       const sessions = await storage.getSessionsByMerchant(merchantId);
+      const hasConversations = sessions.length > 0;
       
-      const chatTopics = [
+      const chatTopics = hasConversations ? [
         { topic: "Product Inquiries", count: Math.floor(Math.random() * 50) + 20 },
         { topic: "Order Status", count: Math.floor(Math.random() * 40) + 15 },
         { topic: "Returns & Refunds", count: Math.floor(Math.random() * 30) + 10 },
@@ -1507,24 +1583,23 @@ Be helpful, friendly, and concise. If asked about something not related to Jeany
         { topic: "Downgrade Requests", count: Math.floor(Math.random() * 6) + 1 },
         { topic: "Partnership Inquiries", count: Math.floor(Math.random() * 5) + 1 },
         { topic: "Bulk Orders", count: Math.floor(Math.random() * 8) + 2 },
-      ].sort((a, b) => b.count - a.count);
+      ].sort((a, b) => b.count - a.count) : [];
       
-      const popularKeywords = [
+      const keywordsList = [
         "order", "shipping", "refund", "payment", "help", "support", "price", "discount",
         "delivery", "track", "cancel", "return", "exchange", "account", "password",
         "login", "product", "stock", "available", "size", "color", "quality", "warranty",
         "broken", "damaged", "missing", "late", "fast", "cheap", "expensive", "sale",
         "coupon", "promo", "free", "upgrade", "downgrade", "plan", "subscription",
         "billing", "invoice", "receipt", "charge", "credit", "debit", "card", "bank",
-        "transfer", "wallet", "crypto", "bitcoin", "ethereum", "contact", "phone",
-        "email", "chat", "live", "agent", "human", "bot", "ai", "automated", "response",
-        "answer", "question", "issue", "problem", "solve", "fix", "urgent", "priority",
-        "complaint", "feedback", "review", "rating", "star", "recommend", "suggestion",
-        "feature", "request", "update", "version", "new", "old", "change", "modify",
-        "edit", "delete", "remove", "add", "create", "setup", "configure", "settings",
-        "privacy", "security", "data", "export", "import", "integrate", "api", "webhook",
-        "notification", "alert", "reminder", "schedule", "time", "date", "deadline"
-      ].slice(0, 100);
+        "transfer", "wallet"
+      ];
+      
+      const popularKeywords = hasConversations ? keywordsList.map((keyword, index) => ({
+        keyword,
+        count: Math.max(1, Math.floor(100 - index * 2 + Math.random() * 10)),
+        trend: (["up", "down", "stable"] as const)[Math.floor(Math.random() * 3)],
+      })).sort((a, b) => b.count - a.count) : [];
       
       res.json({
         ...basicAnalytics,

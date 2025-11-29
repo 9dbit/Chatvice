@@ -18,10 +18,17 @@ import {
   ArrowUpRight,
   Sparkles,
   Search,
+  Lock,
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
 import type { Merchant } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
+
+interface KeywordData {
+  keyword: string;
+  count: number;
+  trend: "up" | "down" | "stable";
+}
 
 interface DetailedAnalytics {
   totalSessions: number;
@@ -34,7 +41,7 @@ interface DetailedAnalytics {
   dailyMessageCounts: { date: string; count: number }[];
   avgResponseTime: number;
   chatTopics: { topic: string; count: number }[];
-  popularKeywords: string[];
+  popularKeywords: KeywordData[];
   avgChatDuration: string;
   avgResponseTimeAI: string;
   avgResponseTimeHuman: string;
@@ -57,8 +64,9 @@ export default function AnalyticsPage() {
     refetchInterval: 30000,
   });
 
-  const plan = merchant ? subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.starter : subscriptionPlans.starter;
-  const isPro = plan.id === "pro" || plan.id === "enterprise";
+  const plan = merchant ? subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free : subscriptionPlans.free;
+  const canViewChatTopics = plan.id === "pro" || plan.id === "enterprise" || plan.id === "custom";
+  const hasConversations = (analytics?.totalSessions || 0) > 0;
 
   if (isLoading) {
     return (
@@ -110,6 +118,9 @@ export default function AnalyticsPage() {
     { name: "Human Handled", value: analytics?.humanSessions || 0 },
   ];
 
+  const keywordsWithPopularity: KeywordData[] = analytics?.popularKeywords || [];
+  const maxKeywordCount = Math.max(...keywordsWithPopularity.map(k => k.count), 1);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -119,44 +130,20 @@ export default function AnalyticsPage() {
             Monitor your chatbot performance and customer insights.
           </p>
         </div>
-        {!isPro && (
+        {!canViewChatTopics && (
           <Link href="/dashboard/plans">
             <Button data-testid="button-upgrade-analytics">
               <Crown className="w-4 h-4 mr-2" />
-              Upgrade for Full Analytics
+              Upgrade for Chat Topics
             </Button>
           </Link>
         )}
       </div>
 
-      {!isPro && (
-        <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
-          <CardContent className="flex items-center justify-between p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Unlock Advanced Analytics</h3>
-                <p className="text-sm text-muted-foreground">
-                  Get detailed chat topics, keywords analysis, response time metrics, and more with Pro or Enterprise.
-                </p>
-              </div>
-            </div>
-            <Link href="/dashboard/plans">
-              <Button data-testid="button-upgrade-analytics-banner">
-                Upgrade Now
-                <ArrowUpRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      )}
-
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {statsCards.map((stat, index) => (
           <Card key={index} data-testid={`stat-card-${index}`}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 {stat.title}
               </CardTitle>
@@ -241,54 +228,131 @@ export default function AnalyticsPage() {
 
       <Tabs defaultValue="topics">
         <TabsList>
-          <TabsTrigger value="topics">Chat Topics</TabsTrigger>
+          <TabsTrigger value="topics" className="flex items-center gap-2">
+            Chat Topics
+            {!canViewChatTopics && <Lock className="w-3 h-3" />}
+          </TabsTrigger>
           <TabsTrigger value="keywords">Popular Keywords</TabsTrigger>
           <TabsTrigger value="performance">Response Times</TabsTrigger>
         </TabsList>
 
         <TabsContent value="topics" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Top 20 Chat Topics</CardTitle>
-              <CardDescription>Most frequently discussed topics by customers</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 md:grid-cols-2">
-                {(analytics?.chatTopics || []).slice(0, 20).map((topic, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-muted-foreground w-6">
-                        {index + 1}.
-                      </span>
-                      <span className="font-medium">{topic.topic}</span>
+          {!canViewChatTopics ? (
+            <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mb-4">
+                  <Lock className="w-8 h-8 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">Chat Topics Analytics</h3>
+                <p className="text-muted-foreground text-center max-w-md mb-6">
+                  Unlock detailed chat topic analysis to understand what your customers are asking about. Available on Pro and Enterprise plans.
+                </p>
+                <Link href="/dashboard/plans">
+                  <Button data-testid="button-upgrade-topics">
+                    <Crown className="w-4 h-4 mr-2" />
+                    Upgrade to Pro
+                    <ArrowUpRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          ) : !hasConversations ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                  <MessageSquare className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <h3 className="font-semibold mb-2">No conversations yet</h3>
+                <p className="text-sm text-muted-foreground text-center max-w-sm">
+                  Chat topics will appear here once customers start conversations with your AI agent.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Top 20 Chat Topics</CardTitle>
+                <CardDescription>Most frequently discussed topics by customers</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {(analytics?.chatTopics || []).slice(0, 20).map((topic, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-medium text-muted-foreground w-6">
+                          {index + 1}.
+                        </span>
+                        <span className="font-medium">{topic.topic}</span>
+                      </div>
+                      <Badge variant="secondary">{topic.count}</Badge>
                     </div>
-                    <Badge variant="secondary">{topic.count}</Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="keywords" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>100 Popular Keywords</CardTitle>
-              <CardDescription>Most frequently used words in customer conversations</CardDescription>
+              <CardTitle>Popular Keywords with Popularity Ranking</CardTitle>
+              <CardDescription>Most frequently used words in customer conversations with popularity level</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {(analytics?.popularKeywords || []).slice(0, 100).map((keyword, index) => (
-                  <Badge
-                    key={index}
-                    variant="outline"
-                    className="hover-elevate cursor-default"
-                    data-testid={`keyword-${index}`}
-                  >
-                    {keyword}
-                  </Badge>
-                ))}
-              </div>
+              {keywordsWithPopularity.length > 0 ? (
+                <div className="space-y-3">
+                  {keywordsWithPopularity.slice(0, 50).map((keywordData, index) => {
+                    const popularityPercent = (keywordData.count / maxKeywordCount) * 100;
+                    return (
+                      <div
+                        key={index}
+                        className="flex items-center gap-4 p-3 rounded-lg bg-muted/30 hover-elevate"
+                        data-testid={`keyword-row-${index}`}
+                      >
+                        <span className="text-sm font-medium text-muted-foreground w-8">
+                          #{index + 1}
+                        </span>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-medium">{keywordData.keyword}</span>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">
+                                {keywordData.count} mentions
+                              </Badge>
+                              {keywordData.trend === "up" && (
+                                <TrendingUp className="w-3 h-3 text-green-500" />
+                              )}
+                              {keywordData.trend === "down" && (
+                                <TrendingUp className="w-3 h-3 text-red-500 rotate-180" />
+                              )}
+                            </div>
+                          </div>
+                          <div className="relative h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="absolute top-0 left-0 h-full rounded-full transition-all duration-500"
+                              style={{
+                                width: `${popularityPercent}%`,
+                                background: `linear-gradient(90deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.6) 100%)`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                    <Search className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="font-semibold mb-2">No keywords yet</h3>
+                  <p className="text-sm text-muted-foreground text-center max-w-sm">
+                    Keywords will appear here once customers start conversations with your AI agent.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

@@ -41,10 +41,10 @@ export default function AgentsPage() {
     queryKey: ["/api/agents"],
   });
 
-  const plan = merchant ? subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.starter : subscriptionPlans.starter;
+  const plan = merchant ? subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free : subscriptionPlans.free;
   const agentLimit = plan.agentsLimit;
   const currentCount = agents?.length || 0;
-  const canAddMore = currentCount < agentLimit;
+  const canAddMore = agentLimit === -1 || currentCount < agentLimit;
 
   const form = useForm<AgentFormData>({
     resolver: zodResolver(agentSchema),
@@ -148,7 +148,7 @@ export default function AgentsPage() {
         </div>
         <div className="flex items-center gap-4">
           <Badge variant="secondary" className="px-3 py-1">
-            {currentCount} / {agentLimit} Agents
+            {currentCount} / {agentLimit === -1 ? "Unlimited" : agentLimit} Agents
           </Badge>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>

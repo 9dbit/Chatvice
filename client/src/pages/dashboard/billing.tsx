@@ -17,7 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { CreditCard, Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Settings, Lock, Loader2, CheckCircle2 } from "lucide-react";
+import { CreditCard, Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Settings, Lock, Loader2, CheckCircle2, Sparkles, Gift, Building2 } from "lucide-react";
 import { format } from "date-fns";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 
@@ -347,15 +347,29 @@ export default function BillingPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {plans.map((plan) => {
             const isCurrent = billingStatus?.planId === plan.id;
             const isPopular = plan.id === 'pro';
+            const isFree = plan.id === 'free';
+            const isCustom = plan.id === 'custom';
+            const isEnterprise = plan.id === 'enterprise';
+            
+            const getPlanIcon = () => {
+              switch (plan.id) {
+                case 'free': return <Gift className="w-5 h-5 text-gray-500" />;
+                case 'starter': return <Zap className="w-5 h-5 text-blue-500" />;
+                case 'pro': return <Crown className="w-5 h-5 text-purple-500" />;
+                case 'enterprise': return <Building2 className="w-5 h-5 text-orange-500" />;
+                case 'custom': return <Sparkles className="w-5 h-5 text-pink-500" />;
+                default: return null;
+              }
+            };
             
             return (
               <Card 
                 key={plan.id} 
-                className={`relative ${isPopular ? 'border-primary shadow-lg' : ''}`}
+                className={`relative flex flex-col ${isPopular ? 'border-primary shadow-lg' : ''} ${isFree ? 'bg-muted/30' : ''}`}
                 data-testid={`card-plan-${plan.id}`}
               >
                 {isPopular && (
@@ -363,57 +377,92 @@ export default function BillingPage() {
                     Most Popular
                   </Badge>
                 )}
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    {plan.id === 'starter' && <Zap className="w-5 h-5 text-blue-500" />}
-                    {plan.id === 'pro' && <Crown className="w-5 h-5 text-purple-500" />}
-                    {plan.id === 'enterprise' && <Users className="w-5 h-5 text-orange-500" />}
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    {getPlanIcon()}
                     {plan.name}
                   </CardTitle>
-                  <CardDescription>{plan.description}</CardDescription>
+                  <CardDescription className="text-xs">{plan.description}</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 flex-1">
                   <div>
-                    {plan.name === 'Enterprise' ? (
-                      <span className="text-3xl font-bold">Custom</span>
+                    {isCustom ? (
+                      <span className="text-2xl font-bold">Contact Us</span>
+                    ) : isFree ? (
+                      <span className="text-2xl font-bold">$0</span>
                     ) : (
                       <>
-                        <span className="text-3xl font-bold">
+                        <span className="text-2xl font-bold">
                           ${isAnnual ? plan.annualMonthlyDisplay : plan.monthlyDisplay}
                         </span>
-                        <span className="text-muted-foreground">/month</span>
-                        {isAnnual && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Billed annually (${plan.annualPrice * 12}/year)
+                        <span className="text-muted-foreground text-sm">/mo</span>
+                        {isAnnual && plan.monthlyPrice > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            ${plan.annualPrice * 12}/yr
                           </p>
                         )}
                       </>
                     )}
                   </div>
                   
-                  <ul className="space-y-2">
-                    {plan.features.map((feature, index) => (
-                      <li key={index} className="flex items-start gap-2 text-sm">
-                        <Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+                  <ul className="space-y-1.5">
+                    {plan.features.slice(0, 6).map((feature, index) => (
+                      <li key={index} className="flex items-start gap-1.5 text-xs">
+                        <Check className="w-3 h-3 text-green-500 shrink-0 mt-0.5" />
                         <span>{feature}</span>
                       </li>
                     ))}
+                    {plan.features.length > 6 && (
+                      <li className="text-xs text-muted-foreground pl-4">
+                        +{plan.features.length - 6} more features
+                      </li>
+                    )}
                   </ul>
+
+                  {(plan as any).restrictions && (plan as any).restrictions.length > 0 && (
+                    <div className="pt-2 border-t">
+                      <ul className="space-y-1">
+                        {((plan as any).restrictions as string[]).map((restriction: string, index: number) => (
+                          <li key={index} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                            <Lock className="w-3 h-3 shrink-0 mt-0.5" />
+                            <span>{restriction}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </CardContent>
-                <CardFooter>
-                  {plan.id === 'enterprise' ? (
-                    <Button variant="outline" className="w-full" data-testid="button-contact-sales">
+                <CardFooter className="pt-2">
+                  {isCustom ? (
+                    <Button variant="outline" className="w-full" size="sm" data-testid="button-contact-sales-custom">
                       Contact Sales
-                      <ArrowUpRight className="w-4 h-4 ml-2" />
+                      <ArrowUpRight className="w-3 h-3 ml-1" />
+                    </Button>
+                  ) : isEnterprise ? (
+                    <Button variant="outline" className="w-full" size="sm" data-testid="button-contact-sales">
+                      Contact Sales
+                      <ArrowUpRight className="w-3 h-3 ml-1" />
                     </Button>
                   ) : isCurrent ? (
-                    <Button variant="outline" disabled className="w-full" data-testid={`button-current-plan-${plan.id}`}>
+                    <Button variant="outline" disabled className="w-full" size="sm" data-testid={`button-current-plan-${plan.id}`}>
                       Current Plan
+                    </Button>
+                  ) : isFree ? (
+                    <Button 
+                      variant="outline" 
+                      className="w-full" 
+                      size="sm"
+                      onClick={() => handleUpgrade(plan.id)}
+                      disabled={checkoutMutation.isPending}
+                      data-testid={`button-select-${plan.id}`}
+                    >
+                      Get Started
                     </Button>
                   ) : (
                     <Button 
                       className="w-full" 
                       variant={isPopular ? 'default' : 'outline'}
+                      size="sm"
                       onClick={() => handleUpgrade(plan.id)}
                       disabled={checkoutMutation.isPending}
                       data-testid={`button-upgrade-${plan.id}`}
