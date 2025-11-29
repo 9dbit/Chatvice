@@ -50,11 +50,12 @@ Preferred communication style: Simple, everyday language.
 - `/shared` - Shared TypeScript types and Zod schemas
 - `/attached_assets` - Planning documents and design notes
 
-**Multi-Panel Design**: Three distinct user interfaces within one application
-1. **Landing Page** (`/`) - Public marketing site with features, pricing, and registration
-2. **Merchant Dashboard** (`/dashboard/*`) - Administrative panel for merchants to configure chatbot, view sessions, manage knowledge base, triggers, and supervisors
-3. **Supervisor Panel** (`/supervisor`) - Real-time interface for supervisors to handle escalated customer conversations
-4. **Chat Widget** (`/widget/:merchantId`) - Embeddable customer-facing chat interface
+**Multi-Panel Design**: Five distinct user interfaces within one application
+1. **Landing Page** (`/`) - Public marketing site with features, pricing, hero background image with dark wash overlay
+2. **Merchant Dashboard** (`/dashboard/*`) - Administrative panel for merchants to configure chatbot, view sessions, manage knowledge base, triggers, supervisors, and subscription billing
+3. **Supervisor Panel** (`/supervisor`) - Real-time interface for supervisors to handle escalated customer conversations with confirmation dialogs
+4. **Chat Widget** (`/widget/:merchantId`) - Embeddable customer-facing chat interface with merchant branding
+5. **Admin Master Panel** (`/admin/*`) - System administration for managing all merchants (credentials: admin@jeany.ai / admin123)
 
 **Authentication & Authorization**:
 - User types: Merchants and Supervisors
@@ -104,6 +105,16 @@ Preferred communication style: Simple, everyday language.
 8. **Notifications** - Alerts for supervisors about escalated sessions
    - Linked to specific sessions
    - Read/unread tracking
+
+9. **Subscription Plans** - Tiered pricing for merchants
+   - Starter, Professional, Enterprise tiers with different limits
+   - Monthly and annual billing options (16% discount for annual)
+   - 7-day free trial for all plans
+
+10. **Merchant Subscriptions** - Subscription tracking
+    - Links merchants to their active subscription plan
+    - Stripe subscription and customer IDs
+    - Status tracking (trial, active, canceled, past_due)
 
 ### AI Integration
 
@@ -173,6 +184,9 @@ Preferred communication style: Simple, everyday language.
 - Web Crawler: Extract FAQs from merchant websites with SSRF protections
 - Multi-Language: Automatic language detection and response in customer's language
 - Transcript Export: Download chat transcripts as text files
+- Live Widget Preview: Interactive testing of AI responses on knowledge base page with typing indicator
+- Profile Settings: Photo upload (base64, 2MB limit), theme customization, company info management
+- Subscription Billing: Stripe checkout, plan management, 7-day trial, 16% annual discount
 
 **Design Philosophy**:
 - Information density prioritized over white space
