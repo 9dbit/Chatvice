@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, Redirect } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -26,13 +26,46 @@ import {
   MessageSquare,
   Send,
   Bell,
+  BellRing,
   User,
   LogOut,
   AlertTriangle,
   CheckCircle,
   Hand,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import type { Session, Message, Notification } from "@shared/schema";
+
+function playAlertSound() {
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    
+    const createBellTone = (startTime: number, freq: number, duration: number) => {
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(freq, startTime);
+      
+      gainNode.gain.setValueAtTime(0.3, startTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.start(startTime);
+      oscillator.stop(startTime + duration);
+    };
+    
+    const now = audioContext.currentTime;
+    createBellTone(now, 880, 0.15);
+    createBellTone(now + 0.15, 1100, 0.15);
+    createBellTone(now + 0.30, 880, 0.2);
+  } catch (error) {
+    console.log("Could not play alert sound:", error);
+  }
+}
 
 export default function SupervisorPanel() {
   const [, setLocation] = useLocation();
@@ -43,7 +76,11 @@ export default function SupervisorPanel() {
   const [newMessage, setNewMessage] = useState("");
   const [takeoverDialogOpen, setTakeoverDialogOpen] = useState(false);
   const [sessionToTakeover, setSessionToTakeover] = useState<Session | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [isAlertActive, setIsAlertActive] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const previousSessionsRef = useRef<Set<string>>(new Set());
+  const initialLoadRef = useRef(true);
 
   if (!merchantId || userType !== "supervisor") {
     return <Redirect to="/login" />;
@@ -124,6 +161,38 @@ export default function SupervisorPanel() {
     }
   }, [messages]);
 
+  useEffect(() => {
+    if (!escalatedSessions) return;
+    
+    const humanSessions = escalatedSessions.filter((s) => s.mode === "HUMAN");
+    const currentSessionIds = new Set(humanSessions.map((s) => s.id));
+    
+    if (initialLoadRef.current) {
+      previousSessionsRef.current = currentSessionIds;
+      initialLoadRef.current = false;
+      return;
+    }
+    
+    const newSessions = humanSessions.filter((s) => !previousSessionsRef.current.has(s.id));
+    
+    if (newSessions.length > 0 && soundEnabled) {
+      playAlertSound();
+      setIsAlertActive(true);
+      
+      newSessions.forEach((session) => {
+        toast({
+          title: "New escalation alert!",
+          description: `${session.customerName || "A customer"} needs human assistance.`,
+          duration: 10000,
+        });
+      });
+      
+      setTimeout(() => setIsAlertActive(false), 3000);
+    }
+    
+    previousSessionsRef.current = currentSessionIds;
+  }, [escalatedSessions, soundEnabled, toast]);
+
   const handleSendMessage = () => {
     if (newMessage.trim()) {
       sendMessageMutation.mutate(newMessage.trim());
@@ -159,9 +228,22 @@ export default function SupervisorPanel() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button 
+            variant={soundEnabled ? "ghost" : "outline"} 
+            size="icon" 
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            title={soundEnabled ? "Sound alerts on" : "Sound alerts off"}
+            data-testid="button-toggle-sound"
+          >
+            {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+          </Button>
           <div className="relative">
             <Button variant="ghost" size="icon" data-testid="button-notifications">
-              <Bell className="w-5 h-5" />
+              {isAlertActive ? (
+                <BellRing className="w-5 h-5 text-status-away animate-pulse" />
+              ) : (
+                <Bell className="w-5 h-5" />
+              )}
               {unseenNotifications.length > 0 && (
                 <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
                   {unseenNotifications.length}

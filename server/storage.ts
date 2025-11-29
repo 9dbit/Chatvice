@@ -8,7 +8,8 @@ import {
   type KnowledgeChunk, type InsertKnowledgeChunk,
   type Notification, type InsertNotification,
   type Admin, type InsertAdmin,
-  merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins,
+  type CrawledLink, type InsertCrawledLink,
+  merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -63,6 +64,11 @@ export interface IStorage {
   createKnowledgeChunk(chunk: InsertKnowledgeChunk): Promise<KnowledgeChunk>;
   deleteKnowledgeChunks(merchantId: string): Promise<boolean>;
   updateChunkEmbedding(id: string, embedding: string): Promise<boolean>;
+  
+  getCrawledLinks(merchantId: string): Promise<CrawledLink[]>;
+  createCrawledLink(link: InsertCrawledLink): Promise<CrawledLink>;
+  updateCrawledLink(id: string, data: Partial<CrawledLink>): Promise<CrawledLink | undefined>;
+  deleteCrawledLink(id: string): Promise<boolean>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -464,6 +470,40 @@ export class DatabaseStorage implements IStorage {
         conversationsResetAt: new Date(),
       })
       .where(eq(merchants.id, merchantId));
+  }
+
+  async getCrawledLinks(merchantId: string): Promise<CrawledLink[]> {
+    return db.select().from(crawledLinks)
+      .where(eq(crawledLinks.merchantId, merchantId))
+      .orderBy(desc(crawledLinks.crawledAt));
+  }
+
+  async createCrawledLink(data: InsertCrawledLink): Promise<CrawledLink> {
+    const id = generateId("cl_");
+    const result = await db.insert(crawledLinks).values({
+      id,
+      merchantId: data.merchantId,
+      url: data.url,
+      title: data.title || null,
+      status: data.status || "pending",
+      extractedContent: data.extractedContent || null,
+    }).returning();
+    return result[0];
+  }
+
+  async updateCrawledLink(id: string, data: Partial<CrawledLink>): Promise<CrawledLink | undefined> {
+    const result = await db.update(crawledLinks)
+      .set(data)
+      .where(eq(crawledLinks.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteCrawledLink(id: string): Promise<boolean> {
+    const result = await db.delete(crawledLinks)
+      .where(eq(crawledLinks.id, id))
+      .returning();
+    return result.length > 0;
   }
 }
 

@@ -7,9 +7,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Save, Sparkles, FileText, AlertCircle, Globe, Loader2, Plus, Bot, Send, Eye } from "lucide-react";
-import type { Merchant } from "@shared/schema";
+import { Database, Save, Globe, Loader2, Plus, Bot, Send, Trash2, ExternalLink, Check, X, RefreshCw } from "lucide-react";
+import type { Merchant, CrawledLink } from "@shared/schema";
 
 export default function KnowledgePage() {
   const merchantId = localStorage.getItem("merchantId") || "";
@@ -27,6 +28,11 @@ export default function KnowledgePage() {
 
   const { data: merchant } = useQuery<Merchant>({
     queryKey: ["/api/merchant", merchantId],
+    enabled: !!merchantId,
+  });
+
+  const { data: crawledLinks = [], isLoading: linksLoading } = useQuery<CrawledLink[]>({
+    queryKey: ["/api/knowledge/links", merchantId],
     enabled: !!merchantId,
   });
 
@@ -59,22 +65,38 @@ export default function KnowledgePage() {
     },
   });
 
-  const crawlMutation = useMutation<{ content: string }, Error, string>({
+  const crawlMutation = useMutation<{ content: string; linkId: string }, Error, string>({
     mutationFn: async (url: string) => {
-      return apiRequest("POST", "/api/knowledge/crawl", { url }) as Promise<{ content: string }>;
+      const res = await apiRequest("POST", "/api/knowledge/crawl", { url });
+      return res.json() as Promise<{ content: string; linkId: string }>;
     },
     onSuccess: (data) => {
       setExtractedContent(data.content);
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge/links", merchantId] });
       toast({
         title: "Content extracted",
         description: "Review the extracted content and add it to your knowledge base.",
       });
     },
     onError: (error: Error) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge/links", merchantId] });
       toast({
         title: "Extraction failed",
         description: error.message || "Failed to extract content from the URL.",
         variant: "destructive",
+      });
+    },
+  });
+
+  const deleteLinkMutation = useMutation({
+    mutationFn: async (linkId: string) => {
+      return apiRequest("DELETE", `/api/knowledge/links/${linkId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge/links", merchantId] });
+      toast({
+        title: "Link deleted",
+        description: "The crawled link has been removed.",
       });
     },
   });
@@ -108,12 +130,13 @@ export default function KnowledgePage() {
 
   const testMutation = useMutation({
     mutationFn: async (testMessage: string) => {
-      const sessionId = `test_${Date.now()}`;
-      return apiRequest("POST", "/api/chat/ask", {
+      const sessionId = `test_${merchantId}_preview`;
+      const res = await apiRequest("POST", "/api/chat/ask", {
         merchantId,
         sessionId,
         message: testMessage,
-      }) as Promise<{ answer: string; mode: string }>;
+      });
+      return res.json() as Promise<{ answer: string; mode: string }>;
     },
     onSuccess: (data) => {
       setPreviewMessages((prev) => [
@@ -147,47 +170,56 @@ export default function KnowledgePage() {
     setPreviewMessages([]);
   };
 
-  const examples = [
-    {
-      title: "Company Info",
-      example: "Our company, TechStore, was founded in 2020. We specialize in selling electronics and gadgets.",
-    },
-    {
-      title: "Return Policy",
-      example: "We offer a 30-day return policy for all unused items in original packaging. Refunds are processed within 5-7 business days.",
-    },
-    {
-      title: "Contact Info",
-      example: "Customer support hours: Mon-Fri 9AM-6PM. Email: support@example.com, Phone: 1-800-EXAMPLE",
-    },
-  ];
+  const formatDate = (date: Date | null) => {
+    if (!date) return "Unknown";
+    return new Date(date).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Knowledge Base</h1>
-        <p className="text-muted-foreground">
-          Train Jeany AI with your company information, FAQs, and policies.
-        </p>
-      </div>
+    <div className="flex flex-col lg:flex-row gap-6 h-full">
+      {/* Left Column - Knowledge Editor */}
+      <div className="flex-1 space-y-6 min-w-0">
+        <div>
+          <h1 className="text-2xl font-bold">Knowledge Base</h1>
+          <p className="text-muted-foreground">
+            Train Jeany AI with your company information, FAQs, and policies.
+          </p>
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Database className="w-5 h-5 text-primary" />
-              <CardTitle>Knowledge Content</CardTitle>
+        {/* Knowledge Content Editor */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Database className="w-5 h-5 text-primary" />
+                <CardTitle>Knowledge Content</CardTitle>
+              </div>
+              <Button
+                onClick={handleSave}
+                disabled={saveMutation.isPending}
+                data-testid="button-save-knowledge"
+              >
+                {saveMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4 mr-2" />
+                )}
+                Save
+              </Button>
             </div>
             <CardDescription>
               Add information that Jeany AI will use to answer customer questions.
-              Be specific and include common questions and their answers.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent>
             {isLoading ? (
               <Skeleton className="h-64 w-full" />
             ) : (
-              <>
+              <div className="space-y-3">
                 <Textarea
                   placeholder="Enter your knowledge base content here...
 
@@ -198,256 +230,254 @@ Example:
 - Contact support at support@example.com"
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="min-h-[300px] resize-none"
+                  className="min-h-[250px] resize-none"
                   data-testid="textarea-knowledge-content"
                 />
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">
-                    {content.length} characters
-                  </p>
-                  <Button
-                    onClick={handleSave}
-                    disabled={saveMutation.isPending}
-                    data-testid="button-save-knowledge"
-                  >
-                    {saveMutation.isPending ? (
-                      "Saving..."
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4 mr-2" />
-                        Save Knowledge
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </>
+                <p className="text-xs text-muted-foreground">
+                  {content.length} characters
+                </p>
+              </div>
             )}
           </CardContent>
         </Card>
 
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Globe className="w-5 h-5 text-primary" />
-                <CardTitle className="text-lg">Import from Website</CardTitle>
-              </div>
-              <CardDescription>
-                Extract FAQs and policies from your website automatically.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="https://example.com/faq"
-                  value={crawlUrl}
-                  onChange={(e) => setCrawlUrl(e.target.value)}
-                  disabled={crawlMutation.isPending}
-                  data-testid="input-crawl-url"
-                />
+        {/* Import from Website */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Globe className="w-5 h-5 text-primary" />
+              <CardTitle>Import from Website</CardTitle>
+            </div>
+            <CardDescription>
+              Extract FAQs and policies from your website automatically.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="https://example.com/faq"
+                value={crawlUrl}
+                onChange={(e) => setCrawlUrl(e.target.value)}
+                disabled={crawlMutation.isPending}
+                data-testid="input-crawl-url"
+              />
+              <Button
+                onClick={handleCrawl}
+                disabled={crawlMutation.isPending}
+                data-testid="button-extract-content"
+              >
+                {crawlMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  "Extract"
+                )}
+              </Button>
+            </div>
+
+            {extractedContent && (
+              <div className="space-y-3">
+                <div className="max-h-48 overflow-auto p-3 rounded-md bg-muted text-sm">
+                  <pre className="whitespace-pre-wrap font-sans">{extractedContent}</pre>
+                </div>
                 <Button
-                  onClick={handleCrawl}
-                  disabled={crawlMutation.isPending}
+                  onClick={handleAddExtracted}
                   variant="outline"
-                  data-testid="button-extract-content"
+                  className="w-full"
+                  data-testid="button-add-extracted"
                 >
-                  {crawlMutation.isPending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    "Extract"
-                  )}
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add to Knowledge Base
                 </Button>
               </div>
+            )}
+          </CardContent>
+        </Card>
 
-              {extractedContent && (
-                <div className="space-y-3">
-                  <div className="max-h-48 overflow-auto p-3 rounded-md bg-muted text-sm">
-                    <pre className="whitespace-pre-wrap font-sans">{extractedContent}</pre>
-                  </div>
-                  <Button
-                    onClick={handleAddExtracted}
-                    variant="outline"
-                    className="w-full"
-                    data-testid="button-add-extracted"
+        {/* Crawled Links List */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">Link Sources</CardTitle>
+              <Badge variant="secondary">{crawledLinks.length} links</Badge>
+            </div>
+            <CardDescription>
+              Websites that have been crawled for content.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {linksLoading ? (
+              <Skeleton className="h-24 w-full" />
+            ) : crawledLinks.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No websites crawled yet. Use the form above to import content.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {crawledLinks.map((link) => (
+                  <div
+                    key={link.id}
+                    className="flex items-center justify-between p-3 rounded-lg border bg-card hover-elevate"
+                    data-testid={`crawled-link-${link.id}`}
                   >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add to Knowledge Base
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-primary" />
-                <CardTitle className="text-lg">Tips</CardTitle>
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="flex-shrink-0">
+                        {link.status === "completed" ? (
+                          <Check className="w-4 h-4 text-green-500" />
+                        ) : link.status === "failed" ? (
+                          <X className="w-4 h-4 text-red-500" />
+                        ) : (
+                          <RefreshCw className="w-4 h-4 text-muted-foreground animate-spin" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{link.url}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(link.crawledAt)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        asChild
+                      >
+                        <a href={link.url} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteLinkMutation.mutate(link.id)}
+                        disabled={deleteLinkMutation.isPending}
+                        data-testid={`button-delete-link-${link.id}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Right Column - Live Widget Preview */}
+      <div className="w-full lg:w-[380px] lg:flex-shrink-0">
+        <div className="lg:sticky lg:top-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle>Live Preview</CardTitle>
+                {previewMessages.length > 0 && (
+                  <Button variant="ghost" size="sm" onClick={clearPreview} data-testid="button-clear-preview">
+                    Clear
+                  </Button>
+                )}
+              </div>
+              <CardDescription>
+                Test how Jeany AI responds using your knowledge base.
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <ul className="space-y-3 text-sm">
-                <li className="flex gap-2">
-                  <FileText className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-                  <span>Include frequently asked questions and their answers</span>
-                </li>
-                <li className="flex gap-2">
-                  <FileText className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-                  <span>Add product information, pricing, and availability</span>
-                </li>
-                <li className="flex gap-2">
-                  <FileText className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-                  <span>Document company policies (returns, shipping, etc.)</span>
-                </li>
-                <li className="flex gap-2">
-                  <FileText className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-                  <span>Provide contact information and support hours</span>
-                </li>
-              </ul>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Examples</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {examples.map((item, index) => (
-                <div key={index}>
-                  <p className="text-sm font-medium mb-1">{item.title}</p>
-                  <p className="text-xs text-muted-foreground bg-muted p-2 rounded">
-                    {item.example}
-                  </p>
+              <div 
+                className="rounded-2xl border overflow-hidden bg-card shadow-lg"
+                style={{ borderColor: merchant?.primaryColor || "#6b5dfc" }}
+                data-testid="widget-preview-container"
+              >
+                {/* Widget Header */}
+                <div 
+                  className="p-3 flex items-center gap-3"
+                  style={{ backgroundColor: merchant?.primaryColor || "#6b5dfc" }}
+                >
+                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                    {merchant?.iconUrl ? (
+                      <img src={merchant.iconUrl} alt="Bot" className="w-6 h-6 rounded-full object-cover" />
+                    ) : (
+                      <Bot className="w-5 h-5 text-white" />
+                    )}
+                  </div>
+                  <div className="flex-1 text-white">
+                    <p className="font-medium text-sm">{merchant?.companyName || "Jeany AI"}</p>
+                    <p className="text-xs text-white/80">Customer Support</p>
+                  </div>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
 
-          <Card className="border-primary/20 bg-primary/5">
-            <CardContent className="pt-6">
-              <div className="flex gap-3">
-                <AlertCircle className="w-5 h-5 text-primary shrink-0" />
-                <div>
-                  <p className="text-sm font-medium">Pro Tip</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    The more detailed and structured your knowledge base, the better Jeany AI will respond to customer inquiries.
-                  </p>
+                {/* Chat Messages */}
+                <ScrollArea className="h-[320px] p-3 bg-background">
+                  <div className="space-y-3">
+                    {previewMessages.length === 0 && (
+                      <div className="flex gap-2">
+                        <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: merchant?.primaryColor || "#6b5dfc" }}>
+                          <Bot className="w-4 h-4 text-white" />
+                        </div>
+                        <div className="bg-muted rounded-lg p-2 max-w-[80%]">
+                          <p className="text-sm">{merchant?.welcomeMessage || "Hi! How can I help you today?"}</p>
+                        </div>
+                      </div>
+                    )}
+                    {previewMessages.map((msg, index) => (
+                      <div key={index} className={`flex gap-2 ${msg.from === "user" ? "justify-end" : ""}`}>
+                        {msg.from !== "user" && (
+                          <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: merchant?.primaryColor || "#6b5dfc" }}>
+                            <Bot className="w-4 h-4 text-white" />
+                          </div>
+                        )}
+                        <div className={`rounded-lg p-2 max-w-[80%] ${msg.from === "user" ? "text-white" : "bg-muted"}`} style={{ backgroundColor: msg.from === "user" ? (merchant?.primaryColor || "#6b5dfc") : undefined }}>
+                          <p className="text-sm">{msg.content}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {testMutation.isPending && (
+                      <div className="flex gap-2">
+                        <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: merchant?.primaryColor || "#6b5dfc" }}>
+                          <Bot className="w-4 h-4 text-white" />
+                        </div>
+                        <div className="bg-muted rounded-lg p-2">
+                          <div className="flex gap-1">
+                            <span className="w-2 h-2 rounded-full bg-foreground/30 animate-bounce" style={{ animationDelay: "0ms" }} />
+                            <span className="w-2 h-2 rounded-full bg-foreground/30 animate-bounce" style={{ animationDelay: "150ms" }} />
+                            <span className="w-2 h-2 rounded-full bg-foreground/30 animate-bounce" style={{ animationDelay: "300ms" }} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+
+                {/* Input Area */}
+                <div className="p-3 border-t">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Ask a question..."
+                      value={previewMessage}
+                      onChange={(e) => setPreviewMessage(e.target.value)}
+                      onKeyDown={handleTestKeyPress}
+                      disabled={testMutation.isPending}
+                      className="flex-1"
+                      data-testid="input-preview-message"
+                    />
+                    <Button 
+                      onClick={handleTestSend}
+                      disabled={testMutation.isPending || !previewMessage.trim()}
+                      size="icon"
+                      style={{ backgroundColor: merchant?.primaryColor || "#6b5dfc" }}
+                      data-testid="button-preview-send"
+                    >
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
+              <p className="text-xs text-muted-foreground text-center mt-4">
+                Save your knowledge base changes to test with updated content.
+              </p>
             </CardContent>
           </Card>
         </div>
       </div>
-
-      <Card className="mt-6">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Eye className="w-5 h-5 text-primary" />
-              <CardTitle>Live Widget Preview</CardTitle>
-            </div>
-            {previewMessages.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={clearPreview} data-testid="button-clear-preview">
-                Clear Chat
-              </Button>
-            )}
-          </div>
-          <CardDescription>
-            Test how Jeany AI responds to questions using your current knowledge base.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div 
-            className="mx-auto max-w-sm rounded-2xl border overflow-hidden bg-card shadow-lg"
-            style={{ borderColor: merchant?.primaryColor || "#6b5dfc" }}
-            data-testid="widget-preview-container"
-          >
-            <div 
-              className="p-3 flex items-center gap-3"
-              style={{ backgroundColor: merchant?.primaryColor || "#6b5dfc" }}
-            >
-              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                {merchant?.iconUrl ? (
-                  <img src={merchant.iconUrl} alt="Bot" className="w-6 h-6 rounded-full object-cover" />
-                ) : (
-                  <Bot className="w-5 h-5 text-white" />
-                )}
-              </div>
-              <div className="flex-1 text-white">
-                <p className="font-medium text-sm">{merchant?.companyName || "Jeany AI"}</p>
-                <p className="text-xs text-white/80">Customer Support</p>
-              </div>
-            </div>
-
-            <ScrollArea className="h-[280px] p-3 bg-background">
-              <div className="space-y-3">
-                {previewMessages.length === 0 && (
-                  <div className="flex gap-2">
-                    <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: merchant?.primaryColor || "#6b5dfc" }}>
-                      <Bot className="w-4 h-4 text-white" />
-                    </div>
-                    <div className="bg-muted rounded-lg p-2 max-w-[80%]">
-                      <p className="text-sm">{merchant?.welcomeMessage || "Hi! How can I help you today?"}</p>
-                    </div>
-                  </div>
-                )}
-                {previewMessages.map((msg, index) => (
-                  <div key={index} className={`flex gap-2 ${msg.from === "user" ? "justify-end" : ""}`}>
-                    {msg.from !== "user" && (
-                      <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: merchant?.primaryColor || "#6b5dfc" }}>
-                        <Bot className="w-4 h-4 text-white" />
-                      </div>
-                    )}
-                    <div className={`rounded-lg p-2 max-w-[80%] ${msg.from === "user" ? "text-white" : "bg-muted"}`} style={{ backgroundColor: msg.from === "user" ? (merchant?.primaryColor || "#6b5dfc") : undefined }}>
-                      <p className="text-sm">{msg.content}</p>
-                    </div>
-                  </div>
-                ))}
-                {testMutation.isPending && (
-                  <div className="flex gap-2">
-                    <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: merchant?.primaryColor || "#6b5dfc" }}>
-                      <Bot className="w-4 h-4 text-white" />
-                    </div>
-                    <div className="bg-muted rounded-lg p-2">
-                      <div className="flex gap-1">
-                        <span className="w-2 h-2 rounded-full bg-foreground/30 animate-bounce" style={{ animationDelay: "0ms" }} />
-                        <span className="w-2 h-2 rounded-full bg-foreground/30 animate-bounce" style={{ animationDelay: "150ms" }} />
-                        <span className="w-2 h-2 rounded-full bg-foreground/30 animate-bounce" style={{ animationDelay: "300ms" }} />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </ScrollArea>
-
-            <div className="p-3 border-t">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Ask a question..."
-                  value={previewMessage}
-                  onChange={(e) => setPreviewMessage(e.target.value)}
-                  onKeyDown={handleTestKeyPress}
-                  disabled={testMutation.isPending}
-                  className="flex-1"
-                  data-testid="input-preview-message"
-                />
-                <Button 
-                  onClick={handleTestSend}
-                  disabled={testMutation.isPending || !previewMessage.trim()}
-                  size="icon"
-                  style={{ backgroundColor: merchant?.primaryColor || "#6b5dfc" }}
-                  data-testid="button-preview-send"
-                >
-                  <Send className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground text-center mt-4">
-            This preview uses the current saved knowledge base. Save your changes to test with updated content.
-          </p>
-        </CardContent>
-      </Card>
     </div>
   );
 }

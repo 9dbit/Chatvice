@@ -14,6 +14,8 @@ interface MerchantConfig {
   iconSize: number;
   welcomeMessage: string;
   companyName: string;
+  agentName: string;
+  agentPhotoUrl: string;
 }
 
 interface ChatWidgetProps {
@@ -134,19 +136,25 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         style={{ backgroundColor: primaryColor }}
       >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-            {merchantConfig?.iconUrl ? (
+          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
+            {merchantConfig?.agentPhotoUrl ? (
+              <img
+                src={merchantConfig.agentPhotoUrl}
+                alt="Agent"
+                className="w-full h-full object-cover"
+              />
+            ) : merchantConfig?.iconUrl ? (
               <img
                 src={merchantConfig.iconUrl}
                 alt="Chat"
-                className="w-full h-full object-cover rounded-full"
+                className="w-full h-full object-cover"
               />
             ) : (
               <Bot className="w-5 h-5 text-white" />
             )}
           </div>
           <div className="text-white">
-            <p className="font-medium text-sm">Jeany AI</p>
+            <p className="font-medium text-sm">{merchantConfig?.agentName || "Jeany AI"}</p>
             <div className="flex items-center gap-1">
               <span
                 className={`w-2 h-2 rounded-full ${isOnline ? "bg-status-online" : "bg-status-offline"}`}
@@ -188,11 +196,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             >
               {msg.from !== "user" && (
                 <div
-                  className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+                  className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 overflow-hidden"
                   style={{ backgroundColor: `${primaryColor}20` }}
                 >
                   {msg.from === "supervisor" ? (
                     <HeadphonesIcon className="w-3.5 h-3.5" style={{ color: primaryColor }} />
+                  ) : merchantConfig?.agentPhotoUrl ? (
+                    <img src={merchantConfig.agentPhotoUrl} alt="Agent" className="w-full h-full object-cover" />
                   ) : (
                     <Bot className="w-3.5 h-3.5" style={{ color: primaryColor }} />
                   )}
@@ -218,10 +228,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           {sendMessageMutation.isPending && (
             <div className="flex gap-2 justify-start">
               <div
-                className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+                className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 overflow-hidden"
                 style={{ backgroundColor: `${primaryColor}20` }}
               >
-                <Bot className="w-3.5 h-3.5" style={{ color: primaryColor }} />
+                {merchantConfig?.agentPhotoUrl ? (
+                  <img src={merchantConfig.agentPhotoUrl} alt="Agent" className="w-full h-full object-cover" />
+                ) : (
+                  <Bot className="w-3.5 h-3.5" style={{ color: primaryColor }} />
+                )}
               </div>
               <div className="bg-muted rounded-2xl rounded-bl-sm p-3">
                 <div className="flex gap-1">

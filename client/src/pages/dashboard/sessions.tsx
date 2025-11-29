@@ -7,9 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageSquare, Bot, HeadphonesIcon, Send, Search, User, Download } from "lucide-react";
+import { MessageSquare, Bot, HeadphonesIcon, Send, Search, User, Download, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { Session, Message } from "@shared/schema";
+import type { Session, Message, Supervisor } from "@shared/schema";
 
 export default function SessionsPage() {
   const merchantId = localStorage.getItem("merchantId") || "";
@@ -29,6 +29,11 @@ export default function SessionsPage() {
     queryKey: ["/api/messages", selectedSession],
     enabled: !!selectedSession,
     refetchInterval: 2000,
+  });
+
+  const { data: supervisors } = useQuery<Supervisor[]>({
+    queryKey: ["/api/supervisors", merchantId],
+    enabled: !!merchantId,
   });
 
   const sendMessageMutation = useMutation({
@@ -106,11 +111,27 @@ export default function SessionsPage() {
 
   const selectedSessionData = sessions?.find((s) => s.id === selectedSession);
 
+  const activeSessions = sessions?.filter((s) => s.mode === "HUMAN") || [];
+  const aiSessions = sessions?.filter((s) => s.mode === "AI") || [];
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Chat Sessions</h1>
-        <p className="text-muted-foreground">View and manage customer conversations.</p>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold">Chat Sessions</h1>
+          <p className="text-muted-foreground">View and manage customer conversations.</p>
+        </div>
+        {supervisors && supervisors.length > 0 && (
+          <div className="flex items-center gap-3 px-4 py-2 rounded-lg bg-muted/50 border">
+            <Users className="w-5 h-5 text-primary" />
+            <div>
+              <p className="text-sm font-medium">{supervisors.length} Supervisor{supervisors.length !== 1 ? 's' : ''}</p>
+              <p className="text-xs text-muted-foreground">
+                {activeSessions.length} escalated, {aiSessions.length} AI-handled
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-220px)]">

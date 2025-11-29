@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,8 +8,16 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { CreditCard, Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Settings } from "lucide-react";
+import { CreditCard, Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Settings, Lock, Loader2, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 
@@ -30,6 +38,12 @@ interface BillingStatus {
 export default function BillingPage() {
   const { toast } = useToast();
   const [isAnnual, setIsAnnual] = useState(false);
+  const [demoCheckoutOpen, setDemoCheckoutOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<typeof subscriptionPlans[keyof typeof subscriptionPlans] | null>(null);
+  const [checkoutStep, setCheckoutStep] = useState<'form' | 'processing' | 'success'>('form');
+  const [cardNumber, setCardNumber] = useState('');
+  const [expiry, setExpiry] = useState('');
+  const [cvc, setCvc] = useState('');
   
   const urlParams = new URLSearchParams(window.location.search);
   const success = urlParams.get('success');
@@ -75,11 +89,76 @@ export default function BillingPage() {
     },
   });
 
+  const demoCheckoutMutation = useMutation({
+    mutationFn: async ({ planId, billingInterval }: { planId: string; billingInterval: string }) => {
+      const res = await apiRequest("POST", "/api/billing/demo-checkout", { planId, billingInterval });
+      return res.json();
+    },
+    onSuccess: () => {
+      setCheckoutStep('success');
+      queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
+      setTimeout(() => {
+        setDemoCheckoutOpen(false);
+        setCheckoutStep('form');
+        setCardNumber('');
+        setExpiry('');
+        setCvc('');
+        toast({
+          title: "Subscription activated!",
+          description: "Your demo subscription is now active. In production, this will use real payment processing.",
+        });
+      }, 2000);
+    },
+    onError: (error: Error) => {
+      setCheckoutStep('form');
+      toast({
+        title: "Checkout failed",
+        description: error.message || "Failed to process demo checkout.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleUpgrade = (planId: string) => {
-    checkoutMutation.mutate({ 
-      planId, 
-      billingInterval: isAnnual ? 'annual' : 'monthly' 
-    });
+    const plan = Object.values(subscriptionPlans).find(p => p.id === planId);
+    if (plan) {
+      setSelectedPlan(plan);
+      setDemoCheckoutOpen(true);
+      setCheckoutStep('form');
+    }
+  };
+
+  const handleDemoPayment = () => {
+    if (!selectedPlan) return;
+    if (!cardNumber || !expiry || !cvc) {
+      toast({
+        title: "Missing information",
+        description: "Please fill in all card details.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setCheckoutStep('processing');
+    setTimeout(() => {
+      demoCheckoutMutation.mutate({
+        planId: selectedPlan.id,
+        billingInterval: isAnnual ? 'annual' : 'monthly',
+      });
+    }, 2000);
+  };
+
+  const formatCardNumber = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    const groups = numbers.match(/.{1,4}/g);
+    return groups ? groups.join(' ').slice(0, 19) : '';
+  };
+
+  const formatExpiry = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    if (numbers.length >= 2) {
+      return numbers.slice(0, 2) + '/' + numbers.slice(2, 4);
+    }
+    return numbers;
   };
 
   const handleManageBilling = () => {
@@ -364,6 +443,117 @@ export default function BillingPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={demoCheckoutOpen} onOpenChange={setDemoCheckoutOpen}>
+        <DialogContent className="sm:max-w-md">
+          {checkoutStep === 'form' && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <CreditCard className="w-5 h-5" />
+                  Demo Checkout
+                </DialogTitle>
+                <DialogDescription>
+                  This is a demo payment form. No real charges will be made.
+                </DialogDescription>
+              </DialogHeader>
+              
+              {selectedPlan && (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-lg bg-muted/50 border">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium">{selectedPlan.name} Plan</span>
+                      <Badge variant="secondary">{isAnnual ? 'Annual' : 'Monthly'}</Badge>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-2xl font-bold">
+                        ${isAnnual ? selectedPlan.annualPrice : selectedPlan.monthlyPrice}
+                      </span>
+                      <span className="text-muted-foreground">/{isAnnual ? 'month' : 'month'}</span>
+                    </div>
+                    {isAnnual && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Billed ${selectedPlan.annualPrice * 12}/year (16% discount)
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="card-number" className="text-sm">Card Number</Label>
+                      <Input
+                        id="card-number"
+                        placeholder="4242 4242 4242 4242"
+                        value={cardNumber}
+                        onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+                        maxLength={19}
+                        data-testid="input-card-number"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label htmlFor="expiry" className="text-sm">Expiry</Label>
+                        <Input
+                          id="expiry"
+                          placeholder="MM/YY"
+                          value={expiry}
+                          onChange={(e) => setExpiry(formatExpiry(e.target.value))}
+                          maxLength={5}
+                          data-testid="input-expiry"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="cvc" className="text-sm">CVC</Label>
+                        <Input
+                          id="cvc"
+                          placeholder="123"
+                          value={cvc}
+                          onChange={(e) => setCvc(e.target.value.replace(/\D/g, '').slice(0, 3))}
+                          maxLength={3}
+                          data-testid="input-cvc"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Lock className="w-3 h-3" />
+                    <span>Demo mode - no real payment will be processed</span>
+                  </div>
+
+                  <Button
+                    className="w-full"
+                    onClick={handleDemoPayment}
+                    data-testid="button-demo-pay"
+                  >
+                    Pay ${isAnnual ? selectedPlan.annualPrice * 12 : selectedPlan.monthlyPrice}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+
+          {checkoutStep === 'processing' && (
+            <div className="py-12 text-center space-y-4">
+              <Loader2 className="w-12 h-12 mx-auto animate-spin text-primary" />
+              <div>
+                <p className="font-medium">Processing payment...</p>
+                <p className="text-sm text-muted-foreground">Please wait while we verify your card</p>
+              </div>
+            </div>
+          )}
+
+          {checkoutStep === 'success' && (
+            <div className="py-12 text-center space-y-4">
+              <CheckCircle2 className="w-12 h-12 mx-auto text-green-500" />
+              <div>
+                <p className="font-medium text-green-700">Payment successful!</p>
+                <p className="text-sm text-muted-foreground">Your subscription is now active</p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

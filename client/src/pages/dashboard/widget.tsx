@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,22 +8,29 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Palette, Save, Copy, Check, Bot, Code } from "lucide-react";
+import { Palette, Save, Copy, Check, Bot, Code, Lock, Crown, Camera, Loader2 } from "lucide-react";
+import type { Merchant } from "@shared/schema";
 
 export default function WidgetPage() {
   const merchantId = localStorage.getItem("merchantId") || "";
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [config, setConfig] = useState({
     iconUrl: "",
     iconSize: 70,
     online: true,
     primaryColor: "#6b5dfc",
     welcomeMessage: "Hi! How can I help you today?",
+    agentName: "Jeany AI",
+    agentPhotoUrl: "",
   });
 
-  const { data: merchant, isLoading } = useQuery({
+  const { data: merchant, isLoading } = useQuery<Merchant>({
     queryKey: ["/api/merchant", merchantId],
     enabled: !!merchantId,
   });
@@ -36,9 +43,36 @@ export default function WidgetPage() {
         online: merchant.online ?? true,
         primaryColor: merchant.primaryColor || "#6b5dfc",
         welcomeMessage: merchant.welcomeMessage || "Hi! How can I help you today?",
+        agentName: merchant.agentName || "Jeany AI",
+        agentPhotoUrl: merchant.agentPhotoUrl || "",
       });
     }
   }, [merchant]);
+
+  const isPaidPlan = merchant?.subscriptionPlanId !== 'starter' && 
+                     merchant?.subscriptionStatus === 'active';
+
+  const handleAgentPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please select an image under 2MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsUploading(true);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setConfig({ ...config, agentPhotoUrl: reader.result as string });
+      setIsUploading(false);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -175,6 +209,71 @@ export default function WidgetPage() {
                   />
                 </div>
 
+                <div className="pt-4 border-t">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Crown className="w-4 h-4 text-primary" />
+                      <Label className="text-base font-semibold">Agent Customization</Label>
+                    </div>
+                    {!isPaidPlan && (
+                      <Badge variant="secondary" className="gap-1">
+                        <Lock className="w-3 h-3" />
+                        Pro Feature
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  <div className={`space-y-4 ${!isPaidPlan ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <div className="flex items-center gap-4">
+                      <div className="relative">
+                        <Avatar className="w-16 h-16">
+                          <AvatarImage src={config.agentPhotoUrl} alt={config.agentName} />
+                          <AvatarFallback className="bg-primary/20">
+                            <Bot className="w-6 h-6 text-primary" />
+                          </AvatarFallback>
+                        </Avatar>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isUploading || !isPaidPlan}
+                          data-testid="button-upload-agent-photo"
+                        >
+                          {isUploading ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Camera className="w-3 h-3" />
+                          )}
+                        </Button>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleAgentPhotoUpload}
+                          data-testid="input-agent-photo-file"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <Label className="text-sm">Agent Name</Label>
+                        <Input
+                          value={config.agentName}
+                          onChange={(e) => setConfig({ ...config, agentName: e.target.value })}
+                          placeholder="Jeany AI"
+                          disabled={!isPaidPlan}
+                          data-testid="input-agent-name"
+                        />
+                      </div>
+                    </div>
+                    {!isPaidPlan && (
+                      <p className="text-xs text-muted-foreground">
+                        Upgrade to Pro or Enterprise to customize your AI agent's name and photo.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
                 <Button
                   onClick={() => saveMutation.mutate()}
                   disabled={saveMutation.isPending}
@@ -247,22 +346,38 @@ export default function WidgetPage() {
                     className="p-3 flex items-center gap-2"
                     style={{ backgroundColor: config.primaryColor }}
                   >
-                    <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                      <Bot className="w-4 h-4 text-white" />
-                    </div>
+                    {config.agentPhotoUrl && isPaidPlan ? (
+                      <img
+                        src={config.agentPhotoUrl}
+                        alt={config.agentName}
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                        <Bot className="w-4 h-4 text-white" />
+                      </div>
+                    )}
                     <div className="text-white">
-                      <p className="text-sm font-medium">Jeany AI</p>
+                      <p className="text-sm font-medium">{isPaidPlan && config.agentName ? config.agentName : "Jeany AI"}</p>
                       <p className="text-xs opacity-80">Always here to help</p>
                     </div>
                   </div>
                   <div className="p-3">
                     <div className="flex gap-2">
-                      <div
-                        className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: `${config.primaryColor}20` }}
-                      >
-                        <Bot className="w-3 h-3" style={{ color: config.primaryColor }} />
-                      </div>
+                      {config.agentPhotoUrl && isPaidPlan ? (
+                        <img
+                          src={config.agentPhotoUrl}
+                          alt={config.agentName}
+                          className="w-6 h-6 rounded-full object-cover shrink-0"
+                        />
+                      ) : (
+                        <div
+                          className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: `${config.primaryColor}20` }}
+                        >
+                          <Bot className="w-3 h-3" style={{ color: config.primaryColor }} />
+                        </div>
+                      )}
                       <div className="bg-muted rounded-lg rounded-bl-sm p-2 text-xs">
                         {config.welcomeMessage}
                       </div>

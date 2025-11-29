@@ -13,6 +13,8 @@ export const merchants = pgTable("merchants", {
   primaryColor: text("primary_color").default("#6b5dfc"),
   welcomeMessage: text("welcome_message").default("Hi! How can I help you today?"),
   profilePhotoUrl: text("profile_photo_url").default(""),
+  agentName: text("agent_name").default("Jeany AI"),
+  agentPhotoUrl: text("agent_photo_url").default(""),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
   stripePriceId: text("stripe_price_id"),
@@ -98,6 +100,20 @@ export const insertKnowledgeChunkSchema = createInsertSchema(knowledgeChunks).om
 export type InsertKnowledgeChunk = z.infer<typeof insertKnowledgeChunkSchema>;
 export type KnowledgeChunk = typeof knowledgeChunks.$inferSelect;
 
+export const crawledLinks = pgTable("crawled_links", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  url: text("url").notNull(),
+  title: text("title"),
+  status: text("status").default("pending"),
+  extractedContent: text("extracted_content"),
+  crawledAt: timestamp("crawled_at").defaultNow(),
+});
+
+export const insertCrawledLinkSchema = createInsertSchema(crawledLinks).omit({ id: true, crawledAt: true });
+export type InsertCrawledLink = z.infer<typeof insertCrawledLinkSchema>;
+export type CrawledLink = typeof crawledLinks.$inferSelect;
+
 export const notifications = pgTable("notifications", {
   id: varchar("id", { length: 32 }).primaryKey(),
   supervisorId: varchar("supervisor_id", { length: 32 }).notNull(),
@@ -130,6 +146,8 @@ export const merchantConfigSchema = z.object({
   online: z.boolean().optional(),
   primaryColor: z.string().optional(),
   welcomeMessage: z.string().optional(),
+  agentName: z.string().optional(),
+  agentPhotoUrl: z.string().optional(),
 });
 export type MerchantConfig = z.infer<typeof merchantConfigSchema>;
 

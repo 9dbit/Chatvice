@@ -378,8 +378,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           online: true,
           primaryColor: "#6b5dfc",
           welcomeMessage: "Hi! How can I help you today?",
+          agentName: "Jeany AI",
+          agentPhotoUrl: "",
         });
       }
+      
+      const isPaidPlan = merchant.subscriptionPlanId !== 'starter' && 
+                         merchant.subscriptionStatus === 'active';
+      
       res.json({
         iconUrl: merchant.iconUrl,
         iconSize: merchant.iconSize,
@@ -387,6 +393,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         primaryColor: merchant.primaryColor,
         welcomeMessage: merchant.welcomeMessage,
         companyName: merchant.companyName,
+        agentName: isPaidPlan ? (merchant.agentName || "Jeany AI") : "Jeany AI",
+        agentPhotoUrl: isPaidPlan ? (merchant.agentPhotoUrl || "") : "",
       });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -399,6 +407,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const config = req.body;
       
       const validConfig = merchantConfigSchema.parse(config);
+      
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      const isPaidPlan = merchant.subscriptionPlanId !== 'starter' && 
+                         merchant.subscriptionStatus === 'active';
+      
+      if (!isPaidPlan) {
+        delete validConfig.agentName;
+        delete validConfig.agentPhotoUrl;
+      }
+      
       const updated = await storage.updateMerchant(merchantId, validConfig);
       if (!updated) {
         return res.status(404).json({ error: "Merchant not found" });
@@ -515,7 +537,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
             id: session.id,
             customerName: session.customerName,
             mode: session.mode,
-            createdAt: session.createdAt,
+            lastActivity: session.lastActivity,
           },
           merchant: {
             companyName: merchant?.companyName || 'Unknown',
@@ -534,7 +556,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         transcript += `Customer: ${session.customerName || 'Customer'}\n`;
         transcript += `Session ID: ${session.id}\n`;
         transcript += `Mode: ${session.mode}\n`;
-        transcript += `Date: ${session.createdAt ? new Date(session.createdAt).toLocaleString() : 'Unknown'}\n\n`;
+        transcript += `Date: ${session.lastActivity ? new Date(session.lastActivity).toLocaleString() : 'Unknown'}\n\n`;
         transcript += `${'='.repeat(50)}\n\n`;
         
         for (const msg of messages) {
@@ -597,21 +619,63 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/knowledge/crawl", requireMerchant, async (req, res) => {
     try {
       const { url } = req.body;
+      const merchantId = req.session.merchantId!;
       
       if (!url || typeof url !== "string") {
         return res.status(400).json({ error: "URL is required" });
       }
       
+      const crawledLink = await storage.createCrawledLink({
+        merchantId,
+        url,
+        status: "crawling",
+      });
+      
       const result = await extractFAQContent(url);
       
       if (!result.success) {
+        await storage.updateCrawledLink(crawledLink.id, {
+          status: "failed",
+        });
         return res.status(400).json({ error: result.error });
       }
       
-      res.json({ success: true, content: result.content });
+      const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
+      await storage.updateCrawledLink(crawledLink.id, {
+        status: "completed",
+        title: urlObj.hostname,
+        extractedContent: result.content,
+      });
+      
+      res.json({ success: true, content: result.content, linkId: crawledLink.id });
     } catch (error) {
       console.error("Crawl error:", error);
       res.status(500).json({ error: "Failed to extract content from URL" });
+    }
+  });
+
+  app.get("/api/knowledge/links/:merchantId", requireMerchant, async (req, res) => {
+    try {
+      if (req.session.merchantId !== req.params.merchantId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      const links = await storage.getCrawledLinks(req.params.merchantId);
+      res.json(links);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.delete("/api/knowledge/links/:linkId", requireMerchant, async (req, res) => {
+    try {
+      const deleted = await storage.deleteCrawledLink(req.params.linkId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Link not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
     }
   });
 
@@ -788,7 +852,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return res.status(404).json({ error: "Session not found" });
       }
       
-      await storage.addMessage({
+      await storage.createMessage({
         sessionId,
         from: "system",
         content: "A support agent has joined the conversation and will be assisting you shortly.",
@@ -918,6 +982,35 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (error: any) {
       console.error("Checkout error:", error);
       res.status(500).json({ error: error.message || "Failed to create checkout session" });
+    }
+  });
+
+  app.post("/api/billing/demo-checkout", requireMerchant, async (req, res) => {
+    try {
+      const { planId, billingInterval } = req.body;
+      const merchantId = req.session.merchantId!;
+      
+      const plan = subscriptionPlans[planId as SubscriptionPlanId];
+      if (!plan) {
+        return res.status(400).json({ error: "Invalid plan" });
+      }
+      
+      const periodEnd = billingInterval === 'annual' 
+        ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      
+      await storage.updateMerchantSubscription(merchantId, {
+        subscriptionPlanId: planId,
+        subscriptionStatus: 'active',
+        stripeSubscriptionId: `demo_sub_${Date.now()}`,
+        currentPeriodEnd: periodEnd,
+        billingInterval: billingInterval,
+      });
+      
+      res.json({ success: true, message: "Demo subscription activated" });
+    } catch (error: any) {
+      console.error("Demo checkout error:", error);
+      res.status(500).json({ error: error.message || "Failed to process demo checkout" });
     }
   });
 
