@@ -29,13 +29,14 @@ Preferred communication style: Simple, everyday language.
 **Backend Framework**: Express.js with TypeScript
 - HTTP server for REST API endpoints
 - WebSocket server (ws) for real-time chat communication
-- Session management using express-session
-- In-memory storage implementation (MemStorage class) with interface for future database migration
+- Session management using express-session with MemoryStore
+- PostgreSQL database storage via Drizzle ORM
 
-**Database ORM**: Drizzle ORM
-- Configured for PostgreSQL dialect (via Neon serverless driver)
+**Database**: PostgreSQL with Drizzle ORM
+- Standard pg driver for database connections (not Neon serverless)
 - Schema-first approach with type-safe queries
 - Database schema defined in `shared/schema.ts` for shared types between client and server
+- Vector embeddings stored in `knowledge_chunks` table for semantic search
 
 **Build Process**: Custom build script using esbuild and Vite
 - Client bundle: Vite builds React application to `dist/public`
@@ -93,24 +94,37 @@ Preferred communication style: Simple, everyday language.
 6. **Knowledge Base** - Merchant-specific context for AI responses
    - Plain text content used to inform AI answers
    - Updatable via merchant dashboard
+   - Web crawler can extract FAQs from merchant websites
 
-7. **Notifications** - Alerts for supervisors about escalated sessions
+7. **Knowledge Chunks** - Vector embeddings for semantic search
+   - Content split into ~500 character chunks
+   - OpenAI text-embedding-3-small for embeddings
+   - Cosine similarity for relevance ranking
+
+8. **Notifications** - Alerts for supervisors about escalated sessions
    - Linked to specific sessions
    - Read/unread tracking
 
 ### AI Integration
 
-**Provider**: OpenAI API
-- Configurable base URL and API key via environment variables
-- Default model: GPT-5 (as specified in code comments)
+**Provider**: OpenAI API (via Replit AI Integrations)
+- Configured via `AI_INTEGRATIONS_OPENAI_BASE_URL` and `AI_INTEGRATIONS_OPENAI_API_KEY`
+- Model: GPT-4.1-mini for chat completions
+- Model: text-embedding-3-small for vector embeddings
 - Integration point: `server/routes.ts` - `askJeany` function
 
 **Conversation Flow**:
 1. Customer message received via WebSocket or REST
 2. System checks for trigger keywords in message text
 3. If triggered → escalate to HUMAN mode, notify supervisors
-4. If not triggered → AI generates response using knowledge base context
-5. Response sent back to customer through appropriate channel
+4. If not triggered → semantic search finds relevant knowledge chunks
+5. AI generates response using knowledge context and customer's language
+6. Response sent back to customer through appropriate channel
+
+**Multi-Language Support**:
+- Automatic language detection from customer messages
+- AI responds in the same language as the customer
+- No additional API calls needed - handled by the LLM
 
 **Escalation Logic**:
 - Trigger detection: Case-insensitive keyword matching
@@ -145,13 +159,20 @@ Preferred communication style: Simple, everyday language.
 ### Dashboard Features
 
 **Merchant Dashboard Sections** (sidebar navigation):
-- Overview - Analytics and session metrics
-- Chat Sessions - List and monitor active/past conversations
-- Knowledge Base - Edit AI training content
+- Overview - Real-time analytics with active sessions, message counts, AI resolution rate, daily trends chart
+- Chat Sessions - List and monitor active/past conversations with transcript export
+- Knowledge Base - Edit AI training content with web crawler for FAQ extraction
 - Triggers - Manage escalation keywords
 - Widget - Customize appearance and get embed code
 - Supervisors - Manage team members
 - Settings - Account configuration
+
+**Key Features**:
+- Analytics Dashboard: Real-time metrics with batch-optimized queries
+- Vector Embeddings: Semantic search for knowledge base using OpenAI embeddings
+- Web Crawler: Extract FAQs from merchant websites with SSRF protections
+- Multi-Language: Automatic language detection and response in customer's language
+- Transcript Export: Download chat transcripts as text files
 
 **Design Philosophy**:
 - Information density prioritized over white space
@@ -210,15 +231,18 @@ Preferred communication style: Simple, everyday language.
 ## External Dependencies
 
 ### AI Services
-- **OpenAI API** - GPT model for conversational AI responses
-  - Configurable via `AI_INTEGRATIONS_OPENAI_BASE_URL` and `AI_INTEGRATIONS_OPENAI_API_KEY`
-  - Model: GPT-5 (specified in code)
+- **OpenAI API** (via Replit AI Integrations) - GPT model for conversational AI responses
+  - Configured via `AI_INTEGRATIONS_OPENAI_BASE_URL` and `AI_INTEGRATIONS_OPENAI_API_KEY`
+  - Model: GPT-4.1-mini for chat completions
+  - Model: text-embedding-3-small for vector embeddings
+  - No API key required - billed to Replit credits
 
 ### Database
-- **PostgreSQL** - Primary data store (configured but currently using in-memory storage)
-  - Accessed via Neon serverless driver (`@neondatabase/serverless`)
+- **PostgreSQL** - Primary data store with full persistence
+  - Accessed via standard pg driver (not Neon serverless)
   - Connection string: `DATABASE_URL` environment variable
   - Drizzle ORM for schema management and migrations
+  - Vector embeddings stored in knowledge_chunks table
 
 ### UI Component Library
 - **Radix UI** - Unstyled, accessible component primitives
