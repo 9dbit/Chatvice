@@ -75,6 +75,17 @@ export const insertKnowledgeSchema = createInsertSchema(knowledge).omit({ id: tr
 export type InsertKnowledge = z.infer<typeof insertKnowledgeSchema>;
 export type Knowledge = typeof knowledge.$inferSelect;
 
+export const knowledgeChunks = pgTable("knowledge_chunks", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  content: text("content").notNull(),
+  embedding: text("embedding"),
+});
+
+export const insertKnowledgeChunkSchema = createInsertSchema(knowledgeChunks).omit({ id: true });
+export type InsertKnowledgeChunk = z.infer<typeof insertKnowledgeChunkSchema>;
+export type KnowledgeChunk = typeof knowledgeChunks.$inferSelect;
+
 export const notifications = pgTable("notifications", {
   id: varchar("id", { length: 32 }).primaryKey(),
   supervisorId: varchar("supervisor_id", { length: 32 }).notNull(),

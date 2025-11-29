@@ -5,8 +5,9 @@ import {
   type Message, type InsertMessage,
   type Trigger, type InsertTrigger,
   type Knowledge, type InsertKnowledge,
+  type KnowledgeChunk, type InsertKnowledgeChunk,
   type Notification, type InsertNotification,
-  merchants, supervisors, sessions, messages, triggers, knowledge, notifications,
+  merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -56,6 +57,11 @@ export interface IStorage {
   markNotificationSeen(id: string): Promise<boolean>;
   
   getAnalytics(merchantId: string): Promise<AnalyticsData>;
+  
+  getKnowledgeChunks(merchantId: string): Promise<KnowledgeChunk[]>;
+  createKnowledgeChunk(chunk: InsertKnowledgeChunk): Promise<KnowledgeChunk>;
+  deleteKnowledgeChunks(merchantId: string): Promise<boolean>;
+  updateChunkEmbedding(id: string, embedding: string): Promise<boolean>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -369,6 +375,36 @@ export class DatabaseStorage implements IStorage {
       dailyMessageCounts,
       avgResponseTime,
     };
+  }
+
+  async getKnowledgeChunks(merchantId: string): Promise<KnowledgeChunk[]> {
+    return db.select().from(knowledgeChunks).where(eq(knowledgeChunks.merchantId, merchantId));
+  }
+
+  async createKnowledgeChunk(data: InsertKnowledgeChunk): Promise<KnowledgeChunk> {
+    const id = generateId("kc_");
+    const result = await db.insert(knowledgeChunks).values({
+      id,
+      merchantId: data.merchantId,
+      content: data.content,
+      embedding: data.embedding || null,
+    }).returning();
+    return result[0];
+  }
+
+  async deleteKnowledgeChunks(merchantId: string): Promise<boolean> {
+    const result = await db.delete(knowledgeChunks)
+      .where(eq(knowledgeChunks.merchantId, merchantId))
+      .returning();
+    return true;
+  }
+
+  async updateChunkEmbedding(id: string, embedding: string): Promise<boolean> {
+    const result = await db.update(knowledgeChunks)
+      .set({ embedding })
+      .where(eq(knowledgeChunks.id, id))
+      .returning();
+    return result.length > 0;
   }
 }
 

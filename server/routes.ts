@@ -12,6 +12,7 @@ import OpenAI from "openai";
 import bcrypt from "bcryptjs";
 import session from "express-session";
 import MemoryStore from "memorystore";
+import { processKnowledgeBase, searchKnowledge } from "./embeddings";
 
 declare module "express-session" {
   interface SessionData {
@@ -115,21 +116,34 @@ async function askJeany(
     };
   }
 
-  const knowledge = await storage.getKnowledge(merchantId);
   const merchant = await storage.getMerchant(merchantId);
-  const knowledgeContent = knowledge?.content || "";
   const companyName = merchant?.companyName || "our company";
+  
+  let knowledgeContext = "";
+  try {
+    const relevantChunks = await searchKnowledge(merchantId, message, 3);
+    if (relevantChunks.length > 0) {
+      knowledgeContext = relevantChunks.join("\n\n---\n\n");
+    } else {
+      const knowledge = await storage.getKnowledge(merchantId);
+      knowledgeContext = knowledge?.content || "";
+    }
+  } catch (error) {
+    console.error("Knowledge search error:", error);
+    const knowledge = await storage.getKnowledge(merchantId);
+    knowledgeContext = knowledge?.content || "";
+  }
 
   const prompt = `You are Jeany, a friendly and helpful AI Customer Service Agent for ${companyName}.
 You are professional yet approachable, and always aim to help customers effectively.
 Always answer in a clear, structured way while maintaining a conversational tone.
 
-Company Knowledge Base:
-${knowledgeContent || "No specific knowledge base configured yet."}
+Relevant Company Information:
+${knowledgeContext || "No specific knowledge base configured yet."}
 
 Customer Message: ${message}
 
-Provide a helpful response. If you don't have specific information to answer, be honest about it and offer to connect with a human agent.`;
+Provide a helpful response based on the relevant information above. If you don't have specific information to answer, be honest about it and offer to connect with a human agent.`;
 
   try {
     const completion = await openai.chat.completions.create({
@@ -426,6 +440,17 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const { knowledgeText } = req.body;
       
       const knowledge = await storage.setKnowledge(merchantId, knowledgeText || "");
+      
+      if (knowledgeText && knowledgeText.trim()) {
+        processKnowledgeBase(merchantId, knowledgeText).catch(err => {
+          console.error("Error processing knowledge embeddings:", err);
+        });
+      } else {
+        storage.deleteKnowledgeChunks(merchantId).catch(err => {
+          console.error("Error clearing knowledge chunks:", err);
+        });
+      }
+      
       res.json({ success: true, knowledge });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
