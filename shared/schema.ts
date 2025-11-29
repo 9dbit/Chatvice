@@ -12,6 +12,18 @@ export const merchants = pgTable("merchants", {
   online: boolean("online").default(true),
   primaryColor: text("primary_color").default("#6b5dfc"),
   welcomeMessage: text("welcome_message").default("Hi! How can I help you today?"),
+  profilePhotoUrl: text("profile_photo_url").default(""),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  stripePriceId: text("stripe_price_id"),
+  subscriptionStatus: text("subscription_status").default("trial"),
+  subscriptionPlanId: text("subscription_plan_id").default("starter"),
+  trialEndsAt: timestamp("trial_ends_at"),
+  currentPeriodEnd: timestamp("current_period_end"),
+  billingInterval: text("billing_interval").default("monthly"),
+  conversationsUsed: integer("conversations_used").default(0),
+  conversationsResetAt: timestamp("conversations_reset_at"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const insertMerchantSchema = createInsertSchema(merchants).omit({ id: true });
@@ -133,3 +145,51 @@ export const loginSchema = z.object({
   password: z.string().min(1),
 });
 export type LoginRequest = z.infer<typeof loginSchema>;
+
+export const admins = pgTable("admins", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  email: text("email").notNull().unique(),
+  password: text("password").notNull(),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertAdminSchema = createInsertSchema(admins).omit({ id: true, createdAt: true });
+export type InsertAdmin = z.infer<typeof insertAdminSchema>;
+export type Admin = typeof admins.$inferSelect;
+
+export const subscriptionPlans = {
+  starter: {
+    id: "starter" as const,
+    name: "Starter",
+    description: "Perfect for small businesses getting started",
+    monthlyPrice: 29,
+    annualPrice: 24,
+    conversationsLimit: 500,
+    supervisorsLimit: 1,
+    features: ["500 AI conversations/month", "1 Team member", "Basic analytics", "Email support", "Widget customization"] as const,
+  },
+  pro: {
+    id: "pro" as const,
+    name: "Pro",
+    description: "For growing businesses with higher volume",
+    monthlyPrice: 79,
+    annualPrice: 66,
+    conversationsLimit: 5000,
+    supervisorsLimit: 5,
+    features: ["5,000 AI conversations/month", "5 Team members", "Advanced analytics", "Priority support", "Custom triggers", "Knowledge base", "API access"] as const,
+  },
+  enterprise: {
+    id: "enterprise" as const,
+    name: "Enterprise",
+    description: "Custom solution for large organizations",
+    monthlyPrice: 199,
+    annualPrice: 167,
+    conversationsLimit: -1,
+    supervisorsLimit: -1,
+    features: ["Unlimited conversations", "Unlimited team members", "Custom integrations", "Dedicated support", "SLA guarantee", "White-label solution"],
+  },
+} as const;
+
+export type SubscriptionPlanId = keyof typeof subscriptionPlans;
+export type SubscriptionStatus = "trial" | "active" | "canceled" | "expired" | "past_due";

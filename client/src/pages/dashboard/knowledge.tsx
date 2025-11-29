@@ -16,7 +16,7 @@ export default function KnowledgePage() {
   const [crawlUrl, setCrawlUrl] = useState("");
   const [extractedContent, setExtractedContent] = useState("");
 
-  const { data: knowledge, isLoading } = useQuery({
+  const { data: knowledge, isLoading } = useQuery<{ content: string }>({
     queryKey: ["/api/knowledge", merchantId],
     enabled: !!merchantId,
   });
@@ -50,12 +50,11 @@ export default function KnowledgePage() {
     },
   });
 
-  const crawlMutation = useMutation({
+  const crawlMutation = useMutation<{ content: string }, Error, string>({
     mutationFn: async (url: string) => {
-      const response = await apiRequest("POST", "/api/knowledge/crawl", { url });
-      return response;
+      return apiRequest("POST", "/api/knowledge/crawl", { url }) as Promise<{ content: string }>;
     },
-    onSuccess: (data: { content: string }) => {
+    onSuccess: (data) => {
       setExtractedContent(data.content);
       toast({
         title: "Content extracted",

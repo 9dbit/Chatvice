@@ -7,7 +7,8 @@ import {
   type Knowledge, type InsertKnowledge,
   type KnowledgeChunk, type InsertKnowledgeChunk,
   type Notification, type InsertNotification,
-  merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications,
+  type Admin, type InsertAdmin,
+  merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -334,8 +335,8 @@ export class DatabaseStorage implements IStorage {
       messagesBySession.set(msg.sessionId, existing);
     }
     
-    for (const [sessionId, sessionMsgs] of messagesBySession) {
-      const sorted = sessionMsgs.sort((a, b) => {
+    for (const [sessionId, sessionMsgs] of Array.from(messagesBySession.entries())) {
+      const sorted = sessionMsgs.sort((a: Message, b: Message) => {
         const aTime = a.timestamp ? new Date(a.timestamp).getTime() : 0;
         const bTime = b.timestamp ? new Date(b.timestamp).getTime() : 0;
         return aTime - bTime;
@@ -405,6 +406,64 @@ export class DatabaseStorage implements IStorage {
       .where(eq(knowledgeChunks.id, id))
       .returning();
     return result.length > 0;
+  }
+
+  async getAdmin(id: string): Promise<Admin | undefined> {
+    const result = await db.select().from(admins).where(eq(admins.id, id));
+    return result[0];
+  }
+
+  async getAdminByEmail(email: string): Promise<Admin | undefined> {
+    const result = await db.select().from(admins).where(eq(admins.email, email));
+    return result[0];
+  }
+
+  async createAdmin(data: InsertAdmin): Promise<Admin> {
+    const id = generateId("admin_");
+    const result = await db.insert(admins).values({
+      id,
+      email: data.email,
+      password: data.password,
+      name: data.name,
+    }).returning();
+    return result[0];
+  }
+
+  async getAllMerchants(): Promise<Merchant[]> {
+    return db.select().from(merchants).orderBy(desc(merchants.createdAt));
+  }
+
+  async updateMerchantSubscription(id: string, data: {
+    stripeCustomerId?: string;
+    stripeSubscriptionId?: string;
+    stripePriceId?: string;
+    subscriptionStatus?: string;
+    subscriptionPlanId?: string;
+    currentPeriodEnd?: Date;
+    billingInterval?: string;
+  }): Promise<Merchant | undefined> {
+    const result = await db.update(merchants)
+      .set(data)
+      .where(eq(merchants.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async incrementConversationUsage(merchantId: string): Promise<void> {
+    await db.update(merchants)
+      .set({ 
+        conversationsUsed: sql`COALESCE(${merchants.conversationsUsed}, 0) + 1`
+      })
+      .where(eq(merchants.id, merchantId));
+  }
+
+  async resetConversationUsage(merchantId: string): Promise<void> {
+    await db.update(merchants)
+      .set({ 
+        conversationsUsed: 0,
+        conversationsResetAt: new Date(),
+      })
+      .where(eq(merchants.id, merchantId));
   }
 }
 

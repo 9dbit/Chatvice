@@ -9,6 +9,7 @@ import TriggersPage from "./triggers";
 import WidgetPage from "./widget";
 import SupervisorsPage from "./supervisors";
 import SettingsPage from "./settings";
+import BillingPage from "./billing";
 
 export default function DashboardLayout() {
   const [location] = useLocation();
@@ -40,6 +41,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/triggers" component={TriggersPage} />
               <Route path="/dashboard/widget" component={WidgetPage} />
               <Route path="/dashboard/supervisors" component={SupervisorsPage} />
+              <Route path="/dashboard/billing" component={BillingPage} />
               <Route path="/dashboard/settings" component={SettingsPage} />
             </Switch>
           </main>

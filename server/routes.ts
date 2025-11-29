@@ -14,12 +14,15 @@ import session from "express-session";
 import MemoryStore from "memorystore";
 import { processKnowledgeBase, searchKnowledge } from "./embeddings";
 import { extractFAQContent } from "./crawler";
+import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
+import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 
 declare module "express-session" {
   interface SessionData {
     userId: string;
-    userType: "merchant" | "supervisor";
+    userType: "merchant" | "supervisor" | "admin";
     merchantId: string;
+    isAdmin?: boolean;
   }
 }
 
@@ -57,6 +60,49 @@ function requireSupervisor(req: Request, res: Response, next: NextFunction) {
     return res.status(401).json({ error: "Unauthorized" });
   }
   next();
+}
+
+function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  if (!req.session?.userId || req.session.userType !== "admin" || !req.session.isAdmin) {
+    return res.status(401).json({ error: "Unauthorized - Admin access required" });
+  }
+  next();
+}
+
+async function checkSubscriptionLimits(merchantId: string, type: 'conversation' | 'supervisor'): Promise<{ allowed: boolean; message?: string }> {
+  const merchant = await storage.getMerchant(merchantId);
+  if (!merchant) {
+    return { allowed: false, message: "Merchant not found" };
+  }
+  
+  const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.starter;
+  
+  if (merchant.subscriptionStatus === 'trial') {
+    const trialExpired = merchant.trialEndsAt && new Date(merchant.trialEndsAt) < new Date();
+    if (trialExpired) {
+      return { allowed: false, message: "Trial expired. Please upgrade to continue." };
+    }
+  } else if (merchant.subscriptionStatus !== 'active') {
+    return { allowed: false, message: "Subscription inactive. Please renew to continue." };
+  }
+  
+  if (type === 'conversation') {
+    if (plan.conversationsLimit === -1) return { allowed: true };
+    const used = merchant.conversationsUsed || 0;
+    if (used >= plan.conversationsLimit) {
+      return { allowed: false, message: `Monthly conversation limit reached (${plan.conversationsLimit}). Please upgrade your plan.` };
+    }
+  }
+  
+  if (type === 'supervisor') {
+    const supervisors = await storage.getSupervisorsByMerchant(merchantId);
+    if (plan.supervisorsLimit === -1) return { allowed: true };
+    if (supervisors.length >= plan.supervisorsLimit) {
+      return { allowed: false, message: `Supervisor limit reached (${plan.supervisorsLimit}). Please upgrade your plan.` };
+    }
+  }
+  
+  return { allowed: true };
 }
 
 async function checkTriggers(merchantId: string, text: string): Promise<{ triggered: boolean; keyword?: string }> {
@@ -236,9 +282,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
       
       const hashedPassword = await hashPassword(data.password);
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+      
       const merchant = await storage.createMerchant({
         ...data,
         password: hashedPassword,
+        subscriptionStatus: "trial",
+        subscriptionPlanId: "starter",
+        trialEndsAt,
+        conversationsUsed: 0,
       });
       
       req.session.userId = merchant.id;
@@ -379,6 +432,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const merchant = await storage.getMerchant(merchantId);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      const existingSession = await storage.getSession(sessionId);
+      if (!existingSession) {
+        const limitCheck = await checkSubscriptionLimits(merchantId, 'conversation');
+        if (!limitCheck.allowed) {
+          return res.status(403).json({ error: limitCheck.message });
+        }
+        await storage.incrementConversationUsage(merchantId);
       }
 
       await storage.createMessage({
@@ -602,6 +664,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const merchantId = req.session.merchantId!;
       const { name, email, password } = req.body;
       
+      const limitCheck = await checkSubscriptionLimits(merchantId, 'supervisor');
+      if (!limitCheck.allowed) {
+        return res.status(403).json({ error: limitCheck.message });
+      }
+      
       const existing = await storage.getSupervisorByEmail(email);
       if (existing) {
         return res.status(400).json({ error: "Email already registered" });
@@ -727,6 +794,252 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.json(analytics);
     } catch (error) {
       console.error("Stats error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/billing/plans", async (req, res) => {
+    try {
+      const plans = Object.values(subscriptionPlans).map(plan => ({
+        ...plan,
+        annualDiscount: Math.round((1 - plan.annualPrice / plan.monthlyPrice) * 100),
+      }));
+      res.json({ plans });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/billing/status", requireMerchant, async (req, res) => {
+    try {
+      const merchant = await storage.getMerchant(req.session.merchantId!);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.starter;
+      const isTrialExpired = merchant.trialEndsAt && new Date(merchant.trialEndsAt) < new Date();
+      
+      res.json({
+        status: merchant.subscriptionStatus,
+        planId: merchant.subscriptionPlanId,
+        planName: plan.name,
+        billingInterval: merchant.billingInterval,
+        trialEndsAt: merchant.trialEndsAt,
+        currentPeriodEnd: merchant.currentPeriodEnd,
+        conversationsUsed: merchant.conversationsUsed || 0,
+        conversationsLimit: plan.conversationsLimit,
+        supervisorsLimit: plan.supervisorsLimit,
+        isTrialExpired,
+        hasActiveSubscription: merchant.subscriptionStatus === 'active',
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/billing/checkout", requireMerchant, async (req, res) => {
+    try {
+      const { planId, billingInterval } = req.body;
+      const merchant = await storage.getMerchant(req.session.merchantId!);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      const plan = subscriptionPlans[planId as SubscriptionPlanId];
+      if (!plan) {
+        return res.status(400).json({ error: "Invalid plan" });
+      }
+      
+      const stripe = await getUncachableStripeClient();
+      
+      let customerId = merchant.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: merchant.email,
+          metadata: { merchantId: merchant.id },
+        });
+        customerId = customer.id;
+        await storage.updateMerchantSubscription(merchant.id, { stripeCustomerId: customerId });
+      }
+      
+      const priceAmount = billingInterval === 'annual' ? plan.annualPrice * 100 : plan.monthlyPrice * 100;
+      
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ['card'],
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: `Jeany AI ${plan.name}`,
+              description: plan.features.slice(0, 3).join(', '),
+            },
+            unit_amount: priceAmount,
+            recurring: { interval: 'month' },
+          },
+          quantity: 1,
+        }],
+        mode: 'subscription',
+        success_url: `${req.protocol}://${req.get('host')}/dashboard/billing?success=true`,
+        cancel_url: `${req.protocol}://${req.get('host')}/dashboard/billing?canceled=true`,
+        metadata: {
+          merchantId: merchant.id,
+          planId,
+          billingInterval,
+        },
+        subscription_data: {
+          trial_period_days: merchant.subscriptionStatus === 'trial' ? 7 : undefined,
+          metadata: {
+            merchantId: merchant.id,
+            planId,
+            billingInterval,
+          },
+        },
+      });
+      
+      res.json({ url: session.url });
+    } catch (error: any) {
+      console.error("Checkout error:", error);
+      res.status(500).json({ error: error.message || "Failed to create checkout session" });
+    }
+  });
+
+  app.post("/api/billing/portal", requireMerchant, async (req, res) => {
+    try {
+      const merchant = await storage.getMerchant(req.session.merchantId!);
+      if (!merchant || !merchant.stripeCustomerId) {
+        return res.status(400).json({ error: "No billing account found" });
+      }
+      
+      const stripe = await getUncachableStripeClient();
+      const session = await stripe.billingPortal.sessions.create({
+        customer: merchant.stripeCustomerId,
+        return_url: `${req.protocol}://${req.get('host')}/dashboard/billing`,
+      });
+      
+      res.json({ url: session.url });
+    } catch (error: any) {
+      console.error("Portal error:", error);
+      res.status(500).json({ error: "Failed to create portal session" });
+    }
+  });
+
+  app.get("/api/stripe/publishable-key", async (req, res) => {
+    try {
+      const key = await getStripePublishableKey();
+      res.json({ publishableKey: key });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get Stripe key" });
+    }
+  });
+
+  app.post("/api/admin/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      const admin = await storage.getAdminByEmail(email);
+      if (!admin || !(await verifyPassword(password, admin.password))) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+      
+      req.session.userId = admin.id;
+      req.session.userType = "admin";
+      req.session.isAdmin = true;
+      
+      res.json({ success: true, adminId: admin.id, name: admin.name });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/admin/me", requireAdmin, async (req, res) => {
+    try {
+      const admin = await storage.getAdmin(req.session.userId!);
+      if (!admin) {
+        return res.status(404).json({ error: "Admin not found" });
+      }
+      const { password, ...safeAdmin } = admin;
+      res.json(safeAdmin);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/admin/merchants", requireAdmin, async (req, res) => {
+    try {
+      const merchants = await storage.getAllMerchants();
+      const safeMerchants = merchants.map(({ password, ...m }) => ({
+        ...m,
+        plan: subscriptionPlans[m.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.starter,
+      }));
+      res.json(safeMerchants);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/admin/merchants/:merchantId", requireAdmin, async (req, res) => {
+    try {
+      const merchant = await storage.getMerchant(req.params.merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      const { password, ...safeMerchant } = merchant;
+      const sessions = await storage.getSessionsByMerchant(merchant.id);
+      const supervisors = await storage.getSupervisorsByMerchant(merchant.id);
+      
+      res.json({
+        ...safeMerchant,
+        plan: subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.starter,
+        sessionsCount: sessions.length,
+        supervisorsCount: supervisors.length,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/admin/merchants/:merchantId/subscription", requireAdmin, async (req, res) => {
+    try {
+      const { planId, status } = req.body;
+      const merchant = await storage.getMerchant(req.params.merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      const updateData: any = {};
+      if (planId) updateData.subscriptionPlanId = planId;
+      if (status) updateData.subscriptionStatus = status;
+      
+      const updated = await storage.updateMerchantSubscription(merchant.id, updateData);
+      res.json({ success: true, merchant: updated });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/admin/stats", requireAdmin, async (req, res) => {
+    try {
+      const merchants = await storage.getAllMerchants();
+      const totalMerchants = merchants.length;
+      const activeMerchants = merchants.filter(m => m.subscriptionStatus === 'active').length;
+      const trialMerchants = merchants.filter(m => m.subscriptionStatus === 'trial').length;
+      const totalConversations = merchants.reduce((sum, m) => sum + (m.conversationsUsed || 0), 0);
+      
+      const planDistribution = {
+        starter: merchants.filter(m => m.subscriptionPlanId === 'starter').length,
+        pro: merchants.filter(m => m.subscriptionPlanId === 'pro').length,
+        enterprise: merchants.filter(m => m.subscriptionPlanId === 'enterprise').length,
+      };
+      
+      res.json({
+        totalMerchants,
+        activeMerchants,
+        trialMerchants,
+        totalConversations,
+        planDistribution,
+      });
+    } catch (error) {
       res.status(500).json({ error: "Server error" });
     }
   });

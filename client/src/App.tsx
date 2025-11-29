@@ -11,6 +11,8 @@ import DashboardLayout from "@/pages/dashboard/layout";
 import SupervisorPanel from "@/pages/supervisor";
 import WidgetDemoPage from "@/pages/widget-demo";
 import ChatWidget from "@/pages/chat-widget";
+import AdminLogin from "@/pages/admin/login";
+import AdminDashboard from "@/pages/admin/dashboard";
 
 function Router() {
   return (
@@ -21,6 +23,8 @@ function Router() {
       <Route path="/dashboard" component={DashboardLayout} />
       <Route path="/dashboard/:page*" component={DashboardLayout} />
       <Route path="/supervisor" component={SupervisorPanel} />
+      <Route path="/admin/login" component={AdminLogin} />
+      <Route path="/admin" component={AdminDashboard} />
       <Route path="/widget-demo" component={WidgetDemoPage} />
       <Route path="/widget/:merchantId">
         {(params) => (

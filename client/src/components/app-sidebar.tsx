@@ -21,6 +21,7 @@ import {
   Bot,
   LogOut,
   Users,
+  CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -35,6 +36,7 @@ const menuItems = [
   { title: "Triggers", url: "/dashboard/triggers", icon: Zap },
   { title: "Widget", url: "/dashboard/widget", icon: Palette },
   { title: "Supervisors", url: "/dashboard/supervisors", icon: Users },
+  { title: "Billing", url: "/dashboard/billing", icon: CreditCard },
   { title: "Settings", url: "/dashboard/settings", icon: Settings },
 ];
 
@@ -43,7 +45,7 @@ export function AppSidebar() {
   const merchantId = localStorage.getItem("merchantId") || "";
   const [online, setOnline] = useState(true);
 
-  const { data: merchant } = useQuery({
+  const { data: merchant } = useQuery<{ online?: boolean; companyName?: string }>({
     queryKey: ["/api/merchant", merchantId],
     enabled: !!merchantId,
   });
