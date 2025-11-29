@@ -412,9 +412,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/merchant/settings", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
-      const { companyName } = req.body;
+      const { companyName, profilePhotoUrl } = req.body;
       
-      const updated = await storage.updateMerchant(merchantId, { companyName });
+      const updateData: { companyName?: string; profilePhotoUrl?: string } = {};
+      if (companyName !== undefined) updateData.companyName = companyName;
+      if (profilePhotoUrl !== undefined) updateData.profilePhotoUrl = profilePhotoUrl;
+      
+      const updated = await storage.updateMerchant(merchantId, updateData);
       if (!updated) {
         return res.status(404).json({ error: "Merchant not found" });
       }
@@ -771,6 +775,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return res.status(403).json({ error: "Forbidden" });
       }
       
+      const session = await storage.getSession(sessionId);
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      
       const updated = await storage.updateSession(sessionId, {
         mode: "HUMAN",
         supervisorId,
@@ -778,6 +787,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (!updated) {
         return res.status(404).json({ error: "Session not found" });
       }
+      
+      await storage.addMessage({
+        sessionId,
+        from: "system",
+        content: "A support agent has joined the conversation and will be assisting you shortly.",
+      });
+      
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Server error" });

@@ -21,6 +21,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useState } from "react";
+import heroBackgroundUrl from "@assets/IMG_0078_1764426562564.jpeg";
 
 function Navbar() {
   return (
@@ -56,19 +57,23 @@ function Navbar() {
 function HeroSection() {
   return (
     <section className="relative pt-32 pb-20 md:pt-40 md:pb-32 overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10 dark:from-primary/10 dark:to-primary/5" />
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: `url(${heroBackgroundUrl})` }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-black/40" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div className="space-y-8">
-            <Badge variant="secondary" className="px-3 py-1">
+            <Badge variant="secondary" className="px-3 py-1 bg-white/10 text-white border-white/20">
               <Sparkles className="w-3 h-3 mr-1" />
               AI-Powered Customer Service
             </Badge>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white">
               Automate Support with{" "}
               <span className="text-primary">Intelligent AI</span>
             </h1>
-            <p className="text-lg text-muted-foreground max-w-lg">
+            <p className="text-lg text-white/80 max-w-lg">
               Jeany AI handles customer inquiries 24/7 with natural conversations.
               When things get complex, it seamlessly escalates to your team.
             </p>
@@ -79,7 +84,7 @@ function HeroSection() {
                   <ArrowRight className="ml-2 w-4 h-4" />
                 </Button>
               </Link>
-              <Button size="lg" variant="outline" className="w-full sm:w-auto" data-testid="button-hero-demo">
+              <Button size="lg" variant="outline" className="w-full sm:w-auto bg-white/10 text-white border-white/20 hover:bg-white/20" data-testid="button-hero-demo">
                 Watch Demo
               </Button>
             </div>
@@ -88,14 +93,14 @@ function HeroSection() {
                 {[1, 2, 3, 4].map((i) => (
                   <div
                     key={i}
-                    className="w-8 h-8 rounded-full bg-muted border-2 border-background flex items-center justify-center text-xs font-medium"
+                    className="w-8 h-8 rounded-full bg-white/20 border-2 border-white/40 flex items-center justify-center text-xs font-medium text-white"
                   >
                     {String.fromCharCode(64 + i)}
                   </div>
                 ))}
               </div>
-              <p className="text-sm text-muted-foreground">
-                Trusted by <span className="font-semibold text-foreground">500+</span> merchants
+              <p className="text-sm text-white/70">
+                Trusted by <span className="font-semibold text-white">500+</span> merchants
               </p>
             </div>
           </div>

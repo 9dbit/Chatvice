@@ -7,6 +7,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Bot, Send, X, Minimize2, HeadphonesIcon, User } from "lucide-react";
 import type { Message } from "@shared/schema";
 
+interface MerchantConfig {
+  online: boolean;
+  primaryColor: string;
+  iconUrl: string;
+  iconSize: number;
+  welcomeMessage: string;
+  companyName: string;
+}
+
 interface ChatWidgetProps {
   merchantId: string;
   sessionId?: string;
@@ -20,7 +29,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const [localMessages, setLocalMessages] = useState<Array<{ from: string; content: string; timestamp: Date }>>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { data: merchantConfig } = useQuery({
+  const { data: merchantConfig } = useQuery<MerchantConfig>({
     queryKey: ["/api/merchant/status", merchantId],
     enabled: !!merchantId,
   });

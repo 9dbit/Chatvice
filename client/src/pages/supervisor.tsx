@@ -9,6 +9,16 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeToggle } from "@/components/theme-toggle";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   Bot,
@@ -20,6 +30,7 @@ import {
   LogOut,
   AlertTriangle,
   CheckCircle,
+  Hand,
 } from "lucide-react";
 import type { Session, Message, Notification } from "@shared/schema";
 
@@ -30,6 +41,8 @@ export default function SupervisorPanel() {
   const { toast } = useToast();
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
+  const [takeoverDialogOpen, setTakeoverDialogOpen] = useState(false);
+  const [sessionToTakeover, setSessionToTakeover] = useState<Session | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   if (!merchantId || userType !== "supervisor") {
@@ -76,12 +89,25 @@ export default function SupervisorPanel() {
     onSuccess: (_, sessionId) => {
       queryClient.invalidateQueries({ queryKey: ["/api/supervisor/sessions", merchantId] });
       setSelectedSession(sessionId);
+      setTakeoverDialogOpen(false);
+      setSessionToTakeover(null);
       toast({
         title: "Session taken over",
-        description: "You are now handling this conversation.",
+        description: "You are now handling this conversation. The customer has been notified.",
       });
     },
   });
+
+  const handleTakeoverClick = (session: Session) => {
+    setSessionToTakeover(session);
+    setTakeoverDialogOpen(true);
+  };
+
+  const confirmTakeover = () => {
+    if (sessionToTakeover) {
+      takeOverMutation.mutate(sessionToTakeover.id);
+    }
+  };
 
   const markSeenMutation = useMutation({
     mutationFn: async (notificationId: string) => {
@@ -206,10 +232,11 @@ export default function SupervisorPanel() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => takeOverMutation.mutate(session.id)}
+                              onClick={() => handleTakeoverClick(session)}
                               disabled={takeOverMutation.isPending}
                               data-testid={`button-takeover-${session.id}`}
                             >
+                              <Hand className="w-3 h-3 mr-1" />
                               Take Over
                             </Button>
                           )}
@@ -345,6 +372,46 @@ export default function SupervisorPanel() {
           )}
         </Card>
       </div>
+
+      <AlertDialog open={takeoverDialogOpen} onOpenChange={setTakeoverDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Hand className="w-5 h-5 text-primary" />
+              Take Over Conversation?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                You are about to take over the conversation with{" "}
+                <span className="font-medium text-foreground">
+                  {sessionToTakeover?.customerName || "this customer"}
+                </span>.
+              </p>
+              <p>
+                This will:
+              </p>
+              <ul className="list-disc list-inside ml-2 space-y-1">
+                <li>Notify the customer that a human agent is joining</li>
+                <li>Assign this conversation to you</li>
+                <li>Disable AI responses for this session</li>
+              </ul>
+              <p className="text-muted-foreground">
+                You can send messages directly to the customer once you take over.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-takeover">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmTakeover}
+              disabled={takeOverMutation.isPending}
+              data-testid="button-confirm-takeover"
+            >
+              {takeOverMutation.isPending ? "Taking over..." : "Yes, Take Over"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

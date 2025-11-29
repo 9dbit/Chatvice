@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Save, Sparkles, FileText, AlertCircle, Globe, Loader2, Plus } from "lucide-react";
+import { Database, Save, Sparkles, FileText, AlertCircle, Globe, Loader2, Plus, Bot, Send, Eye } from "lucide-react";
+import type { Merchant } from "@shared/schema";
 
 export default function KnowledgePage() {
   const merchantId = localStorage.getItem("merchantId") || "";
@@ -15,9 +17,16 @@ export default function KnowledgePage() {
   const [content, setContent] = useState("");
   const [crawlUrl, setCrawlUrl] = useState("");
   const [extractedContent, setExtractedContent] = useState("");
+  const [previewMessage, setPreviewMessage] = useState("");
+  const [previewMessages, setPreviewMessages] = useState<Array<{ from: string; content: string }>>([]);
 
   const { data: knowledge, isLoading } = useQuery<{ content: string }>({
     queryKey: ["/api/knowledge", merchantId],
+    enabled: !!merchantId,
+  });
+
+  const { data: merchant } = useQuery<Merchant>({
+    queryKey: ["/api/merchant", merchantId],
     enabled: !!merchantId,
   });
 
@@ -95,6 +104,47 @@ export default function KnowledgePage() {
       title: "Content added",
       description: "The extracted content has been added to your knowledge base. Don't forget to save!",
     });
+  };
+
+  const testMutation = useMutation({
+    mutationFn: async (testMessage: string) => {
+      const sessionId = `test_${Date.now()}`;
+      return apiRequest("POST", "/api/chat/ask", {
+        merchantId,
+        sessionId,
+        message: testMessage,
+      }) as Promise<{ answer: string; mode: string }>;
+    },
+    onSuccess: (data) => {
+      setPreviewMessages((prev) => [
+        ...prev,
+        { from: "jeany", content: data.answer },
+      ]);
+    },
+    onError: () => {
+      setPreviewMessages((prev) => [
+        ...prev,
+        { from: "jeany", content: "Sorry, I couldn't process that. Please try again." },
+      ]);
+    },
+  });
+
+  const handleTestSend = () => {
+    if (!previewMessage.trim()) return;
+    setPreviewMessages((prev) => [...prev, { from: "user", content: previewMessage }]);
+    testMutation.mutate(previewMessage);
+    setPreviewMessage("");
+  };
+
+  const handleTestKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleTestSend();
+    }
+  };
+
+  const clearPreview = () => {
+    setPreviewMessages([]);
   };
 
   const examples = [
@@ -288,6 +338,116 @@ Example:
           </Card>
         </div>
       </div>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Eye className="w-5 h-5 text-primary" />
+              <CardTitle>Live Widget Preview</CardTitle>
+            </div>
+            {previewMessages.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={clearPreview} data-testid="button-clear-preview">
+                Clear Chat
+              </Button>
+            )}
+          </div>
+          <CardDescription>
+            Test how Jeany AI responds to questions using your current knowledge base.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div 
+            className="mx-auto max-w-sm rounded-2xl border overflow-hidden bg-card shadow-lg"
+            style={{ borderColor: merchant?.primaryColor || "#6b5dfc" }}
+            data-testid="widget-preview-container"
+          >
+            <div 
+              className="p-3 flex items-center gap-3"
+              style={{ backgroundColor: merchant?.primaryColor || "#6b5dfc" }}
+            >
+              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                {merchant?.iconUrl ? (
+                  <img src={merchant.iconUrl} alt="Bot" className="w-6 h-6 rounded-full object-cover" />
+                ) : (
+                  <Bot className="w-5 h-5 text-white" />
+                )}
+              </div>
+              <div className="flex-1 text-white">
+                <p className="font-medium text-sm">{merchant?.companyName || "Jeany AI"}</p>
+                <p className="text-xs text-white/80">Customer Support</p>
+              </div>
+            </div>
+
+            <ScrollArea className="h-[280px] p-3 bg-background">
+              <div className="space-y-3">
+                {previewMessages.length === 0 && (
+                  <div className="flex gap-2">
+                    <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: merchant?.primaryColor || "#6b5dfc" }}>
+                      <Bot className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="bg-muted rounded-lg p-2 max-w-[80%]">
+                      <p className="text-sm">{merchant?.welcomeMessage || "Hi! How can I help you today?"}</p>
+                    </div>
+                  </div>
+                )}
+                {previewMessages.map((msg, index) => (
+                  <div key={index} className={`flex gap-2 ${msg.from === "user" ? "justify-end" : ""}`}>
+                    {msg.from !== "user" && (
+                      <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: merchant?.primaryColor || "#6b5dfc" }}>
+                        <Bot className="w-4 h-4 text-white" />
+                      </div>
+                    )}
+                    <div className={`rounded-lg p-2 max-w-[80%] ${msg.from === "user" ? "text-white" : "bg-muted"}`} style={{ backgroundColor: msg.from === "user" ? (merchant?.primaryColor || "#6b5dfc") : undefined }}>
+                      <p className="text-sm">{msg.content}</p>
+                    </div>
+                  </div>
+                ))}
+                {testMutation.isPending && (
+                  <div className="flex gap-2">
+                    <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: merchant?.primaryColor || "#6b5dfc" }}>
+                      <Bot className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="bg-muted rounded-lg p-2">
+                      <div className="flex gap-1">
+                        <span className="w-2 h-2 rounded-full bg-foreground/30 animate-bounce" style={{ animationDelay: "0ms" }} />
+                        <span className="w-2 h-2 rounded-full bg-foreground/30 animate-bounce" style={{ animationDelay: "150ms" }} />
+                        <span className="w-2 h-2 rounded-full bg-foreground/30 animate-bounce" style={{ animationDelay: "300ms" }} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+
+            <div className="p-3 border-t">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Ask a question..."
+                  value={previewMessage}
+                  onChange={(e) => setPreviewMessage(e.target.value)}
+                  onKeyDown={handleTestKeyPress}
+                  disabled={testMutation.isPending}
+                  className="flex-1"
+                  data-testid="input-preview-message"
+                />
+                <Button 
+                  onClick={handleTestSend}
+                  disabled={testMutation.isPending || !previewMessage.trim()}
+                  size="icon"
+                  style={{ backgroundColor: merchant?.primaryColor || "#6b5dfc" }}
+                  data-testid="button-preview-send"
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground text-center mt-4">
+            This preview uses the current saved knowledge base. Save your changes to test with updated content.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }
