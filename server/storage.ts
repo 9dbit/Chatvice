@@ -47,7 +47,9 @@ export interface IStorage {
   updateSession(id: string, data: Partial<Session>): Promise<Session | undefined>;
 
   getMessages(sessionId: string): Promise<Message[]>;
+  getMessage(id: string): Promise<Message | undefined>;
   createMessage(message: InsertMessage): Promise<Message>;
+  updateMessage(id: string, data: Partial<Message>): Promise<Message | undefined>;
 
   getTriggers(merchantId: string): Promise<Trigger[]>;
   createTrigger(trigger: InsertTrigger): Promise<Trigger>;
@@ -187,6 +189,19 @@ export class DatabaseStorage implements IStorage {
       from: data.from,
       content: data.content,
     }).returning();
+    return result[0];
+  }
+
+  async getMessage(id: string): Promise<Message | undefined> {
+    const result = await db.select().from(messages).where(eq(messages.id, id));
+    return result[0];
+  }
+
+  async updateMessage(id: string, data: Partial<Message>): Promise<Message | undefined> {
+    const result = await db.update(messages)
+      .set(data)
+      .where(eq(messages.id, id))
+      .returning();
     return result[0];
   }
 

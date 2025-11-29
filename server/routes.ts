@@ -427,11 +427,28 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/merchant/settings", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
-      const { companyName, profilePhotoUrl } = req.body;
+      const { 
+        companyName, 
+        profilePhotoUrl,
+        chatTimeout,
+        rateLimitMessages,
+        rateLimitWindow,
+        collectCustomerEmail,
+        collectCustomerPhone,
+        customDomain,
+        customDomainStatus,
+      } = req.body;
       
-      const updateData: { companyName?: string; profilePhotoUrl?: string } = {};
+      const updateData: Record<string, any> = {};
       if (companyName !== undefined) updateData.companyName = companyName;
       if (profilePhotoUrl !== undefined) updateData.profilePhotoUrl = profilePhotoUrl;
+      if (chatTimeout !== undefined) updateData.chatTimeout = chatTimeout;
+      if (rateLimitMessages !== undefined) updateData.rateLimitMessages = rateLimitMessages;
+      if (rateLimitWindow !== undefined) updateData.rateLimitWindow = rateLimitWindow;
+      if (collectCustomerEmail !== undefined) updateData.collectCustomerEmail = collectCustomerEmail;
+      if (collectCustomerPhone !== undefined) updateData.collectCustomerPhone = collectCustomerPhone;
+      if (customDomain !== undefined) updateData.customDomain = customDomain;
+      if (customDomainStatus !== undefined) updateData.customDomainStatus = customDomainStatus;
       
       const updated = await storage.updateMerchant(merchantId, updateData);
       if (!updated) {
@@ -572,7 +589,24 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
       
       const sessions = await storage.getSessionsByMerchant(req.params.merchantId);
-      res.json(sessions);
+      
+      const sessionsWithPreview = await Promise.all(
+        sessions.map(async (session) => {
+          const messages = await storage.getMessages(session.id);
+          const userMessages = messages.filter(m => m.from === "user");
+          const aiMessages = messages.filter(m => m.from === "jeany");
+          const lastQuestion = userMessages[userMessages.length - 1]?.content;
+          const lastMessage = aiMessages[aiMessages.length - 1]?.content;
+          
+          return {
+            ...session,
+            lastQuestion: lastQuestion?.slice(0, 100),
+            lastMessage: lastMessage?.slice(0, 100),
+          };
+        })
+      );
+      
+      res.json(sessionsWithPreview);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
     }
@@ -895,6 +929,49 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       res.json({ success: true });
     } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/message/revise", requireMerchant, async (req, res) => {
+    try {
+      const { messageId, content } = req.body;
+      const merchantId = req.session.merchantId!;
+      
+      if (!messageId || typeof messageId !== "string") {
+        return res.status(400).json({ error: "Invalid message ID" });
+      }
+      
+      if (!content || typeof content !== "string" || content.trim().length === 0) {
+        return res.status(400).json({ error: "Content is required" });
+      }
+      
+      if (content.length > 10000) {
+        return res.status(400).json({ error: "Content too long" });
+      }
+      
+      const message = await storage.getMessage(messageId);
+      if (!message) {
+        return res.status(404).json({ error: "Message not found" });
+      }
+      
+      if (message.from !== "jeany") {
+        return res.status(403).json({ error: "Can only revise AI responses" });
+      }
+      
+      const session = await storage.getSession(message.sessionId);
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      
+      if (session.merchantId !== merchantId) {
+        return res.status(403).json({ error: "Forbidden - session belongs to another merchant" });
+      }
+      
+      const updated = await storage.updateMessage(messageId, { content: content.trim() });
+      res.json({ success: true, message: updated });
+    } catch (error) {
+      console.error("Message revision error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });

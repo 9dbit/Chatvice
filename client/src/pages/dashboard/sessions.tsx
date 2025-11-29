@@ -7,25 +7,39 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageSquare, Bot, HeadphonesIcon, Send, Search, User, Download, Users, Hand, ArrowLeft } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { 
+  MessageSquare, Bot, HeadphonesIcon, Send, Search, User, Download, Users, 
+  Hand, ArrowLeft, Clock, Edit, Check, X, Loader2, RefreshCw, HelpCircle 
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { formatDistanceToNow } from "date-fns";
 import type { Session, Message, Supervisor } from "@shared/schema";
+
+interface SessionWithPreview extends Session {
+  lastMessage?: string;
+  lastQuestion?: string;
+}
 
 export default function SessionsPage() {
   const merchantId = localStorage.getItem("merchantId") || "";
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [newMessage, setNewMessage] = useState("");
+  const [reviseDialogOpen, setReviseDialogOpen] = useState(false);
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [revisedAnswer, setRevisedAnswer] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const { data: sessions, isLoading: sessionsLoading } = useQuery<Session[]>({
+  const { data: sessions, isLoading: sessionsLoading } = useQuery<SessionWithPreview[]>({
     queryKey: ["/api/sessions", merchantId],
     enabled: !!merchantId,
     refetchInterval: 5000,
   });
 
-  const { data: messages, isLoading: messagesLoading } = useQuery<Message[]>({
+  const { data: messages, isLoading: messagesLoading, refetch: refetchMessages } = useQuery<Message[]>({
     queryKey: ["/api/messages", selectedSession],
     enabled: !!selectedSession,
     refetchInterval: 2000,
@@ -92,6 +106,29 @@ export default function SessionsPage() {
     },
   });
 
+  const reviseAnswerMutation = useMutation({
+    mutationFn: async ({ messageId, newContent }: { messageId: string; newContent: string }) => {
+      return apiRequest("POST", "/api/message/revise", { messageId, content: newContent });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/messages", selectedSession] });
+      setReviseDialogOpen(false);
+      setSelectedMessage(null);
+      setRevisedAnswer("");
+      toast({
+        title: "Answer revised",
+        description: "The AI response has been updated.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to revise",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
@@ -102,6 +139,12 @@ export default function SessionsPage() {
     session.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     session.id.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const sortedSessions = filteredSessions?.sort((a, b) => {
+    const aTime = a.lastActivity ? new Date(a.lastActivity).getTime() : 0;
+    const bTime = b.lastActivity ? new Date(b.lastActivity).getTime() : 0;
+    return bTime - aTime;
+  });
 
   const handleSendMessage = () => {
     if (newMessage.trim()) {
@@ -114,6 +157,12 @@ export default function SessionsPage() {
       e.preventDefault();
       handleSendMessage();
     }
+  };
+
+  const handleReviseAnswer = (msg: Message) => {
+    setSelectedMessage(msg);
+    setRevisedAnswer(msg.content);
+    setReviseDialogOpen(true);
   };
 
   const handleExportTranscript = async () => {
@@ -156,6 +205,17 @@ export default function SessionsPage() {
   const activeSessions = sessions?.filter((s) => s.mode === "HUMAN") || [];
   const aiSessions = sessions?.filter((s) => s.mode === "AI") || [];
 
+  const getSessionPreview = (sessionId: string) => {
+    if (sessionId === selectedSession && messages) {
+      const userMessages = messages.filter(m => m.from === "user");
+      const aiMessages = messages.filter(m => m.from === "jeany");
+      const lastQuestion = userMessages[userMessages.length - 1]?.content;
+      const lastAnswer = aiMessages[aiMessages.length - 1]?.content;
+      return { lastQuestion, lastAnswer };
+    }
+    return { lastQuestion: undefined, lastAnswer: undefined };
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -195,12 +255,12 @@ export default function SessionsPage() {
               {sessionsLoading ? (
                 <div className="space-y-3">
                   {[1, 2, 3, 4, 5].map((i) => (
-                    <Skeleton key={i} className="h-16 w-full" />
+                    <Skeleton key={i} className="h-24 w-full" />
                   ))}
                 </div>
-              ) : filteredSessions && filteredSessions.length > 0 ? (
+              ) : sortedSessions && sortedSessions.length > 0 ? (
                 <div className="space-y-2">
-                  {filteredSessions.map((session) => (
+                  {sortedSessions.map((session) => (
                     <button
                       key={session.id}
                       onClick={() => setSelectedSession(session.id)}
@@ -211,7 +271,7 @@ export default function SessionsPage() {
                       }`}
                       data-testid={`button-session-${session.id}`}
                     >
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-start justify-between gap-2 mb-2">
                         <div className="flex items-center gap-2 min-w-0">
                           <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                             <User className="w-4 h-4 text-primary" />
@@ -220,9 +280,13 @@ export default function SessionsPage() {
                             <p className="text-sm font-medium truncate">
                               {session.customerName || "Customer"}
                             </p>
-                            <p className="text-xs text-muted-foreground font-mono truncate">
-                              {session.id.slice(0, 16)}...
-                            </p>
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Clock className="w-3 h-3" />
+                              {session.lastActivity 
+                                ? formatDistanceToNow(new Date(session.lastActivity), { addSuffix: true })
+                                : "No activity"
+                              }
+                            </div>
                           </div>
                         </div>
                         <Badge
@@ -236,6 +300,22 @@ export default function SessionsPage() {
                           )}
                         </Badge>
                       </div>
+                      {session.lastMessage && (
+                        <div className="pl-10 space-y-1">
+                          <div className="flex items-start gap-1.5">
+                            <HelpCircle className="w-3 h-3 mt-0.5 text-muted-foreground shrink-0" />
+                            <p className="text-xs text-muted-foreground line-clamp-1">
+                              {session.lastQuestion || "..."}
+                            </p>
+                          </div>
+                          <div className="flex items-start gap-1.5">
+                            <Bot className="w-3 h-3 mt-0.5 text-primary shrink-0" />
+                            <p className="text-xs text-muted-foreground line-clamp-1">
+                              {session.lastMessage}
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -262,12 +342,29 @@ export default function SessionsPage() {
                       <CardTitle className="text-lg">
                         {selectedSessionData?.customerName || "Customer"}
                       </CardTitle>
-                      <p className="text-xs text-muted-foreground font-mono">
-                        Session: {selectedSession.slice(0, 20)}...
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-muted-foreground font-mono">
+                          {selectedSession.slice(0, 20)}...
+                        </p>
+                        {selectedSessionData?.lastActivity && (
+                          <Badge variant="outline" className="text-xs">
+                            <Clock className="w-3 h-3 mr-1" />
+                            {formatDistanceToNow(new Date(selectedSessionData.lastActivity), { addSuffix: true })}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => refetchMessages()}
+                      title="Refresh messages"
+                      data-testid="button-refresh-messages"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </Button>
                     {selectedSessionData?.mode === "AI" ? (
                       <Button
                         size="sm"
@@ -328,7 +425,7 @@ export default function SessionsPage() {
                       {messages.map((msg, index) => (
                         <div
                           key={msg.id || index}
-                          className={`flex gap-3 ${msg.from === "user" ? "justify-end" : "justify-start"}`}
+                          className={`flex gap-3 ${msg.from === "user" ? "justify-end" : "justify-start"} group`}
                         >
                           {msg.from !== "user" && (
                             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -339,17 +436,31 @@ export default function SessionsPage() {
                               )}
                             </div>
                           )}
-                          <div
-                            className={`max-w-[70%] p-3 ${
-                              msg.from === "user"
-                                ? "bg-primary text-primary-foreground rounded-2xl rounded-br-sm"
-                                : "bg-muted rounded-2xl rounded-bl-sm"
-                            }`}
-                          >
-                            <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                            <p className={`text-xs mt-1 ${msg.from === "user" ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                              {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ""}
-                            </p>
+                          <div className="relative">
+                            <div
+                              className={`max-w-[70%] p-3 ${
+                                msg.from === "user"
+                                  ? "bg-primary text-primary-foreground rounded-2xl rounded-br-sm"
+                                  : "bg-muted rounded-2xl rounded-bl-sm"
+                              }`}
+                            >
+                              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                              <p className={`text-xs mt-1 ${msg.from === "user" ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                                {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ""}
+                              </p>
+                            </div>
+                            {msg.from === "jeany" && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="absolute -right-10 top-0 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8"
+                                onClick={() => handleReviseAnswer(msg)}
+                                title="Revise answer"
+                                data-testid={`button-revise-${msg.id}`}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                            )}
                           </div>
                           {msg.from === "user" && (
                             <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
@@ -402,6 +513,62 @@ export default function SessionsPage() {
           )}
         </Card>
       </div>
+
+      <Dialog open={reviseDialogOpen} onOpenChange={setReviseDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="w-5 h-5" />
+              Revise AI Answer
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-4 rounded-lg bg-muted">
+              <p className="text-xs text-muted-foreground mb-2">Original answer:</p>
+              <p className="text-sm">{selectedMessage?.content}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium mb-2">New answer:</p>
+              <Textarea
+                value={revisedAnswer}
+                onChange={(e) => setRevisedAnswer(e.target.value)}
+                placeholder="Enter the revised answer..."
+                className="min-h-[150px]"
+                data-testid="textarea-revised-answer"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setReviseDialogOpen(false)}
+              data-testid="button-cancel-revise"
+            >
+              <X className="w-4 h-4 mr-2" />
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectedMessage && revisedAnswer.trim()) {
+                  reviseAnswerMutation.mutate({ 
+                    messageId: selectedMessage.id, 
+                    newContent: revisedAnswer.trim() 
+                  });
+                }
+              }}
+              disabled={reviseAnswerMutation.isPending || !revisedAnswer.trim()}
+              data-testid="button-save-revision"
+            >
+              {reviseAnswerMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Check className="w-4 h-4 mr-2" />
+              )}
+              Save Revision
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -29,6 +29,13 @@ export const merchants = pgTable("merchants", {
   conversationsResetAt: timestamp("conversations_reset_at"),
   identitySecretKey: text("identity_secret_key"),
   allowedDomains: text("allowed_domains").default(""),
+  chatTimeout: integer("chat_timeout").default(300),
+  rateLimitMessages: integer("rate_limit_messages").default(30),
+  rateLimitWindow: integer("rate_limit_window").default(60),
+  customDomain: text("custom_domain").default(""),
+  customDomainStatus: text("custom_domain_status").default("pending"),
+  collectCustomerEmail: boolean("collect_customer_email").default(false),
+  collectCustomerPhone: boolean("collect_customer_phone").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
