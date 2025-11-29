@@ -6,7 +6,10 @@ import {
   type Trigger, type InsertTrigger,
   type Knowledge, type InsertKnowledge,
   type Notification, type InsertNotification,
+  merchants, supervisors, sessions, messages, triggers, knowledge, notifications,
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
 import { randomBytes } from "crypto";
 
 export interface IStorage {
@@ -45,26 +48,20 @@ function generateId(prefix: string = ""): string {
   return prefix + randomBytes(8).toString("hex");
 }
 
-export class MemStorage implements IStorage {
-  private merchants: Map<string, Merchant> = new Map();
-  private supervisors: Map<string, Supervisor> = new Map();
-  private sessions: Map<string, Session> = new Map();
-  private messages: Map<string, Message[]> = new Map();
-  private triggers: Map<string, Trigger> = new Map();
-  private knowledge: Map<string, Knowledge> = new Map();
-  private notifications: Map<string, Notification> = new Map();
-
+export class DatabaseStorage implements IStorage {
   async getMerchant(id: string): Promise<Merchant | undefined> {
-    return this.merchants.get(id);
+    const result = await db.select().from(merchants).where(eq(merchants.id, id));
+    return result[0];
   }
 
   async getMerchantByEmail(email: string): Promise<Merchant | undefined> {
-    return Array.from(this.merchants.values()).find((m) => m.email === email);
+    const result = await db.select().from(merchants).where(eq(merchants.email, email));
+    return result[0];
   }
 
   async createMerchant(data: InsertMerchant): Promise<Merchant> {
     const id = generateId("m_");
-    const merchant: Merchant = {
+    const result = await db.insert(merchants).values({
       id,
       email: data.email,
       password: data.password,
@@ -74,169 +71,163 @@ export class MemStorage implements IStorage {
       online: data.online ?? true,
       primaryColor: data.primaryColor || "#6b5dfc",
       welcomeMessage: data.welcomeMessage || "Hi! How can I help you today?",
-    };
-    this.merchants.set(id, merchant);
-    return merchant;
+    }).returning();
+    return result[0];
   }
 
   async updateMerchant(id: string, data: Partial<Merchant>): Promise<Merchant | undefined> {
-    const merchant = this.merchants.get(id);
-    if (!merchant) return undefined;
-    const updated = { ...merchant, ...data };
-    this.merchants.set(id, updated);
-    return updated;
+    const result = await db.update(merchants)
+      .set(data)
+      .where(eq(merchants.id, id))
+      .returning();
+    return result[0];
   }
 
   async getSupervisor(id: string): Promise<Supervisor | undefined> {
-    return this.supervisors.get(id);
+    const result = await db.select().from(supervisors).where(eq(supervisors.id, id));
+    return result[0];
   }
 
   async getSupervisorByEmail(email: string): Promise<Supervisor | undefined> {
-    return Array.from(this.supervisors.values()).find((s) => s.email === email);
+    const result = await db.select().from(supervisors).where(eq(supervisors.email, email));
+    return result[0];
   }
 
   async getSupervisorsByMerchant(merchantId: string): Promise<Supervisor[]> {
-    return Array.from(this.supervisors.values()).filter((s) => s.merchantId === merchantId);
+    return db.select().from(supervisors).where(eq(supervisors.merchantId, merchantId));
   }
 
   async createSupervisor(data: InsertSupervisor): Promise<Supervisor> {
     const id = generateId("sup_");
-    const supervisor: Supervisor = {
+    const result = await db.insert(supervisors).values({
       id,
       merchantId: data.merchantId,
       email: data.email,
       name: data.name,
       password: data.password,
-    };
-    this.supervisors.set(id, supervisor);
-    return supervisor;
+    }).returning();
+    return result[0];
   }
 
   async deleteSupervisor(id: string): Promise<boolean> {
-    return this.supervisors.delete(id);
+    const result = await db.delete(supervisors).where(eq(supervisors.id, id)).returning();
+    return result.length > 0;
   }
 
   async getSession(id: string): Promise<Session | undefined> {
-    return this.sessions.get(id);
+    const result = await db.select().from(sessions).where(eq(sessions.id, id));
+    return result[0];
   }
 
   async getSessionsByMerchant(merchantId: string): Promise<Session[]> {
-    return Array.from(this.sessions.values())
-      .filter((s) => s.merchantId === merchantId)
-      .sort((a, b) => {
-        const aTime = a.lastActivity ? new Date(a.lastActivity).getTime() : 0;
-        const bTime = b.lastActivity ? new Date(b.lastActivity).getTime() : 0;
-        return bTime - aTime;
-      });
+    return db.select().from(sessions)
+      .where(eq(sessions.merchantId, merchantId))
+      .orderBy(desc(sessions.lastActivity));
   }
 
   async createSession(data: InsertSession): Promise<Session> {
-    const session: Session = {
+    const result = await db.insert(sessions).values({
       id: data.id,
       merchantId: data.merchantId,
       mode: data.mode || "AI",
       supervisorId: data.supervisorId || null,
       customerName: data.customerName || "Customer",
-      lastActivity: new Date(),
-    };
-    this.sessions.set(data.id, session);
-    return session;
+    }).returning();
+    return result[0];
   }
 
   async updateSession(id: string, data: Partial<Session>): Promise<Session | undefined> {
-    const session = this.sessions.get(id);
-    if (!session) return undefined;
-    const updated = { ...session, ...data, lastActivity: new Date() };
-    this.sessions.set(id, updated);
-    return updated;
+    const result = await db.update(sessions)
+      .set({ ...data, lastActivity: new Date() })
+      .where(eq(sessions.id, id))
+      .returning();
+    return result[0];
   }
 
   async getMessages(sessionId: string): Promise<Message[]> {
-    return this.messages.get(sessionId) || [];
+    return db.select().from(messages)
+      .where(eq(messages.sessionId, sessionId))
+      .orderBy(messages.timestamp);
   }
 
   async createMessage(data: InsertMessage): Promise<Message> {
     const id = generateId("msg_");
-    const message: Message = {
+    const result = await db.insert(messages).values({
       id,
       sessionId: data.sessionId,
       from: data.from,
       content: data.content,
-      timestamp: new Date(),
-    };
-    const existing = this.messages.get(data.sessionId) || [];
-    existing.push(message);
-    this.messages.set(data.sessionId, existing);
-    return message;
+    }).returning();
+    return result[0];
   }
 
   async getTriggers(merchantId: string): Promise<Trigger[]> {
-    return Array.from(this.triggers.values()).filter((t) => t.merchantId === merchantId);
+    return db.select().from(triggers).where(eq(triggers.merchantId, merchantId));
   }
 
   async createTrigger(data: InsertTrigger): Promise<Trigger> {
     const id = generateId("trg_");
-    const trigger: Trigger = {
+    const result = await db.insert(triggers).values({
       id,
       merchantId: data.merchantId,
       keyword: data.keyword,
-    };
-    this.triggers.set(id, trigger);
-    return trigger;
+    }).returning();
+    return result[0];
   }
 
   async deleteTrigger(id: string): Promise<boolean> {
-    return this.triggers.delete(id);
+    const result = await db.delete(triggers).where(eq(triggers.id, id)).returning();
+    return result.length > 0;
   }
 
   async getKnowledge(merchantId: string): Promise<Knowledge | undefined> {
-    return Array.from(this.knowledge.values()).find((k) => k.merchantId === merchantId);
+    const result = await db.select().from(knowledge).where(eq(knowledge.merchantId, merchantId));
+    return result[0];
   }
 
   async setKnowledge(merchantId: string, content: string): Promise<Knowledge> {
     const existing = await this.getKnowledge(merchantId);
     if (existing) {
-      const updated = { ...existing, content };
-      this.knowledge.set(existing.id, updated);
-      return updated;
+      const result = await db.update(knowledge)
+        .set({ content })
+        .where(eq(knowledge.id, existing.id))
+        .returning();
+      return result[0];
     }
     const id = generateId("kb_");
-    const knowledge: Knowledge = { id, merchantId, content };
-    this.knowledge.set(id, knowledge);
-    return knowledge;
+    const result = await db.insert(knowledge).values({
+      id,
+      merchantId,
+      content,
+    }).returning();
+    return result[0];
   }
 
   async getNotifications(supervisorId: string): Promise<Notification[]> {
-    return Array.from(this.notifications.values())
-      .filter((n) => n.supervisorId === supervisorId)
-      .sort((a, b) => {
-        const aTime = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-        const bTime = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-        return bTime - aTime;
-      });
+    return db.select().from(notifications)
+      .where(eq(notifications.supervisorId, supervisorId))
+      .orderBy(desc(notifications.timestamp));
   }
 
   async createNotification(data: InsertNotification): Promise<Notification> {
     const id = generateId("notif_");
-    const notification: Notification = {
+    const result = await db.insert(notifications).values({
       id,
       supervisorId: data.supervisorId,
       sessionId: data.sessionId,
       message: data.message,
       seen: data.seen ?? false,
-      timestamp: new Date(),
-    };
-    this.notifications.set(id, notification);
-    return notification;
+    }).returning();
+    return result[0];
   }
 
   async markNotificationSeen(id: string): Promise<boolean> {
-    const notification = this.notifications.get(id);
-    if (!notification) return false;
-    notification.seen = true;
-    this.notifications.set(id, notification);
-    return true;
+    const result = await db.update(notifications)
+      .set({ seen: true })
+      .where(eq(notifications.id, id))
+      .returning();
+    return result.length > 0;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
