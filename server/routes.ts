@@ -431,6 +431,67 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  app.get("/api/transcript/:sessionId", requireMerchant, async (req, res) => {
+    try {
+      const session = await storage.getSession(req.params.sessionId);
+      if (!session || session.merchantId !== req.session.merchantId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      const messages = await storage.getMessages(req.params.sessionId);
+      const merchant = await storage.getMerchant(session.merchantId);
+      
+      const format = req.query.format || 'text';
+      
+      if (format === 'json') {
+        res.json({
+          session: {
+            id: session.id,
+            customerName: session.customerName,
+            mode: session.mode,
+            createdAt: session.createdAt,
+          },
+          merchant: {
+            companyName: merchant?.companyName || 'Unknown',
+          },
+          messages: messages.map(m => ({
+            from: m.from,
+            content: m.content,
+            timestamp: m.timestamp,
+          })),
+          exportedAt: new Date().toISOString(),
+        });
+      } else {
+        let transcript = `Chat Transcript\n`;
+        transcript += `${'='.repeat(50)}\n\n`;
+        transcript += `Company: ${merchant?.companyName || 'Unknown'}\n`;
+        transcript += `Customer: ${session.customerName || 'Customer'}\n`;
+        transcript += `Session ID: ${session.id}\n`;
+        transcript += `Mode: ${session.mode}\n`;
+        transcript += `Date: ${session.createdAt ? new Date(session.createdAt).toLocaleString() : 'Unknown'}\n\n`;
+        transcript += `${'='.repeat(50)}\n\n`;
+        
+        for (const msg of messages) {
+          const sender = msg.from === 'user' ? (session.customerName || 'Customer') :
+                        msg.from === 'jeany' ? 'Jeany AI' :
+                        msg.from === 'supervisor' ? 'Supervisor' : 'System';
+          const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : '';
+          transcript += `[${time}] ${sender}:\n${msg.content}\n\n`;
+        }
+        
+        transcript += `${'='.repeat(50)}\n`;
+        transcript += `Exported: ${new Date().toLocaleString()}\n`;
+        
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="transcript-${session.id.slice(0, 8)}.txt"`);
+        res.send(transcript);
+      }
+    } catch (error) {
+      console.error("Transcript export error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/knowledge/:merchantId", requireMerchant, async (req, res) => {
     try {
       if (req.session.merchantId !== req.params.merchantId) {

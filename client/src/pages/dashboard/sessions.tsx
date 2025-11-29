@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageSquare, Bot, HeadphonesIcon, Send, Search, User } from "lucide-react";
+import { MessageSquare, Bot, HeadphonesIcon, Send, Search, User, Download } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import type { Session, Message } from "@shared/schema";
 
 export default function SessionsPage() {
@@ -16,6 +17,7 @@ export default function SessionsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [newMessage, setNewMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   const { data: sessions, isLoading: sessionsLoading } = useQuery<Session[]>({
     queryKey: ["/api/sessions", merchantId],
@@ -64,6 +66,41 @@ export default function SessionsPage() {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  const handleExportTranscript = async () => {
+    if (!selectedSession) return;
+    
+    try {
+      const response = await fetch(`/api/transcript/${selectedSession}`, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to export transcript');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `transcript-${selectedSession.slice(0, 8)}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Transcript exported",
+        description: "The chat transcript has been downloaded.",
+      });
+    } catch (error) {
+      toast({
+        title: "Export failed",
+        description: "Could not export the transcript. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -167,19 +204,30 @@ export default function SessionsPage() {
                       </p>
                     </div>
                   </div>
-                  <Badge variant={selectedSessionData?.mode === "AI" ? "secondary" : "default"}>
-                    {selectedSessionData?.mode === "AI" ? (
-                      <>
-                        <Bot className="w-3 h-3 mr-1" />
-                        AI Mode
-                      </>
-                    ) : (
-                      <>
-                        <HeadphonesIcon className="w-3 h-3 mr-1" />
-                        Human Mode
-                      </>
-                    )}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={handleExportTranscript}
+                      title="Export transcript"
+                      data-testid="button-export-transcript"
+                    >
+                      <Download className="w-4 h-4" />
+                    </Button>
+                    <Badge variant={selectedSessionData?.mode === "AI" ? "secondary" : "default"}>
+                      {selectedSessionData?.mode === "AI" ? (
+                        <>
+                          <Bot className="w-3 h-3 mr-1" />
+                          AI Mode
+                        </>
+                      ) : (
+                        <>
+                          <HeadphonesIcon className="w-3 h-3 mr-1" />
+                          Human Mode
+                        </>
+                      )}
+                    </Badge>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
