@@ -139,12 +139,21 @@ async function askJeany(
 You are professional yet approachable, and always aim to help customers effectively.
 Always answer in a clear, structured way while maintaining a conversational tone.
 
+IMPORTANT LANGUAGE INSTRUCTION:
+- Detect the language of the customer's message
+- ALWAYS respond in the SAME language the customer is using
+- If the customer writes in Spanish, respond in Spanish
+- If the customer writes in French, respond in French
+- If the customer writes in German, respond in German
+- And so on for any other language
+- This includes greeting messages - match their language
+
 Relevant Company Information:
 ${knowledgeContext || "No specific knowledge base configured yet."}
 
 Customer Message: ${message}
 
-Provide a helpful response based on the relevant information above. If you don't have specific information to answer, be honest about it and offer to connect with a human agent.`;
+Provide a helpful response based on the relevant information above. If you don't have specific information to answer, be honest about it and offer to connect with a human agent. Remember to respond in the same language as the customer's message.`;
 
   try {
     const completion = await openai.chat.completions.create({
