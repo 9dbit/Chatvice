@@ -1,0 +1,100 @@
+{
+  "colorScheme": "light",
+  "fonts": [
+    {
+      "family": "IBM Plex Sans",
+      "role": "body"
+    },
+    {
+      "family": "ABC Diatype",
+      "role": "display"
+    }
+  ],
+  "colors": {
+    "primary": "#EC4E02",
+    "accent": "#7E2A01",
+    "background": "#FCFCFC",
+    "textPrimary": "#0B1419",
+    "link": "#7E2A01"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "IBM Plex Sans",
+      "heading": "ABC Diatype"
+    },
+    "fontStacks": {
+      "heading": [
+        "ABC Diatype",
+        "sans-serif"
+      ],
+      "body": [
+        "IBM Plex Sans",
+        "sans-serif"
+      ],
+      "paragraph": [
+        "IBM Plex Sans",
+        "sans-serif"
+      ]
+    },
+    "fontSizes": {
+      "h1": "24px",
+      "h2": "24px",
+      "body": "14px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "6px"
+  },
+  "components": {
+    "input": {
+      "borderColor": "#CCCCCC",
+      "borderRadius": "6px"
+    },
+    "buttonPrimary": {
+      "background": "#EC4E02",
+      "textColor": "#FFFFFF",
+      "borderRadius": "6px",
+      "shadow": "none"
+    },
+    "buttonSecondary": {
+      "background": "#E5E5E5",
+      "textColor": "#0B1419",
+      "borderRadius": "6px",
+      "shadow": "none"
+    }
+  },
+  "images": {
+    "logo": "File saved at: attached_assets/logo.png",
+    "favicon": "File saved at: attached_assets/favicon.png",
+    "ogImage": "File saved at: attached_assets/ogImage.png"
+  },
+  "__framework_hints": [],
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": 6,
+      "text": "Log In",
+      "reasoning": "Button #6 ('Log In') has a vibrant background color (#EC4E02), which is a strong indicator of being the primary CTA. It also has action-oriented text, making it the clear choice for the main call-to-action."
+    },
+    "secondary": {
+      "index": 0,
+      "text": "Use SSO login",
+      "reasoning": "Button #0 ('Use SSO login') has a different background color (#E5E5E5) compared to the primary button and is less prominent, making it suitable as a secondary action. It is also an action-oriented text but is more subtle than the primary button."
+    },
+    "confidence": 1
+  },
+  "personality": {
+    "tone": "modern",
+    "energy": "medium",
+    "targetAudience": "developers and tech enthusiasts"
+  },
+  "designSystem": {
+    "framework": "unknown",
+    "componentLibrary": null
+  },
+  "confidence": {
+    "buttons": 1,
+    "colors": 1,
+    "overall": 1
+  }
+}

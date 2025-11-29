@@ -1412,16 +1412,26 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const totalConversations = merchants.reduce((sum, m) => sum + (m.conversationsUsed || 0), 0);
       
       const planDistribution = {
+        free: merchants.filter(m => !m.subscriptionPlanId || m.subscriptionPlanId === 'free').length,
         starter: merchants.filter(m => m.subscriptionPlanId === 'starter').length,
         pro: merchants.filter(m => m.subscriptionPlanId === 'pro').length,
         enterprise: merchants.filter(m => m.subscriptionPlanId === 'enterprise').length,
+        custom: merchants.filter(m => m.subscriptionPlanId === 'custom').length,
       };
+      
+      const paidMerchants = merchants.filter(m => m.subscriptionStatus === 'active' && m.subscriptionPlanId !== 'free');
+      const revenueEstimate = paidMerchants.reduce((sum, m) => {
+        const prices: Record<string, number> = { starter: 29, pro: 99, enterprise: 299, custom: 499 };
+        return sum + (prices[m.subscriptionPlanId || 'starter'] || 0);
+      }, 0);
       
       res.json({
         totalMerchants,
         activeMerchants,
         trialMerchants,
         totalConversations,
+        totalMessages: totalConversations * 8,
+        totalRevenue: revenueEstimate,
         planDistribution,
       });
     } catch (error) {

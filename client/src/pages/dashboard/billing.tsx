@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -44,14 +44,43 @@ export default function BillingPage() {
   const [cardNumber, setCardNumber] = useState('');
   const [expiry, setExpiry] = useState('');
   const [cvc, setCvc] = useState('');
-  
-  const urlParams = new URLSearchParams(window.location.search);
-  const success = urlParams.get('success');
-  const canceled = urlParams.get('canceled');
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showCanceledMessage, setShowCanceledMessage] = useState(false);
 
-  const { data: billingStatus, isLoading } = useQuery<BillingStatus>({
+  const { data: billingStatus, isLoading, refetch } = useQuery<BillingStatus>({
     queryKey: ["/api/billing/status"],
   });
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const success = urlParams.get('success');
+    const canceled = urlParams.get('canceled');
+    
+    if (success) {
+      setShowSuccessMessage(true);
+      
+      queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/me"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, '', cleanUrl);
+      
+      toast({
+        title: "Subscription Updated!",
+        description: "Your plan has been successfully upgraded. Features are now unlocked.",
+      });
+      
+      setTimeout(() => setShowSuccessMessage(false), 10000);
+    }
+    
+    if (canceled) {
+      setShowCanceledMessage(true);
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, '', cleanUrl);
+      setTimeout(() => setShowCanceledMessage(false), 10000);
+    }
+  }, [toast]);
 
   const checkoutMutation = useMutation({
     mutationFn: async ({ planId, billingInterval }: { planId: string; billingInterval: string }) => {
@@ -200,7 +229,7 @@ export default function BillingPage() {
         </p>
       </div>
 
-      {success && (
+      {showSuccessMessage && (
         <Card className="border-green-500/50 bg-green-500/10">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
@@ -214,7 +243,7 @@ export default function BillingPage() {
         </Card>
       )}
 
-      {canceled && (
+      {showCanceledMessage && (
         <Card className="border-yellow-500/50 bg-yellow-500/10">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
