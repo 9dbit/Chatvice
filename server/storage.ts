@@ -9,8 +9,20 @@ import {
   merchants, supervisors, sessions, messages, triggers, knowledge, notifications,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
 import { randomBytes } from "crypto";
+
+export interface AnalyticsData {
+  totalSessions: number;
+  activeSessions: number;
+  messagesToday: number;
+  messagesThisWeek: number;
+  aiSessions: number;
+  humanSessions: number;
+  aiResolutionRate: number;
+  dailyMessageCounts: { date: string; count: number }[];
+  avgResponseTime: number;
+}
 
 export interface IStorage {
   getMerchant(id: string): Promise<Merchant | undefined>;
@@ -42,6 +54,8 @@ export interface IStorage {
   getNotifications(supervisorId: string): Promise<Notification[]>;
   createNotification(notification: InsertNotification): Promise<Notification>;
   markNotificationSeen(id: string): Promise<boolean>;
+  
+  getAnalytics(merchantId: string): Promise<AnalyticsData>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -227,6 +241,134 @@ export class DatabaseStorage implements IStorage {
       .where(eq(notifications.id, id))
       .returning();
     return result.length > 0;
+  }
+
+  async getAnalytics(merchantId: string): Promise<AnalyticsData> {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekAgo = new Date(todayStart);
+    weekAgo.setDate(weekAgo.getDate() - 6);
+    const dayAgo = new Date(now);
+    dayAgo.setDate(dayAgo.getDate() - 1);
+
+    const merchantSessions = await db.select().from(sessions)
+      .where(eq(sessions.merchantId, merchantId));
+    
+    if (merchantSessions.length === 0) {
+      const dailyMessageCounts: { date: string; count: number }[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(todayStart);
+        date.setDate(date.getDate() - i);
+        dailyMessageCounts.push({
+          date: date.toISOString().split('T')[0],
+          count: 0,
+        });
+      }
+      return {
+        totalSessions: 0,
+        activeSessions: 0,
+        messagesToday: 0,
+        messagesThisWeek: 0,
+        aiSessions: 0,
+        humanSessions: 0,
+        aiResolutionRate: 0,
+        dailyMessageCounts,
+        avgResponseTime: 0,
+      };
+    }
+    
+    const activeSessions = merchantSessions.filter(s => {
+      if (!s.lastActivity) return false;
+      return new Date(s.lastActivity) > dayAgo;
+    });
+    
+    const aiSessions = merchantSessions.filter(s => s.mode === "AI").length;
+    const humanSessions = merchantSessions.filter(s => s.mode === "HUMAN").length;
+    
+    const sessionIds = merchantSessions.map(s => s.id);
+    
+    const allMessages = await db.select().from(messages)
+      .where(inArray(messages.sessionId, sessionIds));
+    
+    const messagesToday = allMessages.filter(m => 
+      m.timestamp && new Date(m.timestamp) >= todayStart
+    ).length;
+    
+    const messagesThisWeek = allMessages.filter(m =>
+      m.timestamp && new Date(m.timestamp) >= weekAgo
+    ).length;
+    
+    const dailyMessageCounts: { date: string; count: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(todayStart);
+      date.setDate(date.getDate() - i);
+      const nextDate = new Date(date);
+      nextDate.setDate(nextDate.getDate() + 1);
+      
+      const dayCount = allMessages.filter(m =>
+        m.timestamp && new Date(m.timestamp) >= date && new Date(m.timestamp) < nextDate
+      ).length;
+      
+      dailyMessageCounts.push({
+        date: date.toISOString().split('T')[0],
+        count: dayCount,
+      });
+    }
+    
+    const totalSessions = merchantSessions.length;
+    const aiResolutionRate = Math.round((aiSessions / totalSessions) * 100);
+    
+    let avgResponseTime = 0;
+    const aiResponses: number[] = [];
+    
+    const messagesBySession = new Map<string, Message[]>();
+    for (const msg of allMessages) {
+      const existing = messagesBySession.get(msg.sessionId) || [];
+      existing.push(msg);
+      messagesBySession.set(msg.sessionId, existing);
+    }
+    
+    for (const [sessionId, sessionMsgs] of messagesBySession) {
+      const sorted = sessionMsgs.sort((a, b) => {
+        const aTime = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const bTime = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return aTime - bTime;
+      });
+      
+      for (let i = 0; i < sorted.length; i++) {
+        if (sorted[i].from === "customer") {
+          for (let j = i + 1; j < sorted.length; j++) {
+            if (sorted[j].from === "jeany") {
+              const customerTime = sorted[i].timestamp ? new Date(sorted[i].timestamp!).getTime() : 0;
+              const aiTime = sorted[j].timestamp ? new Date(sorted[j].timestamp!).getTime() : 0;
+              if (customerTime && aiTime) {
+                const responseTime = (aiTime - customerTime) / 1000;
+                if (responseTime > 0 && responseTime < 300) {
+                  aiResponses.push(responseTime);
+                }
+              }
+              break;
+            }
+          }
+        }
+      }
+    }
+    
+    if (aiResponses.length > 0) {
+      avgResponseTime = Math.round((aiResponses.reduce((a, b) => a + b, 0) / aiResponses.length) * 10) / 10;
+    }
+
+    return {
+      totalSessions: merchantSessions.length,
+      activeSessions: activeSessions.length,
+      messagesToday,
+      messagesThisWeek,
+      aiSessions,
+      humanSessions,
+      aiResolutionRate,
+      dailyMessageCounts,
+      avgResponseTime,
+    };
   }
 }
 

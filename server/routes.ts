@@ -606,17 +606,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return res.status(403).json({ error: "Forbidden" });
       }
       
-      const sessions = await storage.getSessionsByMerchant(req.params.merchantId);
-      const aiSessions = sessions.filter((s) => s.mode === "AI").length;
-      const total = sessions.length || 1;
-      
-      res.json({
-        activeSessions: sessions.length,
-        messagesToday: sessions.length * 3,
-        aiResolutionRate: Math.round((aiSessions / total) * 100),
-        avgResponseTime: 1.2,
-      });
+      const analytics = await storage.getAnalytics(req.params.merchantId);
+      res.json(analytics);
     } catch (error) {
+      console.error("Stats error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
