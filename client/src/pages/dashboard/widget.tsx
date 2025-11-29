@@ -314,6 +314,7 @@ export default function WidgetPage() {
                         </div>
                       </div>
                     </div>
+                  </div>
                 </div>
 
                 <Button

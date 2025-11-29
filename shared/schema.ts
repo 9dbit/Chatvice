@@ -15,6 +15,8 @@ export const merchants = pgTable("merchants", {
   profilePhotoUrl: text("profile_photo_url").default(""),
   agentName: text("agent_name").default("Jeany AI"),
   agentPhotoUrl: text("agent_photo_url").default(""),
+  widgetTheme: text("widget_theme").default("light"),
+  bubblePosition: text("bubble_position").default("right"),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
   stripePriceId: text("stripe_price_id"),
