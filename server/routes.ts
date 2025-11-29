@@ -13,6 +13,7 @@ import bcrypt from "bcryptjs";
 import session from "express-session";
 import MemoryStore from "memorystore";
 import { processKnowledgeBase, searchKnowledge } from "./embeddings";
+import { extractFAQContent } from "./crawler";
 
 declare module "express-session" {
   interface SessionData {
@@ -454,6 +455,27 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.json({ success: true, knowledge });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/knowledge/crawl", requireMerchant, async (req, res) => {
+    try {
+      const { url } = req.body;
+      
+      if (!url || typeof url !== "string") {
+        return res.status(400).json({ error: "URL is required" });
+      }
+      
+      const result = await extractFAQContent(url);
+      
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+      
+      res.json({ success: true, content: result.content });
+    } catch (error) {
+      console.error("Crawl error:", error);
+      res.status(500).json({ error: "Failed to extract content from URL" });
     }
   });
 

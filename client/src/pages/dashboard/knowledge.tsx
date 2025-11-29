@@ -4,14 +4,17 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Save, Sparkles, FileText, AlertCircle } from "lucide-react";
+import { Database, Save, Sparkles, FileText, AlertCircle, Globe, Loader2, Plus } from "lucide-react";
 
 export default function KnowledgePage() {
   const merchantId = localStorage.getItem("merchantId") || "";
   const { toast } = useToast();
   const [content, setContent] = useState("");
+  const [crawlUrl, setCrawlUrl] = useState("");
+  const [extractedContent, setExtractedContent] = useState("");
 
   const { data: knowledge, isLoading } = useQuery({
     queryKey: ["/api/knowledge", merchantId],
@@ -47,8 +50,52 @@ export default function KnowledgePage() {
     },
   });
 
+  const crawlMutation = useMutation({
+    mutationFn: async (url: string) => {
+      const response = await apiRequest("POST", "/api/knowledge/crawl", { url });
+      return response;
+    },
+    onSuccess: (data: { content: string }) => {
+      setExtractedContent(data.content);
+      toast({
+        title: "Content extracted",
+        description: "Review the extracted content and add it to your knowledge base.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Extraction failed",
+        description: error.message || "Failed to extract content from the URL.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleSave = () => {
     saveMutation.mutate(content);
+  };
+
+  const handleCrawl = () => {
+    if (!crawlUrl.trim()) {
+      toast({
+        title: "URL required",
+        description: "Please enter a website URL to extract content from.",
+        variant: "destructive",
+      });
+      return;
+    }
+    crawlMutation.mutate(crawlUrl.trim());
+  };
+
+  const handleAddExtracted = () => {
+    const separator = content.trim() ? "\n\n---\n\n" : "";
+    setContent(content + separator + extractedContent);
+    setExtractedContent("");
+    setCrawlUrl("");
+    toast({
+      title: "Content added",
+      description: "The extracted content has been added to your knowledge base. Don't forget to save!",
+    });
   };
 
   const examples = [
@@ -130,6 +177,58 @@ Example:
         </Card>
 
         <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Globe className="w-5 h-5 text-primary" />
+                <CardTitle className="text-lg">Import from Website</CardTitle>
+              </div>
+              <CardDescription>
+                Extract FAQs and policies from your website automatically.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="https://example.com/faq"
+                  value={crawlUrl}
+                  onChange={(e) => setCrawlUrl(e.target.value)}
+                  disabled={crawlMutation.isPending}
+                  data-testid="input-crawl-url"
+                />
+                <Button
+                  onClick={handleCrawl}
+                  disabled={crawlMutation.isPending}
+                  variant="outline"
+                  data-testid="button-extract-content"
+                >
+                  {crawlMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Extract"
+                  )}
+                </Button>
+              </div>
+
+              {extractedContent && (
+                <div className="space-y-3">
+                  <div className="max-h-48 overflow-auto p-3 rounded-md bg-muted text-sm">
+                    <pre className="whitespace-pre-wrap font-sans">{extractedContent}</pre>
+                  </div>
+                  <Button
+                    onClick={handleAddExtracted}
+                    variant="outline"
+                    className="w-full"
+                    data-testid="button-add-extracted"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add to Knowledge Base
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
