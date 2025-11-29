@@ -1,0 +1,673 @@
+Bisa banget, dan memang lebih enak ditata kalau dipisah jadi beberapa “apps” di satu repo / satu Replit:
+	•	/apps/landing → website Jeany AI
+	•	/apps/merchant-panel → dashboard merchant
+	•	/apps/superadmin-panel → dashboard super admin
+	•	/apps/widget → chat widget Jeany yang ditanam di website merchant
+	•	/api → backend API (chat, triggers, knowledge, supervisor, dll.)
+	•	/services & /database → logic & penyimpanan data (Replit DB / Supabase)
+
+Ini tetap 1 project Replit, 1 server NodeJS, tapi struktur file rapi dan terpisah per aplikasi.
+Sangat memungkinkan dan efektif untuk:
+	•	memudahkan tracing file
+	•	bisa scale belakangan (kalau mau pecah jadi microservice beneran pun gampang)
+	•	developer lain lebih gampang onboarding.
+
+⸻
+
+🗂 1. STRUKTUR FOLDER REPLIT
+
+Salin struktur ini ke Replit:
+
+/root
+├── index.js                # Entry server utama
+├── package.json
+├── .replit
+├── apps
+│   ├── landing
+│   │   ├── index.html
+│   │   └── landing.css
+│   ├── merchant-panel
+│   │   ├── index.html
+│   │   ├── merchant.css
+│   │   └── merchant.js
+│   ├── superadmin-panel
+│   │   ├── index.html
+│   │   ├── superadmin.css
+│   │   └── superadmin.js
+│   └── widget
+│       └── jeany-widget.js
+├── api
+│   ├── chat.js
+│   ├── merchant.js
+│   ├── knowledge.js
+│   ├── auth.js
+│   ├── supervisor.js
+│   └── status.js
+├── services
+│   ├── ai-engine.js
+│   ├── embedding.js
+│   ├── crawler.js
+│   ├── trigger.js
+│   └── session.js
+└── database
+    └── db.js
+
+
+⸻
+
+📦 2. package.json
+
+{
+  "name": "jeany-ai-chatbot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.0",
+    "openai": "^4.0.0",
+    "replit-db": "^2.0.0"
+  }
+}
+
+Di Replit, tambahkan env var: OPENAI_KEY=your_key
+
+⸻
+
+🚀 3. SERVER UTAMA – index.js
+
+import express from "express";
+import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
+
+// API routes
+import chatRoute from "./api/chat.js";
+import merchantRoute from "./api/merchant.js";
+import knowledgeRoute from "./api/knowledge.js";
+import authRoute from "./api/auth.js";
+import supervisorRoute from "./api/supervisor.js";
+import statusRoute from "./api/status.js";
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Serve static apps
+app.use("/landing", express.static(path.join(__dirname, "apps/landing")));
+app.use("/merchant", express.static(path.join(__dirname, "apps/merchant-panel")));
+app.use("/superadmin", express.static(path.join(__dirname, "apps/superadmin-panel")));
+app.use("/widget", express.static(path.join(__dirname, "apps/widget")));
+
+// API endpoints
+app.use("/api/chat", chatRoute);
+app.use("/api/merchant", merchantRoute);
+app.use("/api/knowledge", knowledgeRoute);
+app.use("/api/auth", authRoute);
+app.use("/api/supervisor", supervisorRoute);
+app.use("/api/status", statusRoute);
+
+app.get("/", (req, res) => {
+  res.redirect("/landing");
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Jeany server running on port ${PORT}`));
+
+
+⸻
+
+🧩 4. DATABASE – database/db.js (Replit DB)
+
+import Database from "replit-db";
+
+const db = new Database();
+
+// helper get & set array
+db.push = async (key, value) => {
+  const existing = (await db.get(key)) || [];
+  existing.push(value);
+  await db.set(key, existing);
+};
+
+export default db;
+
+
+⸻
+
+🧠 5. AI ENGINE + SESSION + TRIGGER
+
+services/ai-engine.js
+
+import OpenAI from "openai";
+import { checkTriggers } from "./trigger.js";
+import { setHumanMode, getSession } from "./session.js";
+
+const client = new OpenAI({ apiKey: process.env.OPENAI_KEY });
+
+export async function askJeany({ session_id, merchant_id, message, knowledge }) {
+  const session = await getSession(session_id, merchant_id);
+
+  // kalau sudah HUMAN mode → jangan panggil AI
+  if (session.mode === "HUMAN") {
+    return {
+      answer: "👩‍💼 Supervisor sedang menangani percakapan ini.",
+      mode: "HUMAN"
+    };
+  }
+
+  // cek trigger kata
+  const isTriggered = await checkTriggers(merchant_id, message);
+  if (isTriggered) {
+    await setHumanMode(session_id, merchant_id);
+    return {
+      answer: "⚠️ Saya akan menghubungkan Anda dengan Supervisor agar bisa dibantu lebih lanjut.",
+      mode: "HUMAN"
+    };
+  }
+
+  // prompt AI
+  const prompt = `
+You are Jeany, an AI Customer Service Agent.
+You are friendly, talkative, and helpful.
+Always answer in a clear, structured way, but human-like.
+
+Merchant knowledge:
+${knowledge}
+
+Customer: ${message}
+Jeany:
+`;
+
+  const completion = await client.chat.completions.create({
+    model: "gpt-4.1-mini",
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.7
+  });
+
+  const answer = completion.choices[0].message.content;
+  return { answer, mode: "AI" };
+}
+
+
+⸻
+
+services/session.js
+
+import db from "../database/db.js";
+import { notifySupervisors } from "./trigger.js";
+
+export async function getSession(session_id, merchant_id) {
+  let session = await db.get(`session_${session_id}`);
+  if (!session) {
+    session = {
+      id: session_id,
+      merchant_id,
+      mode: "AI",
+      supervisor_id: null,
+      created_at: Date.now(),
+      updated_at: Date.now()
+    };
+    await db.set(`session_${session_id}`, session);
+  }
+  return session;
+}
+
+export async function setHumanMode(session_id, merchant_id) {
+  const session = await getSession(session_id, merchant_id);
+  session.mode = "HUMAN";
+  session.updated_at = Date.now();
+  await db.set(`session_${session_id}`, session);
+  await notifySupervisors(merchant_id, session_id);
+}
+
+
+⸻
+
+services/trigger.js
+
+import db from "../database/db.js";
+
+export async function checkTriggers(merchant_id, text) {
+  const list = (await db.get(`triggers_${merchant_id}`)) || [
+    "depo belum masuk",
+    "withdraw belum masuk",
+    "ganti password"
+  ];
+  const lower = text.toLowerCase();
+  return list.some(t => lower.includes(t.toLowerCase()));
+}
+
+export async function notifySupervisors(merchant_id, session_id) {
+  const supervisors = (await db.get(`supervisors_${merchant_id}`)) || [];
+  for (const sup of supervisors) {
+    await db.push(`notif_${sup.id}`, {
+      session_id,
+      message: "Customer membutuhkan superviser (trigger detected)",
+      seen: false,
+      created_at: Date.now()
+    });
+  }
+}
+
+(embedding.js & crawler.js bisa diisi nanti – sementara boleh dummy)
+
+⸻
+
+🧵 6. API: CHAT – api/chat.js
+
+import express from "express";
+import db from "../database/db.js";
+import { askJeany } from "../services/ai-engine.js";
+
+const router = express.Router();
+
+router.post("/ask", async (req, res) => {
+  try {
+    const { merchant_id, session_id, message } = req.body;
+    if (!merchant_id || !session_id || !message) {
+      return res.status(400).json({ error: "missing fields" });
+    }
+
+    const knowledge = (await db.get(`knowledge_${merchant_id}`)) || "";
+    const result = await askJeany({ session_id, merchant_id, message, knowledge });
+
+    // log chat
+    const logKey = `chatlog_${session_id}`;
+    const log = (await db.get(logKey)) || [];
+    log.push({
+      from: "user",
+      message,
+      time: Date.now()
+    });
+    log.push({
+      from: result.mode === "HUMAN" ? "system" : "jeany",
+      message: result.answer,
+      time: Date.now()
+    });
+    await db.set(logKey, log);
+
+    res.json({
+      answer: result.answer,
+      mode: result.mode
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "server error" });
+  }
+});
+
+export default router;
+
+
+⸻
+
+🧾 7. API LAIN (RINGKAS)
+
+api/merchant.js (settings merchant + icon + theme)
+
+import express from "express";
+import db from "../database/db.js";
+
+const router = express.Router();
+
+// get merchant config (dipakai widget)
+router.get("/status/:merchant_id", async (req, res) => {
+  const merchant_id = req.params.merchant_id;
+  const config = (await db.get(`merchant_${merchant_id}`)) || {
+    icon_url: "https://via.placeholder.com/80x80.png?text=CS",
+    icon_size: 70,
+    online: true,
+    name: "Default Merchant"
+  };
+  res.json(config);
+});
+
+// update config
+router.post("/config", async (req, res) => {
+  const { merchant_id, icon_url, icon_size, online } = req.body;
+  const current = (await db.get(`merchant_${merchant_id}`)) || {};
+  const updated = {
+    ...current,
+    icon_url: icon_url || current.icon_url,
+    icon_size: icon_size || current.icon_size || 70,
+    online: typeof online === "boolean" ? online : (current.online ?? true)
+  };
+  await db.set(`merchant_${merchant_id}`, updated);
+  res.json({ success: true, config: updated });
+});
+
+export default router;
+
+api/status.js bisa hanya re-export status merchant atau dipisah; di sini sudah include di /api/merchant/status/:id.
+
+⸻
+
+api/knowledge.js (input FAQ / manual)
+
+import express from "express";
+import db from "../database/db.js";
+
+const router = express.Router();
+
+// simple text knowledge (bisa di-improve ke vector embeddings)
+router.post("/set", async (req, res) => {
+  const { merchant_id, knowledge_text } = req.body;
+  await db.set(`knowledge_${merchant_id}`, knowledge_text || "");
+  res.json({ success: true });
+});
+
+export default router;
+
+
+⸻
+
+api/auth.js (simple demo)
+
+import express from "express";
+import db from "../database/db.js";
+import crypto from "crypto";
+
+const router = express.Router();
+
+router.post("/register-merchant", async (req, res) => {
+  const { email, password, company_name } = req.body;
+  const id = "m_" + crypto.randomBytes(4).toString("hex");
+  await db.set(`merchant_${id}`, {
+    id,
+    email,
+    company_name,
+    created_at: Date.now(),
+    icon_url: "https://via.placeholder.com/80x80.png?text=CS",
+    icon_size: 70,
+    online: true
+  });
+  res.json({ success: true, merchant_id: id });
+});
+
+export default router;
+
+
+⸻
+
+api/supervisor.js (take over & list notif)
+
+import express from "express";
+import db from "../database/db.js";
+
+const router = express.Router();
+
+router.get("/notifications/:supervisor_id", async (req, res) => {
+  const key = `notif_${req.params.supervisor_id}`;
+  const list = (await db.get(key)) || [];
+  res.json(list);
+});
+
+router.post("/send", async (req, res) => {
+  const { session_id, message, supervisor_id } = req.body;
+  const logKey = `chatlog_${session_id}`;
+  const log = (await db.get(logKey)) || [];
+  log.push({
+    from: "supervisor",
+    supervisor_id,
+    message,
+    time: Date.now()
+  });
+  await db.set(logKey, log);
+  res.json({ success: true });
+});
+
+export default router;
+
+
+⸻
+
+💬 8. WIDGET FLOATING BUTTON – apps/widget/jeany-widget.js
+
+Merchant tinggal pasang di website mereka:
+
+<script src="https://your-replit-url/widget/jeany-widget.js"
+        data-merchant="MERCHANT_ID"
+        data-session-id="SESSION_RANDOM"></script>
+
+Kode:
+
+(function () {
+  const script = document.currentScript;
+  const merchantId = script.getAttribute("data-merchant");
+  const sessionId =
+    script.getAttribute("data-session-id") ||
+    "sess_" + Math.random().toString(36).substring(2, 10);
+
+  fetch(`/api/merchant/status/${merchantId}`)
+    .then(r => r.json())
+    .then(config => {
+      const style = document.createElement("style");
+      style.innerHTML = `
+        #jeanyBubble {
+          position: fixed;
+          bottom: 20px;
+          right: 20px;
+          border-radius: 50%;
+          overflow: hidden;
+          cursor: pointer;
+          box-shadow:0 8px 25px rgba(0,0,0,0.25);
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          background:#6b5dfc;
+          z-index:99999;
+        }
+        #jeanyStatusDot {
+          position:absolute;
+          bottom:5px;
+          right:5px;
+          width:12px;
+          height:12px;
+          border-radius:50%;
+          border:2px solid white;
+        }
+        #jeanyChatBox {
+          position:fixed;
+          bottom:100px;
+          right:20px;
+          width:360px;
+          height:520px;
+          background:white;
+          border-radius:16px;
+          box-shadow:0 8px 25px rgba(0,0,0,0.25);
+          display:none;
+          flex-direction:column;
+          overflow:hidden;
+          z-index:99999;
+        }
+      `;
+      document.head.appendChild(style);
+
+      const bubble = document.createElement("div");
+      bubble.id = "jeanyBubble";
+      bubble.style.width = (config.icon_size || 70) + "px";
+      bubble.style.height = (config.icon_size || 70) + "px";
+
+      if (config.icon_url) {
+        bubble.style.backgroundImage = `url('${config.icon_url}')`;
+        bubble.style.backgroundSize = "cover";
+        bubble.style.backgroundPosition = "center";
+      } else {
+        bubble.innerHTML = "💬";
+        bubble.style.fontSize = "28px";
+      }
+
+      const statusDot = document.createElement("div");
+      statusDot.id = "jeanyStatusDot";
+      statusDot.style.background = config.online ? "#2ecc71" : "#e74c3c";
+      bubble.appendChild(statusDot);
+
+      const chatBox = document.createElement("div");
+      chatBox.id = "jeanyChatBox";
+      chatBox.innerHTML = `
+        <iframe src="/apps/merchant-panel/chat-embed.html?merchant=${merchantId}&session=${sessionId}"
+          style="width:100%;height:100%;border:none;"></iframe>
+      `;
+
+      document.body.appendChild(bubble);
+      document.body.appendChild(chatBox);
+
+      bubble.onclick = () => {
+        chatBox.style.display = chatBox.style.display === "none" ? "flex" : "none";
+      };
+    });
+})();
+
+chat-embed.html bisa jadi file kecil di merchant-panel yang berisi UI chat (input, list chat) dan melakukan fetch ke /api/chat/ask.
+
+⸻
+
+📊 9. MERCHANT PANEL – apps/merchant-panel/index.html
+
+Contoh sederhana (bisa kamu beautify nanti):
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Jeany Merchant Dashboard</title>
+  <link rel="stylesheet" href="merchant.css" />
+</head>
+<body>
+  <div class="sidebar">
+    <h2>Jeany</h2>
+    <ul>
+      <li class="active">Overview</li>
+      <li>Chat Logs</li>
+      <li>Knowledge</li>
+      <li>Triggers</li>
+      <li>Branding</li>
+      <li>Supervisors</li>
+    </ul>
+  </div>
+  <div class="main">
+    <header>
+      <h1>Merchant Dashboard</h1>
+      <span id="merchantIdLabel"></span>
+    </header>
+    <section id="knowledge">
+      <h2>Knowledge Base</h2>
+      <textarea id="knowledgeText" rows="8" placeholder="Masukkan FAQ, kebijakan, fitur, dsb."></textarea>
+      <button id="saveKnowledge">Simpan Knowledge</button>
+    </section>
+
+    <section id="triggers">
+      <h2>Trigger Human Takeover</h2>
+      <input id="triggerInput" placeholder="contoh: depo belum masuk" />
+      <button id="addTrigger">Tambah</button>
+      <ul id="triggerList"></ul>
+    </section>
+
+    <section id="branding">
+      <h2>Branding & Status</h2>
+      <input id="iconUrl" placeholder="Icon PNG URL staf CS" />
+      <input id="iconSize" type="number" placeholder="Ukuran icon (px)" />
+      <label>
+        <input type="checkbox" id="onlineStatus" checked /> Online
+      </label>
+      <button id="saveBranding">Simpan</button>
+    </section>
+  </div>
+
+  <script src="merchant.js"></script>
+</body>
+</html>
+
+apps/merchant-panel/merchant.js
+
+Isi minimal:
+
+const merchant_id = prompt("Masukkan Merchant ID:");
+
+document.getElementById("merchantIdLabel").innerText = merchant_id;
+
+// Save knowledge
+document.getElementById("saveKnowledge").onclick = async () => {
+  const text = document.getElementById("knowledgeText").value;
+  await fetch("/api/knowledge/set", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ merchant_id, knowledge_text: text })
+  });
+  alert("Knowledge disimpan");
+};
+
+// Triggers (simple: simpan array)
+let triggers = [];
+
+document.getElementById("addTrigger").onclick = async () => {
+  const t = document.getElementById("triggerInput").value.trim();
+  if (!t) return;
+  triggers.push(t);
+  renderTriggers();
+  await fetch("/api/knowledge/set", { method: "POST" }); // TODO: endpoint khusus triggers
+};
+
+function renderTriggers() {
+  const ul = document.getElementById("triggerList");
+  ul.innerHTML = "";
+  triggers.forEach((t, i) => {
+    const li = document.createElement("li");
+    li.innerText = t;
+    ul.appendChild(li);
+  });
+}
+
+// Branding save
+document.getElementById("saveBranding").onclick = async () => {
+  const icon_url = document.getElementById("iconUrl").value;
+  const icon_size = parseInt(document.getElementById("iconSize").value) || 70;
+  const online = document.getElementById("onlineStatus").checked;
+
+  const res = await fetch("/api/merchant/config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ merchant_id, icon_url, icon_size, online })
+  });
+  const data = await res.json();
+  alert("Branding disimpan");
+};
+
+(Untuk triggers sebaiknya nanti dibuat API khusus misal /api/triggers/set – kamu bisa extend dari pola yang sudah ada.)
+
+⸻
+
+🧑‍💼 10. SUPER ADMIN PANEL – apps/superadmin-panel/index.html
+
+Ini bisa berisi list semua merchant, monitor chat, dll.
+Untuk sekarang cukup skeleton dulu, nanti bisa dikembangkan.
+
+⸻
+
+🎯 Jawaban Pertanyaanmu
+
+“dipisahkan menjadi masing masing apps misalnya: super admin panel, merchant admin panel & landing page, untuk memudahkan tracing file, apakah memungkinkan dan efektif?”
+
+✅ Ya, sangat memungkinkan dan efektif.
+Dengan struktur di atas:
+	•	Semua frontend dipisah per aplikasi → gampang tracing / desain
+	•	Semua backend terpusat di /api + /services → 1 otak yang melayani semua apps
+	•	Bisa di-scale di masa depan (misal pindah superadmin ke server lain, tinggal pecah).
+
+⸻
+
+Kalau kamu mau, next step saya bisa:
+	1.	Lengkapkan landing page Jeany (hero, pricing, CTA, live demo embed).
+	2.	Buatkan chat-embed.html untuk UI percakapan Jeany (untuk iframe).
+	3.	Tambahkan endpoint khusus triggers CRUD dan supervisor login + live monitoring UI.
+
+Cukup bilang aja:
+
+“Lanjut buat chat-embed + landing page + triggers CRUD ya.”
