@@ -380,11 +380,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           welcomeMessage: "Hi! How can I help you today?",
           agentName: "Jeany AI",
           agentPhotoUrl: "",
+          widgetTheme: "light",
+          bubblePosition: "right",
         });
       }
-      
-      const isPaidPlan = merchant.subscriptionPlanId !== 'starter' && 
-                         merchant.subscriptionStatus === 'active';
       
       res.json({
         iconUrl: merchant.iconUrl,
@@ -393,8 +392,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         primaryColor: merchant.primaryColor,
         welcomeMessage: merchant.welcomeMessage,
         companyName: merchant.companyName,
-        agentName: isPaidPlan ? (merchant.agentName || "Jeany AI") : "Jeany AI",
-        agentPhotoUrl: isPaidPlan ? (merchant.agentPhotoUrl || "") : "",
+        agentName: merchant.agentName || "Jeany AI",
+        agentPhotoUrl: merchant.agentPhotoUrl || "",
+        widgetTheme: merchant.widgetTheme || "light",
+        bubblePosition: merchant.bubblePosition || "right",
       });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -411,14 +412,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const merchant = await storage.getMerchant(merchantId);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
-      }
-      
-      const isPaidPlan = merchant.subscriptionPlanId !== 'starter' && 
-                         merchant.subscriptionStatus === 'active';
-      
-      if (!isPaidPlan) {
-        delete validConfig.agentName;
-        delete validConfig.agentPhotoUrl;
       }
       
       const updated = await storage.updateMerchant(merchantId, validConfig);

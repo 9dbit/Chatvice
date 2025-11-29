@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Palette, Save, Copy, Check, Bot, Code, Lock, Crown, Camera, Loader2 } from "lucide-react";
+import { Palette, Save, Copy, Check, Bot, Code, Moon, Sun, AlignLeft, AlignRight, Loader2, Camera } from "lucide-react";
 import type { Merchant } from "@shared/schema";
 
 export default function WidgetPage() {
@@ -28,6 +28,8 @@ export default function WidgetPage() {
     welcomeMessage: "Hi! How can I help you today?",
     agentName: "Jeany AI",
     agentPhotoUrl: "",
+    widgetTheme: "light" as "light" | "dark",
+    bubblePosition: "right" as "left" | "right",
   });
 
   const { data: merchant, isLoading } = useQuery<Merchant>({
@@ -45,12 +47,11 @@ export default function WidgetPage() {
         welcomeMessage: merchant.welcomeMessage || "Hi! How can I help you today?",
         agentName: merchant.agentName || "Jeany AI",
         agentPhotoUrl: merchant.agentPhotoUrl || "",
+        widgetTheme: (merchant.widgetTheme as "light" | "dark") || "light",
+        bubblePosition: (merchant.bubblePosition as "left" | "right") || "right",
       });
     }
   }, [merchant]);
-
-  const isPaidPlan = merchant?.subscriptionPlanId !== 'starter' && 
-                     merchant?.subscriptionStatus === 'active';
 
   const handleAgentPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -212,66 +213,107 @@ export default function WidgetPage() {
                 <div className="pt-4 border-t">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                      <Crown className="w-4 h-4 text-primary" />
-                      <Label className="text-base font-semibold">Agent Customization</Label>
+                      <Bot className="w-4 h-4 text-primary" />
+                      <Label className="text-base font-semibold">Agent & Theme Settings</Label>
                     </div>
-                    {!isPaidPlan && (
-                      <Badge variant="secondary" className="gap-1">
-                        <Lock className="w-3 h-3" />
-                        Pro Feature
-                      </Badge>
-                    )}
                   </div>
                   
-                  <div className={`space-y-4 ${!isPaidPlan ? 'opacity-50 pointer-events-none' : ''}`}>
-                    <div className="flex items-center gap-4">
-                      <div className="relative">
-                        <Avatar className="w-16 h-16">
-                          <AvatarImage src={config.agentPhotoUrl} alt={config.agentName} />
-                          <AvatarFallback className="bg-primary/20">
-                            <Bot className="w-6 h-6 text-primary" />
-                          </AvatarFallback>
-                        </Avatar>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={isUploading || !isPaidPlan}
-                          data-testid="button-upload-agent-photo"
-                        >
-                          {isUploading ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <Camera className="w-3 h-3" />
-                          )}
-                        </Button>
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleAgentPhotoUpload}
-                          data-testid="input-agent-photo-file"
-                        />
+                  <div className="space-y-4">
+                      <div className="flex items-center gap-4">
+                        <div className="relative">
+                          <Avatar className="w-16 h-16">
+                            <AvatarImage src={config.agentPhotoUrl} alt={config.agentName} />
+                            <AvatarFallback className="bg-primary/20">
+                              <Bot className="w-6 h-6 text-primary" />
+                            </AvatarFallback>
+                          </Avatar>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploading}
+                            data-testid="button-upload-agent-photo"
+                          >
+                            {isUploading ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Camera className="w-3 h-3" />
+                            )}
+                          </Button>
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleAgentPhotoUpload}
+                            data-testid="input-agent-photo-file"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <Label className="text-sm">Agent Name</Label>
+                          <Input
+                            value={config.agentName}
+                            onChange={(e) => setConfig({ ...config, agentName: e.target.value })}
+                            placeholder="Jeany AI"
+                            data-testid="input-agent-name"
+                          />
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <Label className="text-sm">Agent Name</Label>
-                        <Input
-                          value={config.agentName}
-                          onChange={(e) => setConfig({ ...config, agentName: e.target.value })}
-                          placeholder="Jeany AI"
-                          disabled={!isPaidPlan}
-                          data-testid="input-agent-name"
-                        />
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Widget Theme</Label>
+                        <div className="flex gap-2">
+                          <Button
+                            variant={config.widgetTheme === "light" ? "default" : "outline"}
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => setConfig({ ...config, widgetTheme: "light" })}
+                            data-testid="button-theme-light"
+                          >
+                            <Sun className="w-4 h-4 mr-1" />
+                            Light
+                          </Button>
+                          <Button
+                            variant={config.widgetTheme === "dark" ? "default" : "outline"}
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => setConfig({ ...config, widgetTheme: "dark" })}
+                            data-testid="button-theme-dark"
+                          >
+                            <Moon className="w-4 h-4 mr-1" />
+                            Dark
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Bubble Position</Label>
+                        <div className="flex gap-2">
+                          <Button
+                            variant={config.bubblePosition === "left" ? "default" : "outline"}
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => setConfig({ ...config, bubblePosition: "left" })}
+                            data-testid="button-position-left"
+                          >
+                            <AlignLeft className="w-4 h-4 mr-1" />
+                            Left
+                          </Button>
+                          <Button
+                            variant={config.bubblePosition === "right" ? "default" : "outline"}
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => setConfig({ ...config, bubblePosition: "right" })}
+                            data-testid="button-position-right"
+                          >
+                            <AlignRight className="w-4 h-4 mr-1" />
+                            Right
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                    {!isPaidPlan && (
-                      <p className="text-xs text-muted-foreground">
-                        Upgrade to Pro or Enterprise to customize your AI agent's name and photo.
-                      </p>
-                    )}
-                  </div>
                 </div>
 
                 <Button
@@ -314,7 +356,7 @@ export default function WidgetPage() {
                 </div>
 
                 <div
-                  className="rounded-full cursor-pointer shadow-lg flex items-center justify-center relative"
+                  className={`rounded-full cursor-pointer shadow-lg flex items-center justify-center relative ${config.bubblePosition === "left" ? "mr-auto" : "ml-auto"}`}
                   style={{
                     width: config.iconSize,
                     height: config.iconSize,
@@ -341,12 +383,12 @@ export default function WidgetPage() {
                   />
                 </div>
 
-                <div className="absolute bottom-20 right-4 w-[280px] bg-card rounded-xl shadow-xl overflow-hidden border border-card-border">
+                <div className={`absolute bottom-20 ${config.bubblePosition === "left" ? "left-4" : "right-4"} w-[280px] bg-card rounded-xl shadow-xl overflow-hidden border border-card-border`}>
                   <div
                     className="p-3 flex items-center gap-2"
                     style={{ backgroundColor: config.primaryColor }}
                   >
-                    {config.agentPhotoUrl && isPaidPlan ? (
+                    {config.agentPhotoUrl ? (
                       <img
                         src={config.agentPhotoUrl}
                         alt={config.agentName}
@@ -358,13 +400,13 @@ export default function WidgetPage() {
                       </div>
                     )}
                     <div className="text-white">
-                      <p className="text-sm font-medium">{isPaidPlan && config.agentName ? config.agentName : "Jeany AI"}</p>
+                      <p className="text-sm font-medium">{config.agentName}</p>
                       <p className="text-xs opacity-80">Always here to help</p>
                     </div>
                   </div>
                   <div className="p-3">
                     <div className="flex gap-2">
-                      {config.agentPhotoUrl && isPaidPlan ? (
+                      {config.agentPhotoUrl ? (
                         <img
                           src={config.agentPhotoUrl}
                           alt={config.agentName}
