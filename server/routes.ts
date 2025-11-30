@@ -536,6 +536,27 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  app.post("/api/merchant/select-agent", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { agentId } = req.body;
+      
+      if (!agentId) {
+        return res.status(400).json({ error: "Agent ID required" });
+      }
+      
+      const agent = await storage.getAgent(agentId);
+      if (!agent || agent.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Agent not found" });
+      }
+      
+      await storage.updateMerchant(merchantId, { activeAgentId: agentId });
+      res.json({ success: true, activeAgentId: agentId });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.post("/api/merchant/change-password", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;

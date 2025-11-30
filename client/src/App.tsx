@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
 import { LoginPage, RegisterPage, ForgotPasswordPage } from "@/pages/auth";
+import SelectAgentPage from "@/pages/select-agent";
 import DashboardLayout from "@/pages/dashboard/layout";
 import SupervisorPanel from "@/pages/supervisor";
 import WidgetDemoPage from "@/pages/widget-demo";
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
       <Route path="/forgot-password" component={ForgotPasswordPage} />
+      <Route path="/select-agent" component={SelectAgentPage} />
       <Route path="/dashboard" component={DashboardLayout} />
       <Route path="/dashboard/:page*" component={DashboardLayout} />
       <Route path="/supervisor" component={SupervisorPanel} />

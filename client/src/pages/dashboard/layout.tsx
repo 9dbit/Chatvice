@@ -1,9 +1,10 @@
 import { Route, Switch, useLocation, Redirect, Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AIHelpBubble } from "@/components/ai-help-bubble";
-import { ChevronRight, Home } from "lucide-react";
+import { ChevronRight, Home, Loader2 } from "lucide-react";
 import DashboardOverview from "./overview";
 import SessionsPage from "./sessions";
 import KnowledgePage from "./knowledge";
@@ -16,6 +17,7 @@ import BillingDetailsPage from "./billing-details";
 import AgentsPage from "./agents";
 import SourcesPage from "./sources";
 import AnalyticsPage from "./analytics";
+import type { Merchant } from "@shared/schema";
 
 const pageNames: Record<string, string> = {
   "": "Overview",
@@ -57,8 +59,25 @@ export default function DashboardLayout() {
   const [location] = useLocation();
   const merchantId = localStorage.getItem("merchantId");
 
+  const { data: merchant, isLoading } = useQuery<Merchant>({
+    queryKey: ["/api/merchant", merchantId],
+    enabled: !!merchantId,
+  });
+
   if (!merchantId) {
     return <Redirect to="/login" />;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (merchant && !merchant.activeAgentId) {
+    return <Redirect to="/select-agent" />;
   }
 
   const style = {

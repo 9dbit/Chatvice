@@ -36,6 +36,7 @@ export const merchants = pgTable("merchants", {
   customDomainStatus: text("custom_domain_status").default("pending"),
   collectCustomerEmail: boolean("collect_customer_email").default(false),
   collectCustomerPhone: boolean("collect_customer_phone").default(false),
+  activeAgentId: varchar("active_agent_id", { length: 32 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
