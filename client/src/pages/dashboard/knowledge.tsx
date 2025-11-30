@@ -39,7 +39,9 @@ export default function KnowledgePage() {
   const activeAgentId = merchant?.activeAgentId;
 
   const { data: knowledge, isLoading } = useQuery<{ content: string }>({
-    queryKey: ["/api/knowledge", merchantId, activeAgentId],
+    queryKey: activeAgentId 
+      ? [`/api/knowledge/agent/${activeAgentId}`]
+      : [`/api/knowledge/${merchantId}`],
     enabled: !!merchantId,
   });
 
@@ -63,7 +65,10 @@ export default function KnowledgePage() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/knowledge", merchantId, activeAgentId] });
+      queryClient.invalidateQueries({ queryKey: activeAgentId 
+        ? [`/api/knowledge/agent/${activeAgentId}`]
+        : [`/api/knowledge/${merchantId}`] 
+      });
       toast({
         title: "Knowledge saved",
         description: "Your AI will now use this information to answer questions.",

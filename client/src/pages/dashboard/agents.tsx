@@ -308,8 +308,14 @@ export default function AgentsPage() {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {agents && agents.length > 0 ? (
-          agents.map((agent) => (
-            <Card key={agent.id} className="hover-elevate transition-all" data-testid={`agent-card-${agent.id}`}>
+          agents.map((agent) => {
+            const isActiveAgent = merchant?.activeAgentId === agent.id;
+            return (
+            <Card 
+              key={agent.id} 
+              className={`hover-elevate transition-all ${isActiveAgent ? "border-primary bg-primary/10 ring-2 ring-primary/30" : ""}`} 
+              data-testid={`agent-card-${agent.id}`}
+            >
               <CardHeader className="flex flex-row items-start justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <Avatar className="w-12 h-12">
@@ -321,7 +327,9 @@ export default function AgentsPage() {
                   <div>
                     <CardTitle className="text-lg">{agent.name}</CardTitle>
                     <div className="flex items-center gap-2 mt-1">
-                      {agent.isActive ? (
+                      {isActiveAgent ? (
+                        <Badge className="text-xs bg-primary">Selected</Badge>
+                      ) : agent.isActive ? (
                         <Badge variant="default" className="text-xs">Active</Badge>
                       ) : (
                         <Badge variant="secondary" className="text-xs">Inactive</Badge>
@@ -357,7 +365,8 @@ export default function AgentsPage() {
                 </div>
               </CardContent>
             </Card>
-          ))
+          );
+          })
         ) : (
           <Card className="col-span-full">
             <CardContent className="flex flex-col items-center justify-center py-12">

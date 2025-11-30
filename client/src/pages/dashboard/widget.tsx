@@ -18,9 +18,10 @@ import { Link } from "wouter";
 import { 
   Palette, Save, Copy, Check, Bot, Code, Moon, Sun, AlignLeft, AlignRight, 
   Loader2, Camera, RefreshCw, X, Send, Paperclip, Smile, ImageIcon,
-  Globe, MessageSquare, Frame, Shield, Key, Eye, EyeOff, Crown, Lock, ArrowUpRight
+  Globe, MessageSquare, Frame, Shield, Key, Eye, EyeOff, Crown, Lock, ArrowUpRight, ChevronDown
 } from "lucide-react";
-import type { Merchant } from "@shared/schema";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { Merchant, Agent } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 
 export default function WidgetPage() {
@@ -46,6 +47,11 @@ export default function WidgetPage() {
 
   const { data: merchant, isLoading } = useQuery<Merchant>({
     queryKey: ["/api/merchant", merchantId],
+    enabled: !!merchantId,
+  });
+
+  const { data: agents = [] } = useQuery<Agent[]>({
+    queryKey: ["/api/agents"],
     enabled: !!merchantId,
   });
 
@@ -156,6 +162,27 @@ export default function WidgetPage() {
       toast({
         title: "Failed to save",
         description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const selectAgentMutation = useMutation({
+    mutationFn: async (agentId: string) => {
+      return apiRequest("POST", "/api/merchant/select-agent", { agentId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      toast({
+        title: "Agent selected",
+        description: "The widget will now use the selected agent's settings.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to select agent",
+        description: "Please try again.",
         variant: "destructive",
       });
     },
@@ -324,6 +351,39 @@ window.jeanyai('identify', { token }); // identify the user with Jeany AI`;
                         <Bot className="w-4 h-4 text-primary" />
                         <Label className="text-base font-semibold">Agent & Theme Settings</Label>
                       </div>
+
+                      {agents.length > 0 && (
+                        <div className="space-y-2">
+                          <Label>Select Active Agent</Label>
+                          <Select
+                            value={merchant?.activeAgentId || ""}
+                            onValueChange={(value) => selectAgentMutation.mutate(value)}
+                            disabled={selectAgentMutation.isPending}
+                          >
+                            <SelectTrigger data-testid="select-active-agent">
+                              <SelectValue placeholder="Select an agent" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {agents.map((agent) => (
+                                <SelectItem key={agent.id} value={agent.id}>
+                                  <div className="flex items-center gap-2">
+                                    <Avatar className="w-5 h-5">
+                                      <AvatarImage src={agent.photoUrl || ""} />
+                                      <AvatarFallback className="text-xs">
+                                        <Bot className="w-3 h-3" />
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span>{agent.name}</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">
+                            The selected agent's knowledge base and settings will be used
+                          </p>
+                        </div>
+                      )}
                       
                       <div className="flex items-center gap-4">
                         <div className="relative">
