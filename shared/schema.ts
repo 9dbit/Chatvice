@@ -49,6 +49,7 @@ export const supervisors = pgTable("supervisors", {
   email: text("email").notNull(),
   name: text("name").notNull(),
   password: text("password").notNull(),
+  photoUrl: text("photo_url").default(""),
 });
 
 export const insertSupervisorSchema = createInsertSchema(supervisors).omit({ id: true });

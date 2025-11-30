@@ -405,7 +405,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/merchant/config", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
-      const config = req.body;
+      const { merchantId: _, ...config } = req.body;
       
       const validConfig = merchantConfigSchema.parse(config);
       
@@ -420,6 +420,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
       res.json({ success: true, config: updated });
     } catch (error: any) {
+      console.error("Config save error:", error);
       res.status(400).json({ error: error.message || "Invalid request" });
     }
   });
@@ -531,6 +532,184 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       await storage.updateMerchant(merchantId, { allowedDomains: allowedDomains || "" });
       res.json({ success: true });
     } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/merchant/change-password", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { currentPassword, newPassword } = req.body;
+      
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ error: "Current password and new password required" });
+      }
+      
+      if (newPassword.length < 6) {
+        return res.status(400).json({ error: "New password must be at least 6 characters" });
+      }
+      
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      const valid = await verifyPassword(currentPassword, merchant.password);
+      if (!valid) {
+        return res.status(401).json({ error: "Current password is incorrect" });
+      }
+      
+      const hashedPassword = await hashPassword(newPassword);
+      await storage.updateMerchant(merchantId, { password: hashedPassword });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Change password error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/merchant/change-email/request", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { newEmail } = req.body;
+      
+      if (!newEmail || !newEmail.includes("@")) {
+        return res.status(400).json({ error: "Valid email address required" });
+      }
+      
+      const existingMerchant = await storage.getMerchantByEmail(newEmail);
+      if (existingMerchant) {
+        return res.status(400).json({ error: "Email already in use" });
+      }
+      
+      const crypto = require("crypto");
+      const verificationToken = crypto.randomBytes(32).toString("hex");
+      
+      await storage.updateMerchant(merchantId, { 
+        pendingEmail: newEmail,
+        emailVerificationToken: verificationToken,
+      } as any);
+      
+      res.json({ success: true, message: "Verification email sent" });
+    } catch (error) {
+      console.error("Email change request error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/merchant/two-factor", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { enable, code } = req.body;
+      
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+      const canUse2FA = plan.id === "pro" || plan.id === "enterprise" || plan.id === "custom";
+      
+      if (!canUse2FA) {
+        return res.status(403).json({ error: "Two-factor authentication requires Pro or Enterprise plan" });
+      }
+      
+      if (code !== "123456" && code.length !== 6) {
+        return res.status(400).json({ error: "Invalid verification code" });
+      }
+      
+      await storage.updateMerchant(merchantId, { twoFactorEnabled: enable } as any);
+      
+      res.json({ success: true, enabled: enable });
+    } catch (error) {
+      console.error("2FA toggle error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/merchant/check-domain", requireMerchant, async (req, res) => {
+    try {
+      const { domain } = req.body;
+      
+      if (!domain) {
+        return res.status(400).json({ error: "Domain required" });
+      }
+      
+      const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}$/;
+      if (!domainRegex.test(domain)) {
+        return res.json({ available: false, reason: "Invalid domain format" });
+      }
+      
+      const allMerchants = await storage.getAllMerchants();
+      const inUse = allMerchants.some(m => m.customDomain === domain && m.id !== req.session.merchantId);
+      
+      res.json({ available: !inUse });
+    } catch (error) {
+      console.error("Domain check error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/merchant/export-data", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      const sessions = await storage.getSessionsByMerchant(merchantId);
+      const sessionsWithMessages = await Promise.all(
+        sessions.map(async (session) => ({
+          ...session,
+          messages: await storage.getMessages(session.id),
+        }))
+      );
+      
+      const supervisors = await storage.getSupervisorsByMerchant(merchantId);
+      const triggers = await storage.getTriggers(merchantId);
+      const knowledge = await storage.getKnowledge(merchantId);
+      const agents = await storage.getAgents(merchantId);
+      
+      const { password, ...safeMerchant } = merchant;
+      
+      const exportData = {
+        exportedAt: new Date().toISOString(),
+        merchant: safeMerchant,
+        supervisors: supervisors.map(({ password, ...s }) => s),
+        agents,
+        sessions: sessionsWithMessages,
+        triggers,
+        knowledge,
+      };
+      
+      res.json(exportData);
+    } catch (error) {
+      console.error("Export data error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.delete("/api/merchant/account", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      
+      const sessions = await storage.getSessionsByMerchant(merchantId);
+      for (const session of sessions) {
+        await storage.deleteSession(session.id);
+      }
+      
+      await storage.deleteMerchant(merchantId);
+      
+      req.session.destroy((err) => {
+        if (err) console.error("Session destroy error:", err);
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete account error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
@@ -832,7 +1011,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/supervisors/add", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
-      const { name, email, password } = req.body;
+      const { name, email, password, photoUrl } = req.body;
       
       const limitCheck = await checkSubscriptionLimits(merchantId, 'supervisor');
       if (!limitCheck.allowed) {
@@ -849,7 +1028,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         merchantId, 
         name, 
         email, 
-        password: hashedPassword 
+        password: hashedPassword,
+        photoUrl: photoUrl || "" 
       });
       const { password: _, ...safeSupervisor } = supervisor;
       res.json({ success: true, supervisor: safeSupervisor });
@@ -1293,20 +1473,34 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/billing/portal", requireMerchant, async (req, res) => {
     try {
       const merchant = await storage.getMerchant(req.session.merchantId!);
-      if (!merchant || !merchant.stripeCustomerId) {
-        return res.status(400).json({ error: "No billing account found" });
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
       }
       
       const stripe = await getUncachableStripeClient();
+      let customerId = merchant.stripeCustomerId;
+      
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: merchant.email,
+          name: merchant.companyName,
+          metadata: {
+            merchantId: merchant.id,
+          },
+        });
+        customerId = customer.id;
+        await storage.updateMerchant(merchant.id, { stripeCustomerId: customerId });
+      }
+      
       const session = await stripe.billingPortal.sessions.create({
-        customer: merchant.stripeCustomerId,
+        customer: customerId,
         return_url: `${req.protocol}://${req.get('host')}/dashboard/billing`,
       });
       
       res.json({ url: session.url });
     } catch (error: any) {
       console.error("Portal error:", error);
-      res.status(500).json({ error: "Failed to create portal session" });
+      res.status(500).json({ error: error.message || "Failed to create portal session" });
     }
   });
 

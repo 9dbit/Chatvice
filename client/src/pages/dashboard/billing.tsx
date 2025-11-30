@@ -16,8 +16,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
-import { CreditCard, Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Settings, Lock, Loader2, CheckCircle2, Sparkles, Gift, Building2 } from "lucide-react";
+import { CreditCard, Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Settings, Lock, Loader2, CheckCircle2, Sparkles, Gift, Building2, ChevronDown, ChevronUp } from "lucide-react";
 import { format } from "date-fns";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 
@@ -46,6 +51,7 @@ export default function BillingPage() {
   const [cvc, setCvc] = useState('');
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showCanceledMessage, setShowCanceledMessage] = useState(false);
+  const [expandedPlans, setExpandedPlans] = useState<Set<string>>(new Set());
 
   const { data: billingStatus, isLoading, refetch } = useQuery<BillingStatus>({
     queryKey: ["/api/billing/status"],
@@ -435,18 +441,58 @@ export default function BillingPage() {
                   </div>
                   
                   <ul className="space-y-1.5">
-                    {plan.features.slice(0, 6).map((feature, index) => (
+                    {plan.features.slice(0, 5).map((feature, index) => (
                       <li key={index} className="flex items-start gap-1.5 text-xs">
                         <Check className="w-3 h-3 text-green-500 shrink-0 mt-0.5" />
                         <span>{feature}</span>
                       </li>
                     ))}
-                    {plan.features.length > 6 && (
-                      <li className="text-xs text-muted-foreground pl-4">
-                        +{plan.features.length - 6} more features
-                      </li>
-                    )}
                   </ul>
+                  {plan.features.length > 5 && (
+                    <Collapsible
+                      open={expandedPlans.has(plan.id)}
+                      onOpenChange={(open) => {
+                        setExpandedPlans(prev => {
+                          const newSet = new Set(prev);
+                          if (open) {
+                            newSet.add(plan.id);
+                          } else {
+                            newSet.delete(plan.id);
+                          }
+                          return newSet;
+                        });
+                      }}
+                    >
+                      <CollapsibleContent>
+                        <ul className="space-y-1.5 mt-1.5">
+                          {plan.features.slice(5).map((feature, index) => (
+                            <li key={index + 5} className="flex items-start gap-1.5 text-xs">
+                              <Check className="w-3 h-3 text-green-500 shrink-0 mt-0.5" />
+                              <span>{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </CollapsibleContent>
+                      <CollapsibleTrigger asChild>
+                        <button 
+                          className="flex items-center gap-1 text-xs text-primary hover:underline mt-2"
+                          data-testid={`button-expand-${plan.id}`}
+                        >
+                          {expandedPlans.has(plan.id) ? (
+                            <>
+                              <ChevronUp className="w-3 h-3" />
+                              Show less
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown className="w-3 h-3" />
+                              +{plan.features.length - 5} more features
+                            </>
+                          )}
+                        </button>
+                      </CollapsibleTrigger>
+                    </Collapsible>
+                  )}
 
                   {(plan as any).restrictions && (plan as any).restrictions.length > 0 && (
                     <div className="pt-2 border-t">

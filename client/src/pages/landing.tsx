@@ -46,25 +46,37 @@ const trustedByLogos = [
 
 function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("merchantId"));
 
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
     };
     window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    
+    const checkAuth = () => {
+      setIsLoggedIn(!!localStorage.getItem("merchantId"));
+    };
+    window.addEventListener("storage", checkAuth);
+    const interval = setInterval(checkAuth, 1000);
+    
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("storage", checkAuth);
+      clearInterval(interval);
+    };
   }, []);
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? "bg-background/95 backdrop-blur-md border-b border-border shadow-sm" : "bg-transparent"}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-4 h-16">
-          <div className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer" data-testid="link-logo">
             <div className="w-8 h-8 bg-foreground rounded-lg flex items-center justify-center">
               <Bot className="w-5 h-5 text-background" />
             </div>
             <span className="font-bold text-xl">Jeany</span>
-          </div>
+          </Link>
           <div className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" data-testid="link-features">Features</a>
             <a href="#how-it-works" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" data-testid="link-how-it-works">How It Works</a>
@@ -78,14 +90,20 @@ function Navbar() {
           </div>
           <div className="flex items-center gap-3">
             <ThemeToggle />
-            <Link href="/login">
-              <Button variant="ghost" size="sm" data-testid="button-login">Sign in</Button>
-            </Link>
-            <Link href="/register">
-              <Button size="sm" className="bg-foreground text-background hover:bg-foreground/90" data-testid="button-get-started">
-                Try for Free
-              </Button>
-            </Link>
+            {isLoggedIn ? (
+              <Link href="/dashboard" className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-foreground text-background hover:bg-foreground/90 h-8 px-3" data-testid="button-dashboard">
+                Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 px-3" data-testid="button-login">
+                  Sign in
+                </Link>
+                <Link href="/register" className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-foreground text-background hover:bg-foreground/90 h-8 px-3" data-testid="button-get-started">
+                  Try for Free
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>

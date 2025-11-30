@@ -11,11 +11,30 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Settings, Save, Key, Copy, Check, Camera, User, Moon, Sun, Monitor, 
   Shield, Globe, Clock, MessageSquare, AlertCircle, Sparkles, Lock,
-  CheckCircle2, XCircle, Loader2, ExternalLink
+  CheckCircle2, XCircle, Loader2, ExternalLink, Mail, Eye, EyeOff, Trash2,
+  Download, Server, RefreshCw
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import type { Merchant } from "@shared/schema";
@@ -36,6 +55,27 @@ export default function SettingsPage() {
   const [collectCustomerPhone, setCollectCustomerPhone] = useState(false);
   const [customDomain, setCustomDomain] = useState("");
   const [isCheckingDomain, setIsCheckingDomain] = useState(false);
+  const [domainAvailable, setDomainAvailable] = useState<boolean | null>(null);
+  
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  
+  const [twoFactorDialogOpen, setTwoFactorDialogOpen] = useState(false);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState("");
+  
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [emailVerificationSent, setEmailVerificationSent] = useState(false);
+  
+  const [deleteAccountDialogOpen, setDeleteAccountDialogOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  
+  const [exportingData, setExportingData] = useState(false);
 
   const { data: merchant, isLoading } = useQuery<Merchant>({
     queryKey: ["/api/merchant", merchantId],
@@ -54,6 +94,7 @@ export default function SettingsPage() {
       setCollectCustomerEmail(merchant.collectCustomerEmail || false);
       setCollectCustomerPhone(merchant.collectCustomerPhone || false);
       setCustomDomain(merchant.customDomain || "");
+      setTwoFactorEnabled((merchant as any).twoFactorEnabled || false);
     }
   }, [merchant]);
 
@@ -75,6 +116,91 @@ export default function SettingsPage() {
       toast({
         title: "Failed to save",
         description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const changePasswordMutation = useMutation({
+    mutationFn: async (data: { currentPassword: string; newPassword: string }) => {
+      return apiRequest("POST", "/api/merchant/change-password", data);
+    },
+    onSuccess: () => {
+      setPasswordDialogOpen(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      toast({
+        title: "Password changed",
+        description: "Your password has been updated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to change password",
+        description: error.message || "Please check your current password and try again.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const sendEmailVerificationMutation = useMutation({
+    mutationFn: async (data: { newEmail: string }) => {
+      return apiRequest("POST", "/api/merchant/change-email/request", data);
+    },
+    onSuccess: () => {
+      setEmailVerificationSent(true);
+      toast({
+        title: "Verification email sent",
+        description: "Please check your current email for a verification link.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to send verification",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const toggle2FAMutation = useMutation({
+    mutationFn: async (data: { enable: boolean; code?: string }) => {
+      return apiRequest("POST", "/api/merchant/two-factor", data);
+    },
+    onSuccess: (_, variables) => {
+      setTwoFactorDialogOpen(false);
+      setTwoFactorCode("");
+      setTwoFactorEnabled(variables.enable);
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
+      toast({
+        title: variables.enable ? "2FA enabled" : "2FA disabled",
+        description: variables.enable 
+          ? "Two-factor authentication is now active."
+          : "Two-factor authentication has been disabled.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to update 2FA",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const deleteAccountMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("DELETE", "/api/merchant/account", {});
+    },
+    onSuccess: () => {
+      localStorage.clear();
+      window.location.href = "/";
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to delete account",
+        description: error.message || "Please try again.",
         variant: "destructive",
       });
     },
@@ -109,11 +235,30 @@ export default function SettingsPage() {
   const handleCheckDomain = async () => {
     if (!customDomain) return;
     setIsCheckingDomain(true);
-    await new Promise(r => setTimeout(r, 2000));
-    updateMutation.mutate({ 
-      customDomain,
-      customDomainStatus: "verified" 
-    });
+    setDomainAvailable(null);
+    
+    try {
+      const response = await apiRequest("POST", "/api/merchant/check-domain", { domain: customDomain });
+      setDomainAvailable((response as any).available);
+      if ((response as any).available) {
+        toast({
+          title: "Domain available",
+          description: "This domain can be configured for your widget.",
+        });
+      } else {
+        toast({
+          title: "Domain unavailable",
+          description: "This domain is already in use or invalid.",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({
+        title: "Check failed",
+        description: "Unable to verify domain availability.",
+        variant: "destructive",
+      });
+    }
     setIsCheckingDomain(false);
   };
 
@@ -171,23 +316,110 @@ export default function SettingsPage() {
       });
     }
   };
-
-  const getInitials = () => {
-    if (companyName) {
-      return companyName.slice(0, 2).toUpperCase();
+  
+  const handleChangePassword = () => {
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Passwords don't match",
+        description: "Please make sure your new passwords match.",
+        variant: "destructive",
+      });
+      return;
     }
-    return "ME";
+    if (newPassword.length < 6) {
+      toast({
+        title: "Password too short",
+        description: "Password must be at least 6 characters.",
+        variant: "destructive",
+      });
+      return;
+    }
+    changePasswordMutation.mutate({ currentPassword, newPassword });
+  };
+  
+  const handleSendEmailVerification = () => {
+    if (!newEmail || !newEmail.includes("@")) {
+      toast({
+        title: "Invalid email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+    sendEmailVerificationMutation.mutate({ newEmail });
+  };
+  
+  const handleExportData = async () => {
+    setExportingData(true);
+    try {
+      const response = await apiRequest("GET", "/api/merchant/export-data", {});
+      const blob = new Blob([JSON.stringify(response, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `jeany-export-${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({
+        title: "Export complete",
+        description: "Your data has been downloaded.",
+      });
+    } catch {
+      toast({
+        title: "Export failed",
+        description: "Unable to export your data. Please try again.",
+        variant: "destructive",
+      });
+    }
+    setExportingData(false);
+  };
+  
+  const handleDeleteAccount = () => {
+    if (deleteConfirmText !== "DELETE") {
+      toast({
+        title: "Confirmation required",
+        description: "Please type DELETE to confirm.",
+        variant: "destructive",
+      });
+      return;
+    }
+    deleteAccountMutation.mutate();
   };
 
+  const getInitials = () => {
+    return companyName
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-6 space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold" data-testid="text-settings-title">Settings</h1>
-        <p className="text-muted-foreground">Manage your account settings and preferences.</p>
+        <h1 className="text-2xl font-semibold" data-testid="text-settings-title">Settings</h1>
+        <p className="text-muted-foreground">
+          Manage your account and preferences.
+        </p>
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
+        <TabsList className="grid w-full max-w-xl grid-cols-4">
           <TabsTrigger value="profile" data-testid="tab-profile">
             <User className="w-4 h-4 mr-2" />
             Profile
@@ -212,86 +444,83 @@ export default function SettingsPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <User className="w-5 h-5 text-primary" />
-                  <CardTitle>Profile</CardTitle>
+                  <CardTitle>Profile Information</CardTitle>
                 </div>
                 <CardDescription>
-                  Update your profile photo and company details.
+                  Update your company profile and photo.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {isLoading ? (
-                  <div className="space-y-4">
-                    <Skeleton className="h-20 w-20 rounded-full mx-auto" />
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="relative">
-                        <Avatar className="w-20 h-20">
-                          <AvatarImage src={profilePhotoUrl} alt={companyName} />
-                          <AvatarFallback className="text-lg">{getInitials()}</AvatarFallback>
-                        </Avatar>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={isUploading}
-                          data-testid="button-upload-photo"
-                        >
-                          <Camera className="w-4 h-4" />
-                        </Button>
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handlePhotoUpload}
-                          data-testid="input-photo-file"
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Click the camera icon to upload a photo (max 2MB)
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Company Name</Label>
-                      <Input
-                        value={companyName}
-                        onChange={(e) => setCompanyName(e.target.value)}
-                        placeholder="Your Company"
-                        data-testid="input-company-name"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Email</Label>
-                      <Input value={merchant?.email || ""} disabled className="bg-muted" data-testid="input-email-readonly" />
-                      <p className="text-xs text-muted-foreground">
-                        Contact support to change your email address.
-                      </p>
-                    </div>
-
+                <div className="flex flex-col items-center gap-4">
+                  <div className="relative">
+                    <Avatar className="w-20 h-20">
+                      <AvatarImage src={profilePhotoUrl} alt={companyName} />
+                      <AvatarFallback className="text-lg">{getInitials()}</AvatarFallback>
+                    </Avatar>
                     <Button
-                      onClick={handleSaveProfile}
-                      disabled={updateMutation.isPending}
-                      className="w-full"
-                      data-testid="button-save-profile"
+                      variant="outline"
+                      size="icon"
+                      className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading}
+                      data-testid="button-upload-photo"
                     >
-                      {updateMutation.isPending ? (
-                        "Saving..."
-                      ) : (
-                        <>
-                          <Save className="w-4 h-4 mr-2" />
-                          Save Changes
-                        </>
-                      )}
+                      <Camera className="w-4 h-4" />
                     </Button>
-                  </>
-                )}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handlePhotoUpload}
+                      data-testid="input-photo-file"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Click the camera icon to upload a photo (max 2MB)
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Company Name</Label>
+                  <Input
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="Your Company"
+                    data-testid="input-company-name"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <div className="flex gap-2">
+                    <Input value={merchant?.email || ""} disabled className="bg-muted flex-1" data-testid="input-email-readonly" />
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setEmailDialogOpen(true)}
+                      data-testid="button-change-email"
+                    >
+                      <Mail className="w-4 h-4 mr-2" />
+                      Change
+                    </Button>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleSaveProfile}
+                  disabled={updateMutation.isPending}
+                  className="w-full"
+                  data-testid="button-save-profile"
+                >
+                  {updateMutation.isPending ? (
+                    "Saving..."
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Changes
+                    </>
+                  )}
+                </Button>
               </CardContent>
             </Card>
 
@@ -557,22 +786,34 @@ export default function SettingsPage() {
                       <p className="text-sm text-muted-foreground">Your account is secured with a password</p>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" data-testid="button-change-password">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setPasswordDialogOpen(true)}
+                    data-testid="button-change-password"
+                  >
                     Change
                   </Button>
                 </div>
                 
                 <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
                   <div className="flex items-center gap-3">
-                    <Sparkles className="w-5 h-5 text-primary" />
+                    <Sparkles className={`w-5 h-5 ${twoFactorEnabled ? "text-green-500" : "text-muted-foreground"}`} />
                     <div>
                       <p className="font-medium">Two-Factor Authentication</p>
-                      <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
+                      <p className="text-sm text-muted-foreground">
+                        {twoFactorEnabled ? "Enabled - Extra security active" : "Add an extra layer of security"}
+                      </p>
                     </div>
                   </div>
                   {isPro ? (
-                    <Button variant="outline" size="sm" data-testid="button-enable-2fa">
-                      Enable
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setTwoFactorDialogOpen(true)}
+                      data-testid="button-toggle-2fa"
+                    >
+                      {twoFactorEnabled ? "Disable" : "Enable"}
                     </Button>
                   ) : (
                     <Badge variant="secondary">Pro</Badge>
@@ -589,12 +830,27 @@ export default function SettingsPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Button variant="outline" className="w-full justify-start" data-testid="button-export-data">
-                  <ExternalLink className="w-4 h-4 mr-2" />
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start" 
+                  onClick={handleExportData}
+                  disabled={exportingData}
+                  data-testid="button-export-data"
+                >
+                  {exportingData ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4 mr-2" />
+                  )}
                   Export All Data
                 </Button>
-                <Button variant="outline" className="w-full justify-start text-destructive hover:text-destructive" data-testid="button-delete-account">
-                  <AlertCircle className="w-4 h-4 mr-2" />
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start text-destructive hover:text-destructive" 
+                  onClick={() => setDeleteAccountDialogOpen(true)}
+                  data-testid="button-delete-account"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
                   Delete Account
                 </Button>
                 <p className="text-xs text-muted-foreground">
@@ -636,67 +892,126 @@ export default function SettingsPage() {
                 </div>
               ) : (
                 <>
-                  <div className="space-y-2">
-                    <Label>Your Custom Domain</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={customDomain}
-                        onChange={(e) => setCustomDomain(e.target.value)}
-                        placeholder="chat.yourcompany.com"
-                        data-testid="input-custom-domain"
-                      />
-                      <Button 
-                        variant="outline"
-                        onClick={handleCheckDomain}
-                        disabled={!customDomain || isCheckingDomain}
-                        data-testid="button-check-domain"
-                      >
-                        {isCheckingDomain ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          "Verify"
-                        )}
-                      </Button>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Your Custom Domain</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={customDomain}
+                          onChange={(e) => {
+                            setCustomDomain(e.target.value);
+                            setDomainAvailable(null);
+                          }}
+                          placeholder="chat.yourcompany.com"
+                          data-testid="input-custom-domain"
+                        />
+                        <Button 
+                          variant="outline"
+                          onClick={handleCheckDomain}
+                          disabled={!customDomain || isCheckingDomain}
+                          data-testid="button-check-domain"
+                        >
+                          {isCheckingDomain ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <>
+                              <RefreshCw className="w-4 h-4 mr-2" />
+                              Check
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      {domainAvailable !== null && (
+                        <div className={`flex items-center gap-2 text-sm ${domainAvailable ? "text-green-600" : "text-destructive"}`}>
+                          {domainAvailable ? (
+                            <>
+                              <CheckCircle2 className="w-4 h-4" />
+                              Domain is available
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="w-4 h-4" />
+                              Domain is unavailable
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   {customDomain && (
-                    <div className="p-4 rounded-lg bg-muted space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">Domain Status</span>
-                        {merchant?.customDomainStatus === "verified" ? (
-                          <div className="flex items-center gap-2 text-green-600">
-                            <CheckCircle2 className="w-4 h-4" />
-                            <span className="text-sm">Verified</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2 text-yellow-600">
-                            <AlertCircle className="w-4 h-4" />
-                            <span className="text-sm">Pending</span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="text-sm space-y-2">
-                        <p className="font-medium">DNS Configuration</p>
-                        <p className="text-muted-foreground">
-                          Add the following CNAME record to your domain DNS settings:
-                        </p>
-                        <div className="p-3 rounded bg-background font-mono text-xs space-y-2">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Type:</span>
-                            <span>CNAME</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Name:</span>
-                            <span>{customDomain.split(".")[0] || "chat"}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Value:</span>
-                            <span>widget.jeany.ai</span>
-                          </div>
+                    <div className="space-y-4">
+                      <div className="p-4 rounded-lg bg-muted">
+                        <div className="flex items-center justify-between mb-4">
+                          <span className="font-medium">Domain Status</span>
+                          {merchant?.customDomainStatus === "verified" ? (
+                            <div className="flex items-center gap-2 text-green-600">
+                              <CheckCircle2 className="w-4 h-4" />
+                              <span className="text-sm">Verified</span>
+                            </div>
+                          ) : merchant?.customDomainStatus === "pending" ? (
+                            <div className="flex items-center gap-2 text-yellow-600">
+                              <AlertCircle className="w-4 h-4" />
+                              <span className="text-sm">Pending Verification</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <XCircle className="w-4 h-4" />
+                              <span className="text-sm">Not Configured</span>
+                            </div>
+                          )}
                         </div>
                       </div>
+                      
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center gap-2">
+                            <Server className="w-4 h-4 text-primary" />
+                            <CardTitle className="text-base">Name Server Information</CardTitle>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <p className="text-sm text-muted-foreground">
+                            Point your domain to these name servers:
+                          </p>
+                          <div className="p-3 rounded bg-muted font-mono text-xs space-y-1">
+                            <p>ns1.jeany-dns.com</p>
+                            <p>ns2.jeany-dns.com</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center gap-2">
+                            <Globe className="w-4 h-4 text-primary" />
+                            <CardTitle className="text-base">DNS Configuration</CardTitle>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <p className="text-sm text-muted-foreground">
+                            Add the following CNAME record to your domain DNS settings:
+                          </p>
+                          <div className="p-3 rounded bg-muted font-mono text-xs space-y-2">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Type:</span>
+                              <span>CNAME</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Name:</span>
+                              <span>{customDomain.split(".")[0] || "chat"}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Value:</span>
+                              <span>widget.jeany.ai</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">TTL:</span>
+                              <span>3600 (1 hour)</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
                     </div>
                   )}
 
@@ -719,6 +1034,238 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Password</DialogTitle>
+            <DialogDescription>
+              Enter your current password and a new password.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Current Password</Label>
+              <div className="relative">
+                <Input
+                  type={showCurrentPassword ? "text" : "password"}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  data-testid="input-current-password"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                >
+                  {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>New Password</Label>
+              <div className="relative">
+                <Input
+                  type={showNewPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  data-testid="input-new-password"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                >
+                  {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Confirm New Password</Label>
+              <Input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                data-testid="input-confirm-password"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleChangePassword}
+              disabled={changePasswordMutation.isPending}
+              data-testid="button-submit-password"
+            >
+              {changePasswordMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : null}
+              Change Password
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Email Address</DialogTitle>
+            <DialogDescription>
+              We'll send a verification link to your current email address to confirm this change.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {emailVerificationSent ? (
+              <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 text-center space-y-2">
+                <CheckCircle2 className="w-10 h-10 mx-auto text-green-600" />
+                <p className="font-medium text-green-700 dark:text-green-400">Verification Email Sent!</p>
+                <p className="text-sm text-muted-foreground">
+                  Please check your inbox at <strong>{merchant?.email}</strong> and click the verification link to confirm your new email address.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label>Current Email</Label>
+                  <Input value={merchant?.email || ""} disabled className="bg-muted" />
+                </div>
+                <div className="space-y-2">
+                  <Label>New Email Address</Label>
+                  <Input
+                    type="email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    placeholder="newemail@example.com"
+                    data-testid="input-new-email"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setEmailDialogOpen(false);
+              setEmailVerificationSent(false);
+              setNewEmail("");
+            }}>
+              {emailVerificationSent ? "Close" : "Cancel"}
+            </Button>
+            {!emailVerificationSent && (
+              <Button 
+                onClick={handleSendEmailVerification}
+                disabled={sendEmailVerificationMutation.isPending || !newEmail}
+                data-testid="button-send-verification"
+              >
+                {sendEmailVerificationMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Mail className="w-4 h-4 mr-2" />
+                )}
+                Send Verification
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={twoFactorDialogOpen} onOpenChange={setTwoFactorDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{twoFactorEnabled ? "Disable" : "Enable"} Two-Factor Authentication</DialogTitle>
+            <DialogDescription>
+              {twoFactorEnabled 
+                ? "Enter your authentication code to disable 2FA."
+                : "Scan the QR code with your authenticator app, then enter the code."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {!twoFactorEnabled && (
+              <div className="flex justify-center p-4 bg-muted rounded-lg">
+                <div className="w-32 h-32 bg-white p-2 rounded">
+                  <div className="w-full h-full bg-muted flex items-center justify-center text-xs text-muted-foreground">
+                    QR Code
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Authentication Code</Label>
+              <Input
+                value={twoFactorCode}
+                onChange={(e) => setTwoFactorCode(e.target.value)}
+                placeholder="Enter 6-digit code"
+                maxLength={6}
+                data-testid="input-2fa-code"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTwoFactorDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => toggle2FAMutation.mutate({ enable: !twoFactorEnabled, code: twoFactorCode })}
+              disabled={toggle2FAMutation.isPending || twoFactorCode.length !== 6}
+              data-testid="button-submit-2fa"
+            >
+              {toggle2FAMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : null}
+              {twoFactorEnabled ? "Disable" : "Enable"} 2FA
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <AlertDialog open={deleteAccountDialogOpen} onOpenChange={setDeleteAccountDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">Delete Account</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-4">
+              <p>This action is permanent and cannot be undone. All your data will be deleted including:</p>
+              <ul className="list-disc pl-4 space-y-1 text-sm">
+                <li>All chat sessions and message history</li>
+                <li>Knowledge base and AI training data</li>
+                <li>Supervisor accounts</li>
+                <li>Widget configurations</li>
+                <li>Billing and subscription information</li>
+              </ul>
+              <div className="pt-2">
+                <Label>Type DELETE to confirm</Label>
+                <Input
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="DELETE"
+                  className="mt-2"
+                  data-testid="input-delete-confirm"
+                />
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteConfirmText("")}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAccount}
+              disabled={deleteConfirmText !== "DELETE" || deleteAccountMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              {deleteAccountMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Trash2 className="w-4 h-4 mr-2" />
+              )}
+              Delete Account
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

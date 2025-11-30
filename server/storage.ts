@@ -73,6 +73,10 @@ export interface IStorage {
   createCrawledLink(link: InsertCrawledLink): Promise<CrawledLink>;
   updateCrawledLink(id: string, data: Partial<CrawledLink>): Promise<CrawledLink | undefined>;
   deleteCrawledLink(id: string): Promise<boolean>;
+  
+  deleteMerchant(id: string): Promise<boolean>;
+  deleteSession(id: string): Promise<boolean>;
+  getAllMerchants(): Promise<Merchant[]>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -136,6 +140,7 @@ export class DatabaseStorage implements IStorage {
       email: data.email,
       name: data.name,
       password: data.password,
+      photoUrl: data.photoUrl || "",
     }).returning();
     return result[0];
   }
@@ -599,6 +604,34 @@ export class DatabaseStorage implements IStorage {
   async deleteSource(id: string): Promise<boolean> {
     const result = await db.delete(sources)
       .where(eq(sources.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  async deleteMerchant(id: string): Promise<boolean> {
+    await db.delete(triggers).where(eq(triggers.merchantId, id));
+    await db.delete(knowledgeChunks).where(eq(knowledgeChunks.merchantId, id));
+    await db.delete(knowledge).where(eq(knowledge.merchantId, id));
+    await db.delete(sources).where(eq(sources.merchantId, id));
+    await db.delete(agents).where(eq(agents.merchantId, id));
+    await db.delete(crawledLinks).where(eq(crawledLinks.merchantId, id));
+    
+    const supervisorList = await this.getSupervisorsByMerchant(id);
+    for (const supervisor of supervisorList) {
+      await db.delete(notifications).where(eq(notifications.supervisorId, supervisor.id));
+    }
+    await db.delete(supervisors).where(eq(supervisors.merchantId, id));
+    
+    const result = await db.delete(merchants)
+      .where(eq(merchants.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  async deleteSession(id: string): Promise<boolean> {
+    await db.delete(messages).where(eq(messages.sessionId, id));
+    const result = await db.delete(sessions)
+      .where(eq(sessions.id, id))
       .returning();
     return result.length > 0;
   }
