@@ -46,7 +46,8 @@ const trustedByLogos = [
 
 function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("merchantId"));
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -54,16 +55,44 @@ function Navbar() {
     };
     window.addEventListener("scroll", handleScroll);
     
+    const validateSession = async () => {
+      const storedMerchantId = localStorage.getItem("merchantId");
+      if (!storedMerchantId) {
+        setIsLoggedIn(false);
+        setIsCheckingAuth(false);
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/merchant/${storedMerchantId}`, {
+          credentials: "include",
+        });
+        if (response.ok) {
+          setIsLoggedIn(true);
+        } else {
+          localStorage.removeItem("merchantId");
+          localStorage.removeItem("userType");
+          setIsLoggedIn(false);
+        }
+      } catch {
+        setIsLoggedIn(false);
+      }
+      setIsCheckingAuth(false);
+    };
+    
+    validateSession();
+    
     const checkAuth = () => {
-      setIsLoggedIn(!!localStorage.getItem("merchantId"));
+      const hasStoredId = !!localStorage.getItem("merchantId");
+      if (!hasStoredId) {
+        setIsLoggedIn(false);
+      }
     };
     window.addEventListener("storage", checkAuth);
-    const interval = setInterval(checkAuth, 1000);
     
     return () => {
       window.removeEventListener("scroll", handleScroll);
       window.removeEventListener("storage", checkAuth);
-      clearInterval(interval);
     };
   }, []);
 
@@ -90,7 +119,9 @@ function Navbar() {
           </div>
           <div className="flex items-center gap-3">
             <ThemeToggle />
-            {isLoggedIn ? (
+            {isCheckingAuth ? (
+              <div className="w-20 h-8 bg-muted animate-pulse rounded-md" />
+            ) : isLoggedIn ? (
               <Link href="/dashboard" className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-foreground text-background hover:bg-foreground/90 h-8 px-3" data-testid="button-dashboard">
                 Dashboard
               </Link>

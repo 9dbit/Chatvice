@@ -17,6 +17,15 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import type { Session, Message, Supervisor } from "@shared/schema";
 
+function BlinkingDot() {
+  return (
+    <span className="relative flex h-3 w-3">
+      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+      <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+    </span>
+  );
+}
+
 interface SessionWithPreview extends Session {
   lastMessage?: string;
   lastQuestion?: string;
@@ -204,6 +213,7 @@ export default function SessionsPage() {
 
   const activeSessions = sessions?.filter((s) => s.mode === "HUMAN") || [];
   const aiSessions = sessions?.filter((s) => s.mode === "AI") || [];
+  const escalatedCount = activeSessions.length;
 
   const getSessionPreview = (sessionId: string) => {
     if (sessionId === selectedSession && messages) {
@@ -220,7 +230,10 @@ export default function SessionsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold">Chat Sessions</h1>
+          <h1 className="text-2xl font-bold flex items-center gap-3">
+            Chat Sessions
+            {escalatedCount > 0 && <BlinkingDot />}
+          </h1>
           <p className="text-muted-foreground">View and manage customer conversations.</p>
         </div>
         {supervisors && supervisors.length > 0 && (

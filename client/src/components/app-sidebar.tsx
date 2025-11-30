@@ -29,11 +29,26 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 import { Receipt } from "lucide-react";
+
+interface Session {
+  id: string;
+  mode: "AI" | "HUMAN";
+  merchantId: string;
+}
+
+function BlinkingDot() {
+  return (
+    <span className="relative flex h-3 w-3">
+      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+      <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+    </span>
+  );
+}
 
 const menuItems = [
   { title: "Overview", url: "/dashboard", icon: LayoutDashboard },
@@ -65,6 +80,9 @@ export function AppSidebar() {
   const [location, setLocation] = useLocation();
   const merchantId = localStorage.getItem("merchantId") || "";
   const [online, setOnline] = useState(true);
+  const prevEscalatedCountRef = useRef<number>(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const hasPlayedInitialRef = useRef(false);
 
   const { data: merchant } = useQuery<{ online?: boolean; companyName?: string }>({
     queryKey: ["/api/merchant", merchantId],
@@ -76,11 +94,40 @@ export function AppSidebar() {
     enabled: !!merchantId,
   });
 
+  const { data: sessions } = useQuery<Session[]>({
+    queryKey: ["/api/sessions", merchantId],
+    enabled: !!merchantId,
+    refetchInterval: 5000,
+  });
+
+  const escalatedCount = sessions?.filter(s => s.mode === "HUMAN").length || 0;
+
+  const playAlertSound = useCallback(() => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleVX/EUKQydujgQBAk9zomXcaQ6br8JhfFka28fCRVB5NwPjvhkoiWMz98n88J2XZ//RxMi5z4v/0Zi03e+T/8Vs0Q4Tk/+xQN0qJ5P/oRjpQjuT/40E9VpLk/987QFqW5P/aOENemuf/1TZGYZ/o/9IzR2Wi6v/OMkhrpev/yjBJbqfu/8YuSnGq8P/DLUxzrPL/wCxNda/0/70rTnix9v+6KlB6s/j/tiZRfLX6/7MlU367/P+wJFWBvv3/rCJWg8D+/6ggV4XC//+lH1mHxP//oh1ai8b//58dW43H//+cHFyPyf//mRtdkcv//5YaXpPN//+TGV+Uzv//kBhglc///40XX5fR//+KFmCY0v//hxVhmdP//4QUYprU//+BE2Ob1f/+fhJkndX//nsSZJ7W//54EWWf1//+dRBlodj//nMPZqHY//5wDmel2f/+bg5npdv//mwNZ6bc//5pDGio3f/+ZwxpqN7//mQLaKnf//5iCmiq3//+YAppq+D//l4Jaqvg//5cCWqs4f/+Wghrruz//lkIa67t//5XB2yv7v/+VQdtsfD//lMGbbLx//5SBm2y8v/+UAVusvP//k4FbrP0//5MBXC09f/+SwRxtPf//kkEcbb4//5IBHG2+f/+RgNyuPr//kUDcrj7//5DA3O5/P/+QgJzuv3//kACc7r+//4/AnS7///+PQF0u///");
+    }
+    audioRef.current.currentTime = 0;
+    audioRef.current.play().catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (merchant) {
       setOnline(merchant.online ?? true);
     }
   }, [merchant]);
+
+  useEffect(() => {
+    if (!hasPlayedInitialRef.current && sessions) {
+      hasPlayedInitialRef.current = true;
+      prevEscalatedCountRef.current = escalatedCount;
+      return;
+    }
+    
+    if (escalatedCount > prevEscalatedCountRef.current) {
+      playAlertSound();
+    }
+    prevEscalatedCountRef.current = escalatedCount;
+  }, [escalatedCount, sessions, playAlertSound]);
 
   const updateStatusMutation = useMutation({
     mutationFn: async (newOnline: boolean) => {
@@ -128,6 +175,7 @@ export function AppSidebar() {
               {menuItems.map((item) => {
                 const isActive = location === item.url || 
                   (item.url !== "/dashboard" && location.startsWith(item.url));
+                const showNotification = item.title === "Chat Sessions" && escalatedCount > 0;
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
@@ -136,7 +184,8 @@ export function AppSidebar() {
                     >
                       <Link href={item.url} data-testid={`link-sidebar-${item.title.toLowerCase().replace(/\s/g, '-')}`}>
                         <item.icon className="w-4 h-4" />
-                        <span>{item.title}</span>
+                        <span className="flex-1">{item.title}</span>
+                        {showNotification && <BlinkingDot />}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
