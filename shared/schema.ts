@@ -162,6 +162,7 @@ export const merchantConfigSchema = z.object({
   agentPhotoUrl: z.string().optional(),
   widgetTheme: z.enum(["light", "dark"]).optional(),
   bubblePosition: z.enum(["left", "right"]).optional(),
+  allowedDomains: z.string().optional(),
 });
 export type MerchantConfig = z.infer<typeof merchantConfigSchema>;
 
