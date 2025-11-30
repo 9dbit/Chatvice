@@ -36,6 +36,16 @@ Jeany AI is built as a monorepo, separating client (`/client`), server (`/server
 
 Core entities include Merchants (with customizable configurations), Supervisors, Sessions (tracking AI/HUMAN mode), Messages, Triggers (for escalation), Knowledge Base content (for AI training), Knowledge Chunks (vector embeddings for semantic search), Notifications, Subscription Plans (tiered pricing), Merchant Subscriptions (Stripe integration), Agents (AI agents with plan-based limits), and Sources (for AI knowledge input).
 
+### Per-Agent Knowledge Base System
+
+Knowledge base content is now scoped per-agent using the `agentId` field in the knowledge, knowledgeChunks, and crawledLinks tables. When a merchant has an active agent selected:
+- Knowledge is stored and retrieved for that specific agent
+- Embeddings are generated and stored per-agent
+- Chat responses use the active agent's knowledge base
+- Import from another agent feature allows copying knowledge between agents
+
+The widget settings (agentName, agentPhotoUrl) automatically sync when an agent is updated or selected as active.
+
 ## External Dependencies
 
 -   **AI Services**: OpenAI API (GPT-4.1-mini for chat, text-embedding-3-small for embeddings) via Replit AI Integrations.

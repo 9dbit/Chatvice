@@ -35,14 +35,14 @@ type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 function AuthLayout({ children, title, subtitle }: { children: React.ReactNode; title: string; subtitle: string }) {
   return (
     <div className="min-h-screen flex">
-      <div className="flex-1 bg-zinc-950 flex flex-col justify-center px-8 md:px-16 lg:px-24">
+      <div className="w-full lg:w-1/2 bg-zinc-950 flex flex-col justify-center px-8 md:px-16 lg:px-24">
         <div className="max-w-md mx-auto w-full">
-          <div className="flex items-center gap-3 mb-8">
+          <Link href="/" className="flex items-center gap-3 mb-8 hover:opacity-80 transition-opacity" data-testid="link-auth-logo">
             <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
               <Bot className="w-6 h-6 text-primary-foreground" />
             </div>
             <span className="text-xl font-bold text-white">Jeany AI</span>
-          </div>
+          </Link>
           
           <h1 className="text-2xl font-bold text-white mb-2">{title}</h1>
           <p className="text-zinc-400 mb-8">{subtitle}</p>
@@ -51,7 +51,7 @@ function AuthLayout({ children, title, subtitle }: { children: React.ReactNode; 
         </div>
       </div>
       
-      <div className="hidden lg:flex flex-1 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{

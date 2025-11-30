@@ -12,7 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Plus, Trash2, Mail, User, Camera, Loader2 } from "lucide-react";
+import { Users, Plus, Trash2, Mail, User, Camera, Loader2, Edit } from "lucide-react";
 import type { Supervisor } from "@shared/schema";
 
 const addSupervisorSchema = z.object({
@@ -21,15 +21,23 @@ const addSupervisorSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
+const editSupervisorSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+});
+
 type AddSupervisorData = z.infer<typeof addSupervisorSchema>;
+type EditSupervisorData = z.infer<typeof editSupervisorSchema>;
 
 export default function SupervisorsPage() {
   const merchantId = localStorage.getItem("merchantId") || "";
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingSupervisor, setEditingSupervisor] = useState<Supervisor | null>(null);
   const [photoUrl, setPhotoUrl] = useState("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: supervisors, isLoading } = useQuery<Supervisor[]>({
     queryKey: ["/api/supervisors", merchantId],
@@ -42,6 +50,13 @@ export default function SupervisorsPage() {
       name: "",
       email: "",
       password: "",
+    },
+  });
+
+  const editForm = useForm<EditSupervisorData>({
+    resolver: zodResolver(editSupervisorSchema),
+    defaultValues: {
+      name: "",
     },
   });
 
@@ -118,6 +133,30 @@ export default function SupervisorsPage() {
     },
   });
 
+  const updateSupervisorMutation = useMutation({
+    mutationFn: async (data: { id: string; name: string; photoUrl: string }) => {
+      return apiRequest("PUT", `/api/supervisors/${data.id}`, { name: data.name, photoUrl: data.photoUrl });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/supervisors", merchantId] });
+      setEditDialogOpen(false);
+      setEditingSupervisor(null);
+      setPhotoUrl("");
+      editForm.reset();
+      toast({
+        title: "Supervisor updated",
+        description: "Supervisor information has been updated.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to update supervisor",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const deleteSupervisorMutation = useMutation({
     mutationFn: async (supervisorId: string) => {
       return apiRequest("DELETE", `/api/supervisors/${supervisorId}`);
@@ -140,6 +179,23 @@ export default function SupervisorsPage() {
 
   const onSubmit = (data: AddSupervisorData) => {
     addSupervisorMutation.mutate(data);
+  };
+
+  const onEditSubmit = (data: EditSupervisorData) => {
+    if (editingSupervisor) {
+      updateSupervisorMutation.mutate({
+        id: editingSupervisor.id,
+        name: data.name,
+        photoUrl: photoUrl,
+      });
+    }
+  };
+
+  const handleEditSupervisor = (supervisor: Supervisor) => {
+    setEditingSupervisor(supervisor);
+    editForm.setValue("name", supervisor.name);
+    setPhotoUrl(supervisor.photoUrl || "");
+    setEditDialogOpen(true);
   };
 
   return (
@@ -308,15 +364,25 @@ export default function SupervisorsPage() {
                       </div>
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => deleteSupervisorMutation.mutate(supervisor.id)}
-                    disabled={deleteSupervisorMutation.isPending}
-                    data-testid={`button-delete-supervisor-${supervisor.id}`}
-                  >
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEditSupervisor(supervisor)}
+                      data-testid={`button-edit-supervisor-${supervisor.id}`}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deleteSupervisorMutation.mutate(supervisor.id)}
+                      disabled={deleteSupervisorMutation.isPending}
+                      data-testid={`button-delete-supervisor-${supervisor.id}`}
+                    >
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -335,6 +401,84 @@ export default function SupervisorsPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Supervisor</DialogTitle>
+            <DialogDescription>
+              Update supervisor name and profile photo.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+              <div className="flex justify-center mb-2">
+                <div className="relative">
+                  <Avatar className="w-20 h-20">
+                    <AvatarImage src={photoUrl} />
+                    <AvatarFallback className="bg-muted">
+                      {uploadingPhoto ? (
+                        <Loader2 className="w-6 h-6 animate-spin" />
+                      ) : (
+                        <User className="w-8 h-8 text-muted-foreground" />
+                      )}
+                    </AvatarFallback>
+                  </Avatar>
+                  <button
+                    type="button"
+                    className="absolute bottom-0 right-0 p-1.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+                    onClick={() => editFileInputRef.current?.click()}
+                    disabled={uploadingPhoto}
+                    data-testid="button-upload-edit-photo"
+                  >
+                    <Camera className="w-3 h-3" />
+                  </button>
+                  <input
+                    ref={editFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handlePhotoUpload}
+                  />
+                </div>
+              </div>
+              <FormField
+                control={editForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="John Doe" data-testid="input-edit-supervisor-name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setEditDialogOpen(false);
+                    setEditingSupervisor(null);
+                    setPhotoUrl("");
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={updateSupervisorMutation.isPending}
+                  data-testid="button-submit-edit-supervisor"
+                >
+                  {updateSupervisorMutation.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

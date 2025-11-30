@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,10 +11,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Bot, Plus, Edit, Trash2, Sparkles, Crown, ArrowUpRight } from "lucide-react";
+import { Bot, Plus, Edit, Trash2, Sparkles, Crown, ArrowUpRight, Camera, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import type { Agent, Merchant } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
@@ -31,6 +32,9 @@ export default function AgentsPage() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: merchant } = useQuery<Merchant>({
     queryKey: ["/api/merchant", merchantId],
@@ -54,14 +58,46 @@ export default function AgentsPage() {
     },
   });
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please upload an image smaller than 2MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingPhoto(true);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPhotoUrl(reader.result as string);
+      setUploadingPhoto(false);
+    };
+    reader.onerror = () => {
+      toast({
+        title: "Upload failed",
+        description: "Failed to read the image file",
+        variant: "destructive",
+      });
+      setUploadingPhoto(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const createMutation = useMutation({
     mutationFn: async (data: AgentFormData) => {
-      return apiRequest("POST", "/api/agents", data);
+      return apiRequest("POST", "/api/agents", { ...data, photoUrl });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
       setIsDialogOpen(false);
       form.reset();
+      setPhotoUrl("");
       toast({
         title: "Agent created",
         description: "Your new AI agent has been created successfully.",
@@ -78,11 +114,14 @@ export default function AgentsPage() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Agent> }) => {
-      return apiRequest("PUT", `/api/agents/${id}`, data);
+      return apiRequest("PUT", `/api/agents/${id}`, { ...data, photoUrl: photoUrl || data.photoUrl });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
       setEditingAgent(null);
+      setIsDialogOpen(false);
+      setPhotoUrl("");
       toast({
         title: "Agent updated",
         description: "Your agent has been updated successfully.",
@@ -115,12 +154,14 @@ export default function AgentsPage() {
     setEditingAgent(agent);
     form.setValue("name", agent.name);
     form.setValue("description", agent.description || "");
+    setPhotoUrl(agent.photoUrl || "");
     setIsDialogOpen(true);
   };
 
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
     setEditingAgent(null);
+    setPhotoUrl("");
     form.reset();
   };
 
@@ -166,6 +207,36 @@ export default function AgentsPage() {
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <div className="flex justify-center mb-2">
+                    <div className="relative">
+                      <Avatar className="w-20 h-20">
+                        <AvatarImage src={photoUrl} />
+                        <AvatarFallback className="bg-gradient-to-br from-primary to-primary/60">
+                          {uploadingPhoto ? (
+                            <Loader2 className="w-6 h-6 animate-spin text-primary-foreground" />
+                          ) : (
+                            <Bot className="w-8 h-8 text-primary-foreground" />
+                          )}
+                        </AvatarFallback>
+                      </Avatar>
+                      <button
+                        type="button"
+                        className="absolute bottom-0 right-0 p-1.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingPhoto}
+                        data-testid="button-upload-agent-photo"
+                      >
+                        <Camera className="w-3 h-3" />
+                      </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handlePhotoUpload}
+                      />
+                    </div>
+                  </div>
                   <FormField
                     control={form.control}
                     name="name"
@@ -241,9 +312,12 @@ export default function AgentsPage() {
             <Card key={agent.id} className="hover-elevate transition-all" data-testid={`agent-card-${agent.id}`}>
               <CardHeader className="flex flex-row items-start justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
-                    <Bot className="w-6 h-6 text-primary-foreground" />
-                  </div>
+                  <Avatar className="w-12 h-12">
+                    <AvatarImage src={agent.photoUrl || ""} />
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-primary/60">
+                      <Bot className="w-6 h-6 text-primary-foreground" />
+                    </AvatarFallback>
+                  </Avatar>
                   <div>
                     <CardTitle className="text-lg">{agent.name}</CardTitle>
                     <div className="flex items-center gap-2 mt-1">

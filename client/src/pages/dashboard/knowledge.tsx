@@ -8,9 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Save, Globe, Loader2, Plus, Bot, Send, Trash2, ExternalLink, Check, X, RefreshCw } from "lucide-react";
-import type { Merchant, CrawledLink } from "@shared/schema";
+import { Database, Save, Globe, Loader2, Plus, Bot, Send, Trash2, ExternalLink, Check, X, RefreshCw, Copy } from "lucide-react";
+import type { Merchant, CrawledLink, Agent } from "@shared/schema";
 
 export default function KnowledgePage() {
   const merchantId = localStorage.getItem("merchantId") || "";
@@ -20,14 +22,24 @@ export default function KnowledgePage() {
   const [extractedContent, setExtractedContent] = useState("");
   const [previewMessage, setPreviewMessage] = useState("");
   const [previewMessages, setPreviewMessages] = useState<Array<{ from: string; content: string }>>([]);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [selectedImportAgent, setSelectedImportAgent] = useState<string | null>(null);
 
-  const { data: knowledge, isLoading } = useQuery<{ content: string }>({
-    queryKey: ["/api/knowledge", merchantId],
-    enabled: !!merchantId,
+  const { data: agents } = useQuery<Agent[]>({
+    queryKey: ["/api/agents"],
   });
 
   const { data: merchant } = useQuery<Merchant>({
     queryKey: ["/api/merchant", merchantId],
+    enabled: !!merchantId,
+  });
+
+  const otherAgents = agents?.filter(a => a.id !== merchant?.activeAgentId) || [];
+
+  const activeAgentId = merchant?.activeAgentId;
+
+  const { data: knowledge, isLoading } = useQuery<{ content: string }>({
+    queryKey: ["/api/knowledge", merchantId, activeAgentId],
     enabled: !!merchantId,
   });
 
@@ -47,10 +59,11 @@ export default function KnowledgePage() {
       return apiRequest("POST", "/api/knowledge/set", {
         merchantId,
         knowledgeText,
+        agentId: activeAgentId || undefined,
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/knowledge", merchantId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge", merchantId, activeAgentId] });
       toast({
         title: "Knowledge saved",
         description: "Your AI will now use this information to answer questions.",
@@ -100,6 +113,44 @@ export default function KnowledgePage() {
       });
     },
   });
+
+  const importFromAgentMutation = useMutation({
+    mutationFn: async (agentId: string) => {
+      const res = await apiRequest("GET", `/api/knowledge/agent/${agentId}`);
+      return res.json() as Promise<{ content: string }>;
+    },
+    onSuccess: (data) => {
+      if (data.content) {
+        const separator = content.trim() ? "\n\n---\n\n" : "";
+        setContent(content + separator + data.content);
+        toast({
+          title: "Knowledge imported",
+          description: "The knowledge from the selected agent has been added. Don't forget to save!",
+        });
+      } else {
+        toast({
+          title: "No knowledge found",
+          description: "The selected agent has no knowledge base content.",
+          variant: "destructive",
+        });
+      }
+      setImportDialogOpen(false);
+      setSelectedImportAgent(null);
+    },
+    onError: () => {
+      toast({
+        title: "Import failed",
+        description: "Failed to import knowledge from the selected agent.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleImportFromAgent = () => {
+    if (selectedImportAgent) {
+      importFromAgentMutation.mutate(selectedImportAgent);
+    }
+  };
 
   const handleSave = () => {
     saveMutation.mutate(content);
@@ -193,23 +244,35 @@ export default function KnowledgePage() {
         {/* Knowledge Content Editor */}
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2">
                 <Database className="w-5 h-5 text-primary" />
                 <CardTitle>Knowledge Content</CardTitle>
               </div>
-              <Button
-                onClick={handleSave}
-                disabled={saveMutation.isPending}
-                data-testid="button-save-knowledge"
-              >
-                {saveMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4 mr-2" />
+              <div className="flex items-center gap-2 flex-wrap">
+                {otherAgents.length > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setImportDialogOpen(true)}
+                    data-testid="button-import-from-agent"
+                  >
+                    <Copy className="w-4 h-4 mr-2" />
+                    Import from Agent
+                  </Button>
                 )}
-                Save
-              </Button>
+                <Button
+                  onClick={handleSave}
+                  disabled={saveMutation.isPending}
+                  data-testid="button-save-knowledge"
+                >
+                  {saveMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
+                  Save
+                </Button>
+              </div>
             </div>
             <CardDescription>
               Add information that Jeany AI will use to answer customer questions.
@@ -478,6 +541,70 @@ Example:
           </Card>
         </div>
       </div>
+
+      {/* Import from Agent Dialog */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Import Knowledge from Agent</DialogTitle>
+            <DialogDescription>
+              Select an agent to import their knowledge base content. This will append to your current knowledge.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              {otherAgents.map((agent) => (
+                <button
+                  key={agent.id}
+                  onClick={() => setSelectedImportAgent(agent.id)}
+                  className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors hover-elevate ${
+                    selectedImportAgent === agent.id
+                      ? "border-primary bg-primary/10"
+                      : "border-border"
+                  }`}
+                  data-testid={`button-select-agent-${agent.id}`}
+                >
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={agent.photoUrl || undefined} alt={agent.name} />
+                    <AvatarFallback>
+                      <Bot className="w-5 h-5" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 text-left">
+                    <p className="font-medium">{agent.name}</p>
+                    <p className="text-sm text-muted-foreground">{agent.description || "No description"}</p>
+                  </div>
+                  {selectedImportAgent === agent.id && (
+                    <Check className="w-5 h-5 text-primary" />
+                  )}
+                </button>
+              ))}
+              {otherAgents.length === 0 && (
+                <p className="text-center text-muted-foreground py-4">
+                  No other agents available to import from.
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleImportFromAgent}
+              disabled={!selectedImportAgent || importFromAgentMutation.isPending}
+              data-testid="button-confirm-import"
+            >
+              {importFromAgentMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Copy className="w-4 h-4 mr-2" />
+              )}
+              Import
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

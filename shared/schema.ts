@@ -94,7 +94,8 @@ export type Trigger = typeof triggers.$inferSelect;
 
 export const knowledge = pgTable("knowledge", {
   id: varchar("id", { length: 32 }).primaryKey(),
-  merchantId: varchar("merchant_id", { length: 32 }).notNull().unique(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  agentId: varchar("agent_id", { length: 32 }),
   content: text("content").notNull(),
 });
 
@@ -105,6 +106,7 @@ export type Knowledge = typeof knowledge.$inferSelect;
 export const knowledgeChunks = pgTable("knowledge_chunks", {
   id: varchar("id", { length: 32 }).primaryKey(),
   merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  agentId: varchar("agent_id", { length: 32 }),
   content: text("content").notNull(),
   embedding: text("embedding"),
 });
@@ -116,6 +118,7 @@ export type KnowledgeChunk = typeof knowledgeChunks.$inferSelect;
 export const crawledLinks = pgTable("crawled_links", {
   id: varchar("id", { length: 32 }).primaryKey(),
   merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  agentId: varchar("agent_id", { length: 32 }),
   url: text("url").notNull(),
   title: text("title"),
   status: text("status").default("pending"),
@@ -197,6 +200,7 @@ export const agents = pgTable("agents", {
   merchantId: varchar("merchant_id", { length: 32 }).notNull(),
   name: text("name").notNull(),
   description: text("description").default(""),
+  photoUrl: text("photo_url").default(""),
   knowledgeContent: text("knowledge_content").default(""),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),

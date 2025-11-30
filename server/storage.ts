@@ -39,6 +39,7 @@ export interface IStorage {
   getSupervisorByEmail(email: string): Promise<Supervisor | undefined>;
   getSupervisorsByMerchant(merchantId: string): Promise<Supervisor[]>;
   createSupervisor(supervisor: InsertSupervisor): Promise<Supervisor>;
+  updateSupervisor(id: string, data: Partial<Supervisor>): Promise<Supervisor | undefined>;
   deleteSupervisor(id: string): Promise<boolean>;
 
   getSession(id: string): Promise<Session | undefined>;
@@ -56,7 +57,9 @@ export interface IStorage {
   deleteTrigger(id: string): Promise<boolean>;
 
   getKnowledge(merchantId: string): Promise<Knowledge | undefined>;
-  setKnowledge(merchantId: string, content: string): Promise<Knowledge>;
+  getKnowledgeByAgent(agentId: string): Promise<Knowledge | undefined>;
+  setKnowledge(merchantId: string, content: string, agentId?: string): Promise<Knowledge>;
+  setKnowledgeByAgent(merchantId: string, agentId: string, content: string): Promise<Knowledge>;
 
   getNotifications(supervisorId: string): Promise<Notification[]>;
   createNotification(notification: InsertNotification): Promise<Notification>;
@@ -64,9 +67,9 @@ export interface IStorage {
   
   getAnalytics(merchantId: string): Promise<AnalyticsData>;
   
-  getKnowledgeChunks(merchantId: string): Promise<KnowledgeChunk[]>;
+  getKnowledgeChunks(merchantId: string, agentId?: string): Promise<KnowledgeChunk[]>;
   createKnowledgeChunk(chunk: InsertKnowledgeChunk): Promise<KnowledgeChunk>;
-  deleteKnowledgeChunks(merchantId: string): Promise<boolean>;
+  deleteKnowledgeChunks(merchantId: string, agentId?: string): Promise<boolean>;
   updateChunkEmbedding(id: string, embedding: string): Promise<boolean>;
   
   getCrawledLinks(merchantId: string): Promise<CrawledLink[]>;
@@ -142,6 +145,14 @@ export class DatabaseStorage implements IStorage {
       password: data.password,
       photoUrl: data.photoUrl || "",
     }).returning();
+    return result[0];
+  }
+
+  async updateSupervisor(id: string, data: Partial<Supervisor>): Promise<Supervisor | undefined> {
+    const result = await db.update(supervisors)
+      .set(data)
+      .where(eq(supervisors.id, id))
+      .returning();
     return result[0];
   }
 
@@ -230,12 +241,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getKnowledge(merchantId: string): Promise<Knowledge | undefined> {
-    const result = await db.select().from(knowledge).where(eq(knowledge.merchantId, merchantId));
+    const result = await db.select().from(knowledge)
+      .where(and(eq(knowledge.merchantId, merchantId), sql`${knowledge.agentId} IS NULL`));
     return result[0];
   }
 
-  async setKnowledge(merchantId: string, content: string): Promise<Knowledge> {
-    const existing = await this.getKnowledge(merchantId);
+  async getKnowledgeByAgent(agentId: string): Promise<Knowledge | undefined> {
+    const result = await db.select().from(knowledge).where(eq(knowledge.agentId, agentId));
+    return result[0];
+  }
+
+  async setKnowledge(merchantId: string, content: string, agentId?: string): Promise<Knowledge> {
+    if (agentId) {
+      return this.setKnowledgeByAgent(merchantId, agentId, content);
+    }
+    const existingResult = await db.select().from(knowledge)
+      .where(and(eq(knowledge.merchantId, merchantId), sql`${knowledge.agentId} IS NULL`));
+    const existing = existingResult[0];
+    
     if (existing) {
       const result = await db.update(knowledge)
         .set({ content })
@@ -247,6 +270,25 @@ export class DatabaseStorage implements IStorage {
     const result = await db.insert(knowledge).values({
       id,
       merchantId,
+      content,
+    }).returning();
+    return result[0];
+  }
+
+  async setKnowledgeByAgent(merchantId: string, agentId: string, content: string): Promise<Knowledge> {
+    const existing = await this.getKnowledgeByAgent(agentId);
+    if (existing) {
+      const result = await db.update(knowledge)
+        .set({ content })
+        .where(eq(knowledge.id, existing.id))
+        .returning();
+      return result[0];
+    }
+    const id = generateId("kb_");
+    const result = await db.insert(knowledge).values({
+      id,
+      merchantId,
+      agentId,
       content,
     }).returning();
     return result[0];
@@ -406,8 +448,13 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getKnowledgeChunks(merchantId: string): Promise<KnowledgeChunk[]> {
-    return db.select().from(knowledgeChunks).where(eq(knowledgeChunks.merchantId, merchantId));
+  async getKnowledgeChunks(merchantId: string, agentId?: string): Promise<KnowledgeChunk[]> {
+    if (agentId) {
+      return db.select().from(knowledgeChunks)
+        .where(and(eq(knowledgeChunks.merchantId, merchantId), eq(knowledgeChunks.agentId, agentId)));
+    }
+    return db.select().from(knowledgeChunks)
+      .where(and(eq(knowledgeChunks.merchantId, merchantId), sql`${knowledgeChunks.agentId} IS NULL`));
   }
 
   async createKnowledgeChunk(data: InsertKnowledgeChunk): Promise<KnowledgeChunk> {
@@ -415,16 +462,23 @@ export class DatabaseStorage implements IStorage {
     const result = await db.insert(knowledgeChunks).values({
       id,
       merchantId: data.merchantId,
+      agentId: data.agentId || null,
       content: data.content,
       embedding: data.embedding || null,
     }).returning();
     return result[0];
   }
 
-  async deleteKnowledgeChunks(merchantId: string): Promise<boolean> {
-    const result = await db.delete(knowledgeChunks)
-      .where(eq(knowledgeChunks.merchantId, merchantId))
-      .returning();
+  async deleteKnowledgeChunks(merchantId: string, agentId?: string): Promise<boolean> {
+    if (agentId) {
+      await db.delete(knowledgeChunks)
+        .where(and(eq(knowledgeChunks.merchantId, merchantId), eq(knowledgeChunks.agentId, agentId)))
+        .returning();
+    } else {
+      await db.delete(knowledgeChunks)
+        .where(and(eq(knowledgeChunks.merchantId, merchantId), sql`${knowledgeChunks.agentId} IS NULL`))
+        .returning();
+    }
     return true;
   }
 

@@ -66,14 +66,15 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
-export async function processKnowledgeBase(merchantId: string, content: string): Promise<void> {
-  await storage.deleteKnowledgeChunks(merchantId);
+export async function processKnowledgeBase(merchantId: string, content: string, agentId?: string): Promise<void> {
+  await storage.deleteKnowledgeChunks(merchantId, agentId);
   
   const chunks = splitIntoChunks(content);
   
   for (const chunkContent of chunks) {
     const chunk = await storage.createKnowledgeChunk({
       merchantId,
+      agentId,
       content: chunkContent,
     });
     
@@ -89,9 +90,10 @@ export async function processKnowledgeBase(merchantId: string, content: string):
 export async function searchKnowledge(
   merchantId: string,
   query: string,
-  topK: number = 3
+  topK: number = 3,
+  agentId?: string
 ): Promise<string[]> {
-  const chunks = await storage.getKnowledgeChunks(merchantId);
+  const chunks = await storage.getKnowledgeChunks(merchantId, agentId);
   
   if (chunks.length === 0) {
     return [];

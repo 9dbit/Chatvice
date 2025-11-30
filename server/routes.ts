@@ -165,19 +165,24 @@ async function askJeany(
 
   const merchant = await storage.getMerchant(merchantId);
   const companyName = merchant?.companyName || "our company";
+  const activeAgentId = merchant?.activeAgentId || undefined;
   
   let knowledgeContext = "";
   try {
-    const relevantChunks = await searchKnowledge(merchantId, message, 3);
+    const relevantChunks = await searchKnowledge(merchantId, message, 3, activeAgentId);
     if (relevantChunks.length > 0) {
       knowledgeContext = relevantChunks.join("\n\n---\n\n");
     } else {
-      const knowledge = await storage.getKnowledge(merchantId);
+      const knowledge = activeAgentId 
+        ? await storage.getKnowledgeByAgent(activeAgentId)
+        : await storage.getKnowledge(merchantId);
       knowledgeContext = knowledge?.content || "";
     }
   } catch (error) {
     console.error("Knowledge search error:", error);
-    const knowledge = await storage.getKnowledge(merchantId);
+    const knowledge = activeAgentId 
+      ? await storage.getKnowledgeByAgent(activeAgentId)
+      : await storage.getKnowledge(merchantId);
     knowledgeContext = knowledge?.content || "";
   }
 
@@ -550,7 +555,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return res.status(404).json({ error: "Agent not found" });
       }
       
-      await storage.updateMerchant(merchantId, { activeAgentId: agentId });
+      await storage.updateMerchant(merchantId, { 
+        activeAgentId: agentId,
+        agentName: agent.name,
+        agentPhotoUrl: agent.photoUrl || ""
+      });
       res.json({ success: true, activeAgentId: agentId });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -888,8 +897,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return res.status(403).json({ error: "Forbidden" });
       }
       
-      const knowledge = await storage.getKnowledge(req.params.merchantId);
-      res.json(knowledge || { content: "" });
+      const merchant = await storage.getMerchant(req.params.merchantId);
+      let knowledgeData = null;
+      
+      if (merchant?.activeAgentId) {
+        knowledgeData = await storage.getKnowledgeByAgent(merchant.activeAgentId);
+      }
+      
+      if (!knowledgeData) {
+        knowledgeData = await storage.getKnowledge(req.params.merchantId);
+      }
+      
+      res.json(knowledgeData || { content: "" });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
     }
@@ -898,21 +917,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/knowledge/set", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
-      const { knowledgeText } = req.body;
+      const { knowledgeText, agentId } = req.body;
       
-      const knowledge = await storage.setKnowledge(merchantId, knowledgeText || "");
+      const savedKnowledge = await storage.setKnowledge(merchantId, knowledgeText || "", agentId || undefined);
       
       if (knowledgeText && knowledgeText.trim()) {
-        processKnowledgeBase(merchantId, knowledgeText).catch(err => {
+        processKnowledgeBase(merchantId, knowledgeText, agentId || undefined).catch(err => {
           console.error("Error processing knowledge embeddings:", err);
         });
       } else {
-        storage.deleteKnowledgeChunks(merchantId).catch(err => {
+        storage.deleteKnowledgeChunks(merchantId, agentId || undefined).catch(err => {
           console.error("Error clearing knowledge chunks:", err);
         });
       }
       
-      res.json({ success: true, knowledge });
+      res.json({ success: true, knowledge: savedKnowledge });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
     }
@@ -964,6 +983,22 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       
       const links = await storage.getCrawledLinks(req.params.merchantId);
       res.json(links);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/knowledge/agent/:agentId", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const agent = await storage.getAgent(req.params.agentId);
+      
+      if (!agent || agent.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Agent not found" });
+      }
+      
+      const knowledge = await storage.getKnowledgeByAgent(req.params.agentId);
+      res.json({ content: knowledge?.content || "" });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
     }
@@ -1054,6 +1089,29 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       });
       const { password: _, ...safeSupervisor } = supervisor;
       res.json({ success: true, supervisor: safeSupervisor });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.put("/api/supervisors/:supervisorId", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const supervisorId = req.params.supervisorId;
+      const { name, photoUrl } = req.body;
+      
+      const supervisor = await storage.getSupervisor(supervisorId);
+      if (!supervisor || supervisor.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Supervisor not found" });
+      }
+      
+      const updates: { name?: string; photoUrl?: string } = {};
+      if (name) updates.name = name;
+      if (photoUrl !== undefined) updates.photoUrl = photoUrl;
+      
+      await storage.updateSupervisor(supervisorId, updates);
+      const updated = await storage.getSupervisor(supervisorId);
+      res.json(updated);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
     }
@@ -1844,12 +1902,24 @@ You are friendly, helpful, and concise. Guide merchants on how to use Jeany AI d
 
   app.put("/api/agents/:id", requireMerchant, async (req, res) => {
     try {
+      const merchantId = req.session.merchantId!;
       const agent = await storage.getAgent(req.params.id);
-      if (!agent || agent.merchantId !== req.session.merchantId) {
+      if (!agent || agent.merchantId !== merchantId) {
         return res.status(404).json({ error: "Agent not found" });
       }
       
       const updated = await storage.updateAgent(req.params.id, req.body);
+      
+      const merchant = await storage.getMerchant(merchantId);
+      if (merchant && merchant.activeAgentId === req.params.id && updated) {
+        const widgetUpdates: { agentName?: string; agentPhotoUrl?: string } = {};
+        if (req.body.name) widgetUpdates.agentName = req.body.name;
+        if (req.body.photoUrl !== undefined) widgetUpdates.agentPhotoUrl = req.body.photoUrl;
+        if (Object.keys(widgetUpdates).length > 0) {
+          await storage.updateMerchant(merchantId, widgetUpdates);
+        }
+      }
+      
       res.json(updated);
     } catch (error) {
       res.status(500).json({ error: "Server error" });

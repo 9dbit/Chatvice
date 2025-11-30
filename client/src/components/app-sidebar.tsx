@@ -108,7 +108,7 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="p-4">
-        <div className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer" data-testid="link-sidebar-logo">
           <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
             <Bot className="w-5 h-5 text-primary-foreground" />
           </div>
@@ -118,7 +118,7 @@ export function AppSidebar() {
               {merchant?.companyName || "Dashboard"}
             </p>
           </div>
-        </div>
+        </Link>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
