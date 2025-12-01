@@ -184,6 +184,33 @@ export default function AgentsPage() {
     },
   });
 
+  const [selectingAgentId, setSelectingAgentId] = useState<string | null>(null);
+  
+  const selectAgentMutation = useMutation({
+    mutationFn: async (agentId: string) => {
+      setSelectingAgentId(agentId);
+      return apiRequest("POST", "/api/merchant/select-agent", { agentId });
+    },
+    onSuccess: (_, agentId) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge"] });
+      setSelectingAgentId(null);
+      toast({
+        title: "Agent selected",
+        description: "This agent is now active. Knowledge Base and Widget Settings will use this agent's configuration.",
+      });
+    },
+    onError: () => {
+      setSelectingAgentId(null);
+      toast({
+        title: "Failed to select agent",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: AgentFormData) => {
     if (editingAgent) {
       updateMutation.mutate({ id: editingAgent.id, data });
@@ -608,7 +635,22 @@ export default function AgentsPage() {
                 <p className="text-sm text-muted-foreground mb-4">
                   {agent.description || "No description provided."}
                 </p>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {!isActiveAgent && (
+                    <Button
+                      size="sm"
+                      onClick={() => selectAgentMutation.mutate(agent.id)}
+                      disabled={selectingAgentId !== null}
+                      data-testid={`button-select-agent-${agent.id}`}
+                    >
+                      {selectingAgentId === agent.id ? (
+                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-4 h-4 mr-1" />
+                      )}
+                      Select Agent
+                    </Button>
+                  )}
                   <Button size="sm" variant="outline" onClick={() => handleEdit(agent)} data-testid={`button-edit-agent-${agent.id}`}>
                     <Edit className="w-4 h-4 mr-1" />
                     Edit

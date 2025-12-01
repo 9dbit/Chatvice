@@ -11,7 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Save, Globe, Loader2, Plus, Bot, Send, Trash2, ExternalLink, Check, X, RefreshCw, Copy } from "lucide-react";
+import { Database, Save, Globe, Loader2, Plus, Bot, Send, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, Sparkles } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Merchant, CrawledLink, Agent } from "@shared/schema";
 
 export default function KnowledgePage() {
@@ -37,6 +38,31 @@ export default function KnowledgePage() {
   const otherAgents = agents?.filter(a => a.id !== merchant?.activeAgentId) || [];
 
   const activeAgentId = merchant?.activeAgentId;
+  const activeAgent = agents?.find(a => a.id === activeAgentId);
+
+  const selectAgentMutation = useMutation({
+    mutationFn: async (agentId: string) => {
+      return apiRequest("POST", "/api/merchant/select-agent", { agentId });
+    },
+    onSuccess: (_, newAgentId) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/knowledge/agent/${newAgentId}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge"] });
+      setContent("");
+      toast({
+        title: "Agent selected",
+        description: "Now editing knowledge for the selected agent.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to select agent",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const { data: knowledge, isLoading } = useQuery<{ content: string }>({
     queryKey: activeAgentId 
@@ -239,11 +265,68 @@ export default function KnowledgePage() {
     <div className="flex flex-col lg:flex-row gap-6 h-full">
       {/* Left Column - Knowledge Editor */}
       <div className="flex-1 space-y-6 min-w-0">
-        <div>
-          <h1 className="text-2xl font-bold">Knowledge Base</h1>
-          <p className="text-muted-foreground">
-            Train Jeany AI with your company information, FAQs, and policies.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold">Knowledge Base</h1>
+            <p className="text-muted-foreground">
+              Train your AI agent with company information, FAQs, and policies.
+            </p>
+          </div>
+          {agents && agents.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">Training:</span>
+              <Select
+                value={activeAgentId || "none"}
+                onValueChange={(value) => {
+                  if (value !== "none") {
+                    selectAgentMutation.mutate(value);
+                  }
+                }}
+                disabled={selectAgentMutation.isPending}
+              >
+                <SelectTrigger className="w-[200px]" data-testid="select-agent-knowledge">
+                  <div className="flex items-center gap-2">
+                    {activeAgent ? (
+                      <>
+                        <Avatar className="w-5 h-5">
+                          <AvatarImage src={activeAgent.photoUrl || ""} />
+                          <AvatarFallback className="text-[10px]">
+                            <Bot className="w-3 h-3" />
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="truncate">{activeAgent.name}</span>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">Select agent...</span>
+                    )}
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {!activeAgentId && (
+                    <SelectItem value="none" disabled>
+                      <span className="text-muted-foreground">Select an agent to train...</span>
+                    </SelectItem>
+                  )}
+                  {agents.map((agent) => (
+                    <SelectItem key={agent.id} value={agent.id} data-testid={`select-agent-option-${agent.id}`}>
+                      <div className="flex items-center gap-2">
+                        <Avatar className="w-5 h-5">
+                          <AvatarImage src={agent.photoUrl || ""} />
+                          <AvatarFallback className="text-[10px]">
+                            <Bot className="w-3 h-3" />
+                          </AvatarFallback>
+                        </Avatar>
+                        <span>{agent.name}</span>
+                        {agent.id === activeAgentId && (
+                          <Badge variant="secondary" className="text-[10px] ml-1">Active</Badge>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         {/* Knowledge Content Editor */}

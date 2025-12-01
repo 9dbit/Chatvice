@@ -233,13 +233,72 @@ window.jeanyai('identify', { token }); // identify the user with Jeany AI`;
     setTimeout(() => setCopied(null), 2000);
   };
 
+  const activeAgent = agents.find(a => a.id === merchant?.activeAgentId);
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Widget Customization</h1>
-        <p className="text-muted-foreground">
-          Customize the appearance of your Jeany AI chat widget and get embed codes.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Widget Customization</h1>
+          <p className="text-muted-foreground">
+            Customize the appearance of your Jeany AI chat widget and get embed codes.
+          </p>
+        </div>
+        {agents.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground whitespace-nowrap">Configuring:</span>
+            <Select
+              value={merchant?.activeAgentId || "none"}
+              onValueChange={(value) => {
+                if (value !== "none") {
+                  selectAgentMutation.mutate(value);
+                }
+              }}
+              disabled={selectAgentMutation.isPending}
+            >
+              <SelectTrigger className="w-[200px]" data-testid="select-agent-widget">
+                <div className="flex items-center gap-2">
+                  {activeAgent ? (
+                    <>
+                      <Avatar className="w-5 h-5">
+                        <AvatarImage src={activeAgent.photoUrl || ""} />
+                        <AvatarFallback className="text-[10px]">
+                          <Bot className="w-3 h-3" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="truncate">{activeAgent.name}</span>
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground">Select agent...</span>
+                  )}
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                {!merchant?.activeAgentId && (
+                  <SelectItem value="none" disabled>
+                    <span className="text-muted-foreground">Select an agent to configure...</span>
+                  </SelectItem>
+                )}
+                {agents.map((agent) => (
+                  <SelectItem key={agent.id} value={agent.id} data-testid={`select-widget-agent-option-${agent.id}`}>
+                    <div className="flex items-center gap-2">
+                      <Avatar className="w-5 h-5">
+                        <AvatarImage src={agent.photoUrl || ""} />
+                        <AvatarFallback className="text-[10px]">
+                          <Bot className="w-3 h-3" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <span>{agent.name}</span>
+                      {agent.id === merchant?.activeAgentId && (
+                        <Badge variant="secondary" className="text-[10px] ml-1">Active</Badge>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       <Tabs defaultValue="appearance">
