@@ -23,6 +23,7 @@ import type { Agent, Merchant } from "@shared/schema";
 const agentSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   description: z.string().optional(),
+  systemPrompt: z.string().optional(),
 });
 
 type AgentFormData = z.infer<typeof agentSchema>;
@@ -51,6 +52,7 @@ export default function SelectAgentPage() {
     defaultValues: {
       name: "",
       description: "",
+      systemPrompt: "",
     },
   });
 
@@ -347,6 +349,32 @@ export default function SelectAgentPage() {
                         {...field}
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="systemPrompt"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>System Prompt (Optional)</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Instruksi khusus untuk AI agent...
+
+Contoh:
+- Selalu jawab dengan bahasa formal
+- Jangan berikan diskon lebih dari 10%
+- Jika customer marah, eskalasi ke supervisor"
+                        className="min-h-[100px]"
+                        data-testid="input-agent-system-prompt"
+                        {...field}
+                      />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      Instruksi ini akan mempengaruhi cara AI menjawab pertanyaan customer.
+                    </p>
                     <FormMessage />
                   </FormItem>
                 )}

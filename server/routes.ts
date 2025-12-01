@@ -199,12 +199,8 @@ async function askJeany(
     knowledgeContext = knowledge?.content || "";
   }
 
-  // Build custom instructions section
-  const customInstructions = agentSystemPrompt 
-    ? `\n\nCUSTOM INSTRUCTIONS FROM MERCHANT (FOLLOW THESE STRICTLY):\n${agentSystemPrompt}\n`
-    : "";
-
-  const prompt = `You are ${agentName}, a friendly and helpful AI Customer Service Agent for ${companyName}.
+  // Build system message with base behavior + custom instructions
+  const systemMessage = `You are ${agentName}, a friendly and helpful AI Customer Service Agent for ${companyName}.
 You are professional yet approachable, and always aim to help customers effectively.
 Always answer in a clear, structured way while maintaining a conversational tone.
 
@@ -216,18 +212,23 @@ IMPORTANT LANGUAGE INSTRUCTION:
 - If the customer writes in German, respond in German
 - And so on for any other language
 - This includes greeting messages - match their language
-${customInstructions}
+${agentSystemPrompt ? `
+
+CUSTOM INSTRUCTIONS (FOLLOW THESE STRICTLY):
+${agentSystemPrompt.trim()}` : ""}
+
 Relevant Company Information:
 ${knowledgeContext || "No specific knowledge base configured yet."}
 
-Customer Message: ${message}
-
-Provide a helpful response based on the relevant information above. If you don't have specific information to answer, be honest about it and offer to connect with a human agent. Remember to respond in the same language as the customer's message.${agentSystemPrompt ? " Follow the custom instructions strictly." : ""}`;
+If you don't have specific information to answer, be honest about it and offer to connect with a human agent.`;
 
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
-      messages: [{ role: "user", content: prompt }],
+      messages: [
+        { role: "system", content: systemMessage },
+        { role: "user", content: message }
+      ],
       max_completion_tokens: 500,
     });
 
