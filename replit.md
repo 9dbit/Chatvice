@@ -46,6 +46,17 @@ Knowledge base content is now scoped per-agent using the `agentId` field in the 
 
 The widget settings (agentName, agentPhotoUrl) automatically sync when an agent is updated or selected as active.
 
+### Agent System Prompt Feature
+
+Each agent can have a custom **System Prompt** that controls how the AI responds to customers. This allows merchants to define specific behavior rules such as:
+- Language style (formal/informal)
+- Business rules (e.g., maximum discounts allowed)
+- Escalation conditions
+- Custom greetings or closings
+- Specific product recommendations
+
+The system prompt is sent as a proper OpenAI system role message, ensuring highest priority for merchant instructions. The AI will follow these custom instructions strictly while still using the knowledge base for factual information.
+
 ## External Dependencies
 
 -   **AI Services**: OpenAI API (GPT-4.1-mini for chat, text-embedding-3-small for embeddings) via Replit AI Integrations.
