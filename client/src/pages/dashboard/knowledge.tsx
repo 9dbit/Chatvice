@@ -9,11 +9,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Save, Globe, Loader2, Plus, Bot, Send, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, Sparkles } from "lucide-react";
+import { Database, Save, Globe, Loader2, Plus, Bot, Send, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, Sparkles, HelpCircle, Edit2, GripVertical, MessageSquare, Lock, Crown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { Merchant, CrawledLink, Agent } from "@shared/schema";
+import { Link } from "wouter";
+import type { Merchant, CrawledLink, Agent, SuggestedQuestion } from "@shared/schema";
+import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 
 export default function KnowledgePage() {
   const merchantId = localStorage.getItem("merchantId") || "";
@@ -25,6 +29,10 @@ export default function KnowledgePage() {
   const [previewMessages, setPreviewMessages] = useState<Array<{ from: string; content: string }>>([]);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [selectedImportAgent, setSelectedImportAgent] = useState<string | null>(null);
+  const [isAddQuestionOpen, setIsAddQuestionOpen] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<SuggestedQuestion | null>(null);
+  const [newQuestion, setNewQuestion] = useState("");
+  const [newAnswer, setNewAnswer] = useState("");
 
   const { data: agents } = useQuery<Agent[]>({
     queryKey: ["/api/agents"],
@@ -34,6 +42,16 @@ export default function KnowledgePage() {
     queryKey: ["/api/merchant", merchantId],
     enabled: !!merchantId,
   });
+
+  const { data: suggestedQuestions = [] } = useQuery<SuggestedQuestion[]>({
+    queryKey: ["/api/suggested-questions"],
+    enabled: !!merchantId,
+  });
+
+  const plan = merchant ? subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free : subscriptionPlans.free;
+  const isQuestionFeatureAvailable = plan.suggestedQuestionsLimit !== 0;
+  const questionsLimit = plan.suggestedQuestionsLimit === -1 ? Infinity : plan.suggestedQuestionsLimit;
+  const canAddMoreQuestions = suggestedQuestions.length < questionsLimit;
 
   const otherAgents = agents?.filter(a => a.id !== merchant?.activeAgentId) || [];
 
@@ -181,6 +199,107 @@ export default function KnowledgePage() {
     if (selectedImportAgent) {
       importFromAgentMutation.mutate(selectedImportAgent);
     }
+  };
+
+  const createQuestionMutation = useMutation({
+    mutationFn: async (data: { question: string; answer: string }) => {
+      return apiRequest("POST", "/api/suggested-questions", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/suggested-questions"] });
+      setIsAddQuestionOpen(false);
+      setNewQuestion("");
+      setNewAnswer("");
+      toast({
+        title: "Question added",
+        description: "The suggested question has been created.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to add question",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateQuestionMutation = useMutation({
+    mutationFn: async (data: { id: string; question: string; answer: string; isActive: boolean }) => {
+      const { id, ...rest } = data;
+      return apiRequest("PUT", `/api/suggested-questions/${id}`, rest);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/suggested-questions"] });
+      setEditingQuestion(null);
+      toast({
+        title: "Question updated",
+        description: "The suggested question has been saved.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to update",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteQuestionMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/suggested-questions/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/suggested-questions"] });
+      toast({
+        title: "Question deleted",
+        description: "The suggested question has been removed.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to delete",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCreateQuestion = () => {
+    if (!newQuestion.trim() || !newAnswer.trim()) {
+      toast({
+        title: "Missing fields",
+        description: "Please fill in both the question and answer.",
+        variant: "destructive",
+      });
+      return;
+    }
+    createQuestionMutation.mutate({ question: newQuestion, answer: newAnswer });
+  };
+
+  const handleUpdateQuestion = () => {
+    if (!editingQuestion) return;
+    updateQuestionMutation.mutate({
+      id: editingQuestion.id,
+      question: editingQuestion.question,
+      answer: editingQuestion.answer,
+      isActive: editingQuestion.isActive ?? true,
+    });
+  };
+
+  const handleToggleQuestionActive = (q: SuggestedQuestion) => {
+    updateQuestionMutation.mutate({
+      id: q.id,
+      question: q.question,
+      answer: q.answer,
+      isActive: !(q.isActive ?? true),
+    });
+  };
+
+  const handleQuickQuestion = (question: string) => {
+    setPreviewMessages((prev) => [...prev, { from: "user", content: question }]);
+    testMutation.mutate(question);
   };
 
   const handleSave = () => {
@@ -513,6 +632,206 @@ Example:
             )}
           </CardContent>
         </Card>
+
+        {/* Suggested Questions Section */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-primary" />
+                <CardTitle>Suggested Questions</CardTitle>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">
+                  {suggestedQuestions.length}{questionsLimit === Infinity ? "" : ` / ${questionsLimit}`}
+                </Badge>
+                {!isQuestionFeatureAvailable ? (
+                  <Badge variant="outline" className="bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400">
+                    <Lock className="w-3 h-3 mr-1" />
+                    Upgrade
+                  </Badge>
+                ) : null}
+              </div>
+            </div>
+            <CardDescription>
+              Pre-defined questions shown as quick buttons in the chat widget.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!isQuestionFeatureAvailable ? (
+              <div className="text-center py-6 px-4">
+                <Crown className="w-10 h-10 mx-auto text-amber-500 mb-2" />
+                <p className="text-sm font-medium mb-1">Suggested Questions</p>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Upgrade to a paid plan to add suggested questions that guide customer conversations.
+                </p>
+                <Button asChild size="sm">
+                  <Link href="/dashboard/billing">View Plans</Link>
+                </Button>
+              </div>
+            ) : (
+              <>
+                {/* Add New Question Form */}
+                {isAddQuestionOpen ? (
+                  <div className="p-4 border rounded-lg space-y-3 bg-muted/30">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Question</Label>
+                      <Input
+                        placeholder="e.g., What are your store hours?"
+                        value={newQuestion}
+                        onChange={(e) => setNewQuestion(e.target.value)}
+                        data-testid="input-new-question"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Answer</Label>
+                      <Textarea
+                        placeholder="Enter the answer that Jeany will use..."
+                        value={newAnswer}
+                        onChange={(e) => setNewAnswer(e.target.value)}
+                        className="min-h-[80px] resize-none"
+                        data-testid="textarea-new-answer"
+                      />
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setIsAddQuestionOpen(false);
+                          setNewQuestion("");
+                          setNewAnswer("");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleCreateQuestion}
+                        disabled={createQuestionMutation.isPending}
+                        data-testid="button-save-new-question"
+                      >
+                        {createQuestionMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        ) : (
+                          <Check className="w-4 h-4 mr-2" />
+                        )}
+                        Save
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setIsAddQuestionOpen(true)}
+                    disabled={!canAddMoreQuestions}
+                    data-testid="button-add-question"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    {canAddMoreQuestions ? "Add Question" : `Limit Reached (${questionsLimit})`}
+                  </Button>
+                )}
+
+                {/* Questions List */}
+                {suggestedQuestions.length > 0 ? (
+                  <div className="space-y-2">
+                    {suggestedQuestions.map((q) => (
+                      <div
+                        key={q.id}
+                        className={`p-3 border rounded-lg transition-colors ${
+                          q.isActive !== false ? "bg-card" : "bg-muted/40 opacity-60"
+                        }`}
+                        data-testid={`suggested-question-${q.id}`}
+                      >
+                        {editingQuestion?.id === q.id ? (
+                          <div className="space-y-3">
+                            <Input
+                              value={editingQuestion.question}
+                              onChange={(e) =>
+                                setEditingQuestion({ ...editingQuestion, question: e.target.value })
+                              }
+                              data-testid="input-edit-question"
+                            />
+                            <Textarea
+                              value={editingQuestion.answer}
+                              onChange={(e) =>
+                                setEditingQuestion({ ...editingQuestion, answer: e.target.value })
+                              }
+                              className="min-h-[60px] resize-none"
+                              data-testid="textarea-edit-answer"
+                            />
+                            <div className="flex gap-2 justify-end">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEditingQuestion(null)}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={handleUpdateQuestion}
+                                disabled={updateQuestionMutation.isPending}
+                                data-testid="button-save-edit"
+                              >
+                                Save
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-start gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <MessageSquare className="w-4 h-4 text-primary flex-shrink-0" />
+                                <p className="text-sm font-medium truncate">{q.question}</p>
+                              </div>
+                              <p className="text-xs text-muted-foreground line-clamp-2 ml-6">
+                                {q.answer}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <Switch
+                                checked={q.isActive !== false}
+                                onCheckedChange={() => handleToggleQuestionActive(q)}
+                                data-testid={`switch-question-active-${q.id}`}
+                              />
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setEditingQuestion(q)}
+                                data-testid={`button-edit-question-${q.id}`}
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => deleteQuestionMutation.mutate(q.id)}
+                                disabled={deleteQuestionMutation.isPending}
+                                data-testid={`button-delete-question-${q.id}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : !isAddQuestionOpen ? (
+                  <div className="text-center py-6">
+                    <MessageSquare className="w-8 h-8 mx-auto text-muted-foreground/40 mb-2" />
+                    <p className="text-sm text-muted-foreground">No suggested questions yet.</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Add questions to help guide customer conversations.
+                    </p>
+                  </div>
+                ) : null}
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Right Column - Live Widget Preview */}
@@ -597,6 +916,30 @@ Example:
                     )}
                   </div>
                 </ScrollArea>
+
+                {/* Quick Questions */}
+                {suggestedQuestions.filter(q => q.isActive !== false).length > 0 && previewMessages.length === 0 && (
+                  <div className="px-3 pb-2 pt-0">
+                    <p className="text-[10px] text-muted-foreground mb-1.5">Quick questions:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {suggestedQuestions.filter(q => q.isActive !== false).slice(0, 4).map((q) => (
+                        <button
+                          key={q.id}
+                          onClick={() => handleQuickQuestion(q.question)}
+                          disabled={testMutation.isPending}
+                          className="text-xs px-2.5 py-1 rounded-full border hover-elevate transition-colors truncate max-w-[150px]"
+                          style={{ 
+                            borderColor: merchant?.primaryColor || "#6b5dfc",
+                            color: merchant?.primaryColor || "#6b5dfc"
+                          }}
+                          data-testid={`quick-question-${q.id}`}
+                        >
+                          {q.question}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Input Area */}
                 <div className="p-3 border-t">

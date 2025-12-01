@@ -610,7 +610,7 @@ window.jeanyai('identify', { token }); // identify the user with Jeany AI`;
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="relative bg-muted/30 rounded-lg h-[500px] flex items-end justify-end p-4">
+                <div className="relative bg-muted/30 rounded-lg h-[650px] flex items-end justify-end p-4">
                   <div className="absolute top-4 left-4 right-4 h-8 bg-muted rounded flex items-center px-3">
                     <div className="flex gap-1.5">
                       <div className="w-2.5 h-2.5 rounded-full bg-destructive/50" />

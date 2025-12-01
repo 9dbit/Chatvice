@@ -218,6 +218,7 @@ export const agents = pgTable("agents", {
   inactivityTimeoutSeconds: integer("inactivity_timeout_seconds").default(120),
   temperature: text("temperature").default("0.7"),
   isActive: boolean("is_active").default(true),
+  supervisorId: varchar("supervisor_id", { length: 32 }),
   // Per-agent widget settings
   primaryColor: text("primary_color").default("#6b5dfc"),
   widgetTheme: text("widget_theme").default("light"),
@@ -225,6 +226,23 @@ export const agents = pgTable("agents", {
   widgetWelcomeMessage: text("widget_welcome_message").default("Hi! How can I help you today?"),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+export const mediaAttachments = pgTable("media_attachments", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  sessionId: varchar("session_id", { length: 64 }).notNull(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  messageId: varchar("message_id", { length: 64 }),
+  type: text("type").notNull(),
+  url: text("url").notNull(),
+  fileName: text("file_name"),
+  fileSize: integer("file_size"),
+  mimeType: text("mime_type"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMediaAttachmentSchema = createInsertSchema(mediaAttachments).omit({ id: true, createdAt: true });
+export type InsertMediaAttachment = z.infer<typeof insertMediaAttachmentSchema>;
+export type MediaAttachment = typeof mediaAttachments.$inferSelect;
 
 export const insertAgentSchema = createInsertSchema(agents).omit({ id: true, createdAt: true });
 export type InsertAgent = z.infer<typeof insertAgentSchema>;

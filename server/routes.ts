@@ -13,10 +13,41 @@ import OpenAI from "openai";
 import bcrypt from "bcryptjs";
 import session from "express-session";
 import MemoryStore from "memorystore";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import { processKnowledgeBase, searchKnowledge } from "./embeddings";
 import { extractFAQContent } from "./crawler";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
+
+const uploadDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+      cb(null, uniqueSuffix + path.extname(file.originalname));
+    },
+  }),
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "video/mp4", "video/webm", "video/quicktime"];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type"));
+    }
+  },
+});
 
 declare module "express-session" {
   interface SessionData {
@@ -854,6 +885,45 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (error: any) {
       console.error("Chat error:", error);
       res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/chat/upload", upload.single("file"), async (req, res) => {
+    try {
+      const file = req.file;
+      const { merchantId, sessionId, type } = req.body;
+
+      if (!file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      if (!merchantId || !sessionId) {
+        return res.status(400).json({ error: "Missing merchantId or sessionId" });
+      }
+
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      const fileUrl = `/uploads/${file.filename}`;
+
+      await storage.createMediaAttachment({
+        sessionId,
+        agentId: merchant.activeAgentId,
+        type: type === "video" ? "video" : "photo",
+        url: fileUrl,
+      });
+
+      res.json({ 
+        success: true, 
+        url: fileUrl,
+        filename: file.filename,
+        type: type === "video" ? "video" : "photo"
+      });
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      res.status(500).json({ error: "Upload failed" });
     }
   });
 
@@ -2302,6 +2372,33 @@ You are friendly, helpful, and concise. Guide merchants on how to use Jeany AI d
         name: agent.name,
       });
     } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/agents/assign-supervisor", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { agentId, supervisorId } = req.body;
+      
+      if (!agentId || !supervisorId) {
+        return res.status(400).json({ error: "Missing agentId or supervisorId" });
+      }
+      
+      const agent = await storage.getAgent(agentId);
+      if (!agent || agent.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Agent not found" });
+      }
+      
+      const supervisor = await storage.getSupervisor(supervisorId);
+      if (!supervisor || supervisor.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Supervisor not found" });
+      }
+      
+      const updated = await storage.updateAgent(agentId, { supervisorId });
+      res.json({ success: true, agent: updated });
+    } catch (error) {
+      console.error("Assign supervisor error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });

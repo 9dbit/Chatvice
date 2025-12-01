@@ -26,11 +26,13 @@ Jeany AI is built as a monorepo, separating client (`/client`), server (`/server
 -   **AI-Powered Chatbot**: Automates customer responses, with semantic search using vector embeddings from the knowledge base.
 -   **Human Escalation**: Automatically escalates conversations to human supervisors based on predefined triggers or customer requests.
 -   **Multi-Language Support**: Automatic language detection and AI responses in the customer's language.
--   **Configurable Chat Widget**: Embeddable, customizable widget with dynamic theming and real-time status display.
+-   **Configurable Chat Widget**: Embeddable, customizable widget with dynamic theming, real-time status display, and media upload support (photo/video/camera).
 -   **Merchant Dashboard**: Comprehensive analytics, knowledge base management (with web crawler for FAQ extraction), trigger configuration, supervisor management, and subscription plan management.
 -   **Supervisor Panel**: Real-time interface for handling escalated customer conversations, including message sending and session management.
 -   **Authentication & Authorization**: Session-based authentication with bcrypt for password hashing, supporting Merchant and Supervisor roles.
 -   **Real-time Communication**: WebSocket architecture for instant message delivery and updates, with polling fallbacks.
+-   **Suggested Questions**: Merchants can configure quick question buttons that appear in the chat widget to guide customer conversations. Questions are managed in the Knowledge Base page with live preview testing.
+-   **Media Upload Support**: Customers can share photos and videos through the chat widget. Supports photo upload, video upload, and camera capture.
 
 ### Data Model Highlights
 

@@ -14,7 +14,8 @@ import {
   type SuggestedQuestion, type InsertSuggestedQuestion,
   type ChatLog, type InsertChatLog,
   type AgentSupervisor, type InsertAgentSupervisor,
-  merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors,
+  type MediaAttachment, type InsertMediaAttachment,
+  merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -97,6 +98,9 @@ export interface IStorage {
   
   getExpiredSessions(merchantId: string, retentionHours: number): Promise<Session[]>;
   deleteSessionMessages(sessionId: string): Promise<boolean>;
+  
+  createMediaAttachment(data: { sessionId: string; agentId?: string | null; type: string; url: string; fileName?: string; fileSize?: number; mimeType?: string }): Promise<MediaAttachment>;
+  getMediaAttachments(sessionId: string): Promise<MediaAttachment[]>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -853,6 +857,30 @@ export class DatabaseStorage implements IStorage {
   async deleteSessionMessages(sessionId: string): Promise<boolean> {
     await db.delete(messages).where(eq(messages.sessionId, sessionId));
     return true;
+  }
+
+  async createMediaAttachment(data: { sessionId: string; agentId?: string | null; type: string; url: string; fileName?: string; fileSize?: number; mimeType?: string }): Promise<MediaAttachment> {
+    const id = generateId("ma_");
+    const session = await this.getSession(data.sessionId);
+    const merchantId = session?.merchantId || "";
+    
+    const result = await db.insert(mediaAttachments).values({
+      id,
+      sessionId: data.sessionId,
+      merchantId,
+      type: data.type,
+      url: data.url,
+      fileName: data.fileName,
+      fileSize: data.fileSize,
+      mimeType: data.mimeType,
+    }).returning();
+    return result[0];
+  }
+
+  async getMediaAttachments(sessionId: string): Promise<MediaAttachment[]> {
+    return db.select().from(mediaAttachments)
+      .where(eq(mediaAttachments.sessionId, sessionId))
+      .orderBy(desc(mediaAttachments.createdAt));
   }
 }
 

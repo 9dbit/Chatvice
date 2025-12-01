@@ -85,7 +85,7 @@ function HandlerAvatar({ mode, supervisorPhoto, agentPhoto }: {
   );
 }
 
-interface SessionWithPreview extends Omit<Session, 'status'> {
+interface SessionWithPreview extends Omit<Session, 'status' | 'needsSupervisorAttention'> {
   lastMessage?: string;
   lastQuestion?: string;
   status?: string | null;

@@ -4,7 +4,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, Send, X, Minimize2, HeadphonesIcon, User } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Bot, Send, X, Minimize2, HeadphonesIcon, User, ImageIcon, Video, Camera, Loader2 } from "lucide-react";
 import type { Message, SuggestedQuestion } from "@shared/schema";
 
 interface MerchantConfig {
@@ -28,8 +29,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const [isOpen, setIsOpen] = useState(embedded);
   const [sessionId] = useState(() => initialSessionId || `sess_${Math.random().toString(36).substring(2, 12)}`);
   const [message, setMessage] = useState("");
-  const [localMessages, setLocalMessages] = useState<Array<{ from: string; content: string; timestamp: Date }>>([]);
+  const [localMessages, setLocalMessages] = useState<Array<{ from: string; content: string; timestamp: Date; mediaUrl?: string; mediaType?: string }>>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
 
   const { data: merchantConfig } = useQuery<MerchantConfig>({
     queryKey: ["/api/merchant/status", merchantId],
@@ -90,13 +95,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
   const useSuggestedQuestionMutation = useMutation({
     mutationFn: async (sq: SuggestedQuestion) => {
-      return apiRequest("POST", "/api/widget/suggested-questions/use", {
+      const response = await apiRequest("POST", "/api/widget/suggested-questions/use", {
         merchantId,
         sessionId,
         questionId: sq.id,
       });
+      return response.json() as Promise<{ sessionId: string; answer: string }>;
     },
-    onSuccess: (data: { sessionId: string; answer: string }) => {
+    onSuccess: (data) => {
       setLocalMessages((prev) => [
         ...prev,
         { from: "jeany", content: data.answer, timestamp: new Date() },
@@ -124,6 +130,55 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+
+  const handleFileUpload = async (file: File, type: "photo" | "video") => {
+    if (!file) return;
+    
+    setIsUploadingMedia(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("merchantId", merchantId);
+      formData.append("sessionId", sessionId);
+      formData.append("type", type);
+      
+      const response = await fetch("/api/chat/upload", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+      
+      const data = await response.json();
+      
+      setLocalMessages((prev) => [
+        ...prev,
+        { 
+          from: "user", 
+          content: type === "photo" ? "[Photo attached]" : "[Video attached]",
+          timestamp: new Date(),
+          mediaUrl: data.url,
+          mediaType: type
+        },
+      ]);
+      
+      sendMessageMutation.mutate(`[${type === "photo" ? "Customer sent a photo" : "Customer sent a video"}]`);
+    } catch {
+      setLocalMessages((prev) => [
+        ...prev,
+        { from: "jeany", content: "Sorry, I couldn't upload that file. Please try again.", timestamp: new Date() },
+      ]);
+    } finally {
+      setIsUploadingMedia(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (videoInputRef.current) videoInputRef.current.value = "";
+      if (cameraInputRef.current) cameraInputRef.current.value = "";
     }
   };
 
@@ -309,19 +364,110 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       </ScrollArea>
 
       <div className="p-4 border-t border-border">
-        <div className="flex gap-2">
+        <input
+          type="file"
+          ref={fileInputRef}
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleFileUpload(file, "photo");
+          }}
+          data-testid="input-file-photo"
+        />
+        <input
+          type="file"
+          ref={videoInputRef}
+          accept="video/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleFileUpload(file, "video");
+          }}
+          data-testid="input-file-video"
+        />
+        <input
+          type="file"
+          ref={cameraInputRef}
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleFileUpload(file, "photo");
+          }}
+          data-testid="input-file-camera"
+        />
+        <div className="flex gap-2 items-center">
+          <div className="flex gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={!isOnline || isUploadingMedia}
+                  data-testid="button-upload-photo"
+                >
+                  {isUploadingMedia ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ImageIcon className="w-4 h-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>Upload photo</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={() => videoInputRef.current?.click()}
+                  disabled={!isOnline || isUploadingMedia}
+                  data-testid="button-upload-video"
+                >
+                  <Video className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>Upload video</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={() => cameraInputRef.current?.click()}
+                  disabled={!isOnline || isUploadingMedia}
+                  data-testid="button-take-photo"
+                >
+                  <Camera className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>Take photo</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
           <Input
             placeholder="Type your message..."
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyPress}
-            disabled={!isOnline}
+            disabled={!isOnline || isUploadingMedia}
             className="flex-1"
             data-testid="input-widget-message"
           />
           <Button
             onClick={handleSend}
-            disabled={sendMessageMutation.isPending || !message.trim() || !isOnline}
+            disabled={sendMessageMutation.isPending || !message.trim() || !isOnline || isUploadingMedia}
             style={{ backgroundColor: primaryColor }}
             data-testid="button-widget-send"
           >
