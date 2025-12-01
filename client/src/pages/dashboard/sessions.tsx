@@ -10,42 +10,44 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   MessageSquare, Bot, HeadphonesIcon, Send, Search, User, Download, 
   Hand, ArrowLeft, Clock, Edit, Check, X, Loader2, RefreshCw, AlertCircle,
-  CheckCircle2, Circle, XCircle
+  CheckCircle2, Circle, XCircle, Filter
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
-import type { Session, Message, Supervisor } from "@shared/schema";
+import type { Session, Message, Supervisor, Agent } from "@shared/schema";
 
-type SessionStatus = "needs_response" | "angry" | "active" | "ended";
+type SessionStatus = "angry" | "active" | "needs_response" | "ended";
 
 function StatusDot({ status }: { status: SessionStatus }) {
   switch (status) {
-    case "needs_response":
+    case "angry":
       return (
-        <span className="relative flex h-2.5 w-2.5" title="Needs Response">
+        <span className="relative flex h-2.5 w-2.5" title="Angry Customer - Alert">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
           <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
         </span>
       );
-    case "angry":
-      return (
-        <span className="relative flex h-2.5 w-2.5 items-center justify-center" title="Angry Customer">
-          <AlertCircle className="h-3 w-3 text-yellow-500 fill-yellow-500" />
-        </span>
-      );
     case "active":
       return (
-        <span className="relative flex h-2.5 w-2.5" title="Active">
+        <span className="relative flex h-2.5 w-2.5" title="Active Chat">
           <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500" />
+        </span>
+      );
+    case "needs_response":
+      return (
+        <span className="relative flex h-2.5 w-2.5" title="Needs Supervisor Response">
+          <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-orange-500" />
         </span>
       );
     case "ended":
       return (
-        <span className="relative flex h-2.5 w-2.5" title="Ended">
-          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500" />
+        <span className="relative flex h-2.5 w-2.5" title="Finished">
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-gray-400" />
         </span>
       );
     default:
@@ -93,6 +95,7 @@ export default function SessionsPage() {
   const merchantId = localStorage.getItem("merchantId") || "";
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [agentFilter, setAgentFilter] = useState<string>("all");
   const [newMessage, setNewMessage] = useState("");
   const [reviseDialogOpen, setReviseDialogOpen] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
@@ -121,6 +124,35 @@ export default function SessionsPage() {
     queryKey: ["/api/merchant", merchantId],
     enabled: !!merchantId,
   });
+
+  const { data: agents } = useQuery<Agent[]>({
+    queryKey: ["/api/agents"],
+    enabled: !!merchantId,
+  });
+
+  const getAgentName = (agentId: string | null | undefined) => {
+    if (!agentId || !agents) return "Unknown Agent";
+    const agent = agents.find(a => a.id === agentId);
+    return agent?.name || "Unknown Agent";
+  };
+
+  const getAgentPhoto = (agentId: string | null | undefined) => {
+    if (!agentId || !agents) return merchant?.widgetSettings?.agentPhotoUrl || null;
+    const agent = agents.find(a => a.id === agentId);
+    return agent?.photoUrl || merchant?.widgetSettings?.agentPhotoUrl || null;
+  };
+
+  const getSupervisorName = (supervisorId: string | null | undefined) => {
+    if (!supervisorId || !supervisors) return null;
+    const supervisor = supervisors.find(s => s.id === supervisorId);
+    return supervisor?.name || null;
+  };
+
+  const getSupervisorPhoto = (supervisorId: string | null | undefined) => {
+    if (!supervisorId || !supervisors) return null;
+    const supervisor = supervisors.find(s => s.id === supervisorId);
+    return supervisor?.photoUrl || null;
+  };
 
   const sendMessageMutation = useMutation({
     mutationFn: async (message: string) => {
@@ -244,10 +276,15 @@ export default function SessionsPage() {
     return "ended";
   };
 
-  const filteredSessions = sessions?.filter((session) =>
-    session.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    session.id.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredSessions = sessions?.filter((session) => {
+    const matchesSearch = 
+      session.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      session.id.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesAgent = agentFilter === "all" || session.agentId === agentFilter;
+    
+    return matchesSearch && matchesAgent;
+  });
 
   const sortedSessions = filteredSessions?.sort((a, b) => {
     const statusOrder = { needs_response: 0, angry: 1, active: 2, ended: 3 };
@@ -318,12 +355,11 @@ export default function SessionsPage() {
   };
 
   const selectedSessionData = sessions?.find((s) => s.id === selectedSession);
-  const agentPhoto = merchant?.widgetSettings?.agentPhotoUrl;
 
   const statusCounts = {
-    needsResponse: sortedSessions?.filter(s => getSessionStatus(s) === "needs_response").length || 0,
     angry: sortedSessions?.filter(s => getSessionStatus(s) === "angry").length || 0,
     active: sortedSessions?.filter(s => getSessionStatus(s) === "active").length || 0,
+    needsResponse: sortedSessions?.filter(s => getSessionStatus(s) === "needs_response").length || 0,
     ended: sortedSessions?.filter(s => getSessionStatus(s) === "ended").length || 0,
   };
 
@@ -344,20 +380,24 @@ export default function SessionsPage() {
             <p className="text-muted-foreground text-xs sm:text-sm hidden sm:block">View and manage customer conversations</p>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs flex-wrap">
-            <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded bg-muted/50" title="Needs Response">
-              <StatusDot status="needs_response" />
-              <span data-testid="text-count-needs-response">{statusCounts.needsResponse}</span>
-            </div>
-            <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded bg-muted/50" title="Angry">
+            <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded bg-red-500/10 border border-red-500/20" title="Angry Customer - Alert">
               <StatusDot status="angry" />
+              <span className="hidden sm:inline text-red-600 dark:text-red-400">Alert</span>
               <span data-testid="text-count-angry">{statusCounts.angry}</span>
             </div>
-            <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded bg-muted/50" title="Active">
+            <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded bg-green-500/10 border border-green-500/20" title="Active Chat">
               <StatusDot status="active" />
+              <span className="hidden sm:inline text-green-600 dark:text-green-400">Active</span>
               <span data-testid="text-count-active">{statusCounts.active}</span>
             </div>
-            <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded bg-muted/50" title="Ended">
+            <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded bg-orange-500/10 border border-orange-500/20" title="Needs Supervisor Response">
+              <StatusDot status="needs_response" />
+              <span className="hidden sm:inline text-orange-600 dark:text-orange-400">Pending</span>
+              <span data-testid="text-count-needs-response">{statusCounts.needsResponse}</span>
+            </div>
+            <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded bg-gray-500/10 border border-gray-500/20" title="Finished">
               <StatusDot status="ended" />
+              <span className="hidden sm:inline text-gray-600 dark:text-gray-400">Finished</span>
               <span data-testid="text-count-ended">{statusCounts.ended}</span>
             </div>
           </div>
@@ -367,7 +407,7 @@ export default function SessionsPage() {
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-0">
         <div className={`lg:col-span-4 xl:col-span-3 flex flex-col min-h-0 ${selectedSession ? 'hidden lg:flex' : 'flex'}`}>
           <Card className="flex flex-col h-full">
-            <CardHeader className="flex-shrink-0 py-3 px-4">
+            <CardHeader className="flex-shrink-0 py-3 px-4 space-y-2">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -378,6 +418,22 @@ export default function SessionsPage() {
                   data-testid="input-search-sessions"
                 />
               </div>
+              {agents && agents.length > 0 && (
+                <Select value={agentFilter} onValueChange={setAgentFilter}>
+                  <SelectTrigger className="h-9" data-testid="select-agent-filter">
+                    <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
+                    <SelectValue placeholder="Filter by agent" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Agents</SelectItem>
+                    {agents.map((agent) => (
+                      <SelectItem key={agent.id} value={agent.id}>
+                        {agent.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden p-0">
               <ScrollArea className="h-full">
@@ -408,7 +464,8 @@ export default function SessionsPage() {
                             <div className="relative flex-shrink-0">
                               <HandlerAvatar 
                                 mode={session.mode as "AI" | "HUMAN"} 
-                                agentPhoto={agentPhoto}
+                                agentPhoto={getAgentPhoto(session.agentId)}
+                                supervisorPhoto={getSupervisorPhoto(session.supervisorId)}
                               />
                               <div className="absolute -bottom-0.5 -right-0.5">
                                 <StatusDot status={status} />
@@ -423,6 +480,13 @@ export default function SessionsPage() {
                                   {session.lastActivity 
                                     ? formatDistanceToNow(new Date(session.lastActivity), { addSuffix: false })
                                     : ""}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                                <span className="truncate">
+                                  {session.mode === "HUMAN" 
+                                    ? `Supervisor: ${getSupervisorName(session.supervisorId) || "Unassigned"}` 
+                                    : `Agent: ${getAgentName(session.agentId)}`}
                                 </span>
                               </div>
                               <p className="text-xs text-muted-foreground line-clamp-1">
@@ -466,7 +530,8 @@ export default function SessionsPage() {
                       </Button>
                       <HandlerAvatar 
                         mode={selectedSessionData?.mode as "AI" | "HUMAN"} 
-                        agentPhoto={agentPhoto}
+                        agentPhoto={getAgentPhoto(selectedSessionData?.agentId)}
+                        supervisorPhoto={getSupervisorPhoto(selectedSessionData?.supervisorId)}
                       />
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 sm:gap-2">
@@ -477,7 +542,7 @@ export default function SessionsPage() {
                             variant={selectedSessionData?.mode === "AI" ? "secondary" : "default"}
                             className="h-4 sm:h-5 text-[9px] sm:text-[10px]"
                           >
-                            {selectedSessionData?.mode === "AI" ? "AI" : "Human"}
+                            {selectedSessionData?.mode === "AI" ? "AI" : "Supervisor"}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground">
@@ -562,9 +627,15 @@ export default function SessionsPage() {
                             >
                               {msg.from !== "user" && (
                                 <Avatar className="h-7 w-7 flex-shrink-0">
-                                  {msg.from === "jeany" && agentPhoto ? (
-                                    <AvatarImage src={agentPhoto} alt="AI" />
-                                  ) : null}
+                                  {msg.from === "jeany" ? (
+                                    getAgentPhoto(selectedSessionData?.agentId) ? (
+                                      <AvatarImage src={getAgentPhoto(selectedSessionData?.agentId)!} alt="AI" />
+                                    ) : null
+                                  ) : (
+                                    getSupervisorPhoto(selectedSessionData?.supervisorId) ? (
+                                      <AvatarImage src={getSupervisorPhoto(selectedSessionData?.supervisorId)!} alt="Supervisor" />
+                                    ) : null
+                                  )}
                                   <AvatarFallback className="text-xs">
                                     {msg.from === "jeany" ? (
                                       <Bot className="h-3.5 w-3.5" />

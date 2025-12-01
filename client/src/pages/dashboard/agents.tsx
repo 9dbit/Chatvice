@@ -16,7 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Bot, Plus, Edit, Trash2, Sparkles, Crown, ArrowUpRight, Camera, Loader2, MessageSquare, AlertTriangle, Clock, Thermometer, UserCircle, Zap } from "lucide-react";
+import { Bot, Plus, Edit, Trash2, Sparkles, Crown, ArrowUpRight, Camera, Loader2, MessageSquare, AlertTriangle, Clock, Thermometer, UserCircle, Zap, Check } from "lucide-react";
 import { Link } from "wouter";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -27,19 +27,19 @@ const TONE_PRESETS = {
   formal: {
     label: "Formal",
     icon: UserCircle,
-    description: "Bahasa sopan dan profesional",
+    description: "Polite and professional",
     prompt: "Gunakan bahasa formal dan sopan. Panggil customer dengan 'Bapak/Ibu'. Hindari bahasa gaul atau slang."
   },
   casual: {
     label: "Casual",
     icon: MessageSquare,
-    description: "Ramah dan santai",
+    description: "Friendly and relaxed",
     prompt: "Gunakan bahasa santai dan ramah seperti teman. Boleh pakai kata-kata seperti 'kamu', 'oke', 'yuk'."
   },
   poetic: {
     label: "Poetic",
     icon: Sparkles,
-    description: "Kreatif dan ekspresif",
+    description: "Creative and expressive",
     prompt: "Jawab dengan gaya bahasa yang indah dan ekspresif. Gunakan metafora dan perumpamaan yang menarik."
   }
 };
@@ -276,16 +276,16 @@ export default function AgentsPage() {
                 <span className="hidden sm:inline">New AI Agent</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh]">
-              <DialogHeader>
+            <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] flex flex-col">
+              <DialogHeader className="flex-shrink-0">
                 <DialogTitle>{editingAgent ? "Edit Agent" : "Create New Agent"}</DialogTitle>
                 <DialogDescription>
                   {editingAgent ? "Update your agent settings." : "Create a new AI agent for your chatbot."}
                 </DialogDescription>
               </DialogHeader>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <ScrollArea className="max-h-[60vh] pr-4">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+                  <ScrollArea className="flex-1 pr-4">
                   <div className="space-y-4">
                   <div className="flex justify-center mb-2">
                     <div className="relative">
@@ -352,7 +352,7 @@ export default function AgentsPage() {
                   <div className="space-y-2">
                     <FormLabel className="flex items-center gap-2">
                       <MessageSquare className="w-4 h-4" />
-                      Gaya Bahasa
+                      Tone Style
                     </FormLabel>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       {Object.entries(TONE_PRESETS).map(([key, preset]) => {
@@ -370,7 +370,7 @@ export default function AgentsPage() {
                             <Icon className="w-5 h-5 sm:mb-1 flex-shrink-0" />
                             <div className="flex flex-col items-start sm:items-center">
                               <span className="text-sm font-medium">{preset.label}</span>
-                              <span className="text-[10px] text-muted-foreground">{preset.description}</span>
+                              <span className={`text-[10px] ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{preset.description}</span>
                             </div>
                           </Button>
                         );
@@ -388,10 +388,10 @@ export default function AgentsPage() {
                         <div className="space-y-0.5">
                           <FormLabel className="flex items-center gap-2">
                             <AlertTriangle className="w-4 h-4 text-orange-500" />
-                            Auto-Escalate Customer Marah
+                            Auto-Escalate Angry Customers
                           </FormLabel>
                           <FormDescription className="text-xs">
-                            Otomatis alihkan ke supervisor jika customer terdeteksi marah
+                            Automatically transfer to supervisor when customer seems upset
                           </FormDescription>
                         </div>
                         <FormControl>
@@ -415,10 +415,10 @@ export default function AgentsPage() {
                         <div className="space-y-0.5">
                           <FormLabel className="flex items-center gap-2">
                             <MessageSquare className="w-4 h-4 text-green-500" />
-                            Pesan Sambutan
+                            Welcome Message
                           </FormLabel>
                           <FormDescription className="text-xs">
-                            Kirim pesan "Halo" otomatis saat customer memulai chat
+                            Send an automatic greeting when customer starts chat
                           </FormDescription>
                         </div>
                         <FormControl>
@@ -458,10 +458,10 @@ export default function AgentsPage() {
                         <div className="space-y-0.5">
                           <FormLabel className="flex items-center gap-2">
                             <Clock className="w-4 h-4 text-blue-500" />
-                            Pesan Penutup (2 menit tidak aktif)
+                            Goodbye Message (2 min inactive)
                           </FormLabel>
                           <FormDescription className="text-xs">
-                            Kirim "terima kasih" jika customer tidak merespond 2 menit
+                            Send thank you message if customer is inactive for 2 min
                           </FormDescription>
                         </div>
                         <FormControl>
@@ -502,10 +502,10 @@ export default function AgentsPage() {
                       <FormItem>
                         <FormLabel className="flex items-center gap-2">
                           <Thermometer className="w-4 h-4" />
-                          Temperature (Kreativitas AI)
+                          Temperature (AI Creativity)
                         </FormLabel>
                         <div className="flex items-center gap-4">
-                          <span className="text-xs text-muted-foreground">Konsisten</span>
+                          <span className="text-xs text-muted-foreground">Consistent</span>
                           <FormControl>
                             <Slider
                               min={0}
@@ -517,13 +517,13 @@ export default function AgentsPage() {
                               data-testid="slider-temperature"
                             />
                           </FormControl>
-                          <span className="text-xs text-muted-foreground">Kreatif</span>
+                          <span className="text-xs text-muted-foreground">Creative</span>
                           <Badge variant="secondary" className="ml-2 min-w-[40px] justify-center">
                             {field.value}
                           </Badge>
                         </div>
                         <FormDescription className="text-xs">
-                          Nilai rendah = jawaban konsisten, nilai tinggi = jawaban lebih kreatif
+                          Low = consistent responses, High = more creative responses
                         </FormDescription>
                       </FormItem>
                     )}
@@ -538,18 +538,18 @@ export default function AgentsPage() {
                       <FormItem>
                         <FormLabel className="flex items-center gap-2">
                           <Zap className="w-4 h-4" />
-                          Custom System Prompt (Opsional)
+                          Custom System Prompt (Optional)
                         </FormLabel>
                         <FormControl>
                           <Textarea
-                            placeholder="Instruksi tambahan untuk AI agent..."
+                            placeholder="Additional instructions for the AI agent..."
                             className="min-h-[80px]"
                             data-testid="input-agent-system-prompt"
                             {...field}
                           />
                         </FormControl>
                         <FormDescription className="text-xs">
-                          Instruksi khusus selain gaya bahasa yang sudah dipilih
+                          Custom instructions in addition to tone style settings
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -557,7 +557,7 @@ export default function AgentsPage() {
                   />
                   </div>
                   </ScrollArea>
-                  <DialogFooter>
+                  <DialogFooter className="flex-shrink-0 pt-4 border-t mt-4">
                     <Button type="button" variant="outline" onClick={handleCloseDialog}>
                       Cancel
                     </Button>
@@ -649,9 +649,9 @@ export default function AgentsPage() {
                       {selectingAgentId === agent.id ? (
                         <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 animate-spin" />
                       ) : (
-                        <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
+                        <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
                       )}
-                      <span className="hidden xs:inline">Select</span>
+                      <span className="hidden xs:inline">Select Agent</span>
                     </Button>
                   )}
                   <Button size="sm" variant="outline" onClick={() => handleEdit(agent)} className="text-xs sm:text-sm h-8" data-testid={`button-edit-agent-${agent.id}`}>

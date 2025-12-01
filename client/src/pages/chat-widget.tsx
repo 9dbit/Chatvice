@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Bot, Send, X, Minimize2, HeadphonesIcon, User } from "lucide-react";
-import type { Message } from "@shared/schema";
+import type { Message, SuggestedQuestion } from "@shared/schema";
 
 interface MerchantConfig {
   online: boolean;
@@ -41,6 +41,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     enabled: !!sessionId && isOpen,
     refetchInterval: 2000,
   });
+
+  const { data: suggestedQuestions = [] } = useQuery<SuggestedQuestion[]>({
+    queryKey: [`/api/widget/suggested-questions/${merchantId}`],
+    enabled: !!merchantId && isOpen,
+  });
+
+  const [hasUsedSuggestion, setHasUsedSuggestion] = useState(false);
 
   const sendMessageMutation = useMutation({
     mutationFn: async (userMessage: string) => {
@@ -79,6 +86,38 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     setLocalMessages((prev) => [...prev, { from: "user", content: userMessage, timestamp: new Date() }]);
     setMessage("");
     sendMessageMutation.mutate(userMessage);
+  };
+
+  const useSuggestedQuestionMutation = useMutation({
+    mutationFn: async (sq: SuggestedQuestion) => {
+      return apiRequest("POST", "/api/widget/suggested-questions/use", {
+        merchantId,
+        sessionId,
+        questionId: sq.id,
+      });
+    },
+    onSuccess: (data: { sessionId: string; answer: string }) => {
+      setLocalMessages((prev) => [
+        ...prev,
+        { from: "jeany", content: data.answer, timestamp: new Date() },
+      ]);
+      queryClient.invalidateQueries({ queryKey: ["/api/messages", sessionId] });
+    },
+    onError: () => {
+      setLocalMessages((prev) => [
+        ...prev,
+        { from: "jeany", content: "I'm sorry, I couldn't process that quick question. Please type your question in the chat below and I'll be happy to help!", timestamp: new Date() },
+      ]);
+    },
+  });
+
+  const handleSuggestedQuestionClick = (sq: SuggestedQuestion) => {
+    setHasUsedSuggestion(true);
+    setLocalMessages((prev) => [
+      ...prev,
+      { from: "user", content: sq.question, timestamp: new Date() },
+    ]);
+    useSuggestedQuestionMutation.mutate(sq);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -225,6 +264,25 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               )}
             </div>
           ))}
+          {suggestedQuestions.length > 0 && !hasUsedSuggestion && allMessages.length <= 1 && (
+            <div className="mt-2">
+              <p className="text-xs text-muted-foreground mb-2">Quick questions:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {suggestedQuestions.slice(0, 5).map((sq) => (
+                  <Button
+                    key={sq.id}
+                    variant="outline"
+                    size="sm"
+                    className="h-auto py-1 px-2.5 text-xs font-normal whitespace-normal text-left hover-elevate"
+                    onClick={() => handleSuggestedQuestionClick(sq)}
+                    data-testid={`button-suggested-question-${sq.id}`}
+                  >
+                    {sq.question}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
           {sendMessageMutation.isPending && (
             <div className="flex gap-2 justify-start">
               <div

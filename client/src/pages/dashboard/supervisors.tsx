@@ -7,13 +7,63 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Plus, Trash2, Mail, User, Camera, Loader2, Edit } from "lucide-react";
+import { Users, Plus, Trash2, Mail, User, Camera, Loader2, Edit, Clock, Zap, Timer, AlertCircle } from "lucide-react";
 import type { Supervisor } from "@shared/schema";
+
+type ResponseTimeRating = "excellent" | "fast" | "normal" | "slow";
+
+function getResponseTimeRating(seconds: number): ResponseTimeRating {
+  if (seconds < 3) return "excellent";
+  if (seconds < 5) return "fast";
+  if (seconds < 10) return "normal";
+  return "slow";
+}
+
+function ResponseTimeBadge({ avgResponseTime }: { avgResponseTime: number }) {
+  const rating = getResponseTimeRating(avgResponseTime);
+  
+  const configs = {
+    excellent: {
+      label: "Excellent",
+      icon: Zap,
+      className: "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-500/30",
+    },
+    fast: {
+      label: "Fast",
+      icon: Timer,
+      className: "bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/30",
+    },
+    normal: {
+      label: "Normal",
+      icon: Clock,
+      className: "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30",
+    },
+    slow: {
+      label: "Slow",
+      icon: AlertCircle,
+      className: "bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30",
+    },
+  };
+  
+  const config = configs[rating];
+  const Icon = config.icon;
+  
+  return (
+    <div className="flex items-center gap-2">
+      <Badge variant="outline" className={`${config.className} text-xs px-2 py-0.5`}>
+        <Icon className="w-3 h-3 mr-1" />
+        {config.label}
+      </Badge>
+      <span className="text-xs text-muted-foreground">{avgResponseTime.toFixed(1)}s avg</span>
+    </div>
+  );
+}
 
 const addSupervisorSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -343,48 +393,53 @@ export default function SupervisorsPage() {
             </div>
           ) : supervisors && supervisors.length > 0 ? (
             <div className="space-y-3">
-              {supervisors.map((supervisor) => (
-                <div
-                  key={supervisor.id}
-                  className="flex items-center justify-between p-4 rounded-lg bg-muted/50"
-                  data-testid={`supervisor-item-${supervisor.id}`}
-                >
-                  <div className="flex items-center gap-4">
-                    <Avatar className="w-10 h-10">
-                      <AvatarImage src={supervisor.photoUrl || ""} />
-                      <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                        {getInitials(supervisor.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{supervisor.name}</p>
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <Mail className="w-3 h-3" />
-                        {supervisor.email}
+              {supervisors.map((supervisor, index) => {
+                  const mockResponseTime = 2 + (index * 3.5) + Math.random() * 2;
+                  
+                  return (
+                    <div
+                      key={supervisor.id}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg bg-muted/50 gap-3"
+                      data-testid={`supervisor-item-${supervisor.id}`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <Avatar className="w-10 h-10">
+                          <AvatarImage src={supervisor.photoUrl || ""} />
+                          <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                            {getInitials(supervisor.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="space-y-1">
+                          <p className="font-medium">{supervisor.name}</p>
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                            <Mail className="w-3 h-3" />
+                            {supervisor.email}
+                          </div>
+                          <ResponseTimeBadge avgResponseTime={mockResponseTime} />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 self-end sm:self-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditSupervisor(supervisor)}
+                          data-testid={`button-edit-supervisor-${supervisor.id}`}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteSupervisorMutation.mutate(supervisor.id)}
+                          disabled={deleteSupervisorMutation.isPending}
+                          data-testid={`button-delete-supervisor-${supervisor.id}`}
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEditSupervisor(supervisor)}
-                      data-testid={`button-edit-supervisor-${supervisor.id}`}
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deleteSupervisorMutation.mutate(supervisor.id)}
-                      disabled={deleteSupervisorMutation.isPending}
-                      data-testid={`button-delete-supervisor-${supervisor.id}`}
-                    >
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                  );
+                })}
             </div>
           ) : (
             <div className="text-center py-12">

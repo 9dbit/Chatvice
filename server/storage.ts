@@ -11,7 +11,8 @@ import {
   type CrawledLink, type InsertCrawledLink,
   type Agent, type InsertAgent,
   type Source, type InsertSource,
-  merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources,
+  type SuggestedQuestion, type InsertSuggestedQuestion,
+  merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -700,6 +701,51 @@ export class DatabaseStorage implements IStorage {
     await db.delete(messages).where(eq(messages.sessionId, id));
     const result = await db.delete(sessions)
       .where(eq(sessions.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  async getSuggestedQuestions(merchantId: string, agentId?: string): Promise<SuggestedQuestion[]> {
+    if (agentId) {
+      return db.select().from(suggestedQuestions)
+        .where(and(eq(suggestedQuestions.merchantId, merchantId), eq(suggestedQuestions.agentId, agentId)))
+        .orderBy(suggestedQuestions.sortOrder);
+    }
+    return db.select().from(suggestedQuestions)
+      .where(eq(suggestedQuestions.merchantId, merchantId))
+      .orderBy(suggestedQuestions.sortOrder);
+  }
+
+  async getSuggestedQuestion(id: string): Promise<SuggestedQuestion | undefined> {
+    const result = await db.select().from(suggestedQuestions).where(eq(suggestedQuestions.id, id));
+    return result[0];
+  }
+
+  async createSuggestedQuestion(data: InsertSuggestedQuestion): Promise<SuggestedQuestion> {
+    const id = generateId("sq_");
+    const result = await db.insert(suggestedQuestions).values({
+      id,
+      merchantId: data.merchantId,
+      agentId: data.agentId || null,
+      question: data.question,
+      answer: data.answer,
+      sortOrder: data.sortOrder ?? 0,
+      isActive: data.isActive ?? true,
+    }).returning();
+    return result[0];
+  }
+
+  async updateSuggestedQuestion(id: string, data: Partial<SuggestedQuestion>): Promise<SuggestedQuestion | undefined> {
+    const result = await db.update(suggestedQuestions)
+      .set(data)
+      .where(eq(suggestedQuestions.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteSuggestedQuestion(id: string): Promise<boolean> {
+    const result = await db.delete(suggestedQuestions)
+      .where(eq(suggestedQuestions.id, id))
       .returning();
     return result.length > 0;
   }

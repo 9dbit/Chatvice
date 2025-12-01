@@ -139,11 +139,13 @@ async function askJeany(
 ): Promise<{ answer: string; mode: "AI" | "HUMAN" }> {
   let session = await storage.getSession(sessionId);
   if (!session) {
+    const merchant = await storage.getMerchant(merchantId);
     session = await storage.createSession({
       id: sessionId,
       merchantId,
       mode: "AI",
       customerName: "Customer",
+      agentId: merchant?.activeAgentId || null,
     });
   }
 
@@ -2363,6 +2365,197 @@ You are friendly, helpful, and concise. Guide merchants on how to use Jeany AI d
       await storage.deleteSource(req.params.id);
       res.json({ success: true });
     } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Suggested Questions routes
+  app.get("/api/suggested-questions", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      const questions = await storage.getSuggestedQuestions(merchantId, merchant.activeAgentId || undefined);
+      res.json(questions);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/suggested-questions", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      // Check plan limits
+      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+      if (plan.suggestedQuestionsLimit === 0) {
+        return res.status(403).json({ error: "Suggested questions are not available on your current plan. Please upgrade." });
+      }
+
+      const existingQuestions = await storage.getSuggestedQuestions(merchantId, merchant.activeAgentId || undefined);
+      if (plan.suggestedQuestionsLimit !== -1 && existingQuestions.length >= plan.suggestedQuestionsLimit) {
+        return res.status(403).json({ error: `Maximum ${plan.suggestedQuestionsLimit} suggested questions allowed on your plan.` });
+      }
+
+      const { question, answer, sortOrder } = req.body;
+      
+      const suggestedQuestion = await storage.createSuggestedQuestion({
+        merchantId,
+        agentId: merchant.activeAgentId || null,
+        question,
+        answer,
+        sortOrder: sortOrder ?? existingQuestions.length,
+      });
+      
+      res.json(suggestedQuestion);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.put("/api/suggested-questions/:id", requireMerchant, async (req, res) => {
+    try {
+      const question = await storage.getSuggestedQuestion(req.params.id);
+      if (!question || question.merchantId !== req.session.merchantId) {
+        return res.status(404).json({ error: "Question not found" });
+      }
+      
+      const updated = await storage.updateSuggestedQuestion(req.params.id, req.body);
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.delete("/api/suggested-questions/:id", requireMerchant, async (req, res) => {
+    try {
+      const question = await storage.getSuggestedQuestion(req.params.id);
+      if (!question || question.merchantId !== req.session.merchantId) {
+        return res.status(404).json({ error: "Question not found" });
+      }
+      
+      await storage.deleteSuggestedQuestion(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Public endpoint for widget to fetch suggested questions
+  app.get("/api/widget/suggested-questions/:merchantId", async (req, res) => {
+    try {
+      const merchant = await storage.getMerchant(req.params.merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      // Check if plan allows suggested questions
+      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+      if (plan.suggestedQuestionsLimit === 0) {
+        return res.json([]);
+      }
+
+      const questions = await storage.getSuggestedQuestions(req.params.merchantId, merchant.activeAgentId || undefined);
+      // Return only active questions, limited to 5 for widget display
+      const activeQuestions = questions.filter(q => q.isActive).slice(0, 5);
+      res.json(activeQuestions);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Public endpoint for widget to use suggested questions (tracks in database)
+  app.post("/api/widget/suggested-questions/use", async (req, res) => {
+    try {
+      const { merchantId, sessionId, questionId } = req.body;
+      
+      if (!merchantId || !questionId) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      // Check if plan allows suggested questions
+      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+      if (plan.suggestedQuestionsLimit === 0) {
+        return res.status(403).json({ error: "Suggested questions not available on your plan" });
+      }
+
+      // Validate the suggested question exists, is active, and belongs to this merchant
+      const suggestedQuestion = await storage.getSuggestedQuestion(questionId);
+      if (!suggestedQuestion) {
+        return res.status(404).json({ error: "Suggested question not found" });
+      }
+      if (suggestedQuestion.merchantId !== merchantId) {
+        return res.status(403).json({ error: "Suggested question does not belong to this merchant" });
+      }
+      if (!suggestedQuestion.isActive) {
+        return res.status(404).json({ error: "Suggested question is no longer active" });
+      }
+
+      const question = suggestedQuestion.question;
+      const answer = suggestedQuestion.answer;
+
+      // Create or get session
+      let currentSessionId = sessionId;
+      if (currentSessionId) {
+        // Validate session belongs to this merchant
+        const existingSession = await storage.getSession(currentSessionId);
+        if (!existingSession || existingSession.merchantId !== merchantId) {
+          // Session doesn't exist or doesn't belong to this merchant, create a new one
+          currentSessionId = null;
+        }
+      }
+      
+      if (!currentSessionId) {
+        const session = await storage.createSession({
+          merchantId,
+          agentId: merchant.activeAgentId || null,
+          mode: "AI",
+          customerName: null,
+          customerEmail: null,
+        });
+        currentSessionId = session.id;
+      }
+
+      // Store user's question message
+      await storage.createMessage({
+        sessionId: currentSessionId,
+        sender: "user",
+        content: question,
+      });
+
+      // Store the pre-defined answer
+      await storage.createMessage({
+        sessionId: currentSessionId,
+        sender: "ai",
+        content: answer,
+      });
+
+      // Update session with last activity
+      await storage.updateSession(currentSessionId, {
+        lastQuestion: question,
+        lastMessage: answer,
+        lastActivity: new Date(),
+      });
+
+      res.json({ 
+        success: true, 
+        sessionId: currentSessionId,
+        answer 
+      });
+    } catch (error) {
+      console.error("Error using suggested question:", error);
       res.status(500).json({ error: "Server error" });
     }
   });

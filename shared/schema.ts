@@ -62,6 +62,7 @@ export const sessions = pgTable("sessions", {
   merchantId: varchar("merchant_id", { length: 32 }).notNull(),
   mode: text("mode").notNull().default("AI"),
   supervisorId: varchar("supervisor_id", { length: 32 }),
+  agentId: varchar("agent_id", { length: 32 }),
   customerName: text("customer_name").default("Customer"),
   lastActivity: timestamp("last_activity").defaultNow(),
 });
@@ -250,6 +251,21 @@ export const insertSourceSchema = createInsertSchema(sources).omit({ id: true, c
 export type InsertSource = z.infer<typeof insertSourceSchema>;
 export type Source = typeof sources.$inferSelect;
 
+export const suggestedQuestions = pgTable("suggested_questions", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  agentId: varchar("agent_id", { length: 32 }),
+  question: text("question").notNull(),
+  answer: text("answer").notNull(),
+  sortOrder: integer("sort_order").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSuggestedQuestionSchema = createInsertSchema(suggestedQuestions).omit({ id: true, createdAt: true });
+export type InsertSuggestedQuestion = z.infer<typeof insertSuggestedQuestionSchema>;
+export type SuggestedQuestion = typeof suggestedQuestions.$inferSelect;
+
 export const subscriptionPlans = {
   free: {
     id: "free" as const,
@@ -261,6 +277,7 @@ export const subscriptionPlans = {
     supervisorsLimit: 0,
     agentsLimit: 1,
     sourcesLimit: 1,
+    suggestedQuestionsLimit: 0,
     features: [
       "20 AI conversations/month",
       "1 AI Agent",
@@ -268,7 +285,7 @@ export const subscriptionPlans = {
       "Basic widget customization",
       "Community support",
     ] as const,
-    restrictions: ["No team members", "No custom domain", "Jeany AI branding"] as const,
+    restrictions: ["No team members", "No custom domain", "Jeany AI branding", "No suggested questions"] as const,
   },
   starter: {
     id: "starter" as const,
@@ -280,11 +297,13 @@ export const subscriptionPlans = {
     supervisorsLimit: 1,
     agentsLimit: 1,
     sourcesLimit: 5,
+    suggestedQuestionsLimit: 5,
     features: [
       "2,000 AI conversations/month",
       "1 AI Agent",
       "1 Team member",
       "5 Knowledge sources",
+      "5 Suggested questions",
       "11M characters/agent",
       "Widget customization",
       "Email support",
@@ -303,11 +322,13 @@ export const subscriptionPlans = {
     supervisorsLimit: 5,
     agentsLimit: 3,
     sourcesLimit: 20,
+    suggestedQuestionsLimit: 5,
     features: [
       "10,000 AI conversations/month",
       "3 AI Agents",
       "5 Team members",
       "20 Knowledge sources",
+      "5 Suggested questions",
       "11M characters/agent",
       "Advanced analytics & Chat topics",
       "Priority email support",
@@ -329,11 +350,13 @@ export const subscriptionPlans = {
     supervisorsLimit: -1,
     agentsLimit: 10,
     sourcesLimit: -1,
+    suggestedQuestionsLimit: 5,
     features: [
       "50,000 AI conversations/month",
       "10 AI Agents",
       "Unlimited team members",
       "Unlimited knowledge sources",
+      "5 Suggested questions",
       "11M characters/agent",
       "Advanced analytics & Chat topics",
       "Dedicated support manager",
@@ -357,11 +380,13 @@ export const subscriptionPlans = {
     supervisorsLimit: -1,
     agentsLimit: -1,
     sourcesLimit: -1,
+    suggestedQuestionsLimit: -1,
     features: [
       "Unlimited conversations",
       "Unlimited AI Agents",
       "Unlimited team members",
       "Unlimited knowledge sources",
+      "Unlimited suggested questions",
       "Custom character limits",
       "Dedicated infrastructure",
       "24/7 premium support",
