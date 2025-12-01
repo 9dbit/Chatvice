@@ -1418,6 +1418,44 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  app.post("/api/session/send-message", requireMerchant, async (req, res) => {
+    try {
+      const { sessionId, message } = req.body;
+      const merchantId = req.session.merchantId!;
+      
+      if (!sessionId || !message) {
+        return res.status(400).json({ error: "Session ID and message are required" });
+      }
+      
+      const session = await storage.getSession(sessionId);
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      
+      if (session.merchantId !== merchantId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      await storage.createMessage({
+        sessionId,
+        from: "supervisor",
+        content: message,
+      });
+      
+      await storage.updateSession(sessionId, { supervisorId: merchantId });
+
+      broadcastToSession(sessionId, {
+        type: "message",
+        message: { from: "supervisor", content: message },
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Send message error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/stats/:merchantId", requireAuth, async (req, res) => {
     try {
       if (req.session.userType === "merchant" && req.session.merchantId !== req.params.merchantId) {

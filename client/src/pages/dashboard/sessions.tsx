@@ -61,15 +61,21 @@ export default function SessionsPage() {
 
   const sendMessageMutation = useMutation({
     mutationFn: async (message: string) => {
-      return apiRequest("POST", "/api/supervisor/send", {
+      return apiRequest("POST", "/api/session/send-message", {
         sessionId: selectedSession,
         message,
-        supervisorId: merchantId,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/messages", selectedSession] });
       setNewMessage("");
+    },
+    onError: () => {
+      toast({
+        title: "Failed to send message",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
     },
   });
 
