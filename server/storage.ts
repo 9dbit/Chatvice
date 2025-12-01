@@ -12,7 +12,9 @@ import {
   type Agent, type InsertAgent,
   type Source, type InsertSource,
   type SuggestedQuestion, type InsertSuggestedQuestion,
-  merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions,
+  type ChatLog, type InsertChatLog,
+  type AgentSupervisor, type InsertAgentSupervisor,
+  merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -81,6 +83,20 @@ export interface IStorage {
   deleteMerchant(id: string): Promise<boolean>;
   deleteSession(id: string): Promise<boolean>;
   getAllMerchants(): Promise<Merchant[]>;
+  
+  getChatLogs(merchantId: string, date?: Date): Promise<ChatLog[]>;
+  createChatLog(chatLog: InsertChatLog): Promise<ChatLog>;
+  
+  getAgentSupervisors(agentId: string): Promise<AgentSupervisor[]>;
+  getSupervisorAgents(supervisorId: string): Promise<AgentSupervisor[]>;
+  createAgentSupervisor(data: InsertAgentSupervisor): Promise<AgentSupervisor>;
+  deleteAgentSupervisor(id: string): Promise<boolean>;
+  deleteAgentSupervisorsByAgent(agentId: string): Promise<boolean>;
+  deleteAgentSupervisorsBySupervisor(supervisorId: string): Promise<boolean>;
+  countAgentSupervisors(agentId: string): Promise<number>;
+  
+  getExpiredSessions(merchantId: string, retentionHours: number): Promise<Session[]>;
+  deleteSessionMessages(sessionId: string): Promise<boolean>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -748,6 +764,95 @@ export class DatabaseStorage implements IStorage {
       .where(eq(suggestedQuestions.id, id))
       .returning();
     return result.length > 0;
+  }
+
+  async getChatLogs(merchantId: string, date?: Date): Promise<ChatLog[]> {
+    if (date) {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+      
+      return db.select().from(chatLogs)
+        .where(and(
+          eq(chatLogs.merchantId, merchantId),
+          gte(chatLogs.clearedAt, startOfDay),
+          sql`${chatLogs.clearedAt} <= ${endOfDay}`
+        ))
+        .orderBy(desc(chatLogs.clearedAt));
+    }
+    return db.select().from(chatLogs)
+      .where(eq(chatLogs.merchantId, merchantId))
+      .orderBy(desc(chatLogs.clearedAt));
+  }
+
+  async createChatLog(data: InsertChatLog): Promise<ChatLog> {
+    const id = generateId("cl_");
+    const result = await db.insert(chatLogs).values({
+      id,
+      ...data,
+    }).returning();
+    return result[0];
+  }
+
+  async getAgentSupervisors(agentId: string): Promise<AgentSupervisor[]> {
+    return db.select().from(agentSupervisors)
+      .where(eq(agentSupervisors.agentId, agentId));
+  }
+
+  async getSupervisorAgents(supervisorId: string): Promise<AgentSupervisor[]> {
+    return db.select().from(agentSupervisors)
+      .where(eq(agentSupervisors.supervisorId, supervisorId));
+  }
+
+  async createAgentSupervisor(data: InsertAgentSupervisor): Promise<AgentSupervisor> {
+    const id = generateId("as_");
+    const result = await db.insert(agentSupervisors).values({
+      id,
+      ...data,
+    }).returning();
+    return result[0];
+  }
+
+  async deleteAgentSupervisor(id: string): Promise<boolean> {
+    const result = await db.delete(agentSupervisors)
+      .where(eq(agentSupervisors.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  async deleteAgentSupervisorsByAgent(agentId: string): Promise<boolean> {
+    await db.delete(agentSupervisors)
+      .where(eq(agentSupervisors.agentId, agentId));
+    return true;
+  }
+
+  async deleteAgentSupervisorsBySupervisor(supervisorId: string): Promise<boolean> {
+    await db.delete(agentSupervisors)
+      .where(eq(agentSupervisors.supervisorId, supervisorId));
+    return true;
+  }
+
+  async countAgentSupervisors(agentId: string): Promise<number> {
+    const result = await db.select({ count: count() }).from(agentSupervisors)
+      .where(eq(agentSupervisors.agentId, agentId));
+    return result[0]?.count || 0;
+  }
+
+  async getExpiredSessions(merchantId: string, retentionHours: number): Promise<Session[]> {
+    const cutoffTime = new Date();
+    cutoffTime.setHours(cutoffTime.getHours() - retentionHours);
+    
+    return db.select().from(sessions)
+      .where(and(
+        eq(sessions.merchantId, merchantId),
+        sql`${sessions.lastActivity} < ${cutoffTime}`
+      ));
+  }
+
+  async deleteSessionMessages(sessionId: string): Promise<boolean> {
+    await db.delete(messages).where(eq(messages.sessionId, sessionId));
+    return true;
   }
 }
 

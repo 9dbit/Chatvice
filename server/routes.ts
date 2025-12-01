@@ -2518,12 +2518,13 @@ You are friendly, helpful, and concise. Guide merchants on how to use Jeany AI d
       }
       
       if (!currentSessionId) {
+        const newSessionId = `sq_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
         const session = await storage.createSession({
+          id: newSessionId,
           merchantId,
           agentId: merchant.activeAgentId || null,
           mode: "AI",
-          customerName: null,
-          customerEmail: null,
+          customerName: "Customer",
         });
         currentSessionId = session.id;
       }
@@ -2531,21 +2532,19 @@ You are friendly, helpful, and concise. Guide merchants on how to use Jeany AI d
       // Store user's question message
       await storage.createMessage({
         sessionId: currentSessionId,
-        sender: "user",
+        from: "user",
         content: question,
       });
 
       // Store the pre-defined answer
       await storage.createMessage({
         sessionId: currentSessionId,
-        sender: "ai",
+        from: "ai",
         content: answer,
       });
 
       // Update session with last activity
       await storage.updateSession(currentSessionId, {
-        lastQuestion: question,
-        lastMessage: answer,
         lastActivity: new Date(),
       });
 
@@ -2556,6 +2555,229 @@ You are friendly, helpful, and concise. Guide merchants on how to use Jeany AI d
       });
     } catch (error) {
       console.error("Error using suggested question:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+// Chat Logs API
+  app.get("/api/chat-logs", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { date } = req.query;
+      
+      let targetDate: Date | undefined;
+      if (date && typeof date === 'string') {
+        targetDate = new Date(date);
+      }
+      
+      const logs = await storage.getChatLogs(merchantId, targetDate);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching chat logs:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/chat-logs/:logId/download", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { logId } = req.params;
+      
+      const logs = await storage.getChatLogs(merchantId);
+      const log = logs.find(l => l.id === logId);
+      
+      if (!log || log.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Chat log not found" });
+      }
+      
+      const txtContent = `Chat Log - Session ${log.sessionId}
+==============================================
+Customer: ${log.customerName || 'Anonymous'}
+${log.customerEmail ? `Email: ${log.customerEmail}` : ''}
+Agent ID: ${log.agentId || 'N/A'}
+Supervisor ID: ${log.supervisorId || 'N/A'}
+Messages: ${log.messageCount}
+Started: ${log.sessionStartedAt ? new Date(log.sessionStartedAt).toLocaleString() : 'N/A'}
+Ended: ${log.sessionEndedAt ? new Date(log.sessionEndedAt).toLocaleString() : 'N/A'}
+Archived: ${log.clearedAt ? new Date(log.clearedAt).toLocaleString() : 'N/A'}
+
+=== SUMMARY ===
+${log.summary}
+
+=== FULL TRANSCRIPT ===
+${log.fullTranscript}
+
+${log.extractedKnowledge ? `=== EXTRACTED KNOWLEDGE ===
+${log.extractedKnowledge}` : ''}
+`;
+      
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Content-Disposition', `attachment; filename="chat-log-${log.sessionId}.txt"`);
+      res.send(txtContent);
+    } catch (error) {
+      console.error("Error downloading chat log:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Agent-Supervisor mapping endpoints
+  app.get("/api/agents/:agentId/supervisors", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { agentId } = req.params;
+      
+      const agent = await storage.getAgent(agentId);
+      if (!agent || agent.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Agent not found" });
+      }
+      
+      const mappings = await storage.getAgentSupervisors(agentId);
+      res.json(mappings);
+    } catch (error) {
+      console.error("Error fetching agent supervisors:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/agents/:agentId/supervisors", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { agentId } = req.params;
+      const { supervisorId } = req.body;
+      
+      const agent = await storage.getAgent(agentId);
+      if (!agent || agent.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Agent not found" });
+      }
+      
+      const supervisor = await storage.getSupervisor(supervisorId);
+      if (!supervisor || supervisor.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Supervisor not found" });
+      }
+      
+      // Check plan limits
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      const planId = (merchant.subscriptionPlanId || 'free') as SubscriptionPlanId;
+      const plan = subscriptionPlans[planId];
+      const currentCount = await storage.countAgentSupervisors(agentId);
+      
+      if (plan.supervisorsPerAgentLimit !== -1 && currentCount >= plan.supervisorsPerAgentLimit) {
+        return res.status(403).json({ 
+          error: `Maximum ${plan.supervisorsPerAgentLimit} supervisor(s) per agent allowed on your plan` 
+        });
+      }
+      
+      // Check if already assigned
+      const existing = await storage.getAgentSupervisors(agentId);
+      if (existing.some(e => e.supervisorId === supervisorId)) {
+        return res.status(400).json({ error: "Supervisor already assigned to this agent" });
+      }
+      
+      const mapping = await storage.createAgentSupervisor({
+        agentId,
+        supervisorId,
+        merchantId,
+      });
+      res.json(mapping);
+    } catch (error) {
+      console.error("Error assigning supervisor to agent:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.delete("/api/agents/:agentId/supervisors/:supervisorId", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { agentId, supervisorId } = req.params;
+      
+      const agent = await storage.getAgent(agentId);
+      if (!agent || agent.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Agent not found" });
+      }
+      
+      const mappings = await storage.getAgentSupervisors(agentId);
+      const mapping = mappings.find(m => m.supervisorId === supervisorId);
+      
+      if (!mapping) {
+        return res.status(404).json({ error: "Mapping not found" });
+      }
+      
+      await storage.deleteAgentSupervisor(mapping.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error removing supervisor from agent:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Manual chat cleanup trigger (for testing)
+  app.post("/api/chat-cleanup/run", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      const planId = (merchant.subscriptionPlanId || 'free') as SubscriptionPlanId;
+      const plan = subscriptionPlans[planId];
+      const retentionHours = plan.chatRetentionHours;
+      
+      const expiredSessions = await storage.getExpiredSessions(merchantId, retentionHours);
+      let archivedCount = 0;
+      
+      for (const session of expiredSessions) {
+        const messages = await storage.getMessages(session.id);
+        
+        if (messages.length === 0) continue;
+        
+        // Generate full transcript
+        const transcript = messages.map(m => {
+          const sender = m.from === 'user' ? (session.customerName || 'Customer') : 
+                         m.from === 'ai' ? 'AI Assistant' : 'Supervisor';
+          const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString() : '';
+          return `[${time}] ${sender}: ${m.content}`;
+        }).join('\n');
+        
+        // Generate simple summary
+        const summary = `Chat session with ${messages.length} messages. ${
+          session.mode === 'HUMAN' ? 'Escalated to supervisor.' : 'Handled by AI.'
+        }`;
+        
+        // Create chat log
+        await storage.createChatLog({
+          merchantId,
+          sessionId: session.id,
+          agentId: session.agentId || null,
+          supervisorId: session.supervisorId || null,
+          customerName: session.customerName || null,
+          customerEmail: session.customerEmail || null,
+          summary,
+          messageCount: messages.length,
+          fullTranscript: transcript,
+          extractedKnowledge: null,
+          sessionStartedAt: session.createdAt || null,
+          sessionEndedAt: session.lastActivity || null,
+        });
+        
+        // Delete messages but keep session
+        await storage.deleteSessionMessages(session.id);
+        await storage.updateSession(session.id, { status: 'archived' });
+        archivedCount++;
+      }
+      
+      res.json({ 
+        success: true, 
+        archivedCount,
+        retentionHours,
+        message: `Archived ${archivedCount} expired sessions (older than ${retentionHours} hours)` 
+      });
+    } catch (error) {
+      console.error("Error running chat cleanup:", error);
       res.status(500).json({ error: "Server error" });
     }
   });

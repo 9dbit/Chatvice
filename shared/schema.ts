@@ -64,7 +64,12 @@ export const sessions = pgTable("sessions", {
   supervisorId: varchar("supervisor_id", { length: 32 }),
   agentId: varchar("agent_id", { length: 32 }),
   customerName: text("customer_name").default("Customer"),
+  customerEmail: text("customer_email"),
   lastActivity: timestamp("last_activity").defaultNow(),
+  needsSupervisorAttention: boolean("needs_supervisor_attention").default(false),
+  status: text("status").default("active"),
+  plannedClearAt: timestamp("planned_clear_at"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const insertSessionSchema = createInsertSchema(sessions).omit({ lastActivity: true });
@@ -266,6 +271,39 @@ export const insertSuggestedQuestionSchema = createInsertSchema(suggestedQuestio
 export type InsertSuggestedQuestion = z.infer<typeof insertSuggestedQuestionSchema>;
 export type SuggestedQuestion = typeof suggestedQuestions.$inferSelect;
 
+export const chatLogs = pgTable("chat_logs", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  sessionId: varchar("session_id", { length: 64 }).notNull(),
+  agentId: varchar("agent_id", { length: 32 }),
+  supervisorId: varchar("supervisor_id", { length: 32 }),
+  customerName: text("customer_name"),
+  customerEmail: text("customer_email"),
+  summary: text("summary").notNull(),
+  messageCount: integer("message_count").default(0),
+  fullTranscript: text("full_transcript").notNull(),
+  extractedKnowledge: text("extracted_knowledge"),
+  sessionStartedAt: timestamp("session_started_at"),
+  sessionEndedAt: timestamp("session_ended_at"),
+  clearedAt: timestamp("cleared_at").defaultNow(),
+});
+
+export const insertChatLogSchema = createInsertSchema(chatLogs).omit({ id: true, clearedAt: true });
+export type InsertChatLog = z.infer<typeof insertChatLogSchema>;
+export type ChatLog = typeof chatLogs.$inferSelect;
+
+export const agentSupervisors = pgTable("agent_supervisors", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  agentId: varchar("agent_id", { length: 32 }).notNull(),
+  supervisorId: varchar("supervisor_id", { length: 32 }).notNull(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertAgentSupervisorSchema = createInsertSchema(agentSupervisors).omit({ id: true, createdAt: true });
+export type InsertAgentSupervisor = z.infer<typeof insertAgentSupervisorSchema>;
+export type AgentSupervisor = typeof agentSupervisors.$inferSelect;
+
 export const subscriptionPlans = {
   free: {
     id: "free" as const,
@@ -278,9 +316,13 @@ export const subscriptionPlans = {
     agentsLimit: 1,
     sourcesLimit: 1,
     suggestedQuestionsLimit: 0,
+    supervisorsPerAgentLimit: 1,
+    chatRetentionHours: 1,
     features: [
       "20 AI conversations/month",
       "1 AI Agent",
+      "1 Supervisor per agent",
+      "1 hour chat history",
       "400,000 characters/agent",
       "Basic widget customization",
       "Community support",
@@ -298,9 +340,13 @@ export const subscriptionPlans = {
     agentsLimit: 1,
     sourcesLimit: 5,
     suggestedQuestionsLimit: 5,
+    supervisorsPerAgentLimit: 3,
+    chatRetentionHours: 12,
     features: [
       "2,000 AI conversations/month",
       "1 AI Agent",
+      "3 Supervisors per agent",
+      "12 hours chat history",
       "1 Team member",
       "5 Knowledge sources",
       "5 Suggested questions",
@@ -323,9 +369,13 @@ export const subscriptionPlans = {
     agentsLimit: 3,
     sourcesLimit: 20,
     suggestedQuestionsLimit: 5,
+    supervisorsPerAgentLimit: 5,
+    chatRetentionHours: 24,
     features: [
       "10,000 AI conversations/month",
       "3 AI Agents",
+      "5 Supervisors per agent",
+      "24 hours chat history",
       "5 Team members",
       "20 Knowledge sources",
       "5 Suggested questions",
@@ -351,9 +401,13 @@ export const subscriptionPlans = {
     agentsLimit: 10,
     sourcesLimit: -1,
     suggestedQuestionsLimit: 5,
+    supervisorsPerAgentLimit: 10,
+    chatRetentionHours: 24,
     features: [
       "50,000 AI conversations/month",
       "10 AI Agents",
+      "10 Supervisors per agent",
+      "24 hours chat history",
       "Unlimited team members",
       "Unlimited knowledge sources",
       "5 Suggested questions",
@@ -381,9 +435,13 @@ export const subscriptionPlans = {
     agentsLimit: -1,
     sourcesLimit: -1,
     suggestedQuestionsLimit: -1,
+    supervisorsPerAgentLimit: -1,
+    chatRetentionHours: 24,
     features: [
       "Unlimited conversations",
       "Unlimited AI Agents",
+      "Unlimited supervisors per agent",
+      "24 hours chat history",
       "Unlimited team members",
       "Unlimited knowledge sources",
       "Unlimited suggested questions",
