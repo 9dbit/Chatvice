@@ -167,18 +167,56 @@ async function askJeany(
   const companyName = merchant?.companyName || "our company";
   const activeAgentId = merchant?.activeAgentId || undefined;
   
-  // Get agent's custom system prompt if available
+  // Get agent's settings
   let agentSystemPrompt = "";
   let agentName = "Jeany";
+  let toneStyle = "formal";
+  let temperature = 0.7;
+  let autoEscalateAngry = false;
+  
   if (activeAgentId) {
     const agent = await storage.getAgent(activeAgentId);
-    if (agent?.systemPrompt) {
-      agentSystemPrompt = agent.systemPrompt;
-    }
-    if (agent?.name) {
-      agentName = agent.name;
+    if (agent) {
+      if (agent.systemPrompt) {
+        agentSystemPrompt = agent.systemPrompt;
+      }
+      if (agent.name) {
+        agentName = agent.name;
+      }
+      if (agent.toneStyle) {
+        toneStyle = agent.toneStyle;
+      }
+      if (agent.temperature) {
+        temperature = parseFloat(agent.temperature);
+      }
+      if (agent.autoEscalateAngry) {
+        autoEscalateAngry = true;
+      }
     }
   }
+  
+  // Check for angry customer if auto-escalate is enabled
+  if (autoEscalateAngry) {
+    const angerIndicators = ["marah", "kesal", "kecewa", "angry", "frustrated", "upset", "terrible", "worst", "hate", "stupid", "idiot", "bodoh", "goblok", "!!!"];
+    const lowerMessage = message.toLowerCase();
+    const isAngry = angerIndicators.some(indicator => lowerMessage.includes(indicator));
+    if (isAngry) {
+      await storage.updateSession(sessionId, { mode: "HUMAN" });
+      await notifySupervisors(merchantId, sessionId);
+      return {
+        answer: "Saya memahami Anda sedang frustasi. Izinkan saya menghubungkan Anda dengan supervisor kami yang dapat membantu lebih lanjut.",
+        mode: "HUMAN",
+      };
+    }
+  }
+  
+  // Build tone style instruction
+  const toneInstructions: Record<string, string> = {
+    formal: "Gunakan bahasa formal dan sopan. Panggil customer dengan 'Bapak/Ibu'. Hindari bahasa gaul atau slang.",
+    casual: "Gunakan bahasa santai dan ramah seperti teman. Boleh pakai kata-kata seperti 'kamu', 'oke', 'yuk'.",
+    poetic: "Jawab dengan gaya bahasa yang indah dan ekspresif. Gunakan metafora dan perumpamaan yang menarik."
+  };
+  const toneInstruction = toneInstructions[toneStyle] || toneInstructions.formal;
   
   let knowledgeContext = "";
   try {
@@ -203,6 +241,9 @@ async function askJeany(
   const systemMessage = `You are ${agentName}, a friendly and helpful AI Customer Service Agent for ${companyName}.
 You are professional yet approachable, and always aim to help customers effectively.
 Always answer in a clear, structured way while maintaining a conversational tone.
+
+TONE/STYLE INSTRUCTION:
+${toneInstruction}
 
 IMPORTANT LANGUAGE INSTRUCTION:
 - Detect the language of the customer's message
@@ -230,6 +271,7 @@ If you don't have specific information to answer, be honest about it and offer t
         { role: "user", content: message }
       ],
       max_completion_tokens: 500,
+      temperature: temperature,
     });
 
     const answer = completion.choices[0]?.message?.content || "I'm sorry, I couldn't process your request. Please try again.";

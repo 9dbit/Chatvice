@@ -11,19 +11,51 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Bot, Plus, Edit, Trash2, Sparkles, Crown, ArrowUpRight, Camera, Loader2 } from "lucide-react";
+import { Bot, Plus, Edit, Trash2, Sparkles, Crown, ArrowUpRight, Camera, Loader2, MessageSquare, AlertTriangle, Clock, Thermometer, UserCircle, Zap } from "lucide-react";
 import { Link } from "wouter";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import type { Agent, Merchant } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
+
+const TONE_PRESETS = {
+  formal: {
+    label: "Formal",
+    icon: UserCircle,
+    description: "Bahasa sopan dan profesional",
+    prompt: "Gunakan bahasa formal dan sopan. Panggil customer dengan 'Bapak/Ibu'. Hindari bahasa gaul atau slang."
+  },
+  casual: {
+    label: "Casual",
+    icon: MessageSquare,
+    description: "Ramah dan santai",
+    prompt: "Gunakan bahasa santai dan ramah seperti teman. Boleh pakai kata-kata seperti 'kamu', 'oke', 'yuk'."
+  },
+  poetic: {
+    label: "Poetic",
+    icon: Sparkles,
+    description: "Kreatif dan ekspresif",
+    prompt: "Jawab dengan gaya bahasa yang indah dan ekspresif. Gunakan metafora dan perumpamaan yang menarik."
+  }
+};
 
 const agentSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   description: z.string().optional(),
   systemPrompt: z.string().optional(),
+  toneStyle: z.string().optional(),
+  autoEscalateAngry: z.boolean().optional(),
+  welcomeMessageEnabled: z.boolean().optional(),
+  welcomeMessageText: z.string().optional(),
+  goodbyeMessageEnabled: z.boolean().optional(),
+  goodbyeMessageText: z.string().optional(),
+  inactivityTimeoutSeconds: z.number().optional(),
+  temperature: z.string().optional(),
 });
 
 type AgentFormData = z.infer<typeof agentSchema>;
@@ -57,6 +89,14 @@ export default function AgentsPage() {
       name: "",
       description: "",
       systemPrompt: "",
+      toneStyle: "formal",
+      autoEscalateAngry: false,
+      welcomeMessageEnabled: false,
+      welcomeMessageText: "Halo! Ada yang bisa saya bantu?",
+      goodbyeMessageEnabled: false,
+      goodbyeMessageText: "Terima kasih sudah menghubungi kami!",
+      inactivityTimeoutSeconds: 120,
+      temperature: "0.7",
     },
   });
 
@@ -157,6 +197,14 @@ export default function AgentsPage() {
     form.setValue("name", agent.name);
     form.setValue("description", agent.description || "");
     form.setValue("systemPrompt", agent.systemPrompt || "");
+    form.setValue("toneStyle", agent.toneStyle || "formal");
+    form.setValue("autoEscalateAngry", agent.autoEscalateAngry || false);
+    form.setValue("welcomeMessageEnabled", agent.welcomeMessageEnabled || false);
+    form.setValue("welcomeMessageText", agent.welcomeMessageText || "Halo! Ada yang bisa saya bantu?");
+    form.setValue("goodbyeMessageEnabled", agent.goodbyeMessageEnabled || false);
+    form.setValue("goodbyeMessageText", agent.goodbyeMessageText || "Terima kasih sudah menghubungi kami!");
+    form.setValue("inactivityTimeoutSeconds", agent.inactivityTimeoutSeconds || 120);
+    form.setValue("temperature", agent.temperature || "0.7");
     setPhotoUrl(agent.photoUrl || "");
     setIsDialogOpen(true);
   };
@@ -201,7 +249,7 @@ export default function AgentsPage() {
                 New AI Agent
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-2xl max-h-[90vh]">
               <DialogHeader>
                 <DialogTitle>{editingAgent ? "Edit Agent" : "Create New Agent"}</DialogTitle>
                 <DialogDescription>
@@ -210,6 +258,8 @@ export default function AgentsPage() {
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <ScrollArea className="max-h-[60vh] pr-4">
+                  <div className="space-y-4">
                   <div className="flex justify-center mb-2">
                     <div className="relative">
                       <Avatar className="w-20 h-20">
@@ -270,33 +320,214 @@ export default function AgentsPage() {
                       </FormItem>
                     )}
                   />
+                  <Separator />
+                  
+                  <div className="space-y-2">
+                    <FormLabel className="flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4" />
+                      Gaya Bahasa
+                    </FormLabel>
+                    <div className="grid grid-cols-3 gap-2">
+                      {Object.entries(TONE_PRESETS).map(([key, preset]) => {
+                        const Icon = preset.icon;
+                        const isSelected = form.watch("toneStyle") === key;
+                        return (
+                          <Button
+                            key={key}
+                            type="button"
+                            variant={isSelected ? "default" : "outline"}
+                            className="flex flex-col h-auto py-3 px-2"
+                            onClick={() => form.setValue("toneStyle", key)}
+                            data-testid={`button-tone-${key}`}
+                          >
+                            <Icon className="w-5 h-5 mb-1" />
+                            <span className="text-sm font-medium">{preset.label}</span>
+                            <span className="text-[10px] text-muted-foreground">{preset.description}</span>
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <FormField
+                    control={form.control}
+                    name="autoEscalateAngry"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                        <div className="space-y-0.5">
+                          <FormLabel className="flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4 text-orange-500" />
+                            Auto-Escalate Customer Marah
+                          </FormLabel>
+                          <FormDescription className="text-xs">
+                            Otomatis alihkan ke supervisor jika customer terdeteksi marah
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-auto-escalate-angry"
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <Separator />
+
+                  <FormField
+                    control={form.control}
+                    name="welcomeMessageEnabled"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                        <div className="space-y-0.5">
+                          <FormLabel className="flex items-center gap-2">
+                            <MessageSquare className="w-4 h-4 text-green-500" />
+                            Pesan Sambutan
+                          </FormLabel>
+                          <FormDescription className="text-xs">
+                            Kirim pesan "Halo" otomatis saat customer memulai chat
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-welcome-message"
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  {form.watch("welcomeMessageEnabled") && (
+                    <FormField
+                      control={form.control}
+                      name="welcomeMessageText"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <Input
+                              placeholder="Halo! Ada yang bisa saya bantu?"
+                              data-testid="input-welcome-message"
+                              {...field}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  <FormField
+                    control={form.control}
+                    name="goodbyeMessageEnabled"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                        <div className="space-y-0.5">
+                          <FormLabel className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-blue-500" />
+                            Pesan Penutup (2 menit tidak aktif)
+                          </FormLabel>
+                          <FormDescription className="text-xs">
+                            Kirim "terima kasih" jika customer tidak merespond 2 menit
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-goodbye-message"
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  {form.watch("goodbyeMessageEnabled") && (
+                    <FormField
+                      control={form.control}
+                      name="goodbyeMessageText"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <Input
+                              placeholder="Terima kasih sudah menghubungi kami!"
+                              data-testid="input-goodbye-message"
+                              {...field}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  <Separator />
+
+                  <FormField
+                    control={form.control}
+                    name="temperature"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <Thermometer className="w-4 h-4" />
+                          Temperature (Kreativitas AI)
+                        </FormLabel>
+                        <div className="flex items-center gap-4">
+                          <span className="text-xs text-muted-foreground">Konsisten</span>
+                          <FormControl>
+                            <Slider
+                              min={0}
+                              max={100}
+                              step={10}
+                              value={[parseFloat(field.value || "0.7") * 100]}
+                              onValueChange={(value) => field.onChange((value[0] / 100).toFixed(1))}
+                              className="flex-1"
+                              data-testid="slider-temperature"
+                            />
+                          </FormControl>
+                          <span className="text-xs text-muted-foreground">Kreatif</span>
+                          <Badge variant="secondary" className="ml-2 min-w-[40px] justify-center">
+                            {field.value}
+                          </Badge>
+                        </div>
+                        <FormDescription className="text-xs">
+                          Nilai rendah = jawaban konsisten, nilai tinggi = jawaban lebih kreatif
+                        </FormDescription>
+                      </FormItem>
+                    )}
+                  />
+
+                  <Separator />
+
                   <FormField
                     control={form.control}
                     name="systemPrompt"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>System Prompt (Optional)</FormLabel>
+                        <FormLabel className="flex items-center gap-2">
+                          <Zap className="w-4 h-4" />
+                          Custom System Prompt (Opsional)
+                        </FormLabel>
                         <FormControl>
                           <Textarea
-                            placeholder="Instruksi khusus untuk AI agent...
-
-Contoh:
-- Selalu jawab dengan bahasa formal
-- Jangan berikan diskon lebih dari 10%
-- Jika customer marah, eskalasi ke supervisor
-- Selalu tawarkan produk premium saat membahas fitur"
-                            className="min-h-[120px]"
+                            placeholder="Instruksi tambahan untuk AI agent..."
+                            className="min-h-[80px]"
                             data-testid="input-agent-system-prompt"
                             {...field}
                           />
                         </FormControl>
-                        <p className="text-xs text-muted-foreground">
-                          Instruksi ini akan mempengaruhi cara AI menjawab pertanyaan customer.
-                        </p>
+                        <FormDescription className="text-xs">
+                          Instruksi khusus selain gaya bahasa yang sudah dipilih
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                  </div>
+                  </ScrollArea>
                   <DialogFooter>
                     <Button type="button" variant="outline" onClick={handleCloseDialog}>
                       Cancel
