@@ -52,6 +52,13 @@ export default function BillingPage() {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showCanceledMessage, setShowCanceledMessage] = useState(false);
   const [expandedPlans, setExpandedPlans] = useState<Set<string>>(new Set());
+  const [prorationInfo, setProrationInfo] = useState<{
+    creditAmount: number;
+    newPlanPrice: number;
+    finalAmount: number;
+    daysRemaining: number;
+    prorationApplied: boolean;
+  } | null>(null);
 
   const { data: billingStatus, isLoading, refetch } = useQuery<BillingStatus>({
     queryKey: ["/api/billing/status"],
@@ -63,21 +70,61 @@ export default function BillingPage() {
     const canceled = urlParams.get('canceled');
     
     if (success) {
-      setShowSuccessMessage(true);
-      
-      queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/merchant/me"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
-      
       const cleanUrl = window.location.pathname;
       window.history.replaceState({}, '', cleanUrl);
       
-      toast({
-        title: "Subscription Updated!",
-        description: "Your plan has been successfully upgraded. Features are now unlocked.",
-      });
+      const syncBilling = async () => {
+        try {
+          const response = await fetch("/api/billing/sync", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          });
+          
+          if (response.ok) {
+            const syncResult = await response.json();
+            console.log("Billing sync result:", syncResult);
+            
+            queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/merchant/me"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+            
+            const merchantId = localStorage.getItem("merchantId");
+            if (merchantId) {
+              queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
+            }
+            
+            setShowSuccessMessage(true);
+            toast({
+              title: "Subscription Updated!",
+              description: syncResult.synced 
+                ? `Your plan has been upgraded to ${syncResult.planId}. Features are now unlocked.`
+                : "Your payment was successful. Please refresh if plan doesn't update immediately.",
+            });
+            setTimeout(() => setShowSuccessMessage(false), 10000);
+          } else {
+            queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
+            setShowSuccessMessage(true);
+            toast({
+              title: "Payment Successful",
+              description: "Your subscription is being processed. Please refresh if plan doesn't update.",
+            });
+            setTimeout(() => setShowSuccessMessage(false), 10000);
+          }
+        } catch (err) {
+          console.error("Billing sync error:", err);
+          queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
+          setShowSuccessMessage(true);
+          toast({
+            title: "Payment Received",
+            description: "Processing your subscription. Please refresh the page if needed.",
+          });
+          setTimeout(() => setShowSuccessMessage(false), 10000);
+        }
+      };
       
-      setTimeout(() => setShowSuccessMessage(false), 10000);
+      syncBilling();
     }
     
     if (canceled) {
@@ -154,12 +201,27 @@ export default function BillingPage() {
     },
   });
 
-  const handleUpgrade = (planId: string) => {
+  const handleUpgrade = async (planId: string) => {
     const plan = Object.values(subscriptionPlans).find(p => p.id === planId);
     if (plan) {
       setSelectedPlan(plan);
       setDemoCheckoutOpen(true);
       setCheckoutStep('form');
+      setProrationInfo(null);
+      
+      if (billingStatus?.status === 'active') {
+        try {
+          const response = await fetch(`/api/billing/proration?planId=${planId}&billingInterval=${isAnnual ? 'annual' : 'monthly'}`, {
+            credentials: 'include',
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setProrationInfo(data);
+          }
+        } catch (err) {
+          console.error("Failed to fetch proration info:", err);
+        }
+      }
     }
   };
 
@@ -601,6 +663,29 @@ export default function BillingPage() {
                       </p>
                     )}
                   </div>
+                  
+                  {prorationInfo?.prorationApplied && (
+                    <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Gift className="w-4 h-4 text-green-600" />
+                        <span className="text-sm font-medium text-green-700">Upgrade Credit Applied</span>
+                      </div>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Unused days remaining:</span>
+                          <span className="font-medium">{prorationInfo.daysRemaining} days</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Credit from current plan:</span>
+                          <span className="font-medium text-green-600">-${prorationInfo.creditAmount.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between pt-2 border-t mt-2">
+                          <span className="font-medium">Amount due today:</span>
+                          <span className="font-bold text-lg">${prorationInfo.finalAmount.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-3">
                     <div>
@@ -650,7 +735,9 @@ export default function BillingPage() {
                     onClick={handleDemoPayment}
                     data-testid="button-demo-pay"
                   >
-                    Pay ${isAnnual ? selectedPlan.annualPrice * 12 : selectedPlan.monthlyPrice}
+                    Pay ${prorationInfo?.prorationApplied 
+                      ? prorationInfo.finalAmount.toFixed(2)
+                      : (isAnnual ? selectedPlan.annualPrice * 12 : selectedPlan.monthlyPrice)}
                   </Button>
                 </div>
               )}

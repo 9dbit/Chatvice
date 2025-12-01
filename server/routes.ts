@@ -1552,6 +1552,99 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  app.get("/api/billing/proration", requireMerchant, async (req, res) => {
+    try {
+      const { planId, billingInterval } = req.query;
+      const merchant = await storage.getMerchant(req.session.merchantId!);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      if (!planId || typeof planId !== 'string') {
+        return res.status(400).json({ error: "Plan ID required" });
+      }
+      
+      const newPlan = subscriptionPlans[planId as SubscriptionPlanId];
+      if (!newPlan) {
+        return res.status(400).json({ error: "Invalid plan" });
+      }
+      
+      const currentPlan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+      const requestedInterval = billingInterval === 'annual' ? 'annual' : 'monthly';
+      
+      const newPlanPrice = requestedInterval === 'annual' ? newPlan.annualPrice : newPlan.monthlyPrice;
+      const currentPlanPrice = merchant.billingInterval === 'annual' ? currentPlan.annualPrice : currentPlan.monthlyPrice;
+      
+      const isUpgrade = newPlan.monthlyPrice > currentPlan.monthlyPrice;
+      
+      if (!isUpgrade) {
+        return res.json({
+          creditAmount: 0,
+          newPlanPrice,
+          finalAmount: newPlanPrice,
+          daysRemaining: 0,
+          prorationApplied: false,
+          isUpgrade: false,
+          currentPlanName: currentPlan.name,
+          newPlanName: newPlan.name,
+          message: "Proration only applies to upgrades",
+        });
+      }
+      
+      if (merchant.subscriptionStatus !== 'active' || !merchant.currentPeriodEnd) {
+        return res.json({
+          creditAmount: 0,
+          newPlanPrice,
+          finalAmount: newPlanPrice,
+          daysRemaining: 0,
+          prorationApplied: false,
+          isUpgrade: true,
+          currentPlanName: currentPlan.name,
+          newPlanName: newPlan.name,
+        });
+      }
+      
+      const now = new Date();
+      const periodEnd = new Date(merchant.currentPeriodEnd);
+      
+      if (now >= periodEnd) {
+        return res.json({
+          creditAmount: 0,
+          newPlanPrice,
+          finalAmount: newPlanPrice,
+          daysRemaining: 0,
+          prorationApplied: false,
+          isUpgrade: true,
+          currentPlanName: currentPlan.name,
+          newPlanName: newPlan.name,
+        });
+      }
+      
+      const daysInPeriod = merchant.billingInterval === 'annual' ? 365 : 30;
+      const msRemaining = periodEnd.getTime() - now.getTime();
+      const daysRemaining = Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24)));
+      
+      const dailyRate = currentPlanPrice / daysInPeriod;
+      const creditAmount = Math.round(dailyRate * daysRemaining * 100) / 100;
+      
+      const finalAmount = Math.max(0, Math.round((newPlanPrice - creditAmount) * 100) / 100);
+      
+      res.json({
+        creditAmount,
+        newPlanPrice,
+        finalAmount,
+        daysRemaining,
+        prorationApplied: creditAmount > 0 && daysRemaining > 0,
+        isUpgrade: true,
+        currentPlanName: currentPlan.name,
+        newPlanName: newPlan.name,
+      });
+    } catch (error: any) {
+      console.error("Proration calculation error:", error);
+      res.status(500).json({ error: error.message || "Failed to calculate proration" });
+    }
+  });
+
   app.post("/api/billing/checkout", requireMerchant, async (req, res) => {
     try {
       const { planId, billingInterval } = req.body;
@@ -1579,6 +1672,34 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       
       const priceAmount = billingInterval === 'annual' ? plan.annualPrice * 100 : plan.monthlyPrice * 100;
       
+      let couponId: string | undefined = undefined;
+      if (merchant.subscriptionStatus === 'active' && merchant.currentPeriodEnd) {
+        const currentPlan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+        const currentPlanPrice = merchant.billingInterval === 'annual' ? currentPlan.annualPrice : currentPlan.monthlyPrice;
+        
+        const now = new Date();
+        const periodEnd = new Date(merchant.currentPeriodEnd);
+        const periodStart = new Date(periodEnd);
+        periodStart.setMonth(periodStart.getMonth() - (merchant.billingInterval === 'annual' ? 12 : 1));
+        
+        const totalDays = Math.ceil((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24));
+        const daysRemaining = Math.max(0, Math.ceil((periodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+        
+        const dailyRate = currentPlanPrice / totalDays;
+        const creditAmount = Math.round(dailyRate * daysRemaining * 100);
+        
+        if (creditAmount > 0) {
+          const coupon = await stripe.coupons.create({
+            amount_off: creditAmount,
+            currency: 'usd',
+            duration: 'once',
+            name: `Upgrade credit from ${currentPlan.name}`,
+            max_redemptions: 1,
+          });
+          couponId = coupon.id;
+        }
+      }
+      
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         payment_method_types: ['card'],
@@ -1595,6 +1716,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           quantity: 1,
         }],
         mode: 'subscription',
+        discounts: couponId ? [{ coupon: couponId }] : undefined,
         success_url: `${req.protocol}://${req.get('host')}/dashboard/billing?success=true`,
         cancel_url: `${req.protocol}://${req.get('host')}/dashboard/billing?canceled=true`,
         metadata: {
@@ -1688,6 +1810,84 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.json({ publishableKey: key });
     } catch (error) {
       res.status(500).json({ error: "Failed to get Stripe key" });
+    }
+  });
+
+  app.post("/api/billing/sync", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      const stripe = await getUncachableStripeClient();
+      const customerId = merchant.stripeCustomerId;
+      
+      if (!customerId) {
+        return res.json({ synced: false, message: "No Stripe customer ID" });
+      }
+      
+      const subscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        status: 'active',
+        limit: 1,
+      });
+      
+      if (subscriptions.data.length > 0) {
+        const subscription = subscriptions.data[0];
+        const metadata = subscription.metadata;
+        const planId = metadata?.planId;
+        const billingInterval = metadata?.billingInterval;
+        
+        if (planId && subscriptionPlans[planId as SubscriptionPlanId]) {
+          await storage.updateMerchantSubscription(merchantId, {
+            subscriptionPlanId: planId,
+            subscriptionStatus: 'active',
+            stripeSubscriptionId: subscription.id,
+            currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+            billingInterval: billingInterval || 'monthly',
+          });
+          
+          return res.json({ 
+            synced: true, 
+            planId,
+            message: `Plan updated to ${planId}` 
+          });
+        }
+      }
+      
+      const checkoutSessions = await stripe.checkout.sessions.list({
+        customer: customerId,
+        limit: 1,
+      });
+      
+      if (checkoutSessions.data.length > 0) {
+        const session = checkoutSessions.data[0];
+        if (session.payment_status === 'paid' && session.metadata?.planId) {
+          const planId = session.metadata.planId;
+          const billingInterval = session.metadata.billingInterval;
+          
+          if (subscriptionPlans[planId as SubscriptionPlanId]) {
+            await storage.updateMerchantSubscription(merchantId, {
+              subscriptionPlanId: planId,
+              subscriptionStatus: 'active',
+              billingInterval: billingInterval || 'monthly',
+            });
+            
+            return res.json({ 
+              synced: true, 
+              planId,
+              message: `Plan updated from checkout to ${planId}` 
+            });
+          }
+        }
+      }
+      
+      res.json({ synced: false, message: "No active subscription found" });
+    } catch (error: any) {
+      console.error("Billing sync error:", error);
+      res.status(500).json({ error: error.message || "Failed to sync billing" });
     }
   });
 
