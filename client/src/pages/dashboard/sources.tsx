@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,7 +18,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
-import { FileText, Link2, Type, Globe, Plus, Trash2, Edit, Crown, ArrowUpRight, Download, Upload, CheckCircle2 } from "lucide-react";
+import { FileText, Link2, Type, Globe, Plus, Trash2, Edit, Crown, ArrowUpRight, Download, Upload, CheckCircle2, Loader2 } from "lucide-react";
 import type { Source, Merchant } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 
@@ -37,6 +37,9 @@ export default function SourcesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
+  const [uploadedFileName, setUploadedFileName] = useState<string>("");
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: merchant } = useQuery<Merchant>({
     queryKey: ["/api/merchant", merchantId],
@@ -69,8 +72,12 @@ export default function SourcesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
-      setIsDialogOpen(false);
       form.reset();
+      setUploadedFileName("");
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      setIsDialogOpen(false);
       toast({
         title: "Source added",
         description: "Your knowledge source has been added successfully.",
@@ -113,6 +120,43 @@ export default function SourcesPage() {
 
   const onSubmit = (data: SourceFormData) => {
     createMutation.mutate(data);
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingFile(true);
+    setUploadedFileName(file.name);
+
+    try {
+      const text = await file.text();
+      form.setValue("content", text);
+      form.setValue("name", file.name.replace(/\.[^/.]+$/, ""));
+      toast({
+        title: "File loaded",
+        description: `${file.name} has been loaded successfully.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error reading file",
+        description: "Could not read the file. Please try a different file.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingFile(false);
+    }
+  };
+
+  const handleDialogClose = (open: boolean) => {
+    setIsDialogOpen(open);
+    if (!open) {
+      form.reset();
+      setUploadedFileName("");
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
   };
 
   const toggleSourceSelection = (id: string) => {
@@ -161,14 +205,14 @@ export default function SourcesPage() {
             Manage knowledge sources for your AI agents.
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-source">
               <Plus className="w-4 h-4 mr-2" />
               Add Source
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add Knowledge Source</DialogTitle>
               <DialogDescription>
@@ -199,7 +243,7 @@ export default function SourcesPage() {
                           <SelectItem value="file">
                             <div className="flex items-center gap-2">
                               <FileText className="w-4 h-4" />
-                              File (DOC/TXT/PDF)
+                              File (TXT/MD/CSV)
                             </div>
                           </SelectItem>
                           <SelectItem value="website">
@@ -227,7 +271,7 @@ export default function SourcesPage() {
                     </FormItem>
                   )}
                 />
-                {form.watch("type") === "website" ? (
+                {form.watch("type") === "website" && (
                   <FormField
                     control={form.control}
                     name="url"
@@ -235,7 +279,12 @@ export default function SourcesPage() {
                       <FormItem>
                         <FormLabel>Website URL</FormLabel>
                         <FormControl>
-                          <Input placeholder="https://example.com/faq" data-testid="input-source-url" {...field} />
+                          <Input 
+                            type="url"
+                            placeholder="https://example.com/faq" 
+                            data-testid="input-source-url" 
+                            {...field} 
+                          />
                         </FormControl>
                         <FormDescription>
                           We'll crawl this page and extract content.
@@ -244,7 +293,9 @@ export default function SourcesPage() {
                       </FormItem>
                     )}
                   />
-                ) : (
+                )}
+
+                {form.watch("type") === "text" && (
                   <FormField
                     control={form.control}
                     name="content"
@@ -253,8 +304,8 @@ export default function SourcesPage() {
                         <FormLabel>Content</FormLabel>
                         <FormControl>
                           <Textarea
-                            placeholder="Enter your knowledge content here..."
-                            className="min-h-[120px]"
+                            placeholder="Enter your knowledge content here...&#10;&#10;Example:&#10;Q: What are your business hours?&#10;A: We are open Monday to Friday, 9am to 5pm."
+                            className="min-h-[150px]"
                             data-testid="input-source-content"
                             {...field}
                           />
@@ -264,12 +315,85 @@ export default function SourcesPage() {
                     )}
                   />
                 )}
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+
+                {form.watch("type") === "file" && (
+                  <FormItem>
+                    <FormLabel>Upload Document</FormLabel>
+                    <div className="space-y-3">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".txt,.md,.csv,.json,.xml,.html"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                        data-testid="input-file-upload"
+                      />
+                      <div 
+                        className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        {isUploadingFile ? (
+                          <div className="flex flex-col items-center gap-2">
+                            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                            <p className="text-sm text-muted-foreground">Reading file...</p>
+                          </div>
+                        ) : uploadedFileName ? (
+                          <div className="flex flex-col items-center gap-2">
+                            <CheckCircle2 className="w-8 h-8 text-green-500" />
+                            <p className="text-sm font-medium">{uploadedFileName}</p>
+                            <p className="text-xs text-muted-foreground">Click to upload a different file</p>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center gap-2">
+                            <Upload className="w-8 h-8 text-muted-foreground" />
+                            <p className="text-sm font-medium">Click to upload a file</p>
+                            <p className="text-xs text-muted-foreground">TXT, MD, CSV, JSON, XML, HTML supported</p>
+                          </div>
+                        )}
+                      </div>
+                      {uploadedFileName && (
+                        <FormField
+                          control={form.control}
+                          name="content"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Extracted Content Preview</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  placeholder="File content will appear here..."
+                                  className="min-h-[100px] text-xs"
+                                  data-testid="input-file-content-preview"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                You can edit the extracted content before saving.
+                              </FormDescription>
+                            </FormItem>
+                          )}
+                        />
+                      )}
+                    </div>
+                  </FormItem>
+                )}
+
+                <DialogFooter className="gap-2 sm:gap-0">
+                  <Button type="button" variant="outline" onClick={() => handleDialogClose(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={createMutation.isPending}>
-                    {createMutation.isPending ? "Adding..." : "Add Source"}
+                  <Button 
+                    type="submit" 
+                    disabled={createMutation.isPending || (form.watch("type") === "file" && !uploadedFileName)}
+                    data-testid="button-submit-source"
+                  >
+                    {createMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Adding...
+                      </>
+                    ) : (
+                      "Add Source"
+                    )}
                   </Button>
                 </DialogFooter>
               </form>
