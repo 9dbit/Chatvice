@@ -202,6 +202,7 @@ export const agents = pgTable("agents", {
   description: text("description").default(""),
   photoUrl: text("photo_url").default(""),
   knowledgeContent: text("knowledge_content").default(""),
+  systemPrompt: text("system_prompt").default(""),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });

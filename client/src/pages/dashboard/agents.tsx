@@ -23,6 +23,7 @@ import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 const agentSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   description: z.string().optional(),
+  systemPrompt: z.string().optional(),
 });
 
 type AgentFormData = z.infer<typeof agentSchema>;
@@ -55,6 +56,7 @@ export default function AgentsPage() {
     defaultValues: {
       name: "",
       description: "",
+      systemPrompt: "",
     },
   });
 
@@ -154,6 +156,7 @@ export default function AgentsPage() {
     setEditingAgent(agent);
     form.setValue("name", agent.name);
     form.setValue("description", agent.description || "");
+    form.setValue("systemPrompt", agent.systemPrompt || "");
     setPhotoUrl(agent.photoUrl || "");
     setIsDialogOpen(true);
   };
@@ -263,6 +266,33 @@ export default function AgentsPage() {
                             {...field}
                           />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="systemPrompt"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>System Prompt (Optional)</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Instruksi khusus untuk AI agent...
+
+Contoh:
+- Selalu jawab dengan bahasa formal
+- Jangan berikan diskon lebih dari 10%
+- Jika customer marah, eskalasi ke supervisor
+- Selalu tawarkan produk premium saat membahas fitur"
+                            className="min-h-[120px]"
+                            data-testid="input-agent-system-prompt"
+                            {...field}
+                          />
+                        </FormControl>
+                        <p className="text-xs text-muted-foreground">
+                          Instruksi ini akan mempengaruhi cara AI menjawab pertanyaan customer.
+                        </p>
                         <FormMessage />
                       </FormItem>
                     )}

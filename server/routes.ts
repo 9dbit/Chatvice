@@ -167,6 +167,19 @@ async function askJeany(
   const companyName = merchant?.companyName || "our company";
   const activeAgentId = merchant?.activeAgentId || undefined;
   
+  // Get agent's custom system prompt if available
+  let agentSystemPrompt = "";
+  let agentName = "Jeany";
+  if (activeAgentId) {
+    const agent = await storage.getAgent(activeAgentId);
+    if (agent?.systemPrompt) {
+      agentSystemPrompt = agent.systemPrompt;
+    }
+    if (agent?.name) {
+      agentName = agent.name;
+    }
+  }
+  
   let knowledgeContext = "";
   try {
     const relevantChunks = await searchKnowledge(merchantId, message, 3, activeAgentId);
@@ -186,7 +199,12 @@ async function askJeany(
     knowledgeContext = knowledge?.content || "";
   }
 
-  const prompt = `You are Jeany, a friendly and helpful AI Customer Service Agent for ${companyName}.
+  // Build custom instructions section
+  const customInstructions = agentSystemPrompt 
+    ? `\n\nCUSTOM INSTRUCTIONS FROM MERCHANT (FOLLOW THESE STRICTLY):\n${agentSystemPrompt}\n`
+    : "";
+
+  const prompt = `You are ${agentName}, a friendly and helpful AI Customer Service Agent for ${companyName}.
 You are professional yet approachable, and always aim to help customers effectively.
 Always answer in a clear, structured way while maintaining a conversational tone.
 
@@ -198,13 +216,13 @@ IMPORTANT LANGUAGE INSTRUCTION:
 - If the customer writes in German, respond in German
 - And so on for any other language
 - This includes greeting messages - match their language
-
+${customInstructions}
 Relevant Company Information:
 ${knowledgeContext || "No specific knowledge base configured yet."}
 
 Customer Message: ${message}
 
-Provide a helpful response based on the relevant information above. If you don't have specific information to answer, be honest about it and offer to connect with a human agent. Remember to respond in the same language as the customer's message.`;
+Provide a helpful response based on the relevant information above. If you don't have specific information to answer, be honest about it and offer to connect with a human agent. Remember to respond in the same language as the customer's message.${agentSystemPrompt ? " Follow the custom instructions strictly." : ""}`;
 
   try {
     const completion = await openai.chat.completions.create({
