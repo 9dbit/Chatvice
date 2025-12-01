@@ -19,6 +19,7 @@ import AgentsPage from "./agents";
 import SourcesPage from "./sources";
 import AnalyticsPage from "./analytics";
 import IntegrationsPage from "./integrations";
+import ChatLogsPage from "./chat-logs";
 import type { Merchant } from "@shared/schema";
 
 const pageNames: Record<string, string> = {
@@ -27,6 +28,7 @@ const pageNames: Record<string, string> = {
   "sources": "Sources",
   "analytics": "Analytics",
   "sessions": "Chat Sessions",
+  "chat-logs": "Chat Logs",
   "knowledge": "Knowledge Base",
   "suggested-questions": "Suggested Questions",
   "triggers": "Triggers",
@@ -108,6 +110,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/sources" component={SourcesPage} />
               <Route path="/dashboard/analytics" component={AnalyticsPage} />
               <Route path="/dashboard/sessions" component={SessionsPage} />
+              <Route path="/dashboard/chat-logs" component={ChatLogsPage} />
               <Route path="/dashboard/knowledge" component={KnowledgePage} />
               <Route path="/dashboard/suggested-questions" component={SuggestedQuestionsPage} />
               <Route path="/dashboard/triggers" component={TriggersPage} />

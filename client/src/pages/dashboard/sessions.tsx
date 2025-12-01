@@ -85,10 +85,11 @@ function HandlerAvatar({ mode, supervisorPhoto, agentPhoto }: {
   );
 }
 
-interface SessionWithPreview extends Session {
+interface SessionWithPreview extends Omit<Session, 'status'> {
   lastMessage?: string;
   lastQuestion?: string;
-  status?: string;
+  status?: string | null;
+  needsSupervisorAttention?: boolean | null;
 }
 
 export default function SessionsPage() {
@@ -246,12 +247,8 @@ export default function SessionsPage() {
   }, [messages]);
 
   const getSessionStatus = (session: SessionWithPreview): SessionStatus => {
-    if (session.status === "ended" || session.status === "closed") {
+    if (session.status === "ended" || session.status === "closed" || session.status === "archived") {
       return "ended";
-    }
-    
-    if (session.mode === "HUMAN") {
-      return "active";
     }
     
     const angerIndicators = ["marah", "kesal", "kecewa", "angry", "frustrated", "upset", "terrible", "worst", "hate", "bodoh", "goblok", "!!!"];
@@ -259,6 +256,14 @@ export default function SessionsPage() {
     const isAngry = angerIndicators.some(indicator => lastQuestion.includes(indicator));
     if (isAngry) {
       return "angry";
+    }
+    
+    if (session.needsSupervisorAttention) {
+      return "needs_response";
+    }
+    
+    if (session.mode === "HUMAN") {
+      return "active";
     }
     
     if (session.lastQuestion && (!session.lastMessage || session.lastMessage === "Awaiting reply...")) {
