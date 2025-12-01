@@ -418,6 +418,60 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ authenticated: false });
   });
 
+  app.get("/api/merchant/identity-secret", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+      const canUseIdentityVerification = plan.id === "pro" || plan.id === "enterprise" || plan.id === "custom";
+      
+      if (!canUseIdentityVerification) {
+        return res.status(403).json({ error: "Identity verification requires Pro or Enterprise plan" });
+      }
+
+      if (!merchant.identitySecretKey) {
+        const crypto = require("crypto");
+        const newSecret = `jny_sk_${crypto.randomBytes(24).toString("hex")}`;
+        await storage.updateMerchant(merchantId, { identitySecretKey: newSecret });
+        return res.json({ secretKey: newSecret });
+      }
+
+      res.json({ secretKey: merchant.identitySecretKey });
+    } catch (error) {
+      console.error("Identity secret error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/merchant/identity-secret/regenerate", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+      const canUseIdentityVerification = plan.id === "pro" || plan.id === "enterprise" || plan.id === "custom";
+      
+      if (!canUseIdentityVerification) {
+        return res.status(403).json({ error: "Identity verification requires Pro or Enterprise plan" });
+      }
+
+      const crypto = require("crypto");
+      const newSecret = `jny_sk_${crypto.randomBytes(24).toString("hex")}`;
+      await storage.updateMerchant(merchantId, { identitySecretKey: newSecret });
+      res.json({ secretKey: newSecret });
+    } catch (error) {
+      console.error("Regenerate secret error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/merchant/:merchantId", requireAuth, async (req, res) => {
     try {
       if (req.session.userType === "merchant" && req.session.merchantId !== req.params.merchantId) {
@@ -523,58 +577,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return res.status(404).json({ error: "Merchant not found" });
       }
       res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  app.get("/api/merchant/identity-secret", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const merchant = await storage.getMerchant(merchantId);
-      if (!merchant) {
-        return res.status(404).json({ error: "Merchant not found" });
-      }
-
-      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
-      const canUseIdentityVerification = plan.id === "pro" || plan.id === "enterprise" || plan.id === "custom";
-      
-      if (!canUseIdentityVerification) {
-        return res.status(403).json({ error: "Identity verification requires Pro or Enterprise plan" });
-      }
-
-      if (!merchant.identitySecretKey) {
-        const crypto = require("crypto");
-        const newSecret = `jny_sk_${crypto.randomBytes(24).toString("hex")}`;
-        await storage.updateMerchant(merchantId, { identitySecretKey: newSecret });
-        return res.json({ secretKey: newSecret });
-      }
-
-      res.json({ secretKey: merchant.identitySecretKey });
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  app.post("/api/merchant/identity-secret/regenerate", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const merchant = await storage.getMerchant(merchantId);
-      if (!merchant) {
-        return res.status(404).json({ error: "Merchant not found" });
-      }
-
-      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
-      const canUseIdentityVerification = plan.id === "pro" || plan.id === "enterprise" || plan.id === "custom";
-      
-      if (!canUseIdentityVerification) {
-        return res.status(403).json({ error: "Identity verification requires Pro or Enterprise plan" });
-      }
-
-      const crypto = require("crypto");
-      const newSecret = `jny_sk_${crypto.randomBytes(24).toString("hex")}`;
-      await storage.updateMerchant(merchantId, { identitySecretKey: newSecret });
-      res.json({ secretKey: newSecret });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
     }

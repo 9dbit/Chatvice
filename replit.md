@@ -57,6 +57,44 @@ Each agent can have a custom **System Prompt** that controls how the AI responds
 
 The system prompt is sent as a proper OpenAI system role message, ensuring highest priority for merchant instructions. The AI will follow these custom instructions strictly while still using the knowledge base for factual information.
 
+### Widget Deployment & Identity Verification
+
+The chat widget can be embedded on merchant websites using JavaScript. For secure deployments (Pro/Enterprise plans), merchants can use Identity Verification with JWT tokens to authenticate customers.
+
+**Embed Code (Basic)**:
+```html
+<script src="https://[app-url]/widget.js" data-merchant-id="[MERCHANT_ID]"></script>
+```
+
+**Identity Verification (Secure)**:
+For Pro/Enterprise plans, merchants can verify customer identities using JWT tokens signed with their Secret Key:
+
+1. **Generate Secret Key**: In Widget Settings, Pro/Enterprise merchants can generate a secret key (format: `jny_sk_[48-char-hex]`)
+
+2. **Server-side JWT Creation**:
+```javascript
+const jwt = require('jsonwebtoken');
+
+const token = jwt.sign({
+  customerId: 'unique-customer-id',
+  customerName: 'Customer Name',
+  customerEmail: 'customer@example.com'
+}, 'jny_sk_[your-secret-key]', { expiresIn: '1h' });
+```
+
+3. **Embed with Identity Token**:
+```html
+<script src="https://[app-url]/widget.js" 
+  data-merchant-id="[MERCHANT_ID]"
+  data-identity-token="[JWT_TOKEN]"></script>
+```
+
+**Security Features**:
+- Secret keys are stored encrypted and only shown once
+- Regenerate keys anytime (invalidates old tokens)
+- Allowed Domains restriction prevents widget usage on unauthorized sites
+- JWT verification ensures only authenticated users can chat
+
 ## External Dependencies
 
 -   **AI Services**: OpenAI API (GPT-4.1-mini for chat, text-embedding-3-small for embeddings) via Replit AI Integrations.
