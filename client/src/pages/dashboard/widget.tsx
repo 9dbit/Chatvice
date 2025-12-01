@@ -278,17 +278,17 @@ window.jeanyai('identify', { token }); // identify the user with Jeany AI`;
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Widget Customization</h1>
-          <p className="text-muted-foreground">
-            Customize the appearance of your Jeany AI chat widget and get embed codes.
+          <h1 className="text-xl sm:text-2xl font-bold">Widget Customization</h1>
+          <p className="text-sm text-muted-foreground hidden sm:block">
+            Customize your chat widget appearance and get embed codes.
           </p>
         </div>
         {agents.length > 0 && (
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground whitespace-nowrap">Configuring:</span>
+            <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap hidden sm:inline">Configuring:</span>
             <Select
               value={merchant?.activeAgentId || "none"}
               onValueChange={(value) => {
@@ -298,7 +298,7 @@ window.jeanyai('identify', { token }); // identify the user with Jeany AI`;
               }}
               disabled={selectAgentMutation.isPending}
             >
-              <SelectTrigger className="w-[200px]" data-testid="select-agent-widget">
+              <SelectTrigger className="w-[160px] sm:w-[200px]" data-testid="select-agent-widget">
                 <div className="flex items-center gap-2">
                   {activeAgent ? (
                     <>

@@ -17,6 +17,7 @@ import BillingDetailsPage from "./billing-details";
 import AgentsPage from "./agents";
 import SourcesPage from "./sources";
 import AnalyticsPage from "./analytics";
+import IntegrationsPage from "./integrations";
 import type { Merchant } from "@shared/schema";
 
 const pageNames: Record<string, string> = {
@@ -29,6 +30,7 @@ const pageNames: Record<string, string> = {
   "triggers": "Triggers",
   "widget": "Widget",
   "supervisors": "Supervisors",
+  "integrations": "Integrations",
   "plans": "Plans",
   "billing": "Billing",
   "settings": "Settings",
@@ -90,14 +92,14 @@ export default function DashboardLayout() {
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
-          <header className="flex items-center justify-between gap-4 px-4 border-b border-border h-14">
-            <div className="flex items-center gap-4">
+          <header className="flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-4 border-b border-border h-12 sm:h-14">
+            <div className="flex items-center gap-2 sm:gap-4">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
               <Breadcrumb location={location} />
             </div>
             <ThemeToggle />
           </header>
-          <main className="flex-1 overflow-auto p-6 bg-background">
+          <main className="flex-1 overflow-auto p-3 sm:p-6 bg-background">
             <Switch>
               <Route path="/dashboard" component={DashboardOverview} />
               <Route path="/dashboard/agents" component={AgentsPage} />
@@ -108,6 +110,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/triggers" component={TriggersPage} />
               <Route path="/dashboard/widget" component={WidgetPage} />
               <Route path="/dashboard/supervisors" component={SupervisorsPage} />
+              <Route path="/dashboard/integrations" component={IntegrationsPage} />
               <Route path="/dashboard/plans" component={PlansPage} />
               <Route path="/dashboard/billing" component={BillingDetailsPage} />
               <Route path="/dashboard/settings" component={SettingsPage} />

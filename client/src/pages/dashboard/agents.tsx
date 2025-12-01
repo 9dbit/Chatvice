@@ -257,26 +257,26 @@ export default function AgentsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">AI Agents</h1>
-          <p className="text-muted-foreground">
-            Manage your AI agents. Each agent can be trained with different knowledge bases.
+          <h1 className="text-xl sm:text-2xl font-bold">AI Agents</h1>
+          <p className="text-sm text-muted-foreground">
+            Manage your AI agents with different knowledge bases.
           </p>
         </div>
-        <div className="flex items-center gap-4">
-          <Badge variant="secondary" className="px-3 py-1">
-            {currentCount} / {agentLimit === -1 ? "Unlimited" : agentLimit} Agents
+        <div className="flex items-center gap-2 sm:gap-4">
+          <Badge variant="secondary" className="px-2 sm:px-3 py-1 text-xs sm:text-sm whitespace-nowrap">
+            {currentCount} / {agentLimit === -1 ? "∞" : agentLimit}
           </Badge>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button disabled={!canAddMore} data-testid="button-new-agent">
-                <Plus className="w-4 h-4 mr-2" />
-                New AI Agent
+              <Button disabled={!canAddMore} size="sm" className="sm:size-default" data-testid="button-new-agent">
+                <Plus className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">New AI Agent</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh]">
+            <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh]">
               <DialogHeader>
                 <DialogTitle>{editingAgent ? "Edit Agent" : "Create New Agent"}</DialogTitle>
                 <DialogDescription>
@@ -354,7 +354,7 @@ export default function AgentsPage() {
                       <MessageSquare className="w-4 h-4" />
                       Gaya Bahasa
                     </FormLabel>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       {Object.entries(TONE_PRESETS).map(([key, preset]) => {
                         const Icon = preset.icon;
                         const isSelected = form.watch("toneStyle") === key;
@@ -363,13 +363,15 @@ export default function AgentsPage() {
                             key={key}
                             type="button"
                             variant={isSelected ? "default" : "outline"}
-                            className="flex flex-col h-auto py-3 px-2"
+                            className="flex flex-row sm:flex-col items-center justify-start sm:justify-center h-auto py-2 sm:py-3 px-3 sm:px-2 gap-2 sm:gap-0"
                             onClick={() => form.setValue("toneStyle", key)}
                             data-testid={`button-tone-${key}`}
                           >
-                            <Icon className="w-5 h-5 mb-1" />
-                            <span className="text-sm font-medium">{preset.label}</span>
-                            <span className="text-[10px] text-muted-foreground">{preset.description}</span>
+                            <Icon className="w-5 h-5 sm:mb-1 flex-shrink-0" />
+                            <div className="flex flex-col items-start sm:items-center">
+                              <span className="text-sm font-medium">{preset.label}</span>
+                              <span className="text-[10px] text-muted-foreground">{preset.description}</span>
+                            </div>
                           </Button>
                         );
                       })}
@@ -572,29 +574,29 @@ export default function AgentsPage() {
 
       {!canAddMore && (
         <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
-          <CardContent className="flex items-center justify-between p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-                <Crown className="w-6 h-6 text-primary" />
+          <CardContent className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 sm:p-6">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                <Crown className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
               </div>
-              <div>
-                <h3 className="font-semibold">Upgrade to add more agents</h3>
-                <p className="text-sm text-muted-foreground">
-                  You've reached your plan limit of {agentLimit} agent{agentLimit !== 1 ? "s" : ""}. Upgrade to Pro or Enterprise for more.
+              <div className="text-center sm:text-left">
+                <h3 className="font-semibold text-sm sm:text-base">Upgrade to add more agents</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  Plan limit reached ({agentLimit}). Upgrade for more.
                 </p>
               </div>
             </div>
             <Link href="/dashboard/plans">
-              <Button data-testid="button-upgrade-agents">
-                Upgrade Plan
-                <ArrowUpRight className="w-4 h-4 ml-2" />
+              <Button size="sm" data-testid="button-upgrade-agents">
+                Upgrade
+                <ArrowUpRight className="w-4 h-4 ml-1" />
               </Button>
             </Link>
           </CardContent>
         </Card>
       )}
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
         {agents && agents.length > 0 ? (
           agents.map((agent) => {
             const isActiveAgent = merchant?.activeAgentId === agent.id;
@@ -604,23 +606,23 @@ export default function AgentsPage() {
               className={`hover-elevate transition-all ${isActiveAgent ? "border-primary bg-primary/10 ring-2 ring-primary/30" : ""}`} 
               data-testid={`agent-card-${agent.id}`}
             >
-              <CardHeader className="flex flex-row items-start justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <Avatar className="w-12 h-12">
+              <CardHeader className="flex flex-row items-start justify-between gap-2 sm:gap-4 p-4 sm:p-6">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <Avatar className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0">
                     <AvatarImage src={agent.photoUrl || ""} />
                     <AvatarFallback className="bg-gradient-to-br from-primary to-primary/60">
-                      <Bot className="w-6 h-6 text-primary-foreground" />
+                      <Bot className="w-5 h-5 sm:w-6 sm:h-6 text-primary-foreground" />
                     </AvatarFallback>
                   </Avatar>
-                  <div>
-                    <CardTitle className="text-lg">{agent.name}</CardTitle>
+                  <div className="min-w-0">
+                    <CardTitle className="text-base sm:text-lg truncate">{agent.name}</CardTitle>
                     <div className="flex items-center gap-2 mt-1">
                       {isActiveAgent ? (
-                        <Badge className="text-xs bg-primary">Selected</Badge>
+                        <Badge className="text-[10px] sm:text-xs bg-primary">Selected</Badge>
                       ) : agent.isActive ? (
-                        <Badge variant="default" className="text-xs">Active</Badge>
+                        <Badge variant="default" className="text-[10px] sm:text-xs">Active</Badge>
                       ) : (
-                        <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                        <Badge variant="secondary" className="text-[10px] sm:text-xs">Inactive</Badge>
                       )}
                     </div>
                   </div>
@@ -631,39 +633,40 @@ export default function AgentsPage() {
                   data-testid={`switch-agent-${agent.id}`}
                 />
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
+              <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+                <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 line-clamp-2">
                   {agent.description || "No description provided."}
                 </p>
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                   {!isActiveAgent && (
                     <Button
                       size="sm"
                       onClick={() => selectAgentMutation.mutate(agent.id)}
                       disabled={selectingAgentId !== null}
+                      className="text-xs sm:text-sm h-8"
                       data-testid={`button-select-agent-${agent.id}`}
                     >
                       {selectingAgentId === agent.id ? (
-                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                        <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 animate-spin" />
                       ) : (
-                        <Sparkles className="w-4 h-4 mr-1" />
+                        <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
                       )}
-                      Select Agent
+                      <span className="hidden xs:inline">Select</span>
                     </Button>
                   )}
-                  <Button size="sm" variant="outline" onClick={() => handleEdit(agent)} data-testid={`button-edit-agent-${agent.id}`}>
-                    <Edit className="w-4 h-4 mr-1" />
-                    Edit
+                  <Button size="sm" variant="outline" onClick={() => handleEdit(agent)} className="text-xs sm:text-sm h-8" data-testid={`button-edit-agent-${agent.id}`}>
+                    <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Edit</span>
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="text-destructive hover:text-destructive"
+                    className="text-destructive hover:text-destructive text-xs sm:text-sm h-8"
                     onClick={() => deleteMutation.mutate(agent.id)}
                     data-testid={`button-delete-agent-${agent.id}`}
                   >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    Delete
+                    <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Delete</span>
                   </Button>
                 </div>
               </CardContent>

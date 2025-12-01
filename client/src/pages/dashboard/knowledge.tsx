@@ -262,19 +262,19 @@ export default function KnowledgePage() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 h-full">
+    <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 h-full">
       {/* Left Column - Knowledge Editor */}
-      <div className="flex-1 space-y-6 min-w-0">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex-1 space-y-4 sm:space-y-6 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div>
-            <h1 className="text-2xl font-bold">Knowledge Base</h1>
-            <p className="text-muted-foreground">
-              Train your AI agent with company information, FAQs, and policies.
+            <h1 className="text-xl sm:text-2xl font-bold">Knowledge Base</h1>
+            <p className="text-sm text-muted-foreground hidden sm:block">
+              Train your AI with company info, FAQs, and policies.
             </p>
           </div>
           {agents && agents.length > 0 && (
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground whitespace-nowrap">Training:</span>
+              <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap hidden sm:inline">Training:</span>
               <Select
                 value={activeAgentId || "none"}
                 onValueChange={(value) => {
@@ -284,7 +284,7 @@ export default function KnowledgePage() {
                 }}
                 disabled={selectAgentMutation.isPending}
               >
-                <SelectTrigger className="w-[200px]" data-testid="select-agent-knowledge">
+                <SelectTrigger className="w-[160px] sm:w-[200px]" data-testid="select-agent-knowledge">
                   <div className="flex items-center gap-2">
                     {activeAgent ? (
                       <>

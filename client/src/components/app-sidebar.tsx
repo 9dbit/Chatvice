@@ -26,6 +26,7 @@ import {
   Calendar,
   BarChart3,
   FileText,
+  Plug2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -60,6 +61,7 @@ const menuItems = [
   { title: "Triggers", url: "/dashboard/triggers", icon: Zap },
   { title: "Widget", url: "/dashboard/widget", icon: Palette },
   { title: "Supervisors", url: "/dashboard/supervisors", icon: Users },
+  { title: "Integrations", url: "/dashboard/integrations", icon: Plug2 },
   { title: "Plans", url: "/dashboard/plans", icon: CreditCard },
   { title: "Billing", url: "/dashboard/billing", icon: Receipt },
   { title: "Settings", url: "/dashboard/settings", icon: Settings },

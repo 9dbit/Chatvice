@@ -86,7 +86,7 @@ function HandlerAvatar({ mode, supervisorPhoto, agentPhoto }: {
 interface SessionWithPreview extends Session {
   lastMessage?: string;
   lastQuestion?: string;
-  supervisorId?: string | null;
+  status?: string;
 }
 
 export default function SessionsPage() {
@@ -329,34 +329,34 @@ export default function SessionsPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-80px)]">
-      <div className="flex-shrink-0 pb-4">
-        <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+      <div className="flex-shrink-0 pb-2 sm:pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mb-2 sm:mb-4">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-3" data-testid="text-page-title">
+            <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2 sm:gap-3" data-testid="text-page-title">
               Chat Sessions
               {(statusCounts.needsResponse > 0 || statusCounts.angry > 0) && (
-                <span className="relative flex h-3 w-3">
+                <span className="relative flex h-2.5 w-2.5 sm:h-3 sm:w-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 sm:h-3 sm:w-3 bg-red-500" />
                 </span>
               )}
             </h1>
-            <p className="text-muted-foreground text-sm">View and manage customer conversations</p>
+            <p className="text-muted-foreground text-xs sm:text-sm hidden sm:block">View and manage customer conversations</p>
           </div>
-          <div className="flex items-center gap-3 text-xs flex-wrap">
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-muted/50" title="Needs Response">
+          <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs flex-wrap">
+            <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded bg-muted/50" title="Needs Response">
               <StatusDot status="needs_response" />
               <span data-testid="text-count-needs-response">{statusCounts.needsResponse}</span>
             </div>
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-muted/50" title="Angry">
+            <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded bg-muted/50" title="Angry">
               <StatusDot status="angry" />
               <span data-testid="text-count-angry">{statusCounts.angry}</span>
             </div>
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-muted/50" title="Active">
+            <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded bg-muted/50" title="Active">
               <StatusDot status="active" />
               <span data-testid="text-count-active">{statusCounts.active}</span>
             </div>
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-muted/50" title="Ended">
+            <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded bg-muted/50" title="Ended">
               <StatusDot status="ended" />
               <span data-testid="text-count-ended">{statusCounts.ended}</span>
             </div>
@@ -365,7 +365,7 @@ export default function SessionsPage() {
       </div>
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-0">
-        <div className="lg:col-span-4 xl:col-span-3 flex flex-col min-h-0">
+        <div className={`lg:col-span-4 xl:col-span-3 flex flex-col min-h-0 ${selectedSession ? 'hidden lg:flex' : 'flex'}`}>
           <Card className="flex flex-col h-full">
             <CardHeader className="flex-shrink-0 py-3 px-4">
               <div className="relative">
@@ -448,36 +448,45 @@ export default function SessionsPage() {
           </Card>
         </div>
 
-        <div className="lg:col-span-8 xl:col-span-9 flex flex-col min-h-0">
+        <div className={`lg:col-span-8 xl:col-span-9 flex flex-col min-h-0 ${selectedSession ? 'flex' : 'hidden lg:flex'}`}>
           <Card className="flex flex-col h-full">
             {selectedSession ? (
               <>
-                <CardHeader className="flex-shrink-0 border-b py-3 px-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
+                <CardHeader className="flex-shrink-0 border-b py-2 sm:py-3 px-3 sm:px-4">
+                  <div className="flex items-center justify-between gap-2 sm:gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => setSelectedSession(null)}
+                        className="h-8 w-8 lg:hidden flex-shrink-0"
+                        data-testid="button-back-to-list"
+                      >
+                        <ArrowLeft className="w-4 h-4" />
+                      </Button>
                       <HandlerAvatar 
                         mode={selectedSessionData?.mode as "AI" | "HUMAN"} 
                         agentPhoto={agentPhoto}
                       />
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <CardTitle className="text-base truncate" data-testid="text-selected-customer">
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                          <CardTitle className="text-sm sm:text-base truncate" data-testid="text-selected-customer">
                             {selectedSessionData?.customerName || "Customer"}
                           </CardTitle>
                           <Badge 
                             variant={selectedSessionData?.mode === "AI" ? "secondary" : "default"}
-                            className="h-5 text-[10px]"
+                            className="h-4 sm:h-5 text-[9px] sm:text-[10px]"
                           >
                             {selectedSessionData?.mode === "AI" ? "AI" : "Human"}
                           </Badge>
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span className="font-mono truncate max-w-[120px]">
+                        <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground">
+                          <span className="font-mono truncate max-w-[80px] sm:max-w-[120px] hidden sm:inline">
                             {selectedSession.slice(0, 12)}...
                           </span>
                           {selectedSessionData?.lastActivity && (
                             <>
-                              <span className="text-muted-foreground/50">|</span>
+                              <span className="text-muted-foreground/50 hidden sm:inline">|</span>
                               <Clock className="w-3 h-3" />
                               <span>
                                 {formatDistanceToNow(new Date(selectedSessionData.lastActivity), { addSuffix: true })}
@@ -487,27 +496,27 @@ export default function SessionsPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
                       <Button
                         size="icon"
                         variant="ghost"
                         onClick={() => refetchMessages()}
                         title="Refresh"
-                        className="h-8 w-8"
+                        className="h-7 w-7 sm:h-8 sm:w-8"
                         data-testid="button-refresh-messages"
                       >
-                        <RefreshCw className="w-4 h-4" />
+                        <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </Button>
                       {selectedSessionData?.mode === "AI" ? (
                         <Button
                           size="sm"
                           onClick={() => takeoverMutation.mutate(selectedSession)}
                           disabled={takeoverMutation.isPending}
-                          className="h-8"
+                          className="h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3"
                           data-testid="button-takeover-session"
                         >
-                          <Hand className="w-4 h-4 mr-1.5" />
-                          Take Over
+                          <Hand className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-1.5" />
+                          <span className="hidden sm:inline">Take Over</span>
                         </Button>
                       ) : (
                         <Button
@@ -515,11 +524,11 @@ export default function SessionsPage() {
                           variant="outline"
                           onClick={() => returnToBotMutation.mutate(selectedSession)}
                           disabled={returnToBotMutation.isPending}
-                          className="h-8"
+                          className="h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3"
                           data-testid="button-return-to-bot"
                         >
-                          <ArrowLeft className="w-4 h-4 mr-1.5" />
-                          Return to Bot
+                          <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-1.5" />
+                          <span className="hidden sm:inline">Return to Bot</span>
                         </Button>
                       )}
                       <Button
@@ -527,10 +536,10 @@ export default function SessionsPage() {
                         variant="ghost"
                         onClick={handleExportTranscript}
                         title="Export"
-                        className="h-8 w-8"
+                        className="h-7 w-7 sm:h-8 sm:w-8"
                         data-testid="button-export-transcript"
                       >
-                        <Download className="w-4 h-4" />
+                        <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </Button>
                     </div>
                   </div>
