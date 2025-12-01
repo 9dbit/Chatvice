@@ -212,12 +212,27 @@ export const agents = pgTable("agents", {
   inactivityTimeoutSeconds: integer("inactivity_timeout_seconds").default(120),
   temperature: text("temperature").default("0.7"),
   isActive: boolean("is_active").default(true),
+  // Per-agent widget settings
+  primaryColor: text("primary_color").default("#6b5dfc"),
+  widgetTheme: text("widget_theme").default("light"),
+  bubblePosition: text("bubble_position").default("right"),
+  widgetWelcomeMessage: text("widget_welcome_message").default("Hi! How can I help you today?"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const insertAgentSchema = createInsertSchema(agents).omit({ id: true, createdAt: true });
 export type InsertAgent = z.infer<typeof insertAgentSchema>;
 export type Agent = typeof agents.$inferSelect;
+
+export const agentWidgetSettingsSchema = z.object({
+  primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color").optional(),
+  widgetTheme: z.enum(["light", "dark"]).optional(),
+  bubblePosition: z.enum(["left", "right"]).optional(),
+  widgetWelcomeMessage: z.string().max(500, "Welcome message too long").optional(),
+  photoUrl: z.string().max(500000, "Photo data too large").optional(),
+  name: z.string().min(1, "Name is required").max(100, "Name too long").optional(),
+});
+export type AgentWidgetSettings = z.infer<typeof agentWidgetSettingsSchema>;
 
 export const sources = pgTable("sources", {
   id: varchar("id", { length: 32 }).primaryKey(),

@@ -7,6 +7,7 @@ import {
   registerMerchantSchema,
   loginSchema,
   merchantConfigSchema,
+  agentWidgetSettingsSchema,
 } from "@shared/schema";
 import OpenAI from "openai";
 import bcrypt from "bcryptjs";
@@ -2234,6 +2235,68 @@ You are friendly, helpful, and concise. Guide merchants on how to use Jeany AI d
       
       await storage.deleteAgent(req.params.id);
       res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/agents/:id/widget-settings", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const agent = await storage.getAgent(req.params.id);
+      if (!agent || agent.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Agent not found" });
+      }
+      
+      const validatedData = agentWidgetSettingsSchema.parse(req.body);
+      const { primaryColor, widgetTheme, bubblePosition, widgetWelcomeMessage, photoUrl, name } = validatedData;
+      
+      const updateData: Record<string, any> = {};
+      if (primaryColor !== undefined) updateData.primaryColor = primaryColor;
+      if (widgetTheme !== undefined) updateData.widgetTheme = widgetTheme;
+      if (bubblePosition !== undefined) updateData.bubblePosition = bubblePosition;
+      if (widgetWelcomeMessage !== undefined) updateData.widgetWelcomeMessage = widgetWelcomeMessage;
+      if (photoUrl !== undefined) updateData.photoUrl = photoUrl;
+      if (name !== undefined) updateData.name = name;
+      
+      const updated = await storage.updateAgent(req.params.id, updateData);
+      
+      const merchant = await storage.getMerchant(merchantId);
+      if (merchant && merchant.activeAgentId === req.params.id && updated) {
+        const syncUpdates: Record<string, any> = {};
+        if (name !== undefined) syncUpdates.agentName = name;
+        if (photoUrl !== undefined) syncUpdates.agentPhotoUrl = photoUrl;
+        if (Object.keys(syncUpdates).length > 0) {
+          await storage.updateMerchant(merchantId, syncUpdates);
+        }
+      }
+      
+      res.json({ success: true, agent: updated });
+    } catch (error: any) {
+      console.error("Widget settings save error:", error);
+      if (error.name === "ZodError") {
+        return res.status(400).json({ error: "Invalid widget settings", details: error.errors });
+      }
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/agents/:id/widget-settings", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const agent = await storage.getAgent(req.params.id);
+      if (!agent || agent.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Agent not found" });
+      }
+      
+      res.json({
+        primaryColor: agent.primaryColor || "#6b5dfc",
+        widgetTheme: agent.widgetTheme || "light",
+        bubblePosition: agent.bubblePosition || "right",
+        widgetWelcomeMessage: agent.widgetWelcomeMessage || "Hi! How can I help you today?",
+        photoUrl: agent.photoUrl || "",
+        name: agent.name,
+      });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
     }

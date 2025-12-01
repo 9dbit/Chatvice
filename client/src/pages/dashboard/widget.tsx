@@ -105,8 +105,37 @@ export default function WidgetPage() {
   const secretKey = secretData?.secretKey || "";
   const maskedSecretKey = secretKey ? `${secretKey.slice(0, 12)}...${secretKey.slice(-4)}` : "";
 
+  const activeAgent = agents.find(a => a.id === merchant?.activeAgentId);
+
+  type WidgetSettings = {
+    primaryColor: string;
+    widgetTheme: string;
+    bubblePosition: string;
+    widgetWelcomeMessage: string;
+    photoUrl: string;
+    name: string;
+  };
+
+  const { data: agentWidgetSettings, refetch: refetchAgentSettings } = useQuery<WidgetSettings>({
+    queryKey: ["/api/agents", merchant?.activeAgentId, "widget-settings"],
+    enabled: !!merchant?.activeAgentId,
+  });
+
   useEffect(() => {
-    if (merchant) {
+    if (merchant && merchant.activeAgentId && agentWidgetSettings) {
+      setConfig({
+        iconUrl: merchant.iconUrl || "",
+        iconSize: merchant.iconSize || 70,
+        online: merchant.online ?? true,
+        primaryColor: agentWidgetSettings.primaryColor || "#6b5dfc",
+        welcomeMessage: agentWidgetSettings.widgetWelcomeMessage || "Hi! How can I help you today?",
+        agentName: agentWidgetSettings.name || "Jeany AI",
+        agentPhotoUrl: agentWidgetSettings.photoUrl || "",
+        widgetTheme: (agentWidgetSettings.widgetTheme as "light" | "dark") || "light",
+        bubblePosition: (agentWidgetSettings.bubblePosition as "left" | "right") || "right",
+        allowedDomains: (merchant as any).allowedDomains || "",
+      });
+    } else if (merchant && !merchant.activeAgentId) {
       setConfig({
         iconUrl: merchant.iconUrl || "",
         iconSize: merchant.iconSize || 70,
@@ -120,7 +149,7 @@ export default function WidgetPage() {
         allowedDomains: (merchant as any).allowedDomains || "",
       });
     }
-  }, [merchant]);
+  }, [merchant, agentWidgetSettings]);
 
   const handleAgentPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -146,13 +175,28 @@ export default function WidgetPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", "/api/merchant/config", {
-        merchantId,
-        ...config,
-      });
+      if (merchant?.activeAgentId) {
+        return apiRequest("POST", `/api/agents/${merchant.activeAgentId}/widget-settings`, {
+          primaryColor: config.primaryColor,
+          widgetTheme: config.widgetTheme,
+          bubblePosition: config.bubblePosition,
+          widgetWelcomeMessage: config.welcomeMessage,
+          photoUrl: config.agentPhotoUrl,
+          name: config.agentName,
+        });
+      } else {
+        return apiRequest("POST", "/api/merchant/config", {
+          merchantId,
+          ...config,
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      if (merchant?.activeAgentId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/agents", merchant.activeAgentId, "widget-settings"] });
+      }
       toast({
         title: "Widget settings saved",
         description: "Your changes have been applied.",
@@ -232,8 +276,6 @@ window.jeanyai('identify', { token }); // identify the user with Jeany AI`;
     });
     setTimeout(() => setCopied(null), 2000);
   };
-
-  const activeAgent = agents.find(a => a.id === merchant?.activeAgentId);
 
   return (
     <div className="space-y-6">

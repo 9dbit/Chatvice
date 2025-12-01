@@ -602,6 +602,20 @@ export class DatabaseStorage implements IStorage {
       description: data.description || "",
       knowledgeContent: data.knowledgeContent || "",
       isActive: data.isActive ?? true,
+      photoUrl: data.photoUrl || "",
+      systemPrompt: data.systemPrompt || "",
+      toneStyle: data.toneStyle || "formal",
+      autoEscalateAngry: data.autoEscalateAngry ?? false,
+      welcomeMessageEnabled: data.welcomeMessageEnabled ?? false,
+      welcomeMessageText: data.welcomeMessageText || "Halo! Ada yang bisa saya bantu?",
+      goodbyeMessageEnabled: data.goodbyeMessageEnabled ?? false,
+      goodbyeMessageText: data.goodbyeMessageText || "Terima kasih sudah menghubungi kami!",
+      inactivityTimeoutSeconds: data.inactivityTimeoutSeconds ?? 120,
+      temperature: data.temperature || "0.7",
+      primaryColor: data.primaryColor || "#6b5dfc",
+      widgetTheme: data.widgetTheme || "light",
+      bubblePosition: data.bubblePosition || "right",
+      widgetWelcomeMessage: data.widgetWelcomeMessage || "Hi! How can I help you today?",
     }).returning();
     return result[0];
   }
