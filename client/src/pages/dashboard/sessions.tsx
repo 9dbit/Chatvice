@@ -145,16 +145,40 @@ export default function SessionsPage() {
     return agent?.photoUrl || merchant?.widgetSettings?.agentPhotoUrl || null;
   };
 
-  const getSupervisorName = (supervisorId: string | null | undefined) => {
-    if (!supervisorId || !supervisors) return null;
-    const supervisor = supervisors.find(s => s.id === supervisorId);
-    return supervisor?.name || null;
+  const getSupervisorName = (supervisorId: string | null | undefined, agentId?: string | null) => {
+    // First try the session's assigned supervisor
+    if (supervisorId && supervisors) {
+      const supervisor = supervisors.find(s => s.id === supervisorId);
+      if (supervisor?.name) return supervisor.name;
+    }
+    // Fallback to the agent's assigned supervisor
+    const effectiveAgentId = agentId || merchant?.activeAgentId;
+    if (effectiveAgentId && agents && supervisors) {
+      const agent = agents.find(a => a.id === effectiveAgentId);
+      if (agent?.supervisorId) {
+        const supervisor = supervisors.find(s => s.id === agent.supervisorId);
+        if (supervisor?.name) return supervisor.name;
+      }
+    }
+    return null;
   };
 
-  const getSupervisorPhoto = (supervisorId: string | null | undefined) => {
-    if (!supervisorId || !supervisors) return null;
-    const supervisor = supervisors.find(s => s.id === supervisorId);
-    return supervisor?.photoUrl || null;
+  const getSupervisorPhoto = (supervisorId: string | null | undefined, agentId?: string | null) => {
+    // First try the session's assigned supervisor
+    if (supervisorId && supervisors) {
+      const supervisor = supervisors.find(s => s.id === supervisorId);
+      if (supervisor?.photoUrl) return supervisor.photoUrl;
+    }
+    // Fallback to the agent's assigned supervisor
+    const effectiveAgentId = agentId || merchant?.activeAgentId;
+    if (effectiveAgentId && agents && supervisors) {
+      const agent = agents.find(a => a.id === effectiveAgentId);
+      if (agent?.supervisorId) {
+        const supervisor = supervisors.find(s => s.id === agent.supervisorId);
+        if (supervisor?.photoUrl) return supervisor.photoUrl;
+      }
+    }
+    return null;
   };
 
   const sendMessageMutation = useMutation({
@@ -474,7 +498,7 @@ export default function SessionsPage() {
                               <HandlerAvatar 
                                 mode={session.mode as "AI" | "HUMAN"} 
                                 agentPhoto={getAgentPhoto(session.agentId)}
-                                supervisorPhoto={getSupervisorPhoto(session.supervisorId)}
+                                supervisorPhoto={getSupervisorPhoto(session.supervisorId, session.agentId)}
                               />
                               <div className="absolute -bottom-0.5 -right-0.5">
                                 <StatusDot status={status} />
@@ -494,7 +518,7 @@ export default function SessionsPage() {
                               <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                                 <span className="truncate">
                                   {session.mode === "HUMAN" 
-                                    ? `Supervisor: ${getSupervisorName(session.supervisorId) || "Unassigned"}` 
+                                    ? `Supervisor: ${getSupervisorName(session.supervisorId, session.agentId) || "Awaiting"}` 
                                     : `Agent: ${getAgentName(session.agentId)}`}
                                 </span>
                               </div>
@@ -540,7 +564,7 @@ export default function SessionsPage() {
                       <HandlerAvatar 
                         mode={selectedSessionData?.mode as "AI" | "HUMAN"} 
                         agentPhoto={getAgentPhoto(selectedSessionData?.agentId)}
-                        supervisorPhoto={getSupervisorPhoto(selectedSessionData?.supervisorId)}
+                        supervisorPhoto={getSupervisorPhoto(selectedSessionData?.supervisorId, selectedSessionData?.agentId)}
                       />
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 sm:gap-2">
@@ -553,7 +577,7 @@ export default function SessionsPage() {
                           >
                             {selectedSessionData?.mode === "AI" 
                               ? getAgentName(selectedSessionData?.agentId)
-                              : getSupervisorName(selectedSessionData?.supervisorId) || "Supervisor"}
+                              : getSupervisorName(selectedSessionData?.supervisorId, selectedSessionData?.agentId) || "Supervisor"}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground">
@@ -643,8 +667,8 @@ export default function SessionsPage() {
                                       <AvatarImage src={getAgentPhoto(selectedSessionData?.agentId)!} alt="AI" />
                                     ) : null
                                   ) : (
-                                    getSupervisorPhoto(selectedSessionData?.supervisorId) ? (
-                                      <AvatarImage src={getSupervisorPhoto(selectedSessionData?.supervisorId)!} alt="Supervisor" />
+                                    getSupervisorPhoto(selectedSessionData?.supervisorId, selectedSessionData?.agentId) ? (
+                                      <AvatarImage src={getSupervisorPhoto(selectedSessionData?.supervisorId, selectedSessionData?.agentId)!} alt="Supervisor" />
                                     ) : null
                                   )}
                                   <AvatarFallback className="text-xs">
@@ -669,7 +693,7 @@ export default function SessionsPage() {
                                       {msg.from === "jeany" || msg.from === "bot" || msg.from === "ai"
                                         ? getAgentName(selectedSessionData?.agentId)
                                         : msg.from === "supervisor" 
-                                          ? getSupervisorName(selectedSessionData?.supervisorId) || "Supervisor"
+                                          ? getSupervisorName(selectedSessionData?.supervisorId, selectedSessionData?.agentId) || "Supervisor"
                                           : getAgentName(selectedSessionData?.agentId)}
                                     </p>
                                   )}
