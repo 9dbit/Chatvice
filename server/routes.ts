@@ -40,7 +40,11 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "video/mp4", "video/webm", "video/quicktime"];
+    const allowedTypes = [
+      "image/jpeg", "image/png", "image/gif", "image/webp", 
+      "video/mp4", "video/webm", "video/quicktime",
+      "audio/mpeg", "audio/wav", "audio/ogg", "audio/mp3", "audio/x-wav"
+    ];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
