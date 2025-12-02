@@ -33,7 +33,9 @@ import { Switch } from "@/components/ui/switch";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import chatviceLogo from "@assets/Chatvice-03_1764703438384.png";
+import { useTheme } from "@/components/theme-provider";
+import chatviceLogoLight from "@assets/Chatvice-03_1764703438384.png";
+import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
 
 import { Receipt } from "lucide-react";
 
@@ -88,6 +90,8 @@ export function AppSidebar() {
   const prevEscalatedCountRef = useRef<number>(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hasPlayedInitialRef = useRef(false);
+  const { resolvedTheme } = useTheme();
+  const chatviceLogo = resolvedTheme === "dark" ? chatviceLogoDark : chatviceLogoLight;
 
   const { data: merchant } = useQuery<{ online?: boolean; companyName?: string }>({
     queryKey: ["/api/merchant", merchantId],

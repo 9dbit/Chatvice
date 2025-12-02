@@ -32,7 +32,9 @@ import {
 import { useState, useRef, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import chatviceLogo from "@assets/Chatvice-02_1764703423166.png";
+import { useTheme } from "@/components/theme-provider";
+import chatviceLogoLight from "@assets/Chatvice-02_1764703423166.png";
+import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
 
 const trustedByLogos = [
   { name: "Siemens", initials: "S" },
@@ -49,6 +51,8 @@ function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const { resolvedTheme } = useTheme();
+  const chatviceLogo = resolvedTheme === "dark" ? chatviceLogoDark : chatviceLogoLight;
 
   useEffect(() => {
     const handleScroll = () => {
