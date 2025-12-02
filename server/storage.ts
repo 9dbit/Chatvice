@@ -15,7 +15,8 @@ import {
   type ChatLog, type InsertChatLog,
   type AgentSupervisor, type InsertAgentSupervisor,
   type MediaAttachment, type InsertMediaAttachment,
-  merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments,
+  type PlatformSetting,
+  merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -530,6 +531,35 @@ export class DatabaseStorage implements IStorage {
       name: data.name,
     }).returning();
     return result[0];
+  }
+
+  async getPlatformSetting(key: string): Promise<string | null> {
+    const result = await db.select().from(platformSettings).where(eq(platformSettings.key, key));
+    return result[0]?.value || null;
+  }
+
+  async setPlatformSetting(key: string, value: string): Promise<void> {
+    const existing = await db.select().from(platformSettings).where(eq(platformSettings.key, key));
+    if (existing.length > 0) {
+      await db.update(platformSettings)
+        .set({ value, updatedAt: new Date() })
+        .where(eq(platformSettings.key, key));
+    } else {
+      const id = generateId("ps_");
+      await db.insert(platformSettings).values({
+        id,
+        key,
+        value,
+      });
+    }
+  }
+
+  async getAllPlatformSettings(): Promise<Record<string, string>> {
+    const settings = await db.select().from(platformSettings);
+    return settings.reduce((acc, s) => {
+      if (s.value) acc[s.key] = s.value;
+      return acc;
+    }, {} as Record<string, string>);
   }
 
   async getAllMerchants(): Promise<Merchant[]> {

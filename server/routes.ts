@@ -2086,6 +2086,37 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  app.get("/api/admin/settings", requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getAllPlatformSettings();
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/admin/settings", requireAdmin, async (req, res) => {
+    try {
+      const { key, value } = req.body;
+      if (!key) {
+        return res.status(400).json({ error: "Missing key" });
+      }
+      await storage.setPlatformSetting(key, value || "");
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/platform/settings/:key", async (req, res) => {
+    try {
+      const value = await storage.getPlatformSetting(req.params.key);
+      res.json({ value });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/widget/jeany.js", async (req, res) => {
     const merchantId = req.query.merchant || "demo";
     const script = `

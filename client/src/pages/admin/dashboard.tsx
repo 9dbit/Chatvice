@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, Redirect, Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -57,6 +57,9 @@ import {
   Edit,
   Trash,
   Plus,
+  Bell,
+  Volume2,
+  Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { subscriptionPlans } from "@shared/schema";
@@ -960,6 +963,95 @@ function TransactionsTab() {
 }
 
 function SettingsTab({ toast }: { toast: any }) {
+  const [soundAlertUrl, setSoundAlertUrl] = useState("");
+  const [isUploadingSound, setIsUploadingSound] = useState(false);
+  const soundInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: platformSettings } = useQuery<Record<string, string>>({
+    queryKey: ["/api/admin/settings"],
+  });
+
+  useEffect(() => {
+    if (platformSettings?.alertSoundUrl) {
+      setSoundAlertUrl(platformSettings.alertSoundUrl);
+    }
+  }, [platformSettings]);
+
+  const saveSoundMutation = useMutation({
+    mutationFn: async (soundUrl: string) => {
+      return apiRequest("POST", "/api/admin/settings", {
+        key: "alertSoundUrl",
+        value: soundUrl,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/settings"] });
+      toast({
+        title: "Sound Saved",
+        description: "Alert sound has been updated successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save sound setting.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSoundUpload = async (file: File) => {
+    if (!file || !file.type.startsWith("audio/")) {
+      toast({
+        title: "Invalid File",
+        description: "Please upload an audio file (MP3, WAV, etc.)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (file.size > 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "Please upload an audio file smaller than 1MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploadingSound(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = reader.result as string;
+        setSoundAlertUrl(base64);
+        await saveSoundMutation.mutateAsync(base64);
+        setIsUploadingSound(false);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setIsUploadingSound(false);
+      toast({
+        title: "Upload Failed",
+        description: "Failed to process audio file.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const playTestSound = () => {
+    if (soundAlertUrl) {
+      const audio = new Audio(soundAlertUrl);
+      audio.play().catch(() => {
+        toast({
+          title: "Playback Error",
+          description: "Could not play the sound.",
+          variant: "destructive",
+        });
+      });
+    }
+  };
+
   const handleSave = () => {
     toast({
       title: "Settings Saved",
@@ -969,6 +1061,65 @@ function SettingsTab({ toast }: { toast: any }) {
 
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bell className="w-5 h-5" />
+            Notification Settings
+          </CardTitle>
+          <CardDescription>Configure alert sounds for escalated chats</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label>Alert Sound</Label>
+            <p className="text-xs text-muted-foreground mt-1">
+              Upload a custom sound that will play when new escalated chats arrive. Max 1MB.
+            </p>
+            <input
+              type="file"
+              ref={soundInputRef}
+              accept="audio/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleSoundUpload(file);
+              }}
+              data-testid="input-sound-upload"
+            />
+            <div className="flex gap-2 mt-3">
+              <Button
+                variant="outline"
+                onClick={() => soundInputRef.current?.click()}
+                disabled={isUploadingSound}
+                data-testid="button-upload-sound"
+              >
+                {isUploadingSound ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4 mr-2" />
+                )}
+                {soundAlertUrl ? "Change Sound" : "Upload Sound"}
+              </Button>
+              {soundAlertUrl && (
+                <Button
+                  variant="outline"
+                  onClick={playTestSound}
+                  data-testid="button-test-sound"
+                >
+                  <Volume2 className="w-4 h-4 mr-2" />
+                  Test Sound
+                </Button>
+              )}
+            </div>
+            {soundAlertUrl && (
+              <p className="text-xs text-green-600 dark:text-green-400 mt-2">
+                Custom sound uploaded successfully
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

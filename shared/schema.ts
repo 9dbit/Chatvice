@@ -201,6 +201,15 @@ export const insertAdminSchema = createInsertSchema(admins).omit({ id: true, cre
 export type InsertAdmin = z.infer<typeof insertAdminSchema>;
 export type Admin = typeof admins.$inferSelect;
 
+export const platformSettings = pgTable("platform_settings", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  key: text("key").notNull().unique(),
+  value: text("value"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type PlatformSetting = typeof platformSettings.$inferSelect;
+
 export const agents = pgTable("agents", {
   id: varchar("id", { length: 32 }).primaryKey(),
   merchantId: varchar("merchant_id", { length: 32 }).notNull(),
