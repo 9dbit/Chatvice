@@ -288,7 +288,9 @@ export default function SessionsPage() {
       session.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       session.id.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const matchesAgent = agentFilter === "all" || session.agentId === agentFilter;
+    // For agent filtering, consider sessions without agentId as belonging to the merchant's active agent
+    const effectiveAgentId = session.agentId || merchant?.activeAgentId;
+    const matchesAgent = agentFilter === "all" || effectiveAgentId === agentFilter;
     
     return matchesSearch && matchesAgent;
   });
