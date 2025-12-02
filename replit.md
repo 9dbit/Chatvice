@@ -106,3 +106,25 @@ const token = jwt.sign({
 -   **Build Tools**: Vite (frontend), esbuild (backend), Tailwind CSS.
 -   **Session Management**: `express-session`.
 -   **Real-time Communication**: `ws` (WebSocket server).
+
+### Supervisor Assignment System
+
+Supervisors can be assigned to specific agents to handle escalated conversations:
+- **3-Agent Limit**: Each supervisor can handle a maximum of 3 agents
+- **Round-Robin Distribution**: Chats from assigned agents are distributed among supervisors
+- **Assignment Management**: Merchants can assign/unassign supervisors via the Agents page
+- **Chat Session Display**: When in HUMAN mode, chat sessions show the supervisor name in header and message bubbles
+
+### Escalation Messages (Indonesian)
+
+Customer-facing escalation messages are localized in Indonesian:
+- Initial escalation: "Terima kasih atas kesabarannya. Tim kami akan segera membantu Anda."
+- Supervisor response: "Supervisor sedang menangani percakapan Anda. Mohon tunggu balasannya."
+- Return to AI: "Agen kembali menangani percakapan Anda."
+
+### Notification System
+
+The dashboard sidebar shows notification dots for:
+- Sessions escalated to HUMAN mode
+- Sessions with `needsSupervisorAttention` flag set to true
+- Alert sound plays when new escalated sessions are detected
