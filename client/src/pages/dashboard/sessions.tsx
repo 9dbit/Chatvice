@@ -132,14 +132,16 @@ export default function SessionsPage() {
   });
 
   const getAgentName = (agentId: string | null | undefined) => {
-    if (!agentId || !agents) return "Unknown Agent";
-    const agent = agents.find(a => a.id === agentId);
-    return agent?.name || "Unknown Agent";
+    const effectiveAgentId = agentId || merchant?.activeAgentId;
+    if (!effectiveAgentId || !agents) return "AI Assistant";
+    const agent = agents.find(a => a.id === effectiveAgentId);
+    return agent?.name || "AI Assistant";
   };
 
   const getAgentPhoto = (agentId: string | null | undefined) => {
-    if (!agentId || !agents) return merchant?.widgetSettings?.agentPhotoUrl || null;
-    const agent = agents.find(a => a.id === agentId);
+    const effectiveAgentId = agentId || merchant?.activeAgentId;
+    if (!effectiveAgentId || !agents) return merchant?.widgetSettings?.agentPhotoUrl || null;
+    const agent = agents.find(a => a.id === effectiveAgentId);
     return agent?.photoUrl || merchant?.widgetSettings?.agentPhotoUrl || null;
   };
 

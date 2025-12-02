@@ -17,7 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { 
   Palette, Save, Copy, Check, Bot, Code, Moon, Sun, AlignLeft, AlignRight, 
-  Loader2, Camera, RefreshCw, X, Send, Paperclip, Smile, ImageIcon,
+  Loader2, Camera, RefreshCw, X, Send, Paperclip, Smile, ImageIcon, Video,
   Globe, MessageSquare, Frame, Shield, Key, Eye, EyeOff, Crown, Lock, ArrowUpRight, ChevronDown
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -728,6 +728,29 @@ window.jeanyai('identify', { token }); // identify the user with Jeany AI`;
                         borderColor: config.widgetTheme === "dark" ? "#2d2d44" : "#e5e7eb",
                       }}
                     >
+                      <div className="flex gap-0.5">
+                        <button 
+                          className="p-1.5 rounded-full hover:bg-muted/50 transition-colors"
+                          style={{ color: config.widgetTheme === "dark" ? "#9ca3af" : "#6b7280" }}
+                          title="Upload photo"
+                        >
+                          <ImageIcon className="w-4 h-4" />
+                        </button>
+                        <button 
+                          className="p-1.5 rounded-full hover:bg-muted/50 transition-colors"
+                          style={{ color: config.widgetTheme === "dark" ? "#9ca3af" : "#6b7280" }}
+                          title="Upload video"
+                        >
+                          <Video className="w-4 h-4" />
+                        </button>
+                        <button 
+                          className="p-1.5 rounded-full hover:bg-muted/50 transition-colors"
+                          style={{ color: config.widgetTheme === "dark" ? "#9ca3af" : "#6b7280" }}
+                          title="Take photo"
+                        >
+                          <Camera className="w-4 h-4" />
+                        </button>
+                      </div>
                       <div 
                         className="flex-1 text-xs px-3 py-2 rounded-full"
                         style={{
