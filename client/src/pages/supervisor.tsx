@@ -410,7 +410,7 @@ export default function SupervisorPanel() {
                         >
                           {msg.from !== "user" && (
                             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                              {msg.from === "jeany" ? (
+                              {msg.from === "chatvice" ? (
                                 <Bot className="w-4 h-4 text-primary" />
                               ) : (
                                 <HeadphonesIcon className="w-4 h-4 text-primary" />

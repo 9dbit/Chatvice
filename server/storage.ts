@@ -437,7 +437,7 @@ export class DatabaseStorage implements IStorage {
       for (let i = 0; i < sorted.length; i++) {
         if (sorted[i].from === "customer") {
           for (let j = i + 1; j < sorted.length; j++) {
-            if (sorted[j].from === "jeany") {
+            if (sorted[j].from === "chatvice") {
               const customerTime = sorted[i].timestamp ? new Date(sorted[i].timestamp!).getTime() : 0;
               const aiTime = sorted[j].timestamp ? new Date(sorted[j].timestamp!).getTime() : 0;
               if (customerTime && aiTime) {

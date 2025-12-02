@@ -32,6 +32,7 @@ import {
 import { useState, useRef, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import chatviceLogo from "@assets/Chatvice-02_1764703423166.png";
 
 const trustedByLogos = [
   { name: "Siemens", initials: "S" },
@@ -101,10 +102,7 @@ function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-4 h-16">
           <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer" data-testid="link-logo">
-            <div className="w-8 h-8 bg-foreground rounded-lg flex items-center justify-center">
-              <Bot className="w-5 h-5 text-background" />
-            </div>
-            <span className="font-bold text-xl">Jeany</span>
+            <img src={chatviceLogo} alt="Chatvice" className="h-8 w-auto" />
           </Link>
           <div className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" data-testid="link-features">Features</a>
@@ -171,7 +169,7 @@ function TrustedBySection() {
 
 function InteractiveChatWidget() {
   const [messages, setMessages] = useState<Array<{ role: "user" | "bot"; content: string }>>([
-    { role: "bot", content: "Hi! I'm Jeany, your AI assistant. Ask me anything about how I can help your business!" }
+    { role: "bot", content: "Hi! I'm Chatvice, your AI assistant. Ask me anything about how I can help your business!" }
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -214,7 +212,7 @@ function InteractiveChatWidget() {
             <Bot className="w-5 h-5 text-white" />
           </div>
           <div>
-            <p className="font-semibold text-sm">Jeany AI</p>
+            <p className="font-semibold text-sm">Chatvice</p>
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-green-500" />
               <span className="text-xs text-muted-foreground">Online</span>
@@ -281,7 +279,7 @@ function HeroSection() {
               experiences
             </h1>
             <p className="text-lg text-muted-foreground max-w-lg">
-              Jeany is the complete platform for building & deploying AI support agents for your business.
+              Chatvice is the complete platform for building & deploying AI support agents for your business.
             </p>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <Link href="/register">
@@ -342,7 +340,7 @@ function HighlightsSection() {
             The complete platform for<br />AI support agents
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Jeany is designed for building AI support agents that solve your customers' hardest problems while improving business outcomes.
+            Chatvice is designed for building AI support agents that solve your customers' hardest problems while improving business outcomes.
           </p>
         </div>
         <div className="grid md:grid-cols-3 gap-6">
@@ -412,7 +410,7 @@ function HowItWorksSection() {
             An end-to-end solution for<br />conversational AI
           </h2>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-            With Jeany, your customers can effortlessly find answers, resolve issues, and take meaningful actions through seamless AI-driven conversations.
+            With Chatvice, your customers can effortlessly find answers, resolve issues, and take meaningful actions through seamless AI-driven conversations.
           </p>
         </div>
         <div className="grid lg:grid-cols-2 gap-12 items-start">
@@ -507,7 +505,7 @@ function FeaturesSection() {
             Build the perfect<br />customer-facing AI agent
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Jeany gives you all the tools you need to train your perfect AI agent and connect it to your systems.
+            Chatvice gives you all the tools you need to train your perfect AI agent and connect it to your systems.
           </p>
         </div>
         
@@ -563,7 +561,7 @@ function FeaturesSection() {
           </Card>
           <Card className="p-6 hover-elevate">
             <h3 className="font-semibold mb-2">Whitelabel</h3>
-            <p className="text-sm text-muted-foreground">Remove any Jeany branding from the chat widget.</p>
+            <p className="text-sm text-muted-foreground">Remove any Chatvice branding from the chat widget.</p>
           </Card>
           <Card className="p-6 hover-elevate">
             <h3 className="font-semibold mb-2">Always improving</h3>
@@ -613,7 +611,7 @@ function BenefitsSection() {
             Works like the best<br />customer service agents
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Jeany is designed to work with your existing tools and workflows.
+            Chatvice is designed to work with your existing tools and workflows.
           </p>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -775,7 +773,7 @@ function CTASection() {
           Ready to transform your<br />customer experience?
         </h2>
         <p className="text-lg opacity-80 mb-8">
-          Join 10,000+ businesses using Jeany AI to deliver exceptional support experiences.
+          Join 10,000+ businesses using Chatvice to deliver exceptional support experiences.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link href="/register">
@@ -814,7 +812,7 @@ function Footer() {
               <div className="w-8 h-8 bg-foreground rounded-lg flex items-center justify-center">
                 <Bot className="w-5 h-5 text-background" />
               </div>
-              <span className="font-bold text-lg">Jeany</span>
+              <span className="font-bold text-lg">Chatvice</span>
             </div>
             <p className="text-sm text-muted-foreground">
               AI-powered customer service for modern businesses.
@@ -837,7 +835,7 @@ function Footer() {
         </div>
         <div className="mt-12 pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground">
-            © 2024 Jeany AI. All rights reserved.
+            © 2024 Chatvice. All rights reserved.
           </p>
           <div className="flex items-center gap-4">
             <ThemeToggle />

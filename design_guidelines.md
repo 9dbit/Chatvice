@@ -1,4 +1,4 @@
-# Jeany AI - Design Guidelines
+# Chatvice - Design Guidelines
 
 ## Design Approach
 
@@ -154,7 +154,7 @@
 **Chat Window** (360×520px):
 - Header: Merchant name + online status + minimize/close buttons
 - Message area: Scrollable, auto-scroll to bottom
-- Messages: User (right-aligned, different background), Jeany/Supervisor (left-aligned)
+- Messages: User (right-aligned, different background), Chatvice/Supervisor (left-aligned)
 - Typing indicator: Three animated dots
 - Input area: Text field + Send button (icon)
 - Mode badge: "AI Powered" or "Speaking with Supervisor"
@@ -210,7 +210,7 @@ Use sparingly and purposefully:
 ## Images
 
 **Landing Page**:
-- **Hero Section**: Large screenshot/mockup (right 50%) showing Jeany widget embedded on a modern e-commerce product page, with chat bubbles visible demonstrating AI conversation. High-quality, professional rendering.
+- **Hero Section**: Large screenshot/mockup (right 50%) showing Chatvice widget embedded on a modern e-commerce product page, with chat bubbles visible demonstrating AI conversation. High-quality, professional rendering.
 - **How It Works Section**: Three supporting images - (1) Merchant configuring widget, (2) AI responding to customer, (3) Dashboard showing analytics
 - **Social Proof**: Merchant company logos (grayscale, arranged in grid)
 
@@ -219,7 +219,7 @@ Use sparingly and purposefully:
 - Default merchant icon: Professional avatar placeholder
 
 **Widget**:
-- Default Jeany icon: Friendly chatbot avatar (if merchant hasn't uploaded custom icon)
+- Default Chatvice icon: Friendly chatbot avatar (if merchant hasn't uploaded custom icon)
 
 ---
 

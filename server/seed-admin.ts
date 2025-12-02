@@ -17,13 +17,13 @@ async function seedAdmin() {
     
     await db.insert(admins).values({
       id: "admin_default",
-      email: "admin@jeany.ai",
+      email: "admin@chatvice.com",
       password: hashedPassword,
       name: "Super Admin",
     });
     
     console.log("Default admin created:");
-    console.log("  Email: admin@jeany.ai");
+    console.log("  Email: admin@chatvice.com");
     console.log("  Password: admin123");
     console.log("  (Change this password immediately in production!)");
   } catch (error: any) {

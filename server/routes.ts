@@ -167,7 +167,7 @@ async function notifySupervisors(merchantId: string, sessionId: string) {
   }
 }
 
-async function askJeany(
+async function askChatvice(
   sessionId: string,
   merchantId: string,
   message: string
@@ -207,7 +207,7 @@ async function askJeany(
   
   // Get agent's settings
   let agentSystemPrompt = "";
-  let agentName = "Jeany";
+  let agentName = "Chatvice";
   let toneStyle = "formal";
   let temperature = 0.7;
   let autoEscalateAngry = false;
@@ -328,7 +328,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   
   app.use(
     session({
-      secret: process.env.SESSION_SECRET || "jeany-ai-secret-key-change-in-production",
+      secret: process.env.SESSION_SECRET || "chatvice-secret-key-change-in-production",
       resave: false,
       saveUninitialized: false,
       store: new MemoryStoreSession({
@@ -536,7 +536,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           online: true,
           primaryColor: "#6b5dfc",
           welcomeMessage: "Hi! How can I help you today?",
-          agentName: "Jeany AI",
+          agentName: "Chatvice",
           agentPhotoUrl: "",
           widgetTheme: "light",
           bubblePosition: "right",
@@ -550,7 +550,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         primaryColor: merchant.primaryColor,
         welcomeMessage: merchant.welcomeMessage,
         companyName: merchant.companyName,
-        agentName: merchant.agentName || "Jeany AI",
+        agentName: merchant.agentName || "Chatvice",
         agentPhotoUrl: merchant.agentPhotoUrl || "",
         widgetTheme: merchant.widgetTheme || "light",
         bubblePosition: merchant.bubblePosition || "right",
@@ -871,11 +871,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         content: message,
       });
 
-      const result = await askJeany(sessionId, merchantId, message);
+      const result = await askChatvice(sessionId, merchantId, message);
 
       await storage.createMessage({
         sessionId,
-        from: result.mode === "HUMAN" ? "system" : "jeany",
+        from: result.mode === "HUMAN" ? "system" : "chatvice",
         content: result.answer,
       });
 
@@ -883,7 +883,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       broadcastToSession(sessionId, {
         type: "message",
-        message: { from: result.mode === "HUMAN" ? "system" : "jeany", content: result.answer },
+        message: { from: result.mode === "HUMAN" ? "system" : "chatvice", content: result.answer },
       });
 
       res.json({ answer: result.answer, mode: result.mode });
@@ -946,7 +946,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         sessions.map(async (session) => {
           const messages = await storage.getMessages(session.id);
           const userMessages = messages.filter(m => m.from === "user");
-          const aiMessages = messages.filter(m => m.from === "jeany");
+          const aiMessages = messages.filter(m => m.from === "chatvice");
           const lastQuestion = userMessages[userMessages.length - 1]?.content;
           const lastMessage = aiMessages[aiMessages.length - 1]?.content;
           
@@ -1015,7 +1015,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         
         for (const msg of messages) {
           const sender = msg.from === 'user' ? (session.customerName || 'Customer') :
-                        msg.from === 'jeany' ? 'Jeany AI' :
+                        msg.from === 'chatvice' ? 'Chatvice' :
                         msg.from === 'supervisor' ? 'Supervisor' : 'System';
           const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : '';
           transcript += `[${time}] ${sender}:\n${msg.content}\n\n`;
@@ -1357,7 +1357,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return res.status(404).json({ error: "Message not found" });
       }
       
-      if (message.from !== "jeany") {
+      if (message.from !== "chatvice") {
         return res.status(403).json({ error: "Can only revise AI responses" });
       }
       
@@ -1789,7 +1789,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           price_data: {
             currency: 'usd',
             product_data: {
-              name: `Jeany AI ${plan.name}`,
+              name: `Chatvice ${plan.name}`,
               description: plan.features.slice(0, 3).join(', '),
             },
             unit_amount: priceAmount,
@@ -2124,7 +2124,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  app.get("/api/widget/jeany.js", async (req, res) => {
+  app.get("/api/widget/chatvice.js", async (req, res) => {
     const merchantId = req.query.merchant || "demo";
     const script = `
 (function() {
@@ -2134,10 +2134,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   var iframe = document.createElement("iframe");
   iframe.src = "${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : ""}/widget/" + merchantId + "?session=" + sessionId;
   iframe.style.cssText = "position:fixed;bottom:20px;right:20px;width:380px;height:550px;border:none;z-index:99999;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,0.15);";
-  iframe.id = "jeany-widget-frame";
+  iframe.id = "chatvice-widget-frame";
   
   var button = document.createElement("div");
-  button.id = "jeany-widget-button";
+  button.id = "chatvice-widget-button";
   button.style.cssText = "position:fixed;bottom:20px;right:20px;width:60px;height:60px;border-radius:50%;background:#6b5dfc;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:99999;box-shadow:0 4px 15px rgba(107,93,252,0.4);";
   button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
   
@@ -2164,8 +2164,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     try {
       const { question } = req.body;
       
-      const jeanyKnowledge = `
-Jeany AI is an AI-powered customer service chatbot platform that helps businesses:
+      const chatviceKnowledge = `
+Chatvice is an AI-powered customer service chatbot platform that helps businesses:
 - Automate customer support with intelligent AI responses
 - Handle inquiries 24/7 with natural conversations
 - Seamlessly escalate complex issues to human supervisors
@@ -2193,10 +2193,10 @@ All plans include a 7-day free trial. No credit card required to start.
         messages: [
           {
             role: "system",
-            content: `You are Jeany, an AI assistant for Jeany AI platform. Answer questions about Jeany AI based on this knowledge:
-${jeanyKnowledge}
+            content: `You are Chatvice, an AI assistant for Chatvice platform. Answer questions about Chatvice based on this knowledge:
+${chatviceKnowledge}
 
-Be helpful, friendly, and concise. If asked about something not related to Jeany AI, politely redirect to how Jeany AI can help businesses with customer service.`
+Be helpful, friendly, and concise. If asked about something not related to Chatvice, politely redirect to how Chatvice can help businesses with customer service.`
           },
           { role: "user", content: question }
         ],
@@ -2204,9 +2204,9 @@ Be helpful, friendly, and concise. If asked about something not related to Jeany
         temperature: 0.7,
       });
       
-      res.json({ answer: response.choices[0].message.content || "I'm here to help! Ask me about how Jeany AI can transform your customer service." });
+      res.json({ answer: response.choices[0].message.content || "I'm here to help! Ask me about how Chatvice can transform your customer service." });
     } catch (error) {
-      res.json({ answer: "Hi! I'm Jeany AI. I help businesses automate customer support with intelligent AI responses. Would you like to learn about our plans or features?" });
+      res.json({ answer: "Hi! I'm Chatvice. I help businesses automate customer support with intelligent AI responses. Would you like to learn about our plans or features?" });
     }
   });
 
@@ -2215,7 +2215,7 @@ Be helpful, friendly, and concise. If asked about something not related to Jeany
       const { question } = req.body;
       
       const dashboardGuide = `
-You are Jeany AI Guide, helping merchants use the Jeany AI dashboard. Here's what you know about the platform:
+You are Chatvice Guide, helping merchants use the Chatvice dashboard. Here's what you know about the platform:
 
 DASHBOARD SECTIONS:
 1. Overview - Real-time analytics showing active sessions, message counts, AI resolution rate, and daily trends
@@ -2259,7 +2259,7 @@ TIPS:
             role: "system",
             content: `${dashboardGuide}
 
-You are friendly, helpful, and concise. Guide merchants on how to use Jeany AI dashboard features. If they ask about something unrelated, gently redirect them to dashboard features.`
+You are friendly, helpful, and concise. Guide merchants on how to use Chatvice dashboard features. If they ask about something unrelated, gently redirect them to dashboard features.`
           },
           { role: "user", content: question }
         ],
@@ -2267,10 +2267,10 @@ You are friendly, helpful, and concise. Guide merchants on how to use Jeany AI d
         temperature: 0.7,
       });
       
-      res.json({ answer: response.choices[0].message.content || "I'm here to help you with the Jeany AI dashboard! What would you like to know?" });
+      res.json({ answer: response.choices[0].message.content || "I'm here to help you with the Chatvice dashboard! What would you like to know?" });
     } catch (error) {
       console.error("Help ask error:", error);
-      res.json({ answer: "I apologize, but I'm having trouble responding right now. Please try again later or contact support at support@jeany.ai." });
+      res.json({ answer: "I apologize, but I'm having trouble responding right now. Please try again later or contact support at support@chatvice.com." });
     }
   });
 

@@ -33,7 +33,7 @@ async function initStripe() {
     const webhookBaseUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
     const { webhook, uuid } = await stripeSync.findOrCreateManagedWebhook(
       `${webhookBaseUrl}/api/stripe/webhook`,
-      { enabled_events: ['*'], description: 'Jeany AI webhook' }
+      { enabled_events: ['*'], description: 'Chatvice webhook' }
     );
     console.log(`Webhook configured: ${webhook.url} (UUID: ${uuid})`);
 

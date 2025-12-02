@@ -1,8 +1,8 @@
-# Jeany AI - Customer Service Chatbot Platform
+# Chatvice - Customer Service Chatbot Platform
 
 ## Overview
 
-Jeany AI is an AI-powered customer service chatbot platform designed to automate customer support for businesses. It provides intelligent responses, seamless escalation to human supervisors, and a customizable chat widget for merchant websites. The platform includes a merchant dashboard for configuration and monitoring, and a supervisor panel for managing escalated conversations. Its primary goal is to reduce support costs while maintaining high-quality customer service through smart AI-to-human handoff mechanisms.
+Chatvice is an AI-powered customer service chatbot platform designed to automate customer support for businesses. It provides intelligent responses, seamless escalation to human supervisors, and a customizable chat widget for merchant websites. The platform includes a merchant dashboard for configuration and monitoring, and a supervisor panel for managing escalated conversations. Its primary goal is to reduce support costs while maintaining high-quality customer service through smart AI-to-human handoff mechanisms.
 
 ## User Preferences
 
@@ -12,7 +12,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Application Structure and Design
 
-Jeany AI is built as a monorepo, separating client (`/client`), server (`/server`), and shared (`/shared`) components. It features a multi-panel design catering to different user roles: a public Landing Page, a Merchant Dashboard for configuration and analytics, a Supervisor Panel for real-time human intervention, an embeddable Chat Widget for customers, and an Admin Master Panel for system-wide management. The UI/UX is based on Shadcn/ui and Radix UI, utilizing Tailwind CSS for styling with a custom "new-york" theme and dark mode support. Typography uses Inter for UI and JetBrains Mono for technical data.
+Chatvice is built as a monorepo, separating client (`/client`), server (`/server`), and shared (`/shared`) components. It features a multi-panel design catering to different user roles: a public Landing Page, a Merchant Dashboard for configuration and analytics, a Supervisor Panel for real-time human intervention, an embeddable Chat Widget for customers, and an Admin Master Panel for system-wide management. The UI/UX is based on Shadcn/ui and Radix UI, utilizing Tailwind CSS for styling with a custom "new-york" theme and dark mode support. Typography uses Inter for UI and JetBrains Mono for technical data.
 
 ### Technology Stack
 
@@ -71,7 +71,7 @@ The chat widget can be embedded on merchant websites using JavaScript. For secur
 **Identity Verification (Secure)**:
 For Pro/Enterprise plans, merchants can verify customer identities using JWT tokens signed with their Secret Key:
 
-1. **Generate Secret Key**: In Widget Settings, Pro/Enterprise merchants can generate a secret key (format: `jny_sk_[48-char-hex]`)
+1. **Generate Secret Key**: In Widget Settings, Pro/Enterprise merchants can generate a secret key (format: `ctv_sk_[48-char-hex]`)
 
 2. **Server-side JWT Creation**:
 ```javascript
@@ -81,7 +81,7 @@ const token = jwt.sign({
   customerId: 'unique-customer-id',
   customerName: 'Customer Name',
   customerEmail: 'customer@example.com'
-}, 'jny_sk_[your-secret-key]', { expiresIn: '1h' });
+}, 'ctv_sk_[your-secret-key]', { expiresIn: '1h' });
 ```
 
 3. **Embed with Identity Token**:

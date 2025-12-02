@@ -28,7 +28,7 @@ export default function WidgetDemoPage() {
           <div className="text-center mb-12">
             <h1 className="text-3xl font-bold mb-2">Widget Preview</h1>
             <p className="text-muted-foreground">
-              This is how your Jeany AI chat widget will appear on your website.
+              This is how your Chatvice chat widget will appear on your website.
             </p>
           </div>
 

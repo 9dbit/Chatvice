@@ -38,7 +38,7 @@ export default function WidgetPage() {
     online: true,
     primaryColor: "#6b5dfc",
     welcomeMessage: "Hi! How can I help you today?",
-    agentName: "Jeany AI",
+    agentName: "Chatvice",
     agentPhotoUrl: "",
     widgetTheme: "light" as "light" | "dark",
     bubblePosition: "right" as "left" | "right",
@@ -129,7 +129,7 @@ export default function WidgetPage() {
         online: merchant.online ?? true,
         primaryColor: agentWidgetSettings.primaryColor || "#6b5dfc",
         welcomeMessage: agentWidgetSettings.widgetWelcomeMessage || "Hi! How can I help you today?",
-        agentName: agentWidgetSettings.name || "Jeany AI",
+        agentName: agentWidgetSettings.name || "Chatvice",
         agentPhotoUrl: agentWidgetSettings.photoUrl || "",
         widgetTheme: (agentWidgetSettings.widgetTheme as "light" | "dark") || "light",
         bubblePosition: (agentWidgetSettings.bubblePosition as "left" | "right") || "right",
@@ -142,7 +142,7 @@ export default function WidgetPage() {
         online: merchant.online ?? true,
         primaryColor: merchant.primaryColor || "#6b5dfc",
         welcomeMessage: merchant.welcomeMessage || "Hi! How can I help you today?",
-        agentName: merchant.agentName || "Jeany AI",
+        agentName: merchant.agentName || "Chatvice",
         agentPhotoUrl: merchant.agentPhotoUrl || "",
         widgetTheme: (merchant.widgetTheme as "light" | "dark") || "light",
         bubblePosition: (merchant.bubblePosition as "left" | "right") || "right",
@@ -235,7 +235,7 @@ export default function WidgetPage() {
   const baseUrl = window.location.origin;
   
   const widgetEmbedCode = `<script>
-(function(){if(!window.jeanyai||window.jeanyai("getState")!=="initialized"){window.jeanyai=(...arguments)=>{if(!window.jeanyai.q){window.jeanyai.q=[]}window.jeanyai.q.push(arguments)};window.jeanyai=new Proxy(window.jeanyai,{get(target,prop){if(prop==="q"){return target.q}return(...args)=>target(prop,...args)}})}const onLoad=function(){const script=document.createElement("script");script.src="${baseUrl}/api/widget/jeany.js";script.id="${merchantId}";script.domain="${baseUrl.replace(/^https?:\/\//, '')}";document.body.appendChild(script)};if(document.readyState==="complete"){onLoad()}else{window.addEventListener("load",onLoad)}})();
+(function(){if(!window.chatvice||window.chatvice("getState")!=="initialized"){window.chatvice=(...arguments)=>{if(!window.chatvice.q){window.chatvice.q=[]}window.chatvice.q.push(arguments)};window.chatvice=new Proxy(window.chatvice,{get(target,prop){if(prop==="q"){return target.q}return(...args)=>target(prop,...args)}})}const onLoad=function(){const script=document.createElement("script");script.src="${baseUrl}/api/widget/chatvice.js";script.id="${merchantId}";script.domain="${baseUrl.replace(/^https?:\/\//, '')}";document.body.appendChild(script)};if(document.readyState==="complete"){onLoad()}else{window.addEventListener("load",onLoad)}})();
 </script>`;
 
   const iframeEmbedCode = `<iframe
@@ -248,7 +248,7 @@ export default function WidgetPage() {
   const identityVerificationCode = `// --- SERVER CODE ---
 const jwt = require('jsonwebtoken');
 
-const secret = process.env.JEANY_IDENTITY_SECRET; // Your Jeany AI secret key (should be stored as a secret not in the code)
+const secret = process.env.CHATVICE_IDENTITY_SECRET; // Your Chatvice secret key (should be stored as a secret not in the code)
 
 const user = await getSignedInUser(); // Get the current user signed in to your site
 
@@ -265,7 +265,7 @@ const token = jwt.sign(
 
 // --- CLIENT CODE ---
 const token = await getUserToken(); // Get the token from your server
-window.jeanyai('identify', { token }); // identify the user with Jeany AI`;
+window.chatvice('identify', { token }); // identify the user with Chatvice`;
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -383,7 +383,7 @@ window.jeanyai('identify', { token }); // identify the user with Jeany AI`;
                         data-testid="input-icon-url"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Leave empty to use the default Jeany icon
+                        Leave empty to use the default Chatvice icon
                       </p>
                     </div>
 
@@ -521,7 +521,7 @@ window.jeanyai('identify', { token }); // identify the user with Jeany AI`;
                           <Input
                             value={config.agentName}
                             onChange={(e) => setConfig({ ...config, agentName: e.target.value })}
-                            placeholder="Jeany AI"
+                            placeholder="Chatvice"
                             data-testid="input-agent-name"
                           />
                         </div>
@@ -779,7 +779,7 @@ window.jeanyai('identify', { token }); // identify the user with Jeany AI`;
                         className="text-[10px]"
                         style={{ color: config.widgetTheme === "dark" ? "#6b7280" : "#9ca3af" }}
                       >
-                        Powered by <span className="font-medium" style={{ color: config.primaryColor }}>Jeany AI</span>
+                        Powered by <span className="font-medium" style={{ color: config.primaryColor }}>Chatvice</span>
                       </span>
                     </div>
                   </div>
@@ -853,7 +853,7 @@ window.jeanyai('identify', { token }); // identify the user with Jeany AI`;
                 <CardTitle>Embed Type</CardTitle>
               </div>
               <CardDescription>
-                Choose how to embed your Jeany AI agent on your website.
+                Choose how to embed your Chatvice agent on your website.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -981,7 +981,7 @@ window.jeanyai('identify', { token }); // identify the user with Jeany AI`;
                     <CardTitle>Identity Verification</CardTitle>
                   </div>
                   <CardDescription>
-                    Secure your AI Agent by generating a JWT for each logged-in user and sending it to Jeany AI. 
+                    Secure your AI Agent by generating a JWT for each logged-in user and sending it to Chatvice. 
                     This enables secure identity verification for your AI Agent with various actions.
                   </CardDescription>
                 </CardHeader>

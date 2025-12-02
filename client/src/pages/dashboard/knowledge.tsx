@@ -342,13 +342,13 @@ export default function KnowledgePage() {
     onSuccess: (data) => {
       setPreviewMessages((prev) => [
         ...prev,
-        { from: "jeany", content: data.answer },
+        { from: "chatvice", content: data.answer },
       ]);
     },
     onError: () => {
       setPreviewMessages((prev) => [
         ...prev,
-        { from: "jeany", content: "Sorry, I couldn't process that. Please try again." },
+        { from: "chatvice", content: "Sorry, I couldn't process that. Please try again." },
       ]);
     },
   });
@@ -482,7 +482,7 @@ export default function KnowledgePage() {
               </div>
             </div>
             <CardDescription>
-              Add information that Jeany AI will use to answer customer questions.
+              Add information that Chatvice will use to answer customer questions.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -686,7 +686,7 @@ Example:
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">Answer</Label>
                       <Textarea
-                        placeholder="Enter the answer that Jeany will use..."
+                        placeholder="Enter the answer that Chatvice will use..."
                         value={newAnswer}
                         onChange={(e) => setNewAnswer(e.target.value)}
                         className="min-h-[80px] resize-none"
@@ -848,7 +848,7 @@ Example:
                 )}
               </div>
               <CardDescription>
-                Test how Jeany AI responds using your knowledge base.
+                Test how Chatvice responds using your knowledge base.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -870,7 +870,7 @@ Example:
                     )}
                   </div>
                   <div className="flex-1 text-white">
-                    <p className="font-medium text-sm">{merchant?.companyName || "Jeany AI"}</p>
+                    <p className="font-medium text-sm">{merchant?.companyName || "Chatvice"}</p>
                     <p className="text-xs text-white/80">Customer Support</p>
                   </div>
                 </div>

@@ -78,7 +78,7 @@ async function fetchWithRedirectValidation(url: URL, maxRedirects: number = 5): 
     try {
       const response = await fetch(currentUrl.toString(), {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; JeanyAI/1.0; +https://jeany.ai)',
+          'User-Agent': 'Mozilla/5.0 (compatible; Chatvice/1.0; +https://chatvice.com)',
           'Accept': 'text/html,application/xhtml+xml',
         },
         signal: controller.signal,

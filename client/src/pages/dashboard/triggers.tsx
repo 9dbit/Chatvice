@@ -132,7 +132,7 @@ export default function TriggersPage() {
               <CardTitle>Trigger Keywords</CardTitle>
             </div>
             <CardDescription>
-              When a customer message contains any of these keywords, Jeany AI will
+              When a customer message contains any of these keywords, Chatvice will
               automatically escalate the conversation to a human supervisor.
             </CardDescription>
           </CardHeader>
@@ -275,7 +275,7 @@ export default function TriggersPage() {
                 <div>
                   <p className="text-sm font-medium">How it works</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    When a customer message contains a trigger keyword, Jeany AI
+                    When a customer message contains a trigger keyword, Chatvice
                     will notify supervisors and switch the conversation to human mode.
                   </p>
                 </div>

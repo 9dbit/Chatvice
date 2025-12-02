@@ -66,7 +66,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     onSuccess: (data: any) => {
       setLocalMessages((prev) => [
         ...prev,
-        { from: data.mode === "HUMAN" ? "system" : "jeany", content: data.answer, timestamp: new Date() },
+        { from: data.mode === "HUMAN" ? "system" : "chatvice", content: data.answer, timestamp: new Date() },
       ]);
       queryClient.invalidateQueries({ queryKey: ["/api/messages", sessionId] });
     },
@@ -81,7 +81,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   useEffect(() => {
     if (isOpen && localMessages.length === 0 && merchantConfig?.welcomeMessage) {
       setLocalMessages([
-        { from: "jeany", content: merchantConfig.welcomeMessage, timestamp: new Date() },
+        { from: "chatvice", content: merchantConfig.welcomeMessage, timestamp: new Date() },
       ]);
     }
   }, [isOpen, merchantConfig]);
@@ -106,14 +106,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     onSuccess: (data) => {
       setLocalMessages((prev) => [
         ...prev,
-        { from: "jeany", content: data.answer, timestamp: new Date() },
+        { from: "chatvice", content: data.answer, timestamp: new Date() },
       ]);
       queryClient.invalidateQueries({ queryKey: ["/api/messages", sessionId] });
     },
     onError: () => {
       setLocalMessages((prev) => [
         ...prev,
-        { from: "jeany", content: "I'm sorry, I couldn't process that quick question. Please type your question in the chat below and I'll be happy to help!", timestamp: new Date() },
+        { from: "chatvice", content: "I'm sorry, I couldn't process that quick question. Please type your question in the chat below and I'll be happy to help!", timestamp: new Date() },
       ]);
     },
   });
@@ -184,7 +184,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     } catch {
       setLocalMessages((prev) => [
         ...prev,
-        { from: "jeany", content: "Sorry, I couldn't upload that file. Please try again.", timestamp: new Date() },
+        { from: "chatvice", content: "Sorry, I couldn't upload that file. Please try again.", timestamp: new Date() },
       ]);
     } finally {
       setIsUploadingMedia(false);
@@ -260,7 +260,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             )}
           </div>
           <div className="text-white">
-            <p className="font-medium text-sm">{merchantConfig?.agentName || "Jeany AI"}</p>
+            <p className="font-medium text-sm">{merchantConfig?.agentName || "Chatvice"}</p>
             <div className="flex items-center gap-1">
               <span
                 className={`w-2 h-2 rounded-full ${isOnline ? "bg-status-online" : "bg-status-offline"}`}

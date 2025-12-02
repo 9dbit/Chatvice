@@ -3,10 +3,10 @@ import { getUncachableStripeClient } from './stripeClient';
 async function createProducts() {
   const stripe = await getUncachableStripeClient();
 
-  console.log('Creating Jeany AI subscription products...');
+  console.log('Creating Chatvice subscription products...');
 
   const starterProduct = await stripe.products.create({
-    name: 'Jeany AI Starter',
+    name: 'Chatvice Starter',
     description: 'Perfect for small businesses - 500 AI conversations/month, 1 team member',
     metadata: {
       planId: 'starter',
@@ -36,7 +36,7 @@ async function createProducts() {
   console.log(`  Annual: ${starterAnnual.id} ($24/mo - 16% off)`);
 
   const proProduct = await stripe.products.create({
-    name: 'Jeany AI Pro',
+    name: 'Chatvice Pro',
     description: 'For growing businesses - 5,000 AI conversations/month, 5 team members',
     metadata: {
       planId: 'pro',
@@ -66,7 +66,7 @@ async function createProducts() {
   console.log(`  Annual: ${proAnnual.id} ($66/mo - 16% off)`);
 
   const enterpriseProduct = await stripe.products.create({
-    name: 'Jeany AI Enterprise',
+    name: 'Chatvice Enterprise',
     description: 'For large organizations - Unlimited conversations and team members',
     metadata: {
       planId: 'enterprise',

@@ -33,6 +33,7 @@ import { Switch } from "@/components/ui/switch";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import chatviceLogo from "@assets/Chatvice-03_1764703438384.png";
 
 import { Receipt } from "lucide-react";
 
@@ -160,11 +161,8 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="p-4">
         <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer" data-testid="link-sidebar-logo">
-          <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
-            <Bot className="w-5 h-5 text-primary-foreground" />
-          </div>
+          <img src={chatviceLogo} alt="Chatvice" className="h-8 w-auto" />
           <div>
-            <span className="font-semibold">Jeany AI</span>
             <p className="text-xs text-muted-foreground truncate max-w-[140px]">
               {merchant?.companyName || "Dashboard"}
             </p>

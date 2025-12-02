@@ -357,7 +357,7 @@ export default function SettingsPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `jeany-export-${new Date().toISOString().split("T")[0]}.json`;
+      a.download = `chatvice-export-${new Date().toISOString().split("T")[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -975,8 +975,8 @@ export default function SettingsPage() {
                             Point your domain to these name servers:
                           </p>
                           <div className="p-3 rounded bg-muted font-mono text-xs space-y-1">
-                            <p>ns1.jeany-dns.com</p>
-                            <p>ns2.jeany-dns.com</p>
+                            <p>ns1.chatvice-dns.com</p>
+                            <p>ns2.chatvice-dns.com</p>
                           </div>
                         </CardContent>
                       </Card>
@@ -1003,7 +1003,7 @@ export default function SettingsPage() {
                             </div>
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">Value:</span>
-                              <span>widget.jeany.ai</span>
+                              <span>widget.chatvice.com</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">TTL:</span>

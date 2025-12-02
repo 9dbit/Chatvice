@@ -185,7 +185,7 @@ export default function AdminDashboard() {
               <Shield className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="font-bold">Jeany AI</h1>
+              <h1 className="font-bold">Chatvice</h1>
               <p className="text-xs text-muted-foreground">Admin Panel</p>
             </div>
           </div>
@@ -492,7 +492,7 @@ function MerchantsTab({
 
 function ContentTab({ toast }: { toast: any }) {
   const [heroTitle, setHeroTitle] = useState("AI-Powered Customer Support That Never Sleeps");
-  const [heroSubtitle, setHeroSubtitle] = useState("Transform your customer experience with Jeany AI");
+  const [heroSubtitle, setHeroSubtitle] = useState("Transform your customer experience with Chatvice");
   
   const handleSave = () => {
     toast({
@@ -892,7 +892,7 @@ function TransactionsTab() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Recent Transactions</CardTitle>
-              <CardDescription>Jeany AI subscription payments</CardDescription>
+              <CardDescription>Chatvice subscription payments</CardDescription>
             </div>
             <Button variant="outline">
               <FileText className="w-4 h-4 mr-2" />

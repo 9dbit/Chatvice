@@ -44,7 +44,7 @@ function Router() {
 
 function App() {
   return (
-    <ThemeProvider defaultTheme="system" storageKey="jeany-ui-theme">
+    <ThemeProvider defaultTheme="system" storageKey="chatvice-ui-theme">
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <Toaster />

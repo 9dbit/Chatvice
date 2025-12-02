@@ -662,7 +662,7 @@ export default function SessionsPage() {
                             >
                               {msg.from !== "user" && (
                                 <Avatar className="h-7 w-7 flex-shrink-0">
-                                  {msg.from === "jeany" ? (
+                                  {msg.from === "chatvice" ? (
                                     getAgentPhoto(selectedSessionData?.agentId) ? (
                                       <AvatarImage src={getAgentPhoto(selectedSessionData?.agentId)!} alt="AI" />
                                     ) : null
@@ -672,7 +672,7 @@ export default function SessionsPage() {
                                     ) : null
                                   )}
                                   <AvatarFallback className="text-xs">
-                                    {msg.from === "jeany" ? (
+                                    {msg.from === "chatvice" ? (
                                       <Bot className="h-3.5 w-3.5" />
                                     ) : (
                                       <HeadphonesIcon className="h-3.5 w-3.5" />
@@ -690,7 +690,7 @@ export default function SessionsPage() {
                                 >
                                   {msg.from !== "user" && msg.from !== "system" && (
                                     <p className="text-[10px] font-medium mb-1 text-primary/80">
-                                      {msg.from === "jeany" || msg.from === "bot" || msg.from === "ai"
+                                      {msg.from === "chatvice" || msg.from === "bot" || msg.from === "ai"
                                         ? getAgentName(selectedSessionData?.agentId)
                                         : msg.from === "supervisor" 
                                           ? getSupervisorName(selectedSessionData?.supervisorId, selectedSessionData?.agentId) || "Supervisor"
@@ -702,7 +702,7 @@ export default function SessionsPage() {
                                     {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
                                   </p>
                                 </div>
-                                {msg.from === "jeany" && (
+                                {msg.from === "chatvice" && (
                                   <Button
                                     size="icon"
                                     variant="ghost"

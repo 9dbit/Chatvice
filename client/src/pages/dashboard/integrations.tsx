@@ -57,7 +57,7 @@ const integrations: Integration[] = [
   {
     id: "messenger",
     name: "Facebook Messenger",
-    description: "Manage Facebook Messenger conversations through Jeany AI",
+    description: "Manage Facebook Messenger conversations through Chatvice",
     icon: SiMessenger,
     category: "messaging",
     status: "coming_soon",
@@ -141,7 +141,7 @@ export default function IntegrationsPage() {
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold" data-testid="text-integrations-title">Integrations</h1>
         <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-          Connect Jeany AI with your favorite tools and platforms
+          Connect Chatvice with your favorite tools and platforms
         </p>
       </div>
 

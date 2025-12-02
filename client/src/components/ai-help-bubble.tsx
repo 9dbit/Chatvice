@@ -12,7 +12,7 @@ interface Message {
   content: string;
 }
 
-const INITIAL_MESSAGE = `Hi! I'm Jeany AI Guide, here to help you make the most of your Jeany AI dashboard. I can help you with:
+const INITIAL_MESSAGE = `Hi! I'm Chatvice Guide, here to help you make the most of your Chatvice dashboard. I can help you with:
 
 - Setting up your AI agents
 - Managing knowledge sources
@@ -43,7 +43,7 @@ export function AIHelpBubble() {
     onError: () => {
       setMessages(prev => [...prev, { 
         role: "assistant", 
-        content: "I apologize, but I'm having trouble responding right now. Please try again later or contact support at support@jeany.ai." 
+        content: "I apologize, but I'm having trouble responding right now. Please try again later or contact support at support@chatvice.ai." 
       }]);
     }
   });
@@ -100,7 +100,7 @@ export function AIHelpBubble() {
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center">
                 <Bot className="w-4 h-4 text-white" />
               </div>
-              <span className="font-semibold text-sm">Jeany Guide</span>
+              <span className="font-semibold text-sm">Chatvice Guide</span>
             </div>
             <div className="flex gap-1">
               <Button
@@ -137,7 +137,7 @@ export function AIHelpBubble() {
               <Bot className="w-5 h-5 text-white" />
             </div>
             <div>
-              <CardTitle className="text-base">Jeany AI Guide</CardTitle>
+              <CardTitle className="text-base">Chatvice Guide</CardTitle>
               <p className="text-xs text-muted-foreground">Here to help you succeed</p>
             </div>
           </div>
@@ -208,7 +208,7 @@ export function AIHelpBubble() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask me anything about Jeany AI..."
+                placeholder="Ask me anything about Chatvice..."
                 className="flex-1"
                 disabled={askMutation.isPending}
                 data-testid="input-help-question"

@@ -41,7 +41,7 @@ function AuthLayout({ children, title, subtitle }: { children: React.ReactNode; 
             <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
               <Bot className="w-6 h-6 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold text-white">Jeany AI</span>
+            <span className="text-xl font-bold text-white">Chatvice</span>
           </Link>
           
           <h1 className="text-2xl font-bold text-white mb-2">{title}</h1>
@@ -85,7 +85,7 @@ function AuthLayout({ children, title, subtitle }: { children: React.ReactNode; 
                 <p className="text-sm text-white/80">How do I build an AI chatbot?</p>
               </div>
               <div className="p-3 bg-primary/30 rounded-lg ml-8">
-                <p className="text-sm text-white">It's easy! Just train Jeany with your knowledge base and deploy to your website.</p>
+                <p className="text-sm text-white">It's easy! Just train Chatvice with your knowledge base and deploy to your website.</p>
               </div>
             </div>
           </div>
@@ -147,7 +147,7 @@ export function LoginPage() {
   };
 
   return (
-    <AuthLayout title="Welcome back!" subtitle="Log in to your Jeany AI account">
+    <AuthLayout title="Welcome back!" subtitle="Log in to your Chatvice account">
       <div className="space-y-4">
         <Button 
           variant="outline" 
@@ -297,7 +297,7 @@ export function RegisterPage() {
       localStorage.setItem("userType", "merchant");
       toast({
         title: "Account created!",
-        description: "Welcome to Jeany AI. Let's set up your chatbot.",
+        description: "Welcome to Chatvice. Let's set up your chatbot.",
       });
       setLocation("/dashboard");
     },
