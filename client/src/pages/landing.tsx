@@ -103,10 +103,10 @@ function Navbar() {
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? "bg-background/95 backdrop-blur-md border-b border-border shadow-sm" : "bg-transparent"}`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between gap-4 h-16">
-          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer" data-testid="link-logo">
-            <img src={chatviceLogo} alt="Chatvice" className="h-8 w-auto" />
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between gap-2 sm:gap-4 h-14 sm:h-16">
+          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer flex-shrink-0" data-testid="link-logo">
+            <img src={chatviceLogo} alt="Chatvice" className="h-6 sm:h-8 w-auto" />
           </Link>
           <div className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" data-testid="link-features">Features</a>
@@ -119,21 +119,21 @@ function Navbar() {
               </button>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3">
             <ThemeToggle />
             {isCheckingAuth ? (
-              <div className="w-20 h-8 bg-muted animate-pulse rounded-md" />
+              <div className="w-16 sm:w-20 h-7 sm:h-8 bg-muted animate-pulse rounded-md" />
             ) : isLoggedIn ? (
-              <Link href="/dashboard" className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-foreground text-background hover:bg-foreground/90 h-8 px-3" data-testid="button-dashboard">
+              <Link href="/dashboard" className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-colors bg-foreground text-background hover:bg-foreground/90 h-7 sm:h-8 px-2 sm:px-3" data-testid="button-dashboard">
                 Dashboard
               </Link>
             ) : (
               <>
-                <Link href="/login" className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 px-3" data-testid="button-login">
+                <Link href="/login" className="hidden sm:inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 px-3" data-testid="button-login">
                   Sign in
                 </Link>
-                <Link href="/register" className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-foreground text-background hover:bg-foreground/90 h-8 px-3" data-testid="button-get-started">
-                  Try for Free
+                <Link href="/register" className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-xs sm:text-sm font-medium transition-colors bg-foreground text-background hover:bg-foreground/90 h-7 sm:h-8 px-2 sm:px-3" data-testid="button-get-started">
+                  Try Free
                 </Link>
               </>
             )}
