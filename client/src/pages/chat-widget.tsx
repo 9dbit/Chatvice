@@ -52,7 +52,6 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     enabled: !!merchantId && isOpen,
   });
 
-  const [hasUsedSuggestion, setHasUsedSuggestion] = useState(false);
 
   const sendMessageMutation = useMutation({
     mutationFn: async (userMessage: string) => {
@@ -118,7 +117,6 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   });
 
   const handleSuggestedQuestionClick = (sq: SuggestedQuestion) => {
-    setHasUsedSuggestion(true);
     setLocalMessages((prev) => [
       ...prev,
       { from: "user", content: sq.question, timestamp: new Date() },
@@ -319,8 +317,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               )}
             </div>
           ))}
-          {suggestedQuestions.length > 0 && !hasUsedSuggestion && allMessages.length <= 1 && (
-            <div className="mt-2">
+          {suggestedQuestions.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-border/50">
               <p className="text-xs text-muted-foreground mb-2">Quick questions:</p>
               <div className="flex flex-wrap gap-1.5">
                 {suggestedQuestions.slice(0, 5).map((sq) => (
