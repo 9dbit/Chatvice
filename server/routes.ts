@@ -861,7 +861,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         if (!limitCheck.allowed) {
           return res.status(403).json({ error: limitCheck.message });
         }
-        await storage.incrementConversationUsage(merchantId);
+        const credits = storage.calculateCreditsFromCustomerId(sessionId);
+        await storage.incrementConversationUsage(merchantId, credits);
       }
 
       await storage.createMessage({
@@ -1924,7 +1925,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
             subscriptionPlanId: planId,
             subscriptionStatus: 'active',
             stripeSubscriptionId: subscription.id,
-            currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+            currentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
             billingInterval: billingInterval || 'monthly',
           });
           

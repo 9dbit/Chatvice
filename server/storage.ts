@@ -582,12 +582,17 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async incrementConversationUsage(merchantId: string): Promise<void> {
-    await db.update(merchants)
-      .set({ 
-        conversationsUsed: sql`COALESCE(${merchants.conversationsUsed}, 0) + 1`
-      })
-      .where(eq(merchants.id, merchantId));
+  async incrementConversationUsage(merchantId: string, credits: number = 1): Promise<void> {
+    const safeCredits = Math.max(1, Math.floor(credits));
+    await db.execute(sql`
+      UPDATE ${merchants}
+      SET conversations_used = COALESCE(conversations_used, 0) + ${safeCredits}
+      WHERE id = ${merchantId}
+    `);
+  }
+
+  calculateCreditsFromCustomerId(customerId: string): number {
+    return Math.ceil(customerId.length / 5);
   }
 
   async resetConversationUsage(merchantId: string): Promise<void> {
