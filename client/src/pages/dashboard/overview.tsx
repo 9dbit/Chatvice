@@ -241,33 +241,33 @@ export default function DashboardOverview() {
               {sessions.slice(0, 8).map((session, index) => (
                 <div
                   key={session.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover-elevate"
+                  className="flex items-center gap-2 sm:gap-3 p-3 rounded-lg bg-muted/50 hover-elevate"
                   data-testid={`session-item-${index}`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="text-sm font-medium text-primary">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <span className="text-xs sm:text-sm font-medium text-primary">
                         {(session.customerName || "C")[0].toUpperCase()}
                       </span>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium">{session.customerName || "Customer"}</p>
-                      <p className="text-xs text-muted-foreground font-mono">
-                        {session.id.slice(0, 16)}...
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{session.customerName || "Customer"}</p>
+                      <p className="text-xs text-muted-foreground font-mono truncate">
+                        {session.id.slice(0, 12)}...
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
                     {session.lastActivity && (
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap hidden sm:block">
                         {new Date(session.lastActivity).toLocaleDateString()}
                       </span>
                     )}
-                    <Badge variant={session.mode === "AI" ? "secondary" : "default"}>
+                    <Badge variant={session.mode === "AI" ? "secondary" : "default"} className="text-[10px] sm:text-xs px-1.5 sm:px-2">
                       {session.mode === "AI" ? (
-                        <Bot className="w-3 h-3 mr-1" />
+                        <Bot className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
                       ) : (
-                        <HeadphonesIcon className="w-3 h-3 mr-1" />
+                        <HeadphonesIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
                       )}
                       {session.mode}
                     </Badge>

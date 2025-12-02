@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { SiGoogle, SiGithub, SiLinkedin, SiFacebook } from "react-icons/si";
+import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -38,10 +39,7 @@ function AuthLayout({ children, title, subtitle }: { children: React.ReactNode; 
       <div className="w-full lg:w-1/2 bg-zinc-950 flex flex-col justify-center px-8 md:px-16 lg:px-24">
         <div className="max-w-md mx-auto w-full">
           <Link href="/" className="flex items-center gap-3 mb-8 hover:opacity-80 transition-opacity" data-testid="link-auth-logo">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <Bot className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold text-white">Chatvice</span>
+            <img src={chatviceLogoDark} alt="Chatvice" className="h-8 w-auto" />
           </Link>
           
           <h1 className="text-2xl font-bold text-white mb-2">{title}</h1>
