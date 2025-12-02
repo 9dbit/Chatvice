@@ -28,7 +28,16 @@ export function ThemeProvider({
     return defaultTheme;
   });
 
-  const [resolvedTheme, setResolvedTheme] = useState<"dark" | "light">("light");
+  const [resolvedTheme, setResolvedTheme] = useState<"dark" | "light">(() => {
+    if (typeof window !== "undefined") {
+      const storedTheme = (localStorage.getItem(storageKey) as Theme) || defaultTheme;
+      if (storedTheme === "system") {
+        return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      return storedTheme === "dark" ? "dark" : "light";
+    }
+    return "light";
+  });
 
   useEffect(() => {
     const root = window.document.documentElement;
