@@ -592,7 +592,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   calculateCreditsFromCustomerId(customerId: string): number {
-    return Math.ceil(customerId.length / 5);
+    return Math.ceil(customerId.length / 500);
   }
 
   async resetConversationUsage(merchantId: string): Promise<void> {
