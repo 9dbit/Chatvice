@@ -182,7 +182,7 @@ async function askJeany(
 
   if (session.mode === "HUMAN") {
     return {
-      answer: "A supervisor is handling your conversation. Please wait for their response.",
+      answer: "Supervisor sedang menangani percakapan Anda. Mohon tunggu balasannya.",
       mode: "HUMAN",
     };
   }
@@ -192,7 +192,7 @@ async function askJeany(
     await storage.updateSession(sessionId, { mode: "HUMAN" });
     await notifySupervisors(merchantId, sessionId);
     return {
-      answer: "I'll connect you with a supervisor who can help you with this. Please wait a moment.",
+      answer: "Saya akan menghubungkan Anda dengan supervisor yang dapat membantu. Mohon tunggu sebentar.",
       mode: "HUMAN",
     };
   }
@@ -1438,12 +1438,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       await storage.createMessage({
         sessionId,
         from: "system",
-        content: "The conversation has been returned to the AI assistant. How may I help you?",
+        content: "Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?",
       });
       
       broadcastToSession(sessionId, {
         type: "message",
-        message: { from: "system", content: "The conversation has been returned to the AI assistant. How may I help you?" },
+        message: { from: "system", content: "Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?" },
       });
       
       res.json({ success: true });
@@ -1477,12 +1477,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       await storage.createMessage({
         sessionId,
         from: "system",
-        content: "The conversation has been returned to the AI assistant. How may I help you?",
+        content: "Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?",
       });
       
       broadcastToSession(sessionId, {
         type: "message",
-        message: { from: "system", content: "The conversation has been returned to the AI assistant. How may I help you?" },
+        message: { from: "system", content: "Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?" },
       });
       
       res.json({ success: true });
@@ -2395,10 +2395,40 @@ You are friendly, helpful, and concise. Guide merchants on how to use Jeany AI d
         return res.status(404).json({ error: "Supervisor not found" });
       }
       
+      // Check if supervisor already has 3 agents assigned (maximum limit)
+      const allAgents = await storage.getAgents(merchantId);
+      const supervisorAgentCount = allAgents.filter(a => a.supervisorId === supervisorId).length;
+      if (supervisorAgentCount >= 3) {
+        return res.status(400).json({ error: "Supervisor sudah menangani maksimum 3 agen. Silakan pilih supervisor lain." });
+      }
+      
       const updated = await storage.updateAgent(agentId, { supervisorId });
       res.json({ success: true, agent: updated });
     } catch (error) {
       console.error("Assign supervisor error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Unassign supervisor from agent
+  app.post("/api/agents/unassign-supervisor", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { agentId } = req.body;
+      
+      if (!agentId) {
+        return res.status(400).json({ error: "Missing agentId" });
+      }
+      
+      const agent = await storage.getAgent(agentId);
+      if (!agent || agent.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Agent not found" });
+      }
+      
+      const updated = await storage.updateAgent(agentId, { supervisorId: null });
+      res.json({ success: true, agent: updated });
+    } catch (error) {
+      console.error("Unassign supervisor error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });

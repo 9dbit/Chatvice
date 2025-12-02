@@ -547,7 +547,9 @@ export default function SessionsPage() {
                             variant={selectedSessionData?.mode === "AI" ? "secondary" : "default"}
                             className="h-4 sm:h-5 text-[9px] sm:text-[10px]"
                           >
-                            {selectedSessionData?.mode === "AI" ? "AI" : "Supervisor"}
+                            {selectedSessionData?.mode === "AI" 
+                              ? getAgentName(selectedSessionData?.agentId)
+                              : getSupervisorName(selectedSessionData?.supervisorId) || "Supervisor"}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground">
@@ -658,6 +660,15 @@ export default function SessionsPage() {
                                       : "bg-muted rounded-2xl rounded-bl-sm"
                                   }`}
                                 >
+                                  {msg.from !== "user" && msg.from !== "system" && (
+                                    <p className="text-[10px] font-medium mb-1 text-primary/80">
+                                      {msg.from === "jeany" || msg.from === "bot" || msg.from === "ai"
+                                        ? getAgentName(selectedSessionData?.agentId)
+                                        : msg.from === "supervisor" 
+                                          ? getSupervisorName(selectedSessionData?.supervisorId) || "Supervisor"
+                                          : getAgentName(selectedSessionData?.agentId)}
+                                    </p>
+                                  )}
                                   <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                                   <p className={`text-[10px] mt-1 ${msg.from === "user" ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
                                     {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}

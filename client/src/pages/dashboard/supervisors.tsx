@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Plus, Trash2, Mail, User, Camera, Loader2, Edit, Clock, Zap, Timer, AlertCircle, Bot, Check, Crown, ArrowUpRight, Link as LinkIcon } from "lucide-react";
+import { Users, Plus, Trash2, Mail, User, Camera, Loader2, Edit, Clock, Zap, Timer, AlertCircle, Bot, Check, Crown, ArrowUpRight, Link as LinkIcon, X } from "lucide-react";
 import { Link } from "wouter";
 import type { Supervisor, Agent, Merchant } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
@@ -257,9 +257,30 @@ export default function SupervisorsPage() {
         description: "The supervisor has been linked to this agent.",
       });
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: "Failed to assign",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const unassignSupervisorMutation = useMutation({
+    mutationFn: async (agentId: string) => {
+      return apiRequest("POST", "/api/agents/unassign-supervisor", { agentId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/supervisors", merchantId] });
+      toast({
+        title: "Agent unassigned",
+        description: "The agent has been removed from this supervisor.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to unassign",
         description: "Please try again.",
         variant: "destructive",
       });
@@ -567,22 +588,29 @@ export default function SupervisorsPage() {
                         Assigned Agents
                       </span>
                       <Badge variant="secondary" className="text-xs">
-                        {assignedAgents.length}
+                        {assignedAgents.length} / 3
                       </Badge>
                     </div>
 
                     {assignedAgents.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
-                        {assignedAgents.slice(0, 3).map((agent) => (
-                          <Badge key={agent.id} variant="outline" className="text-xs">
-                            {agent.name}
+                        {assignedAgents.map((agent) => (
+                          <Badge key={agent.id} variant="outline" className="text-xs flex items-center gap-1 pr-1">
+                            <span>{agent.name}</span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                unassignSupervisorMutation.mutate(agent.id);
+                              }}
+                              className="ml-0.5 p-0.5 rounded-full hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                              title="Remove agent"
+                              data-testid={`button-unassign-agent-${agent.id}`}
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
                           </Badge>
                         ))}
-                        {assignedAgents.length > 3 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{assignedAgents.length - 3} more
-                          </Badge>
-                        )}
                       </div>
                     ) : (
                       <p className="text-xs text-muted-foreground">No agents assigned</p>

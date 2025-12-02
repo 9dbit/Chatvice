@@ -41,6 +41,7 @@ interface Session {
   id: string;
   mode: "AI" | "HUMAN";
   merchantId: string;
+  needsSupervisorAttention?: boolean;
 }
 
 function BlinkingDot() {
@@ -105,7 +106,7 @@ export function AppSidebar() {
     refetchInterval: 5000,
   });
 
-  const escalatedCount = sessions?.filter(s => s.mode === "HUMAN").length || 0;
+  const escalatedCount = sessions?.filter(s => s.mode === "HUMAN" || s.needsSupervisorAttention === true).length || 0;
 
   const playAlertSound = useCallback(() => {
     if (!audioRef.current) {
