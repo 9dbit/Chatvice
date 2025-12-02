@@ -8,7 +8,6 @@ import { ChevronRight, Home, Loader2 } from "lucide-react";
 import DashboardOverview from "./overview";
 import SessionsPage from "./sessions";
 import KnowledgePage from "./knowledge";
-import SuggestedQuestionsPage from "./suggested-questions";
 import TriggersPage from "./triggers";
 import WidgetPage from "./widget";
 import SupervisorsPage from "./supervisors";
@@ -30,7 +29,6 @@ const pageNames: Record<string, string> = {
   "sessions": "Chat Sessions",
   "chat-logs": "Chat Logs",
   "knowledge": "Knowledge Base",
-  "suggested-questions": "Suggested Questions",
   "triggers": "Triggers",
   "widget": "Widget",
   "supervisors": "Supervisors",
@@ -112,7 +110,6 @@ export default function DashboardLayout() {
               <Route path="/dashboard/sessions" component={SessionsPage} />
               <Route path="/dashboard/chat-logs" component={ChatLogsPage} />
               <Route path="/dashboard/knowledge" component={KnowledgePage} />
-              <Route path="/dashboard/suggested-questions" component={SuggestedQuestionsPage} />
               <Route path="/dashboard/triggers" component={TriggersPage} />
               <Route path="/dashboard/widget" component={WidgetPage} />
               <Route path="/dashboard/supervisors" component={SupervisorsPage} />

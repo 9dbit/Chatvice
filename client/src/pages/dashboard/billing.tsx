@@ -575,11 +575,6 @@ export default function BillingPage() {
                       Contact Sales
                       <ArrowUpRight className="w-3 h-3 ml-1" />
                     </Button>
-                  ) : isEnterprise ? (
-                    <Button variant="outline" className="w-full" size="sm" data-testid="button-contact-sales">
-                      Contact Sales
-                      <ArrowUpRight className="w-3 h-3 ml-1" />
-                    </Button>
                   ) : isCurrent ? (
                     <Button variant="outline" disabled className="w-full" size="sm" data-testid={`button-current-plan-${plan.id}`}>
                       Current Plan

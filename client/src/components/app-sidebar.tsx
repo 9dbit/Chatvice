@@ -27,7 +27,6 @@ import {
   BarChart3,
   FileText,
   Plug2,
-  HelpCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -61,7 +60,6 @@ const menuItems = [
   { title: "Chat Sessions", url: "/dashboard/sessions", icon: MessageSquare },
   { title: "Chat Logs", url: "/dashboard/chat-logs", icon: FileText },
   { title: "Knowledge Base", url: "/dashboard/knowledge", icon: Database },
-  { title: "Suggested Questions", url: "/dashboard/suggested-questions", icon: HelpCircle },
   { title: "Triggers", url: "/dashboard/triggers", icon: Zap },
   { title: "Widget", url: "/dashboard/widget", icon: Palette },
   { title: "Supervisors", url: "/dashboard/supervisors", icon: Users },

@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Bot, Send, X, Minimize2, HeadphonesIcon, User, ImageIcon, Video, Camera, Loader2 } from "lucide-react";
+import { Bot, Send, X, Minimize2, HeadphonesIcon, User, ImageIcon, Video, FileText, Plus, Loader2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { Message, SuggestedQuestion } from "@shared/schema";
 
 interface MerchantConfig {
@@ -33,8 +34,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const documentInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [showUploadMenu, setShowUploadMenu] = useState(false);
 
   const { data: merchantConfig } = useQuery<MerchantConfig>({
     queryKey: ["/api/merchant/status", merchantId],
@@ -131,7 +133,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     }
   };
 
-  const handleFileUpload = async (file: File, type: "photo" | "video") => {
+  const handleFileUpload = async (file: File, type: "photo" | "video" | "document") => {
     if (!file) return;
     
     setIsUploadingMedia(true);
@@ -155,18 +157,30 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       
       const data = await response.json();
       
+      const typeLabels: Record<string, string> = {
+        photo: "Photo attached",
+        video: "Video attached",
+        document: "Document attached"
+      };
+      
       setLocalMessages((prev) => [
         ...prev,
         { 
           from: "user", 
-          content: type === "photo" ? "[Photo attached]" : "[Video attached]",
+          content: `[${typeLabels[type]}]`,
           timestamp: new Date(),
           mediaUrl: data.url,
           mediaType: type
         },
       ]);
       
-      sendMessageMutation.mutate(`[${type === "photo" ? "Customer sent a photo" : "Customer sent a video"}]`);
+      const messageLabels: Record<string, string> = {
+        photo: "Customer sent a photo",
+        video: "Customer sent a video",
+        document: "Customer sent a document"
+      };
+      
+      sendMessageMutation.mutate(`[${messageLabels[type]}]`);
     } catch {
       setLocalMessages((prev) => [
         ...prev,
@@ -176,7 +190,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       setIsUploadingMedia(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
       if (videoInputRef.current) videoInputRef.current.value = "";
-      if (cameraInputRef.current) cameraInputRef.current.value = "";
+      if (documentInputRef.current) documentInputRef.current.value = "";
     }
   };
 
@@ -317,25 +331,6 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               )}
             </div>
           ))}
-          {suggestedQuestions.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-border/50">
-              <p className="text-xs text-muted-foreground mb-2">Quick questions:</p>
-              <div className="flex flex-wrap gap-1.5">
-                {suggestedQuestions.slice(0, 5).map((sq) => (
-                  <Button
-                    key={sq.id}
-                    variant="outline"
-                    size="sm"
-                    className="h-auto py-1 px-2.5 text-xs font-normal whitespace-normal text-left hover-elevate"
-                    onClick={() => handleSuggestedQuestionClick(sq)}
-                    data-testid={`button-suggested-question-${sq.id}`}
-                  >
-                    {sq.question}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
           {sendMessageMutation.isPending && (
             <div className="flex gap-2 justify-start">
               <div
@@ -361,6 +356,27 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         </div>
       </ScrollArea>
 
+      {suggestedQuestions.length > 0 && (
+        <div className="px-4 py-2 border-t border-border/50 bg-background/80 backdrop-blur-sm">
+          <p className="text-xs text-muted-foreground mb-1.5">Quick questions:</p>
+          <div className="flex flex-wrap gap-1.5">
+            {suggestedQuestions.slice(0, 5).map((sq) => (
+              <Button
+                key={sq.id}
+                variant="outline"
+                size="sm"
+                className="h-auto py-1 px-2.5 text-xs font-normal whitespace-normal text-left hover-elevate"
+                onClick={() => handleSuggestedQuestionClick(sq)}
+                disabled={sendMessageMutation.isPending || useSuggestedQuestionMutation.isPending}
+                data-testid={`button-suggested-question-${sq.id}`}
+              >
+                {sq.question}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="p-4 border-t border-border">
         <input
           type="file"
@@ -370,6 +386,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) handleFileUpload(file, "photo");
+            setShowUploadMenu(false);
           }}
           data-testid="input-file-photo"
         />
@@ -381,79 +398,80 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) handleFileUpload(file, "video");
+            setShowUploadMenu(false);
           }}
           data-testid="input-file-video"
         />
         <input
           type="file"
-          ref={cameraInputRef}
-          accept="image/*"
-          capture="environment"
+          ref={documentInputRef}
+          accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.csv"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
-            if (file) handleFileUpload(file, "photo");
+            if (file) handleFileUpload(file, "document");
+            setShowUploadMenu(false);
           }}
-          data-testid="input-file-camera"
+          data-testid="input-file-document"
         />
         <div className="flex gap-2 items-center">
-          <div className="flex gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
+          <Popover open={showUploadMenu} onOpenChange={setShowUploadMenu}>
+            <PopoverTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8"
+                disabled={!isOnline || isUploadingMedia}
+                data-testid="button-upload-menu"
+              >
+                {isUploadingMedia ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Plus className="w-4 h-4" />
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="top" align="start" className="w-40 p-1">
+              <div className="flex flex-col">
                 <Button
-                  size="icon"
                   variant="ghost"
-                  className="h-8 w-8"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={!isOnline || isUploadingMedia}
-                  data-testid="button-upload-photo"
+                  size="sm"
+                  className="justify-start gap-2 h-9"
+                  onClick={() => {
+                    fileInputRef.current?.click();
+                  }}
+                  data-testid="button-upload-image"
                 >
-                  {isUploadingMedia ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <ImageIcon className="w-4 h-4" />
-                  )}
+                  <ImageIcon className="w-4 h-4" />
+                  Image
                 </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p>Upload photo</p>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
                 <Button
-                  size="icon"
                   variant="ghost"
-                  className="h-8 w-8"
-                  onClick={() => videoInputRef.current?.click()}
-                  disabled={!isOnline || isUploadingMedia}
+                  size="sm"
+                  className="justify-start gap-2 h-9"
+                  onClick={() => {
+                    videoInputRef.current?.click();
+                  }}
                   data-testid="button-upload-video"
                 >
                   <Video className="w-4 h-4" />
+                  Video
                 </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p>Upload video</p>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
                 <Button
-                  size="icon"
                   variant="ghost"
-                  className="h-8 w-8"
-                  onClick={() => cameraInputRef.current?.click()}
-                  disabled={!isOnline || isUploadingMedia}
-                  data-testid="button-take-photo"
+                  size="sm"
+                  className="justify-start gap-2 h-9"
+                  onClick={() => {
+                    documentInputRef.current?.click();
+                  }}
+                  data-testid="button-upload-document"
                 >
-                  <Camera className="w-4 h-4" />
+                  <FileText className="w-4 h-4" />
+                  Document
                 </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p>Take photo</p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
+              </div>
+            </PopoverContent>
+          </Popover>
           <Input
             placeholder="Type your message..."
             value={message}

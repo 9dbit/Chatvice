@@ -913,10 +913,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       const fileUrl = `/uploads/${file.filename}`;
 
+      const mediaType = type === "video" ? "video" : type === "document" ? "document" : "photo";
+      
       await storage.createMediaAttachment({
         sessionId,
         agentId: merchant.activeAgentId,
-        type: type === "video" ? "video" : "photo",
+        type: mediaType,
         url: fileUrl,
       });
 
@@ -924,7 +926,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         success: true, 
         url: fileUrl,
         filename: file.filename,
-        type: type === "video" ? "video" : "photo"
+        type: mediaType
       });
     } catch (error: any) {
       console.error("Upload error:", error);
