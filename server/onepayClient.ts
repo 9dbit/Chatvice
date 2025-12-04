@@ -29,25 +29,23 @@ function getCredentials(): OnePayCredentials {
 function generateSignature(payload: string, timestamp: string): string {
   const { clientKey, clientSecret } = getCredentials();
   
-  // Try format: timestamp + clientKey + SHA256(payload)
-  // Common format for Indonesian payment gateways following SNAP standard
-  const payloadHash = crypto.createHash('sha256').update(payload).digest('hex').toLowerCase();
-  const stringToSign = `${timestamp}${clientKey}${payloadHash}`;
+  // Format per 1-Pay documentation: clientKey:timestamp:requestBody
+  // Algorithm: HMAC-SHA256, Output: Hex
+  const stringToSign = `${clientKey}:${timestamp}:${payload}`;
   const signature = crypto.createHmac('sha256', clientSecret).update(stringToSign).digest('hex');
   
   console.log('Signature generation:', {
-    stringToSignFormat: 'timestamp + clientKey + SHA256(payload)',
-    stringToSignPreview: stringToSign.substring(0, 100) + '...',
+    stringToSignFormat: 'clientKey:timestamp:payload',
+    stringToSignPreview: stringToSign.substring(0, 150) + '...',
     signaturePreview: signature.substring(0, 20) + '...',
     timestampFormat: timestamp,
-    payloadHashPreview: payloadHash.substring(0, 20) + '...',
   });
   return signature;
 }
 
 function generateTimestamp(): string {
-  // Use Unix timestamp in seconds (common for Indonesian payment gateways)
-  return Math.floor(Date.now() / 1000).toString();
+  // ISO timestamp format per 1-Pay spec: 2025-12-04T08:29:15.123Z
+  return new Date().toISOString();
 }
 
 export interface CreateQRISRequest {
@@ -139,9 +137,9 @@ async function makeRequest<T>(
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'Client-Key': clientKey,
-    'Request-Timestamp': timestamp,
-    'Signature': signature,
+    'client-key': clientKey,
+    'request-timestamp': timestamp,
+    'signature': signature,
   };
 
   const options: RequestInit = {
@@ -182,17 +180,20 @@ export async function createQRISPayment(request: CreateQRISRequest): Promise<Cre
   const { clientKey } = getCredentials();
   const timestamp = generateTimestamp();
   
+  // Calculate expiry time in format "YYYY-MM-DD HH:mm:ss"
+  const expiryMinutes = request.expiryMinutes || 30;
+  const expiryDate = new Date(Date.now() + expiryMinutes * 60 * 1000);
+  const expiredStr = expiryDate.toISOString().replace('T', ' ').split('.')[0];
+  
+  // Body format per 1-Pay documentation
   const body = {
-    partner_id: clientKey,
-    merchant_id: request.merchantId,
-    external_id: request.orderId,
+    expired: expiredStr,
     amount: request.amount,
+    customer_phone: '081200000000', // Default phone if not provided
+    customer_email: request.customerEmail || 'customer@example.com',
     customer_name: request.customerName || 'Customer',
-    customer_email: request.customerEmail || '',
-    description: request.description || 'Subscription Payment',
-    expiry_minutes: request.expiryMinutes || 30,
-    callback_url: request.callbackUrl,
-    metadata: request.metadata,
+    url_callback: request.callbackUrl || '',
+    identifier_id: request.orderId,
   };
 
   const payload = JSON.stringify(body);
@@ -204,6 +205,7 @@ export async function createQRISPayment(request: CreateQRISRequest): Promise<Cre
     clientKeyLength: clientKey?.length,
     timestamp,
     hasSignature: !!signature,
+    body: body,
   });
 
   try {
@@ -211,16 +213,18 @@ export async function createQRISPayment(request: CreateQRISRequest): Promise<Cre
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Client-Key': clientKey,
-        'Request-Timestamp': timestamp,
-        'Signature': signature,
+        'client-key': clientKey,
+        'request-timestamp': timestamp,
+        'signature': signature,
       },
       body: payload,
     });
 
     const data = await response.json();
     
-    if (!response.ok || data.status === 'error') {
+    console.log('1-Pay QRIS response:', data);
+    
+    if (!response.ok || data.status === 'error' || data.success === false) {
       console.error('1-Pay QRIS creation error:', data);
       return {
         success: false,
@@ -229,15 +233,18 @@ export async function createQRISPayment(request: CreateQRISRequest): Promise<Cre
       };
     }
     
+    // Handle response format from 1-Pay
+    const responseData = data.data || data;
+    
     return {
       success: true,
       data: {
-        transactionId: data.transaction_id || data.data?.transaction_id,
+        transactionId: responseData.transaction_id || responseData.id || request.orderId,
         orderId: request.orderId,
-        qrisString: data.qris_string || data.data?.qris_string,
-        qrisImageUrl: data.qris_image_url || data.data?.qris_image_url || data.qr_url || data.data?.qr_url,
+        qrisString: responseData.qris_string || responseData.qr_string || '',
+        qrisImageUrl: responseData.qris_image_url || responseData.qr_url || responseData.qr_image || '',
         amount: request.amount,
-        expiryTime: data.expiry_time || data.data?.expiry_time,
+        expiryTime: responseData.expiry_time || responseData.expired || expiredStr,
         status: 'PENDING',
       },
     };
@@ -276,9 +283,9 @@ export async function createVAPayment(request: CreateVARequest): Promise<CreateV
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Client-Key': clientKey,
-        'Request-Timestamp': timestamp,
-        'Signature': signature,
+        'client-key': clientKey,
+        'request-timestamp': timestamp,
+        'signature': signature,
       },
       body: payload,
     });
