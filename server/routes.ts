@@ -1797,6 +1797,39 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // Test endpoint for 1-Pay API (development only)
+  app.post("/api/billing/test-onepay", async (req, res) => {
+    try {
+      if (!isOnePayConfigured()) {
+        return res.status(503).json({ error: "1-Pay not configured" });
+      }
+      
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const callbackUrl = `${baseUrl}/api/onepay/webhook`;
+      const orderId = `TEST_${Date.now()}`;
+      
+      console.log("Testing 1-Pay API...");
+      
+      const qrisResult = await createQRISPayment({
+        merchantId: "test",
+        orderId,
+        amount: 10000, // IDR 10,000 for testing
+        customerName: "Test Customer",
+        customerEmail: "test@example.com",
+        description: "Test QRIS Payment",
+        expiryMinutes: 5,
+        callbackUrl,
+      });
+      
+      console.log("1-Pay test result:", qrisResult);
+      
+      res.json(qrisResult);
+    } catch (error: any) {
+      console.error("1-Pay test error:", error);
+      res.status(500).json({ error: error.message || "Test failed" });
+    }
+  });
+
   app.post("/api/billing/demo-checkout", requireMerchant, async (req, res) => {
     try {
       const { planId, billingInterval } = req.body;
