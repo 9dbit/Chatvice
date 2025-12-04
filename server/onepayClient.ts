@@ -28,20 +28,26 @@ function getCredentials(): OnePayCredentials {
 
 function generateSignature(payload: string, timestamp: string): string {
   const { clientKey, clientSecret } = getCredentials();
-  const stringToSign = `${clientKey}:${timestamp}:${payload}`;
+  
+  // Try format: timestamp + clientKey + SHA256(payload)
+  // Common format for Indonesian payment gateways following SNAP standard
+  const payloadHash = crypto.createHash('sha256').update(payload).digest('hex').toLowerCase();
+  const stringToSign = `${timestamp}${clientKey}${payloadHash}`;
   const signature = crypto.createHmac('sha256', clientSecret).update(stringToSign).digest('hex');
+  
   console.log('Signature generation:', {
+    stringToSignFormat: 'timestamp + clientKey + SHA256(payload)',
     stringToSignPreview: stringToSign.substring(0, 100) + '...',
     signaturePreview: signature.substring(0, 20) + '...',
-    clientKeyLength: clientKey.length,
-    clientSecretLength: clientSecret.length,
     timestampFormat: timestamp,
+    payloadHashPreview: payloadHash.substring(0, 20) + '...',
   });
   return signature;
 }
 
 function generateTimestamp(): string {
-  return new Date().toISOString();
+  // Use Unix timestamp in seconds (common for Indonesian payment gateways)
+  return Math.floor(Date.now() / 1000).toString();
 }
 
 export interface CreateQRISRequest {
