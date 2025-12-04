@@ -15,6 +15,30 @@ import ChatWidget from "@/pages/chat-widget";
 import AdminLogin from "@/pages/admin/login";
 import AdminDashboard from "@/pages/admin/dashboard";
 
+import FAQPage from "@/pages/faq";
+import FeaturesPage from "@/pages/features";
+import PricingPage from "@/pages/pricing-page";
+import AboutPage from "@/pages/about";
+import APIDocsPage from "@/pages/api-docs";
+import ChangelogPage from "@/pages/changelog";
+import IntegrationsPage from "@/pages/integrations";
+
+import PrivacyPolicyPage from "@/pages/legal/privacy";
+import TermsOfServicePage from "@/pages/legal/terms";
+import CookiePolicyPage from "@/pages/legal/cookies";
+import GDPRPage from "@/pages/legal/gdpr";
+import SecurityPage from "@/pages/legal/security";
+
+import BlogPage from "@/pages/company/blog";
+import CareersPage from "@/pages/company/careers";
+import PressPage from "@/pages/company/press";
+import PartnersPage from "@/pages/company/partners";
+
+import ContactPage from "@/pages/resources/contact";
+import StatusPage from "@/pages/resources/status";
+import DocsPage from "@/pages/resources/docs";
+import HelpCenterPage from "@/pages/resources/help";
+
 function Router() {
   return (
     <Switch>
@@ -37,6 +61,31 @@ function Router() {
           </div>
         )}
       </Route>
+
+      <Route path="/faq" component={FAQPage} />
+      <Route path="/features" component={FeaturesPage} />
+      <Route path="/pricing" component={PricingPage} />
+      <Route path="/about" component={AboutPage} />
+      <Route path="/api-docs" component={APIDocsPage} />
+      <Route path="/changelog" component={ChangelogPage} />
+      <Route path="/integrations" component={IntegrationsPage} />
+
+      <Route path="/privacy" component={PrivacyPolicyPage} />
+      <Route path="/terms" component={TermsOfServicePage} />
+      <Route path="/cookies" component={CookiePolicyPage} />
+      <Route path="/gdpr" component={GDPRPage} />
+      <Route path="/security" component={SecurityPage} />
+
+      <Route path="/blog" component={BlogPage} />
+      <Route path="/careers" component={CareersPage} />
+      <Route path="/press" component={PressPage} />
+      <Route path="/partners" component={PartnersPage} />
+
+      <Route path="/contact" component={ContactPage} />
+      <Route path="/status" component={StatusPage} />
+      <Route path="/docs" component={DocsPage} />
+      <Route path="/help" component={HelpCenterPage} />
+
       <Route component={NotFound} />
     </Switch>
   );

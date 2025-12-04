@@ -286,3 +286,29 @@
     inset: -1px;
   }
 }
+
+/* Marquee Animation for Running Text Banner */
+.marquee-wrapper {
+  display: flex;
+  width: max-content;
+  animation: marquee 60s linear infinite;
+}
+
+.marquee-content {
+  display: flex;
+  padding-right: 2rem;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* Pause animation on hover */
+.marquee-wrapper:hover {
+  animation-play-state: paused;
+}
