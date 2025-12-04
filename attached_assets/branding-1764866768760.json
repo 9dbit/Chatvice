@@ -1,0 +1,120 @@
+{
+  "colorScheme": "light",
+  "fonts": [
+    {
+      "family": "Switzer",
+      "role": "body"
+    },
+    {
+      "family": "Helvetica Neue",
+      "role": "body"
+    },
+    {
+      "family": "Arial",
+      "role": "body"
+    },
+    {
+      "family": "Helvetica",
+      "role": "body"
+    },
+    {
+      "family": "Lucida Console",
+      "role": "monospace"
+    }
+  ],
+  "colors": {
+    "primary": "#D91E41",
+    "accent": "#D91E41",
+    "background": "#FFFFFF",
+    "textPrimary": "#000000",
+    "link": "#D91E41"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "Switzer",
+      "heading": "Switzer"
+    },
+    "fontStacks": {
+      "heading": [
+        "Switzer",
+        "sans-serif"
+      ],
+      "body": [
+        "Switzer",
+        "sans-serif"
+      ],
+      "paragraph": [
+        "Switzer",
+        "sans-serif"
+      ]
+    },
+    "fontSizes": {
+      "h1": "16.94px",
+      "h2": "18.519px",
+      "body": "16px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "5px"
+  },
+  "components": {
+    "input": {
+      "borderColor": "#CCCCCC",
+      "borderRadius": "5px"
+    },
+    "buttonPrimary": {
+      "background": "#D91E41",
+      "textColor": "#FFFFFF",
+      "borderColor": "#FFFFFF",
+      "borderRadius": "30px",
+      "shadow": "none"
+    },
+    "buttonSecondary": {
+      "background": "#FFFFFF",
+      "textColor": "#000000",
+      "borderRadius": "0px",
+      "shadow": "none"
+    }
+  },
+  "images": {
+    "logo": "https://themetick.com/connektiva/wp-content/uploads/sites/13/2023/06/logo.svg",
+    "favicon": "https://themetick.com/connektiva/wp-content/uploads/sites/13/2023/06/cropped-sitelogo3-32x32.png",
+    "ogImage": null
+  },
+  "__framework_hints": [
+    "WordPress 6.8.3"
+  ],
+  "__llm_logo_reasoning": {
+    "selectedIndex": 0,
+    "reasoning": "Logo #0 matches the brand name 'Conn.' and is located in the header, linking to the homepage, making it the primary brand logo.",
+    "confidence": 0.9
+  },
+  "__llm_button_reasoning": {
+    "primary": {
+      "index": 0,
+      "text": "Get Directions",
+      "reasoning": "Button #0 has a vibrant background color (#D91E41) which matches the brand's accent color. It also has action-oriented text ('Get Directions'), making it the primary call-to-action."
+    },
+    "secondary": {
+      "index": 1,
+      "text": "Get Directions",
+      "reasoning": "Button #1 has a different background color (#FFFFFF) compared to the primary button. It is less prominent and serves as a secondary action, making it suitable for the secondary button."
+    },
+    "confidence": 0.95
+  },
+  "personality": {
+    "tone": "modern",
+    "energy": "medium",
+    "targetAudience": "event attendees and organizers"
+  },
+  "designSystem": {
+    "framework": "unknown",
+    "componentLibrary": null
+  },
+  "confidence": {
+    "buttons": 0.95,
+    "colors": 0.9,
+    "overall": 0.925
+  }
+}
