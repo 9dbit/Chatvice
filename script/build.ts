@@ -24,7 +24,6 @@ const allowlist = [
   "openai",
   "passport",
   "passport-local",
-  "stripe",
   "uuid",
   "ws",
   "xlsx",

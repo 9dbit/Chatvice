@@ -855,20 +855,20 @@ function BillingTab() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Stripe Integration</CardTitle>
-          <CardDescription>Manage your Stripe payment settings</CardDescription>
+          <CardTitle>1-Pay Integration</CardTitle>
+          <CardDescription>Indonesian payment gateway for QRIS payments</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between p-4 border rounded-lg">
             <div>
-              <p className="font-medium">Stripe Account</p>
-              <p className="text-sm text-muted-foreground">Connected</p>
+              <p className="font-medium">1-Pay Account</p>
+              <p className="text-sm text-muted-foreground">QRIS Payment Gateway</p>
             </div>
             <Badge className="bg-green-500/20 text-green-700">Active</Badge>
           </div>
           <Button variant="outline" asChild>
-            <a href="https://dashboard.stripe.com" target="_blank" rel="noopener noreferrer">
-              Open Stripe Dashboard
+            <a href="https://1-pay.id/dashboard" target="_blank" rel="noopener noreferrer">
+              Open 1-Pay Dashboard
               <ExternalLink className="w-4 h-4 ml-2" />
             </a>
           </Button>
