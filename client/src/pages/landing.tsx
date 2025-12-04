@@ -66,20 +66,39 @@ import engineeredForSecurityImage from "@assets/engineered-for-security_17648656
 import purposeBuiltForLlmsImage from "@assets/purpose-built-for-llms_1764865696017.webp";
 import maleAvatar from "@assets/345c6d52234bbc72407ea25d49ad945e_1764867029228.jpg";
 import femaleAvatar from "@assets/b80ad9fd48f0b1e8d404775c495633be_1764867029228.jpg";
+import heroBackgroundImage from "@assets/IMG_0185_1764870218768.jpeg";
 
 function RunningTextBanner() {
-  const fullText = "LEXA1 . 2025";
-  const repeatedText = Array(12).fill(fullText).join(" ");
+  const fullText = "CHATVICE . LEXA1 . AI CUSTOMER SERVICE . INDONESIA .";
+  const repeatedText = Array(8).fill(fullText).join(" ");
   
   return (
-    <div className="bg-purple-600 text-white overflow-hidden whitespace-nowrap relative">
-      <div className="marquee-wrapper">
-        <div className="marquee-content">
-          <span className="text-6xl md:text-8xl lg:text-[120px] font-black tracking-tight leading-none uppercase" style={{ fontFamily: "'D-DIN', sans-serif" }}>{repeatedText}</span>
-        </div>
-        <div className="marquee-content" aria-hidden="true">
-          <span className="text-6xl md:text-8xl lg:text-[120px] font-black tracking-tight leading-none uppercase" style={{ fontFamily: "'D-DIN', sans-serif" }}>{repeatedText}</span>
-        </div>
+    <div 
+      className="overflow-hidden whitespace-nowrap relative flex items-center"
+      style={{ 
+        backgroundColor: '#7c3aed',
+        minHeight: '25vh'
+      }}
+    >
+      <div 
+        className="flex w-max"
+        style={{
+          animation: 'marquee 20s linear infinite'
+        }}
+      >
+        <span 
+          className="text-[90px] md:text-[140px] lg:text-[180px] font-black tracking-tight leading-none uppercase text-white px-8"
+          style={{ fontFamily: "'D-DIN', sans-serif" }}
+        >
+          {repeatedText}
+        </span>
+        <span 
+          className="text-[90px] md:text-[140px] lg:text-[180px] font-black tracking-tight leading-none uppercase text-white px-8"
+          style={{ fontFamily: "'D-DIN', sans-serif" }}
+          aria-hidden="true"
+        >
+          {repeatedText}
+        </span>
       </div>
     </div>
   );
@@ -592,77 +611,123 @@ function Lexa1ChatWidget() {
 
 function HeroSection() {
   return (
-    <section className="pt-20 lg:pt-24">
-      <div className="bg-purple-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="space-y-8">
-              <div className="space-y-2">
-                <p className="text-purple-200 text-lg font-medium">09 December 2025</p>
-                <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05]">
-                  Meet<br />
-                  <span className="text-purple-200">LEXA1</span>
-                </h1>
-              </div>
-              <p className="text-lg text-purple-100 max-w-lg leading-relaxed">
-                From AI-powered customer service to intelligent escalation and knowledge management, 
-                our expert-built platform will transform how you connect with customers.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/register">
-                  <Button size="lg" className="bg-white text-purple-600 hover:bg-purple-50 px-8 font-semibold" data-testid="button-hero-start">
-                    Start Building Free
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </Link>
-                <Link href="/features">
-                  <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 px-8" data-testid="button-hero-features">
-                    Explore Features
-                  </Button>
-                </Link>
-              </div>
-            </div>
-            <div className="relative flex justify-center lg:justify-end">
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-400/30 to-purple-800/30 blur-3xl rounded-full" />
-              <div className="relative">
-                <Lexa1ChatWidget />
-              </div>
+    <section className="relative">
+      <div 
+        className="hero-parallax fixed inset-0 w-full h-screen bg-cover bg-center bg-no-repeat"
+        style={{ 
+          backgroundImage: `url(${heroBackgroundImage})`,
+          backgroundAttachment: 'fixed',
+          zIndex: -1
+        }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black" />
+      </div>
+
+      <div className="relative min-h-screen flex items-end pb-24 pt-32">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-xl md:max-w-2xl text-left">
+            <p className="text-white/80 text-lg font-medium mb-4" style={{ fontFamily: "'D-DIN', sans-serif" }}>
+              09 December 2025
+            </p>
+            <h1 className="text-5xl md:text-6xl lg:text-8xl font-black tracking-tight leading-[1.0] text-white mb-6" style={{ fontFamily: "'D-DIN', sans-serif" }}>
+              Meet<br />
+              <span className="text-[#7c3aed]">LEXA1</span>
+            </h1>
+            <p className="text-lg md:text-xl text-white/90 max-w-lg leading-relaxed mb-8">
+              AI-powered customer service platform that transforms how you connect with customers. Intelligent, fast, and always available.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Link href="/register">
+                <Button size="lg" className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white px-8 font-semibold" data-testid="button-hero-start">
+                  Start Building Free
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Link>
+              <Link href="/features">
+                <Button size="lg" variant="outline" className="border-white/50 text-white hover:bg-white/10 backdrop-blur-sm px-8" data-testid="button-hero-features">
+                  Explore Features
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
       </div>
 
-      <RunningTextBanner />
+      <div className="relative bg-background">
+        <RunningTextBanner />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid md:grid-cols-2 gap-8">
-          <div className="relative rounded-2xl overflow-hidden shadow-xl h-80 md:h-96">
-            <img 
-              src={advancedReportingImage} 
-              alt="Advanced Reporting" 
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <div className="relative rounded-2xl overflow-hidden shadow-xl h-80 md:h-96">
-            <img 
-              src={engineeredForSecurityImage} 
-              alt="Engineered for Security" 
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <div className="relative rounded-2xl overflow-hidden shadow-xl h-80 md:h-96">
-            <img 
-              src={designedForSimplicityImage} 
-              alt="Designed for Simplicity" 
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <div className="relative rounded-2xl overflow-hidden shadow-xl h-80 md:h-96">
-            <img 
-              src={purposeBuiltForLlmsImage} 
-              alt="Purpose Built for LLMs" 
-              className="w-full h-full object-cover"
-            />
+        <div className="py-20 md:py-32">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16">
+              <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
+                <Sparkles className="w-3 h-3 mr-1" />
+                Why Chatvice
+              </Badge>
+              <h2 className="text-3xl md:text-5xl font-bold mb-4" style={{ fontFamily: "'D-DIN', sans-serif" }}>
+                Powerful Features
+              </h2>
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                Everything you need to deliver exceptional customer service
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-8">
+              <div className="group relative rounded-2xl overflow-hidden shadow-xl h-80 md:h-[420px] hover-elevate cursor-pointer">
+                <img 
+                  src={advancedReportingImage} 
+                  alt="Advanced Reporting" 
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
+                  <Badge className="bg-[#7c3aed] text-white mb-3">Analytics</Badge>
+                  <h3 className="text-2xl md:text-3xl font-bold text-white mb-2" style={{ fontFamily: "'D-DIN', sans-serif" }}>Advanced Reporting</h3>
+                  <p className="text-white/80 text-sm md:text-base">Real-time dashboards with AI-powered insights to track customer satisfaction and agent performance.</p>
+                </div>
+              </div>
+
+              <div className="group relative rounded-2xl overflow-hidden shadow-xl h-80 md:h-[420px] hover-elevate cursor-pointer">
+                <img 
+                  src={engineeredForSecurityImage} 
+                  alt="Enterprise Security" 
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
+                  <Badge className="bg-[#7c3aed] text-white mb-3">Security</Badge>
+                  <h3 className="text-2xl md:text-3xl font-bold text-white mb-2" style={{ fontFamily: "'D-DIN', sans-serif" }}>Enterprise Security</h3>
+                  <p className="text-white/80 text-sm md:text-base">Bank-level encryption and SOC 2 compliance to protect your customer conversations.</p>
+                </div>
+              </div>
+
+              <div className="group relative rounded-2xl overflow-hidden shadow-xl h-80 md:h-[420px] hover-elevate cursor-pointer">
+                <img 
+                  src={designedForSimplicityImage} 
+                  alt="Easy Setup" 
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
+                  <Badge className="bg-[#7c3aed] text-white mb-3">Simplicity</Badge>
+                  <h3 className="text-2xl md:text-3xl font-bold text-white mb-2" style={{ fontFamily: "'D-DIN', sans-serif" }}>Easy Setup</h3>
+                  <p className="text-white/80 text-sm md:text-base">Deploy your AI agent in minutes with our intuitive dashboard. No coding required.</p>
+                </div>
+              </div>
+
+              <div className="group relative rounded-2xl overflow-hidden shadow-xl h-80 md:h-[420px] hover-elevate cursor-pointer">
+                <img 
+                  src={purposeBuiltForLlmsImage} 
+                  alt="Multi-Model AI" 
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
+                  <Badge className="bg-[#7c3aed] text-white mb-3">AI Engine</Badge>
+                  <h3 className="text-2xl md:text-3xl font-bold text-white mb-2" style={{ fontFamily: "'D-DIN', sans-serif" }}>Multi-Model AI</h3>
+                  <p className="text-white/80 text-sm md:text-base">Powered by multiple LLM providers including OpenAI, Google, and Anthropic for best responses.</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -863,115 +928,6 @@ function FeaturesPreview() {
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </Link>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function BenefitsSection() {
-  const [scrollY, setScrollY] = useState(0);
-
-  useEffect(() => {
-    const handleScroll = () => setScrollY(window.scrollY);
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  const benefits = [
-    {
-      image: advancedReportingImage,
-      title: "Advanced Analytics",
-      description: "Track customer satisfaction, response times, and agent performance with real-time dashboards and AI-powered insights.",
-      stat: "94% Positive",
-    },
-    {
-      image: engineeredForSecurityImage,
-      title: "Enterprise Security",
-      description: "Bank-level encryption, SOC 2 compliance, and secure data handling to protect your customer conversations.",
-      stat: "100% Secure",
-    },
-    {
-      image: designedForSimplicityImage,
-      title: "Easy Setup",
-      description: "Deploy your AI agent in minutes with our intuitive dashboard. No coding required, just configure and launch.",
-      stat: "5 Min Setup",
-    },
-    {
-      image: purposeBuiltForLlmsImage,
-      title: "Multi-Model AI",
-      description: "Powered by multiple LLM providers including OpenAI, Google, and Anthropic for best-in-class responses.",
-      stat: "4+ Models",
-    },
-  ];
-
-  return (
-    <section className="py-20 md:py-32 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
-          <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
-            <Sparkles className="w-3 h-3 mr-1" />
-            Why Choose Chatvice
-          </Badge>
-          <h2 className="text-3xl md:text-5xl font-bold mb-4">
-            Transform Your Customer Service
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Discover the advantages of partnering with Chatvice and Lexa1 AI engine for your business.
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-8">
-          {benefits.map((benefit, index) => (
-            <div 
-              key={index} 
-              className="benefit-card group relative rounded-2xl overflow-hidden cursor-pointer"
-              style={{ 
-                transform: `translateY(${(scrollY - 1000) * 0.02 * (index % 2 === 0 ? 1 : -1)}px)`,
-              }}
-            >
-              <div className="relative h-80 md:h-96 overflow-hidden rounded-2xl">
-                <img 
-                  src={benefit.image} 
-                  alt={benefit.title} 
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                
-                <div className="absolute bottom-0 left-0 right-0 p-6">
-                  <Badge className="bg-purple-600 text-white mb-3">{benefit.stat}</Badge>
-                  <h3 className="text-2xl font-bold text-white mb-2">{benefit.title}</h3>
-                </div>
-              </div>
-
-              <div className="benefit-popup w-80 frosted-glass rounded-xl p-6 shadow-2xl">
-                <h4 className="font-bold text-lg mb-2 text-white">{benefit.title}</h4>
-                <p className="text-white/90 text-sm leading-relaxed">{benefit.description}</p>
-                <div className="mt-4 flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center">
-                    <Check className="w-4 h-4 text-white" />
-                  </div>
-                  <span className="text-white font-medium">{benefit.stat}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-16 text-center">
-          <div 
-            className="inline-block"
-            style={{ 
-              transform: `translateY(${Math.sin(scrollY * 0.01) * 10}px)`,
-            }}
-          >
-            <Link href="/features">
-              <Button size="lg" className="bg-purple-600 hover:bg-purple-700">
-                Explore All Features
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
-          </div>
         </div>
       </div>
     </section>
@@ -1249,12 +1205,11 @@ function Footer() {
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <Navbar />
       <HeroSection />
       <StatsSection />
       <WidgetCustomizerSection />
-      <BenefitsSection />
       <TimelineSection />
       <FeaturesPreview />
       <PricingPreview />

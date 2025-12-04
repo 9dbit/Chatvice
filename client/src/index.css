@@ -326,6 +326,27 @@
   will-change: transform;
 }
 
+/* Hero Parallax Background */
+.hero-parallax {
+  background-attachment: fixed;
+  background-position: center right;
+  background-size: cover;
+  will-change: transform;
+}
+
+@media (max-width: 768px) {
+  .hero-parallax {
+    background-attachment: scroll;
+    background-position: 70% center;
+  }
+}
+
+/* Running Text Banner - Connektiva Style */
+.running-text-banner {
+  position: relative;
+  overflow: hidden;
+}
+
 /* Frosted Glass Effect */
 .frosted-glass {
   background: rgba(255, 255, 255, 0.15);
