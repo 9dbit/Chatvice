@@ -326,6 +326,9 @@ If you don't have specific information to answer, be honest about it and offer t
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   const MemoryStoreSession = MemoryStore(session);
   
+  // Trust proxy for production (required for secure cookies behind load balancer/reverse proxy)
+  app.set("trust proxy", true);
+  
   app.use(
     session({
       secret: process.env.SESSION_SECRET || "chatvice-secret-key-change-in-production",
