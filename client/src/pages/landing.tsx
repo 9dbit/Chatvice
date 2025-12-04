@@ -59,21 +59,24 @@ import { apiRequest } from "@/lib/queryClient";
 import { useTheme } from "@/components/theme-provider";
 import chatviceLogoLight from "@assets/Chatvice-02_1764703423166.png";
 import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
-import heroImage from "@assets/IMG_0144_1764718203655.jpeg";
-import dashboardImage from "@assets/IMG_0106_1764617165315.png";
+import advancedReportingImage from "@assets/advanced-reporting_1764865696013.webp";
+import compareAiModelsImage from "@assets/compare-ai-models_1764865696016.webp";
+import designedForSimplicityImage from "@assets/designed-for-simplicity_1764865696016.webp";
+import engineeredForSecurityImage from "@assets/engineered-for-security_1764865696016.webp";
+import purposeBuiltForLlmsImage from "@assets/purpose-built-for-llms_1764865696017.webp";
 
 function RunningTextBanner() {
-  const fullText = "LAUNCHING NEW POWERFUL AI ENGINE LEXA1 \u2022 This 09 December 2025 \u2022 From event design and production to marketing and technology, our expert speakers will share their insights and best practices";
-  const repeatedText = Array(6).fill(fullText).join(" \u2022 ");
+  const fullText = "LAUNCHING NEW POWERFUL AI ENGINE LEXA1 \u2022 DECEMBER 9 2025 \u2022 POWERED BY CHATVICE";
+  const repeatedText = Array(8).fill(fullText).join(" \u2022 ");
   
   return (
-    <div className="bg-purple-600 text-white py-3 overflow-hidden whitespace-nowrap relative">
+    <div className="bg-purple-600 text-white overflow-hidden whitespace-nowrap relative py-8 md:py-12">
       <div className="marquee-wrapper">
         <div className="marquee-content">
-          <span className="text-sm font-bold tracking-wider">{repeatedText}</span>
+          <span className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tighter leading-tight uppercase">{repeatedText}</span>
         </div>
         <div className="marquee-content" aria-hidden="true">
-          <span className="text-sm font-bold tracking-wider">{repeatedText}</span>
+          <span className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tighter leading-tight uppercase">{repeatedText}</span>
         </div>
       </div>
     </div>
@@ -409,21 +412,34 @@ function HeroSection() {
       <RunningTextBanner />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="relative rounded-2xl overflow-hidden shadow-2xl">
-          <img 
-            src={dashboardImage} 
-            alt="Chatvice Dashboard" 
-            className="w-full h-auto"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0 p-8">
-            <Badge className="bg-purple-600 text-white mb-4">Platform Preview</Badge>
-            <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">
-              Powerful Dashboard, Simple Experience
-            </h3>
-            <p className="text-white/80 max-w-xl">
-              Manage your AI agents, train knowledge bases, and monitor conversations all in one place.
-            </p>
+        <div className="grid md:grid-cols-2 gap-8">
+          <div className="relative rounded-2xl overflow-hidden shadow-xl h-80 md:h-96">
+            <img 
+              src={advancedReportingImage} 
+              alt="Advanced Reporting" 
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="relative rounded-2xl overflow-hidden shadow-xl h-80 md:h-96">
+            <img 
+              src={engineeredForSecurityImage} 
+              alt="Engineered for Security" 
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="relative rounded-2xl overflow-hidden shadow-xl h-80 md:h-96">
+            <img 
+              src={designedForSimplicityImage} 
+              alt="Designed for Simplicity" 
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="relative rounded-2xl overflow-hidden shadow-xl h-80 md:h-96">
+            <img 
+              src={purposeBuiltForLlmsImage} 
+              alt="Purpose Built for LLMs" 
+              className="w-full h-full object-cover"
+            />
           </div>
         </div>
       </div>

@@ -64,9 +64,9 @@ export default function PricingPage() {
     },
     {
       name: "Enterprise",
-      description: "For large organizations with advanced requirements.",
-      monthlyPrice: null,
-      yearlyPrice: null,
+      description: "For established organizations with growth.",
+      monthlyPrice: 499,
+      yearlyPrice: 399,
       features: [
         { text: "Unlimited AI Agents", included: true },
         { text: "Unlimited messages", included: true },
@@ -79,7 +79,29 @@ export default function PricingPage() {
         { text: "Identity verification", included: true },
         { text: "Custom integrations", included: true },
         { text: "SLA guarantee", included: true },
-        { text: "On-premise option", included: true },
+        { text: "Priority webhook delivery", included: true },
+      ],
+      cta: "Start Free Trial",
+      popular: false,
+    },
+    {
+      name: "Custom",
+      description: "Tailored solutions for unique requirements.",
+      monthlyPrice: null,
+      yearlyPrice: null,
+      features: [
+        { text: "Everything in Enterprise", included: true },
+        { text: "Custom architecture", included: true },
+        { text: "Dedicated account manager", included: true },
+        { text: "Custom SLA", included: true },
+        { text: "Advanced security options", included: true },
+        { text: "On-premise deployment", included: true },
+        { text: "Custom training", included: true },
+        { text: "Priority feature development", included: true },
+        { text: "24/7 Phone support", included: true },
+        { text: "Backup & disaster recovery", included: true },
+        { text: "Multi-region deployment", included: true },
+        { text: "Advanced audit logs", included: true },
       ],
       cta: "Contact Sales",
       popular: false,
@@ -145,7 +167,7 @@ export default function PricingPage() {
 
       <section className="py-20 -mt-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {plans.map((plan, index) => (
               <Card 
                 key={index} 
@@ -225,20 +247,25 @@ export default function PricingPage() {
                   <th className="text-center py-4 px-4 font-semibold">Starter</th>
                   <th className="text-center py-4 px-4 font-semibold bg-purple-50 dark:bg-purple-950/20">Professional</th>
                   <th className="text-center py-4 px-4 font-semibold">Enterprise</th>
+                  <th className="text-center py-4 px-4 font-semibold">Custom</th>
                 </tr>
               </thead>
               <tbody>
                 {[
-                  { feature: "AI Agents", starter: "1", pro: "5", enterprise: "Unlimited" },
-                  { feature: "Monthly Messages", starter: "1,000", pro: "10,000", enterprise: "Unlimited" },
-                  { feature: "Knowledge Base Size", starter: "100 items", pro: "1,000 items", enterprise: "Unlimited" },
-                  { feature: "Human Escalation", starter: false, pro: true, enterprise: true },
-                  { feature: "Custom Widget", starter: false, pro: true, enterprise: true },
-                  { feature: "Analytics", starter: "Basic", pro: "Advanced", enterprise: "Full" },
-                  { feature: "API Access", starter: false, pro: false, enterprise: true },
-                  { feature: "Identity Verification", starter: false, pro: false, enterprise: true },
-                  { feature: "Support", starter: "Email", pro: "Priority", enterprise: "Dedicated" },
-                  { feature: "SLA Guarantee", starter: false, pro: false, enterprise: true },
+                  { feature: "AI Agents", starter: "1", pro: "5", enterprise: "Unlimited", custom: "Unlimited" },
+                  { feature: "Monthly Messages", starter: "1,000", pro: "10,000", enterprise: "Unlimited", custom: "Unlimited" },
+                  { feature: "Knowledge Base Size", starter: "100 items", pro: "1,000 items", enterprise: "Unlimited", custom: "Unlimited" },
+                  { feature: "Human Escalation", starter: false, pro: true, enterprise: true, custom: true },
+                  { feature: "Custom Widget", starter: false, pro: true, enterprise: true, custom: true },
+                  { feature: "White-label Widget", starter: false, pro: false, enterprise: true, custom: true },
+                  { feature: "Analytics", starter: "Basic", pro: "Advanced", enterprise: "Full", custom: "Full" },
+                  { feature: "API Access", starter: false, pro: false, enterprise: true, custom: true },
+                  { feature: "Identity Verification", starter: false, pro: false, enterprise: true, custom: true },
+                  { feature: "Support", starter: "Email", pro: "Priority", enterprise: "Dedicated", custom: "24/7 Phone" },
+                  { feature: "SLA Guarantee", starter: false, pro: false, enterprise: true, custom: true },
+                  { feature: "Custom Integrations", starter: false, pro: false, enterprise: true, custom: true },
+                  { feature: "On-premise Option", starter: false, pro: false, enterprise: false, custom: true },
+                  { feature: "Dedicated Account Manager", starter: false, pro: false, enterprise: false, custom: true },
                 ].map((row, i) => (
                   <tr key={i} className="border-b border-border">
                     <td className="py-4 px-4 font-medium">{row.feature}</td>
@@ -256,6 +283,11 @@ export default function PricingPage() {
                       {typeof row.enterprise === "boolean" ? (
                         row.enterprise ? <Check className="w-5 h-5 text-purple-600 mx-auto" /> : <X className="w-5 h-5 text-muted-foreground/30 mx-auto" />
                       ) : row.enterprise}
+                    </td>
+                    <td className="text-center py-4 px-4">
+                      {typeof row.custom === "boolean" ? (
+                        row.custom ? <Check className="w-5 h-5 text-purple-600 mx-auto" /> : <X className="w-5 h-5 text-muted-foreground/30 mx-auto" />
+                      ) : row.custom}
                     </td>
                   </tr>
                 ))}
