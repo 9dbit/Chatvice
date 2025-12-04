@@ -4,28 +4,40 @@ const ONEPAY_BASE_URL = process.env.NODE_ENV === 'production'
   ? 'https://api.1-pay.id' 
   : 'https://api.1-pay.id'; // Use same URL for sandbox with sandbox credentials
 
-const CLIENT_KEY = process.env.ONEPAY_CLIENT_KEY!;
-const CLIENT_SECRET = process.env.ONEPAY_CLIENT_SECRET!;
-
 interface OnePayCredentials {
   clientKey: string;
   clientSecret: string;
 }
 
 function getCredentials(): OnePayCredentials {
-  if (!CLIENT_KEY || !CLIENT_SECRET) {
+  const clientKey = process.env.ONEPAY_CLIENT_KEY;
+  const clientSecret = process.env.ONEPAY_CLIENT_SECRET;
+  
+  if (!clientKey || !clientSecret) {
+    console.error('1-Pay credentials missing:', { 
+      hasClientKey: !!clientKey, 
+      hasClientSecret: !!clientSecret 
+    });
     throw new Error('1-Pay credentials not configured. Please set ONEPAY_CLIENT_KEY and ONEPAY_CLIENT_SECRET');
   }
   return {
-    clientKey: CLIENT_KEY,
-    clientSecret: CLIENT_SECRET,
+    clientKey,
+    clientSecret,
   };
 }
 
 function generateSignature(payload: string, timestamp: string): string {
   const { clientKey, clientSecret } = getCredentials();
   const stringToSign = `${clientKey}:${timestamp}:${payload}`;
-  return crypto.createHmac('sha256', clientSecret).update(stringToSign).digest('hex');
+  const signature = crypto.createHmac('sha256', clientSecret).update(stringToSign).digest('hex');
+  console.log('Signature generation:', {
+    stringToSignPreview: stringToSign.substring(0, 100) + '...',
+    signaturePreview: signature.substring(0, 20) + '...',
+    clientKeyLength: clientKey.length,
+    clientSecretLength: clientSecret.length,
+    timestampFormat: timestamp,
+  });
+  return signature;
 }
 
 function generateTimestamp(): string {
@@ -121,9 +133,9 @@ async function makeRequest<T>(
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'X-Client-Key': clientKey,
-    'X-Timestamp': timestamp,
-    'X-Signature': signature,
+    'Client-Key': clientKey,
+    'Request-Timestamp': timestamp,
+    'Signature': signature,
   };
 
   const options: RequestInit = {
@@ -180,14 +192,22 @@ export async function createQRISPayment(request: CreateQRISRequest): Promise<Cre
   const payload = JSON.stringify(body);
   const signature = generateSignature(payload, timestamp);
 
+  console.log('Creating QRIS payment:', {
+    url: `${ONEPAY_BASE_URL}/partner/create/qris`,
+    hasClientKey: !!clientKey,
+    clientKeyLength: clientKey?.length,
+    timestamp,
+    hasSignature: !!signature,
+  });
+
   try {
     const response = await fetch(`${ONEPAY_BASE_URL}/partner/create/qris`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Client-Key': clientKey,
-        'X-Timestamp': timestamp,
-        'X-Signature': signature,
+        'Client-Key': clientKey,
+        'Request-Timestamp': timestamp,
+        'Signature': signature,
       },
       body: payload,
     });
@@ -250,9 +270,9 @@ export async function createVAPayment(request: CreateVARequest): Promise<CreateV
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Client-Key': clientKey,
-        'X-Timestamp': timestamp,
-        'X-Signature': signature,
+        'Client-Key': clientKey,
+        'Request-Timestamp': timestamp,
+        'Signature': signature,
       },
       body: payload,
     });
@@ -297,9 +317,9 @@ export async function checkPaymentStatus(transactionId: string): Promise<Payment
     const response = await fetch(`${ONEPAY_BASE_URL}/partner/transaction/status/${transactionId}`, {
       method: 'GET',
       headers: {
-        'X-Client-Key': clientKey,
-        'X-Timestamp': timestamp,
-        'X-Signature': signature,
+        'Client-Key': clientKey,
+        'Request-Timestamp': timestamp,
+        'Signature': signature,
       },
     });
 
@@ -349,7 +369,10 @@ export function verifyWebhookSignature(
 }
 
 export function isOnePayConfigured(): boolean {
-  return !!(process.env.ONEPAY_CLIENT_KEY && process.env.ONEPAY_CLIENT_SECRET);
+  const hasClientKey = !!process.env.ONEPAY_CLIENT_KEY;
+  const hasClientSecret = !!process.env.ONEPAY_CLIENT_SECRET;
+  console.log('1-Pay configuration check:', { hasClientKey, hasClientSecret });
+  return hasClientKey && hasClientSecret;
 }
 
 export function convertToIDR(usdAmount: number): number {
