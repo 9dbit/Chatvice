@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -8,7 +8,6 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +21,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
-import { CreditCard, Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Settings, Lock, Loader2, CheckCircle2, Sparkles, Gift, Building2, ChevronDown, ChevronUp } from "lucide-react";
+import { Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Lock, Loader2, CheckCircle2, Sparkles, Gift, Building2, ChevronDown, ChevronUp, QrCode, Timer, RefreshCw, Copy, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 
@@ -40,15 +39,28 @@ interface BillingStatus {
   hasActiveSubscription: boolean;
 }
 
+interface QRISPaymentResponse {
+  paymentMethod: string;
+  transactionId: string;
+  orderId: string;
+  qrisString: string;
+  qrisImageUrl: string;
+  amount: number;
+  amountFormatted: string;
+  amountUSD: number;
+  expiryTime: string;
+  planName: string;
+  billingInterval: string;
+}
+
 export default function BillingPage() {
   const { toast } = useToast();
   const [isAnnual, setIsAnnual] = useState(false);
-  const [demoCheckoutOpen, setDemoCheckoutOpen] = useState(false);
+  const [qrisPaymentOpen, setQrisPaymentOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<typeof subscriptionPlans[keyof typeof subscriptionPlans] | null>(null);
-  const [checkoutStep, setCheckoutStep] = useState<'form' | 'processing' | 'success'>('form');
-  const [cardNumber, setCardNumber] = useState('');
-  const [expiry, setExpiry] = useState('');
-  const [cvc, setCvc] = useState('');
+  const [paymentStep, setPaymentStep] = useState<'loading' | 'qris' | 'checking' | 'success' | 'expired' | 'error'>('loading');
+  const [qrisData, setQrisData] = useState<QRISPaymentResponse | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showCanceledMessage, setShowCanceledMessage] = useState(false);
   const [expandedPlans, setExpandedPlans] = useState<Set<string>>(new Set());
@@ -59,6 +71,9 @@ export default function BillingPage() {
     daysRemaining: number;
     prorationApplied: boolean;
   } | null>(null);
+  
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const { data: billingStatus, isLoading, refetch } = useQuery<BillingStatus>({
     queryKey: ["/api/billing/status"],
@@ -84,16 +99,9 @@ export default function BillingPage() {
           
           if (response.ok) {
             const syncResult = await response.json();
-            console.log("Billing sync result:", syncResult);
-            
             queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
             queryClient.invalidateQueries({ queryKey: ["/api/merchant/me"] });
             queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
-            
-            const merchantId = localStorage.getItem("merchantId");
-            if (merchantId) {
-              queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
-            }
             
             setShowSuccessMessage(true);
             toast({
@@ -103,24 +111,10 @@ export default function BillingPage() {
                 : "Your payment was successful. Please refresh if plan doesn't update immediately.",
             });
             setTimeout(() => setShowSuccessMessage(false), 10000);
-          } else {
-            queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
-            setShowSuccessMessage(true);
-            toast({
-              title: "Payment Successful",
-              description: "Your subscription is being processed. Please refresh if plan doesn't update.",
-            });
-            setTimeout(() => setShowSuccessMessage(false), 10000);
           }
         } catch (err) {
           console.error("Billing sync error:", err);
           queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
-          setShowSuccessMessage(true);
-          toast({
-            title: "Payment Received",
-            description: "Processing your subscription. Please refresh the page if needed.",
-          });
-          setTimeout(() => setShowSuccessMessage(false), 10000);
         }
       };
       
@@ -135,37 +129,71 @@ export default function BillingPage() {
     }
   }, [toast]);
 
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    };
+  }, []);
+
   const checkoutMutation = useMutation({
     mutationFn: async ({ planId, billingInterval }: { planId: string; billingInterval: string }) => {
-      return apiRequest("POST", "/api/billing/checkout", { planId, billingInterval }) as Promise<{ url: string }>;
+      return apiRequest("POST", "/api/billing/checkout", { planId, billingInterval }) as Promise<QRISPaymentResponse>;
     },
     onSuccess: (data) => {
-      if (data.url) {
-        window.location.href = data.url;
-      }
+      setQrisData(data);
+      setPaymentStep('qris');
+      
+      const expiryTime = new Date(data.expiryTime).getTime();
+      const now = Date.now();
+      setTimeRemaining(Math.max(0, Math.floor((expiryTime - now) / 1000)));
+      
+      countdownIntervalRef.current = setInterval(() => {
+        const remaining = Math.max(0, Math.floor((expiryTime - Date.now()) / 1000));
+        setTimeRemaining(remaining);
+        
+        if (remaining <= 0) {
+          setPaymentStep('expired');
+          if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+          if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+        }
+      }, 1000);
+      
+      pollingIntervalRef.current = setInterval(async () => {
+        try {
+          const response = await fetch(`/api/billing/payment-status/${data.transactionId}`, {
+            credentials: 'include',
+          });
+          if (response.ok) {
+            const statusData = await response.json();
+            if (statusData.status === 'PAID') {
+              setPaymentStep('success');
+              if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+              if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+              
+              queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/merchant/me"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+              
+              setTimeout(() => {
+                setQrisPaymentOpen(false);
+                toast({
+                  title: "Payment successful!",
+                  description: `Your ${data.planName} plan is now active.`,
+                });
+              }, 3000);
+            }
+          }
+        } catch (err) {
+          console.error("Payment status check error:", err);
+        }
+      }, 5000);
     },
     onError: (error: Error) => {
+      setPaymentStep('error');
       toast({
         title: "Checkout failed",
-        description: error.message || "Failed to create checkout session. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const portalMutation = useMutation({
-    mutationFn: async () => {
-      return apiRequest("POST", "/api/billing/portal", {}) as Promise<{ url: string }>;
-    },
-    onSuccess: (data) => {
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Portal error",
-        description: error.message || "Failed to open billing portal.",
+        description: error.message || "Failed to create payment. Please try again.",
         variant: "destructive",
       });
     },
@@ -177,25 +205,21 @@ export default function BillingPage() {
       return res.json();
     },
     onSuccess: () => {
-      setCheckoutStep('success');
+      setPaymentStep('success');
       queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
       setTimeout(() => {
-        setDemoCheckoutOpen(false);
-        setCheckoutStep('form');
-        setCardNumber('');
-        setExpiry('');
-        setCvc('');
+        setQrisPaymentOpen(false);
         toast({
           title: "Subscription activated!",
-          description: "Your demo subscription is now active. In production, this will use real payment processing.",
+          description: "Your demo subscription is now active.",
         });
       }, 2000);
     },
     onError: (error: Error) => {
-      setCheckoutStep('form');
+      setPaymentStep('error');
       toast({
         title: "Checkout failed",
-        description: error.message || "Failed to process demo checkout.",
+        description: error.message || "Failed to process checkout.",
         variant: "destructive",
       });
     },
@@ -205,8 +229,9 @@ export default function BillingPage() {
     const plan = Object.values(subscriptionPlans).find(p => p.id === planId);
     if (plan) {
       setSelectedPlan(plan);
-      setDemoCheckoutOpen(true);
-      setCheckoutStep('form');
+      setQrisPaymentOpen(true);
+      setPaymentStep('loading');
+      setQrisData(null);
       setProrationInfo(null);
       
       if (billingStatus?.status === 'active') {
@@ -222,44 +247,58 @@ export default function BillingPage() {
           console.error("Failed to fetch proration info:", err);
         }
       }
+      
+      checkoutMutation.mutate({
+        planId,
+        billingInterval: isAnnual ? 'annual' : 'monthly',
+      });
     }
   };
 
-  const handleDemoPayment = () => {
-    if (!selectedPlan) return;
-    if (!cardNumber || !expiry || !cvc) {
+  const handleCopyQRIS = () => {
+    if (qrisData?.qrisString) {
+      navigator.clipboard.writeText(qrisData.qrisString);
       toast({
-        title: "Missing information",
-        description: "Please fill in all card details.",
-        variant: "destructive",
+        title: "Copied!",
+        description: "QRIS code copied to clipboard",
       });
-      return;
     }
-    setCheckoutStep('processing');
-    setTimeout(() => {
-      demoCheckoutMutation.mutate({
+  };
+
+  const handleRetryPayment = () => {
+    if (selectedPlan) {
+      setPaymentStep('loading');
+      checkoutMutation.mutate({
         planId: selectedPlan.id,
         billingInterval: isAnnual ? 'annual' : 'monthly',
       });
-    }, 2000);
-  };
-
-  const formatCardNumber = (value: string) => {
-    const numbers = value.replace(/\D/g, '');
-    const groups = numbers.match(/.{1,4}/g);
-    return groups ? groups.join(' ').slice(0, 19) : '';
-  };
-
-  const formatExpiry = (value: string) => {
-    const numbers = value.replace(/\D/g, '');
-    if (numbers.length >= 2) {
-      return numbers.slice(0, 2) + '/' + numbers.slice(2, 4);
     }
-    return numbers;
   };
 
-  const handleManageBilling = () => {
-    portalMutation.mutate();
+  const handleClosePayment = () => {
+    if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    setQrisPaymentOpen(false);
+    setQrisData(null);
+    setPaymentStep('loading');
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleDemoPayment = () => {
+    if (selectedPlan) {
+      setPaymentStep('checking');
+      setTimeout(() => {
+        demoCheckoutMutation.mutate({
+          planId: selectedPlan.id,
+          billingInterval: isAnnual ? 'annual' : 'monthly',
+        });
+      }, 2000);
+    }
   };
 
   const plans = Object.entries(subscriptionPlans).map(([_, plan]) => ({
@@ -395,32 +434,6 @@ export default function BillingPage() {
         </Card>
       </div>
 
-      {billingStatus?.hasActiveSubscription && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Settings className="w-5 h-5 text-primary" />
-                <CardTitle>Manage Subscription</CardTitle>
-              </div>
-              <Button 
-                onClick={handleManageBilling}
-                disabled={portalMutation.isPending}
-                data-testid="button-manage-billing"
-              >
-                <CreditCard className="w-4 h-4 mr-2" />
-                {portalMutation.isPending ? 'Opening...' : 'Billing Portal'}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Update payment methods, view invoices, or cancel your subscription through the billing portal.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
       <div>
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -450,7 +463,6 @@ export default function BillingPage() {
             const isPopular = plan.id === 'pro';
             const isFree = plan.id === 'free';
             const isCustom = plan.id === 'custom';
-            const isEnterprise = plan.id === 'enterprise';
             
             const getPlanIcon = () => {
               switch (plan.id) {
@@ -613,149 +625,160 @@ export default function BillingPage() {
       <Card className="bg-muted/50">
         <CardContent className="pt-6">
           <div className="flex items-start gap-4">
-            <Clock className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
+            <QrCode className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
             <div>
-              <p className="font-medium">Need help choosing?</p>
+              <p className="font-medium">Secure Payment with QRIS</p>
               <p className="text-sm text-muted-foreground mt-1">
+                We accept payments via QRIS - scan the QR code with any Indonesian e-wallet or mobile banking app (GoPay, OVO, DANA, ShopeePay, BCA Mobile, Mandiri Livin, etc.).
                 All plans include a 7-day free trial. Start with the Starter plan and upgrade anytime as your business grows.
-                Enterprise plans include custom integrations, dedicated support, and SLA guarantees.
               </p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Dialog open={demoCheckoutOpen} onOpenChange={setDemoCheckoutOpen}>
+      <Dialog open={qrisPaymentOpen} onOpenChange={handleClosePayment}>
         <DialogContent className="sm:max-w-md">
-          {checkoutStep === 'form' && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <CreditCard className="w-5 h-5" />
-                  Demo Checkout
-                </DialogTitle>
-                <DialogDescription>
-                  This is a demo payment form. No real charges will be made.
-                </DialogDescription>
-              </DialogHeader>
-              
-              {selectedPlan && (
-                <div className="space-y-4">
-                  <div className="p-4 rounded-lg bg-muted/50 border">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium">{selectedPlan.name} Plan</span>
-                      <Badge variant="secondary">{isAnnual ? 'Annual' : 'Monthly'}</Badge>
-                    </div>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-bold">
-                        ${isAnnual ? selectedPlan.annualPrice : selectedPlan.monthlyPrice}
-                      </span>
-                      <span className="text-muted-foreground">/{isAnnual ? 'month' : 'month'}</span>
-                    </div>
-                    {isAnnual && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Billed ${selectedPlan.annualPrice * 12}/year (16% discount)
-                      </p>
-                    )}
-                  </div>
-                  
-                  {prorationInfo?.prorationApplied && (
-                    <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Gift className="w-4 h-4 text-green-600" />
-                        <span className="text-sm font-medium text-green-700">Upgrade Credit Applied</span>
-                      </div>
-                      <div className="space-y-1 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Unused days remaining:</span>
-                          <span className="font-medium">{prorationInfo.daysRemaining} days</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Credit from current plan:</span>
-                          <span className="font-medium text-green-600">-${prorationInfo.creditAmount.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between pt-2 border-t mt-2">
-                          <span className="font-medium">Amount due today:</span>
-                          <span className="font-bold text-lg">${prorationInfo.finalAmount.toFixed(2)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="space-y-3">
-                    <div>
-                      <Label htmlFor="card-number" className="text-sm">Card Number</Label>
-                      <Input
-                        id="card-number"
-                        placeholder="4242 4242 4242 4242"
-                        value={cardNumber}
-                        onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-                        maxLength={19}
-                        data-testid="input-card-number"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Label htmlFor="expiry" className="text-sm">Expiry</Label>
-                        <Input
-                          id="expiry"
-                          placeholder="MM/YY"
-                          value={expiry}
-                          onChange={(e) => setExpiry(formatExpiry(e.target.value))}
-                          maxLength={5}
-                          data-testid="input-expiry"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="cvc" className="text-sm">CVC</Label>
-                        <Input
-                          id="cvc"
-                          placeholder="123"
-                          value={cvc}
-                          onChange={(e) => setCvc(e.target.value.replace(/\D/g, '').slice(0, 3))}
-                          maxLength={3}
-                          data-testid="input-cvc"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Lock className="w-3 h-3" />
-                    <span>Demo mode - no real payment will be processed</span>
-                  </div>
-
-                  <Button
-                    className="w-full"
-                    onClick={handleDemoPayment}
-                    data-testid="button-demo-pay"
-                  >
-                    Pay ${prorationInfo?.prorationApplied 
-                      ? prorationInfo.finalAmount.toFixed(2)
-                      : (isAnnual ? selectedPlan.annualPrice * 12 : selectedPlan.monthlyPrice)}
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
-
-          {checkoutStep === 'processing' && (
+          {paymentStep === 'loading' && (
             <div className="py-12 text-center space-y-4">
               <Loader2 className="w-12 h-12 mx-auto animate-spin text-primary" />
               <div>
-                <p className="font-medium">Processing payment...</p>
-                <p className="text-sm text-muted-foreground">Please wait while we verify your card</p>
+                <p className="font-medium">Preparing payment...</p>
+                <p className="text-sm text-muted-foreground">Please wait while we generate your QR code</p>
               </div>
             </div>
           )}
 
-          {checkoutStep === 'success' && (
+          {paymentStep === 'qris' && qrisData && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <QrCode className="w-5 h-5" />
+                  Scan to Pay
+                </DialogTitle>
+                <DialogDescription>
+                  Scan this QR code with any e-wallet or mobile banking app
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4">
+                <div className="p-4 rounded-lg bg-muted/50 border">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium">{qrisData.planName} Plan</span>
+                    <Badge variant="secondary">{qrisData.billingInterval === 'annual' ? 'Annual' : 'Monthly'}</Badge>
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-bold">{qrisData.amountFormatted}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    ≈ ${qrisData.amountUSD} USD
+                  </p>
+                </div>
+
+                <div className="flex justify-center p-4 bg-white rounded-lg border">
+                  {qrisData.qrisImageUrl ? (
+                    <img 
+                      src={qrisData.qrisImageUrl} 
+                      alt="QRIS Payment Code" 
+                      className="w-48 h-48 object-contain"
+                      data-testid="img-qris-code"
+                    />
+                  ) : (
+                    <div className="w-48 h-48 flex items-center justify-center bg-muted rounded">
+                      <QrCode className="w-24 h-24 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-center gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                  <Timer className="w-4 h-4 text-amber-600" />
+                  <span className="text-sm font-medium text-amber-700">
+                    Time remaining: {formatTime(timeRemaining)}
+                  </span>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={handleCopyQRIS}
+                    data-testid="button-copy-qris"
+                  >
+                    <Copy className="w-4 h-4 mr-2" />
+                    Copy QRIS
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={handleDemoPayment}
+                    data-testid="button-demo-pay"
+                  >
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Demo Pay
+                  </Button>
+                </div>
+
+                <div className="flex items-center gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                  <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                  <span className="text-sm text-blue-700">
+                    Waiting for payment confirmation...
+                  </span>
+                </div>
+
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground">
+                    Supported: GoPay, OVO, DANA, ShopeePay, LinkAja, BCA Mobile, Mandiri Livin, BRI Mobile, BNI Mobile
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+
+          {paymentStep === 'checking' && (
+            <div className="py-12 text-center space-y-4">
+              <Loader2 className="w-12 h-12 mx-auto animate-spin text-primary" />
+              <div>
+                <p className="font-medium">Processing payment...</p>
+                <p className="text-sm text-muted-foreground">Please wait while we verify your payment</p>
+              </div>
+            </div>
+          )}
+
+          {paymentStep === 'success' && (
             <div className="py-12 text-center space-y-4">
               <CheckCircle2 className="w-12 h-12 mx-auto text-green-500" />
               <div>
                 <p className="font-medium text-green-700">Payment successful!</p>
                 <p className="text-sm text-muted-foreground">Your subscription is now active</p>
               </div>
+            </div>
+          )}
+
+          {paymentStep === 'expired' && (
+            <div className="py-12 text-center space-y-4">
+              <XCircle className="w-12 h-12 mx-auto text-red-500" />
+              <div>
+                <p className="font-medium text-red-700">QR Code Expired</p>
+                <p className="text-sm text-muted-foreground">The payment session has expired</p>
+              </div>
+              <Button onClick={handleRetryPayment} data-testid="button-retry-payment">
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Generate New QR Code
+              </Button>
+            </div>
+          )}
+
+          {paymentStep === 'error' && (
+            <div className="py-12 text-center space-y-4">
+              <XCircle className="w-12 h-12 mx-auto text-red-500" />
+              <div>
+                <p className="font-medium text-red-700">Payment Error</p>
+                <p className="text-sm text-muted-foreground">Failed to create payment. Please try again.</p>
+              </div>
+              <Button onClick={handleRetryPayment} data-testid="button-retry-payment">
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Try Again
+              </Button>
             </div>
           )}
         </DialogContent>

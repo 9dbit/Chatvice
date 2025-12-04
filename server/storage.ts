@@ -567,13 +567,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateMerchantSubscription(id: string, data: {
-    stripeCustomerId?: string;
-    stripeSubscriptionId?: string;
-    stripePriceId?: string;
+    paymentCustomerId?: string | null;
+    paymentSubscriptionId?: string | null;
+    paymentProvider?: string;
+    lastInvoiceId?: string | null;
+    pendingTransactionId?: string | null;
     subscriptionStatus?: string;
     subscriptionPlanId?: string;
     currentPeriodEnd?: Date;
     billingInterval?: string;
+    conversationsUsed?: number;
+    conversationsResetAt?: Date;
   }): Promise<Merchant | undefined> {
     const result = await db.update(merchants)
       .set(data)

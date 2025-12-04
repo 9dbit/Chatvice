@@ -36,7 +36,38 @@ Chatvice is built as a monorepo, separating client (`/client`), server (`/server
 
 ### Data Model Highlights
 
-Core entities include Merchants (with customizable configurations), Supervisors, Sessions (tracking AI/HUMAN mode), Messages, Triggers (for escalation), Knowledge Base content (for AI training), Knowledge Chunks (vector embeddings for semantic search), Notifications, Subscription Plans (tiered pricing), Merchant Subscriptions (Stripe integration), Agents (AI agents with plan-based limits), and Sources (for AI knowledge input).
+Core entities include Merchants (with customizable configurations), Supervisors, Sessions (tracking AI/HUMAN mode), Messages, Triggers (for escalation), Knowledge Base content (for AI training), Knowledge Chunks (vector embeddings for semantic search), Notifications, Subscription Plans (tiered pricing), Merchant Subscriptions (1-Pay integration with QRIS), Agents (AI agents with plan-based limits), and Sources (for AI knowledge input).
+
+### Payment Integration (1-Pay)
+
+Chatvice uses 1-Pay Indonesian payment gateway (https://1-pay.id) for subscription billing, replacing Stripe to support Indonesian users.
+
+**Payment Flow**:
+1. Merchant selects a plan and billing interval
+2. Backend creates QRIS payment via `/api/billing/checkout`
+3. Frontend displays QR code with countdown timer
+4. User scans QR with any Indonesian e-wallet (GoPay, OVO, DANA, ShopeePay, etc.)
+5. 1-Pay webhook confirms payment at `/api/onepay/webhook`
+6. Subscription is activated and features unlocked
+
+**Key Files**:
+- `server/onepayClient.ts` - 1-Pay API client with HMAC SHA256 signature generation
+- `server/onepayWebhook.ts` - Webhook handler for payment confirmations
+- `client/src/pages/dashboard/billing.tsx` - QRIS payment UI with QR display and polling
+
+**Payment-related Database Fields** (in merchants table):
+- `paymentCustomerId` - Customer ID in payment gateway
+- `paymentSubscriptionId` - Active subscription/transaction ID
+- `paymentProvider` - Payment provider (default: "onepay")
+- `lastInvoiceId` - Last successful payment transaction ID
+- `pendingTransactionId` - Currently pending payment transaction ID
+
+**Currency**:
+- Prices displayed in USD but charged in IDR using 1 USD = 16,000 IDR conversion rate
+- Amount formatted with Indonesian Rupiah (Rp) format
+
+**Supported Payment Methods**:
+- QRIS (QR Code Indonesian Standard) - compatible with all Indonesian e-wallets and mobile banking apps
 
 ### Per-Agent Knowledge Base System
 

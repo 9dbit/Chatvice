@@ -2,9 +2,8 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
-import { runMigrations } from 'stripe-replit-sync';
-import { getStripeSync } from './stripeClient';
-import { WebhookHandlers } from './webhookHandlers';
+import { OnePayWebhookHandler, type OnePayWebhookPayload } from './onepayWebhook';
+import { isOnePayConfigured } from './onepayClient';
 
 const app = express();
 const httpServer = createServer(app);
@@ -15,60 +14,41 @@ declare module "http" {
   }
 }
 
-async function initStripe() {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    console.log('DATABASE_URL not found, skipping Stripe initialization');
-    return;
-  }
-
-  try {
-    console.log('Initializing Stripe schema...');
-    await runMigrations({ databaseUrl });
-    console.log('Stripe schema ready');
-
-    const stripeSync = await getStripeSync();
-
-    console.log('Setting up managed webhook...');
-    const webhookBaseUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}`;
-    const { webhook, uuid } = await stripeSync.findOrCreateManagedWebhook(
-      `${webhookBaseUrl}/api/stripe/webhook`,
-      { enabled_events: ['*'], description: 'Chatvice webhook' }
-    );
-    console.log(`Webhook configured: ${webhook.url} (UUID: ${uuid})`);
-
-    stripeSync.syncBackfill()
-      .then(() => console.log('Stripe data synced'))
-      .catch((err: any) => console.error('Error syncing Stripe data:', err));
-  } catch (error) {
-    console.error('Failed to initialize Stripe:', error);
+function initPayment() {
+  if (isOnePayConfigured()) {
+    console.log('1-Pay payment gateway configured');
+  } else {
+    console.log('1-Pay credentials not found, payment features will be limited');
   }
 }
 
-initStripe();
+initPayment();
 
 app.post(
-  '/api/stripe/webhook/:uuid',
-  express.raw({ type: 'application/json' }),
+  '/api/onepay/webhook',
+  express.json(),
   async (req, res) => {
-    const signature = req.headers['stripe-signature'];
-    if (!signature) {
-      return res.status(400).json({ error: 'Missing stripe-signature' });
-    }
+    const signature = req.headers['x-signature'] as string || '';
+    const timestamp = req.headers['x-timestamp'] as string || '';
 
     try {
-      const sig = Array.isArray(signature) ? signature[0] : signature;
-      if (!Buffer.isBuffer(req.body)) {
-        console.error('STRIPE WEBHOOK ERROR: req.body is not a Buffer');
-        return res.status(500).json({ error: 'Webhook processing error' });
-      }
+      const payload: OnePayWebhookPayload = req.body;
+      
+      console.log('Received 1-Pay webhook:', {
+        transactionId: payload.transaction_id,
+        status: payload.status,
+      });
 
-      const { uuid } = req.params;
-      await WebhookHandlers.processWebhook(req.body as Buffer, sig, uuid);
-      res.status(200).json({ received: true });
+      const result = await OnePayWebhookHandler.processWebhook(payload, signature, timestamp);
+      
+      if (result.success) {
+        res.status(200).json({ success: true, message: result.message });
+      } else {
+        res.status(400).json({ success: false, message: result.message });
+      }
     } catch (error: any) {
-      console.error('Webhook error:', error.message);
-      res.status(400).json({ error: 'Webhook processing error' });
+      console.error('1-Pay webhook error:', error.message);
+      res.status(500).json({ success: false, message: 'Webhook processing error' });
     }
   }
 );

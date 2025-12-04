@@ -18,7 +18,7 @@ import path from "path";
 import fs from "fs";
 import { processKnowledgeBase, searchKnowledge } from "./embeddings";
 import { extractFAQContent } from "./crawler";
-import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
+import { createQRISPayment, checkPaymentStatus, isOnePayConfigured, convertToIDR, formatIDR } from "./onepayClient";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -1739,84 +1739,58 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (!plan) {
         return res.status(400).json({ error: "Invalid plan" });
       }
-      
-      const stripe = await getUncachableStripeClient();
-      
-      let customerId = merchant.stripeCustomerId;
-      if (!customerId) {
-        const customer = await stripe.customers.create({
-          email: merchant.email,
-          metadata: { merchantId: merchant.id },
-        });
-        customerId = customer.id;
-        await storage.updateMerchantSubscription(merchant.id, { stripeCustomerId: customerId });
+
+      if (!isOnePayConfigured()) {
+        return res.status(503).json({ error: "Payment gateway not configured" });
       }
       
-      const priceAmount = billingInterval === 'annual' ? plan.annualPrice * 100 : plan.monthlyPrice * 100;
+      const priceUSD = billingInterval === 'annual' ? plan.annualPrice * 12 : plan.monthlyPrice;
+      const priceIDR = convertToIDR(priceUSD);
       
-      let couponId: string | undefined = undefined;
-      if (merchant.subscriptionStatus === 'active' && merchant.currentPeriodEnd) {
-        const currentPlan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
-        const currentPlanPrice = merchant.billingInterval === 'annual' ? currentPlan.annualPrice : currentPlan.monthlyPrice;
-        
-        const now = new Date();
-        const periodEnd = new Date(merchant.currentPeriodEnd);
-        const periodStart = new Date(periodEnd);
-        periodStart.setMonth(periodStart.getMonth() - (merchant.billingInterval === 'annual' ? 12 : 1));
-        
-        const totalDays = Math.ceil((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24));
-        const daysRemaining = Math.max(0, Math.ceil((periodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-        
-        const dailyRate = currentPlanPrice / totalDays;
-        const creditAmount = Math.round(dailyRate * daysRemaining * 100);
-        
-        if (creditAmount > 0) {
-          const coupon = await stripe.coupons.create({
-            amount_off: creditAmount,
-            currency: 'usd',
-            duration: 'once',
-            name: `Upgrade credit from ${currentPlan.name}`,
-            max_redemptions: 1,
-          });
-          couponId = coupon.id;
-        }
-      }
+      const orderId = `SUB_${merchant.id}_${planId}_${billingInterval}_${Date.now()}`;
       
-      const session = await stripe.checkout.sessions.create({
-        customer: customerId,
-        payment_method_types: ['card'],
-        line_items: [{
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: `Chatvice ${plan.name}`,
-              description: plan.features.slice(0, 3).join(', '),
-            },
-            unit_amount: priceAmount,
-            recurring: { interval: 'month' },
-          },
-          quantity: 1,
-        }],
-        mode: 'subscription',
-        discounts: couponId ? [{ coupon: couponId }] : undefined,
-        success_url: `${req.protocol}://${req.get('host')}/dashboard/billing?success=true`,
-        cancel_url: `${req.protocol}://${req.get('host')}/dashboard/billing?canceled=true`,
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const callbackUrl = `${baseUrl}/api/onepay/webhook`;
+      
+      const qrisResult = await createQRISPayment({
+        merchantId: merchant.id,
+        orderId,
+        amount: priceIDR,
+        customerName: merchant.companyName,
+        customerEmail: merchant.email,
+        description: `Chatvice ${plan.name} - ${billingInterval === 'annual' ? 'Annual' : 'Monthly'} Subscription`,
+        expiryMinutes: 30,
+        callbackUrl,
         metadata: {
           merchantId: merchant.id,
           planId,
           billingInterval,
-        },
-        subscription_data: {
-          trial_period_days: merchant.subscriptionStatus === 'trial' ? 7 : undefined,
-          metadata: {
-            merchantId: merchant.id,
-            planId,
-            billingInterval,
-          },
+          type: 'subscription',
         },
       });
       
-      res.json({ url: session.url });
+      if (!qrisResult.success || !qrisResult.data) {
+        console.error("QRIS creation failed:", qrisResult.error);
+        return res.status(500).json({ error: qrisResult.error || "Failed to create payment" });
+      }
+      
+      await storage.updateMerchantSubscription(merchant.id, {
+        pendingTransactionId: qrisResult.data.transactionId,
+      });
+      
+      res.json({
+        paymentMethod: 'qris',
+        transactionId: qrisResult.data.transactionId,
+        orderId: qrisResult.data.orderId,
+        qrisString: qrisResult.data.qrisString,
+        qrisImageUrl: qrisResult.data.qrisImageUrl,
+        amount: priceIDR,
+        amountFormatted: formatIDR(priceIDR),
+        amountUSD: priceUSD,
+        expiryTime: qrisResult.data.expiryTime,
+        planName: plan.name,
+        billingInterval,
+      });
     } catch (error: any) {
       console.error("Checkout error:", error);
       res.status(500).json({ error: error.message || "Failed to create checkout session" });
@@ -1840,9 +1814,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       await storage.updateMerchantSubscription(merchantId, {
         subscriptionPlanId: planId,
         subscriptionStatus: 'active',
-        stripeSubscriptionId: `demo_sub_${Date.now()}`,
+        paymentSubscriptionId: `demo_sub_${Date.now()}`,
         currentPeriodEnd: periodEnd,
         billingInterval: billingInterval,
+        conversationsUsed: 0,
+        conversationsResetAt: new Date(),
       });
       
       res.json({ success: true, message: "Demo subscription activated" });
@@ -1852,46 +1828,54 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  app.post("/api/billing/portal", requireMerchant, async (req, res) => {
+  app.get("/api/billing/payment-status/:transactionId", requireMerchant, async (req, res) => {
     try {
+      const { transactionId } = req.params;
       const merchant = await storage.getMerchant(req.session.merchantId!);
+      
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
       
-      const stripe = await getUncachableStripeClient();
-      let customerId = merchant.stripeCustomerId;
-      
-      if (!customerId) {
-        const customer = await stripe.customers.create({
-          email: merchant.email,
-          name: merchant.companyName,
-          metadata: {
-            merchantId: merchant.id,
-          },
-        });
-        customerId = customer.id;
-        await storage.updateMerchant(merchant.id, { stripeCustomerId: customerId });
+      if (merchant.pendingTransactionId !== transactionId) {
+        return res.status(400).json({ error: "Transaction not found" });
       }
       
-      const session = await stripe.billingPortal.sessions.create({
-        customer: customerId,
-        return_url: `${req.protocol}://${req.get('host')}/dashboard/billing`,
-      });
+      const statusResult = await checkPaymentStatus(transactionId);
       
-      res.json({ url: session.url });
+      if (!statusResult.success) {
+        return res.status(500).json({ error: statusResult.error || "Failed to check status" });
+      }
+      
+      res.json({
+        status: statusResult.data?.status || 'PENDING',
+        paidAt: statusResult.data?.paidAt,
+        transactionId: statusResult.data?.transactionId,
+      });
     } catch (error: any) {
-      console.error("Portal error:", error);
-      res.status(500).json({ error: error.message || "Failed to create portal session" });
+      console.error("Payment status check error:", error);
+      res.status(500).json({ error: error.message || "Failed to check payment status" });
     }
   });
 
-  app.get("/api/stripe/publishable-key", async (req, res) => {
+  app.post("/api/billing/cancel", requireMerchant, async (req, res) => {
     try {
-      const key = await getStripePublishableKey();
-      res.json({ publishableKey: key });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to get Stripe key" });
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      await storage.updateMerchantSubscription(merchantId, {
+        subscriptionStatus: 'canceled',
+        pendingTransactionId: null,
+      });
+      
+      res.json({ success: true, message: "Subscription canceled" });
+    } catch (error: any) {
+      console.error("Cancel subscription error:", error);
+      res.status(500).json({ error: error.message || "Failed to cancel subscription" });
     }
   });
 
@@ -1903,32 +1887,40 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return res.status(404).json({ error: "Merchant not found" });
       }
       
-      const stripe = await getUncachableStripeClient();
-      const customerId = merchant.stripeCustomerId;
-      
-      if (!customerId) {
-        return res.json({ synced: false, message: "No Stripe customer ID" });
+      if (!merchant.pendingTransactionId) {
+        return res.json({ synced: false, message: "No pending transaction" });
       }
       
-      const subscriptions = await stripe.subscriptions.list({
-        customer: customerId,
-        status: 'active',
-        limit: 1,
-      });
+      const statusResult = await checkPaymentStatus(merchant.pendingTransactionId);
       
-      if (subscriptions.data.length > 0) {
-        const subscription = subscriptions.data[0];
-        const metadata = subscription.metadata;
-        const planId = metadata?.planId;
-        const billingInterval = metadata?.billingInterval;
+      if (!statusResult.success) {
+        return res.json({ synced: false, message: "Failed to check payment status" });
+      }
+      
+      if (statusResult.data?.status === 'PAID') {
+        const orderId = statusResult.data.orderId || '';
+        const parts = orderId.split('_');
+        const planId = parts[2] as SubscriptionPlanId;
+        const billingInterval = parts[3] || 'monthly';
         
-        if (planId && subscriptionPlans[planId as SubscriptionPlanId]) {
+        if (planId && subscriptionPlans[planId]) {
+          const periodEnd = new Date();
+          if (billingInterval === 'annual') {
+            periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+          } else {
+            periodEnd.setMonth(periodEnd.getMonth() + 1);
+          }
+          
           await storage.updateMerchantSubscription(merchantId, {
             subscriptionPlanId: planId,
             subscriptionStatus: 'active',
-            stripeSubscriptionId: subscription.id,
-            currentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
-            billingInterval: billingInterval || 'monthly',
+            paymentSubscriptionId: statusResult.data.transactionId,
+            lastInvoiceId: statusResult.data.transactionId,
+            currentPeriodEnd: periodEnd,
+            billingInterval,
+            pendingTransactionId: null,
+            conversationsUsed: 0,
+            conversationsResetAt: new Date(),
           });
           
           return res.json({ 
@@ -1939,34 +1931,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         }
       }
       
-      const checkoutSessions = await stripe.checkout.sessions.list({
-        customer: customerId,
-        limit: 1,
-      });
-      
-      if (checkoutSessions.data.length > 0) {
-        const session = checkoutSessions.data[0];
-        if (session.payment_status === 'paid' && session.metadata?.planId) {
-          const planId = session.metadata.planId;
-          const billingInterval = session.metadata.billingInterval;
-          
-          if (subscriptionPlans[planId as SubscriptionPlanId]) {
-            await storage.updateMerchantSubscription(merchantId, {
-              subscriptionPlanId: planId,
-              subscriptionStatus: 'active',
-              billingInterval: billingInterval || 'monthly',
-            });
-            
-            return res.json({ 
-              synced: true, 
-              planId,
-              message: `Plan updated from checkout to ${planId}` 
-            });
-          }
-        }
-      }
-      
-      res.json({ synced: false, message: "No active subscription found" });
+      res.json({ synced: false, message: "Payment not yet confirmed" });
     } catch (error: any) {
       console.error("Billing sync error:", error);
       res.status(500).json({ error: error.message || "Failed to sync billing" });
