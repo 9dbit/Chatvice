@@ -64,19 +64,21 @@ import compareAiModelsImage from "@assets/compare-ai-models_1764865696016.webp";
 import designedForSimplicityImage from "@assets/designed-for-simplicity_1764865696016.webp";
 import engineeredForSecurityImage from "@assets/engineered-for-security_1764865696016.webp";
 import purposeBuiltForLlmsImage from "@assets/purpose-built-for-llms_1764865696017.webp";
+import maleAvatar from "@assets/345c6d52234bbc72407ea25d49ad945e_1764867029228.jpg";
+import femaleAvatar from "@assets/b80ad9fd48f0b1e8d404775c495633be_1764867029228.jpg";
 
 function RunningTextBanner() {
-  const fullText = "LAUNCHING NEW POWERFUL AI ENGINE LEXA1 \u2022 DECEMBER 9 2025 \u2022 POWERED BY CHATVICE";
-  const repeatedText = Array(8).fill(fullText).join(" \u2022 ");
+  const fullText = "LEXA1 . 2025";
+  const repeatedText = Array(12).fill(fullText).join(" ");
   
   return (
-    <div className="bg-purple-600 text-white overflow-hidden whitespace-nowrap relative py-8 md:py-12">
+    <div className="bg-purple-600 text-white overflow-hidden whitespace-nowrap relative">
       <div className="marquee-wrapper">
         <div className="marquee-content">
-          <span className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tighter leading-tight uppercase">{repeatedText}</span>
+          <span className="text-6xl md:text-8xl lg:text-[120px] font-black tracking-tight leading-none uppercase" style={{ fontFamily: "'D-DIN', sans-serif" }}>{repeatedText}</span>
         </div>
         <div className="marquee-content" aria-hidden="true">
-          <span className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tighter leading-tight uppercase">{repeatedText}</span>
+          <span className="text-6xl md:text-8xl lg:text-[120px] font-black tracking-tight leading-none uppercase" style={{ fontFamily: "'D-DIN', sans-serif" }}>{repeatedText}</span>
         </div>
       </div>
     </div>
@@ -219,6 +221,227 @@ function Navbar() {
   );
 }
 
+interface WidgetConfig {
+  isDark: boolean;
+  brandColor: string;
+  headerColor: string;
+  buttonColor: string;
+  avatar: string;
+}
+
+function CustomizableWidget({ config }: { config: WidgetConfig }) {
+  const [messages] = useState<Array<{ role: "user" | "bot"; content: string }>>([
+    { role: "bot", content: "Hi! I'm Lexa1, your intelligent AI assistant. How can I help you today?" },
+    { role: "user", content: "What can you do?" },
+    { role: "bot", content: "I can answer questions, help with customer support, manage knowledge bases, and seamlessly escalate to human agents when needed!" }
+  ]);
+
+  const bgClass = config.isDark ? "bg-gray-900" : "bg-white";
+  const textClass = config.isDark ? "text-white" : "text-gray-900";
+  const borderClass = config.isDark ? "border-gray-700" : "border-gray-200";
+  const msgBgClass = config.isDark ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-900";
+
+  return (
+    <div className={`w-full max-w-sm rounded-2xl border ${borderClass} shadow-2xl overflow-hidden ${bgClass}`}>
+      <div className="p-4" style={{ backgroundColor: config.headerColor }}>
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/30">
+            <img src={config.avatar} alt="Agent" className="w-full h-full object-cover" />
+          </div>
+          <div>
+            <p className="font-bold text-white text-lg">Lexa1</p>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <span className="text-xs text-white/80">Online</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className={`h-64 overflow-y-auto p-4 space-y-4 ${bgClass}`}>
+        {messages.map((msg, index) => (
+          <div key={index} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
+            {msg.role === "bot" && (
+              <div className="w-8 h-8 rounded-full overflow-hidden shrink-0">
+                <img src={config.avatar} alt="Agent" className="w-full h-full object-cover" />
+              </div>
+            )}
+            <div 
+              className={`rounded-2xl p-3 max-w-[85%] ${msg.role === "user" ? "text-white rounded-br-sm" : `${msgBgClass} rounded-bl-sm`}`}
+              style={msg.role === "user" ? { backgroundColor: config.brandColor } : undefined}
+            >
+              <p className="text-sm">{msg.content}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className={`p-4 border-t ${borderClass} ${bgClass}`}>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            placeholder="Type a message..."
+            className={`flex-1 px-4 py-2 rounded-full border ${borderClass} ${bgClass} ${textClass} text-sm focus:outline-none`}
+            readOnly
+          />
+          <button 
+            className="p-2 rounded-full text-white"
+            style={{ backgroundColor: config.buttonColor }}
+          >
+            <Send className="w-4 h-4" />
+          </button>
+        </div>
+        <p className={`text-[10px] text-center mt-2 ${config.isDark ? "text-gray-400" : "text-gray-500"}`}>
+          Powered by <span className="font-semibold" style={{ color: config.brandColor }}>Chatvice</span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function WidgetCustomizerSection() {
+  const [config, setConfig] = useState<WidgetConfig>({
+    isDark: false,
+    brandColor: "#7c3aed",
+    headerColor: "#7c3aed",
+    buttonColor: "#7c3aed",
+    avatar: maleAvatar,
+  });
+
+  const colorPresets = [
+    { name: "Purple", value: "#7c3aed" },
+    { name: "Blue", value: "#2563eb" },
+    { name: "Green", value: "#16a34a" },
+    { name: "Red", value: "#dc2626" },
+    { name: "Orange", value: "#ea580c" },
+    { name: "Pink", value: "#db2777" },
+  ];
+
+  return (
+    <section className="py-20 md:py-32 bg-muted/30">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-16">
+          <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
+            <Settings className="w-3 h-3 mr-1" />
+            Widget Customization
+          </Badge>
+          <h2 className="text-3xl md:text-5xl font-bold mb-4">
+            Design Your Perfect Chat Widget
+          </h2>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Customize colors, themes, and avatar to match your brand identity. Try it live!
+          </p>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-12 items-start">
+          <div className="space-y-8">
+            <Card className="p-6">
+              <h3 className="font-bold text-lg mb-6">Appearance Settings</h3>
+              
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Theme Mode</p>
+                    <p className="text-sm text-muted-foreground">Switch between light and dark</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setConfig(c => ({ ...c, isDark: false }))}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${!config.isDark ? "bg-purple-600 text-white" : "bg-muted hover:bg-muted/80"}`}
+                      data-testid="button-theme-light"
+                    >
+                      Light
+                    </button>
+                    <button
+                      onClick={() => setConfig(c => ({ ...c, isDark: true }))}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${config.isDark ? "bg-purple-600 text-white" : "bg-muted hover:bg-muted/80"}`}
+                      data-testid="button-theme-dark"
+                    >
+                      Dark
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="font-medium mb-3">Brand Color</p>
+                  <div className="flex flex-wrap gap-3">
+                    {colorPresets.map((color) => (
+                      <button
+                        key={color.value}
+                        onClick={() => setConfig(c => ({ ...c, brandColor: color.value }))}
+                        className={`w-10 h-10 rounded-full border-2 transition-all ${config.brandColor === color.value ? "border-foreground scale-110" : "border-transparent"}`}
+                        style={{ backgroundColor: color.value }}
+                        title={color.name}
+                        data-testid={`button-color-brand-${color.name.toLowerCase()}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="font-medium mb-3">Header Color</p>
+                  <div className="flex flex-wrap gap-3">
+                    {colorPresets.map((color) => (
+                      <button
+                        key={color.value}
+                        onClick={() => setConfig(c => ({ ...c, headerColor: color.value }))}
+                        className={`w-10 h-10 rounded-full border-2 transition-all ${config.headerColor === color.value ? "border-foreground scale-110" : "border-transparent"}`}
+                        style={{ backgroundColor: color.value }}
+                        title={color.name}
+                        data-testid={`button-color-header-${color.name.toLowerCase()}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="font-medium mb-3">Button Color</p>
+                  <div className="flex flex-wrap gap-3">
+                    {colorPresets.map((color) => (
+                      <button
+                        key={color.value}
+                        onClick={() => setConfig(c => ({ ...c, buttonColor: color.value }))}
+                        className={`w-10 h-10 rounded-full border-2 transition-all ${config.buttonColor === color.value ? "border-foreground scale-110" : "border-transparent"}`}
+                        style={{ backgroundColor: color.value }}
+                        title={color.name}
+                        data-testid={`button-color-button-${color.name.toLowerCase()}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="font-medium mb-3">Agent Avatar</p>
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => setConfig(c => ({ ...c, avatar: maleAvatar }))}
+                      className={`w-16 h-16 rounded-full overflow-hidden border-4 transition-all ${config.avatar === maleAvatar ? "border-purple-600 scale-110" : "border-transparent"}`}
+                      data-testid="button-avatar-male"
+                    >
+                      <img src={maleAvatar} alt="Male Avatar" className="w-full h-full object-cover" />
+                    </button>
+                    <button
+                      onClick={() => setConfig(c => ({ ...c, avatar: femaleAvatar }))}
+                      className={`w-16 h-16 rounded-full overflow-hidden border-4 transition-all ${config.avatar === femaleAvatar ? "border-purple-600 scale-110" : "border-transparent"}`}
+                      data-testid="button-avatar-female"
+                    >
+                      <img src={femaleAvatar} alt="Female Avatar" className="w-full h-full object-cover" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          <div className="flex justify-center lg:sticky lg:top-24">
+            <CustomizableWidget config={config} />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function Lexa1ChatWidget() {
   const [messages, setMessages] = useState<Array<{ role: "user" | "bot"; content: string }>>([
     { role: "bot", content: "Hi! I'm Lexa1, your intelligent AI assistant powered by Chatvice. Ask me anything about our platform, features, or how I can help your business!" }
@@ -263,11 +486,11 @@ function Lexa1ChatWidget() {
   }, [messages]);
 
   return (
-    <div className="w-full max-w-sm bg-card rounded-2xl border border-purple-200 dark:border-purple-800/50 shadow-2xl overflow-hidden">
+    <div className="w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl border border-purple-200 dark:border-purple-800/50 shadow-2xl overflow-hidden">
       <div className="bg-gradient-to-r from-purple-600 to-purple-700 p-4">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur flex items-center justify-center border-2 border-white/30">
-            <Brain className="w-6 h-6 text-white" />
+          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/30">
+            <img src={maleAvatar} alt="Lexa1" className="w-full h-full object-cover" />
           </div>
           <div>
             <p className="font-bold text-white text-lg">Lexa1</p>
@@ -279,25 +502,25 @@ function Lexa1ChatWidget() {
         </div>
       </div>
 
-      <div ref={scrollRef} className="h-72 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-purple-50/50 to-transparent dark:from-purple-950/20">
+      <div ref={scrollRef} className="h-72 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-900">
         {messages.map((msg, index) => (
           <div key={index} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
             {msg.role === "bot" && (
-              <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center shrink-0">
-                <Brain className="w-4 h-4 text-white" />
+              <div className="w-8 h-8 rounded-full overflow-hidden shrink-0">
+                <img src={maleAvatar} alt="Lexa1" className="w-full h-full object-cover" />
               </div>
             )}
-            <div className={`rounded-2xl p-3 max-w-[85%] ${msg.role === "user" ? "bg-purple-600 text-white rounded-br-sm" : "bg-white dark:bg-card border border-border rounded-bl-sm shadow-sm"}`}>
+            <div className={`rounded-2xl p-3 max-w-[85%] ${msg.role === "user" ? "bg-purple-600 text-white rounded-br-sm" : "bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-bl-sm shadow-sm"}`}>
               <p className="text-sm">{msg.content}</p>
             </div>
           </div>
         ))}
         {isTyping && (
           <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center shrink-0">
-              <Brain className="w-4 h-4 text-white" />
+            <div className="w-8 h-8 rounded-full overflow-hidden shrink-0">
+              <img src={maleAvatar} alt="Lexa1" className="w-full h-full object-cover" />
             </div>
-            <div className="bg-white dark:bg-card border border-border rounded-2xl rounded-bl-sm p-3 shadow-sm">
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl rounded-bl-sm p-3 shadow-sm">
               <div className="flex gap-1">
                 <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
                 <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
@@ -309,7 +532,7 @@ function Lexa1ChatWidget() {
       </div>
 
       {messages.length === 1 && (
-        <div className="px-4 pb-2 flex flex-wrap gap-2">
+        <div className="px-4 pb-2 flex flex-wrap gap-2 bg-gray-50 dark:bg-gray-900">
           {suggestedQuestions.map((q, i) => (
             <button
               key={i}
@@ -646,6 +869,115 @@ function FeaturesPreview() {
   );
 }
 
+function BenefitsSection() {
+  const [scrollY, setScrollY] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => setScrollY(window.scrollY);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const benefits = [
+    {
+      image: advancedReportingImage,
+      title: "Advanced Analytics",
+      description: "Track customer satisfaction, response times, and agent performance with real-time dashboards and AI-powered insights.",
+      stat: "94% Positive",
+    },
+    {
+      image: engineeredForSecurityImage,
+      title: "Enterprise Security",
+      description: "Bank-level encryption, SOC 2 compliance, and secure data handling to protect your customer conversations.",
+      stat: "100% Secure",
+    },
+    {
+      image: designedForSimplicityImage,
+      title: "Easy Setup",
+      description: "Deploy your AI agent in minutes with our intuitive dashboard. No coding required, just configure and launch.",
+      stat: "5 Min Setup",
+    },
+    {
+      image: purposeBuiltForLlmsImage,
+      title: "Multi-Model AI",
+      description: "Powered by multiple LLM providers including OpenAI, Google, and Anthropic for best-in-class responses.",
+      stat: "4+ Models",
+    },
+  ];
+
+  return (
+    <section className="py-20 md:py-32 overflow-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-16">
+          <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
+            <Sparkles className="w-3 h-3 mr-1" />
+            Why Choose Chatvice
+          </Badge>
+          <h2 className="text-3xl md:text-5xl font-bold mb-4">
+            Transform Your Customer Service
+          </h2>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Discover the advantages of partnering with Chatvice and Lexa1 AI engine for your business.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-8">
+          {benefits.map((benefit, index) => (
+            <div 
+              key={index} 
+              className="benefit-card group relative rounded-2xl overflow-hidden cursor-pointer"
+              style={{ 
+                transform: `translateY(${(scrollY - 1000) * 0.02 * (index % 2 === 0 ? 1 : -1)}px)`,
+              }}
+            >
+              <div className="relative h-80 md:h-96 overflow-hidden rounded-2xl">
+                <img 
+                  src={benefit.image} 
+                  alt={benefit.title} 
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                
+                <div className="absolute bottom-0 left-0 right-0 p-6">
+                  <Badge className="bg-purple-600 text-white mb-3">{benefit.stat}</Badge>
+                  <h3 className="text-2xl font-bold text-white mb-2">{benefit.title}</h3>
+                </div>
+              </div>
+
+              <div className="benefit-popup w-80 frosted-glass rounded-xl p-6 shadow-2xl">
+                <h4 className="font-bold text-lg mb-2 text-white">{benefit.title}</h4>
+                <p className="text-white/90 text-sm leading-relaxed">{benefit.description}</p>
+                <div className="mt-4 flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center">
+                    <Check className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-white font-medium">{benefit.stat}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-16 text-center">
+          <div 
+            className="inline-block"
+            style={{ 
+              transform: `translateY(${Math.sin(scrollY * 0.01) * 10}px)`,
+            }}
+          >
+            <Link href="/features">
+              <Button size="lg" className="bg-purple-600 hover:bg-purple-700">
+                Explore All Features
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function PricingPreview() {
   const plans = [
     {
@@ -921,21 +1253,13 @@ export default function LandingPage() {
       <Navbar />
       <HeroSection />
       <StatsSection />
+      <WidgetCustomizerSection />
+      <BenefitsSection />
       <TimelineSection />
       <FeaturesPreview />
       <PricingPreview />
       <CTASection />
       <Footer />
-      
-      <style>{`
-        @keyframes marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .animate-marquee {
-          animation: marquee 30s linear infinite;
-        }
-      `}</style>
     </div>
   );
 }

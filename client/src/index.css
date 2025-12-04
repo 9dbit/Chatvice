@@ -1,3 +1,5 @@
+@import url('https://fonts.cdnfonts.com/css/d-din');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -287,16 +289,16 @@
   }
 }
 
-/* Marquee Animation for Running Text Banner */
+/* Marquee Animation for Running Text Banner - Connektiva Style */
 .marquee-wrapper {
   display: flex;
   width: max-content;
-  animation: marquee 60s linear infinite;
+  animation: marquee 20s linear infinite;
 }
 
 .marquee-content {
   display: flex;
-  padding-right: 2rem;
+  padding-right: 3rem;
 }
 
 @keyframes marquee {
@@ -311,4 +313,73 @@
 /* Pause animation on hover */
 .marquee-wrapper:hover {
   animation-play-state: paused;
+}
+
+/* Parallax Container */
+.parallax-container {
+  perspective: 1000px;
+  overflow: visible;
+}
+
+.parallax-element {
+  transition: transform 0.1s ease-out;
+  will-change: transform;
+}
+
+/* Frosted Glass Effect */
+.frosted-glass {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dark .frosted-glass {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Benefit Card Hover Popup */
+.benefit-card {
+  position: relative;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.benefit-card:hover {
+  transform: translateY(-8px) scale(1.02);
+}
+
+.benefit-popup {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.benefit-card:hover .benefit-popup {
+  transform: translateX(-50%) translateY(-10px);
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Scroll-triggered animations */
+.scroll-animate {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scroll-animate.in-view {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Continuous parallax scroll effect */
+.parallax-scroll {
+  will-change: transform;
 }
