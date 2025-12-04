@@ -337,7 +337,8 @@
 @media (max-width: 768px) {
   .hero-parallax {
     background-attachment: scroll;
-    background-position: 70% center;
+    background-position: center top;
+    background-size: cover;
   }
 }
 

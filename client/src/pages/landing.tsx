@@ -69,32 +69,32 @@ import femaleAvatar from "@assets/b80ad9fd48f0b1e8d404775c495633be_1764867029228
 import heroBackgroundImage from "@assets/IMG_0185_1764870218768.jpeg";
 
 function RunningTextBanner() {
-  const fullText = "CHATVICE . LEXA1 . AI CUSTOMER SERVICE . INDONESIA .";
-  const repeatedText = Array(8).fill(fullText).join(" ");
+  const fullText = "MEET LEXA1. THE NEW POWERFUL AI CUSTOMER SERVICE. ";
+  const repeatedText = Array(10).fill(fullText).join("");
   
   return (
     <div 
-      className="overflow-hidden whitespace-nowrap relative flex items-center"
+      className="overflow-hidden whitespace-nowrap flex items-center flex-shrink-0"
       style={{ 
         backgroundColor: '#7c3aed',
-        minHeight: '25vh'
+        height: '80px'
       }}
     >
       <div 
-        className="flex w-max"
+        className="flex flex-shrink-0"
         style={{
-          animation: 'marquee 20s linear infinite'
+          animation: 'marquee 50s linear infinite'
         }}
       >
         <span 
-          className="text-[90px] md:text-[140px] lg:text-[180px] font-black tracking-tight leading-none uppercase text-white px-8"
-          style={{ fontFamily: "'D-DIN', sans-serif" }}
+          className="text-2xl md:text-4xl lg:text-5xl font-black tracking-tight leading-none uppercase text-white flex-shrink-0"
+          style={{ fontFamily: "'D-DIN', sans-serif", paddingRight: '4rem' }}
         >
           {repeatedText}
         </span>
         <span 
-          className="text-[90px] md:text-[140px] lg:text-[180px] font-black tracking-tight leading-none uppercase text-white px-8"
-          style={{ fontFamily: "'D-DIN', sans-serif" }}
+          className="text-2xl md:text-4xl lg:text-5xl font-black tracking-tight leading-none uppercase text-white flex-shrink-0"
+          style={{ fontFamily: "'D-DIN', sans-serif", paddingRight: '4rem' }}
           aria-hidden="true"
         >
           {repeatedText}
@@ -613,38 +613,39 @@ function HeroSection() {
   return (
     <section className="relative">
       <div 
-        className="hero-parallax fixed inset-0 w-full h-screen bg-cover bg-center bg-no-repeat"
+        className="absolute inset-0 w-full bg-cover bg-no-repeat"
         style={{ 
           backgroundImage: `url(${heroBackgroundImage})`,
-          backgroundAttachment: 'fixed',
-          zIndex: -1
+          backgroundPosition: 'center top',
+          backgroundSize: 'cover',
+          height: 'calc(100vh - 80px)'
         }}
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/90" />
       </div>
 
-      <div className="relative min-h-screen flex items-end pb-24 pt-32">
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="relative flex flex-col justify-end pt-20" style={{ height: 'calc(100vh - 80px)' }}>
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 md:pb-16">
           <div className="max-w-xl md:max-w-2xl text-left">
-            <p className="text-white/80 text-lg font-medium mb-4" style={{ fontFamily: "'D-DIN', sans-serif" }}>
+            <p className="text-white/80 text-sm md:text-lg font-medium mb-2 md:mb-4" style={{ fontFamily: "'D-DIN', sans-serif" }}>
               09 December 2025
             </p>
-            <h1 className="text-5xl md:text-6xl lg:text-8xl font-black tracking-tight leading-[1.0] text-white mb-6" style={{ fontFamily: "'D-DIN', sans-serif" }}>
+            <h1 className="text-4xl md:text-6xl lg:text-8xl font-black tracking-tight leading-[1.0] text-white mb-3 md:mb-6" style={{ fontFamily: "'D-DIN', sans-serif" }}>
               Meet<br />
               <span className="text-[#7c3aed]">LEXA1</span>
             </h1>
-            <p className="text-lg md:text-xl text-white/90 max-w-lg leading-relaxed mb-8">
-              AI-powered customer service platform that transforms how you connect with customers. Intelligent, fast, and always available.
+            <p className="text-sm md:text-xl text-white/90 max-w-lg leading-relaxed mb-4 md:mb-8">
+              AI-powered customer service platform that transforms how you connect with customers.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
               <Link href="/register">
-                <Button size="lg" className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white px-8 font-semibold" data-testid="button-hero-start">
+                <Button size="lg" className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white px-6 md:px-8 font-semibold text-sm md:text-base" data-testid="button-hero-start">
                   Start Building Free
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </Link>
               <Link href="/features">
-                <Button size="lg" variant="outline" className="border-white/50 text-white hover:bg-white/10 backdrop-blur-sm px-8" data-testid="button-hero-features">
+                <Button size="lg" variant="outline" className="border-white/50 text-white hover:bg-white/10 backdrop-blur-sm px-6 md:px-8 text-sm md:text-base" data-testid="button-hero-features">
                   Explore Features
                 </Button>
               </Link>
@@ -653,8 +654,9 @@ function HeroSection() {
         </div>
       </div>
 
+      <RunningTextBanner />
+
       <div className="relative bg-background">
-        <RunningTextBanner />
 
         <div className="py-20 md:py-32">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
