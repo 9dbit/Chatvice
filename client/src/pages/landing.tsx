@@ -627,7 +627,7 @@ function HeroSection() {
           className="absolute inset-0 w-full bg-cover bg-no-repeat -z-10"
           style={{ 
             backgroundImage: `url(${heroBackgroundImage})`,
-            backgroundPosition: 'center -50px',
+            backgroundPosition: 'center -200px',
             backgroundSize: 'cover'
           }}
         >
@@ -635,7 +635,7 @@ function HeroSection() {
         </div>
 
         <div className="relative flex flex-col justify-end h-full">
-          <div className="w-full max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 pb-12 md:pb-24 mt-[170px]">
+          <div className="w-full max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 pb-12 md:pb-24 mt-[120px]">
             <div className="max-w-xl md:max-w-3xl text-left">
               <p className="text-white/80 text-sm md:text-xl font-medium mb-3 md:mb-6 tracking-wide" style={{ fontFamily: "'D-DIN', sans-serif" }}>
                 09 December 2025
