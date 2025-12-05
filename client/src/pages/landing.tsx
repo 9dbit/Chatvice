@@ -118,6 +118,18 @@ function RunningTextBanner({ settings }: { settings?: LandingPageSettings }) {
   const isEnabled = settings?.runningTextEnabled ?? true;
   const items = Array(10).fill(null);
   
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
+  // Desktop speed is 5x slower (20% of mobile speed)
+  const actualSpeed = isMobile ? speed : speed * 5;
+  
   if (!isEnabled) {
     return null;
   }
@@ -134,7 +146,7 @@ function RunningTextBanner({ settings }: { settings?: LandingPageSettings }) {
         textTransform: 'uppercase',
       }}
     >
-      <div className="marquee-inner items-center h-full" style={{ animationDuration: `${speed}s` }}>
+      <div className="marquee-inner items-center h-full" style={{ animationDuration: `${actualSpeed}s` }}>
         {items.map((_, index) => (
           <span 
             key={index}
@@ -705,9 +717,10 @@ function HeroSection() {
 
       <div className="relative h-[500px] md:h-[calc(100vh-64px-300px)] overflow-hidden">
         <div 
-          className="fixed inset-0 w-full bg-cover bg-no-repeat -z-10 hero-parallax"
+          className="fixed inset-0 w-full bg-no-repeat -z-10 hero-parallax"
           style={{ 
             backgroundImage: `url(${backgroundUrl})`,
+            backgroundSize: '100% auto',
             backgroundPosition: `center ${bgOffsetY}px`,
           }}
         >
