@@ -75,7 +75,7 @@ function RunningTextBanner() {
   
   return (
     <div 
-      className="overflow-hidden whitespace-nowrap flex items-center flex-shrink-0 h-[180px] md:h-[220px]"
+      className="overflow-hidden whitespace-nowrap flex items-center flex-shrink-0 h-[180px] md:h-[300px]"
       style={{ 
         backgroundColor: '#7c3aed',
         fontStyle: 'normal',
@@ -88,7 +88,7 @@ function RunningTextBanner() {
       <div 
         className="flex flex-shrink-0 marquee-inner items-center"
         style={{
-          animation: 'marquee 101s linear infinite',
+          animation: 'marquee 152s linear infinite',
           height: '100%'
         }}
       >
@@ -622,16 +622,16 @@ function HeroSection() {
       
       <RunningTextBanner />
 
-      <div className="relative h-[600px] md:h-[1587px]">
+      <div className="relative h-[500px] md:h-[calc(100vh-64px-300px)]">
         <div 
           className="absolute inset-0 w-full bg-cover bg-no-repeat -z-10"
           style={{ 
             backgroundImage: `url(${heroBackgroundImage})`,
-            backgroundPosition: 'center top',
+            backgroundPosition: 'center -200px',
             backgroundSize: 'cover'
           }}
         >
-          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent via-60% to-black" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent via-60% to-[hsl(var(--background))]" />
         </div>
 
         <div className="relative flex flex-col justify-end h-full">
@@ -667,7 +667,7 @@ function HeroSection() {
 
       <div className="relative bg-background">
 
-        <div className="py-20 md:py-32">
+        <div className="py-10 md:py-16 -mt-[200px] relative z-10">
           <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
             <div className="text-left mb-16">
               <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
