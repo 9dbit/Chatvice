@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,26 @@ import {
   Key,
 } from "lucide-react";
 import PublicPageLayout from "./public-layout";
+
+function useParallaxScroll() {
+  useEffect(() => {
+    const handleScroll = () => {
+      const elements = document.querySelectorAll('.parallax-fade-in, .parallax-slide-left, .parallax-slide-right, .parallax-scale');
+      elements.forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        const windowHeight = window.innerHeight;
+        if (rect.top < windowHeight * 0.85) {
+          el.classList.add('visible');
+        }
+      });
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    handleScroll();
+    
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+}
 
 export default function FeaturesPage() {
   const mainFeatures = [
@@ -117,6 +138,8 @@ export default function FeaturesPage() {
     { icon: Key, title: "API Access", description: "Full REST API for integrations" },
   ];
 
+  useParallaxScroll();
+  
   return (
     <PublicPageLayout>
       <section className="bg-purple-600 text-white py-20">
@@ -148,9 +171,9 @@ export default function FeaturesPage() {
         </div>
       </section>
 
-      <section className="py-20">
+      <section className="py-20 parallax-section">
         <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
-          <div className="text-left mb-16">
+          <div className="text-left mb-16 parallax-fade-in">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Core Features</h2>
             <p className="text-lg text-muted-foreground max-w-2xl">
               Powerful features designed to transform your customer service experience.
@@ -159,7 +182,7 @@ export default function FeaturesPage() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {mainFeatures.map((feature, index) => (
-              <Card key={index} className="hover-elevate group">
+              <Card key={index} className={`hover-elevate group parallax-scale parallax-delay-${(index % 5) + 1}`}>
                 <CardHeader>
                   <div className="w-14 h-14 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4 group-hover:bg-purple-600 transition-colors">
                     <feature.icon className="w-7 h-7 text-purple-600 group-hover:text-white transition-colors" />
@@ -183,9 +206,9 @@ export default function FeaturesPage() {
         </div>
       </section>
 
-      <section className="py-20 bg-muted/30">
+      <section className="py-20 bg-muted/30 parallax-section">
         <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
-          <div className="text-left mb-16">
+          <div className="text-left mb-16 parallax-fade-in">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">More Features</h2>
             <p className="text-lg text-muted-foreground max-w-2xl">
               Every feature you need to deliver exceptional customer experiences.
@@ -194,7 +217,7 @@ export default function FeaturesPage() {
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {additionalFeatures.map((feature, index) => (
-              <Card key={index} className="p-6 hover-elevate">
+              <Card key={index} className={`p-6 hover-elevate parallax-scale parallax-delay-${(index % 5) + 1}`}>
                 <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4">
                   <feature.icon className="w-6 h-6 text-purple-600" />
                 </div>
@@ -206,10 +229,10 @@ export default function FeaturesPage() {
         </div>
       </section>
 
-      <section className="py-20">
+      <section className="py-20 parallax-section">
         <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
+            <div className="parallax-slide-left">
               <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
                 AI Engine
               </Badge>

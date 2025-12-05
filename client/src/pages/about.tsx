@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,26 @@ import {
   Calendar,
 } from "lucide-react";
 import PublicPageLayout from "./public-layout";
+
+function useParallaxScroll() {
+  useEffect(() => {
+    const handleScroll = () => {
+      const elements = document.querySelectorAll('.parallax-fade-in, .parallax-slide-left, .parallax-slide-right, .parallax-scale');
+      elements.forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        const windowHeight = window.innerHeight;
+        if (rect.top < windowHeight * 0.85) {
+          el.classList.add('visible');
+        }
+      });
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    handleScroll();
+    
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+}
 
 export default function AboutPage() {
   const values = [
@@ -67,6 +88,8 @@ export default function AboutPage() {
     },
   ];
 
+  useParallaxScroll();
+  
   return (
     <PublicPageLayout>
       <section className="bg-purple-600 text-white py-20">
@@ -85,10 +108,10 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="py-20">
+      <section className="py-20 parallax-section">
         <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
+            <div className="parallax-slide-left">
               <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
                 Our Mission
               </Badge>
@@ -106,7 +129,7 @@ export default function AboutPage() {
                 solutions and multi-language support.
               </p>
             </div>
-            <div className="relative">
+            <div className="relative parallax-slide-right">
               <div className="absolute inset-0 bg-gradient-to-br from-purple-400/20 to-purple-600/20 rounded-3xl blur-3xl" />
               <Card className="relative p-8 text-center">
                 <Brain className="w-20 h-20 mx-auto text-purple-600 mb-6" />
@@ -130,9 +153,9 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="py-20 bg-muted/30">
+      <section className="py-20 bg-muted/30 parallax-section">
         <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
-          <div className="text-left mb-16">
+          <div className="text-left mb-16 parallax-fade-in">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Our Values</h2>
             <p className="text-lg text-muted-foreground max-w-2xl">
               The principles that guide everything we build.
@@ -141,7 +164,7 @@ export default function AboutPage() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {values.map((value, index) => (
-              <Card key={index} className="p-6 hover-elevate">
+              <Card key={index} className={`p-6 hover-elevate parallax-scale parallax-delay-${index + 1}`}>
                 <div className="w-14 h-14 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4">
                   <value.icon className="w-7 h-7 text-purple-600" />
                 </div>
@@ -153,9 +176,9 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="py-20">
+      <section className="py-20 parallax-section">
         <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
-          <div className="text-left mb-16">
+          <div className="text-left mb-16 parallax-fade-in">
             <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
               <Calendar className="w-3 h-3 mr-1" />
               Our Journey
@@ -168,7 +191,7 @@ export default function AboutPage() {
             
             <div className="space-y-8">
               {timeline.map((item, index) => (
-                <div key={index} className={`relative flex gap-6 md:gap-0 ${index % 2 === 0 ? "md:flex-row" : "md:flex-row-reverse"}`}>
+                <div key={index} className={`relative flex gap-6 md:gap-0 ${index % 2 === 0 ? "md:flex-row parallax-slide-left" : "md:flex-row-reverse parallax-slide-right"} parallax-delay-${(index % 5) + 1}`}>
                   <div className={`flex-1 hidden md:block ${index % 2 === 0 ? "md:pr-12 md:text-right" : "md:pl-12"}`}>
                     <Card className="p-6 inline-block text-left">
                       <Badge variant="secondary" className="mb-2">{item.date}</Badge>
@@ -197,10 +220,10 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="py-20 bg-muted/30">
+      <section className="py-20 bg-muted/30 parallax-section">
         <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
           <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div>
+            <div className="parallax-slide-left">
               <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
                 <MapPin className="w-3 h-3 mr-1" />
                 Location
