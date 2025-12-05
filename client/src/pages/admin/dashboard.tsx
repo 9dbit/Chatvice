@@ -167,6 +167,7 @@ export default function AdminDashboard() {
   const sidebarItems = [
     { id: "overview", label: "Overview", icon: BarChart3 },
     { id: "merchants", label: "Merchants", icon: Building2 },
+    { id: "landing", label: "Landing Page", icon: Palette },
     { id: "content", label: "Content & Media", icon: Image },
     { id: "pricing", label: "Pricing", icon: DollarSign },
     { id: "reports", label: "Performance", icon: TrendingUp },
@@ -238,6 +239,8 @@ export default function AdminDashboard() {
               getPlanBadge={getPlanBadge}
             />
           )}
+          
+          {activeTab === "landing" && <LandingPageTab toast={toast} />}
           
           {activeTab === "content" && <ContentTab toast={toast} />}
           
@@ -604,6 +607,414 @@ function ContentTab({ toast }: { toast: any }) {
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+interface LandingPageSettings {
+  id: string;
+  heroBackgroundUrl: string | null;
+  heroBackgroundOffsetX: number;
+  heroBackgroundOffsetY: number;
+  heroBackgroundMobileOffsetX: number;
+  heroBackgroundMobileOffsetY: number;
+  heroContentPaddingTop: number;
+  heroContentMobilePaddingTop: number;
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  runningTextEnabled: boolean;
+  runningTextContent: string;
+  runningTextSpeed: number;
+  runningTextBgColor: string;
+  runningTextColor: string;
+  featuresLayout: string;
+  extras: Record<string, any> | null;
+}
+
+function LandingPageTab({ toast }: { toast: any }) {
+  const [settings, setSettings] = useState<LandingPageSettings>({
+    id: "default",
+    heroBackgroundUrl: null,
+    heroBackgroundOffsetX: 0,
+    heroBackgroundOffsetY: -570,
+    heroBackgroundMobileOffsetX: 0,
+    heroBackgroundMobileOffsetY: -150,
+    heroContentPaddingTop: 70,
+    heroContentMobilePaddingTop: 160,
+    primaryColor: "#6b5dfc",
+    secondaryColor: "#1e1b4b",
+    accentColor: "#f59e0b",
+    runningTextEnabled: true,
+    runningTextContent: "Platform Customer Service AI Terdepan di Indonesia",
+    runningTextSpeed: 30,
+    runningTextBgColor: "#1e1b4b",
+    runningTextColor: "#ffffff",
+    featuresLayout: "4-columns",
+    extras: null,
+  });
+
+  const { data: savedSettings, isLoading } = useQuery<LandingPageSettings>({
+    queryKey: ["/api/landing-settings"],
+  });
+
+  useEffect(() => {
+    if (savedSettings && Object.keys(savedSettings).length > 0) {
+      setSettings({
+        ...settings,
+        ...savedSettings,
+      });
+    }
+  }, [savedSettings]);
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: Partial<LandingPageSettings>) => {
+      return apiRequest("PUT", "/api/admin/landing-settings", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/landing-settings"] });
+      toast({
+        title: "Pengaturan Tersimpan",
+        description: "Perubahan landing page berhasil disimpan.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Gagal menyimpan pengaturan.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSave = () => {
+    updateMutation.mutate(settings);
+  };
+
+  const handleChange = (field: keyof LandingPageSettings, value: any) => {
+    setSettings((prev) => ({ ...prev, [field]: value }));
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-48" />
+        <Skeleton className="h-48" />
+        <Skeleton className="h-32" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Image className="w-5 h-5" />
+            Hero Background Settings
+          </CardTitle>
+          <CardDescription>Atur posisi dan offset gambar hero background</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div>
+            <Label htmlFor="hero-bg-url">URL Background Image</Label>
+            <Input
+              id="hero-bg-url"
+              value={settings.heroBackgroundUrl || ""}
+              onChange={(e) => handleChange("heroBackgroundUrl", e.target.value)}
+              placeholder="https://example.com/image.jpg"
+              data-testid="input-hero-bg-url"
+            />
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <h4 className="font-medium text-sm">Desktop Settings</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="bg-offset-x">Background Offset X (px)</Label>
+                  <Input
+                    id="bg-offset-x"
+                    type="number"
+                    value={settings.heroBackgroundOffsetX}
+                    onChange={(e) => handleChange("heroBackgroundOffsetX", parseInt(e.target.value) || 0)}
+                    data-testid="input-bg-offset-x"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="bg-offset-y">Background Offset Y (px)</Label>
+                  <Input
+                    id="bg-offset-y"
+                    type="number"
+                    value={settings.heroBackgroundOffsetY}
+                    onChange={(e) => handleChange("heroBackgroundOffsetY", parseInt(e.target.value) || 0)}
+                    data-testid="input-bg-offset-y"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="content-padding">Hero Content Padding Top (px)</Label>
+                <Input
+                  id="content-padding"
+                  type="number"
+                  value={settings.heroContentPaddingTop}
+                  onChange={(e) => handleChange("heroContentPaddingTop", parseInt(e.target.value) || 0)}
+                  data-testid="input-content-padding"
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <h4 className="font-medium text-sm">Mobile Settings</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="bg-offset-x-mobile">Background Offset X (px)</Label>
+                  <Input
+                    id="bg-offset-x-mobile"
+                    type="number"
+                    value={settings.heroBackgroundMobileOffsetX}
+                    onChange={(e) => handleChange("heroBackgroundMobileOffsetX", parseInt(e.target.value) || 0)}
+                    data-testid="input-bg-offset-x-mobile"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="bg-offset-y-mobile">Background Offset Y (px)</Label>
+                  <Input
+                    id="bg-offset-y-mobile"
+                    type="number"
+                    value={settings.heroBackgroundMobileOffsetY}
+                    onChange={(e) => handleChange("heroBackgroundMobileOffsetY", parseInt(e.target.value) || 0)}
+                    data-testid="input-bg-offset-y-mobile"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="content-padding-mobile">Hero Content Padding Top (px)</Label>
+                <Input
+                  id="content-padding-mobile"
+                  type="number"
+                  value={settings.heroContentMobilePaddingTop}
+                  onChange={(e) => handleChange("heroContentMobilePaddingTop", parseInt(e.target.value) || 0)}
+                  data-testid="input-content-padding-mobile"
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Palette className="w-5 h-5" />
+            Theme Colors
+          </CardTitle>
+          <CardDescription>Atur warna tema landing page</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="primary-color">Primary Color</Label>
+              <div className="flex gap-2">
+                <input
+                  type="color"
+                  id="primary-color"
+                  value={settings.primaryColor}
+                  onChange={(e) => handleChange("primaryColor", e.target.value)}
+                  className="w-10 h-10 rounded border cursor-pointer"
+                  data-testid="input-primary-color"
+                />
+                <Input
+                  value={settings.primaryColor}
+                  onChange={(e) => handleChange("primaryColor", e.target.value)}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="secondary-color">Secondary Color</Label>
+              <div className="flex gap-2">
+                <input
+                  type="color"
+                  id="secondary-color"
+                  value={settings.secondaryColor}
+                  onChange={(e) => handleChange("secondaryColor", e.target.value)}
+                  className="w-10 h-10 rounded border cursor-pointer"
+                  data-testid="input-secondary-color"
+                />
+                <Input
+                  value={settings.secondaryColor}
+                  onChange={(e) => handleChange("secondaryColor", e.target.value)}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="accent-color">Accent Color</Label>
+              <div className="flex gap-2">
+                <input
+                  type="color"
+                  id="accent-color"
+                  value={settings.accentColor}
+                  onChange={(e) => handleChange("accentColor", e.target.value)}
+                  className="w-10 h-10 rounded border cursor-pointer"
+                  data-testid="input-accent-color"
+                />
+                <Input
+                  value={settings.accentColor}
+                  onChange={(e) => handleChange("accentColor", e.target.value)}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Type className="w-5 h-5" />
+            Running Text Banner
+          </CardTitle>
+          <CardDescription>Konfigurasi teks berjalan di header</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="running-text-enabled"
+              checked={settings.runningTextEnabled}
+              onChange={(e) => handleChange("runningTextEnabled", e.target.checked)}
+              className="w-4 h-4"
+              data-testid="checkbox-running-text-enabled"
+            />
+            <Label htmlFor="running-text-enabled">Aktifkan Running Text</Label>
+          </div>
+          
+          {settings.runningTextEnabled && (
+            <>
+              <div>
+                <Label htmlFor="running-text-content">Konten Teks</Label>
+                <Textarea
+                  id="running-text-content"
+                  value={settings.runningTextContent}
+                  onChange={(e) => handleChange("runningTextContent", e.target.value)}
+                  placeholder="Masukkan teks yang akan berjalan..."
+                  data-testid="input-running-text-content"
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="running-text-speed">Kecepatan (detik)</Label>
+                  <Input
+                    id="running-text-speed"
+                    type="number"
+                    value={settings.runningTextSpeed}
+                    onChange={(e) => handleChange("runningTextSpeed", parseInt(e.target.value) || 30)}
+                    min={5}
+                    max={120}
+                    data-testid="input-running-text-speed"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="running-text-bg">Background Color</Label>
+                  <div className="flex gap-2">
+                    <input
+                      type="color"
+                      id="running-text-bg"
+                      value={settings.runningTextBgColor}
+                      onChange={(e) => handleChange("runningTextBgColor", e.target.value)}
+                      className="w-10 h-10 rounded border cursor-pointer"
+                      data-testid="input-running-text-bg"
+                    />
+                    <Input
+                      value={settings.runningTextBgColor}
+                      onChange={(e) => handleChange("runningTextBgColor", e.target.value)}
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="running-text-color">Text Color</Label>
+                  <div className="flex gap-2">
+                    <input
+                      type="color"
+                      id="running-text-color"
+                      value={settings.runningTextColor}
+                      onChange={(e) => handleChange("runningTextColor", e.target.value)}
+                      className="w-10 h-10 rounded border cursor-pointer"
+                      data-testid="input-running-text-color"
+                    />
+                    <Input
+                      value={settings.runningTextColor}
+                      onChange={(e) => handleChange("runningTextColor", e.target.value)}
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="border rounded-lg p-4 mt-4" style={{ backgroundColor: settings.runningTextBgColor }}>
+                <p className="text-sm font-medium mb-2 text-muted-foreground">Preview:</p>
+                <div className="overflow-hidden">
+                  <p style={{ color: settings.runningTextColor }} className="whitespace-nowrap animate-marquee">
+                    {settings.runningTextContent}
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="w-5 h-5" />
+            Features Layout
+          </CardTitle>
+          <CardDescription>Atur tampilan section fitur</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <Label>Layout Columns</Label>
+            <div className="flex gap-3">
+              {["3-columns", "4-columns"].map((layout) => (
+                <button
+                  key={layout}
+                  onClick={() => handleChange("featuresLayout", layout)}
+                  className={`px-4 py-2 rounded-md border transition-colors ${
+                    settings.featuresLayout === layout
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background hover:bg-muted"
+                  }`}
+                  data-testid={`button-layout-${layout}`}
+                >
+                  {layout === "3-columns" ? "3 Kolom" : "4 Kolom"}
+                </button>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-end">
+        <Button onClick={handleSave} disabled={updateMutation.isPending} data-testid="button-save-landing-settings">
+          {updateMutation.isPending ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Menyimpan...
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4 mr-2" />
+              Simpan Pengaturan
+            </>
+          )}
+        </Button>
+      </div>
     </div>
   );
 }

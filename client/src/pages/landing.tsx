@@ -54,8 +54,29 @@ import {
   Video,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+
+interface LandingPageSettings {
+  id: string;
+  heroBackgroundUrl: string | null;
+  heroBackgroundOffsetX: number;
+  heroBackgroundOffsetY: number;
+  heroBackgroundMobileOffsetX: number;
+  heroBackgroundMobileOffsetY: number;
+  heroContentPaddingTop: number;
+  heroContentMobilePaddingTop: number;
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  runningTextEnabled: boolean;
+  runningTextContent: string;
+  runningTextSpeed: number;
+  runningTextBgColor: string;
+  runningTextColor: string;
+  featuresLayout: string;
+  extras: Record<string, any> | null;
+}
 import { useTheme } from "@/components/theme-provider";
 import { subscriptionPlans } from "@shared/schema";
 
@@ -89,14 +110,23 @@ import maleAvatar from "@assets/345c6d52234bbc72407ea25d49ad945e_1764867029228.j
 import femaleAvatar from "@assets/b80ad9fd48f0b1e8d404775c495633be_1764867029228.jpg";
 import heroBackgroundImage from "@assets/IMG_0185_1764870218768.jpeg";
 
-function RunningTextBanner() {
-  const textContent = "MEET LEXA1. THE NEXT POWERFUL AI CHATBOT.";
+function RunningTextBanner({ settings }: { settings?: LandingPageSettings }) {
+  const textContent = settings?.runningTextContent || "MEET LEXA1. THE NEXT POWERFUL AI CHATBOT.";
+  const bgColor = settings?.runningTextBgColor || "#7c3aed";
+  const textColor = settings?.runningTextColor || "#ffffff";
+  const speed = settings?.runningTextSpeed || 30;
+  const isEnabled = settings?.runningTextEnabled ?? true;
   const items = Array(10).fill(null);
+  
+  if (!isEnabled) {
+    return null;
+  }
   
   return (
     <div 
-      className="overflow-hidden whitespace-nowrap flex items-center flex-shrink-0 h-[180px] md:h-[300px] bg-[#7c3aed]"
+      className="overflow-hidden whitespace-nowrap flex items-center flex-shrink-0 h-[180px] md:h-[300px]"
       style={{ 
+        backgroundColor: bgColor,
         fontStyle: 'normal',
         fontWeight: 800,
         letterSpacing: '-0.07em',
@@ -104,14 +134,15 @@ function RunningTextBanner() {
         textTransform: 'uppercase',
       }}
     >
-      <div className="marquee-inner items-center h-full">
+      <div className="marquee-inner items-center h-full" style={{ animationDuration: `${speed}s` }}>
         {items.map((_, index) => (
           <span 
             key={index}
-            className="font-bold text-white flex-shrink-0 inline-flex items-center text-[100px] md:text-[clamp(200px,25vw,350px)] pr-12"
+            className="font-bold flex-shrink-0 inline-flex items-center text-[100px] md:text-[clamp(200px,25vw,350px)] pr-12"
             style={{ 
               fontFamily: "'D-DIN', sans-serif",
-              lineHeight: 1
+              lineHeight: 1,
+              color: textColor,
             }}
           >
             {textContent}
@@ -120,10 +151,11 @@ function RunningTextBanner() {
         {items.map((_, index) => (
           <span 
             key={`dup-${index}`}
-            className="font-bold text-white flex-shrink-0 inline-flex items-center text-[100px] md:text-[clamp(200px,25vw,350px)] pr-12"
+            className="font-bold flex-shrink-0 inline-flex items-center text-[100px] md:text-[clamp(200px,25vw,350px)] pr-12"
             style={{ 
               fontFamily: "'D-DIN', sans-serif",
-              lineHeight: 1
+              lineHeight: 1,
+              color: textColor,
             }}
           >
             {textContent}
@@ -640,23 +672,49 @@ function Lexa1ChatWidget() {
 }
 
 function HeroSection() {
+  const { data: settings } = useQuery<LandingPageSettings>({
+    queryKey: ["/api/landing-settings"],
+  });
+
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const bgOffsetX = isMobile 
+    ? (settings?.heroBackgroundMobileOffsetX ?? 0) 
+    : (settings?.heroBackgroundOffsetX ?? 0);
+  const bgOffsetY = isMobile 
+    ? (settings?.heroBackgroundMobileOffsetY ?? -150) 
+    : (settings?.heroBackgroundOffsetY ?? -570);
+  const contentPaddingTop = isMobile 
+    ? (settings?.heroContentMobilePaddingTop ?? 160) 
+    : (settings?.heroContentPaddingTop ?? 70);
+
+  const backgroundUrl = settings?.heroBackgroundUrl || heroBackgroundImage;
+
   return (
     <section className="relative">
       <div className="h-16" />
       
-      <RunningTextBanner />
+      <RunningTextBanner settings={settings} />
 
       <div className="relative h-[500px] md:h-[calc(100vh-64px-300px)] overflow-hidden">
         <div 
           className="fixed inset-0 w-full bg-cover bg-no-repeat -z-10 hero-parallax"
           style={{ 
-            backgroundImage: `url(${heroBackgroundImage})`
+            backgroundImage: `url(${backgroundUrl})`,
+            backgroundPosition: `center ${bgOffsetY}px`,
           }}
         >
           <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent via-60% to-[hsl(var(--background))]" />
         </div>
 
-        <div className="relative flex flex-col justify-start h-full pt-[160px] md:pt-[70px]">
+        <div className="relative flex flex-col justify-start h-full" style={{ paddingTop: `${contentPaddingTop}px` }}>
           <div className="w-full max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
             <div className="max-w-xl md:max-w-3xl text-left">
               <p className="text-white/80 text-sm md:text-xl font-medium mb-1 md:mb-2 tracking-wide" style={{ fontFamily: "'D-DIN', sans-serif" }}>
