@@ -128,7 +128,8 @@ function RunningTextBanner({ settings }: { settings?: LandingPageSettings }) {
   }, []);
   
   // Desktop speed is 5x slower (20% of mobile speed)
-  const actualSpeed = isMobile ? speed : speed * 5;
+  // Mobile speed is also reduced by 70% (3.33x slower than original)
+  const actualSpeed = isMobile ? speed * 3.33 : speed * 5;
   
   if (!isEnabled) {
     return null;
@@ -150,7 +151,7 @@ function RunningTextBanner({ settings }: { settings?: LandingPageSettings }) {
         {items.map((_, index) => (
           <span 
             key={index}
-            className="font-bold flex-shrink-0 inline-flex items-center text-[55px] md:text-[clamp(200px,25vw,350px)] pr-8 md:pr-12"
+            className="font-bold flex-shrink-0 inline-flex items-center text-[88px] md:text-[clamp(200px,25vw,350px)] pr-8 md:pr-12"
             style={{ 
               fontFamily: "'D-DIN', sans-serif",
               lineHeight: 1,
@@ -163,7 +164,7 @@ function RunningTextBanner({ settings }: { settings?: LandingPageSettings }) {
         {items.map((_, index) => (
           <span 
             key={`dup-${index}`}
-            className="font-bold flex-shrink-0 inline-flex items-center text-[55px] md:text-[clamp(200px,25vw,350px)] pr-8 md:pr-12"
+            className="font-bold flex-shrink-0 inline-flex items-center text-[88px] md:text-[clamp(200px,25vw,350px)] pr-8 md:pr-12"
             style={{ 
               fontFamily: "'D-DIN', sans-serif",
               lineHeight: 1,
@@ -760,7 +761,7 @@ function HeroSection() {
 
       <div className="relative bg-background">
 
-        <div className="py-10 md:py-16 relative z-10">
+        <div className="pt-[200px] md:pt-0 py-10 md:py-16 relative z-10">
           <div className="w-full px-4 sm:px-6 lg:px-8">
             <div className="text-left mb-10">
               <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
