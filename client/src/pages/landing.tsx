@@ -389,12 +389,12 @@ function WidgetCustomizerSection() {
 
                 <div>
                   <p className="font-medium mb-3">Brand Color</p>
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex gap-2">
                     {colorPresets.map((color) => (
                       <button
                         key={color.value}
                         onClick={() => setConfig(c => ({ ...c, brandColor: color.value }))}
-                        className={`w-10 h-10 rounded-full border-2 transition-all ${config.brandColor === color.value ? "border-foreground scale-110" : "border-transparent"}`}
+                        className={`w-8 h-8 rounded-full border-2 transition-all ${config.brandColor === color.value ? "border-foreground scale-110" : "border-transparent"}`}
                         style={{ backgroundColor: color.value }}
                         title={color.name}
                         data-testid={`button-color-brand-${color.name.toLowerCase()}`}
@@ -405,12 +405,12 @@ function WidgetCustomizerSection() {
 
                 <div>
                   <p className="font-medium mb-3">Header Color</p>
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex gap-2">
                     {colorPresets.map((color) => (
                       <button
                         key={color.value}
                         onClick={() => setConfig(c => ({ ...c, headerColor: color.value }))}
-                        className={`w-10 h-10 rounded-full border-2 transition-all ${config.headerColor === color.value ? "border-foreground scale-110" : "border-transparent"}`}
+                        className={`w-8 h-8 rounded-full border-2 transition-all ${config.headerColor === color.value ? "border-foreground scale-110" : "border-transparent"}`}
                         style={{ backgroundColor: color.value }}
                         title={color.name}
                         data-testid={`button-color-header-${color.name.toLowerCase()}`}
@@ -421,12 +421,12 @@ function WidgetCustomizerSection() {
 
                 <div>
                   <p className="font-medium mb-3">Button Color</p>
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex gap-2">
                     {colorPresets.map((color) => (
                       <button
                         key={color.value}
                         onClick={() => setConfig(c => ({ ...c, buttonColor: color.value }))}
-                        className={`w-10 h-10 rounded-full border-2 transition-all ${config.buttonColor === color.value ? "border-foreground scale-110" : "border-transparent"}`}
+                        className={`w-8 h-8 rounded-full border-2 transition-all ${config.buttonColor === color.value ? "border-foreground scale-110" : "border-transparent"}`}
                         style={{ backgroundColor: color.value }}
                         title={color.name}
                         data-testid={`button-color-button-${color.name.toLowerCase()}`}
@@ -647,15 +647,15 @@ function HeroSection() {
               <p className="text-base md:text-2xl text-white/90 max-w-xl leading-relaxed mb-6 md:mb-10 text-left">
                 AI-powered customer service platform that transforms how you connect with customers.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 md:gap-5">
+              <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
                 <Link href="/register">
-                  <Button size="lg" className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white px-8 md:px-10 py-6 md:py-7 font-semibold text-base md:text-lg" data-testid="button-hero-start">
+                  <Button size="lg" className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white px-6 md:px-8 font-semibold text-sm md:text-base" data-testid="button-hero-start">
                     Start Building Free
-                    <ArrowRight className="w-5 h-5 ml-2" />
+                    <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </Link>
                 <Link href="/features">
-                  <Button size="lg" variant="outline" className="border-white/50 text-white hover:bg-white/10 backdrop-blur-sm px-8 md:px-10 py-6 md:py-7 text-base md:text-lg" data-testid="button-hero-features">
+                  <Button size="lg" variant="outline" className="border-white/50 text-white hover:bg-white/10 backdrop-blur-sm px-6 md:px-8 text-sm md:text-base" data-testid="button-hero-features">
                     Explore Features
                   </Button>
                 </Link>
@@ -836,12 +836,12 @@ function TimelineSection() {
         </div>
 
         <div className="relative">
-          <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-0.5 bg-purple-200 dark:bg-purple-800/50 hidden md:block" />
+          <div className="absolute left-4 md:left-1/2 transform md:-translate-x-1/2 h-full w-0.5 bg-purple-200 dark:bg-purple-800/50" />
           
-          <div className="space-y-8 md:space-y-12">
+          <div className="space-y-4 md:space-y-12">
             {milestones.map((milestone, index) => (
-              <div key={index} className={`flex flex-col md:flex-row gap-4 md:gap-8 items-center ${index % 2 === 0 ? "md:flex-row" : "md:flex-row-reverse"}`}>
-                <div className={`flex-1 ${index % 2 === 0 ? "md:text-right" : "md:text-left"}`}>
+              <div key={index} className={`flex flex-row md:flex-row gap-3 md:gap-8 items-start md:items-center ${index % 2 === 0 ? "md:flex-row" : "md:flex-row-reverse"}`}>
+                <div className={`hidden md:block flex-1 ${index % 2 === 0 ? "md:text-right" : "md:text-left"}`}>
                   <Card className={`p-6 ${milestone.status === "upcoming" ? "border-purple-500 bg-purple-50 dark:bg-purple-950/20" : ""}`}>
                     <div className={`flex items-center gap-2 mb-2 ${index % 2 === 0 ? "md:justify-end" : ""}`}>
                       <Badge variant={milestone.status === "upcoming" ? "default" : "secondary"} className={milestone.status === "upcoming" ? "bg-purple-600" : ""}>
@@ -856,8 +856,23 @@ function TimelineSection() {
                   </Card>
                 </div>
                 
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center z-10 ${milestone.status === "upcoming" ? "bg-purple-600 text-white" : "bg-purple-100 dark:bg-purple-900/50 text-purple-600"}`}>
-                  <milestone.icon className="w-5 h-5" />
+                <div className={`w-8 h-8 md:w-12 md:h-12 rounded-full flex items-center justify-center z-10 shrink-0 ${milestone.status === "upcoming" ? "bg-purple-600 text-white" : "bg-purple-100 dark:bg-purple-900/50 text-purple-600"}`}>
+                  <milestone.icon className="w-4 h-4 md:w-5 md:h-5" />
+                </div>
+                
+                <div className="flex-1 md:hidden">
+                  <div className={`${milestone.status === "upcoming" ? "border-l-2 border-purple-500 pl-3" : "pl-3"}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant={milestone.status === "upcoming" ? "default" : "secondary"} className={`text-xs ${milestone.status === "upcoming" ? "bg-purple-600" : ""}`}>
+                        {milestone.date}
+                      </Badge>
+                      {milestone.status === "completed" && (
+                        <CheckCircle2 className="w-3 h-3 text-green-500" />
+                      )}
+                    </div>
+                    <h3 className="text-base font-bold mb-1">{milestone.title}</h3>
+                    <p className="text-sm text-muted-foreground">{milestone.description}</p>
+                  </div>
                 </div>
                 
                 <div className="flex-1 hidden md:block" />
