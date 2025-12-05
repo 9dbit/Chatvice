@@ -329,15 +329,15 @@
 /* Hero Parallax Background */
 .hero-parallax {
   background-attachment: fixed;
-  background-position: center right;
+  background-position: center -570px;
   background-size: cover;
   will-change: transform;
 }
 
 @media (max-width: 768px) {
   .hero-parallax {
-    background-attachment: scroll;
-    background-position: center top;
+    background-attachment: fixed;
+    background-position: center -150px;
     background-size: cover;
   }
 }

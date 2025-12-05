@@ -644,11 +644,9 @@ function HeroSection() {
 
       <div className="relative h-[500px] md:h-[calc(100vh-64px-300px)] overflow-hidden">
         <div 
-          className="absolute md:fixed inset-0 w-full bg-cover bg-no-repeat -z-10"
+          className="fixed inset-0 w-full bg-cover bg-no-repeat -z-10 hero-parallax"
           style={{ 
-            backgroundImage: `url(${heroBackgroundImage})`,
-            backgroundPosition: 'center -570px',
-            backgroundSize: 'cover'
+            backgroundImage: `url(${heroBackgroundImage})`
           }}
         >
           <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent via-60% to-[hsl(var(--background))]" />
