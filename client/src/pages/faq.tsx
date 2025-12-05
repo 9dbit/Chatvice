@@ -356,35 +356,33 @@ export default function FAQPage() {
   return (
     <PublicPageLayout>
       <section className="bg-purple-600 text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <Badge className="bg-white/20 text-white mb-4">
-              <HelpCircle className="w-3 h-3 mr-1" />
-              Help Center
-            </Badge>
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              Frequently Asked Questions
-            </h1>
-            <p className="text-lg text-purple-100 max-w-2xl mx-auto mb-8">
-              Find answers to common questions about Chatvice and LEXA1 AI engine.
-            </p>
-            <div className="max-w-xl mx-auto relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300" />
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search for answers..."
-                className="pl-12 h-12 bg-white/10 border-white/20 text-white placeholder:text-purple-200 focus-visible:ring-white"
-                data-testid="input-faq-search"
-              />
-            </div>
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+          <Badge className="bg-white/20 text-white mb-4">
+            <HelpCircle className="w-3 h-3 mr-1" />
+            Help Center
+          </Badge>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4 text-left">
+            Frequently Asked Questions
+          </h1>
+          <p className="text-lg text-purple-100 max-w-2xl mb-8 text-left">
+            Find answers to common questions about Chatvice and LEXA1 AI engine.
+          </p>
+          <div className="max-w-xl relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search for answers..."
+              className="pl-12 h-12 bg-white/10 border-white/20 text-white placeholder:text-purple-200 focus-visible:ring-white"
+              data-testid="input-faq-search"
+            />
           </div>
         </div>
       </section>
 
       <section className="py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap gap-2 justify-center mb-8">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+          <div className="flex flex-wrap gap-2 mb-8">
             <Button
               variant={activeCategory === "all" ? "default" : "outline"}
               onClick={() => setActiveCategory("all")}
@@ -407,7 +405,7 @@ export default function FAQPage() {
             ))}
           </div>
 
-          <p className="text-center text-muted-foreground mb-8">
+          <p className="text-left text-muted-foreground mb-8">
             Showing {totalQuestions} question{totalQuestions !== 1 ? "s" : ""}
           </p>
 
@@ -482,11 +480,11 @@ export default function FAQPage() {
       </section>
 
       <section className="py-16 bg-purple-600 text-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-2xl md:text-3xl font-bold mb-4">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+          <h2 className="text-2xl md:text-3xl font-bold mb-4 text-left">
             Ready to get started?
           </h2>
-          <p className="text-purple-100 mb-8">
+          <p className="text-purple-100 mb-8 max-w-2xl text-left">
             Start your 14-day free trial and see how LEXA1 can transform your customer service.
           </p>
           <Link href="/register">

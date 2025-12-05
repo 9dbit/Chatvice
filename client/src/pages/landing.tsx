@@ -78,30 +78,30 @@ function RunningTextBanner() {
       className="overflow-hidden whitespace-nowrap flex items-center flex-shrink-0"
       style={{ 
         backgroundColor: '#7c3aed',
-        paddingTop: '1rem',
-        paddingRight: 0,
-        paddingLeft: 0,
         fontStyle: 'normal',
         fontWeight: 800,
         letterSpacing: '-0.07em',
         lineHeight: 0.8,
         textTransform: 'uppercase',
-        height: '80px'
+        height: '450px'
       }}
     >
       <div 
-        className="flex flex-shrink-0 marquee-inner"
+        className="flex flex-shrink-0 marquee-inner items-center"
         style={{
-          animation: 'marquee 101s linear infinite'
+          animation: 'marquee 101s linear infinite',
+          height: '100%'
         }}
       >
         {items.map((_, index) => (
           <span 
             key={index}
-            className="text-3xl md:text-5xl lg:text-6xl font-extrabold text-white flex-shrink-0"
+            className="font-extrabold text-white flex-shrink-0 flex items-center"
             style={{ 
               fontFamily: "'D-DIN', sans-serif",
-              paddingRight: '2rem'
+              paddingRight: '3rem',
+              fontSize: 'clamp(200px, 25vw, 350px)',
+              lineHeight: 1
             }}
           >
             {textContent}  .  
@@ -168,7 +168,7 @@ function Navbar() {
 
   return (
     <>
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? "bg-background/95 backdrop-blur-md border-b border-border shadow-sm" : "bg-transparent"}`}>
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-background ${isScrolled ? "border-b border-border shadow-sm" : ""}`}>
         <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
           <div className="flex items-center justify-between gap-4 h-16">
             <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer flex-shrink-0" data-testid="link-logo">
@@ -620,49 +620,52 @@ function Lexa1ChatWidget() {
 function HeroSection() {
   return (
     <section className="relative">
-      <div 
-        className="fixed inset-0 w-full bg-cover bg-no-repeat -z-10"
-        style={{ 
-          backgroundImage: `url(${heroBackgroundImage})`,
-          backgroundPosition: 'center top',
-          backgroundSize: 'cover',
-          backgroundAttachment: 'fixed'
-        }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent via-60% to-black" />
-      </div>
+      <div className="h-16" />
+      
+      <RunningTextBanner />
 
-      <div className="relative flex flex-col justify-end pt-20" style={{ minHeight: 'calc(100vh - 80px)' }}>
-        <div className="w-full max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 pb-8 md:pb-16">
-          <div className="max-w-xl md:max-w-2xl text-left">
-            <p className="text-white/80 text-sm md:text-lg font-medium mb-2 md:mb-4" style={{ fontFamily: "'D-DIN', sans-serif" }}>
-              09 December 2025
-            </p>
-            <h1 className="text-4xl md:text-6xl lg:text-8xl font-black tracking-tight leading-[1.0] text-white mb-3 md:mb-6" style={{ fontFamily: "'D-DIN', sans-serif" }}>
-              Meet<br />
-              <span className="text-[#7c3aed]">LEXA1</span>
-            </h1>
-            <p className="text-sm md:text-xl text-white/90 max-w-lg leading-relaxed mb-4 md:mb-8 text-left">
-              AI-powered customer service platform that transforms how you connect with customers.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
-              <Link href="/register">
-                <Button size="lg" className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white px-6 md:px-8 font-semibold text-sm md:text-base" data-testid="button-hero-start">
-                  Start Building Free
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </Link>
-              <Link href="/features">
-                <Button size="lg" variant="outline" className="border-white/50 text-white hover:bg-white/10 backdrop-blur-sm px-6 md:px-8 text-sm md:text-base" data-testid="button-hero-features">
-                  Explore Features
-                </Button>
-              </Link>
+      <div className="relative">
+        <div 
+          className="absolute inset-0 w-full bg-cover bg-no-repeat -z-10"
+          style={{ 
+            backgroundImage: `url(${heroBackgroundImage})`,
+            backgroundPosition: 'center top',
+            backgroundSize: 'cover'
+          }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent via-60% to-black" />
+        </div>
+
+        <div className="relative flex flex-col justify-end" style={{ minHeight: 'calc(100vh - 450px - 64px)' }}>
+          <div className="w-full max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 pb-8 md:pb-16">
+            <div className="max-w-xl md:max-w-2xl text-left">
+              <p className="text-white/80 text-sm md:text-lg font-medium mb-2 md:mb-4" style={{ fontFamily: "'D-DIN', sans-serif" }}>
+                09 December 2025
+              </p>
+              <h1 className="text-4xl md:text-6xl lg:text-8xl font-black tracking-tight leading-[1.0] text-white mb-3 md:mb-6" style={{ fontFamily: "'D-DIN', sans-serif" }}>
+                Meet<br />
+                <span className="text-[#7c3aed]">LEXA1</span>
+              </h1>
+              <p className="text-sm md:text-xl text-white/90 max-w-lg leading-relaxed mb-4 md:mb-8 text-left">
+                AI-powered customer service platform that transforms how you connect with customers.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
+                <Link href="/register">
+                  <Button size="lg" className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white px-6 md:px-8 font-semibold text-sm md:text-base" data-testid="button-hero-start">
+                    Start Building Free
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+                <Link href="/features">
+                  <Button size="lg" variant="outline" className="border-white/50 text-white hover:bg-white/10 backdrop-blur-sm px-6 md:px-8 text-sm md:text-base" data-testid="button-hero-features">
+                    Explore Features
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
         </div>
       </div>
-
-      <RunningTextBanner />
 
       <div className="relative bg-background">
 
@@ -945,67 +948,70 @@ function FeaturesPreview() {
 }
 
 function PricingPreview() {
-  const regularPlanKeys = ["free", "starter", "pro"] as const;
-  const enterprisePlanKeys = ["enterprise", "custom"] as const;
+  const allPlanKeys = ["free", "starter", "pro", "enterprise", "custom"] as const;
 
   const getPrice = (plan: typeof subscriptionPlans[keyof typeof subscriptionPlans]) => {
-    if (plan.monthlyPrice === -1) return "Contact Us";
+    if (plan.monthlyPrice === -1) return "Contact";
     if (plan.monthlyPrice === 0) return "$0";
     return `$${plan.monthlyPrice}`;
   };
 
   const getCta = (planId: string) => {
-    if (planId === "free") return "Get Started";
-    if (planId === "enterprise" || planId === "custom") return "Contact Sales";
-    return "Start Free Trial";
+    if (planId === "free") return "Start Free";
+    if (planId === "enterprise" || planId === "custom") return "Contact";
+    return "Try Free";
   };
 
   return (
-    <section className="py-20 md:py-32">
+    <section className="py-16 md:py-24">
       <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
-        <div className="text-left mb-16">
+        <div className="text-left mb-10">
           <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
             Pricing
           </Badge>
-          <h2 className="text-3xl md:text-5xl font-bold mb-4">
+          <h2 className="text-3xl md:text-4xl font-bold mb-3">
             Simple, Transparent Pricing
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl">
+          <p className="text-muted-foreground max-w-2xl">
             Choose the plan that fits your business. All plans include a 14-day free trial.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6 mb-16">
-          {regularPlanKeys.map((planKey) => {
+        <div className="flex gap-3 overflow-x-auto pb-4 -mx-6 px-6 sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12 scrollbar-hide">
+          {allPlanKeys.map((planKey) => {
             const plan = subscriptionPlans[planKey];
             const isPro = planKey === "pro";
+            const isEnterprise = planKey === "enterprise" || planKey === "custom";
             return (
-              <Card key={planKey} className={`p-6 relative ${isPro ? "border-purple-500 shadow-lg shadow-purple-500/10" : ""}`}>
+              <Card 
+                key={planKey} 
+                className={`p-4 relative flex-shrink-0 w-[220px] ${isPro ? "border-purple-500 shadow-lg shadow-purple-500/10" : ""} ${isEnterprise ? "bg-gradient-to-br from-purple-50 to-white dark:from-purple-950/30 dark:to-background border-purple-200 dark:border-purple-800/50" : ""}`}
+              >
                 {isPro && (
-                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-600">
-                    Most Popular
+                  <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-purple-600 text-xs px-2 py-0.5">
+                    Popular
                   </Badge>
                 )}
-                <div className="mb-6">
-                  <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
+                <div className="mb-4">
+                  <h3 className="text-base font-bold mb-1">{plan.name}</h3>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-bold">{getPrice(plan)}</span>
-                    <span className="text-muted-foreground">/month</span>
+                    <span className="text-2xl font-bold">{getPrice(plan)}</span>
+                    {plan.monthlyPrice !== -1 && <span className="text-xs text-muted-foreground">/mo</span>}
                   </div>
-                  <p className="text-sm text-muted-foreground mt-2 text-left">{plan.description}</p>
                 </div>
-                <ul className="space-y-3 mb-6">
-                  {plan.features.slice(0, 7).map((feature, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-left">
-                      <Check className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
-                      {feature}
+                <ul className="space-y-1.5 mb-4 min-h-[100px]">
+                  {plan.features.slice(0, 4).map((feature, i) => (
+                    <li key={i} className="flex items-start gap-1.5 text-xs text-left">
+                      <Check className="w-3 h-3 text-purple-600 shrink-0 mt-0.5" />
+                      <span className="line-clamp-1">{feature}</span>
                     </li>
                   ))}
                 </ul>
-                <Link href="/pricing">
+                <Link href={isEnterprise ? "/contact" : "/pricing"}>
                   <Button 
-                    className={`w-full ${isPro ? "bg-purple-600 hover:bg-purple-700" : ""}`}
-                    variant={isPro ? "default" : "outline"}
+                    size="sm"
+                    className={`w-full text-xs ${isPro || isEnterprise ? "bg-purple-600 hover:bg-purple-700" : ""}`}
+                    variant={isPro || isEnterprise ? "default" : "outline"}
                   >
                     {getCta(planKey)}
                   </Button>
@@ -1015,50 +1021,11 @@ function PricingPreview() {
           })}
         </div>
 
-        <div className="mb-8">
-          <h3 className="text-2xl font-bold mb-2">Enterprise & Custom Solutions</h3>
-          <p className="text-muted-foreground">For organizations with advanced requirements and dedicated support.</p>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-6">
-          {enterprisePlanKeys.map((planKey) => {
-            const plan = subscriptionPlans[planKey];
-            return (
-              <Card key={planKey} className="p-6 bg-gradient-to-br from-purple-50 to-white dark:from-purple-950/30 dark:to-background border-purple-200 dark:border-purple-800/50">
-                <div className="flex items-start gap-4 mb-6">
-                  <div className="w-12 h-12 rounded-xl bg-purple-600 flex items-center justify-center shrink-0">
-                    {planKey === "enterprise" ? (
-                      <Target className="w-6 h-6 text-white" />
-                    ) : (
-                      <Award className="w-6 h-6 text-white" />
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold">{plan.name}</h3>
-                    <div className="flex items-baseline gap-1 mt-1">
-                      <span className="text-3xl font-bold text-purple-600">{getPrice(plan)}</span>
-                      {plan.monthlyPrice !== -1 && <span className="text-muted-foreground">/month</span>}
-                    </div>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground mb-6 text-left">{plan.description}</p>
-                <div className="grid sm:grid-cols-2 gap-2 mb-6">
-                  {plan.features.slice(0, 10).map((feature, i) => (
-                    <div key={i} className="flex items-start gap-2 text-sm text-left">
-                      <Check className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
-                      {feature}
-                    </div>
-                  ))}
-                </div>
-                <Link href="/contact">
-                  <Button className="w-full bg-purple-600 hover:bg-purple-700">
-                    {getCta(planKey)}
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </Link>
-              </Card>
-            );
-          })}
+        <div className="text-left mt-6">
+          <Link href="/pricing" className="inline-flex items-center text-purple-600 hover:text-purple-700 font-medium">
+            View full pricing details
+            <ArrowRight className="w-4 h-4 ml-1" />
+          </Link>
         </div>
       </div>
     </section>

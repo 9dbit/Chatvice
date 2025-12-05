@@ -120,41 +120,39 @@ export default function FeaturesPage() {
   return (
     <PublicPageLayout>
       <section className="bg-purple-600 text-white py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <Badge className="bg-white/20 text-white mb-4">
-              <Sparkles className="w-3 h-3 mr-1" />
-              Features
-            </Badge>
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">
-              Everything You Need for<br />AI Customer Service
-            </h1>
-            <p className="text-lg text-purple-100 max-w-2xl mx-auto mb-8">
-              Chatvice powered by LEXA1 gives you all the tools to build, deploy, 
-              and scale intelligent customer support.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/register">
-                <Button size="lg" className="bg-white text-purple-600 hover:bg-purple-50">
-                  Start Free Trial
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </Link>
-              <Link href="/pricing">
-                <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10">
-                  View Pricing
-                </Button>
-              </Link>
-            </div>
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+          <Badge className="bg-white/20 text-white mb-4">
+            <Sparkles className="w-3 h-3 mr-1" />
+            Features
+          </Badge>
+          <h1 className="text-4xl md:text-6xl font-bold mb-6 text-left">
+            Everything You Need for<br />AI Customer Service
+          </h1>
+          <p className="text-lg text-purple-100 max-w-2xl mb-8 text-left">
+            Chatvice powered by LEXA1 gives you all the tools to build, deploy, 
+            and scale intelligent customer support.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Link href="/register">
+              <Button size="lg" className="bg-white text-purple-600 hover:bg-purple-50">
+                Start Free Trial
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+            <Link href="/pricing">
+              <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10">
+                View Pricing
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
 
       <section className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+          <div className="text-left mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Core Features</h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-lg text-muted-foreground max-w-2xl">
               Powerful features designed to transform your customer service experience.
             </p>
           </div>
@@ -186,22 +184,22 @@ export default function FeaturesPage() {
       </section>
 
       <section className="py-20 bg-muted/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+          <div className="text-left mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">More Features</h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-lg text-muted-foreground max-w-2xl">
               Every feature you need to deliver exceptional customer experiences.
             </p>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {additionalFeatures.map((feature, index) => (
-              <Card key={index} className="p-6 text-center hover-elevate">
-                <div className="w-12 h-12 mx-auto rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4">
+              <Card key={index} className="p-6 hover-elevate">
+                <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4">
                   <feature.icon className="w-6 h-6 text-purple-600" />
                 </div>
-                <h3 className="font-semibold mb-1">{feature.title}</h3>
-                <p className="text-sm text-muted-foreground">{feature.description}</p>
+                <h3 className="font-semibold mb-1 text-left">{feature.title}</h3>
+                <p className="text-sm text-muted-foreground text-left">{feature.description}</p>
               </Card>
             ))}
           </div>
@@ -209,13 +207,13 @@ export default function FeaturesPage() {
       </section>
 
       <section className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
               <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
                 AI Engine
               </Badge>
-              <h2 className="text-3xl md:text-4xl font-bold mb-6">
+              <h2 className="text-3xl md:text-4xl font-bold mb-6 text-left">
                 Meet LEXA1
               </h2>
               <p className="text-lg text-muted-foreground mb-6">
@@ -292,14 +290,14 @@ export default function FeaturesPage() {
       </section>
 
       <section className="py-20 bg-purple-600 text-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+          <h2 className="text-3xl md:text-4xl font-bold mb-6 text-left">
             Ready to Transform Your Customer Service?
           </h2>
-          <p className="text-lg text-purple-100 mb-8">
+          <p className="text-lg text-purple-100 mb-8 max-w-2xl text-left">
             Start your 14-day free trial. No credit card required.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4">
             <Link href="/register">
               <Button size="lg" className="bg-white text-purple-600 hover:bg-purple-50">
                 Start Free Trial

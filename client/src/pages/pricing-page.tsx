@@ -138,19 +138,19 @@ export default function PricingPage() {
   return (
     <PublicPageLayout>
       <section className="bg-purple-600 text-white py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
           <Badge className="bg-white/20 text-white mb-4">
             <Zap className="w-3 h-3 mr-1" />
             Pricing
           </Badge>
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
+          <h1 className="text-4xl md:text-5xl font-bold mb-4 text-left">
             Simple, Transparent Pricing
           </h1>
-          <p className="text-lg text-purple-100 max-w-2xl mx-auto mb-8">
+          <p className="text-lg text-purple-100 max-w-2xl mb-8 text-left">
             Choose the plan that fits your business. All plans include a 14-day free trial.
           </p>
           
-          <div className="flex items-center justify-center gap-3">
+          <div className="flex items-center gap-3">
             <span className={`text-sm ${!isYearly ? "text-white" : "text-purple-200"}`}>Monthly</span>
             <Switch
               checked={isYearly}
@@ -166,7 +166,7 @@ export default function PricingPage() {
       </section>
 
       <section className="py-20 -mt-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {plans.map((plan, index) => (
               <Card 
@@ -233,8 +233,8 @@ export default function PricingPage() {
       </section>
 
       <section className="py-20 bg-muted/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+          <div className="text-left mb-12">
             <h2 className="text-3xl font-bold mb-4">Compare Plans</h2>
             <p className="text-muted-foreground">Detailed feature comparison across all plans</p>
           </div>
@@ -298,8 +298,8 @@ export default function PricingPage() {
       </section>
 
       <section className="py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+          <div className="text-left mb-12">
             <h2 className="text-3xl font-bold mb-4">Frequently Asked Questions</h2>
           </div>
 
@@ -318,11 +318,11 @@ export default function PricingPage() {
       </section>
 
       <section className="py-20 bg-purple-600 text-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+          <h2 className="text-3xl md:text-4xl font-bold mb-6 text-left">
             Start Your Free Trial Today
           </h2>
-          <p className="text-lg text-purple-100 mb-8">
+          <p className="text-lg text-purple-100 mb-8 max-w-2xl text-left">
             No credit card required. Get full access to all features for 14 days.
           </p>
           <Link href="/register">

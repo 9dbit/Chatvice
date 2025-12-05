@@ -70,25 +70,23 @@ export default function AboutPage() {
   return (
     <PublicPageLayout>
       <section className="bg-purple-600 text-white py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <Badge className="bg-white/20 text-white mb-4">
-              <Heart className="w-3 h-3 mr-1" />
-              About Us
-            </Badge>
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              Transforming Customer Service<br />with AI
-            </h1>
-            <p className="text-lg text-purple-100 max-w-2xl mx-auto">
-              We're building the future of customer engagement, powered by 
-              intelligent AI that understands, helps, and connects.
-            </p>
-          </div>
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+          <Badge className="bg-white/20 text-white mb-4">
+            <Heart className="w-3 h-3 mr-1" />
+            About Us
+          </Badge>
+          <h1 className="text-4xl md:text-5xl font-bold mb-6 text-left">
+            Transforming Customer Service<br />with AI
+          </h1>
+          <p className="text-lg text-purple-100 max-w-2xl text-left">
+            We're building the future of customer engagement, powered by 
+            intelligent AI that understands, helps, and connects.
+          </p>
         </div>
       </section>
 
       <section className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
               <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
@@ -133,22 +131,22 @@ export default function AboutPage() {
       </section>
 
       <section className="py-20 bg-muted/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+          <div className="text-left mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Our Values</h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-lg text-muted-foreground max-w-2xl">
               The principles that guide everything we build.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {values.map((value, index) => (
-              <Card key={index} className="p-6 text-center hover-elevate">
-                <div className="w-14 h-14 mx-auto rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4">
+              <Card key={index} className="p-6 hover-elevate">
+                <div className="w-14 h-14 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4">
                   <value.icon className="w-7 h-7 text-purple-600" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">{value.title}</h3>
-                <p className="text-sm text-muted-foreground">{value.description}</p>
+                <h3 className="text-lg font-semibold mb-2 text-left">{value.title}</h3>
+                <p className="text-sm text-muted-foreground text-left">{value.description}</p>
               </Card>
             ))}
           </div>
@@ -156,8 +154,8 @@ export default function AboutPage() {
       </section>
 
       <section className="py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+          <div className="text-left mb-16">
             <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
               <Calendar className="w-3 h-3 mr-1" />
               Our Journey
@@ -200,7 +198,7 @@ export default function AboutPage() {
       </section>
 
       <section className="py-20 bg-muted/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
               <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
@@ -230,14 +228,14 @@ export default function AboutPage() {
       </section>
 
       <section className="py-20 bg-purple-600 text-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+          <h2 className="text-3xl md:text-4xl font-bold mb-6 text-left">
             Ready to Join Our Journey?
           </h2>
-          <p className="text-lg text-purple-100 mb-8">
+          <p className="text-lg text-purple-100 mb-8 max-w-2xl text-left">
             Be part of the AI customer service revolution. Start your free trial today.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4">
             <Link href="/register">
               <Button size="lg" className="bg-white text-purple-600 hover:bg-purple-50">
                 Start Free Trial
