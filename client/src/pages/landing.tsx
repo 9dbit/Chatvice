@@ -627,14 +627,14 @@ function HeroSection() {
           className="absolute inset-0 w-full bg-cover bg-no-repeat -z-10"
           style={{ 
             backgroundImage: `url(${heroBackgroundImage})`,
-            backgroundPosition: 'center -800px',
+            backgroundPosition: 'center -900px',
             backgroundSize: 'cover'
           }}
         >
           <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent via-60% to-[hsl(var(--background))]" />
         </div>
 
-        <div className="relative flex flex-col justify-start h-full pt-[20px] md:pt-[80px]">
+        <div className="relative flex flex-col justify-start h-full pt-0 md:pt-[30px]">
           <div className="w-full max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
             <div className="max-w-xl md:max-w-3xl text-left">
               <p className="text-white/80 text-sm md:text-xl font-medium mb-3 md:mb-6 tracking-wide" style={{ fontFamily: "'D-DIN', sans-serif" }}>
