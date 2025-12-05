@@ -159,3 +159,22 @@ The dashboard sidebar shows notification dots for:
 - Sessions escalated to HUMAN mode
 - Sessions with `needsSupervisorAttention` flag set to true
 - Alert sound plays when new escalated sessions are detected
+
+### Landing Page Settings (Admin Panel)
+
+The Admin Panel includes a Landing Page Settings tab that allows customization of the public landing page without coding:
+
+**Configurable Settings**:
+- **Hero Background**: Custom background image URL with desktop/mobile offset positioning (X/Y coordinates in pixels)
+- **Hero Content Positioning**: Padding top values for desktop and mobile to control content placement
+- **Theme Colors**: Primary, secondary, and accent colors using hex color picker
+- **Running Text Banner**: Enable/disable, custom text content, animation speed, background and text colors
+- **Features Layout**: Choose between 3-column or 4-column grid layout
+
+**API Endpoints**:
+- `GET /api/landing-settings` - Public endpoint for landing page to fetch settings
+- `PUT /api/admin/landing-settings` - Admin-protected endpoint to update settings
+
+**Database Table**: `landing_page_settings` (singleton pattern with id="default")
+
+The landing page automatically fetches and applies these settings dynamically, with fallback defaults ensuring the page works even without saved settings.
