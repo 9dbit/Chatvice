@@ -689,8 +689,8 @@ function HeroSection() {
       <div className="relative bg-background">
 
         <div className="py-10 md:py-16 relative z-10">
-          <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
-            <div className="text-left mb-16">
+          <div className="w-full px-4 sm:px-6 lg:px-8">
+            <div className="text-left mb-10">
               <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
                 <Sparkles className="w-3 h-3 mr-1" />
                 Why Chatvice
@@ -703,60 +703,60 @@ function HeroSection() {
               </p>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-8">
-              <div className="group relative rounded-2xl overflow-hidden shadow-xl h-80 md:h-[420px] hover-elevate cursor-pointer">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="group relative rounded-xl overflow-hidden shadow-xl h-64 md:h-80 hover-elevate cursor-pointer">
                 <img 
                   src={advancedReportingImage} 
                   alt="Advanced Reporting" 
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
-                  <Badge className="bg-[#7c3aed] text-white mb-3">Analytics</Badge>
-                  <h3 className="text-2xl md:text-3xl font-bold text-white mb-2" style={{ fontFamily: "'D-DIN', sans-serif" }}>Advanced Reporting</h3>
-                  <p className="text-white/80 text-sm md:text-base">Real-time dashboards with AI-powered insights to track customer satisfaction and agent performance.</p>
+                <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6">
+                  <Badge className="bg-[#7c3aed] text-white mb-2 text-xs">Analytics</Badge>
+                  <h3 className="text-lg md:text-xl font-bold text-white mb-1" style={{ fontFamily: "'D-DIN', sans-serif" }}>Advanced Reporting</h3>
+                  <p className="text-white/80 text-xs md:text-sm line-clamp-2">Real-time dashboards with AI-powered insights.</p>
                 </div>
               </div>
 
-              <div className="group relative rounded-2xl overflow-hidden shadow-xl h-80 md:h-[420px] hover-elevate cursor-pointer">
+              <div className="group relative rounded-xl overflow-hidden shadow-xl h-64 md:h-80 hover-elevate cursor-pointer">
                 <img 
                   src={engineeredForSecurityImage} 
                   alt="Enterprise Security" 
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
-                  <Badge className="bg-[#7c3aed] text-white mb-3">Security</Badge>
-                  <h3 className="text-2xl md:text-3xl font-bold text-white mb-2" style={{ fontFamily: "'D-DIN', sans-serif" }}>Enterprise Security</h3>
-                  <p className="text-white/80 text-sm md:text-base">Bank-level encryption and SOC 2 compliance to protect your customer conversations.</p>
+                <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6">
+                  <Badge className="bg-[#7c3aed] text-white mb-2 text-xs">Security</Badge>
+                  <h3 className="text-lg md:text-xl font-bold text-white mb-1" style={{ fontFamily: "'D-DIN', sans-serif" }}>Enterprise Security</h3>
+                  <p className="text-white/80 text-xs md:text-sm line-clamp-2">Bank-level encryption and SOC 2 compliance.</p>
                 </div>
               </div>
 
-              <div className="group relative rounded-2xl overflow-hidden shadow-xl h-80 md:h-[420px] hover-elevate cursor-pointer">
+              <div className="group relative rounded-xl overflow-hidden shadow-xl h-64 md:h-80 hover-elevate cursor-pointer">
                 <img 
                   src={designedForSimplicityImage} 
                   alt="Easy Setup" 
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
-                  <Badge className="bg-[#7c3aed] text-white mb-3">Simplicity</Badge>
-                  <h3 className="text-2xl md:text-3xl font-bold text-white mb-2" style={{ fontFamily: "'D-DIN', sans-serif" }}>Easy Setup</h3>
-                  <p className="text-white/80 text-sm md:text-base">Deploy your AI agent in minutes with our intuitive dashboard. No coding required.</p>
+                <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6">
+                  <Badge className="bg-[#7c3aed] text-white mb-2 text-xs">Simplicity</Badge>
+                  <h3 className="text-lg md:text-xl font-bold text-white mb-1" style={{ fontFamily: "'D-DIN', sans-serif" }}>Easy Setup</h3>
+                  <p className="text-white/80 text-xs md:text-sm line-clamp-2">Deploy your AI agent in minutes. No coding required.</p>
                 </div>
               </div>
 
-              <div className="group relative rounded-2xl overflow-hidden shadow-xl h-80 md:h-[420px] hover-elevate cursor-pointer">
+              <div className="group relative rounded-xl overflow-hidden shadow-xl h-64 md:h-80 hover-elevate cursor-pointer">
                 <img 
                   src={purposeBuiltForLlmsImage} 
                   alt="Multi-Model AI" 
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
-                  <Badge className="bg-[#7c3aed] text-white mb-3">AI Engine</Badge>
-                  <h3 className="text-2xl md:text-3xl font-bold text-white mb-2" style={{ fontFamily: "'D-DIN', sans-serif" }}>Multi-Model AI</h3>
-                  <p className="text-white/80 text-sm md:text-base">Powered by multiple LLM providers including OpenAI, Google, and Anthropic for best responses.</p>
+                <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6">
+                  <Badge className="bg-[#7c3aed] text-white mb-2 text-xs">AI Engine</Badge>
+                  <h3 className="text-lg md:text-xl font-bold text-white mb-1" style={{ fontFamily: "'D-DIN', sans-serif" }}>Multi-Model AI</h3>
+                  <p className="text-white/80 text-xs md:text-sm line-clamp-2">Powered by OpenAI, Google, and Anthropic.</p>
                 </div>
               </div>
             </div>
