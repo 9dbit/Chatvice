@@ -2125,6 +2125,26 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // Landing Page Settings API (Admin only for update, public for read)
+  app.get("/api/landing-settings", async (req, res) => {
+    try {
+      const settings = await storage.getLandingPageSettings();
+      res.json(settings || {});
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.put("/api/admin/landing-settings", requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.updateLandingPageSettings(req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating landing settings:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/widget/chatvice.js", async (req, res) => {
     const merchantId = req.query.merchant || "demo";
     const script = `
