@@ -16,7 +16,8 @@ import {
   type AgentSupervisor, type InsertAgentSupervisor,
   type MediaAttachment, type InsertMediaAttachment,
   type PlatformSetting,
-  merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings,
+  type LandingPageSettings, type InsertLandingPageSettings,
+  merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -102,6 +103,10 @@ export interface IStorage {
   
   createMediaAttachment(data: { sessionId: string; agentId?: string | null; type: string; url: string; fileName?: string; fileSize?: number; mimeType?: string }): Promise<MediaAttachment>;
   getMediaAttachments(sessionId: string): Promise<MediaAttachment[]>;
+  
+  // Landing Page Settings
+  getLandingPageSettings(): Promise<LandingPageSettings | undefined>;
+  updateLandingPageSettings(data: Partial<InsertLandingPageSettings>): Promise<LandingPageSettings>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -920,6 +925,29 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(mediaAttachments)
       .where(eq(mediaAttachments.sessionId, sessionId))
       .orderBy(desc(mediaAttachments.createdAt));
+  }
+
+  async getLandingPageSettings(): Promise<LandingPageSettings | undefined> {
+    const result = await db.select().from(landingPageSettings)
+      .where(eq(landingPageSettings.id, "default"));
+    return result[0];
+  }
+
+  async updateLandingPageSettings(data: Partial<InsertLandingPageSettings>): Promise<LandingPageSettings> {
+    const existing = await this.getLandingPageSettings();
+    
+    if (existing) {
+      const result = await db.update(landingPageSettings)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(landingPageSettings.id, "default"))
+        .returning();
+      return result[0];
+    } else {
+      const result = await db.insert(landingPageSettings)
+        .values({ id: "default", ...data })
+        .returning();
+      return result[0];
+    }
   }
 }
 
