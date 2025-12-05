@@ -75,7 +75,7 @@ function RunningTextBanner() {
   
   return (
     <div 
-      className="overflow-hidden whitespace-nowrap flex items-center flex-shrink-0 h-[200px] md:h-[450px]"
+      className="overflow-hidden whitespace-nowrap flex items-center flex-shrink-0 h-[180px] md:h-[450px]"
       style={{ 
         backgroundColor: '#7c3aed',
         fontStyle: 'normal',
@@ -95,7 +95,7 @@ function RunningTextBanner() {
         {items.map((_, index) => (
           <span 
             key={index}
-            className="font-bold text-white flex-shrink-0 flex items-center text-[170px] md:text-[clamp(200px,25vw,350px)]"
+            className="font-bold text-white flex-shrink-0 flex items-center text-[150px] md:text-[clamp(200px,25vw,350px)]"
             style={{ 
               fontFamily: "'D-DIN', sans-serif",
               paddingRight: '3rem',
@@ -622,7 +622,7 @@ function HeroSection() {
       
       <RunningTextBanner />
 
-      <div className="relative">
+      <div className="relative h-[600px] md:h-[1587px]">
         <div 
           className="absolute inset-0 w-full bg-cover bg-no-repeat -z-10"
           style={{ 
@@ -634,28 +634,28 @@ function HeroSection() {
           <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent via-60% to-black" />
         </div>
 
-        <div className="relative flex flex-col justify-end" style={{ minHeight: 'calc(100vh - 450px - 64px)' }}>
-          <div className="w-full max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 pb-8 md:pb-16">
-            <div className="max-w-xl md:max-w-2xl text-left">
-              <p className="text-white/80 text-sm md:text-lg font-medium mb-2 md:mb-4" style={{ fontFamily: "'D-DIN', sans-serif" }}>
+        <div className="relative flex flex-col justify-end h-full">
+          <div className="w-full max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 pb-12 md:pb-24">
+            <div className="max-w-xl md:max-w-3xl text-left">
+              <p className="text-white/80 text-sm md:text-xl font-medium mb-3 md:mb-6 tracking-wide" style={{ fontFamily: "'D-DIN', sans-serif" }}>
                 09 December 2025
               </p>
-              <h1 className="text-4xl md:text-6xl lg:text-8xl font-black tracking-tight leading-[1.0] text-white mb-3 md:mb-6" style={{ fontFamily: "'D-DIN', sans-serif" }}>
+              <h1 className="text-5xl md:text-7xl lg:text-9xl font-black tracking-tight leading-[0.95] text-white mb-4 md:mb-8" style={{ fontFamily: "'D-DIN', sans-serif" }}>
                 Meet<br />
                 <span className="text-[#7c3aed]">LEXA1</span>
               </h1>
-              <p className="text-sm md:text-xl text-white/90 max-w-lg leading-relaxed mb-4 md:mb-8 text-left">
+              <p className="text-base md:text-2xl text-white/90 max-w-xl leading-relaxed mb-6 md:mb-10 text-left">
                 AI-powered customer service platform that transforms how you connect with customers.
               </p>
-              <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
+              <div className="flex flex-col sm:flex-row gap-4 md:gap-5">
                 <Link href="/register">
-                  <Button size="lg" className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white px-6 md:px-8 font-semibold text-sm md:text-base" data-testid="button-hero-start">
+                  <Button size="lg" className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white px-8 md:px-10 py-6 md:py-7 font-semibold text-base md:text-lg" data-testid="button-hero-start">
                     Start Building Free
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    <ArrowRight className="w-5 h-5 ml-2" />
                   </Button>
                 </Link>
                 <Link href="/features">
-                  <Button size="lg" variant="outline" className="border-white/50 text-white hover:bg-white/10 backdrop-blur-sm px-6 md:px-8 text-sm md:text-base" data-testid="button-hero-features">
+                  <Button size="lg" variant="outline" className="border-white/50 text-white hover:bg-white/10 backdrop-blur-sm px-8 md:px-10 py-6 md:py-7 text-base md:text-lg" data-testid="button-hero-features">
                     Explore Features
                   </Button>
                 </Link>
