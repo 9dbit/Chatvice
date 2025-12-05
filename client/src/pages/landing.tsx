@@ -647,7 +647,7 @@ function HeroSection() {
           className="fixed inset-0 w-full bg-cover bg-no-repeat -z-10"
           style={{ 
             backgroundImage: `url(${heroBackgroundImage})`,
-            backgroundPosition: 'center -400px',
+            backgroundPosition: 'center -360px',
             backgroundSize: 'cover',
             backgroundAttachment: 'fixed'
           }}
