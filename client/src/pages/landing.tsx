@@ -70,7 +70,7 @@ import femaleAvatar from "@assets/b80ad9fd48f0b1e8d404775c495633be_1764867029228
 import heroBackgroundImage from "@assets/IMG_0185_1764870218768.jpeg";
 
 function RunningTextBanner() {
-  const textContent = "MEET LEXA1. THE NEW POWERFUL AI CUSTOMER SERVICE.";
+  const textContent = "MEET LEXA1. THE NEXT POWERFUL AI CHATBOT.";
   const items = Array(15).fill(null);
   
   return (
@@ -88,7 +88,7 @@ function RunningTextBanner() {
       <div 
         className="flex flex-shrink-0 marquee-inner items-center"
         style={{
-          animation: 'marquee 152s linear infinite',
+          animation: 'marquee 243s linear infinite',
           height: '100%'
         }}
       >
@@ -635,7 +635,7 @@ function HeroSection() {
         </div>
 
         <div className="relative flex flex-col justify-end h-full">
-          <div className="w-full max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 pb-12 md:pb-24">
+          <div className="w-full max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 pb-12 md:pb-24 mt-[120px]">
             <div className="max-w-xl md:max-w-3xl text-left">
               <p className="text-white/80 text-sm md:text-xl font-medium mb-3 md:mb-6 tracking-wide" style={{ fontFamily: "'D-DIN', sans-serif" }}>
                 09 December 2025
@@ -667,7 +667,7 @@ function HeroSection() {
 
       <div className="relative bg-background">
 
-        <div className="py-10 md:py-16 -mt-[200px] relative z-10">
+        <div className="py-10 md:py-16 relative z-10">
           <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
             <div className="text-left mb-16">
               <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
