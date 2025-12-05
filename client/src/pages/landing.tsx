@@ -137,7 +137,7 @@ function RunningTextBanner({ settings }: { settings?: LandingPageSettings }) {
   
   return (
     <div 
-      className="overflow-hidden whitespace-nowrap flex items-center flex-shrink-0 h-[90px] md:h-[300px]"
+      className="overflow-hidden whitespace-nowrap flex items-center flex-shrink-0 h-[117px] md:h-[300px]"
       style={{ 
         backgroundColor: bgColor,
         fontStyle: 'normal',
@@ -151,7 +151,7 @@ function RunningTextBanner({ settings }: { settings?: LandingPageSettings }) {
         {items.map((_, index) => (
           <span 
             key={index}
-            className="font-bold flex-shrink-0 inline-flex items-center text-[88px] md:text-[clamp(200px,25vw,350px)] pr-8 md:pr-12"
+            className="font-bold flex-shrink-0 inline-flex items-center text-[114px] md:text-[clamp(200px,25vw,350px)] pr-8 md:pr-12"
             style={{ 
               fontFamily: "'D-DIN', sans-serif",
               lineHeight: 1,
@@ -164,7 +164,7 @@ function RunningTextBanner({ settings }: { settings?: LandingPageSettings }) {
         {items.map((_, index) => (
           <span 
             key={`dup-${index}`}
-            className="font-bold flex-shrink-0 inline-flex items-center text-[88px] md:text-[clamp(200px,25vw,350px)] pr-8 md:pr-12"
+            className="font-bold flex-shrink-0 inline-flex items-center text-[114px] md:text-[clamp(200px,25vw,350px)] pr-8 md:pr-12"
             style={{ 
               fontFamily: "'D-DIN', sans-serif",
               lineHeight: 1,
@@ -702,10 +702,10 @@ function HeroSection() {
     ? (settings?.heroBackgroundMobileOffsetX ?? 0) 
     : (settings?.heroBackgroundOffsetX ?? 0);
   const bgOffsetY = isMobile 
-    ? (settings?.heroBackgroundMobileOffsetY ?? 50) 
+    ? (settings?.heroBackgroundMobileOffsetY ?? 250) 
     : (settings?.heroBackgroundOffsetY ?? -570);
   const contentPaddingTop = isMobile 
-    ? (settings?.heroContentMobilePaddingTop ?? 160) 
+    ? (settings?.heroContentMobilePaddingTop ?? 360) 
     : (settings?.heroContentPaddingTop ?? 70);
 
   const backgroundUrl = settings?.heroBackgroundUrl || heroBackgroundImage;
@@ -761,7 +761,7 @@ function HeroSection() {
 
       <div className="relative bg-background">
 
-        <div className="pt-[200px] md:pt-0 py-10 md:py-16 relative z-10">
+        <div className="py-10 md:py-16 relative z-10">
           <div className="w-full px-4 sm:px-6 lg:px-8">
             <div className="text-left mb-10">
               <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
