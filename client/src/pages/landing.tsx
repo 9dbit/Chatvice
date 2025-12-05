@@ -53,11 +53,31 @@ import {
   Camera,
   Video,
 } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useTheme } from "@/components/theme-provider";
 import { subscriptionPlans } from "@shared/schema";
+
+function useParallaxScroll() {
+  useEffect(() => {
+    const handleScroll = () => {
+      const elements = document.querySelectorAll('.parallax-fade-in, .parallax-slide-left, .parallax-slide-right, .parallax-scale');
+      elements.forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        const windowHeight = window.innerHeight;
+        if (rect.top < windowHeight * 0.85) {
+          el.classList.add('visible');
+        }
+      });
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    handleScroll();
+    
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+}
 import chatviceLogoLight from "@assets/Chatvice-02_1764703423166.png";
 import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
 import advancedReportingImage from "@assets/advanced-reporting_1764865696013.webp";
@@ -756,11 +776,11 @@ function StatsSection() {
   ];
 
   return (
-    <section className="py-16 bg-muted/30">
+    <section className="py-16 bg-muted/30 parallax-section">
       <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {stats.map((stat, index) => (
-            <div key={index} className="text-left">
+            <div key={index} className={`text-left parallax-fade-in parallax-delay-${index + 1}`}>
               <div className="w-12 h-12 mb-4 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
                 <stat.icon className="w-6 h-6 text-purple-600" />
               </div>
@@ -821,9 +841,9 @@ function TimelineSection() {
   ];
 
   return (
-    <section className="py-20 md:py-32">
+    <section className="py-20 md:py-32 parallax-section">
       <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
-        <div className="text-left mb-16">
+        <div className="text-left mb-16 parallax-fade-in">
           <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
             <Calendar className="w-3 h-3 mr-1" />
             Development Timeline
@@ -841,7 +861,7 @@ function TimelineSection() {
           
           <div className="space-y-4 md:space-y-12">
             {milestones.map((milestone, index) => (
-              <div key={index} className={`flex flex-row md:flex-row gap-3 md:gap-8 items-start md:items-center ${index % 2 === 0 ? "md:flex-row" : "md:flex-row-reverse"}`}>
+              <div key={index} className={`flex flex-row md:flex-row gap-3 md:gap-8 items-start md:items-center ${index % 2 === 0 ? "md:flex-row parallax-slide-left" : "md:flex-row-reverse parallax-slide-right"} parallax-delay-${(index % 5) + 1}`}>
                 <div className={`hidden md:block flex-1 ${index % 2 === 0 ? "md:text-right" : "md:text-left"}`}>
                   <Card className={`p-6 ${milestone.status === "upcoming" ? "border-purple-500 bg-purple-50 dark:bg-purple-950/20" : ""}`}>
                     <div className={`flex items-center gap-2 mb-2 ${index % 2 === 0 ? "md:justify-end" : ""}`}>
@@ -921,9 +941,9 @@ function FeaturesPreview() {
   ];
 
   return (
-    <section className="py-20 md:py-32 bg-muted/30">
+    <section className="py-20 md:py-32 bg-muted/30 parallax-section">
       <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
-        <div className="text-left mb-16">
+        <div className="text-left mb-16 parallax-fade-in">
           <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
             <Sparkles className="w-3 h-3 mr-1" />
             Features
@@ -938,7 +958,7 @@ function FeaturesPreview() {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {features.map((feature, index) => (
-            <Card key={index} className="hover-elevate p-6 group">
+            <Card key={index} className={`hover-elevate p-6 group parallax-scale parallax-delay-${(index % 5) + 1}`}>
               <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4 group-hover:bg-purple-600 group-hover:text-white transition-colors">
                 <feature.icon className="w-6 h-6 text-purple-600 group-hover:text-white transition-colors" />
               </div>
@@ -948,7 +968,7 @@ function FeaturesPreview() {
           ))}
         </div>
 
-        <div className="text-left mt-12">
+        <div className="text-left mt-12 parallax-fade-in">
           <Link href="/features">
             <Button size="lg" variant="outline" className="border-purple-300 text-purple-600 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-950/30">
               View All Features
@@ -977,9 +997,9 @@ function PricingPreview() {
   };
 
   return (
-    <section className="py-16 md:py-24">
+    <section className="py-16 md:py-24 parallax-section">
       <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
-        <div className="text-left mb-10">
+        <div className="text-left mb-10 parallax-fade-in">
           <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
             Pricing
           </Badge>
@@ -991,7 +1011,7 @@ function PricingPreview() {
           </p>
         </div>
 
-        <div className="flex gap-3 overflow-x-auto pb-4 -mx-6 px-6 sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12 scrollbar-hide">
+        <div className="flex gap-3 overflow-x-auto pb-4 -mx-6 px-6 sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12 scrollbar-hide parallax-fade-in">
           {allPlanKeys.map((planKey) => {
             const plan = subscriptionPlans[planKey];
             const isPro = planKey === "pro";
@@ -1048,9 +1068,9 @@ function PricingPreview() {
 
 function CTASection() {
   return (
-    <section className="py-20 md:py-32 bg-purple-600 text-white">
+    <section className="py-20 md:py-32 bg-purple-600 text-white parallax-section">
       <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
-        <div className="max-w-3xl">
+        <div className="max-w-3xl parallax-fade-in">
           <Badge className="bg-white/20 text-white mb-6">
             <Rocket className="w-3 h-3 mr-1" />
             Launch: December 9, 2025
@@ -1210,6 +1230,8 @@ function Footer() {
 }
 
 export default function LandingPage() {
+  useParallaxScroll();
+  
   return (
     <div className="min-h-screen">
       <Navbar />

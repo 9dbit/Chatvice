@@ -401,6 +401,93 @@
   transform: translateY(0);
 }
 
+/* Parallax Effects */
+.parallax-container {
+  perspective: 1px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  height: 100vh;
+}
+
+.parallax-bg {
+  background-attachment: fixed;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.parallax-section {
+  position: relative;
+  transform-style: preserve-3d;
+}
+
+.parallax-slow {
+  transform: translateZ(-2px) scale(3);
+}
+
+.parallax-medium {
+  transform: translateZ(-1px) scale(2);
+}
+
+/* Smooth scroll behavior for parallax */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Parallax fade in animation on scroll */
+.parallax-fade-in {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.parallax-fade-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Parallax slide effects */
+.parallax-slide-left {
+  opacity: 0;
+  transform: translateX(-50px);
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.parallax-slide-left.visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.parallax-slide-right {
+  opacity: 0;
+  transform: translateX(50px);
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.parallax-slide-right.visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Parallax scale effect */
+.parallax-scale {
+  opacity: 0;
+  transform: scale(0.9);
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.parallax-scale.visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Staggered animation delays */
+.parallax-delay-1 { transition-delay: 0.1s; }
+.parallax-delay-2 { transition-delay: 0.2s; }
+.parallax-delay-3 { transition-delay: 0.3s; }
+.parallax-delay-4 { transition-delay: 0.4s; }
+.parallax-delay-5 { transition-delay: 0.5s; }
+
 /* Continuous parallax scroll effect */
 .parallax-scroll {
   will-change: transform;
