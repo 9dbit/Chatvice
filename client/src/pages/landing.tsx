@@ -627,27 +627,27 @@ function HeroSection() {
           className="absolute inset-0 w-full bg-cover bg-no-repeat -z-10"
           style={{ 
             backgroundImage: `url(${heroBackgroundImage})`,
-            backgroundPosition: 'center -900px',
+            backgroundPosition: 'center -700px',
             backgroundSize: 'cover'
           }}
         >
           <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent via-60% to-[hsl(var(--background))]" />
         </div>
 
-        <div className="relative flex flex-col justify-start h-full pt-0 md:pt-[30px]">
+        <div className="relative flex flex-col justify-start h-full pt-0 md:pt-[10px]">
           <div className="w-full max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
             <div className="max-w-xl md:max-w-3xl text-left">
-              <p className="text-white/80 text-sm md:text-xl font-medium mb-3 md:mb-6 tracking-wide" style={{ fontFamily: "'D-DIN', sans-serif" }}>
+              <p className="text-white/80 text-sm md:text-xl font-medium mb-2 md:mb-3 tracking-wide" style={{ fontFamily: "'D-DIN', sans-serif" }}>
                 09 December 2025
               </p>
-              <h1 className="text-5xl md:text-7xl lg:text-9xl font-black tracking-tight leading-[0.95] text-white mb-4 md:mb-8" style={{ fontFamily: "'D-DIN', sans-serif" }}>
+              <h1 className="text-5xl md:text-7xl lg:text-9xl font-black tracking-tight leading-[0.85] text-white mb-2 md:mb-4" style={{ fontFamily: "'D-DIN', sans-serif" }}>
                 Meet<br />
                 <span className="text-[#7c3aed]">LEXA1</span>
               </h1>
-              <p className="text-base md:text-2xl text-white/90 max-w-xl leading-relaxed mb-6 md:mb-10 text-left">
+              <p className="text-base md:text-2xl text-white/90 max-w-xl leading-snug mb-4 md:mb-6 text-left">
                 AI-powered customer service platform that transforms how you connect with customers.
               </p>
-              <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
+              <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
                 <Link href="/register">
                   <Button size="lg" className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white px-6 md:px-8 font-semibold text-sm md:text-base" data-testid="button-hero-start">
                     Start Building Free
