@@ -57,6 +57,7 @@ import { useState, useRef, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useTheme } from "@/components/theme-provider";
+import { subscriptionPlans } from "@shared/schema";
 import chatviceLogoLight from "@assets/Chatvice-02_1764703423166.png";
 import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
 import advancedReportingImage from "@assets/advanced-reporting_1764865696013.webp";
@@ -69,36 +70,43 @@ import femaleAvatar from "@assets/b80ad9fd48f0b1e8d404775c495633be_1764867029228
 import heroBackgroundImage from "@assets/IMG_0185_1764870218768.jpeg";
 
 function RunningTextBanner() {
-  const fullText = "MEET LEXA1. THE NEW POWERFUL AI CUSTOMER SERVICE. ";
-  const repeatedText = Array(10).fill(fullText).join("");
+  const textContent = "MEET LEXA1. THE NEW POWERFUL AI CUSTOMER SERVICE.";
+  const items = Array(15).fill(null);
   
   return (
     <div 
       className="overflow-hidden whitespace-nowrap flex items-center flex-shrink-0"
       style={{ 
         backgroundColor: '#7c3aed',
+        paddingTop: '1rem',
+        paddingRight: 0,
+        paddingLeft: 0,
+        fontStyle: 'normal',
+        fontWeight: 800,
+        letterSpacing: '-0.07em',
+        lineHeight: 0.8,
+        textTransform: 'uppercase',
         height: '80px'
       }}
     >
       <div 
-        className="flex flex-shrink-0"
+        className="flex flex-shrink-0 marquee-inner"
         style={{
-          animation: 'marquee 50s linear infinite'
+          animation: 'marquee 101s linear infinite'
         }}
       >
-        <span 
-          className="text-2xl md:text-4xl lg:text-5xl font-black tracking-tight leading-none uppercase text-white flex-shrink-0"
-          style={{ fontFamily: "'D-DIN', sans-serif", paddingRight: '4rem' }}
-        >
-          {repeatedText}
-        </span>
-        <span 
-          className="text-2xl md:text-4xl lg:text-5xl font-black tracking-tight leading-none uppercase text-white flex-shrink-0"
-          style={{ fontFamily: "'D-DIN', sans-serif", paddingRight: '4rem' }}
-          aria-hidden="true"
-        >
-          {repeatedText}
-        </span>
+        {items.map((_, index) => (
+          <span 
+            key={index}
+            className="text-3xl md:text-5xl lg:text-6xl font-extrabold text-white flex-shrink-0"
+            style={{ 
+              fontFamily: "'D-DIN', sans-serif",
+              paddingRight: '2rem'
+            }}
+          >
+            {textContent}  .  
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -161,7 +169,7 @@ function Navbar() {
   return (
     <>
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? "bg-background/95 backdrop-blur-md border-b border-border shadow-sm" : "bg-transparent"}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
           <div className="flex items-center justify-between gap-4 h-16">
             <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer flex-shrink-0" data-testid="link-logo">
               <img src={chatviceLogo} alt="Chatvice" className="h-7 sm:h-8 w-auto" />
@@ -310,7 +318,7 @@ function CustomizableWidget({ config }: { config: WidgetConfig }) {
             <Send className="w-4 h-4" />
           </button>
         </div>
-        <p className={`text-[10px] text-center mt-2 ${config.isDark ? "text-gray-400" : "text-gray-500"}`}>
+        <p className={`text-[10px] mt-2 ${config.isDark ? "text-gray-400" : "text-gray-500"}`}>
           Powered by <span className="font-semibold" style={{ color: config.brandColor }}>Chatvice</span>
         </p>
       </div>
@@ -338,8 +346,8 @@ function WidgetCustomizerSection() {
 
   return (
     <section className="py-20 md:py-32 bg-muted/30">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
+      <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+        <div className="text-left mb-16">
           <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
             <Settings className="w-3 h-3 mr-1" />
             Widget Customization
@@ -347,7 +355,7 @@ function WidgetCustomizerSection() {
           <h2 className="text-3xl md:text-5xl font-bold mb-4">
             Design Your Perfect Chat Widget
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-2xl">
             Customize colors, themes, and avatar to match your brand identity. Try it live!
           </p>
         </div>
@@ -601,7 +609,7 @@ function Lexa1ChatWidget() {
             <Send className="w-4 h-4" />
           </Button>
         </div>
-        <p className="text-[10px] text-center text-muted-foreground mt-2">
+        <p className="text-[10px] text-muted-foreground mt-2">
           Powered by <span className="font-semibold text-purple-600">Lexa1</span> AI Engine
         </p>
       </div>
@@ -613,19 +621,19 @@ function HeroSection() {
   return (
     <section className="relative">
       <div 
-        className="absolute inset-0 w-full bg-cover bg-no-repeat"
+        className="fixed inset-0 w-full bg-cover bg-no-repeat -z-10"
         style={{ 
           backgroundImage: `url(${heroBackgroundImage})`,
           backgroundPosition: 'center top',
           backgroundSize: 'cover',
-          height: 'calc(100vh - 80px)'
+          backgroundAttachment: 'fixed'
         }}
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/90" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent via-60% to-black" />
       </div>
 
-      <div className="relative flex flex-col justify-end pt-20" style={{ height: 'calc(100vh - 80px)' }}>
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 md:pb-16">
+      <div className="relative flex flex-col justify-end pt-20" style={{ minHeight: 'calc(100vh - 80px)' }}>
+        <div className="w-full max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 pb-8 md:pb-16">
           <div className="max-w-xl md:max-w-2xl text-left">
             <p className="text-white/80 text-sm md:text-lg font-medium mb-2 md:mb-4" style={{ fontFamily: "'D-DIN', sans-serif" }}>
               09 December 2025
@@ -634,7 +642,7 @@ function HeroSection() {
               Meet<br />
               <span className="text-[#7c3aed]">LEXA1</span>
             </h1>
-            <p className="text-sm md:text-xl text-white/90 max-w-lg leading-relaxed mb-4 md:mb-8">
+            <p className="text-sm md:text-xl text-white/90 max-w-lg leading-relaxed mb-4 md:mb-8 text-left">
               AI-powered customer service platform that transforms how you connect with customers.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
@@ -659,8 +667,8 @@ function HeroSection() {
       <div className="relative bg-background">
 
         <div className="py-20 md:py-32">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
+          <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+            <div className="text-left mb-16">
               <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
                 <Sparkles className="w-3 h-3 mr-1" />
                 Why Chatvice
@@ -668,7 +676,7 @@ function HeroSection() {
               <h2 className="text-3xl md:text-5xl font-bold mb-4" style={{ fontFamily: "'D-DIN', sans-serif" }}>
                 Powerful Features
               </h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              <p className="text-lg text-muted-foreground max-w-2xl">
                 Everything you need to deliver exceptional customer service
               </p>
             </div>
@@ -747,11 +755,11 @@ function StatsSection() {
 
   return (
     <section className="py-16 bg-muted/30">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {stats.map((stat, index) => (
-            <div key={index} className="text-center">
-              <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+            <div key={index} className="text-left">
+              <div className="w-12 h-12 mb-4 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
                 <stat.icon className="w-6 h-6 text-purple-600" />
               </div>
               <p className="text-3xl md:text-4xl font-bold text-foreground mb-1">{stat.value}</p>
@@ -812,8 +820,8 @@ function TimelineSection() {
 
   return (
     <section className="py-20 md:py-32">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
+      <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+        <div className="text-left mb-16">
           <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
             <Calendar className="w-3 h-3 mr-1" />
             Development Timeline
@@ -821,7 +829,7 @@ function TimelineSection() {
           <h2 className="text-3xl md:text-5xl font-bold mb-4">
             Building the Future of<br />Customer Service
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-2xl">
             Key milestones in our journey to launch LEXA1, the AI engine powering Chatvice.
           </p>
         </div>
@@ -897,8 +905,8 @@ function FeaturesPreview() {
 
   return (
     <section className="py-20 md:py-32 bg-muted/30">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
+      <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+        <div className="text-left mb-16">
           <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
             <Sparkles className="w-3 h-3 mr-1" />
             Features
@@ -906,7 +914,7 @@ function FeaturesPreview() {
           <h2 className="text-3xl md:text-5xl font-bold mb-4">
             Everything You Need for<br />AI Customer Service
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-2xl">
             Chatvice powered by LEXA1 gives you all the tools to build, deploy, and scale intelligent customer support.
           </p>
         </div>
@@ -917,13 +925,13 @@ function FeaturesPreview() {
               <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4 group-hover:bg-purple-600 group-hover:text-white transition-colors">
                 <feature.icon className="w-6 h-6 text-purple-600 group-hover:text-white transition-colors" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
-              <p className="text-muted-foreground text-sm">{feature.description}</p>
+              <h3 className="text-lg font-semibold mb-2 text-left">{feature.title}</h3>
+              <p className="text-muted-foreground text-sm text-left">{feature.description}</p>
             </Card>
           ))}
         </div>
 
-        <div className="text-center mt-12">
+        <div className="text-left mt-12">
           <Link href="/features">
             <Button size="lg" variant="outline" className="border-purple-300 text-purple-600 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-950/30">
               View All Features
@@ -937,107 +945,120 @@ function FeaturesPreview() {
 }
 
 function PricingPreview() {
-  const plans = [
-    {
-      name: "Starter",
-      price: "$29",
-      period: "/month",
-      description: "Perfect for small businesses getting started with AI support.",
-      features: [
-        "1 AI Agent",
-        "1,000 messages/month",
-        "Basic knowledge base",
-        "Email support",
-        "Standard widget",
-      ],
-      cta: "Start Free Trial",
-      popular: false,
-    },
-    {
-      name: "Professional",
-      price: "$99",
-      period: "/month",
-      description: "For growing teams that need more power and flexibility.",
-      features: [
-        "5 AI Agents",
-        "10,000 messages/month",
-        "Advanced knowledge base",
-        "Priority support",
-        "Custom widget styling",
-        "Human escalation",
-        "Analytics dashboard",
-      ],
-      cta: "Start Free Trial",
-      popular: true,
-    },
-    {
-      name: "Enterprise",
-      price: "Custom",
-      period: "",
-      description: "For large organizations with advanced requirements.",
-      features: [
-        "Unlimited AI Agents",
-        "Unlimited messages",
-        "Full API access",
-        "Dedicated support",
-        "Custom integrations",
-        "SLA guarantee",
-        "On-premise option",
-      ],
-      cta: "Contact Sales",
-      popular: false,
-    },
-  ];
+  const regularPlanKeys = ["free", "starter", "pro"] as const;
+  const enterprisePlanKeys = ["enterprise", "custom"] as const;
+
+  const getPrice = (plan: typeof subscriptionPlans[keyof typeof subscriptionPlans]) => {
+    if (plan.monthlyPrice === -1) return "Contact Us";
+    if (plan.monthlyPrice === 0) return "$0";
+    return `$${plan.monthlyPrice}`;
+  };
+
+  const getCta = (planId: string) => {
+    if (planId === "free") return "Get Started";
+    if (planId === "enterprise" || planId === "custom") return "Contact Sales";
+    return "Start Free Trial";
+  };
 
   return (
     <section className="py-20 md:py-32">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
+      <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+        <div className="text-left mb-16">
           <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
             Pricing
           </Badge>
           <h2 className="text-3xl md:text-5xl font-bold mb-4">
             Simple, Transparent Pricing
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-2xl">
             Choose the plan that fits your business. All plans include a 14-day free trial.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          {plans.map((plan, index) => (
-            <Card key={index} className={`p-6 relative ${plan.popular ? "border-purple-500 shadow-lg shadow-purple-500/10" : ""}`}>
-              {plan.popular && (
-                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-600">
-                  Most Popular
-                </Badge>
-              )}
-              <div className="text-center mb-6">
-                <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
-                <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-4xl font-bold">{plan.price}</span>
-                  <span className="text-muted-foreground">{plan.period}</span>
+        <div className="grid md:grid-cols-3 gap-6 mb-16">
+          {regularPlanKeys.map((planKey) => {
+            const plan = subscriptionPlans[planKey];
+            const isPro = planKey === "pro";
+            return (
+              <Card key={planKey} className={`p-6 relative ${isPro ? "border-purple-500 shadow-lg shadow-purple-500/10" : ""}`}>
+                {isPro && (
+                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-600">
+                    Most Popular
+                  </Badge>
+                )}
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-bold">{getPrice(plan)}</span>
+                    <span className="text-muted-foreground">/month</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-2 text-left">{plan.description}</p>
                 </div>
-                <p className="text-sm text-muted-foreground mt-2">{plan.description}</p>
-              </div>
-              <ul className="space-y-3 mb-6">
-                {plan.features.map((feature, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm">
-                    <Check className="w-4 h-4 text-purple-600 shrink-0" />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-              <Link href="/pricing">
-                <Button 
-                  className={`w-full ${plan.popular ? "bg-purple-600 hover:bg-purple-700" : ""}`}
-                  variant={plan.popular ? "default" : "outline"}
-                >
-                  {plan.cta}
-                </Button>
-              </Link>
-            </Card>
-          ))}
+                <ul className="space-y-3 mb-6">
+                  {plan.features.slice(0, 7).map((feature, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-left">
+                      <Check className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+                <Link href="/pricing">
+                  <Button 
+                    className={`w-full ${isPro ? "bg-purple-600 hover:bg-purple-700" : ""}`}
+                    variant={isPro ? "default" : "outline"}
+                  >
+                    {getCta(planKey)}
+                  </Button>
+                </Link>
+              </Card>
+            );
+          })}
+        </div>
+
+        <div className="mb-8">
+          <h3 className="text-2xl font-bold mb-2">Enterprise & Custom Solutions</h3>
+          <p className="text-muted-foreground">For organizations with advanced requirements and dedicated support.</p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          {enterprisePlanKeys.map((planKey) => {
+            const plan = subscriptionPlans[planKey];
+            return (
+              <Card key={planKey} className="p-6 bg-gradient-to-br from-purple-50 to-white dark:from-purple-950/30 dark:to-background border-purple-200 dark:border-purple-800/50">
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="w-12 h-12 rounded-xl bg-purple-600 flex items-center justify-center shrink-0">
+                    {planKey === "enterprise" ? (
+                      <Target className="w-6 h-6 text-white" />
+                    ) : (
+                      <Award className="w-6 h-6 text-white" />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">{plan.name}</h3>
+                    <div className="flex items-baseline gap-1 mt-1">
+                      <span className="text-3xl font-bold text-purple-600">{getPrice(plan)}</span>
+                      {plan.monthlyPrice !== -1 && <span className="text-muted-foreground">/month</span>}
+                    </div>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground mb-6 text-left">{plan.description}</p>
+                <div className="grid sm:grid-cols-2 gap-2 mb-6">
+                  {plan.features.slice(0, 10).map((feature, i) => (
+                    <div key={i} className="flex items-start gap-2 text-sm text-left">
+                      <Check className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                      {feature}
+                    </div>
+                  ))}
+                </div>
+                <Link href="/contact">
+                  <Button className="w-full bg-purple-600 hover:bg-purple-700">
+                    {getCta(planKey)}
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+              </Card>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -1047,29 +1068,31 @@ function PricingPreview() {
 function CTASection() {
   return (
     <section className="py-20 md:py-32 bg-purple-600 text-white">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <Badge className="bg-white/20 text-white mb-6">
-          <Rocket className="w-3 h-3 mr-1" />
-          Launch: December 9, 2025
-        </Badge>
-        <h2 className="text-3xl md:text-5xl font-bold mb-6">
-          Ready to Transform Your<br />Customer Service?
-        </h2>
-        <p className="text-lg text-purple-100 mb-8 max-w-2xl mx-auto">
-          Join thousands of businesses already using LEXA1 to deliver exceptional customer experiences.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link href="/register">
-            <Button size="lg" className="bg-white text-purple-600 hover:bg-purple-50 px-8 font-semibold">
-              Get Started Free
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </Link>
-          <Link href="/contact">
-            <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 px-8">
-              Talk to Sales
-            </Button>
-          </Link>
+      <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+        <div className="max-w-3xl">
+          <Badge className="bg-white/20 text-white mb-6">
+            <Rocket className="w-3 h-3 mr-1" />
+            Launch: December 9, 2025
+          </Badge>
+          <h2 className="text-3xl md:text-5xl font-bold mb-6 text-left">
+            Ready to Transform Your<br />Customer Service?
+          </h2>
+          <p className="text-lg text-purple-100 mb-8 text-left">
+            Join thousands of businesses already using LEXA1 to deliver exceptional customer experiences.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Link href="/register">
+              <Button size="lg" className="bg-white text-purple-600 hover:bg-purple-50 px-8 font-semibold">
+                Get Started Free
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+            <Link href="/contact">
+              <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 px-8">
+                Talk to Sales
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     </section>
@@ -1113,13 +1136,13 @@ function Footer() {
 
   return (
     <footer className="bg-card border-t border-border">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 py-16">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="inline-block mb-4">
               <img src={chatviceLogo} alt="Chatvice" className="h-8" />
             </Link>
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-sm text-muted-foreground mb-4 text-left">
               AI-powered customer service platform built for the future.
             </p>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
