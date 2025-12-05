@@ -136,7 +136,7 @@ function RunningTextBanner({ settings }: { settings?: LandingPageSettings }) {
   
   return (
     <div 
-      className="overflow-hidden whitespace-nowrap flex items-center flex-shrink-0 h-[180px] md:h-[300px]"
+      className="overflow-hidden whitespace-nowrap flex items-center flex-shrink-0 h-[90px] md:h-[300px]"
       style={{ 
         backgroundColor: bgColor,
         fontStyle: 'normal',
@@ -150,7 +150,7 @@ function RunningTextBanner({ settings }: { settings?: LandingPageSettings }) {
         {items.map((_, index) => (
           <span 
             key={index}
-            className="font-bold flex-shrink-0 inline-flex items-center text-[100px] md:text-[clamp(200px,25vw,350px)] pr-12"
+            className="font-bold flex-shrink-0 inline-flex items-center text-[55px] md:text-[clamp(200px,25vw,350px)] pr-8 md:pr-12"
             style={{ 
               fontFamily: "'D-DIN', sans-serif",
               lineHeight: 1,
@@ -163,7 +163,7 @@ function RunningTextBanner({ settings }: { settings?: LandingPageSettings }) {
         {items.map((_, index) => (
           <span 
             key={`dup-${index}`}
-            className="font-bold flex-shrink-0 inline-flex items-center text-[100px] md:text-[clamp(200px,25vw,350px)] pr-12"
+            className="font-bold flex-shrink-0 inline-flex items-center text-[55px] md:text-[clamp(200px,25vw,350px)] pr-8 md:pr-12"
             style={{ 
               fontFamily: "'D-DIN', sans-serif",
               lineHeight: 1,
@@ -701,7 +701,7 @@ function HeroSection() {
     ? (settings?.heroBackgroundMobileOffsetX ?? 0) 
     : (settings?.heroBackgroundOffsetX ?? 0);
   const bgOffsetY = isMobile 
-    ? (settings?.heroBackgroundMobileOffsetY ?? -150) 
+    ? (settings?.heroBackgroundMobileOffsetY ?? 50) 
     : (settings?.heroBackgroundOffsetY ?? -570);
   const contentPaddingTop = isMobile 
     ? (settings?.heroContentMobilePaddingTop ?? 160) 
