@@ -489,3 +489,42 @@ export const subscriptionPlans = {
 
 export type SubscriptionPlanId = keyof typeof subscriptionPlans;
 export type SubscriptionStatus = "trial" | "active" | "canceled" | "expired" | "past_due";
+
+// Landing Page Settings for Admin customization
+export const landingPageSettings = pgTable("landing_page_settings", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  // Hero Section
+  heroBackgroundUrl: text("hero_background_url").default(""),
+  heroBackgroundPositionX: integer("hero_background_position_x").default(50), // percentage 0-100
+  heroBackgroundPositionY: integer("hero_background_position_y").default(-570), // pixels
+  heroBackgroundPositionYMobile: integer("hero_background_position_y_mobile").default(-150), // pixels for mobile
+  heroContentOffsetY: integer("hero_content_offset_y").default(70), // pixels from top
+  heroContentOffsetYMobile: integer("hero_content_offset_y_mobile").default(160), // pixels from top for mobile
+  // Hero Text Content
+  heroDateText: text("hero_date_text").default("09 December 2025"),
+  heroTitle: text("hero_title").default("Meet"),
+  heroTitleHighlight: text("hero_title_highlight").default("LEXA1"),
+  heroSubtitle: text("hero_subtitle").default("AI-powered customer service platform that transforms how you connect with customers."),
+  heroPrimaryButtonText: text("hero_primary_button_text").default("Start Building Free"),
+  heroPrimaryButtonUrl: text("hero_primary_button_url").default("/register"),
+  heroSecondaryButtonText: text("hero_secondary_button_text").default("Explore Features"),
+  heroSecondaryButtonUrl: text("hero_secondary_button_url").default("/features"),
+  // Running Text Banner
+  runningTextContent: text("running_text_content").default("MEET LEXA1. THE NEXT POWERFUL AI CHATBOT."),
+  runningTextSpeed: integer("running_text_speed").default(60), // animation duration in seconds
+  runningTextVisible: boolean("running_text_visible").default(true),
+  // Theme Colors
+  primaryColor: text("primary_color").default("#7c3aed"),
+  runningTextBgColor: text("running_text_bg_color").default("#7c3aed"),
+  // Feature Section
+  featuresSectionVisible: boolean("features_section_visible").default(true),
+  featuresSectionTitle: text("features_section_title").default("Powerful Features"),
+  featuresSectionSubtitle: text("features_section_subtitle").default("Everything you need to deliver exceptional customer service"),
+  // Additional Settings
+  extras: jsonb("extras").default({}),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertLandingPageSettingsSchema = createInsertSchema(landingPageSettings).omit({ id: true, updatedAt: true });
+export type InsertLandingPageSettings = z.infer<typeof insertLandingPageSettingsSchema>;
+export type LandingPageSettings = typeof landingPageSettings.$inferSelect;
