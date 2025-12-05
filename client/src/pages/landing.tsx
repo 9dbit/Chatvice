@@ -75,7 +75,7 @@ function RunningTextBanner() {
   
   return (
     <div 
-      className="overflow-hidden whitespace-nowrap flex items-center flex-shrink-0 h-[180px] md:h-[450px]"
+      className="overflow-hidden whitespace-nowrap flex items-center flex-shrink-0 h-[180px] md:h-[220px]"
       style={{ 
         backgroundColor: '#7c3aed',
         fontStyle: 'normal',
