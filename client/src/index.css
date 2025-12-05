@@ -301,6 +301,12 @@
   padding-right: 3rem;
 }
 
+.marquee-inner {
+  display: flex;
+  width: max-content;
+  animation: marquee 60s linear infinite;
+}
+
 @keyframes marquee {
   0% {
     transform: translateX(0);
@@ -311,7 +317,8 @@
 }
 
 /* Pause animation on hover */
-.marquee-wrapper:hover {
+.marquee-wrapper:hover,
+.marquee-inner:hover {
   animation-play-state: paused;
 }
 
@@ -336,9 +343,10 @@
 
 @media (max-width: 768px) {
   .hero-parallax {
-    background-attachment: fixed;
-    background-position: center -150px;
-    background-size: cover;
+    background-attachment: scroll;
+    background-position: center top;
+    background-size: 100% auto;
+    width: 100%;
   }
 }
 

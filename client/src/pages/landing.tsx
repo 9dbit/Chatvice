@@ -91,13 +91,12 @@ import heroBackgroundImage from "@assets/IMG_0185_1764870218768.jpeg";
 
 function RunningTextBanner() {
   const textContent = "MEET LEXA1. THE NEXT POWERFUL AI CHATBOT.";
-  const items = Array(15).fill(null);
+  const items = Array(10).fill(null);
   
   return (
     <div 
-      className="overflow-hidden whitespace-nowrap flex items-center flex-shrink-0 h-[180px] md:h-[300px]"
+      className="overflow-hidden whitespace-nowrap flex items-center flex-shrink-0 h-[180px] md:h-[300px] bg-[#7c3aed]"
       style={{ 
-        backgroundColor: '#7c3aed',
         fontStyle: 'normal',
         fontWeight: 800,
         letterSpacing: '-0.07em',
@@ -105,24 +104,29 @@ function RunningTextBanner() {
         textTransform: 'uppercase',
       }}
     >
-      <div 
-        className="flex flex-shrink-0 marquee-inner items-center"
-        style={{
-          animation: 'marquee 243s linear infinite',
-          height: '100%'
-        }}
-      >
+      <div className="marquee-inner items-center h-full">
         {items.map((_, index) => (
           <span 
             key={index}
-            className="font-bold text-white flex-shrink-0 flex items-center text-[150px] md:text-[clamp(200px,25vw,350px)]"
+            className="font-bold text-white flex-shrink-0 inline-flex items-center text-[100px] md:text-[clamp(200px,25vw,350px)] pr-12"
             style={{ 
               fontFamily: "'D-DIN', sans-serif",
-              paddingRight: '3rem',
               lineHeight: 1
             }}
           >
-            {textContent}  .  
+            {textContent}
+          </span>
+        ))}
+        {items.map((_, index) => (
+          <span 
+            key={`dup-${index}`}
+            className="font-bold text-white flex-shrink-0 inline-flex items-center text-[100px] md:text-[clamp(200px,25vw,350px)] pr-12"
+            style={{ 
+              fontFamily: "'D-DIN', sans-serif",
+              lineHeight: 1
+            }}
+          >
+            {textContent}
           </span>
         ))}
       </div>
