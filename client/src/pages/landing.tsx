@@ -705,7 +705,7 @@ function HeroSection() {
     ? (settings?.heroBackgroundMobileOffsetY ?? 0) 
     : (settings?.heroBackgroundOffsetY ?? -570);
   const contentPaddingTop = isMobile 
-    ? (settings?.heroContentMobilePaddingTop ?? 280) 
+    ? (settings?.heroContentMobilePaddingTop ?? 220) 
     : (settings?.heroContentPaddingTop ?? 70);
 
   const backgroundUrl = settings?.heroBackgroundUrl || heroBackgroundImage;
