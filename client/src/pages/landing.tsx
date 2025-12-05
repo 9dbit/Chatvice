@@ -75,7 +75,7 @@ function RunningTextBanner() {
   
   return (
     <div 
-      className="overflow-hidden whitespace-nowrap flex items-center flex-shrink-0"
+      className="overflow-hidden whitespace-nowrap flex items-center flex-shrink-0 h-[200px] md:h-[450px]"
       style={{ 
         backgroundColor: '#7c3aed',
         fontStyle: 'normal',
@@ -83,7 +83,6 @@ function RunningTextBanner() {
         letterSpacing: '-0.07em',
         lineHeight: 0.8,
         textTransform: 'uppercase',
-        height: '450px'
       }}
     >
       <div 
@@ -96,11 +95,10 @@ function RunningTextBanner() {
         {items.map((_, index) => (
           <span 
             key={index}
-            className="font-extrabold text-white flex-shrink-0 flex items-center"
+            className="font-bold text-white flex-shrink-0 flex items-center text-[170px] md:text-[clamp(200px,25vw,350px)]"
             style={{ 
               fontFamily: "'D-DIN', sans-serif",
               paddingRight: '3rem',
-              fontSize: 'clamp(200px, 25vw, 350px)',
               lineHeight: 1
             }}
           >
