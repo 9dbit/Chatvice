@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -8,9 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Edit2, ExternalLink, Image, Link2, Loader2, Package } from "lucide-react";
-import type { ProductCard, ProductCardButton, Agent } from "@shared/schema";
+import { Plus, Trash2, Edit2, ExternalLink, Image, Link2, Loader2, Package, Settings, Bot, Users, ChevronDown, Sparkles, Zap } from "lucide-react";
+import type { ProductCard, ProductCardButton, Agent, ProductRecommendationSetting } from "@shared/schema";
 
 type ProductCardFormData = {
   title: string;
@@ -21,17 +25,35 @@ type ProductCardFormData = {
   agentId?: string;
 };
 
+type RecommendationSettings = {
+  aiAutoRecommendEnabled: boolean;
+  triggerKeywords: string;
+  aiContextTriggerEnabled: boolean;
+  supervisorCanRecommend: boolean;
+  maxProductsPerRecommendation: number;
+  showPriceInRecommendation: boolean;
+};
+
 export default function ProductCardsPage() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCard, setEditingCard] = useState<ProductCard | null>(null);
   const [isCrawling, setIsCrawling] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [form, setForm] = useState<ProductCardFormData>({
     title: "",
     description: "",
     imageUrl: "",
     sourceUrl: "",
     price: "",
+  });
+  const [recommendSettings, setRecommendSettings] = useState<RecommendationSettings>({
+    aiAutoRecommendEnabled: true,
+    triggerKeywords: "product,recommend,buy,shop,item,catalog",
+    aiContextTriggerEnabled: true,
+    supervisorCanRecommend: true,
+    maxProductsPerRecommendation: 3,
+    showPriceInRecommendation: true,
   });
 
   const { data: cards = [], isLoading } = useQuery<ProductCard[]>({
@@ -40,6 +62,29 @@ export default function ProductCardsPage() {
 
   const { data: agents = [] } = useQuery<Agent[]>({
     queryKey: ["/api/agents"],
+  });
+
+  const { data: settingsData } = useQuery<RecommendationSettings>({
+    queryKey: ["/api/product-recommendation-settings"],
+  });
+
+  useEffect(() => {
+    if (settingsData) {
+      setRecommendSettings(settingsData);
+    }
+  }, [settingsData]);
+
+  const updateSettingsMutation = useMutation({
+    mutationFn: async (data: Partial<RecommendationSettings>) => {
+      return apiRequest("PUT", "/api/product-recommendation-settings", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/product-recommendation-settings"] });
+      toast({ title: "Settings saved successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to save settings", variant: "destructive" });
+    },
   });
 
   const createMutation = useMutation({
@@ -224,7 +269,7 @@ export default function ProductCardsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="imageUrl">URL Gambar</Label>
+                  <Label htmlFor="imageUrl">Image URL</Label>
                   <Input
                     id="imageUrl"
                     value={form.imageUrl}
@@ -252,7 +297,7 @@ export default function ProductCardsPage() {
                     </div>
                   )}
                   <div className="p-4">
-                    <h3 className="font-semibold text-lg">{form.title || "Nama Produk"}</h3>
+                    <h3 className="font-semibold text-lg">{form.title || "Product Name"}</h3>
                     {form.price && (
                       <p className="text-primary font-bold mt-1">{form.price}</p>
                     )}
@@ -262,7 +307,7 @@ export default function ProductCardsPage() {
                     {form.sourceUrl && (
                       <Button size="sm" className="mt-3 w-full" variant="outline">
                         <ExternalLink className="w-3 h-3 mr-2" />
-                        Lihat Detail
+                        View Details
                       </Button>
                     )}
                   </div>
@@ -282,6 +327,167 @@ export default function ProductCardsPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      <Card>
+        <Collapsible open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover-elevate">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Settings className="w-5 h-5" />
+                  <div>
+                    <CardTitle className="text-base">Recommendation Triggers</CardTitle>
+                    <CardDescription>Configure when products are recommended to customers</CardDescription>
+                  </div>
+                </div>
+                <ChevronDown className={`w-4 h-4 transition-transform ${isSettingsOpen ? "rotate-180" : ""}`} />
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-6">
+              <Tabs defaultValue="ai">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="ai" className="gap-2">
+                    <Bot className="w-4 h-4" />
+                    AI Automatic
+                  </TabsTrigger>
+                  <TabsTrigger value="supervisor" className="gap-2">
+                    <Users className="w-4 h-4" />
+                    Supervisor Manual
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="ai" className="space-y-4 pt-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-primary" />
+                        AI Auto-Recommend
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        Automatically show products when trigger words are detected
+                      </p>
+                    </div>
+                    <Switch
+                      checked={recommendSettings.aiAutoRecommendEnabled}
+                      onCheckedChange={(checked) => setRecommendSettings({ ...recommendSettings, aiAutoRecommendEnabled: checked })}
+                      data-testid="switch-ai-auto-recommend"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="triggerKeywords">Trigger Keywords</Label>
+                    <Input
+                      id="triggerKeywords"
+                      value={recommendSettings.triggerKeywords}
+                      onChange={(e) => setRecommendSettings({ ...recommendSettings, triggerKeywords: e.target.value })}
+                      placeholder="product, recommend, buy, shop"
+                      data-testid="input-trigger-keywords"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Separate keywords with commas. Products will be shown when any keyword is detected.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="flex items-center gap-2">
+                        <Zap className="w-4 h-4 text-amber-500" />
+                        Context-Aware Recommendations
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        AI analyzes conversation context to recommend relevant products
+                      </p>
+                    </div>
+                    <Switch
+                      checked={recommendSettings.aiContextTriggerEnabled}
+                      onCheckedChange={(checked) => setRecommendSettings({ ...recommendSettings, aiContextTriggerEnabled: checked })}
+                      data-testid="switch-ai-context"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Max Products per Recommendation: {recommendSettings.maxProductsPerRecommendation}</Label>
+                    <Slider
+                      value={[recommendSettings.maxProductsPerRecommendation]}
+                      onValueChange={(value) => setRecommendSettings({ ...recommendSettings, maxProductsPerRecommendation: value[0] })}
+                      min={1}
+                      max={5}
+                      step={1}
+                      className="w-full"
+                      data-testid="slider-max-products"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Number of products shown in the carousel at once
+                    </p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="supervisor" className="space-y-4 pt-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-blue-500" />
+                        Supervisor Can Recommend
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        Allow supervisors to manually send product recommendations
+                      </p>
+                    </div>
+                    <Switch
+                      checked={recommendSettings.supervisorCanRecommend}
+                      onCheckedChange={(checked) => setRecommendSettings({ ...recommendSettings, supervisorCanRecommend: checked })}
+                      data-testid="switch-supervisor-recommend"
+                    />
+                  </div>
+
+                  <div className="p-4 bg-muted rounded-lg">
+                    <h4 className="font-medium mb-2">How Supervisors Recommend Products</h4>
+                    <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
+                      <li>Open a chat session in the Supervisor Panel</li>
+                      <li>Click the product icon in the message input area</li>
+                      <li>Select one or more products to recommend</li>
+                      <li>Products will be sent as a carousel to the customer</li>
+                    </ol>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Show Price in Recommendations</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Display product prices when recommending to customers
+                      </p>
+                    </div>
+                    <Switch
+                      checked={recommendSettings.showPriceInRecommendation}
+                      onCheckedChange={(checked) => setRecommendSettings({ ...recommendSettings, showPriceInRecommendation: checked })}
+                      data-testid="switch-show-price"
+                    />
+                  </div>
+                </TabsContent>
+              </Tabs>
+
+              <div className="flex justify-end pt-4 border-t">
+                <Button 
+                  onClick={() => updateSettingsMutation.mutate(recommendSettings)}
+                  disabled={updateSettingsMutation.isPending}
+                  data-testid="button-save-settings"
+                >
+                  {updateSettingsMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Settings"
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </Card>
 
       {cards.length === 0 ? (
         <Card>

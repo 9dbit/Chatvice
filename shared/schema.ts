@@ -692,6 +692,24 @@ export const insertNotificationSettingSchema = createInsertSchema(notificationSe
 export type InsertNotificationSetting = z.infer<typeof insertNotificationSettingSchema>;
 export type NotificationSetting = typeof notificationSettings.$inferSelect;
 
+// Product Recommendation Settings
+export const productRecommendationSettings = pgTable("product_recommendation_settings", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull().unique(),
+  aiAutoRecommendEnabled: boolean("ai_auto_recommend_enabled").default(true),
+  triggerKeywords: text("trigger_keywords").default("product,recommend,buy,shop,item,catalog"),
+  aiContextTriggerEnabled: boolean("ai_context_trigger_enabled").default(true),
+  supervisorCanRecommend: boolean("supervisor_can_recommend").default(true),
+  maxProductsPerRecommendation: integer("max_products_per_recommendation").default(3),
+  showPriceInRecommendation: boolean("show_price_in_recommendation").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertProductRecommendationSettingSchema = createInsertSchema(productRecommendationSettings).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertProductRecommendationSetting = z.infer<typeof insertProductRecommendationSettingSchema>;
+export type ProductRecommendationSetting = typeof productRecommendationSettings.$inferSelect;
+
 // Role permissions constants
 export const rolePermissions = {
   administrator: {

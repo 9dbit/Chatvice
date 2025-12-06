@@ -150,6 +150,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     enabled: !!merchantId && isOpen,
   });
 
+  interface ProductRecommendationSettings {
+    aiAutoRecommendEnabled: boolean;
+    triggerKeywords: string;
+    aiContextTriggerEnabled: boolean;
+    maxProductsPerRecommendation: number;
+    showPriceInRecommendation: boolean;
+  }
+
+  const { data: productRecommendSettings } = useQuery<ProductRecommendationSettings>({
+    queryKey: [`/api/widget/${merchantId}/product-recommendation-settings`],
+    enabled: !!merchantId,
+  });
+
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioInitializedRef = useRef(false);
   
@@ -237,7 +250,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
   const shouldShowProducts = (messageContent: string): boolean => {
     if (!productCards.length) return false;
-    const productTriggers = ["product", "produk", "recommend", "rekomendasi", "buy", "beli", "shop", "toko", "item", "barang", "catalog", "katalog"];
+    if (!productRecommendSettings?.aiAutoRecommendEnabled) return false;
+    
+    const triggerKeywords = productRecommendSettings?.triggerKeywords || "product,recommend,buy,shop,item,catalog";
+    const productTriggers = triggerKeywords.toLowerCase().split(",").map(t => t.trim()).filter(t => t.length > 0);
     const lowerContent = messageContent.toLowerCase();
     return productTriggers.some(trigger => lowerContent.includes(trigger));
   };

@@ -1,6 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
+import { z } from "zod";
 import { storage } from "./storage";
 import {
   chatAskSchema,
@@ -3562,6 +3563,77 @@ ${log.extractedKnowledge}` : ''}
       await storage.upsertNotificationSettings(merchantId, { customSounds });
       
       res.json({ url: soundUrl, name: soundName });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ============== PRODUCT RECOMMENDATION SETTINGS ROUTES ==============
+  
+  app.get("/api/product-recommendation-settings", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const settings = await storage.getProductRecommendationSettings(merchantId);
+      res.json(settings || {
+        aiAutoRecommendEnabled: true,
+        triggerKeywords: "product,recommend,buy,shop,item,catalog",
+        aiContextTriggerEnabled: true,
+        supervisorCanRecommend: true,
+        maxProductsPerRecommendation: 3,
+        showPriceInRecommendation: true,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.put("/api/product-recommendation-settings", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      
+      const validationSchema = z.object({
+        aiAutoRecommendEnabled: z.boolean().default(true),
+        triggerKeywords: z.string().default("product,recommend,buy,shop,item,catalog"),
+        aiContextTriggerEnabled: z.boolean().default(true),
+        supervisorCanRecommend: z.boolean().default(true),
+        maxProductsPerRecommendation: z.number().min(1).max(10).default(3),
+        showPriceInRecommendation: z.boolean().default(true),
+      }).partial();
+      
+      const parseResult = validationSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Invalid settings data", details: parseResult.error.errors });
+      }
+      
+      const validatedData = {
+        aiAutoRecommendEnabled: parseResult.data.aiAutoRecommendEnabled ?? true,
+        triggerKeywords: parseResult.data.triggerKeywords || "product,recommend,buy,shop,item,catalog",
+        aiContextTriggerEnabled: parseResult.data.aiContextTriggerEnabled ?? true,
+        supervisorCanRecommend: parseResult.data.supervisorCanRecommend ?? true,
+        maxProductsPerRecommendation: parseResult.data.maxProductsPerRecommendation ?? 3,
+        showPriceInRecommendation: parseResult.data.showPriceInRecommendation ?? true,
+      };
+      
+      const settings = await storage.upsertProductRecommendationSettings(merchantId, validatedData);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating product recommendation settings:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get product recommendation settings for widget (public)
+  app.get("/api/widget/:merchantId/product-recommendation-settings", async (req, res) => {
+    try {
+      const { merchantId } = req.params;
+      const settings = await storage.getProductRecommendationSettings(merchantId);
+      res.json({
+        aiAutoRecommendEnabled: settings?.aiAutoRecommendEnabled ?? true,
+        triggerKeywords: settings?.triggerKeywords || "product,recommend,buy,shop,item,catalog",
+        aiContextTriggerEnabled: settings?.aiContextTriggerEnabled ?? true,
+        maxProductsPerRecommendation: settings?.maxProductsPerRecommendation ?? 3,
+        showPriceInRecommendation: settings?.showPriceInRecommendation ?? true,
+      });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
     }
