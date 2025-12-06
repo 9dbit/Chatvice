@@ -851,7 +851,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/chat/ask", async (req, res) => {
     try {
       const data = chatAskSchema.parse(req.body);
-      const { merchantId, sessionId, message } = data;
+      const { merchantId, sessionId, message, clientMessageId } = data;
 
       const merchant = await storage.getMerchant(merchantId);
       if (!merchant) {
@@ -870,26 +870,34 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       await storage.createMessage({
         sessionId,
-        from: "user",
+        from: "customer",
         content: message,
+        clientMessageId: clientMessageId || undefined,
       });
 
       const result = await askChatvice(sessionId, merchantId, message);
 
+      const responseClientId = clientMessageId ? `response_${clientMessageId}` : undefined;
       await storage.createMessage({
         sessionId,
         from: result.mode === "HUMAN" ? "system" : "chatvice",
         content: result.answer,
+        clientMessageId: responseClientId,
       });
 
       await storage.updateSession(sessionId, {});
 
       broadcastToSession(sessionId, {
         type: "message",
-        message: { from: result.mode === "HUMAN" ? "system" : "chatvice", content: result.answer },
+        message: { from: result.mode === "HUMAN" ? "system" : "chatvice", content: result.answer, clientMessageId: responseClientId },
       });
 
-      res.json({ answer: result.answer, mode: result.mode });
+      res.json({ 
+        answer: result.answer, 
+        mode: result.mode,
+        clientMessageId: clientMessageId,
+        responseClientId: responseClientId,
+      });
     } catch (error: any) {
       console.error("Chat error:", error);
       res.status(500).json({ error: "Server error" });

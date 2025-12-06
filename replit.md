@@ -34,7 +34,15 @@ Chatvice is a monorepo application structured with `/client`, `/server`, and `/s
 - **Landing Page Customization**: Admin Panel allows non-technical customization of the public landing page (hero section, colors, banner, features layout).
 
 **Data Model Highlights**:
-Core entities include Merchants, Supervisors, Sessions, Messages, Triggers, Knowledge Base content (with `agentId` scoping), Knowledge Chunks, Notifications, Subscription Plans, Merchant Subscriptions, Agents, and Sources. New tables support `supervisor_roles`, `shifts`, `shift_assignments`, `work_reports`, `product_cards`, `product_card_buttons`, `quick_replies`, `chat_buttons`, `welcome_bubbles`, and `notification_settings`.
+Core entities include Merchants, Supervisors, Sessions, Messages (with `clientMessageId` for optimistic UI reconciliation), Triggers, Knowledge Base content (with `agentId` scoping), Knowledge Chunks, Notifications, Subscription Plans, Merchant Subscriptions, Agents, and Sources. New tables support `supervisor_roles`, `shifts`, `shift_assignments`, `work_reports`, `product_cards`, `product_card_buttons`, `quick_replies`, `chat_buttons`, `welcome_bubbles`, and `notification_settings`.
+
+**Chat Widget Message Reconciliation**:
+- Widget uses optimistic updates with `pendingMessages` for immediate UI feedback
+- Each message gets a unique `clientId` (format: `client_{timestamp}_{random}`)
+- Server stores `clientMessageId` and returns `responseClientId` for AI responses
+- Reconciliation uses `serverMsg.clientMessageId === pending.clientId` as primary match
+- Fallback: content + timestamp within 10 seconds
+- Notification sounds use `lastProcessedServerMsgId` to prevent duplicates
 
 ## External Dependencies
 

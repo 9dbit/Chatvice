@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -38,12 +38,22 @@ interface ChatWidgetProps {
   embedded?: boolean;
 }
 
+interface PendingMessage {
+  clientId: string;
+  from: string;
+  content: string;
+  timestamp: Date;
+  mediaUrl?: string;
+  mediaType?: string;
+}
+
+const generateClientId = () => `client_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
 export default function ChatWidget({ merchantId, sessionId: initialSessionId, embedded = false }: ChatWidgetProps) {
   const [isOpen, setIsOpen] = useState(embedded);
-  const [showWelcomeBubble, setShowWelcomeBubble] = useState(true);
   const [sessionId] = useState(() => initialSessionId || `sess_${Math.random().toString(36).substring(2, 12)}`);
   const [message, setMessage] = useState("");
-  const [localMessages, setLocalMessages] = useState<Array<{ from: string; content: string; timestamp: Date; mediaUrl?: string; mediaType?: string; showProducts?: boolean; showButtons?: ChatButton[] }>>([]);
+  const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -52,7 +62,27 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const [showUploadMenu, setShowUploadMenu] = useState(false);
   const [productCarouselIndex, setProductCarouselIndex] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const previousMessageCount = useRef(0);
+  const lastProcessedServerMsgId = useRef<string | null>(null);
+  
+  const welcomeBubbleKey = `chatvice_welcome_bubble_dismissed_${merchantId}`;
+  const [welcomeBubbleDismissedAt, setWelcomeBubbleDismissedAt] = useState<number | null>(() => {
+    try {
+      const stored = sessionStorage.getItem(welcomeBubbleKey);
+      return stored ? parseInt(stored, 10) : null;
+    } catch {
+      return null;
+    }
+  });
+  
+  const dismissWelcomeBubble = () => {
+    const now = Date.now();
+    setWelcomeBubbleDismissedAt(now);
+    try {
+      sessionStorage.setItem(welcomeBubbleKey, now.toString());
+    } catch {}
+  };
+
+  const showWelcomeBubble = welcomeBubbleDismissedAt === null;
 
   const { data: merchantConfig } = useQuery<MerchantConfig>({
     queryKey: ["/api/merchant/status", merchantId],
@@ -103,10 +133,35 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         audioRef.current.pause();
       }
       
-      const soundUrl = sound === "default" ? "/sounds/notification.mp3" : sound;
-      audioRef.current = new Audio(soundUrl);
-      audioRef.current.volume = 0.5;
-      audioRef.current.play().catch(() => {});
+      let soundUrl: string | null = null;
+      
+      if (sound === "default") {
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = 800;
+        oscillator.type = "sine";
+        gainNode.gain.value = 0.3;
+        
+        oscillator.start();
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+        oscillator.stop(audioContext.currentTime + 0.2);
+        return;
+      }
+      
+      if (sound && sound.startsWith("/uploads/")) {
+        soundUrl = sound;
+      }
+      
+      if (soundUrl) {
+        audioRef.current = new Audio(soundUrl);
+        audioRef.current.volume = 0.5;
+        audioRef.current.play().catch(() => {});
+      }
     } catch {}
   };
 
@@ -129,25 +184,23 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   };
 
   const sendMessageMutation = useMutation({
-    mutationFn: async (userMessage: string) => {
-      return apiRequest("POST", "/api/chat/ask", {
+    mutationFn: async ({ userMessage, clientId }: { userMessage: string; clientId: string }) => {
+      const response = await apiRequest("POST", "/api/chat/ask", {
         merchantId,
         sessionId,
         message: userMessage,
+        clientMessageId: clientId,
       });
+      return response.json() as Promise<{ answer: string; mode: string; clientMessageId?: string; responseClientId?: string }>;
     },
-    onSuccess: (data: any) => {
-      const matchingButtons = findMatchingButtons(data.answer);
-      const showProducts = shouldShowProducts(data.answer);
-      
-      setLocalMessages((prev) => [
+    onSuccess: (data) => {
+      setPendingMessages((prev) => [
         ...prev,
         { 
+          clientId: data.responseClientId || generateClientId(),
           from: data.mode === "HUMAN" ? "system" : "chatvice", 
           content: data.answer, 
           timestamp: new Date(),
-          showProducts,
-          showButtons: matchingButtons.length > 0 ? matchingButtons : undefined,
         },
       ]);
       
@@ -160,30 +213,23 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [localMessages, serverMessages]);
+  }, [allMessages]);
 
   useEffect(() => {
-    if (isOpen && localMessages.length === 0 && merchantConfig?.welcomeMessage) {
-      setLocalMessages([
-        { from: "chatvice", content: merchantConfig.welcomeMessage, timestamp: new Date() },
+    if (isOpen && allMessages.length === 0 && merchantConfig?.welcomeMessage && !serverMessages?.length) {
+      setPendingMessages([
+        { clientId: "welcome", from: "chatvice", content: merchantConfig.welcomeMessage, timestamp: new Date() },
       ]);
     }
-  }, [isOpen, merchantConfig]);
-
-  useEffect(() => {
-    const currentCount = serverMessages?.length || 0;
-    if (currentCount > previousMessageCount.current && previousMessageCount.current > 0) {
-      playNotificationSound("incoming");
-    }
-    previousMessageCount.current = currentCount;
-  }, [serverMessages]);
+  }, [isOpen, merchantConfig, serverMessages]);
 
   const handleSend = () => {
     if (!message.trim()) return;
     const userMessage = message.trim();
-    setLocalMessages((prev) => [...prev, { from: "user", content: userMessage, timestamp: new Date() }]);
+    const clientId = generateClientId();
+    setPendingMessages((prev) => [...prev, { clientId, from: "user", content: userMessage, timestamp: new Date() }]);
     setMessage("");
-    sendMessageMutation.mutate(userMessage);
+    sendMessageMutation.mutate({ userMessage, clientId });
   };
 
   const useSuggestedQuestionMutation = useMutation({
@@ -196,34 +242,30 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       return response.json() as Promise<{ sessionId: string; answer: string }>;
     },
     onSuccess: (data) => {
-      const matchingButtons = findMatchingButtons(data.answer);
-      const showProducts = shouldShowProducts(data.answer);
-      
-      setLocalMessages((prev) => [
+      setPendingMessages((prev) => [
         ...prev,
         { 
+          clientId: generateClientId(),
           from: "chatvice", 
           content: data.answer, 
           timestamp: new Date(),
-          showProducts,
-          showButtons: matchingButtons.length > 0 ? matchingButtons : undefined,
         },
       ]);
       playNotificationSound("reply");
       queryClient.invalidateQueries({ queryKey: ["/api/messages", sessionId] });
     },
     onError: () => {
-      setLocalMessages((prev) => [
+      setPendingMessages((prev) => [
         ...prev,
-        { from: "chatvice", content: "I'm sorry, I couldn't process that quick question. Please type your question in the chat below and I'll be happy to help!", timestamp: new Date() },
+        { clientId: generateClientId(), from: "chatvice", content: "I'm sorry, I couldn't process that quick question. Please type your question in the chat below and I'll be happy to help!", timestamp: new Date() },
       ]);
     },
   });
 
   const handleSuggestedQuestionClick = (sq: SuggestedQuestion) => {
-    setLocalMessages((prev) => [
+    setPendingMessages((prev) => [
       ...prev,
-      { from: "user", content: sq.question, timestamp: new Date() },
+      { clientId: generateClientId(), from: "user", content: sq.question, timestamp: new Date() },
     ]);
     useSuggestedQuestionMutation.mutate(sq);
   };
@@ -265,9 +307,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         document: "Document attached"
       };
       
-      setLocalMessages((prev) => [
+      const clientId = generateClientId();
+      setPendingMessages((prev) => [
         ...prev,
         { 
+          clientId,
           from: "user", 
           content: `[${typeLabels[type]}]`,
           timestamp: new Date(),
@@ -282,11 +326,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         document: "Customer sent a document"
       };
       
-      sendMessageMutation.mutate(`[${messageLabels[type]}]`);
+      sendMessageMutation.mutate({ userMessage: `[${messageLabels[type]}]`, clientId });
     } catch {
-      setLocalMessages((prev) => [
+      setPendingMessages((prev) => [
         ...prev,
-        { from: "chatvice", content: "Sorry, I couldn't upload that file. Please try again.", timestamp: new Date() },
+        { clientId: generateClientId(), from: "chatvice", content: "Sorry, I couldn't upload that file. Please try again.", timestamp: new Date() },
       ]);
     } finally {
       setIsUploadingMedia(false);
@@ -300,16 +344,17 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     if (button.buttonType === "link" && button.url) {
       window.open(button.url, "_blank");
     } else if (button.buttonType === "action") {
-      setLocalMessages((prev) => [
+      const clientId = generateClientId();
+      setPendingMessages((prev) => [
         ...prev,
-        { from: "user", content: button.label, timestamp: new Date() },
+        { clientId, from: "user", content: button.label, timestamp: new Date() },
       ]);
-      sendMessageMutation.mutate(button.label);
+      sendMessageMutation.mutate({ userMessage: button.label, clientId });
     }
   };
 
   const handleWelcomeBubbleButtonClick = (url: string | null) => {
-    setShowWelcomeBubble(false);
+    dismissWelcomeBubble();
     if (url) {
       window.open(url, "_blank");
     } else {
@@ -321,7 +366,102 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const iconSize = merchantConfig?.iconSize || 70;
   const isOnline = merchantConfig?.online ?? true;
 
-  const allMessages = serverMessages && serverMessages.length > 0 ? serverMessages : localMessages;
+  interface ProcessedMessage {
+    from: string;
+    content: string;
+    timestamp: Date;
+    mediaUrl?: string;
+    mediaType?: string;
+    showProducts?: boolean;
+    showButtons?: ChatButton[];
+    id?: string;
+  }
+
+  const processMessage = (msg: any, msgId: string): ProcessedMessage => {
+    const content = msg.content || "";
+    const from = msg.from || (msg.sender === "customer" ? "user" : "chatvice");
+    
+    if (from === "user") {
+      return {
+        from,
+        content,
+        timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+        mediaUrl: msg.mediaUrl,
+        mediaType: msg.mediaType,
+        id: msgId,
+      };
+    }
+    
+    const matchingButtons = findMatchingButtons(content);
+    const showProducts = shouldShowProducts(content);
+    
+    return {
+      from,
+      content,
+      timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+      showProducts,
+      showButtons: matchingButtons.length > 0 ? matchingButtons : undefined,
+      id: msgId,
+    };
+  };
+
+  const allMessages: ProcessedMessage[] = useMemo(() => {
+    const serverMsgsById = new Map<string, Message>();
+    const sortedServerMsgs = [...(serverMessages || [])].sort((a, b) => {
+      const aTime = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+      const bTime = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+      return aTime - bTime;
+    });
+    
+    sortedServerMsgs.forEach(msg => {
+      if (msg.id) serverMsgsById.set(msg.id, msg);
+    });
+    
+    const processedFromServer = sortedServerMsgs.map(msg => {
+      const from = msg.from === "customer" ? "user" : (msg.from === "supervisor" ? "supervisor" : "chatvice");
+      return processMessage({
+        from,
+        content: msg.content || "",
+        timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+      }, msg.id || `server_${Math.random()}`);
+    });
+    
+    const pendingNotOnServer = pendingMessages.filter(pending => {
+      for (const serverMsg of sortedServerMsgs) {
+        if (serverMsg.clientMessageId === pending.clientId) return false;
+        if (serverMsg.content === pending.content && 
+            serverMsg.from === (pending.from === "user" ? "customer" : pending.from)) {
+          const serverTime = serverMsg.timestamp ? new Date(serverMsg.timestamp).getTime() : 0;
+          const pendingTime = pending.timestamp.getTime();
+          if (Math.abs(serverTime - pendingTime) < 10000) return false;
+        }
+      }
+      return true;
+    });
+    
+    const processedPending = pendingNotOnServer.map(pending => 
+      processMessage(pending, pending.clientId)
+    );
+    
+    return [...processedFromServer, ...processedPending].sort((a, b) => 
+      a.timestamp.getTime() - b.timestamp.getTime()
+    );
+  }, [serverMessages, pendingMessages, chatButtons, productCards]);
+
+  useEffect(() => {
+    if (!serverMessages || serverMessages.length === 0) return;
+    
+    const lastServerMsg = serverMessages[serverMessages.length - 1];
+    if (!lastServerMsg?.id) return;
+    
+    if (lastProcessedServerMsgId.current !== lastServerMsg.id) {
+      const isFromOthers = lastServerMsg.from !== "customer";
+      if (isFromOthers && lastProcessedServerMsgId.current !== null) {
+        playNotificationSound("incoming");
+      }
+      lastProcessedServerMsgId.current = lastServerMsg.id;
+    }
+  }, [serverMessages]);
 
   if (!embedded && !isOpen) {
     return (
@@ -332,7 +472,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             data-testid="welcome-bubble-container"
           >
             <button
-              onClick={() => setShowWelcomeBubble(false)}
+              onClick={dismissWelcomeBubble}
               className="absolute top-2 right-2 p-1 rounded-full hover:bg-muted"
               data-testid="button-close-welcome-bubble"
             >
@@ -377,7 +517,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         
         <button
           onClick={() => {
-            setShowWelcomeBubble(false);
+            dismissWelcomeBubble();
             setIsOpen(true);
           }}
           className="rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-105"
@@ -607,7 +747,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-4">
           {allMessages.map((msg, index) => (
-            <div key={index}>
+            <div key={msg.id || index}>
               <div
                 className={`flex gap-2 ${msg.from === "user" ? "justify-end" : "justify-start"}`}
               >
@@ -642,13 +782,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 )}
               </div>
               
-              {msg.from !== "user" && (msg as any).showButtons && (
+              {msg.from !== "user" && msg.showButtons && msg.showButtons.length > 0 && (
                 <div className="ml-9">
-                  <ChatButtonsDisplay buttons={(msg as any).showButtons} />
+                  <ChatButtonsDisplay buttons={msg.showButtons} />
                 </div>
               )}
               
-              {msg.from !== "user" && (msg as any).showProducts && productCards.length > 0 && (
+              {msg.from !== "user" && msg.showProducts && productCards.length > 0 && (
                 <div className="ml-9">
                   <ProductCarousel cards={productCards} />
                 </div>

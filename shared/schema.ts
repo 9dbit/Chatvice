@@ -86,6 +86,7 @@ export const messages = pgTable("messages", {
   sessionId: varchar("session_id", { length: 64 }).notNull(),
   from: text("from").notNull(),
   content: text("content").notNull(),
+  clientMessageId: varchar("client_message_id", { length: 64 }),
   timestamp: timestamp("timestamp").defaultNow(),
 });
 
@@ -158,6 +159,7 @@ export const chatAskSchema = z.object({
   merchantId: z.string().min(1),
   sessionId: z.string().min(1),
   message: z.string().min(1),
+  clientMessageId: z.string().optional(),
 });
 export type ChatAskRequest = z.infer<typeof chatAskSchema>;
 
