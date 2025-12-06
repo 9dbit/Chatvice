@@ -1,0 +1,37 @@
+Chatvice additional features
+
+1. WORK SCHEDULER (administrator)
+Schedule shifts with ease
+Control when supervisor & ai agents accept chats with the work scheduler. Setting are shown at each page supervisor & agents
+Easy shift planning (administrator)
+The work scheduler allows you to set shifts for weekdays, weekends, or each day separately. You can also configure night shifts.
+And shown the worker (supervisor & ai agent) report, work hour, shift, daily, weekly & monthly
+
+2. ADMIN ROLES
+Decide who’s in charge
+Define roles and privileges for people on your team.
+- Administrator
+There’s only one owner. This person is in charge of your account and has access to all features.
+- Supervisor
+Supervisor focus on handling chats, so can only access pages : overview, agents, chat sessions & chat logs page. They have no access to the settings, knowledge base, widget setting, source, analytics and the reports.
+
+3. Team activity (administrator)
+Check when supervisor & agents are online and what status they have on. You will always know who is accepting chats and helping your customers.
+
+4. Cards and carousels (feature on knowledge base page)
+Cards that contain an image, a title, a description, and up to three buttons. Perfect for product recommendations. Add a few cards to create a carousel. Make a new feature (new tab on knowledge base page) name “product recomendation” fill product link url & automatically crawling image on that link & show picture as card cover image
+
+5. Quick replies (for supervisor take over) (supervisor can access)
+Pre-defined instant replies that can be selected by users. Convenient for scheduling, surveying, and suggesting possible answers. Usually use “/“ to
+Choose saved reply message (give quick reply setting feature)
+
+6. Buttons (supervisor)
+A text message followed by buttons. Useful when you want to create a clickable response or build a menu. Can Setting what will offer to customer (button name & input url), ai agent can use this feature use trigger word validation & conversation needs
+
+7. Never miss a chat
+Sound and visual notifications from chatvice ensure that no chat or new message goes unnoticed. You can choose which notifications you want to receive.
+Notifications setting on owner control panel setting:
+Incoming chat sound, chat reply sound, angry customer sound. Can choose sound & upload new sounds
+
+9. Welcome bubble
+Saya mau membuat fitur pop up welcome message dengan 2 button seperti pada image attached, dalam halaman setting bisa di customize nama button dan url link nya. Automatically muncul ketika page reloaded, beri tombol x untuk close bubble
