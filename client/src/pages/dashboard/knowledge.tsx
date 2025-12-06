@@ -917,8 +917,8 @@ Example:
                   </div>
                 </ScrollArea>
 
-                {/* Quick Questions */}
-                {suggestedQuestions.filter(q => q.isActive !== false).length > 0 && previewMessages.length === 0 && (
+                {/* Quick Questions - Always visible */}
+                {suggestedQuestions.filter(q => q.isActive !== false).length > 0 && (
                   <div className="px-3 pb-2 pt-0">
                     <p className="text-[10px] text-muted-foreground mb-1.5">Quick questions:</p>
                     <div className="flex flex-wrap gap-1.5">
@@ -927,7 +927,11 @@ Example:
                           key={q.id}
                           onClick={() => handleQuickQuestion(q.question)}
                           disabled={testMutation.isPending}
-                          className="text-xs px-2.5 py-1 rounded-full border hover-elevate transition-colors truncate max-w-[150px]"
+                          className={`text-xs px-2.5 py-1 rounded-full border transition-colors truncate max-w-[150px] ${
+                            testMutation.isPending 
+                              ? "opacity-50 cursor-not-allowed" 
+                              : "hover-elevate"
+                          }`}
                           style={{ 
                             borderColor: merchant?.primaryColor || "#6b5dfc",
                             color: merchant?.primaryColor || "#6b5dfc"

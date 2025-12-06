@@ -323,76 +323,6 @@ interface WidgetConfig {
   avatar: string;
 }
 
-function CustomizableWidget({ config }: { config: WidgetConfig }) {
-  const [messages] = useState<Array<{ role: "user" | "bot"; content: string }>>([
-    { role: "bot", content: "Hi! I'm Lexa1, your intelligent AI assistant. How can I help you today?" },
-    { role: "user", content: "What can you do?" },
-    { role: "bot", content: "I can answer questions, help with customer support, manage knowledge bases, and seamlessly escalate to human agents when needed!" }
-  ]);
-
-  const bgClass = config.isDark ? "bg-gray-900" : "bg-white";
-  const textClass = config.isDark ? "text-white" : "text-gray-900";
-  const borderClass = config.isDark ? "border-gray-700" : "border-gray-200";
-  const msgBgClass = config.isDark ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-900";
-
-  return (
-    <div className={`w-full max-w-sm rounded-2xl border ${borderClass} shadow-2xl overflow-hidden ${bgClass}`}>
-      <div className="p-4" style={{ backgroundColor: config.headerColor }}>
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/30">
-            <img src={config.avatar} alt="Agent" className="w-full h-full object-cover" />
-          </div>
-          <div>
-            <p className="font-bold text-white text-lg">Lexa1</p>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-              <span className="text-xs text-white/80">Online</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className={`h-64 overflow-y-auto p-4 space-y-4 ${bgClass}`}>
-        {messages.map((msg, index) => (
-          <div key={index} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
-            {msg.role === "bot" && (
-              <div className="w-8 h-8 rounded-full overflow-hidden shrink-0">
-                <img src={config.avatar} alt="Agent" className="w-full h-full object-cover" />
-              </div>
-            )}
-            <div 
-              className={`rounded-2xl p-3 max-w-[85%] ${msg.role === "user" ? "text-white rounded-br-sm" : `${msgBgClass} rounded-bl-sm`}`}
-              style={msg.role === "user" ? { backgroundColor: config.brandColor } : undefined}
-            >
-              <p className="text-sm">{msg.content}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className={`p-4 border-t ${borderClass} ${bgClass}`}>
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            placeholder="Type a message..."
-            className={`flex-1 px-4 py-2 rounded-full border ${borderClass} ${bgClass} ${textClass} text-sm focus:outline-none`}
-            readOnly
-          />
-          <button 
-            className="p-2 rounded-full text-white"
-            style={{ backgroundColor: config.buttonColor }}
-          >
-            <Send className="w-4 h-4" />
-          </button>
-        </div>
-        <p className={`text-[10px] mt-2 ${config.isDark ? "text-gray-400" : "text-gray-500"}`}>
-          Powered by <span className="font-semibold" style={{ color: config.brandColor }}>Chatvice</span>
-        </p>
-      </div>
-    </div>
-  );
-}
-
 function WidgetCustomizerSection() {
   const [config, setConfig] = useState<WidgetConfig>({
     isDark: false,
@@ -528,7 +458,7 @@ function WidgetCustomizerSection() {
           </div>
 
           <div className="flex justify-center lg:sticky lg:top-24">
-            <CustomizableWidget config={config} />
+            <Lexa1ChatWidget config={config} />
           </div>
         </div>
       </div>
@@ -536,7 +466,7 @@ function WidgetCustomizerSection() {
   );
 }
 
-function Lexa1ChatWidget() {
+function Lexa1ChatWidget({ config }: { config: WidgetConfig }) {
   const [messages, setMessages] = useState<Array<{ role: "user" | "bot"; content: string }>>([
     { role: "bot", content: "Hi! I'm Lexa1, your intelligent AI assistant powered by Chatvice. Ask me anything about our platform, features, or how I can help your business!" }
   ]);
@@ -579,12 +509,17 @@ function Lexa1ChatWidget() {
     }
   }, [messages]);
 
+  const bgClass = config.isDark ? "bg-gray-900" : "bg-white";
+  const borderClass = config.isDark ? "border-gray-700" : "border-purple-200 dark:border-purple-800/50";
+  const msgBgClass = config.isDark ? "bg-gray-800 text-white border-gray-700" : "bg-white text-gray-900 border-gray-200";
+  const scrollBgClass = config.isDark ? "bg-gray-900" : "bg-gray-50 dark:bg-gray-900";
+
   return (
-    <div className="w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl border border-purple-200 dark:border-purple-800/50 shadow-2xl overflow-hidden">
-      <div className="bg-gradient-to-r from-purple-600 to-purple-700 p-4">
+    <div className={`w-full max-w-sm rounded-2xl border ${borderClass} shadow-2xl overflow-hidden ${bgClass}`}>
+      <div className="p-4" style={{ backgroundColor: config.headerColor }}>
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/30">
-            <img src={maleAvatar} alt="Lexa1" className="w-full h-full object-cover" />
+            <img src={config.avatar} alt="Lexa1" className="w-full h-full object-cover" />
           </div>
           <div>
             <p className="font-bold text-white text-lg">Lexa1</p>
@@ -596,15 +531,18 @@ function Lexa1ChatWidget() {
         </div>
       </div>
 
-      <div ref={scrollRef} className="h-72 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-900">
+      <div ref={scrollRef} className={`h-72 overflow-y-auto p-4 space-y-4 ${scrollBgClass}`}>
         {messages.map((msg, index) => (
           <div key={index} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}>
             {msg.role === "bot" && (
               <div className="w-8 h-8 rounded-full overflow-hidden shrink-0">
-                <img src={maleAvatar} alt="Lexa1" className="w-full h-full object-cover" />
+                <img src={config.avatar} alt="Lexa1" className="w-full h-full object-cover" />
               </div>
             )}
-            <div className={`rounded-2xl p-3 max-w-[85%] ${msg.role === "user" ? "bg-purple-600 text-white rounded-br-sm" : "bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-bl-sm shadow-sm"}`}>
+            <div 
+              className={`rounded-2xl p-3 max-w-[85%] ${msg.role === "user" ? "text-white rounded-br-sm" : `${msgBgClass} border rounded-bl-sm shadow-sm`}`}
+              style={msg.role === "user" ? { backgroundColor: config.brandColor } : undefined}
+            >
               <p className="text-sm">{msg.content}</p>
             </div>
           </div>
@@ -612,20 +550,20 @@ function Lexa1ChatWidget() {
         {isTyping && (
           <div className="flex gap-3">
             <div className="w-8 h-8 rounded-full overflow-hidden shrink-0">
-              <img src={maleAvatar} alt="Lexa1" className="w-full h-full object-cover" />
+              <img src={config.avatar} alt="Lexa1" className="w-full h-full object-cover" />
             </div>
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl rounded-bl-sm p-3 shadow-sm">
+            <div className={`${msgBgClass} border rounded-2xl rounded-bl-sm p-3 shadow-sm`}>
               <div className="flex gap-1">
-                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                <div className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: config.brandColor, animationDelay: "0ms" }} />
+                <div className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: config.brandColor, animationDelay: "150ms" }} />
+                <div className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: config.brandColor, animationDelay: "300ms" }} />
               </div>
             </div>
           </div>
         )}
       </div>
 
-      <div className="px-4 pb-2 flex flex-wrap gap-2 bg-gray-50 dark:bg-gray-900">
+      <div className={`px-4 pb-2 flex flex-wrap gap-2 ${scrollBgClass}`}>
         {suggestedQuestions.map((q, i) => (
           <button
             key={i}
@@ -636,11 +574,16 @@ function Lexa1ChatWidget() {
               askMutation.mutate(q);
             }}
             disabled={isTyping}
-            className={`text-xs px-3 py-1.5 rounded-full transition-colors ${
+            className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
               isTyping 
-                ? "bg-purple-50 dark:bg-purple-900/20 text-purple-400 dark:text-purple-500 cursor-not-allowed" 
-                : "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/50"
+                ? "opacity-50 cursor-not-allowed" 
+                : "hover:opacity-80"
             }`}
+            style={{
+              borderColor: config.brandColor,
+              color: config.brandColor,
+              backgroundColor: isTyping ? 'transparent' : `${config.brandColor}15`
+            }}
             data-testid={`button-suggested-${i}`}
           >
             {q}
@@ -648,13 +591,21 @@ function Lexa1ChatWidget() {
         ))}
       </div>
 
-      <div className="p-4 border-t border-border bg-card">
+      <div className={`p-4 border-t ${borderClass} ${bgClass}`}>
         <div className="flex items-center gap-2">
           <div className="flex gap-1">
-            <button className="p-2 text-muted-foreground hover:text-purple-600 transition-colors" title="Upload image">
+            <button 
+              className="p-2 transition-colors" 
+              style={{ color: config.brandColor }}
+              title="Upload image"
+            >
               <ImageIcon className="w-4 h-4" />
             </button>
-            <button className="p-2 text-muted-foreground hover:text-purple-600 transition-colors" title="Take photo">
+            <button 
+              className="p-2 transition-colors" 
+              style={{ color: config.brandColor }}
+              title="Take photo"
+            >
               <Camera className="w-4 h-4" />
             </button>
           </div>
@@ -663,21 +614,21 @@ function Lexa1ChatWidget() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder="Ask Lexa1 anything..."
-            className="flex-1 border-purple-200 dark:border-purple-800/50 focus-visible:ring-purple-500"
+            className={`flex-1 ${config.isDark ? "bg-gray-800 border-gray-700 text-white" : ""}`}
             data-testid="input-demo-chat"
           />
           <Button 
             size="icon" 
             onClick={handleSend} 
             disabled={isTyping}
-            className="bg-purple-600 hover:bg-purple-700"
+            style={{ backgroundColor: config.buttonColor }}
             data-testid="button-demo-send"
           >
             <Send className="w-4 h-4" />
           </Button>
         </div>
-        <p className="text-[10px] text-muted-foreground mt-2">
-          Powered by <span className="font-semibold text-purple-600">Lexa1</span> AI Engine
+        <p className={`text-[10px] mt-2 ${config.isDark ? "text-gray-400" : "text-muted-foreground"}`}>
+          Powered by <span className="font-semibold" style={{ color: config.brandColor }}>Lexa1</span> AI Engine
         </p>
       </div>
     </div>
