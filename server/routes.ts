@@ -3609,5 +3609,57 @@ ${log.extractedKnowledge}` : ''}
     }
   });
 
+  // ============== PUBLIC WIDGET ENDPOINTS ==============
+  
+  // Get chat buttons for widget (public)
+  app.get("/api/widget/:merchantId/chat-buttons", async (req, res) => {
+    try {
+      const { merchantId } = req.params;
+      const buttons = await storage.getChatButtons(merchantId);
+      const activeButtons = buttons.filter(b => b.isActive);
+      res.json(activeButtons);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get product cards for widget (public)
+  app.get("/api/widget/:merchantId/product-cards", async (req, res) => {
+    try {
+      const { merchantId } = req.params;
+      const { agentId } = req.query;
+      const cards = await storage.getProductCards(merchantId, agentId as string | undefined);
+      const activeCards = cards.filter(c => c.isActive);
+      
+      // Get buttons for each card
+      const cardsWithButtons = await Promise.all(
+        activeCards.map(async (card) => {
+          const buttons = await storage.getProductCardButtons(card.id);
+          return { ...card, buttons };
+        })
+      );
+      
+      res.json(cardsWithButtons);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get notification settings for widget (public - just sound settings)
+  app.get("/api/widget/:merchantId/notification-settings", async (req, res) => {
+    try {
+      const { merchantId } = req.params;
+      const settings = await storage.getNotificationSettings(merchantId);
+      res.json({
+        incomingChatSound: settings?.incomingChatSound || "default",
+        incomingChatEnabled: settings?.incomingChatEnabled ?? true,
+        chatReplySound: settings?.chatReplySound || "default",
+        chatReplyEnabled: settings?.chatReplyEnabled ?? true,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   return httpServer;
 }
