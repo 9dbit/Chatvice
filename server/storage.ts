@@ -17,7 +17,17 @@ import {
   type MediaAttachment, type InsertMediaAttachment,
   type PlatformSetting,
   type LandingPageSettings, type InsertLandingPageSettings,
+  type WorkShift, type InsertWorkShift,
+  type ShiftAssignment, type InsertShiftAssignment,
+  type WorkReport, type InsertWorkReport,
+  type QuickReply, type InsertQuickReply,
+  type ChatButton, type InsertChatButton,
+  type ProductCard, type InsertProductCard,
+  type ProductCardButton, type InsertProductCardButton,
+  type WelcomeBubble, type InsertWelcomeBubble,
+  type NotificationSetting, type InsertNotificationSetting,
   merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings,
+  workShifts, shiftAssignments, workReports, quickReplies, chatButtons, productCards, productCardButtons, welcomeBubbles, notificationSettings,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -107,6 +117,62 @@ export interface IStorage {
   // Landing Page Settings
   getLandingPageSettings(): Promise<LandingPageSettings | undefined>;
   updateLandingPageSettings(data: Partial<InsertLandingPageSettings>): Promise<LandingPageSettings>;
+  
+  // Work Scheduler
+  getWorkShifts(merchantId: string): Promise<WorkShift[]>;
+  getWorkShift(id: string): Promise<WorkShift | undefined>;
+  createWorkShift(shift: InsertWorkShift): Promise<WorkShift>;
+  updateWorkShift(id: string, data: Partial<WorkShift>): Promise<WorkShift | undefined>;
+  deleteWorkShift(id: string): Promise<boolean>;
+  
+  // Shift Assignments
+  getShiftAssignments(merchantId: string): Promise<ShiftAssignment[]>;
+  getShiftAssignmentsByShift(shiftId: string): Promise<ShiftAssignment[]>;
+  getShiftAssignmentsByAssignee(assigneeId: string): Promise<ShiftAssignment[]>;
+  createShiftAssignment(assignment: InsertShiftAssignment): Promise<ShiftAssignment>;
+  deleteShiftAssignment(id: string): Promise<boolean>;
+  
+  // Work Reports
+  getWorkReports(merchantId: string, startDate?: Date, endDate?: Date): Promise<WorkReport[]>;
+  getWorkReportsByAssignee(assigneeId: string): Promise<WorkReport[]>;
+  createWorkReport(report: InsertWorkReport): Promise<WorkReport>;
+  updateWorkReport(id: string, data: Partial<WorkReport>): Promise<WorkReport | undefined>;
+  
+  // Quick Replies
+  getQuickReplies(merchantId: string): Promise<QuickReply[]>;
+  getQuickReply(id: string): Promise<QuickReply | undefined>;
+  createQuickReply(reply: InsertQuickReply): Promise<QuickReply>;
+  updateQuickReply(id: string, data: Partial<QuickReply>): Promise<QuickReply | undefined>;
+  deleteQuickReply(id: string): Promise<boolean>;
+  
+  // Chat Buttons
+  getChatButtons(merchantId: string): Promise<ChatButton[]>;
+  getChatButton(id: string): Promise<ChatButton | undefined>;
+  createChatButton(button: InsertChatButton): Promise<ChatButton>;
+  updateChatButton(id: string, data: Partial<ChatButton>): Promise<ChatButton | undefined>;
+  deleteChatButton(id: string): Promise<boolean>;
+  
+  // Product Cards
+  getProductCards(merchantId: string, agentId?: string): Promise<ProductCard[]>;
+  getProductCard(id: string): Promise<ProductCard | undefined>;
+  createProductCard(card: InsertProductCard): Promise<ProductCard>;
+  updateProductCard(id: string, data: Partial<ProductCard>): Promise<ProductCard | undefined>;
+  deleteProductCard(id: string): Promise<boolean>;
+  
+  // Product Card Buttons
+  getProductCardButtons(cardId: string): Promise<ProductCardButton[]>;
+  createProductCardButton(button: InsertProductCardButton): Promise<ProductCardButton>;
+  updateProductCardButton(id: string, data: Partial<ProductCardButton>): Promise<ProductCardButton | undefined>;
+  deleteProductCardButton(id: string): Promise<boolean>;
+  deleteProductCardButtonsByCard(cardId: string): Promise<boolean>;
+  
+  // Welcome Bubble
+  getWelcomeBubble(merchantId: string): Promise<WelcomeBubble | undefined>;
+  upsertWelcomeBubble(merchantId: string, data: Partial<InsertWelcomeBubble>): Promise<WelcomeBubble>;
+  
+  // Notification Settings
+  getNotificationSettings(merchantId: string): Promise<NotificationSetting | undefined>;
+  upsertNotificationSettings(merchantId: string, data: Partial<InsertNotificationSetting>): Promise<NotificationSetting>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -945,6 +1011,271 @@ export class DatabaseStorage implements IStorage {
     } else {
       const result = await db.insert(landingPageSettings)
         .values({ id: "default", ...data })
+        .returning();
+      return result[0];
+    }
+  }
+
+  // Work Scheduler implementations
+  async getWorkShifts(merchantId: string): Promise<WorkShift[]> {
+    return db.select().from(workShifts)
+      .where(eq(workShifts.merchantId, merchantId))
+      .orderBy(desc(workShifts.createdAt));
+  }
+
+  async getWorkShift(id: string): Promise<WorkShift | undefined> {
+    const result = await db.select().from(workShifts).where(eq(workShifts.id, id));
+    return result[0];
+  }
+
+  async createWorkShift(shift: InsertWorkShift): Promise<WorkShift> {
+    const id = generateId("ws_");
+    const result = await db.insert(workShifts).values({ ...shift, id }).returning();
+    return result[0];
+  }
+
+  async updateWorkShift(id: string, data: Partial<WorkShift>): Promise<WorkShift | undefined> {
+    const result = await db.update(workShifts)
+      .set(data)
+      .where(eq(workShifts.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteWorkShift(id: string): Promise<boolean> {
+    await db.delete(shiftAssignments).where(eq(shiftAssignments.shiftId, id));
+    await db.delete(workShifts).where(eq(workShifts.id, id));
+    return true;
+  }
+
+  // Shift Assignments
+  async getShiftAssignments(merchantId: string): Promise<ShiftAssignment[]> {
+    return db.select().from(shiftAssignments)
+      .where(eq(shiftAssignments.merchantId, merchantId));
+  }
+
+  async getShiftAssignmentsByShift(shiftId: string): Promise<ShiftAssignment[]> {
+    return db.select().from(shiftAssignments)
+      .where(eq(shiftAssignments.shiftId, shiftId));
+  }
+
+  async getShiftAssignmentsByAssignee(assigneeId: string): Promise<ShiftAssignment[]> {
+    return db.select().from(shiftAssignments)
+      .where(eq(shiftAssignments.assigneeId, assigneeId));
+  }
+
+  async createShiftAssignment(assignment: InsertShiftAssignment): Promise<ShiftAssignment> {
+    const id = generateId("sa_");
+    const result = await db.insert(shiftAssignments).values({ ...assignment, id }).returning();
+    return result[0];
+  }
+
+  async deleteShiftAssignment(id: string): Promise<boolean> {
+    await db.delete(shiftAssignments).where(eq(shiftAssignments.id, id));
+    return true;
+  }
+
+  // Work Reports
+  async getWorkReports(merchantId: string, startDate?: Date, endDate?: Date): Promise<WorkReport[]> {
+    let query = db.select().from(workReports).where(eq(workReports.merchantId, merchantId));
+    return query.orderBy(desc(workReports.date));
+  }
+
+  async getWorkReportsByAssignee(assigneeId: string): Promise<WorkReport[]> {
+    return db.select().from(workReports)
+      .where(eq(workReports.assigneeId, assigneeId))
+      .orderBy(desc(workReports.date));
+  }
+
+  async createWorkReport(report: InsertWorkReport): Promise<WorkReport> {
+    const id = generateId("wr_");
+    const result = await db.insert(workReports).values({ ...report, id }).returning();
+    return result[0];
+  }
+
+  async updateWorkReport(id: string, data: Partial<WorkReport>): Promise<WorkReport | undefined> {
+    const result = await db.update(workReports)
+      .set(data)
+      .where(eq(workReports.id, id))
+      .returning();
+    return result[0];
+  }
+
+  // Quick Replies
+  async getQuickReplies(merchantId: string): Promise<QuickReply[]> {
+    return db.select().from(quickReplies)
+      .where(eq(quickReplies.merchantId, merchantId))
+      .orderBy(quickReplies.sortOrder);
+  }
+
+  async getQuickReply(id: string): Promise<QuickReply | undefined> {
+    const result = await db.select().from(quickReplies).where(eq(quickReplies.id, id));
+    return result[0];
+  }
+
+  async createQuickReply(reply: InsertQuickReply): Promise<QuickReply> {
+    const id = generateId("qr_");
+    const result = await db.insert(quickReplies).values({ ...reply, id }).returning();
+    return result[0];
+  }
+
+  async updateQuickReply(id: string, data: Partial<QuickReply>): Promise<QuickReply | undefined> {
+    const result = await db.update(quickReplies)
+      .set(data)
+      .where(eq(quickReplies.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteQuickReply(id: string): Promise<boolean> {
+    await db.delete(quickReplies).where(eq(quickReplies.id, id));
+    return true;
+  }
+
+  // Chat Buttons
+  async getChatButtons(merchantId: string): Promise<ChatButton[]> {
+    return db.select().from(chatButtons)
+      .where(eq(chatButtons.merchantId, merchantId))
+      .orderBy(chatButtons.sortOrder);
+  }
+
+  async getChatButton(id: string): Promise<ChatButton | undefined> {
+    const result = await db.select().from(chatButtons).where(eq(chatButtons.id, id));
+    return result[0];
+  }
+
+  async createChatButton(button: InsertChatButton): Promise<ChatButton> {
+    const id = generateId("cb_");
+    const result = await db.insert(chatButtons).values({ ...button, id }).returning();
+    return result[0];
+  }
+
+  async updateChatButton(id: string, data: Partial<ChatButton>): Promise<ChatButton | undefined> {
+    const result = await db.update(chatButtons)
+      .set(data)
+      .where(eq(chatButtons.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteChatButton(id: string): Promise<boolean> {
+    await db.delete(chatButtons).where(eq(chatButtons.id, id));
+    return true;
+  }
+
+  // Product Cards
+  async getProductCards(merchantId: string, agentId?: string): Promise<ProductCard[]> {
+    if (agentId) {
+      return db.select().from(productCards)
+        .where(and(eq(productCards.merchantId, merchantId), eq(productCards.agentId, agentId)))
+        .orderBy(productCards.sortOrder);
+    }
+    return db.select().from(productCards)
+      .where(eq(productCards.merchantId, merchantId))
+      .orderBy(productCards.sortOrder);
+  }
+
+  async getProductCard(id: string): Promise<ProductCard | undefined> {
+    const result = await db.select().from(productCards).where(eq(productCards.id, id));
+    return result[0];
+  }
+
+  async createProductCard(card: InsertProductCard): Promise<ProductCard> {
+    const id = generateId("pc_");
+    const result = await db.insert(productCards).values({ ...card, id }).returning();
+    return result[0];
+  }
+
+  async updateProductCard(id: string, data: Partial<ProductCard>): Promise<ProductCard | undefined> {
+    const result = await db.update(productCards)
+      .set(data)
+      .where(eq(productCards.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteProductCard(id: string): Promise<boolean> {
+    await db.delete(productCardButtons).where(eq(productCardButtons.cardId, id));
+    await db.delete(productCards).where(eq(productCards.id, id));
+    return true;
+  }
+
+  // Product Card Buttons
+  async getProductCardButtons(cardId: string): Promise<ProductCardButton[]> {
+    return db.select().from(productCardButtons)
+      .where(eq(productCardButtons.cardId, cardId))
+      .orderBy(productCardButtons.sortOrder);
+  }
+
+  async createProductCardButton(button: InsertProductCardButton): Promise<ProductCardButton> {
+    const id = generateId("pcb_");
+    const result = await db.insert(productCardButtons).values({ ...button, id }).returning();
+    return result[0];
+  }
+
+  async updateProductCardButton(id: string, data: Partial<ProductCardButton>): Promise<ProductCardButton | undefined> {
+    const result = await db.update(productCardButtons)
+      .set(data)
+      .where(eq(productCardButtons.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteProductCardButton(id: string): Promise<boolean> {
+    await db.delete(productCardButtons).where(eq(productCardButtons.id, id));
+    return true;
+  }
+
+  async deleteProductCardButtonsByCard(cardId: string): Promise<boolean> {
+    await db.delete(productCardButtons).where(eq(productCardButtons.cardId, cardId));
+    return true;
+  }
+
+  // Welcome Bubble
+  async getWelcomeBubble(merchantId: string): Promise<WelcomeBubble | undefined> {
+    const result = await db.select().from(welcomeBubbles)
+      .where(eq(welcomeBubbles.merchantId, merchantId));
+    return result[0];
+  }
+
+  async upsertWelcomeBubble(merchantId: string, data: Partial<InsertWelcomeBubble>): Promise<WelcomeBubble> {
+    const existing = await this.getWelcomeBubble(merchantId);
+    
+    if (existing) {
+      const result = await db.update(welcomeBubbles)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(welcomeBubbles.merchantId, merchantId))
+        .returning();
+      return result[0];
+    } else {
+      const id = generateId("wb_");
+      const result = await db.insert(welcomeBubbles)
+        .values({ id, merchantId, ...data })
+        .returning();
+      return result[0];
+    }
+  }
+
+  // Notification Settings
+  async getNotificationSettings(merchantId: string): Promise<NotificationSetting | undefined> {
+    const result = await db.select().from(notificationSettings)
+      .where(eq(notificationSettings.merchantId, merchantId));
+    return result[0];
+  }
+
+  async upsertNotificationSettings(merchantId: string, data: Partial<InsertNotificationSetting>): Promise<NotificationSetting> {
+    const existing = await this.getNotificationSettings(merchantId);
+    
+    if (existing) {
+      const result = await db.update(notificationSettings)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(notificationSettings.merchantId, merchantId))
+        .returning();
+      return result[0];
+    } else {
+      const id = generateId("ns_");
+      const result = await db.insert(notificationSettings)
+        .values({ id, merchantId, ...data })
         .returning();
       return result[0];
     }

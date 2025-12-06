@@ -53,6 +53,9 @@ export const supervisors = pgTable("supervisors", {
   name: text("name").notNull(),
   password: text("password").notNull(),
   photoUrl: text("photo_url").default(""),
+  role: text("role").default("supervisor"),
+  status: text("status").default("offline"),
+  lastSeen: timestamp("last_seen"),
 });
 
 export const insertSupervisorSchema = createInsertSchema(supervisors).omit({ id: true });
@@ -528,3 +531,197 @@ export const landingPageSettings = pgTable("landing_page_settings", {
 export const insertLandingPageSettingsSchema = createInsertSchema(landingPageSettings).omit({ id: true, updatedAt: true });
 export type InsertLandingPageSettings = z.infer<typeof insertLandingPageSettingsSchema>;
 export type LandingPageSettings = typeof landingPageSettings.$inferSelect;
+
+// Work Scheduler - Shifts for supervisors and AI agents
+export const workShifts = pgTable("work_shifts", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  name: text("name").notNull(),
+  dayType: text("day_type").notNull().default("weekday"),
+  startTime: text("start_time").notNull(),
+  endTime: text("end_time").notNull(),
+  isNightShift: boolean("is_night_shift").default(false),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertWorkShiftSchema = createInsertSchema(workShifts).omit({ id: true, createdAt: true });
+export type InsertWorkShift = z.infer<typeof insertWorkShiftSchema>;
+export type WorkShift = typeof workShifts.$inferSelect;
+
+// Shift Assignments - assign shifts to supervisors or agents
+export const shiftAssignments = pgTable("shift_assignments", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  shiftId: varchar("shift_id", { length: 32 }).notNull(),
+  assigneeId: varchar("assignee_id", { length: 32 }).notNull(),
+  assigneeType: text("assignee_type").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertShiftAssignmentSchema = createInsertSchema(shiftAssignments).omit({ id: true, createdAt: true });
+export type InsertShiftAssignment = z.infer<typeof insertShiftAssignmentSchema>;
+export type ShiftAssignment = typeof shiftAssignments.$inferSelect;
+
+// Work Reports - track work hours
+export const workReports = pgTable("work_reports", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  assigneeId: varchar("assignee_id", { length: 32 }).notNull(),
+  assigneeType: text("assignee_type").notNull(),
+  date: timestamp("date").notNull(),
+  clockIn: timestamp("clock_in"),
+  clockOut: timestamp("clock_out"),
+  hoursWorked: integer("hours_worked").default(0),
+  minutesWorked: integer("minutes_worked").default(0),
+  status: text("status").default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertWorkReportSchema = createInsertSchema(workReports).omit({ id: true, createdAt: true });
+export type InsertWorkReport = z.infer<typeof insertWorkReportSchema>;
+export type WorkReport = typeof workReports.$inferSelect;
+
+// Quick Replies - pre-defined instant replies for supervisors
+export const quickReplies = pgTable("quick_replies", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  shortcut: text("shortcut").notNull(),
+  label: text("label").notNull(),
+  content: text("content").notNull(),
+  category: text("category").default("general"),
+  sortOrder: integer("sort_order").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertQuickReplySchema = createInsertSchema(quickReplies).omit({ id: true, createdAt: true });
+export type InsertQuickReply = z.infer<typeof insertQuickReplySchema>;
+export type QuickReply = typeof quickReplies.$inferSelect;
+
+// Chat Buttons - clickable response buttons for supervisors
+export const chatButtons = pgTable("chat_buttons", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  label: text("label").notNull(),
+  url: text("url").default(""),
+  buttonType: text("button_type").default("link"),
+  triggerWord: text("trigger_word").default(""),
+  sortOrder: integer("sort_order").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertChatButtonSchema = createInsertSchema(chatButtons).omit({ id: true, createdAt: true });
+export type InsertChatButton = z.infer<typeof insertChatButtonSchema>;
+export type ChatButton = typeof chatButtons.$inferSelect;
+
+// Product Cards - for product recommendation carousels
+export const productCards = pgTable("product_cards", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  agentId: varchar("agent_id", { length: 32 }),
+  title: text("title").notNull(),
+  description: text("description").default(""),
+  imageUrl: text("image_url").default(""),
+  sourceUrl: text("source_url").default(""),
+  price: text("price").default(""),
+  sortOrder: integer("sort_order").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertProductCardSchema = createInsertSchema(productCards).omit({ id: true, createdAt: true });
+export type InsertProductCard = z.infer<typeof insertProductCardSchema>;
+export type ProductCard = typeof productCards.$inferSelect;
+
+// Product Card Buttons - up to 3 buttons per card
+export const productCardButtons = pgTable("product_card_buttons", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  cardId: varchar("card_id", { length: 32 }).notNull(),
+  label: text("label").notNull(),
+  url: text("url").default(""),
+  buttonType: text("button_type").default("link"),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertProductCardButtonSchema = createInsertSchema(productCardButtons).omit({ id: true, createdAt: true });
+export type InsertProductCardButton = z.infer<typeof insertProductCardButtonSchema>;
+export type ProductCardButton = typeof productCardButtons.$inferSelect;
+
+// Welcome Bubble Settings
+export const welcomeBubbles = pgTable("welcome_bubbles", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull().unique(),
+  headline: text("headline").default("Hi!"),
+  message: text("message").default("Looking for something specific? We'll help you find it!"),
+  button1Label: text("button1_label").default("Chat with us"),
+  button1Url: text("button1_url").default(""),
+  button1Color: text("button1_color").default("#E84E3C"),
+  button2Label: text("button2_label").default("Product expert"),
+  button2Url: text("button2_url").default(""),
+  button2Color: text("button2_color").default("#1a1a1a"),
+  isEnabled: boolean("is_enabled").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertWelcomeBubbleSchema = createInsertSchema(welcomeBubbles).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertWelcomeBubble = z.infer<typeof insertWelcomeBubbleSchema>;
+export type WelcomeBubble = typeof welcomeBubbles.$inferSelect;
+
+// Notification Settings
+export const notificationSettings = pgTable("notification_settings", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull().unique(),
+  incomingChatSound: text("incoming_chat_sound").default("default"),
+  incomingChatEnabled: boolean("incoming_chat_enabled").default(true),
+  chatReplySound: text("chat_reply_sound").default("default"),
+  chatReplyEnabled: boolean("chat_reply_enabled").default(true),
+  angryCustomerSound: text("angry_customer_sound").default("alert"),
+  angryCustomerEnabled: boolean("angry_customer_enabled").default(true),
+  customSounds: jsonb("custom_sounds").default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertNotificationSettingSchema = createInsertSchema(notificationSettings).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertNotificationSetting = z.infer<typeof insertNotificationSettingSchema>;
+export type NotificationSetting = typeof notificationSettings.$inferSelect;
+
+// Role permissions constants
+export const rolePermissions = {
+  administrator: {
+    overview: true,
+    agents: true,
+    sessions: true,
+    chatLogs: true,
+    settings: true,
+    knowledgeBase: true,
+    widgetSettings: true,
+    sources: true,
+    analytics: true,
+    billing: true,
+    supervisors: true,
+    workScheduler: true,
+    notifications: true,
+  },
+  supervisor: {
+    overview: true,
+    agents: true,
+    sessions: true,
+    chatLogs: true,
+    settings: false,
+    knowledgeBase: false,
+    widgetSettings: false,
+    sources: false,
+    analytics: false,
+    billing: false,
+    supervisors: false,
+    workScheduler: false,
+    notifications: false,
+  },
+} as const;
+
+export type SupervisorRole = keyof typeof rolePermissions;

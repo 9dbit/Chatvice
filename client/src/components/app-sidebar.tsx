@@ -27,6 +27,13 @@ import {
   BarChart3,
   FileText,
   Plug2,
+  Clock,
+  Reply,
+  Bell,
+  MessageCircle,
+  Package,
+  Activity,
+  MousePointer2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -65,7 +72,14 @@ const menuItems = [
   { title: "Knowledge Base", url: "/dashboard/knowledge", icon: Database },
   { title: "Triggers", url: "/dashboard/triggers", icon: Zap },
   { title: "Widget", url: "/dashboard/widget", icon: Palette },
+  { title: "Welcome Bubble", url: "/dashboard/welcome-bubble", icon: MessageCircle },
+  { title: "Product Cards", url: "/dashboard/product-cards", icon: Package },
+  { title: "Quick Replies", url: "/dashboard/quick-replies", icon: Reply },
+  { title: "Chat Buttons", url: "/dashboard/chat-buttons", icon: MousePointer2 },
   { title: "Supervisors", url: "/dashboard/supervisors", icon: Users },
+  { title: "Team Activity", url: "/dashboard/team-activity", icon: Activity },
+  { title: "Work Scheduler", url: "/dashboard/work-scheduler", icon: Clock },
+  { title: "Notifications", url: "/dashboard/notification-settings", icon: Bell },
   { title: "Integrations", url: "/dashboard/integrations", icon: Plug2 },
   { title: "Plans", url: "/dashboard/plans", icon: CreditCard },
   { title: "Billing", url: "/dashboard/billing", icon: Receipt },

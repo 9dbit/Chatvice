@@ -3034,5 +3034,580 @@ ${log.extractedKnowledge}` : ''}
     }
   });
 
+  // ============== WORK SCHEDULER ROUTES ==============
+  
+  // Get all shifts for merchant
+  app.get("/api/work-scheduler/shifts", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const shifts = await storage.getWorkShifts(merchantId);
+      res.json(shifts);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Create shift
+  app.post("/api/work-scheduler/shifts", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { name, dayType, startTime, endTime, isNightShift } = req.body;
+      
+      if (!name || !startTime || !endTime) {
+        return res.status(400).json({ error: "Name, start time, and end time are required" });
+      }
+      
+      const shift = await storage.createWorkShift({
+        merchantId,
+        name,
+        dayType: dayType || "weekday",
+        startTime,
+        endTime,
+        isNightShift: isNightShift || false,
+        isActive: true,
+      });
+      
+      res.json(shift);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Update shift
+  app.patch("/api/work-scheduler/shifts/:id", requireMerchant, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const shift = await storage.updateWorkShift(id, req.body);
+      if (!shift) {
+        return res.status(404).json({ error: "Shift not found" });
+      }
+      res.json(shift);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Delete shift
+  app.delete("/api/work-scheduler/shifts/:id", requireMerchant, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteWorkShift(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get shift assignments
+  app.get("/api/work-scheduler/assignments", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const assignments = await storage.getShiftAssignments(merchantId);
+      res.json(assignments);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Create shift assignment
+  app.post("/api/work-scheduler/assignments", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { shiftId, assigneeId, assigneeType } = req.body;
+      
+      if (!shiftId || !assigneeId || !assigneeType) {
+        return res.status(400).json({ error: "Shift ID, assignee ID, and assignee type are required" });
+      }
+      
+      const assignment = await storage.createShiftAssignment({
+        merchantId,
+        shiftId,
+        assigneeId,
+        assigneeType,
+      });
+      
+      res.json(assignment);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Delete shift assignment
+  app.delete("/api/work-scheduler/assignments/:id", requireMerchant, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteShiftAssignment(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get work reports
+  app.get("/api/work-scheduler/reports", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const reports = await storage.getWorkReports(merchantId);
+      res.json(reports);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Create work report
+  app.post("/api/work-scheduler/reports", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { assigneeId, assigneeType, date, clockIn, clockOut, hoursWorked, minutesWorked, status } = req.body;
+      
+      const report = await storage.createWorkReport({
+        merchantId,
+        assigneeId,
+        assigneeType,
+        date: new Date(date),
+        clockIn: clockIn ? new Date(clockIn) : null,
+        clockOut: clockOut ? new Date(clockOut) : null,
+        hoursWorked: hoursWorked || 0,
+        minutesWorked: minutesWorked || 0,
+        status: status || "pending",
+      });
+      
+      res.json(report);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Update work report
+  app.patch("/api/work-scheduler/reports/:id", requireMerchant, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const report = await storage.updateWorkReport(id, req.body);
+      if (!report) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+      res.json(report);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ============== QUICK REPLIES ROUTES ==============
+  
+  app.get("/api/quick-replies", requireAuth, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const replies = await storage.getQuickReplies(merchantId);
+      res.json(replies);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/quick-replies", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { shortcut, label, content, category, sortOrder } = req.body;
+      
+      if (!shortcut || !label || !content) {
+        return res.status(400).json({ error: "Shortcut, label, and content are required" });
+      }
+      
+      const reply = await storage.createQuickReply({
+        merchantId,
+        shortcut,
+        label,
+        content,
+        category: category || "general",
+        sortOrder: sortOrder || 0,
+        isActive: true,
+      });
+      
+      res.json(reply);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.patch("/api/quick-replies/:id", requireMerchant, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const reply = await storage.updateQuickReply(id, req.body);
+      if (!reply) {
+        return res.status(404).json({ error: "Quick reply not found" });
+      }
+      res.json(reply);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.delete("/api/quick-replies/:id", requireMerchant, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteQuickReply(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ============== CHAT BUTTONS ROUTES ==============
+  
+  app.get("/api/chat-buttons", requireAuth, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const buttons = await storage.getChatButtons(merchantId);
+      res.json(buttons);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/chat-buttons", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { label, url, buttonType, triggerWord, sortOrder } = req.body;
+      
+      if (!label) {
+        return res.status(400).json({ error: "Label is required" });
+      }
+      
+      const button = await storage.createChatButton({
+        merchantId,
+        label,
+        url: url || "",
+        buttonType: buttonType || "link",
+        triggerWord: triggerWord || "",
+        sortOrder: sortOrder || 0,
+        isActive: true,
+      });
+      
+      res.json(button);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.patch("/api/chat-buttons/:id", requireMerchant, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const button = await storage.updateChatButton(id, req.body);
+      if (!button) {
+        return res.status(404).json({ error: "Chat button not found" });
+      }
+      res.json(button);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.delete("/api/chat-buttons/:id", requireMerchant, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteChatButton(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ============== PRODUCT CARDS ROUTES ==============
+  
+  app.get("/api/product-cards", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const agentId = req.query.agentId as string | undefined;
+      const cards = await storage.getProductCards(merchantId, agentId);
+      res.json(cards);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/product-cards", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { agentId, title, description, imageUrl, sourceUrl, price, sortOrder } = req.body;
+      
+      if (!title) {
+        return res.status(400).json({ error: "Title is required" });
+      }
+      
+      const card = await storage.createProductCard({
+        merchantId,
+        agentId: agentId || null,
+        title,
+        description: description || "",
+        imageUrl: imageUrl || "",
+        sourceUrl: sourceUrl || "",
+        price: price || "",
+        sortOrder: sortOrder || 0,
+        isActive: true,
+      });
+      
+      res.json(card);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Crawl product image from URL
+  app.post("/api/product-cards/crawl-image", requireMerchant, async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url) {
+        return res.status(400).json({ error: "URL is required" });
+      }
+      
+      // Fetch the page and extract Open Graph image
+      const response = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; Chatvice/1.0; +https://chatvice.com)"
+        }
+      });
+      const html = await response.text();
+      
+      // Extract OG image
+      const ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
+                          html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+      
+      // Extract title
+      const ogTitleMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i) ||
+                          html.match(/<title>([^<]+)<\/title>/i);
+      
+      // Extract description
+      const ogDescMatch = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i) ||
+                         html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
+      
+      res.json({
+        imageUrl: ogImageMatch ? ogImageMatch[1] : "",
+        title: ogTitleMatch ? ogTitleMatch[1] : "",
+        description: ogDescMatch ? ogDescMatch[1] : "",
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to crawl URL" });
+    }
+  });
+
+  app.patch("/api/product-cards/:id", requireMerchant, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const card = await storage.updateProductCard(id, req.body);
+      if (!card) {
+        return res.status(404).json({ error: "Product card not found" });
+      }
+      res.json(card);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.delete("/api/product-cards/:id", requireMerchant, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteProductCard(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Product card buttons
+  app.get("/api/product-cards/:cardId/buttons", requireMerchant, async (req, res) => {
+    try {
+      const { cardId } = req.params;
+      const buttons = await storage.getProductCardButtons(cardId);
+      res.json(buttons);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/product-cards/:cardId/buttons", requireMerchant, async (req, res) => {
+    try {
+      const { cardId } = req.params;
+      const { label, url, buttonType, sortOrder } = req.body;
+      
+      // Check if card has less than 3 buttons
+      const existingButtons = await storage.getProductCardButtons(cardId);
+      if (existingButtons.length >= 3) {
+        return res.status(400).json({ error: "Maximum 3 buttons per card" });
+      }
+      
+      const button = await storage.createProductCardButton({
+        cardId,
+        label,
+        url: url || "",
+        buttonType: buttonType || "link",
+        sortOrder: sortOrder || existingButtons.length,
+      });
+      
+      res.json(button);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.delete("/api/product-card-buttons/:id", requireMerchant, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteProductCardButton(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ============== WELCOME BUBBLE ROUTES ==============
+  
+  app.get("/api/welcome-bubble", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const bubble = await storage.getWelcomeBubble(merchantId);
+      res.json(bubble || {
+        headline: "Hi!",
+        message: "Looking for something specific? We'll help you find it!",
+        button1Label: "Chat with us",
+        button1Url: "",
+        button1Color: "#E84E3C",
+        button2Label: "Product expert",
+        button2Url: "",
+        button2Color: "#1a1a1a",
+        isEnabled: true,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.put("/api/welcome-bubble", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const bubble = await storage.upsertWelcomeBubble(merchantId, req.body);
+      res.json(bubble);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Public endpoint for widget
+  app.get("/api/widget/:merchantId/welcome-bubble", async (req, res) => {
+    try {
+      const { merchantId } = req.params;
+      const bubble = await storage.getWelcomeBubble(merchantId);
+      if (!bubble || !bubble.isEnabled) {
+        return res.json({ isEnabled: false });
+      }
+      res.json(bubble);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ============== NOTIFICATION SETTINGS ROUTES ==============
+  
+  app.get("/api/notification-settings", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const settings = await storage.getNotificationSettings(merchantId);
+      res.json(settings || {
+        incomingChatSound: "default",
+        incomingChatEnabled: true,
+        chatReplySound: "default",
+        chatReplyEnabled: true,
+        angryCustomerSound: "alert",
+        angryCustomerEnabled: true,
+        customSounds: [],
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.put("/api/notification-settings", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const settings = await storage.upsertNotificationSettings(merchantId, req.body);
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Upload custom notification sound
+  app.post("/api/notification-settings/upload-sound", requireMerchant, upload.single("sound"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      
+      const soundUrl = `/uploads/${req.file.filename}`;
+      const soundName = req.body.name || req.file.originalname;
+      
+      // Get current settings and add new sound
+      const merchantId = req.session.merchantId!;
+      const settings = await storage.getNotificationSettings(merchantId);
+      const customSounds = (settings?.customSounds as any[]) || [];
+      customSounds.push({ name: soundName, url: soundUrl });
+      
+      await storage.upsertNotificationSettings(merchantId, { customSounds });
+      
+      res.json({ url: soundUrl, name: soundName });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ============== TEAM ACTIVITY ROUTES ==============
+  
+  // Update supervisor status
+  app.post("/api/team/status", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const userType = req.session.userType;
+      const { status } = req.body;
+      
+      if (userType === "supervisor") {
+        await storage.updateSupervisor(userId, { status, lastSeen: new Date() });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get team activity
+  app.get("/api/team/activity", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const supervisors = await storage.getSupervisorsByMerchant(merchantId);
+      const agents = await storage.getAgents(merchantId);
+      
+      const activity = {
+        supervisors: supervisors.map(s => ({
+          id: s.id,
+          name: s.name,
+          email: s.email,
+          photoUrl: s.photoUrl,
+          status: s.status || "offline",
+          lastSeen: s.lastSeen,
+          role: s.role || "supervisor",
+        })),
+        agents: agents.map(a => ({
+          id: a.id,
+          name: a.name,
+          photoUrl: a.photoUrl,
+          isActive: a.isActive,
+        })),
+      };
+      
+      res.json(activity);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   return httpServer;
 }

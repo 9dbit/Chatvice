@@ -19,6 +19,13 @@ import SourcesPage from "./sources";
 import AnalyticsPage from "./analytics";
 import IntegrationsPage from "./integrations";
 import ChatLogsPage from "./chat-logs";
+import WorkSchedulerPage from "./work-scheduler";
+import QuickRepliesPage from "./quick-replies";
+import NotificationSettingsPage from "./notification-settings";
+import WelcomeBubblePage from "./welcome-bubble";
+import ProductCardsPage from "./product-cards";
+import TeamActivityPage from "./team-activity";
+import ChatButtonsPage from "./chat-buttons";
 import type { Merchant } from "@shared/schema";
 
 const pageNames: Record<string, string> = {
@@ -36,6 +43,13 @@ const pageNames: Record<string, string> = {
   "plans": "Plans",
   "billing": "Billing",
   "settings": "Settings",
+  "work-scheduler": "Work Scheduler",
+  "quick-replies": "Quick Replies",
+  "notification-settings": "Notification Settings",
+  "welcome-bubble": "Welcome Bubble",
+  "product-cards": "Product Cards",
+  "team-activity": "Team Activity",
+  "chat-buttons": "Chat Buttons",
 };
 
 function Breadcrumb({ location }: { location: string }) {
@@ -114,6 +128,13 @@ export default function DashboardLayout() {
               <Route path="/dashboard/widget" component={WidgetPage} />
               <Route path="/dashboard/supervisors" component={SupervisorsPage} />
               <Route path="/dashboard/integrations" component={IntegrationsPage} />
+              <Route path="/dashboard/work-scheduler" component={WorkSchedulerPage} />
+              <Route path="/dashboard/quick-replies" component={QuickRepliesPage} />
+              <Route path="/dashboard/notification-settings" component={NotificationSettingsPage} />
+              <Route path="/dashboard/welcome-bubble" component={WelcomeBubblePage} />
+              <Route path="/dashboard/product-cards" component={ProductCardsPage} />
+              <Route path="/dashboard/team-activity" component={TeamActivityPage} />
+              <Route path="/dashboard/chat-buttons" component={ChatButtonsPage} />
               <Route path="/dashboard/plans" component={PlansPage} />
               <Route path="/dashboard/billing" component={BillingDetailsPage} />
               <Route path="/dashboard/settings" component={SettingsPage} />
