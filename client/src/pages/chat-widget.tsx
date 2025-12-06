@@ -120,6 +120,22 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     enabled: !!merchantId,
   });
 
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioInitializedRef = useRef(false);
+  
+  const initAudio = () => {
+    if (audioInitializedRef.current) return;
+    try {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume();
+      }
+      audioInitializedRef.current = true;
+    } catch (e) {
+      console.warn("Audio initialization failed:", e);
+    }
+  };
+
   const playNotificationSound = (type: "incoming" | "reply") => {
     if (!notificationSettings) return;
     
@@ -131,38 +147,51 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     try {
       if (audioRef.current) {
         audioRef.current.pause();
+        audioRef.current = null;
       }
       
-      let soundUrl: string | null = null;
-      
       if (sound === "default") {
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
+        if (!audioContextRef.current) {
+          initAudio();
+        }
         
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.value = 800;
-        oscillator.type = "sine";
-        gainNode.gain.value = 0.3;
-        
-        oscillator.start();
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-        oscillator.stop(audioContext.currentTime + 0.2);
+        if (audioContextRef.current) {
+          if (audioContextRef.current.state === 'suspended') {
+            audioContextRef.current.resume();
+          }
+          
+          const oscillator = audioContextRef.current.createOscillator();
+          const gainNode = audioContextRef.current.createGain();
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContextRef.current.destination);
+          
+          oscillator.frequency.value = 800;
+          oscillator.type = "sine";
+          gainNode.gain.value = 0.3;
+          
+          oscillator.start();
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContextRef.current.currentTime + 0.3);
+          oscillator.stop(audioContextRef.current.currentTime + 0.3);
+        }
         return;
       }
       
       if (sound && sound.startsWith("/uploads/")) {
-        soundUrl = sound;
-      }
-      
-      if (soundUrl) {
-        audioRef.current = new Audio(soundUrl);
+        audioRef.current = new Audio(sound);
         audioRef.current.volume = 0.5;
-        audioRef.current.play().catch(() => {});
+        audioRef.current.play().catch((e) => {
+          console.warn("Audio playback failed:", e);
+        });
       }
-    } catch {}
+    } catch (e) {
+      console.warn("Sound playback error:", e);
+    }
+  };
+  
+  const handleWidgetOpen = () => {
+    initAudio();
+    setIsOpen(true);
   };
 
   const findMatchingButtons = (messageContent: string): ChatButton[] => {
@@ -213,15 +242,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [allMessages]);
+  }, [pendingMessages, serverMessages]);
 
   useEffect(() => {
-    if (isOpen && allMessages.length === 0 && merchantConfig?.welcomeMessage && !serverMessages?.length) {
+    if (isOpen && pendingMessages.length === 0 && merchantConfig?.welcomeMessage && !serverMessages?.length) {
       setPendingMessages([
         { clientId: "welcome", from: "chatvice", content: merchantConfig.welcomeMessage, timestamp: new Date() },
       ]);
     }
-  }, [isOpen, merchantConfig, serverMessages]);
+  }, [isOpen, merchantConfig, serverMessages, pendingMessages.length]);
 
   const handleSend = () => {
     if (!message.trim()) return;
@@ -358,7 +387,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     if (url) {
       window.open(url, "_blank");
     } else {
-      setIsOpen(true);
+      handleWidgetOpen();
     }
   };
 
@@ -518,7 +547,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         <button
           onClick={() => {
             dismissWelcomeBubble();
-            setIsOpen(true);
+            handleWidgetOpen();
           }}
           className="rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-105"
           style={{
