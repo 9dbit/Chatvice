@@ -625,28 +625,28 @@ function Lexa1ChatWidget() {
         )}
       </div>
 
-      {messages.length === 1 && (
-        <div className="px-4 pb-2 flex flex-wrap gap-2 bg-gray-50 dark:bg-gray-900">
-          {suggestedQuestions.map((q, i) => (
-            <button
-              key={i}
-              onClick={() => {
-                setInput(q);
-                setTimeout(() => {
-                  setMessages(prev => [...prev, { role: "user", content: q }]);
-                  setInput("");
-                  setIsTyping(true);
-                  askMutation.mutate(q);
-                }, 100);
-              }}
-              className="text-xs px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors"
-              data-testid={`button-suggested-${i}`}
-            >
-              {q}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="px-4 pb-2 flex flex-wrap gap-2 bg-gray-50 dark:bg-gray-900">
+        {suggestedQuestions.map((q, i) => (
+          <button
+            key={i}
+            onClick={() => {
+              if (isTyping) return;
+              setMessages(prev => [...prev, { role: "user", content: q }]);
+              setIsTyping(true);
+              askMutation.mutate(q);
+            }}
+            disabled={isTyping}
+            className={`text-xs px-3 py-1.5 rounded-full transition-colors ${
+              isTyping 
+                ? "bg-purple-50 dark:bg-purple-900/20 text-purple-400 dark:text-purple-500 cursor-not-allowed" 
+                : "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/50"
+            }`}
+            data-testid={`button-suggested-${i}`}
+          >
+            {q}
+          </button>
+        ))}
+      </div>
 
       <div className="p-4 border-t border-border bg-card">
         <div className="flex items-center gap-2">
