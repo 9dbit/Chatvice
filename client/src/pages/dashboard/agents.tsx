@@ -28,19 +28,19 @@ const TONE_PRESETS = {
     label: "Formal",
     icon: UserCircle,
     description: "Polite and professional",
-    prompt: "Gunakan bahasa formal dan sopan. Panggil customer dengan 'Bapak/Ibu'. Hindari bahasa gaul atau slang."
+    prompt: "Use formal and polite language. Address customers as 'Sir/Ma'am'. Avoid slang or casual expressions."
   },
   casual: {
     label: "Casual",
     icon: MessageSquare,
     description: "Friendly and relaxed",
-    prompt: "Gunakan bahasa santai dan ramah seperti teman. Boleh pakai kata-kata seperti 'kamu', 'oke', 'yuk'."
+    prompt: "Use casual and friendly language like a friend. Feel free to use words like 'you', 'okay', 'let's go'."
   },
   poetic: {
     label: "Poetic",
     icon: Sparkles,
     description: "Creative and expressive",
-    prompt: "Jawab dengan gaya bahasa yang indah dan ekspresif. Gunakan metafora dan perumpamaan yang menarik."
+    prompt: "Respond with beautiful and expressive language. Use interesting metaphors and analogies."
   }
 };
 
@@ -92,9 +92,9 @@ export default function AgentsPage() {
       toneStyle: "formal",
       autoEscalateAngry: false,
       welcomeMessageEnabled: false,
-      welcomeMessageText: "Halo! Ada yang bisa saya bantu?",
+      welcomeMessageText: "Hello! How can I help you?",
       goodbyeMessageEnabled: false,
-      goodbyeMessageText: "Terima kasih sudah menghubungi kami!",
+      goodbyeMessageText: "Thank you for contacting us!",
       inactivityTimeoutSeconds: 120,
       temperature: "0.7",
     },
@@ -227,9 +227,9 @@ export default function AgentsPage() {
     form.setValue("toneStyle", agent.toneStyle || "formal");
     form.setValue("autoEscalateAngry", agent.autoEscalateAngry || false);
     form.setValue("welcomeMessageEnabled", agent.welcomeMessageEnabled || false);
-    form.setValue("welcomeMessageText", agent.welcomeMessageText || "Halo! Ada yang bisa saya bantu?");
+    form.setValue("welcomeMessageText", agent.welcomeMessageText || "Hello! How can I help you?");
     form.setValue("goodbyeMessageEnabled", agent.goodbyeMessageEnabled || false);
-    form.setValue("goodbyeMessageText", agent.goodbyeMessageText || "Terima kasih sudah menghubungi kami!");
+    form.setValue("goodbyeMessageText", agent.goodbyeMessageText || "Thank you for contacting us!");
     form.setValue("inactivityTimeoutSeconds", agent.inactivityTimeoutSeconds || 120);
     form.setValue("temperature", agent.temperature || "0.7");
     setPhotoUrl(agent.photoUrl || "");
@@ -440,7 +440,7 @@ export default function AgentsPage() {
                         <FormItem>
                           <FormControl>
                             <Input
-                              placeholder="Halo! Ada yang bisa saya bantu?"
+                              placeholder="Hello! How can I help you?"
                               data-testid="input-welcome-message"
                               {...field}
                             />
@@ -483,7 +483,7 @@ export default function AgentsPage() {
                         <FormItem>
                           <FormControl>
                             <Input
-                              placeholder="Terima kasih sudah menghubungi kami!"
+                              placeholder="Thank you for contacting us!"
                               data-testid="input-goodbye-message"
                               {...field}
                             />

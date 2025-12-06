@@ -674,14 +674,14 @@ function LandingPageTab({ toast }: { toast: any }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/landing-settings"] });
       toast({
-        title: "Pengaturan Tersimpan",
-        description: "Perubahan landing page berhasil disimpan.",
+        title: "Settings Saved",
+        description: "Landing page changes saved successfully.",
       });
     },
     onError: (error) => {
       toast({
         title: "Error",
-        description: "Gagal menyimpan pengaturan.",
+        description: "Failed to save settings.",
         variant: "destructive",
       });
     },
@@ -713,7 +713,7 @@ function LandingPageTab({ toast }: { toast: any }) {
             <Image className="w-5 h-5" />
             Hero Background Settings
           </CardTitle>
-          <CardDescription>Atur posisi dan offset gambar hero background</CardDescription>
+          <CardDescription>Configure hero background image position and offset</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div>
@@ -809,7 +809,7 @@ function LandingPageTab({ toast }: { toast: any }) {
             <Palette className="w-5 h-5" />
             Theme Colors
           </CardTitle>
-          <CardDescription>Atur warna tema landing page</CardDescription>
+          <CardDescription>Configure landing page theme colors</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -889,7 +889,7 @@ function LandingPageTab({ toast }: { toast: any }) {
               className="w-4 h-4"
               data-testid="checkbox-running-text-enabled"
             />
-            <Label htmlFor="running-text-enabled">Aktifkan Running Text</Label>
+            <Label htmlFor="running-text-enabled">Enable Running Text</Label>
           </div>
           
           {settings.runningTextEnabled && (
@@ -900,14 +900,14 @@ function LandingPageTab({ toast }: { toast: any }) {
                   id="running-text-content"
                   value={settings.runningTextContent}
                   onChange={(e) => handleChange("runningTextContent", e.target.value)}
-                  placeholder="Masukkan teks yang akan berjalan..."
+                  placeholder="Enter the running text content..."
                   data-testid="input-running-text-content"
                 />
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="running-text-speed">Kecepatan (detik)</Label>
+                  <Label htmlFor="running-text-speed">Speed (seconds)</Label>
                   <Input
                     id="running-text-speed"
                     type="number"
@@ -975,7 +975,7 @@ function LandingPageTab({ toast }: { toast: any }) {
             <Settings className="w-5 h-5" />
             Features Layout
           </CardTitle>
-          <CardDescription>Atur tampilan section fitur</CardDescription>
+          <CardDescription>Configure features section layout</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
@@ -992,7 +992,7 @@ function LandingPageTab({ toast }: { toast: any }) {
                   }`}
                   data-testid={`button-layout-${layout}`}
                 >
-                  {layout === "3-columns" ? "3 Kolom" : "4 Kolom"}
+                  {layout === "3-columns" ? "3 Columns" : "4 Columns"}
                 </button>
               ))}
             </div>
@@ -1005,12 +1005,12 @@ function LandingPageTab({ toast }: { toast: any }) {
           {updateMutation.isPending ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Menyimpan...
+              Saving...
             </>
           ) : (
             <>
               <Save className="w-4 h-4 mr-2" />
-              Simpan Pengaturan
+              Save Settings
             </>
           )}
         </Button>

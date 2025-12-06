@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -8,20 +8,50 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Bell, Volume2, Upload, Play, AlertTriangle, MessageCircle, UserPlus } from "lucide-react";
+import { Bell, Volume2, Upload, Play, AlertTriangle, MessageCircle, UserPlus, Square } from "lucide-react";
 import type { NotificationSetting } from "@shared/schema";
 
 const defaultSounds = [
-  { id: "default", name: "Default", url: "" },
-  { id: "chime", name: "Chime", url: "" },
-  { id: "bell", name: "Bell", url: "" },
-  { id: "alert", name: "Alert", url: "" },
-  { id: "ping", name: "Ping", url: "" },
+  { id: "default", name: "Default Chime", frequency: 800, duration: 150 },
+  { id: "chime", name: "Soft Chime", frequency: 600, duration: 200 },
+  { id: "bell", name: "Bell", frequency: 1000, duration: 300 },
+  { id: "alert", name: "Alert", frequency: 440, duration: 100 },
+  { id: "ping", name: "Ping", frequency: 1200, duration: 80 },
 ];
+
+function playToneSound(frequency: number, duration: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.value = frequency;
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + duration / 1000);
+      
+      oscillator.onended = () => {
+        audioContext.close();
+        resolve();
+      };
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
 
 export default function NotificationSettingsPage() {
   const { toast } = useToast();
   const [isPlaying, setIsPlaying] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const { data: settings, isLoading } = useQuery<NotificationSetting>({
     queryKey: ["/api/notification-settings"],
@@ -33,10 +63,10 @@ export default function NotificationSettingsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notification-settings"] });
-      toast({ title: "Pengaturan notifikasi berhasil disimpan" });
+      toast({ title: "Notification settings saved successfully" });
     },
     onError: () => {
-      toast({ title: "Gagal menyimpan pengaturan", variant: "destructive" });
+      toast({ title: "Failed to save settings", variant: "destructive" });
     },
   });
 
@@ -57,10 +87,10 @@ export default function NotificationSettingsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notification-settings"] });
-      toast({ title: "Suara berhasil diupload" });
+      toast({ title: "Sound uploaded successfully" });
     },
     onError: () => {
-      toast({ title: "Gagal mengupload suara", variant: "destructive" });
+      toast({ title: "Failed to upload sound", variant: "destructive" });
     },
   });
 
@@ -72,29 +102,64 @@ export default function NotificationSettingsPage() {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith("audio/")) {
-        toast({ title: "File harus berupa audio", variant: "destructive" });
+        toast({ title: "File must be an audio file", variant: "destructive" });
         return;
       }
       uploadMutation.mutate(file);
     }
   }
 
-  function playSound(soundId: string) {
+  async function playSound(soundId: string) {
+    if (isPlaying) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      setIsPlaying(null);
+      return;
+    }
+
     setIsPlaying(soundId);
-    const audio = new Audio();
-    audio.src = `/sounds/${soundId}.mp3`;
-    audio.onended = () => setIsPlaying(null);
-    audio.onerror = () => {
+    
+    const customSound = customSounds.find((s: any) => s.url === soundId);
+    if (customSound) {
+      try {
+        const audio = new Audio(customSound.url);
+        audioRef.current = audio;
+        audio.onended = () => {
+          setIsPlaying(null);
+          audioRef.current = null;
+        };
+        audio.onerror = () => {
+          setIsPlaying(null);
+          audioRef.current = null;
+          toast({ title: "Could not play sound", variant: "destructive" });
+        };
+        await audio.play();
+      } catch (error) {
+        setIsPlaying(null);
+        toast({ title: "Could not play sound", variant: "destructive" });
+      }
+      return;
+    }
+
+    const defaultSound = defaultSounds.find(s => s.id === soundId);
+    if (defaultSound) {
+      try {
+        await playToneSound(defaultSound.frequency, defaultSound.duration);
+        setIsPlaying(null);
+      } catch (error) {
+        setIsPlaying(null);
+        toast({ title: "Could not play sound. Please interact with the page first.", variant: "destructive" });
+      }
+    } else {
       setIsPlaying(null);
-      toast({ title: "Tidak dapat memutar suara", variant: "destructive" });
-    };
-    audio.play().catch(() => {
-      setIsPlaying(null);
-    });
+      toast({ title: "Sound not found", variant: "destructive" });
+    }
   }
 
   const customSounds = (settings?.customSounds as any[]) || [];
-  const allSounds = [...defaultSounds, ...customSounds.map((s: any) => ({ id: s.url, name: s.name, url: s.url }))];
+  const allSounds = [...defaultSounds.map(s => ({ id: s.id, name: s.name })), ...customSounds.map((s: any) => ({ id: s.url, name: s.name }))];
 
   if (isLoading) {
     return (
@@ -112,9 +177,9 @@ export default function NotificationSettingsPage() {
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="text-page-title">
           <Bell className="w-6 h-6" />
-          Pengaturan Notifikasi
+          Notification Settings
         </h1>
-        <p className="text-muted-foreground">Atur suara dan notifikasi untuk berbagai event chat</p>
+        <p className="text-muted-foreground">Configure sounds and notifications for various chat events</p>
       </div>
 
       <div className="grid gap-6">
@@ -122,13 +187,13 @@ export default function NotificationSettingsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <UserPlus className="w-5 h-5 text-green-500" />
-              Chat Masuk Baru
+              New Incoming Chat
             </CardTitle>
-            <CardDescription>Notifikasi saat ada customer baru memulai chat</CardDescription>
+            <CardDescription>Notification when a new customer starts a chat</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label htmlFor="incomingEnabled">Aktifkan Notifikasi</Label>
+              <Label htmlFor="incomingEnabled">Enable Notification</Label>
               <Switch
                 id="incomingEnabled"
                 checked={settings?.incomingChatEnabled ?? true}
@@ -137,7 +202,7 @@ export default function NotificationSettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Pilih Suara</Label>
+              <Label>Select Sound</Label>
               <div className="flex gap-2">
                 <Select 
                   value={settings?.incomingChatSound || "default"}
@@ -156,10 +221,13 @@ export default function NotificationSettingsPage() {
                   size="icon" 
                   variant="outline"
                   onClick={() => playSound(settings?.incomingChatSound || "default")}
-                  disabled={isPlaying === (settings?.incomingChatSound || "default")}
                   data-testid="button-play-incoming"
                 >
-                  <Play className="w-4 h-4" />
+                  {isPlaying === (settings?.incomingChatSound || "default") ? (
+                    <Square className="w-4 h-4" />
+                  ) : (
+                    <Play className="w-4 h-4" />
+                  )}
                 </Button>
               </div>
             </div>
@@ -170,13 +238,13 @@ export default function NotificationSettingsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <MessageCircle className="w-5 h-5 text-blue-500" />
-              Balasan Chat
+              Chat Reply
             </CardTitle>
-            <CardDescription>Notifikasi saat ada pesan baru dari customer</CardDescription>
+            <CardDescription>Notification when there's a new message from customer</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label htmlFor="replyEnabled">Aktifkan Notifikasi</Label>
+              <Label htmlFor="replyEnabled">Enable Notification</Label>
               <Switch
                 id="replyEnabled"
                 checked={settings?.chatReplyEnabled ?? true}
@@ -185,7 +253,7 @@ export default function NotificationSettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Pilih Suara</Label>
+              <Label>Select Sound</Label>
               <div className="flex gap-2">
                 <Select 
                   value={settings?.chatReplySound || "default"}
@@ -204,10 +272,13 @@ export default function NotificationSettingsPage() {
                   size="icon" 
                   variant="outline"
                   onClick={() => playSound(settings?.chatReplySound || "default")}
-                  disabled={isPlaying === (settings?.chatReplySound || "default")}
                   data-testid="button-play-reply"
                 >
-                  <Play className="w-4 h-4" />
+                  {isPlaying === (settings?.chatReplySound || "default") ? (
+                    <Square className="w-4 h-4" />
+                  ) : (
+                    <Play className="w-4 h-4" />
+                  )}
                 </Button>
               </div>
             </div>
@@ -218,13 +289,13 @@ export default function NotificationSettingsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-red-500" />
-              Customer Marah
+              Angry Customer
             </CardTitle>
-            <CardDescription>Notifikasi saat sistem mendeteksi customer yang marah atau frustasi</CardDescription>
+            <CardDescription>Notification when the system detects an angry or frustrated customer</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label htmlFor="angryEnabled">Aktifkan Notifikasi</Label>
+              <Label htmlFor="angryEnabled">Enable Notification</Label>
               <Switch
                 id="angryEnabled"
                 checked={settings?.angryCustomerEnabled ?? true}
@@ -233,7 +304,7 @@ export default function NotificationSettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Pilih Suara</Label>
+              <Label>Select Sound</Label>
               <div className="flex gap-2">
                 <Select 
                   value={settings?.angryCustomerSound || "alert"}
@@ -252,10 +323,13 @@ export default function NotificationSettingsPage() {
                   size="icon" 
                   variant="outline"
                   onClick={() => playSound(settings?.angryCustomerSound || "alert")}
-                  disabled={isPlaying === (settings?.angryCustomerSound || "alert")}
                   data-testid="button-play-angry"
                 >
-                  <Play className="w-4 h-4" />
+                  {isPlaying === (settings?.angryCustomerSound || "alert") ? (
+                    <Square className="w-4 h-4" />
+                  ) : (
+                    <Play className="w-4 h-4" />
+                  )}
                 </Button>
               </div>
             </div>
@@ -266,15 +340,15 @@ export default function NotificationSettingsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Upload className="w-5 h-5" />
-              Upload Suara Kustom
+              Upload Custom Sound
             </CardTitle>
-            <CardDescription>Upload file audio untuk digunakan sebagai notifikasi</CardDescription>
+            <CardDescription>Upload audio files to use as notifications</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="border-2 border-dashed rounded-lg p-6 text-center">
               <Volume2 className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
               <p className="text-sm text-muted-foreground mb-3">
-                Seret file audio atau klik untuk memilih
+                Drag and drop an audio file or click to select
               </p>
               <Input
                 type="file"
@@ -288,18 +362,18 @@ export default function NotificationSettingsPage() {
                 <Button variant="outline" className="cursor-pointer" asChild>
                   <span>
                     <Upload className="w-4 h-4 mr-2" />
-                    Pilih File Audio
+                    Select Audio File
                   </span>
                 </Button>
               </Label>
               <p className="text-xs text-muted-foreground mt-2">
-                Format yang didukung: MP3, WAV, OGG
+                Supported formats: MP3, WAV, OGG
               </p>
             </div>
 
             {customSounds.length > 0 && (
               <div className="space-y-2">
-                <Label>Suara Kustom Anda</Label>
+                <Label>Your Custom Sounds</Label>
                 <div className="space-y-2">
                   {customSounds.map((sound: any, index: number) => (
                     <div 
@@ -314,12 +388,13 @@ export default function NotificationSettingsPage() {
                       <Button 
                         size="sm" 
                         variant="ghost"
-                        onClick={() => {
-                          const audio = new Audio(sound.url);
-                          audio.play();
-                        }}
+                        onClick={() => playSound(sound.url)}
                       >
-                        <Play className="w-4 h-4" />
+                        {isPlaying === sound.url ? (
+                          <Square className="w-4 h-4" />
+                        ) : (
+                          <Play className="w-4 h-4" />
+                        )}
                       </Button>
                     </div>
                   ))}

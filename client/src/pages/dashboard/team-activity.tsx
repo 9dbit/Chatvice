@@ -5,7 +5,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Users, Bot, Clock, CheckCircle, AlertCircle, XCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { id as idLocale } from "date-fns/locale";
 
 interface SupervisorActivity {
   id: string;
@@ -34,7 +33,7 @@ function getStatusBadge(status: string) {
     case "online":
       return <Badge variant="default" className="bg-green-500">Online</Badge>;
     case "busy":
-      return <Badge variant="default" className="bg-amber-500">Sibuk</Badge>;
+      return <Badge variant="default" className="bg-amber-500">Busy</Badge>;
     case "away":
       return <Badge variant="secondary">Away</Badge>;
     default:
@@ -85,7 +84,7 @@ export default function TeamActivityPage() {
           <Users className="w-6 h-6" />
           Team Activity
         </h1>
-        <p className="text-muted-foreground">Pantau aktivitas supervisor dan AI agents secara real-time</p>
+        <p className="text-muted-foreground">Monitor supervisor and AI agent activity in real-time</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -96,7 +95,7 @@ export default function TeamActivityPage() {
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground">
-              <span className="text-green-500 font-medium">{onlineSupervisors}</span> online sekarang
+              <span className="text-green-500 font-medium">{onlineSupervisors}</span> online now
             </p>
           </CardContent>
         </Card>
@@ -107,7 +106,7 @@ export default function TeamActivityPage() {
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground">
-              <span className="text-green-500 font-medium">{activeAgents}</span> aktif
+              <span className="text-green-500 font-medium">{activeAgents}</span> active
             </p>
           </CardContent>
         </Card>
@@ -118,7 +117,7 @@ export default function TeamActivityPage() {
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground">
-              Siap menangani eskalasi
+              Ready to handle escalations
             </p>
           </CardContent>
         </Card>
@@ -129,7 +128,7 @@ export default function TeamActivityPage() {
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground">
-              Tidak tersedia
+              Not available
             </p>
           </CardContent>
         </Card>
@@ -152,8 +151,8 @@ export default function TeamActivityPage() {
             <Card>
               <CardContent className="py-12 text-center">
                 <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="font-semibold mb-2">Belum ada supervisor</h3>
-                <p className="text-muted-foreground">Tambahkan supervisor di halaman Supervisors</p>
+                <h3 className="font-semibold mb-2">No supervisors yet</h3>
+                <p className="text-muted-foreground">Add supervisors in the Supervisors page</p>
               </CardContent>
             </Card>
           ) : (
@@ -187,7 +186,7 @@ export default function TeamActivityPage() {
                         {supervisor.lastSeen && supervisor.status !== "online" && (
                           <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            Terakhir aktif {formatDistanceToNow(new Date(supervisor.lastSeen), { addSuffix: true, locale: idLocale })}
+                            Last active {formatDistanceToNow(new Date(supervisor.lastSeen), { addSuffix: true })}
                           </p>
                         )}
                       </div>
@@ -204,8 +203,8 @@ export default function TeamActivityPage() {
             <Card>
               <CardContent className="py-12 text-center">
                 <Bot className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="font-semibold mb-2">Belum ada AI agent</h3>
-                <p className="text-muted-foreground">Buat AI agent di halaman Agents</p>
+                <h3 className="font-semibold mb-2">No AI agents yet</h3>
+                <p className="text-muted-foreground">Create AI agents in the Agents page</p>
               </CardContent>
             </Card>
           ) : (
@@ -229,7 +228,7 @@ export default function TeamActivityPage() {
                         <div className="flex items-center justify-between gap-2">
                           <h3 className="font-medium truncate">{agent.name}</h3>
                           <Badge variant={agent.isActive ? "default" : "secondary"}>
-                            {agent.isActive ? "Aktif" : "Nonaktif"}
+                            {agent.isActive ? "Active" : "Inactive"}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">AI Agent</p>

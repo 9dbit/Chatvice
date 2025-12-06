@@ -64,10 +64,10 @@ export default function WorkSchedulerPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/work-scheduler/shifts"] });
       setIsAddShiftOpen(false);
       resetShiftForm();
-      toast({ title: "Shift berhasil dibuat" });
+      toast({ title: "Shift created successfully" });
     },
     onError: () => {
-      toast({ title: "Gagal membuat shift", variant: "destructive" });
+      toast({ title: "Failed to create shift", variant: "destructive" });
     },
   });
 
@@ -79,7 +79,7 @@ export default function WorkSchedulerPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/work-scheduler/shifts"] });
       setEditingShift(null);
       resetShiftForm();
-      toast({ title: "Shift berhasil diperbarui" });
+      toast({ title: "Shift updated successfully" });
     },
   });
 
@@ -89,7 +89,7 @@ export default function WorkSchedulerPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/work-scheduler/shifts"] });
-      toast({ title: "Shift berhasil dihapus" });
+      toast({ title: "Shift deleted successfully" });
     },
   });
 
@@ -100,7 +100,7 @@ export default function WorkSchedulerPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/work-scheduler/assignments"] });
       setIsAssignOpen(false);
-      toast({ title: "Berhasil menugaskan" });
+      toast({ title: "Assignment created successfully" });
     },
   });
 
@@ -110,7 +110,7 @@ export default function WorkSchedulerPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/work-scheduler/assignments"] });
-      toast({ title: "Penugasan dihapus" });
+      toast({ title: "Assignment deleted" });
     },
   });
 
@@ -158,16 +158,16 @@ export default function WorkSchedulerPage() {
 
   function getDayTypeLabel(dayType: string) {
     const labels: Record<string, string> = {
-      weekday: "Hari Kerja",
-      weekend: "Akhir Pekan",
-      monday: "Senin",
-      tuesday: "Selasa",
-      wednesday: "Rabu",
-      thursday: "Kamis",
-      friday: "Jumat",
-      saturday: "Sabtu",
-      sunday: "Minggu",
-      everyday: "Setiap Hari",
+      weekday: "Weekdays",
+      weekend: "Weekend",
+      monday: "Monday",
+      tuesday: "Tuesday",
+      wednesday: "Wednesday",
+      thursday: "Thursday",
+      friday: "Friday",
+      saturday: "Saturday",
+      sunday: "Sunday",
+      everyday: "Every Day",
     };
     return labels[dayType] || dayType;
   }
@@ -198,7 +198,7 @@ export default function WorkSchedulerPage() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-page-title">Work Scheduler</h1>
-          <p className="text-muted-foreground">Kelola jadwal shift untuk supervisor dan AI agents</p>
+          <p className="text-muted-foreground">Manage shift schedules for supervisors and AI agents</p>
         </div>
         <Dialog open={isAddShiftOpen} onOpenChange={(open) => {
           setIsAddShiftOpen(open);
@@ -210,47 +210,47 @@ export default function WorkSchedulerPage() {
           <DialogTrigger asChild>
             <Button data-testid="button-add-shift">
               <Plus className="w-4 h-4 mr-2" />
-              Tambah Shift
+              Add Shift
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{editingShift ? "Edit Shift" : "Buat Shift Baru"}</DialogTitle>
+              <DialogTitle>{editingShift ? "Edit Shift" : "Create New Shift"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="shiftName">Nama Shift</Label>
+                <Label htmlFor="shiftName">Shift Name</Label>
                 <Input
                   id="shiftName"
                   value={shiftForm.name}
                   onChange={(e) => setShiftForm({ ...shiftForm, name: e.target.value })}
-                  placeholder="Contoh: Shift Pagi"
+                  placeholder="e.g. Morning Shift"
                   data-testid="input-shift-name"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="dayType">Tipe Hari</Label>
+                <Label htmlFor="dayType">Day Type</Label>
                 <Select value={shiftForm.dayType} onValueChange={(v) => setShiftForm({ ...shiftForm, dayType: v })}>
                   <SelectTrigger id="dayType" data-testid="select-day-type">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="everyday">Setiap Hari</SelectItem>
-                    <SelectItem value="weekday">Hari Kerja (Sen-Jum)</SelectItem>
-                    <SelectItem value="weekend">Akhir Pekan (Sab-Min)</SelectItem>
-                    <SelectItem value="monday">Senin</SelectItem>
-                    <SelectItem value="tuesday">Selasa</SelectItem>
-                    <SelectItem value="wednesday">Rabu</SelectItem>
-                    <SelectItem value="thursday">Kamis</SelectItem>
-                    <SelectItem value="friday">Jumat</SelectItem>
-                    <SelectItem value="saturday">Sabtu</SelectItem>
-                    <SelectItem value="sunday">Minggu</SelectItem>
+                    <SelectItem value="everyday">Every Day</SelectItem>
+                    <SelectItem value="weekday">Weekdays (Mon-Fri)</SelectItem>
+                    <SelectItem value="weekend">Weekend (Sat-Sun)</SelectItem>
+                    <SelectItem value="monday">Monday</SelectItem>
+                    <SelectItem value="tuesday">Tuesday</SelectItem>
+                    <SelectItem value="wednesday">Wednesday</SelectItem>
+                    <SelectItem value="thursday">Thursday</SelectItem>
+                    <SelectItem value="friday">Friday</SelectItem>
+                    <SelectItem value="saturday">Saturday</SelectItem>
+                    <SelectItem value="sunday">Sunday</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="startTime">Jam Mulai</Label>
+                  <Label htmlFor="startTime">Start Time</Label>
                   <Input
                     id="startTime"
                     type="time"
@@ -260,7 +260,7 @@ export default function WorkSchedulerPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="endTime">Jam Selesai</Label>
+                  <Label htmlFor="endTime">End Time</Label>
                   <Input
                     id="endTime"
                     type="time"
@@ -279,18 +279,18 @@ export default function WorkSchedulerPage() {
                 />
                 <Label htmlFor="nightShift" className="flex items-center gap-2">
                   <Moon className="w-4 h-4" />
-                  Shift Malam
+                  Night Shift
                 </Label>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddShiftOpen(false)}>Batal</Button>
+              <Button variant="outline" onClick={() => setIsAddShiftOpen(false)}>Cancel</Button>
               <Button 
                 onClick={handleSubmitShift} 
                 disabled={createShiftMutation.isPending || updateShiftMutation.isPending}
                 data-testid="button-save-shift"
               >
-                {editingShift ? "Simpan Perubahan" : "Buat Shift"}
+                {editingShift ? "Save Changes" : "Create Shift"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -305,11 +305,11 @@ export default function WorkSchedulerPage() {
           </TabsTrigger>
           <TabsTrigger value="assignments" className="flex items-center gap-2" data-testid="tab-assignments">
             <Users className="w-4 h-4" />
-            Penugasan
+            Assignments
           </TabsTrigger>
           <TabsTrigger value="reports" className="flex items-center gap-2" data-testid="tab-reports">
             <FileText className="w-4 h-4" />
-            Laporan
+            Reports
           </TabsTrigger>
         </TabsList>
 
@@ -318,11 +318,11 @@ export default function WorkSchedulerPage() {
             <Card>
               <CardContent className="py-12 text-center">
                 <Clock className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="font-semibold mb-2">Belum ada shift</h3>
-                <p className="text-muted-foreground mb-4">Buat shift pertama untuk mulai mengatur jadwal kerja</p>
+                <h3 className="font-semibold mb-2">No shifts yet</h3>
+                <p className="text-muted-foreground mb-4">Create your first shift to start scheduling</p>
                 <Button onClick={() => setIsAddShiftOpen(true)} data-testid="button-create-first-shift">
                   <Plus className="w-4 h-4 mr-2" />
-                  Buat Shift Pertama
+                  Create First Shift
                 </Button>
               </CardContent>
             </Card>
@@ -341,7 +341,7 @@ export default function WorkSchedulerPage() {
                         <CardTitle className="text-lg">{shift.name}</CardTitle>
                       </div>
                       <Badge variant={shift.isActive ? "default" : "secondary"}>
-                        {shift.isActive ? "Aktif" : "Nonaktif"}
+                        {shift.isActive ? "Active" : "Inactive"}
                       </Badge>
                     </div>
                     <CardDescription>{getDayTypeLabel(shift.dayType)}</CardDescription>
@@ -353,7 +353,7 @@ export default function WorkSchedulerPage() {
                         <span>{shift.startTime} - {shift.endTime}</span>
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {getAssignmentsByShift(shift.id).length} orang ditugaskan
+                        {getAssignmentsByShift(shift.id).length} people assigned
                       </div>
                       <div className="flex gap-2 pt-2">
                         <Button 
@@ -375,7 +375,7 @@ export default function WorkSchedulerPage() {
                           data-testid={`button-assign-shift-${shift.id}`}
                         >
                           <UserCheck className="w-3 h-3 mr-1" />
-                          Tugaskan
+                          Assign
                         </Button>
                         <Button 
                           size="sm" 
@@ -398,14 +398,14 @@ export default function WorkSchedulerPage() {
         <TabsContent value="assignments" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Daftar Penugasan</CardTitle>
-              <CardDescription>Lihat siapa yang ditugaskan ke setiap shift</CardDescription>
+              <CardTitle>Assignment List</CardTitle>
+              <CardDescription>View who is assigned to each shift</CardDescription>
             </CardHeader>
             <CardContent>
               {assignments.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Users className="w-10 h-10 mx-auto mb-3" />
-                  <p>Belum ada penugasan</p>
+                  <p>No assignments yet</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -455,15 +455,15 @@ export default function WorkSchedulerPage() {
         <TabsContent value="reports" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Laporan Jam Kerja</CardTitle>
-              <CardDescription>Ringkasan jam kerja supervisor dan agents</CardDescription>
+              <CardTitle>Work Hours Report</CardTitle>
+              <CardDescription>Summary of work hours for supervisors and agents</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div>
                   <h4 className="font-medium mb-3">Supervisor</h4>
                   {supervisors.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Tidak ada supervisor</p>
+                    <p className="text-sm text-muted-foreground">No supervisors available</p>
                   ) : (
                     <div className="space-y-2">
                       {supervisors.map((supervisor) => (
@@ -487,7 +487,7 @@ export default function WorkSchedulerPage() {
                 <div>
                   <h4 className="font-medium mb-3">AI Agents</h4>
                   {agents.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Tidak ada AI agent</p>
+                    <p className="text-sm text-muted-foreground">No AI agents available</p>
                   ) : (
                     <div className="space-y-2">
                       {agents.map((agent) => (
@@ -517,7 +517,7 @@ export default function WorkSchedulerPage() {
       <Dialog open={isAssignOpen} onOpenChange={setIsAssignOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Tugaskan ke Shift: {selectedShift?.name}</DialogTitle>
+            <DialogTitle>Assign to Shift: {selectedShift?.name}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-3">
@@ -552,7 +552,7 @@ export default function WorkSchedulerPage() {
                       }}
                       data-testid={`button-assign-supervisor-${supervisor.id}`}
                     >
-                      {isAssigned ? "Sudah Ditugaskan" : "Tugaskan"}
+                      {isAssigned ? "Assigned" : "Assign"}
                     </Button>
                   </div>
                 );
@@ -590,7 +590,7 @@ export default function WorkSchedulerPage() {
                       }}
                       data-testid={`button-assign-agent-${agent.id}`}
                     >
-                      {isAssigned ? "Sudah Ditugaskan" : "Tugaskan"}
+                      {isAssigned ? "Assigned" : "Assign"}
                     </Button>
                   </div>
                 );
@@ -598,7 +598,7 @@ export default function WorkSchedulerPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAssignOpen(false)}>Tutup</Button>
+            <Button variant="outline" onClick={() => setIsAssignOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

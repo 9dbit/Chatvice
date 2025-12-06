@@ -52,10 +52,10 @@ export default function WelcomeBubblePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/welcome-bubble"] });
-      toast({ title: "Welcome bubble berhasil disimpan" });
+      toast({ title: "Welcome bubble saved successfully" });
     },
     onError: () => {
-      toast({ title: "Gagal menyimpan welcome bubble", variant: "destructive" });
+      toast({ title: "Failed to save welcome bubble", variant: "destructive" });
     },
   });
 
@@ -78,7 +78,7 @@ export default function WelcomeBubblePage() {
             <MessageCircle className="w-6 h-6" />
             Welcome Bubble
           </h1>
-          <p className="text-muted-foreground">Atur pop-up pesan selamat datang untuk pengunjung</p>
+          <p className="text-muted-foreground">Configure welcome message pop-up for visitors</p>
         </div>
         <Button 
           onClick={() => saveMutation.mutate(form)}
@@ -86,7 +86,7 @@ export default function WelcomeBubblePage() {
           data-testid="button-save-bubble"
         >
           <Save className="w-4 h-4 mr-2" />
-          Simpan Perubahan
+          Save Changes
         </Button>
       </div>
 
@@ -94,14 +94,14 @@ export default function WelcomeBubblePage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Pengaturan Umum</CardTitle>
-              <CardDescription>Aktifkan atau nonaktifkan welcome bubble</CardDescription>
+              <CardTitle>General Settings</CardTitle>
+              <CardDescription>Enable or disable welcome bubble</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <Label htmlFor="enabled">Tampilkan Welcome Bubble</Label>
-                  <p className="text-sm text-muted-foreground">Bubble akan muncul saat halaman dimuat</p>
+                  <Label htmlFor="enabled">Show Welcome Bubble</Label>
+                  <p className="text-sm text-muted-foreground">Bubble will appear when page loads</p>
                 </div>
                 <Switch
                   id="enabled"
@@ -115,8 +115,8 @@ export default function WelcomeBubblePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Konten Pesan</CardTitle>
-              <CardDescription>Atur teks yang ditampilkan di bubble</CardDescription>
+              <CardTitle>Message Content</CardTitle>
+              <CardDescription>Configure text displayed in the bubble</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -145,12 +145,12 @@ export default function WelcomeBubblePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Tombol 1</CardTitle>
-              <CardDescription>Tombol utama (biasanya untuk memulai chat)</CardDescription>
+              <CardTitle>Button 1</CardTitle>
+              <CardDescription>Primary button (usually to start chat)</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="button1Label">Label Tombol</Label>
+                <Label htmlFor="button1Label">Button Label</Label>
                 <Input
                   id="button1Label"
                   value={form.button1Label}
@@ -160,7 +160,7 @@ export default function WelcomeBubblePage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="button1Url">URL (opsional)</Label>
+                <Label htmlFor="button1Url">URL (optional)</Label>
                 <Input
                   id="button1Url"
                   value={form.button1Url}
@@ -168,10 +168,10 @@ export default function WelcomeBubblePage() {
                   placeholder="https://..."
                   data-testid="input-button1-url"
                 />
-                <p className="text-xs text-muted-foreground">Kosongkan untuk membuka chat widget</p>
+                <p className="text-xs text-muted-foreground">Leave empty to open chat widget</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="button1Color">Warna Tombol</Label>
+                <Label htmlFor="button1Color">Button Color</Label>
                 <div className="flex gap-2">
                   <Input
                     id="button1Color"
@@ -194,12 +194,12 @@ export default function WelcomeBubblePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Tombol 2</CardTitle>
-              <CardDescription>Tombol sekunder (opsional)</CardDescription>
+              <CardTitle>Button 2</CardTitle>
+              <CardDescription>Secondary button (optional)</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="button2Label">Label Tombol</Label>
+                <Label htmlFor="button2Label">Button Label</Label>
                 <Input
                   id="button2Label"
                   value={form.button2Label}
@@ -209,7 +209,7 @@ export default function WelcomeBubblePage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="button2Url">URL (opsional)</Label>
+                <Label htmlFor="button2Url">URL (optional)</Label>
                 <Input
                   id="button2Url"
                   value={form.button2Url}
@@ -219,7 +219,7 @@ export default function WelcomeBubblePage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="button2Color">Warna Tombol</Label>
+                <Label htmlFor="button2Color">Button Color</Label>
                 <div className="flex gap-2">
                   <Input
                     id="button2Color"
@@ -254,7 +254,7 @@ export default function WelcomeBubblePage() {
                   variant="outline"
                   onClick={() => setShowPreview(!showPreview)}
                 >
-                  {showPreview ? "Sembunyikan" : "Tampilkan"}
+                  {showPreview ? "Hide" : "Show"}
                 </Button>
               </div>
             </CardHeader>

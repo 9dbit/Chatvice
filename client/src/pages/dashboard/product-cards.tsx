@@ -50,10 +50,10 @@ export default function ProductCardsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/product-cards"] });
       setIsDialogOpen(false);
       resetForm();
-      toast({ title: "Product card berhasil dibuat" });
+      toast({ title: "Product card created successfully" });
     },
     onError: () => {
-      toast({ title: "Gagal membuat product card", variant: "destructive" });
+      toast({ title: "Failed to create product card", variant: "destructive" });
     },
   });
 
@@ -66,7 +66,7 @@ export default function ProductCardsPage() {
       setIsDialogOpen(false);
       setEditingCard(null);
       resetForm();
-      toast({ title: "Product card berhasil diperbarui" });
+      toast({ title: "Product card updated successfully" });
     },
   });
 
@@ -76,13 +76,13 @@ export default function ProductCardsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/product-cards"] });
-      toast({ title: "Product card berhasil dihapus" });
+      toast({ title: "Product card deleted successfully" });
     },
   });
 
   async function handleCrawlUrl() {
     if (!form.sourceUrl) {
-      toast({ title: "Masukkan URL terlebih dahulu", variant: "destructive" });
+      toast({ title: "Please enter URL first", variant: "destructive" });
       return;
     }
 
@@ -98,9 +98,9 @@ export default function ProductCardsPage() {
         imageUrl: data.imageUrl || form.imageUrl,
       });
       
-      toast({ title: "Data berhasil diambil dari URL" });
+      toast({ title: "Data fetched from URL successfully" });
     } catch {
-      toast({ title: "Gagal mengambil data dari URL", variant: "destructive" });
+      toast({ title: "Failed to fetch data from URL", variant: "destructive" });
     } finally {
       setIsCrawling(false);
     }
@@ -150,7 +150,7 @@ export default function ProductCardsPage() {
             <Package className="w-6 h-6" />
             Product Cards
           </h1>
-          <p className="text-muted-foreground">Buat kartu produk yang bisa ditampilkan di chat widget</p>
+          <p className="text-muted-foreground">Create product cards that can be displayed in the chat widget</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
           setIsDialogOpen(open);
@@ -162,17 +162,17 @@ export default function ProductCardsPage() {
           <DialogTrigger asChild>
             <Button data-testid="button-add-card">
               <Plus className="w-4 h-4 mr-2" />
-              Tambah Product Card
+              Add Product Card
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>{editingCard ? "Edit Product Card" : "Buat Product Card Baru"}</DialogTitle>
+              <DialogTitle>{editingCard ? "Edit Product Card" : "Create New Product Card"}</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4 md:grid-cols-2">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="sourceUrl">URL Sumber (untuk auto-fill)</Label>
+                  <Label htmlFor="sourceUrl">Source URL (for auto-fill)</Label>
                   <div className="flex gap-2">
                     <Input
                       id="sourceUrl"
@@ -193,32 +193,32 @@ export default function ProductCardsPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="title">Judul Produk</Label>
+                  <Label htmlFor="title">Product Title</Label>
                   <Input
                     id="title"
                     value={form.title}
                     onChange={(e) => setForm({ ...form, title: e.target.value })}
-                    placeholder="Nama Produk"
+                    placeholder="Product Name"
                     data-testid="input-title"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="price">Harga</Label>
+                  <Label htmlFor="price">Price</Label>
                   <Input
                     id="price"
                     value={form.price}
                     onChange={(e) => setForm({ ...form, price: e.target.value })}
-                    placeholder="Rp 100.000"
+                    placeholder="$99.00"
                     data-testid="input-price"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="description">Deskripsi</Label>
+                  <Label htmlFor="description">Description</Label>
                   <Textarea
                     id="description"
                     value={form.description}
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    placeholder="Deskripsi singkat produk..."
+                    placeholder="Brief product description..."
                     rows={3}
                     data-testid="input-description"
                   />
@@ -270,13 +270,13 @@ export default function ProductCardsPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Batal</Button>
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
               <Button 
                 onClick={handleSubmit} 
                 disabled={!form.title || createMutation.isPending || updateMutation.isPending}
                 data-testid="button-save-card"
               >
-                {editingCard ? "Simpan Perubahan" : "Buat Product Card"}
+                {editingCard ? "Save Changes" : "Create Product Card"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -287,11 +287,11 @@ export default function ProductCardsPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <Package className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="font-semibold mb-2">Belum ada product card</h3>
-            <p className="text-muted-foreground mb-4">Buat product card pertama untuk menampilkan produk di chat</p>
+            <h3 className="font-semibold mb-2">No product cards yet</h3>
+            <p className="text-muted-foreground mb-4">Create your first product card to display products in chat</p>
             <Button onClick={() => setIsDialogOpen(true)} data-testid="button-create-first-card">
               <Plus className="w-4 h-4 mr-2" />
-              Buat Product Card Pertama
+              Create First Product Card
             </Button>
           </CardContent>
         </Card>

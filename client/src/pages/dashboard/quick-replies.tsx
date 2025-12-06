@@ -42,10 +42,10 @@ export default function QuickRepliesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/quick-replies"] });
       setIsDialogOpen(false);
       resetForm();
-      toast({ title: "Quick reply berhasil dibuat" });
+      toast({ title: "Quick reply created successfully" });
     },
     onError: () => {
-      toast({ title: "Gagal membuat quick reply", variant: "destructive" });
+      toast({ title: "Failed to create quick reply", variant: "destructive" });
     },
   });
 
@@ -58,7 +58,7 @@ export default function QuickRepliesPage() {
       setIsDialogOpen(false);
       setEditingReply(null);
       resetForm();
-      toast({ title: "Quick reply berhasil diperbarui" });
+      toast({ title: "Quick reply updated successfully" });
     },
   });
 
@@ -68,7 +68,7 @@ export default function QuickRepliesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/quick-replies"] });
-      toast({ title: "Quick reply berhasil dihapus" });
+      toast({ title: "Quick reply deleted successfully" });
     },
   });
 
@@ -101,7 +101,7 @@ export default function QuickRepliesPage() {
 
   function copyToClipboard(text: string) {
     navigator.clipboard.writeText(text);
-    toast({ title: "Disalin ke clipboard" });
+    toast({ title: "Copied to clipboard" });
   }
 
   if (isLoading) {
@@ -120,7 +120,7 @@ export default function QuickRepliesPage() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-page-title">Quick Replies</h1>
-          <p className="text-muted-foreground">Buat balasan cepat yang dapat digunakan dengan shortcut "/"</p>
+          <p className="text-muted-foreground">Create quick replies that can be used with the "/" shortcut</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
           setIsDialogOpen(open);
@@ -132,12 +132,12 @@ export default function QuickRepliesPage() {
           <DialogTrigger asChild>
             <Button data-testid="button-add-reply">
               <Plus className="w-4 h-4 mr-2" />
-              Tambah Quick Reply
+              Add Quick Reply
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{editingReply ? "Edit Quick Reply" : "Buat Quick Reply Baru"}</DialogTitle>
+              <DialogTitle>{editingReply ? "Edit Quick Reply" : "Create New Quick Reply"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
@@ -152,7 +152,7 @@ export default function QuickRepliesPage() {
                     data-testid="input-shortcut"
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">Ketik /{form.shortcut.replace(/^\//, "") || "greeting"} untuk menggunakan</p>
+                <p className="text-xs text-muted-foreground">Type /{form.shortcut.replace(/^\//, "") || "greeting"} to use</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="label">Label</Label>
@@ -160,30 +160,30 @@ export default function QuickRepliesPage() {
                   id="label"
                   value={form.label}
                   onChange={(e) => setForm({ ...form, label: e.target.value })}
-                  placeholder="Sapaan Awal"
+                  placeholder="Initial Greeting"
                   data-testid="input-label"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="content">Isi Pesan</Label>
+                <Label htmlFor="content">Message Content</Label>
                 <Textarea
                   id="content"
                   value={form.content}
                   onChange={(e) => setForm({ ...form, content: e.target.value })}
-                  placeholder="Halo! Selamat datang di layanan pelanggan kami. Ada yang bisa saya bantu?"
+                  placeholder="Hello! Welcome to our customer service. How can I help you?"
                   rows={4}
                   data-testid="input-content"
                 />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Batal</Button>
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
               <Button 
                 onClick={handleSubmit} 
                 disabled={!form.shortcut || !form.label || !form.content || createMutation.isPending || updateMutation.isPending}
                 data-testid="button-save-reply"
               >
-                {editingReply ? "Simpan Perubahan" : "Buat Quick Reply"}
+                {editingReply ? "Save Changes" : "Create Quick Reply"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -194,10 +194,10 @@ export default function QuickRepliesPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Zap className="w-5 h-5" />
-            Cara Menggunakan
+            How to Use
           </CardTitle>
           <CardDescription>
-            Ketik shortcut di kolom chat untuk menggunakan quick reply
+            Type a shortcut in the chat field to use quick replies
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -206,8 +206,8 @@ export default function QuickRepliesPage() {
               <MessageSquare className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="font-medium">Ketik "/" untuk melihat daftar quick replies</p>
-              <p className="text-sm text-muted-foreground">Contoh: /greeting akan menampilkan sapaan awal</p>
+              <p className="font-medium">Type "/" to see the list of quick replies</p>
+              <p className="text-sm text-muted-foreground">Example: /greeting will show a greeting message</p>
             </div>
           </div>
         </CardContent>
@@ -217,11 +217,11 @@ export default function QuickRepliesPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="font-semibold mb-2">Belum ada quick reply</h3>
-            <p className="text-muted-foreground mb-4">Buat quick reply pertama untuk mempercepat respons</p>
+            <h3 className="font-semibold mb-2">No quick replies yet</h3>
+            <p className="text-muted-foreground mb-4">Create your first quick reply to speed up responses</p>
             <Button onClick={() => setIsDialogOpen(true)} data-testid="button-create-first-reply">
               <Plus className="w-4 h-4 mr-2" />
-              Buat Quick Reply Pertama
+              Create First Quick Reply
             </Button>
           </CardContent>
         </Card>
@@ -249,7 +249,7 @@ export default function QuickRepliesPage() {
                     data-testid={`button-copy-reply-${reply.id}`}
                   >
                     <Copy className="w-3 h-3 mr-1" />
-                    Salin
+                    Copy
                   </Button>
                   <Button 
                     size="sm" 

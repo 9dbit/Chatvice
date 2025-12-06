@@ -43,10 +43,10 @@ export default function ChatButtonsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/chat-buttons"] });
       setIsDialogOpen(false);
       resetForm();
-      toast({ title: "Chat button berhasil dibuat" });
+      toast({ title: "Chat button created successfully" });
     },
     onError: () => {
-      toast({ title: "Gagal membuat chat button", variant: "destructive" });
+      toast({ title: "Failed to create chat button", variant: "destructive" });
     },
   });
 
@@ -59,7 +59,7 @@ export default function ChatButtonsPage() {
       setIsDialogOpen(false);
       setEditingButton(null);
       resetForm();
-      toast({ title: "Chat button berhasil diperbarui" });
+      toast({ title: "Chat button updated successfully" });
     },
   });
 
@@ -69,7 +69,7 @@ export default function ChatButtonsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/chat-buttons"] });
-      toast({ title: "Chat button berhasil dihapus" });
+      toast({ title: "Chat button deleted successfully" });
     },
   });
 
@@ -150,7 +150,7 @@ export default function ChatButtonsPage() {
             <MousePointer2 className="w-6 h-6" />
             Chat Buttons
           </h1>
-          <p className="text-muted-foreground">Buat tombol aksi yang muncul di chat berdasarkan trigger word</p>
+          <p className="text-muted-foreground">Create action buttons that appear in chat based on trigger words</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
           setIsDialogOpen(open);
@@ -162,16 +162,16 @@ export default function ChatButtonsPage() {
           <DialogTrigger asChild>
             <Button data-testid="button-add-chat-button">
               <Plus className="w-4 h-4 mr-2" />
-              Tambah Chat Button
+              Add Chat Button
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{editingButton ? "Edit Chat Button" : "Buat Chat Button Baru"}</DialogTitle>
+              <DialogTitle>{editingButton ? "Edit Chat Button" : "Create New Chat Button"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="label">Label Tombol</Label>
+                <Label htmlFor="label">Button Label</Label>
                 <Input
                   id="label"
                   value={form.label}
@@ -181,52 +181,52 @@ export default function ChatButtonsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="buttonType">Tipe Tombol</Label>
+                <Label htmlFor="buttonType">Button Type</Label>
                 <Select value={form.buttonType} onValueChange={(v) => setForm({ ...form, buttonType: v })}>
                   <SelectTrigger id="buttonType" data-testid="select-button-type">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="link">Link (Buka URL)</SelectItem>
-                    <SelectItem value="action">Action (Kirim Pesan)</SelectItem>
-                    <SelectItem value="trigger">Trigger (Jalankan Aksi)</SelectItem>
+                    <SelectItem value="link">Link (Open URL)</SelectItem>
+                    <SelectItem value="action">Action (Send Message)</SelectItem>
+                    <SelectItem value="trigger">Trigger (Execute Action)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               {(form.buttonType === "link" || form.buttonType === "action") && (
                 <div className="space-y-2">
-                  <Label htmlFor="url">{form.buttonType === "link" ? "URL Tujuan" : "Pesan yang Dikirim"}</Label>
+                  <Label htmlFor="url">{form.buttonType === "link" ? "Target URL" : "Message to Send"}</Label>
                   <Input
                     id="url"
                     value={form.url}
                     onChange={(e) => setForm({ ...form, url: e.target.value })}
-                    placeholder={form.buttonType === "link" ? "https://example.com/product" : "Saya ingin tahu lebih lanjut"}
+                    placeholder={form.buttonType === "link" ? "https://example.com/product" : "I want to know more"}
                     data-testid="input-button-url"
                   />
                 </div>
               )}
               <div className="space-y-2">
-                <Label htmlFor="triggerWord">Trigger Word (Opsional)</Label>
+                <Label htmlFor="triggerWord">Trigger Word (Optional)</Label>
                 <Input
                   id="triggerWord"
                   value={form.triggerWord}
                   onChange={(e) => setForm({ ...form, triggerWord: e.target.value })}
-                  placeholder="produk, harga, katalog"
+                  placeholder="product, price, catalog"
                   data-testid="input-trigger-word"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Tombol akan muncul saat kata-kata ini terdeteksi dalam percakapan. Pisahkan dengan koma.
+                  Button will appear when these words are detected in conversation. Separate with comma.
                 </p>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Batal</Button>
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
               <Button 
                 onClick={handleSubmit} 
                 disabled={!form.label || createMutation.isPending || updateMutation.isPending}
                 data-testid="button-save-chat-button"
               >
-                {editingButton ? "Simpan Perubahan" : "Buat Chat Button"}
+                {editingButton ? "Save Changes" : "Create Chat Button"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -237,10 +237,10 @@ export default function ChatButtonsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Zap className="w-5 h-5" />
-            Cara Kerja
+            How It Works
           </CardTitle>
           <CardDescription>
-            Chat buttons adalah tombol yang muncul di chat widget untuk membantu customer
+            Chat buttons are action buttons that appear in the chat widget to help customers
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -251,7 +251,7 @@ export default function ChatButtonsPage() {
                 <span className="font-medium">Link</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Membuka URL eksternal di tab baru saat diklik
+                Opens external URL in a new tab when clicked
               </p>
             </div>
             <div className="p-4 bg-muted rounded-lg">
@@ -280,11 +280,11 @@ export default function ChatButtonsPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <MousePointer2 className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="font-semibold mb-2">Belum ada chat button</h3>
-            <p className="text-muted-foreground mb-4">Buat chat button pertama untuk membantu customer</p>
+            <h3 className="font-semibold mb-2">No chat buttons yet</h3>
+            <p className="text-muted-foreground mb-4">Create your first chat button to help customers</p>
             <Button onClick={() => setIsDialogOpen(true)} data-testid="button-create-first-chat-button">
               <Plus className="w-4 h-4 mr-2" />
-              Buat Chat Button Pertama
+              Create First Chat Button
             </Button>
           </CardContent>
         </Card>

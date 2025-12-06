@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Bot, Send, X, Minimize2, HeadphonesIcon, User, ImageIcon, Video, FileText, Plus, Loader2, ChevronLeft, ChevronRight, ExternalLink, ShoppingBag } from "lucide-react";
+import { Bot, Send, X, Minimize2, HeadphonesIcon, User, ImageIcon, Video, FileText, Plus, Loader2, ChevronLeft, ChevronRight, ExternalLink, ShoppingBag, EyeOff, GripVertical } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Message, SuggestedQuestion, WelcomeBubble, ChatButton, ProductCard, ProductCardButton, QuickReply } from "@shared/schema";
@@ -63,6 +63,31 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const [productCarouselIndex, setProductCarouselIndex] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastProcessedServerMsgId = useRef<string | null>(null);
+  
+  const [showQuickReplyPopup, setShowQuickReplyPopup] = useState(false);
+  const [quickReplyFilter, setQuickReplyFilter] = useState("");
+  const [selectedQuickReplyIndex, setSelectedQuickReplyIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  
+  const [isWidgetHidden, setIsWidgetHidden] = useState(() => {
+    try {
+      return localStorage.getItem(`chatvice_widget_hidden_${merchantId}`) === "true";
+    } catch {
+      return false;
+    }
+  });
+  const [widgetPosition, setWidgetPosition] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`chatvice_widget_position_${merchantId}`);
+      return saved ? parseInt(saved, 10) : 20;
+    } catch {
+      return 20;
+    }
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const dragStartY = useRef(0);
+  const dragStartPosition = useRef(0);
   
   const welcomeBubbleKey = `chatvice_welcome_bubble_dismissed_${merchantId}`;
   const [welcomeBubbleDismissedAt, setWelcomeBubbleDismissedAt] = useState<number | null>(() => {
@@ -311,14 +336,110 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       { clientId, from: "user", content: qr.label, timestamp: new Date() },
     ]);
     sendMessageMutation.mutate({ userMessage: qr.content, clientId });
+    setShowQuickReplyPopup(false);
+    setQuickReplyFilter("");
+    setMessage("");
+  };
+
+  const filteredQuickReplies = useMemo(() => {
+    if (!quickReplies.length) return [];
+    if (!quickReplyFilter) return quickReplies;
+    return quickReplies.filter(qr => 
+      qr.label.toLowerCase().includes(quickReplyFilter.toLowerCase()) ||
+      qr.content.toLowerCase().includes(quickReplyFilter.toLowerCase())
+    );
+  }, [quickReplies, quickReplyFilter]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setMessage(value);
+    
+    if (value.startsWith("/") && quickReplies.length > 0) {
+      setShowQuickReplyPopup(true);
+      setQuickReplyFilter(value.slice(1));
+      setSelectedQuickReplyIndex(0);
+    } else {
+      setShowQuickReplyPopup(false);
+      setQuickReplyFilter("");
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (showQuickReplyPopup) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedQuickReplyIndex(prev => 
+          Math.min(prev + 1, filteredQuickReplies.length - 1)
+        );
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedQuickReplyIndex(prev => Math.max(prev - 1, 0));
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (filteredQuickReplies[selectedQuickReplyIndex]) {
+          handleQuickReplyClick(filteredQuickReplies[selectedQuickReplyIndex]);
+        }
+      } else if (e.key === "Escape") {
+        setShowQuickReplyPopup(false);
+        setQuickReplyFilter("");
+        setMessage("");
+      }
+      return;
+    }
+    
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   };
+
+  const toggleWidgetHidden = useCallback(() => {
+    const newValue = !isWidgetHidden;
+    setIsWidgetHidden(newValue);
+    try {
+      localStorage.setItem(`chatvice_widget_hidden_${merchantId}`, String(newValue));
+    } catch {}
+  }, [isWidgetHidden, merchantId]);
+
+  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    setIsDragging(true);
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    dragStartY.current = clientY;
+    dragStartPosition.current = widgetPosition;
+    e.preventDefault();
+  }, [widgetPosition]);
+
+  const handleDragMove = useCallback((e: MouseEvent | TouchEvent) => {
+    if (!isDragging) return;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    const deltaY = dragStartY.current - clientY;
+    const newPosition = Math.max(20, Math.min(window.innerHeight - 100, dragStartPosition.current + deltaY));
+    setWidgetPosition(newPosition);
+  }, [isDragging]);
+
+  const handleDragEnd = useCallback(() => {
+    if (isDragging) {
+      setIsDragging(false);
+      try {
+        localStorage.setItem(`chatvice_widget_position_${merchantId}`, String(widgetPosition));
+      } catch {}
+    }
+  }, [isDragging, widgetPosition, merchantId]);
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleDragMove);
+      window.addEventListener('mouseup', handleDragEnd);
+      window.addEventListener('touchmove', handleDragMove);
+      window.addEventListener('touchend', handleDragEnd);
+      return () => {
+        window.removeEventListener('mousemove', handleDragMove);
+        window.removeEventListener('mouseup', handleDragEnd);
+        window.removeEventListener('touchmove', handleDragMove);
+        window.removeEventListener('touchend', handleDragEnd);
+      };
+    }
+  }, [isDragging, handleDragMove, handleDragEnd]);
 
   const handleFileUpload = async (file: File, type: "photo" | "video" | "document") => {
     if (!file) return;
@@ -507,8 +628,24 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   }, [serverMessages]);
 
   if (!embedded && !isOpen) {
+    if (isWidgetHidden) {
+      return (
+        <button
+          onClick={toggleWidgetHidden}
+          className="fixed right-0 z-50 bg-primary/90 hover:bg-primary text-white px-2 py-3 rounded-l-lg shadow-lg transition-all"
+          style={{ bottom: widgetPosition }}
+          data-testid="button-show-widget"
+        >
+          <Bot className="w-5 h-5" />
+        </button>
+      );
+    }
+    
     return (
-      <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-3">
+      <div 
+        className="fixed right-5 z-50 flex flex-col items-end gap-3"
+        style={{ bottom: widgetPosition }}
+      >
         {showWelcomeBubble && welcomeBubble?.isEnabled && (
           <div 
             className="bg-card rounded-2xl shadow-xl p-4 w-72 border border-border animate-in slide-in-from-bottom-5 fade-in duration-300"
@@ -558,34 +695,71 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </div>
         )}
         
-        <button
-          onClick={() => {
-            dismissWelcomeBubble();
-            handleWidgetOpen();
-          }}
-          className="rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-105"
-          style={{
-            width: iconSize,
-            height: iconSize,
-            backgroundColor: primaryColor,
-          }}
-          data-testid="button-open-widget"
+        <div 
+          className="relative group"
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
         >
-          {merchantConfig?.iconUrl ? (
-            <img
-              src={merchantConfig.iconUrl}
-              alt="Chat"
-              className="w-full h-full object-cover rounded-full"
-            />
-          ) : (
-            <Bot className="w-1/2 h-1/2 text-white" />
+          {isHovered && (
+            <div className="absolute -left-12 top-1/2 -translate-y-1/2 flex flex-col gap-1 animate-in fade-in slide-in-from-right-2 duration-150">
+              <button
+                onClick={toggleWidgetHidden}
+                className="p-2 bg-muted/90 hover:bg-muted rounded-full shadow-md transition-colors"
+                title="Hide widget"
+                data-testid="button-hide-widget"
+              >
+                <EyeOff className="w-4 h-4 text-muted-foreground" />
+              </button>
+              <button
+                onMouseDown={handleDragStart}
+                onTouchStart={handleDragStart}
+                className="p-2 bg-muted/90 hover:bg-muted rounded-full shadow-md cursor-grab active:cursor-grabbing transition-colors"
+                title="Drag to reposition"
+                data-testid="button-drag-widget"
+              >
+                <GripVertical className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
           )}
-          <span
-            className={`absolute bottom-1 right-1 w-3 h-3 rounded-full border-2 border-white ${
-              isOnline ? "bg-status-online" : "bg-status-offline"
-            }`}
-          />
-        </button>
+          
+          <button
+            onClick={() => {
+              dismissWelcomeBubble();
+              handleWidgetOpen();
+            }}
+            className="shadow-lg flex items-center justify-center transition-transform hover:scale-105 relative"
+            style={{
+              width: merchantConfig?.iconUrl ? 'auto' : iconSize,
+              height: merchantConfig?.iconUrl ? 'auto' : iconSize,
+              minWidth: iconSize,
+              minHeight: iconSize,
+              backgroundColor: merchantConfig?.iconUrl ? 'transparent' : primaryColor,
+              borderRadius: merchantConfig?.iconUrl ? '8px' : '50%',
+            }}
+            data-testid="button-open-widget"
+          >
+            {merchantConfig?.iconUrl ? (
+              <img
+                src={merchantConfig.iconUrl}
+                alt="Chat"
+                className="max-w-[80px] max-h-[80px] object-contain"
+                style={{ 
+                  width: 'auto',
+                  height: 'auto',
+                }}
+              />
+            ) : (
+              <Bot className="w-1/2 h-1/2 text-white" />
+            )}
+            {!merchantConfig?.iconUrl && (
+              <span
+                className={`absolute bottom-1 right-1 w-3 h-3 rounded-full border-2 border-white ${
+                  isOnline ? "bg-status-online" : "bg-status-offline"
+                }`}
+              />
+            )}
+          </button>
+        </div>
       </div>
     );
   }
@@ -1004,18 +1178,41 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               </div>
             </PopoverContent>
           </Popover>
-          <Input
-            placeholder="Type your message..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyPress}
-            disabled={!isOnline || isUploadingMedia}
-            className="flex-1"
-            data-testid="input-widget-message"
-          />
+          <div className="flex-1 relative">
+            <Input
+              ref={inputRef}
+              placeholder="Type / for quick replies..."
+              value={message}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyPress}
+              disabled={!isOnline || isUploadingMedia}
+              className="w-full"
+              data-testid="input-widget-message"
+            />
+            {showQuickReplyPopup && filteredQuickReplies.length > 0 && (
+              <div 
+                className="absolute bottom-full left-0 right-0 mb-1 bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto z-50"
+                data-testid="quick-reply-popup"
+              >
+                {filteredQuickReplies.map((qr, index) => (
+                  <button
+                    key={qr.id}
+                    onClick={() => handleQuickReplyClick(qr)}
+                    className={`w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors flex flex-col ${
+                      index === selectedQuickReplyIndex ? 'bg-muted' : ''
+                    }`}
+                    data-testid={`quick-reply-option-${qr.id}`}
+                  >
+                    <span className="font-medium">{qr.label}</span>
+                    <span className="text-xs text-muted-foreground truncate">{qr.content}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <Button
             onClick={handleSend}
-            disabled={sendMessageMutation.isPending || !message.trim() || !isOnline || isUploadingMedia}
+            disabled={sendMessageMutation.isPending || !message.trim() || !isOnline || isUploadingMedia || showQuickReplyPopup}
             style={{ backgroundColor: primaryColor }}
             data-testid="button-widget-send"
           >

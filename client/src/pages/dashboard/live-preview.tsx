@@ -1,24 +1,34 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { 
   Eye, Smartphone, Monitor, Tablet, RefreshCw, 
-  MessageSquare, Bot, Loader2, ExternalLink 
+  MessageSquare, Bot, Loader2, ExternalLink,
+  Settings, Sparkles, Package, MousePointer
 } from "lucide-react";
 import ChatWidget from "@/pages/chat-widget";
-import type { Agent, WelcomeBubble, QuickReply, ProductCard, ChatButton, SuggestedQuestion } from "@shared/schema";
+import type { Agent, WelcomeBubble, QuickReply, ProductCard, ChatButton, SuggestedQuestion, Merchant } from "@shared/schema";
 
 export default function LivePreviewPage() {
   const merchantId = localStorage.getItem("merchantId") || "";
   const [deviceView, setDeviceView] = useState<"mobile" | "tablet" | "desktop">("mobile");
   const [showWidget, setShowWidget] = useState(true);
   const [previewKey, setPreviewKey] = useState(0);
+
+  const previewSessionId = useMemo(() => 
+    `customer_preview_${merchantId}_${Date.now()}_${previewKey}`,
+    [merchantId, previewKey]
+  );
+
+  const { data: merchant } = useQuery<Merchant>({
+    queryKey: ["/api/merchant", merchantId],
+    enabled: !!merchantId,
+  });
 
   const { data: agents = [], isLoading: agentsLoading } = useQuery<Agent[]>({
     queryKey: ["/api/agents"],
@@ -50,7 +60,7 @@ export default function LivePreviewPage() {
     enabled: !!merchantId,
   });
 
-  const activeAgentId = agents.find(a => a.isActive)?.id;
+  const activeAgent = agents.find(a => a.isActive);
 
   const handleRefresh = () => {
     setShowWidget(false);
@@ -60,12 +70,12 @@ export default function LivePreviewPage() {
     }, 100);
   };
 
-  const getDeviceWidth = () => {
+  const getDeviceDimensions = () => {
     switch (deviceView) {
-      case "mobile": return "w-[375px]";
-      case "tablet": return "w-[768px]";
-      case "desktop": return "w-full max-w-5xl";
-      default: return "w-[375px]";
+      case "mobile": return { width: "375px", height: "667px" };
+      case "tablet": return { width: "768px", height: "600px" };
+      case "desktop": return { width: "100%", height: "500px" };
+      default: return { width: "375px", height: "667px" };
     }
   };
 
@@ -77,13 +87,15 @@ export default function LivePreviewPage() {
     );
   }
 
+  const dimensions = getDeviceDimensions();
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-page-title">Live Preview</h1>
           <p className="text-muted-foreground">
-            Preview chat widget dengan semua fitur terintegrasi
+            Preview your chat widget with all integrated features
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -97,7 +109,7 @@ export default function LivePreviewPage() {
             Refresh
           </Button>
           <a 
-            href={`/widget-preview?merchantId=${merchantId}`}
+            href={`/embed/${merchantId}/${activeAgent?.id || ''}`}
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -136,38 +148,38 @@ export default function LivePreviewPage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Features Status</CardTitle>
               <CardDescription className="text-sm">
-                Fitur yang aktif di widget
+                Active features in the widget
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm">Welcome Bubble</span>
                 <Badge variant={welcomeBubble?.isEnabled ? "default" : "secondary"}>
-                  {welcomeBubble?.isEnabled ? "Aktif" : "Nonaktif"}
+                  {welcomeBubble?.isEnabled ? "Active" : "Inactive"}
                 </Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm">Quick Replies</span>
                 <Badge variant={quickReplies.length > 0 ? "default" : "secondary"}>
-                  {quickReplies.length > 0 ? `${quickReplies.length} items` : "Nonaktif"}
+                  {quickReplies.length > 0 ? `${quickReplies.length} items` : "Inactive"}
                 </Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm">Product Cards</span>
                 <Badge variant={productCards.length > 0 ? "default" : "secondary"}>
-                  {productCards.length > 0 ? `${productCards.length} items` : "Nonaktif"}
+                  {productCards.length > 0 ? `${productCards.length} items` : "Inactive"}
                 </Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm">Chat Buttons</span>
                 <Badge variant={chatButtons.length > 0 ? "default" : "secondary"}>
-                  {chatButtons.length > 0 ? `${chatButtons.length} items` : "Nonaktif"}
+                  {chatButtons.length > 0 ? `${chatButtons.length} items` : "Inactive"}
                 </Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm">Suggested Questions</span>
                 <Badge variant={suggestedQuestions.length > 0 ? "default" : "secondary"}>
-                  {suggestedQuestions.length > 0 ? `${suggestedQuestions.length} items` : "Nonaktif"}
+                  {suggestedQuestions.length > 0 ? `${suggestedQuestions.length} items` : "Inactive"}
                 </Badge>
               </div>
             </CardContent>
@@ -178,18 +190,16 @@ export default function LivePreviewPage() {
               <CardTitle className="text-base">Active Agent</CardTitle>
             </CardHeader>
             <CardContent>
-              {agents.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Tidak ada agent aktif</p>
+              {!activeAgent ? (
+                <p className="text-sm text-muted-foreground">No active agent configured</p>
               ) : (
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                     <Bot className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <p className="font-medium text-sm">{agents.find(a => a.isActive)?.name || "No active agent"}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {agents.find(a => a.isActive)?.isActive ? "Active" : "Inactive"}
-                    </p>
+                    <p className="font-medium text-sm">{activeAgent.name}</p>
+                    <p className="text-xs text-muted-foreground">Active</p>
                   </div>
                 </div>
               )}
@@ -220,7 +230,7 @@ export default function LivePreviewPage() {
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <Eye className="w-5 h-5 text-primary" />
-                  <CardTitle className="text-base">Preview</CardTitle>
+                  <CardTitle className="text-base">Your Website Preview</CardTitle>
                 </div>
                 <Badge variant="outline">
                   {deviceView === "mobile" ? "375px" : deviceView === "tablet" ? "768px" : "Full"}
@@ -229,24 +239,30 @@ export default function LivePreviewPage() {
             </CardHeader>
             <CardContent>
               <div 
-                className={`mx-auto ${getDeviceWidth()} bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 rounded-lg overflow-hidden relative`}
+                className="mx-auto bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 rounded-lg overflow-hidden relative"
                 style={{ 
-                  minHeight: deviceView === "mobile" ? "667px" : deviceView === "tablet" ? "600px" : "500px",
+                  width: dimensions.width,
+                  maxWidth: "100%",
+                  height: dimensions.height,
                 }}
                 data-testid="preview-container"
               >
-                <div className="absolute inset-0 flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="text-center text-muted-foreground">
                     <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                    <p className="text-sm opacity-60">Your Website Preview</p>
+                    <p className="text-sm opacity-60">Your Website Content</p>
+                    <p className="text-xs opacity-40 mt-1">Widget appears in the corner</p>
                   </div>
                 </div>
                 
                 {showWidget && (
-                  <div className="absolute bottom-4 right-4 z-50" key={previewKey}>
+                  <div 
+                    className="absolute inset-0 overflow-hidden"
+                    key={previewKey}
+                  >
                     <ChatWidget 
                       merchantId={merchantId} 
-                      sessionId={`preview_${merchantId}_${previewKey}`}
+                      sessionId={previewSessionId}
                     />
                   </div>
                 )}
@@ -260,20 +276,20 @@ export default function LivePreviewPage() {
         <CardHeader>
           <CardTitle className="text-base">Configuration Links</CardTitle>
           <CardDescription>
-            Konfigurasi fitur-fitur widget Anda
+            Configure your widget features
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
             <a href="/dashboard/widget">
               <Button variant="outline" className="w-full h-auto py-3 flex flex-col gap-1" data-testid="link-widget-settings">
-                <Bot className="w-5 h-5" />
+                <Settings className="w-5 h-5" />
                 <span className="text-xs">Widget Settings</span>
               </Button>
             </a>
             <a href="/dashboard/welcome-bubble">
               <Button variant="outline" className="w-full h-auto py-3 flex flex-col gap-1" data-testid="link-welcome-bubble">
-                <MessageSquare className="w-5 h-5" />
+                <Sparkles className="w-5 h-5" />
                 <span className="text-xs">Welcome Bubble</span>
               </Button>
             </a>
@@ -285,13 +301,13 @@ export default function LivePreviewPage() {
             </a>
             <a href="/dashboard/product-cards">
               <Button variant="outline" className="w-full h-auto py-3 flex flex-col gap-1" data-testid="link-product-cards">
-                <MessageSquare className="w-5 h-5" />
+                <Package className="w-5 h-5" />
                 <span className="text-xs">Product Cards</span>
               </Button>
             </a>
             <a href="/dashboard/chat-buttons">
               <Button variant="outline" className="w-full h-auto py-3 flex flex-col gap-1" data-testid="link-chat-buttons">
-                <MessageSquare className="w-5 h-5" />
+                <MousePointer className="w-5 h-5" />
                 <span className="text-xs">Chat Buttons</span>
               </Button>
             </a>
