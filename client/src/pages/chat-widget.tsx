@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Bot, Send, X, Minimize2, HeadphonesIcon, User, ImageIcon, Video, FileText, Plus, Loader2, ChevronLeft, ChevronRight, ExternalLink, ShoppingBag } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent } from "@/components/ui/card";
-import type { Message, SuggestedQuestion, WelcomeBubble, ChatButton, ProductCard, ProductCardButton } from "@shared/schema";
+import type { Message, SuggestedQuestion, WelcomeBubble, ChatButton, ProductCard, ProductCardButton, QuickReply } from "@shared/schema";
 
 interface MerchantConfig {
   online: boolean;
@@ -118,6 +118,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const { data: notificationSettings } = useQuery<NotificationSettings>({
     queryKey: [`/api/widget/${merchantId}/notification-settings`],
     enabled: !!merchantId,
+  });
+
+  const { data: quickReplies = [] } = useQuery<QuickReply[]>({
+    queryKey: [`/api/widget/${merchantId}/quick-replies`],
+    enabled: !!merchantId && isOpen,
   });
 
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -297,6 +302,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       { clientId: generateClientId(), from: "user", content: sq.question, timestamp: new Date() },
     ]);
     useSuggestedQuestionMutation.mutate(sq);
+  };
+
+  const handleQuickReplyClick = (qr: QuickReply) => {
+    const clientId = generateClientId();
+    setPendingMessages((prev) => [
+      ...prev,
+      { clientId, from: "user", content: qr.label, timestamp: new Date() },
+    ]);
+    sendMessageMutation.mutate({ userMessage: qr.content, clientId });
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -864,6 +878,31 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 data-testid={`button-suggested-question-${sq.id}`}
               >
                 {sq.question}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {quickReplies.length > 0 && (
+        <div className="px-4 py-2 border-t border-border/50 bg-background/80 backdrop-blur-sm">
+          <p className="text-xs text-muted-foreground mb-1.5">Quick replies:</p>
+          <div className="flex flex-wrap gap-1.5">
+            {quickReplies.slice(0, 6).map((qr) => (
+              <Button
+                key={qr.id}
+                variant="secondary"
+                size="sm"
+                className="h-auto py-1 px-2.5 text-xs font-normal whitespace-normal text-left hover-elevate"
+                style={{ 
+                  backgroundColor: `${primaryColor}15`,
+                  borderColor: `${primaryColor}30`
+                }}
+                onClick={() => handleQuickReplyClick(qr)}
+                disabled={sendMessageMutation.isPending}
+                data-testid={`button-quick-reply-${qr.id}`}
+              >
+                {qr.label}
               </Button>
             ))}
           </div>

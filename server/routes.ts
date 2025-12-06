@@ -3669,5 +3669,17 @@ ${log.extractedKnowledge}` : ''}
     }
   });
 
+  // Get quick replies for widget (public)
+  app.get("/api/widget/:merchantId/quick-replies", async (req, res) => {
+    try {
+      const { merchantId } = req.params;
+      const replies = await storage.getQuickReplies(merchantId);
+      const activeReplies = replies.filter(r => r.isActive);
+      res.json(activeReplies);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   return httpServer;
 }
