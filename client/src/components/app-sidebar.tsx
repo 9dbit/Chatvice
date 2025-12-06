@@ -34,6 +34,7 @@ import {
   Package,
   Activity,
   MousePointer2,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -76,6 +77,7 @@ const menuItems = [
   { title: "Product Cards", url: "/dashboard/product-cards", icon: Package },
   { title: "Quick Replies", url: "/dashboard/quick-replies", icon: Reply },
   { title: "Chat Buttons", url: "/dashboard/chat-buttons", icon: MousePointer2 },
+  { title: "Live Preview", url: "/dashboard/live-preview", icon: Eye },
   { title: "Supervisors", url: "/dashboard/supervisors", icon: Users },
   { title: "Team Activity", url: "/dashboard/team-activity", icon: Activity },
   { title: "Work Scheduler", url: "/dashboard/work-scheduler", icon: Clock },

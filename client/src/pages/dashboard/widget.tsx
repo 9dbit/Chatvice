@@ -32,6 +32,8 @@ export default function WidgetPage() {
   const [showSecretKey, setShowSecretKey] = useState(false);
   const [embedType, setEmbedType] = useState<"widget" | "iframe">("widget");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const iconFileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingIcon, setIsUploadingIcon] = useState(false);
   const [config, setConfig] = useState({
     iconUrl: "",
     iconSize: 70,
@@ -169,6 +171,37 @@ export default function WidgetPage() {
     reader.onloadend = () => {
       setConfig({ ...config, agentPhotoUrl: reader.result as string });
       setIsUploading(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please select an image under 2MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!file.type.match(/^image\/(png|gif|jpeg|jpg|svg\+xml|webp)$/)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a PNG, GIF, JPG, SVG, or WebP file.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsUploadingIcon(true);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setConfig({ ...config, iconUrl: reader.result as string });
+      setIsUploadingIcon(false);
     };
     reader.readAsDataURL(file);
   };
@@ -375,16 +408,70 @@ window.chatvice('identify', { token }); // identify the user with Chatvice`;
                 ) : (
                   <>
                     <div className="space-y-2">
-                      <Label>Icon URL</Label>
-                      <Input
-                        placeholder="https://example.com/icon.png"
-                        value={config.iconUrl}
-                        onChange={(e) => setConfig({ ...config, iconUrl: e.target.value })}
-                        data-testid="input-icon-url"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Leave empty to use the default Chatvice icon
-                      </p>
+                      <Label>Widget Button Icon</Label>
+                      <div className="flex items-start gap-4">
+                        <div className="relative">
+                          <div 
+                            className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden border-2 border-muted"
+                            style={{ backgroundColor: config.primaryColor + '20' }}
+                          >
+                            {config.iconUrl ? (
+                              <img 
+                                src={config.iconUrl} 
+                                alt="Widget icon" 
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <Bot className="w-8 h-8" style={{ color: config.primaryColor }} />
+                            )}
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full"
+                            onClick={() => iconFileInputRef.current?.click()}
+                            disabled={isUploadingIcon}
+                            data-testid="button-upload-icon"
+                          >
+                            {isUploadingIcon ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Camera className="w-3 h-3" />
+                            )}
+                          </Button>
+                          <input
+                            ref={iconFileInputRef}
+                            type="file"
+                            accept="image/png,image/gif,image/jpeg,image/jpg,image/svg+xml,image/webp"
+                            className="hidden"
+                            onChange={handleIconUpload}
+                            data-testid="input-icon-file"
+                          />
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <Input
+                            placeholder="Or paste image URL"
+                            value={config.iconUrl}
+                            onChange={(e) => setConfig({ ...config, iconUrl: e.target.value })}
+                            data-testid="input-icon-url"
+                          />
+                          {config.iconUrl && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive h-auto p-0"
+                              onClick={() => setConfig({ ...config, iconUrl: "" })}
+                              data-testid="button-remove-icon"
+                            >
+                              <X className="w-3 h-3 mr-1" />
+                              Remove custom icon
+                            </Button>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            Supports PNG, GIF, JPG, SVG, WebP. Max 2MB.
+                          </p>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="space-y-2">

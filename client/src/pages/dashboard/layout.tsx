@@ -26,6 +26,7 @@ import WelcomeBubblePage from "./welcome-bubble";
 import ProductCardsPage from "./product-cards";
 import TeamActivityPage from "./team-activity";
 import ChatButtonsPage from "./chat-buttons";
+import LivePreviewPage from "./live-preview";
 import type { Merchant } from "@shared/schema";
 
 const pageNames: Record<string, string> = {
@@ -50,6 +51,7 @@ const pageNames: Record<string, string> = {
   "product-cards": "Product Cards",
   "team-activity": "Team Activity",
   "chat-buttons": "Chat Buttons",
+  "live-preview": "Live Preview",
 };
 
 function Breadcrumb({ location }: { location: string }) {
@@ -135,6 +137,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/product-cards" component={ProductCardsPage} />
               <Route path="/dashboard/team-activity" component={TeamActivityPage} />
               <Route path="/dashboard/chat-buttons" component={ChatButtonsPage} />
+              <Route path="/dashboard/live-preview" component={LivePreviewPage} />
               <Route path="/dashboard/plans" component={PlansPage} />
               <Route path="/dashboard/billing" component={BillingDetailsPage} />
               <Route path="/dashboard/settings" component={SettingsPage} />
