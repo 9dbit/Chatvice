@@ -63,6 +63,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const documentInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [showUploadMenu, setShowUploadMenu] = useState(false);
+  const [showProductMenu, setShowProductMenu] = useState(false);
   const [productCarouselIndex, setProductCarouselIndex] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastProcessedServerMsgId = useRef<string | null>(null);
@@ -1114,6 +1115,49 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               </div>
             </PopoverContent>
           </Popover>
+          {productCards.length > 0 && (
+            <Popover open={showProductMenu} onOpenChange={setShowProductMenu}>
+              <PopoverTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  disabled={!isOnline}
+                  data-testid="button-products-menu"
+                >
+                  <ShoppingBag className="w-4 h-4" style={{ color: primaryColor }} />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent side="top" align="start" className="w-64 p-2">
+                <div className="text-xs font-medium text-muted-foreground mb-2">Products</div>
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  {productCards.map((card) => (
+                    <div
+                      key={card.id}
+                      className={`flex items-center gap-2 p-2 rounded hover:bg-muted ${card.sourceUrl ? 'cursor-pointer' : 'opacity-60 cursor-not-allowed'}`}
+                      onClick={() => {
+                        if (card.sourceUrl) {
+                          window.open(card.sourceUrl, "_blank");
+                          setShowProductMenu(false);
+                        }
+                      }}
+                      data-testid={`product-menu-item-${card.id}`}
+                    >
+                      {card.imageUrl && (
+                        <img src={card.imageUrl} alt={card.title} className="w-10 h-10 rounded object-cover" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{card.title}</p>
+                        {card.price && (
+                          <p className="text-xs" style={{ color: primaryColor }}>{card.price}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
           <div className="flex-1 relative">
             <Input
               ref={inputRef}

@@ -256,15 +256,26 @@ export default function LivePreviewPage() {
                 </div>
                 
                 {showWidget && (
-                  <div 
-                    className="absolute inset-0 overflow-hidden"
-                    key={previewKey}
-                  >
-                    <ChatWidget 
-                      merchantId={merchantId} 
-                      sessionId={previewSessionId}
-                    />
-                  </div>
+                  <>
+                    <div 
+                      className="absolute inset-0 overflow-hidden"
+                      key={previewKey}
+                    >
+                      <ChatWidget 
+                        merchantId={merchantId} 
+                        sessionId={previewSessionId}
+                      />
+                    </div>
+                    
+                    {welcomeBubble?.isEnabled && (
+                      <div className="absolute bottom-20 right-4 max-w-[200px] animate-in fade-in slide-in-from-bottom-2 duration-300 pointer-events-none" data-testid="preview-welcome-bubble">
+                        <div className="bg-card rounded-xl p-3 shadow-lg border border-border relative">
+                          <p className="text-sm">{welcomeBubble.message || "Hi! How can I help you today?"}</p>
+                          <div className="absolute -bottom-2 right-4 w-0 h-0 border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-card" />
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </CardContent>

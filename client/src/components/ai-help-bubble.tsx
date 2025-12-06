@@ -23,8 +23,6 @@ const INITIAL_MESSAGE = `Hi! I'm Chatvice Guide, here to help you make the most 
 
 What would you like to know?`;
 
-const STORAGE_KEY = "chatvice-guide-position";
-const HIDDEN_KEY = "chatvice-guide-hidden";
 const CARD_WIDTH = 384;
 const CARD_HEIGHT = 500;
 const BUTTON_SIZE = 56;
@@ -50,7 +48,25 @@ function safeSetItem(key: string, value: string): void {
   }
 }
 
-export function AIHelpBubble() {
+interface AIHelpBubbleProps {
+  publicMode?: boolean;
+}
+
+const PUBLIC_INITIAL_MESSAGE = `Hi! I'm Chatvice Guide. I can help you learn about our AI customer service platform:
+
+- What is Chatvice?
+- Our key features
+- Pricing plans
+- How to get started
+- Integration options
+
+What would you like to know?`;
+
+export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
+  const storageKeySuffix = publicMode ? "-public" : "-dashboard";
+  const STORAGE_KEY = `chatvice-guide-position${storageKeySuffix}`;
+  const HIDDEN_KEY = `chatvice-guide-hidden${storageKeySuffix}`;
+  
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isHidden, setIsHidden] = useState(() => {
@@ -71,7 +87,7 @@ export function AIHelpBubble() {
     return { x: 24, y: 24 };
   });
   const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", content: INITIAL_MESSAGE }
+    { role: "assistant", content: publicMode ? PUBLIC_INITIAL_MESSAGE : INITIAL_MESSAGE }
   ]);
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -133,7 +149,8 @@ export function AIHelpBubble() {
 
   const askMutation = useMutation({
     mutationFn: async (question: string) => {
-      const response = await apiRequest("POST", "/api/help/ask", { question });
+      const endpoint = publicMode ? "/api/help/public-ask" : "/api/help/ask";
+      const response = await apiRequest("POST", endpoint, { question });
       return response.json();
     },
     onSuccess: (data) => {

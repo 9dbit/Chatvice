@@ -1205,6 +1205,17 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  app.get("/api/supervisors", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const supervisors = await storage.getSupervisorsByMerchant(merchantId);
+      const safeSupervisors = supervisors.map(({ password, ...s }) => s);
+      res.json(safeSupervisors);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/supervisors/:merchantId", requireMerchant, async (req, res) => {
     try {
       if (req.session.merchantId !== req.params.merchantId) {
@@ -2237,6 +2248,102 @@ Be helpful, friendly, and concise. If asked about something not related to Chatv
       res.json({ answer: response.choices[0].message.content || "I'm here to help! Ask me about how Chatvice can transform your customer service." });
     } catch (error) {
       res.json({ answer: "Hi! I'm Chatvice. I help businesses automate customer support with intelligent AI responses. Would you like to learn about our plans or features?" });
+    }
+  });
+
+  const publicHelpRateLimit = new Map<string, { count: number; resetTime: number }>();
+  const PUBLIC_HELP_LIMIT = 10;
+  const PUBLIC_HELP_WINDOW = 60 * 1000;
+
+  app.post("/api/help/public-ask", async (req, res) => {
+    try {
+      const clientIp = req.ip || req.socket.remoteAddress || "unknown";
+      const now = Date.now();
+      
+      const rateData = publicHelpRateLimit.get(clientIp);
+      if (rateData) {
+        if (now < rateData.resetTime) {
+          if (rateData.count >= PUBLIC_HELP_LIMIT) {
+            return res.status(429).json({ 
+              error: "Too many requests. Please try again later.",
+              answer: "You've reached the message limit. Please wait a moment before asking another question."
+            });
+          }
+          rateData.count++;
+        } else {
+          publicHelpRateLimit.set(clientIp, { count: 1, resetTime: now + PUBLIC_HELP_WINDOW });
+        }
+      } else {
+        publicHelpRateLimit.set(clientIp, { count: 1, resetTime: now + PUBLIC_HELP_WINDOW });
+      }
+      
+      if (publicHelpRateLimit.size > 10000) {
+        const keysToDelete: string[] = [];
+        publicHelpRateLimit.forEach((value, key) => {
+          if (now > value.resetTime) keysToDelete.push(key);
+        });
+        keysToDelete.forEach(key => publicHelpRateLimit.delete(key));
+      }
+      
+      const { question } = req.body;
+      
+      if (!question || typeof question !== 'string' || question.length > 500) {
+        return res.status(400).json({ 
+          error: "Invalid question",
+          answer: "Please provide a valid question (max 500 characters)."
+        });
+      }
+      
+      const chatviceGuide = `
+You are Chatvice Guide, helping potential customers learn about the Chatvice platform:
+
+WHAT IS CHATVICE?
+Chatvice is an AI-powered customer service chatbot platform that helps businesses automate customer support while maintaining high-quality service through smart AI-to-human handoff mechanisms.
+
+KEY FEATURES:
+1. AI-Powered Chatbot - Automates customer responses using a customizable knowledge base
+2. Human Escalation - Automatically escalates to human supervisors when needed
+3. Multi-Language Support - Responds in the customer's language
+4. Customizable Widget - Embeddable chat widget for your website
+5. Analytics Dashboard - Track performance, popular topics, and resolution rates
+6. Knowledge Base Management - Train your AI with your business information
+
+PRICING PLANS:
+- Free: 50 conversations/month, 1 AI agent - Great to get started
+- Starter ($29/mo): 500 conversations, 1 agent, email support
+- Pro ($79/mo): 5,000 conversations, 3 agents, advanced analytics
+- Enterprise ($299/mo): 50,000 conversations, 10 agents, dedicated support
+- Custom: Contact sales for unlimited features
+
+GETTING STARTED:
+1. Sign up for a free account
+2. Add your knowledge sources (FAQs, product info, etc.)
+3. Customize your chat widget
+4. Embed the widget on your website
+5. Start automating customer support!
+
+All plans include a 7-day free trial. No credit card required.
+`;
+      
+      const response = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: [
+          {
+            role: "system",
+            content: `${chatviceGuide}
+
+You are friendly, helpful, and enthusiastic about Chatvice. Help potential customers understand how Chatvice can help their business. Be concise and focused on value.`
+          },
+          { role: "user", content: question }
+        ],
+        max_tokens: 300,
+        temperature: 0.7,
+      });
+      
+      res.json({ answer: response.choices[0].message.content || "I'm here to help you learn about Chatvice! What would you like to know?" });
+    } catch (error) {
+      console.error("Public help ask error:", error);
+      res.json({ answer: "Chatvice is an AI customer service platform that helps businesses automate support. Would you like to learn more about our features or pricing?" });
     }
   });
 
