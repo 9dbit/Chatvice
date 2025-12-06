@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Bot, Send, X, Minimize2, HeadphonesIcon, User, ImageIcon, Video, FileText, Plus, Loader2, ChevronLeft, ChevronRight, ExternalLink, ShoppingBag, EyeOff, GripVertical } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent } from "@/components/ui/card";
-import type { Message, SuggestedQuestion, WelcomeBubble, ChatButton, ProductCard, ProductCardButton, QuickReply } from "@shared/schema";
+import type { Message, SuggestedQuestion, WelcomeBubble, ChatButton, ProductCard, ProductCardButton } from "@shared/schema";
 
 interface MerchantConfig {
   online: boolean;
@@ -64,9 +64,6 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastProcessedServerMsgId = useRef<string | null>(null);
   
-  const [showQuickReplyPopup, setShowQuickReplyPopup] = useState(false);
-  const [quickReplyFilter, setQuickReplyFilter] = useState("");
-  const [selectedQuickReplyIndex, setSelectedQuickReplyIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   
   const [isWidgetHidden, setIsWidgetHidden] = useState(() => {
@@ -143,11 +140,6 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const { data: notificationSettings } = useQuery<NotificationSettings>({
     queryKey: [`/api/widget/${merchantId}/notification-settings`],
     enabled: !!merchantId,
-  });
-
-  const { data: quickReplies = [] } = useQuery<QuickReply[]>({
-    queryKey: [`/api/widget/${merchantId}/quick-replies`],
-    enabled: !!merchantId && isOpen,
   });
 
   interface ProductRecommendationSettings {
@@ -345,64 +337,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     useSuggestedQuestionMutation.mutate(sq);
   };
 
-  const handleQuickReplyClick = (qr: QuickReply) => {
-    const clientId = generateClientId();
-    setPendingMessages((prev) => [
-      ...prev,
-      { clientId, from: "user", content: qr.label, timestamp: new Date() },
-    ]);
-    sendMessageMutation.mutate({ userMessage: qr.content, clientId });
-    setShowQuickReplyPopup(false);
-    setQuickReplyFilter("");
-    setMessage("");
-  };
-
-  const filteredQuickReplies = useMemo(() => {
-    if (!quickReplies.length) return [];
-    if (!quickReplyFilter) return quickReplies;
-    return quickReplies.filter(qr => 
-      qr.label.toLowerCase().includes(quickReplyFilter.toLowerCase()) ||
-      qr.content.toLowerCase().includes(quickReplyFilter.toLowerCase())
-    );
-  }, [quickReplies, quickReplyFilter]);
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setMessage(value);
-    
-    if (value.startsWith("/") && quickReplies.length > 0) {
-      setShowQuickReplyPopup(true);
-      setQuickReplyFilter(value.slice(1));
-      setSelectedQuickReplyIndex(0);
-    } else {
-      setShowQuickReplyPopup(false);
-      setQuickReplyFilter("");
-    }
+    setMessage(e.target.value);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (showQuickReplyPopup) {
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setSelectedQuickReplyIndex(prev => 
-          Math.min(prev + 1, filteredQuickReplies.length - 1)
-        );
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setSelectedQuickReplyIndex(prev => Math.max(prev - 1, 0));
-      } else if (e.key === "Enter") {
-        e.preventDefault();
-        if (filteredQuickReplies[selectedQuickReplyIndex]) {
-          handleQuickReplyClick(filteredQuickReplies[selectedQuickReplyIndex]);
-        }
-      } else if (e.key === "Escape") {
-        setShowQuickReplyPopup(false);
-        setQuickReplyFilter("");
-        setMessage("");
-      }
-      return;
-    }
-    
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -1074,31 +1013,6 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         </div>
       )}
 
-      {quickReplies.length > 0 && (
-        <div className="px-4 py-2 border-t border-border/50 bg-background/80 backdrop-blur-sm">
-          <p className="text-xs text-muted-foreground mb-1.5">Quick replies:</p>
-          <div className="flex flex-wrap gap-1.5">
-            {quickReplies.slice(0, 6).map((qr) => (
-              <Button
-                key={qr.id}
-                variant="secondary"
-                size="sm"
-                className="h-auto py-1 px-2.5 text-xs font-normal whitespace-normal text-left hover-elevate"
-                style={{ 
-                  backgroundColor: `${primaryColor}15`,
-                  borderColor: `${primaryColor}30`
-                }}
-                onClick={() => handleQuickReplyClick(qr)}
-                disabled={sendMessageMutation.isPending}
-                data-testid={`button-quick-reply-${qr.id}`}
-              >
-                {qr.label}
-              </Button>
-            ))}
-          </div>
-        </div>
-      )}
-
       <div className="p-4 border-t border-border">
         <input
           type="file"
@@ -1197,7 +1111,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           <div className="flex-1 relative">
             <Input
               ref={inputRef}
-              placeholder="Type / for quick replies..."
+              placeholder="Type your message..."
               value={message}
               onChange={handleInputChange}
               onKeyDown={handleKeyPress}
@@ -1205,30 +1119,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               className="w-full"
               data-testid="input-widget-message"
             />
-            {showQuickReplyPopup && filteredQuickReplies.length > 0 && (
-              <div 
-                className="absolute bottom-full left-0 right-0 mb-1 bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto z-50"
-                data-testid="quick-reply-popup"
-              >
-                {filteredQuickReplies.map((qr, index) => (
-                  <button
-                    key={qr.id}
-                    onClick={() => handleQuickReplyClick(qr)}
-                    className={`w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors flex flex-col ${
-                      index === selectedQuickReplyIndex ? 'bg-muted' : ''
-                    }`}
-                    data-testid={`quick-reply-option-${qr.id}`}
-                  >
-                    <span className="font-medium">{qr.label}</span>
-                    <span className="text-xs text-muted-foreground truncate">{qr.content}</span>
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
           <Button
             onClick={handleSend}
-            disabled={sendMessageMutation.isPending || !message.trim() || !isOnline || isUploadingMedia || showQuickReplyPopup}
+            disabled={sendMessageMutation.isPending || !message.trim() || !isOnline || isUploadingMedia}
             style={{ backgroundColor: primaryColor }}
             data-testid="button-widget-send"
           >
