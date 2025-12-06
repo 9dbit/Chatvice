@@ -37,6 +37,9 @@ export default function WidgetPage() {
   const [config, setConfig] = useState({
     iconUrl: "",
     iconSize: 70,
+    iconWidth: 70,
+    iconHeight: 70,
+    useCustomIconDimensions: false,
     online: true,
     primaryColor: "#6b5dfc",
     welcomeMessage: "Hi! How can I help you today?",
@@ -128,6 +131,9 @@ export default function WidgetPage() {
       setConfig({
         iconUrl: merchant.iconUrl || "",
         iconSize: merchant.iconSize || 70,
+        iconWidth: (merchant as any).iconWidth || 70,
+        iconHeight: (merchant as any).iconHeight || 70,
+        useCustomIconDimensions: (merchant as any).useCustomIconDimensions || false,
         online: merchant.online ?? true,
         primaryColor: agentWidgetSettings.primaryColor || "#6b5dfc",
         welcomeMessage: agentWidgetSettings.widgetWelcomeMessage || "Hi! How can I help you today?",
@@ -141,6 +147,9 @@ export default function WidgetPage() {
       setConfig({
         iconUrl: merchant.iconUrl || "",
         iconSize: merchant.iconSize || 70,
+        iconWidth: (merchant as any).iconWidth || 70,
+        iconHeight: (merchant as any).iconHeight || 70,
+        useCustomIconDimensions: (merchant as any).useCustomIconDimensions || false,
         online: merchant.online ?? true,
         primaryColor: merchant.primaryColor || "#6b5dfc",
         welcomeMessage: merchant.welcomeMessage || "Hi! How can I help you today?",
@@ -474,19 +483,67 @@ window.chatvice('identify', { token }); // identify the user with Chatvice`;
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <Label>Icon Size</Label>
-                        <span className="text-sm text-muted-foreground">{config.iconSize}px</span>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label>Use Custom Dimensions</Label>
+                          <p className="text-xs text-muted-foreground">
+                            Set exact width and height in pixels
+                          </p>
+                        </div>
+                        <Switch
+                          checked={config.useCustomIconDimensions}
+                          onCheckedChange={(checked) => setConfig({ ...config, useCustomIconDimensions: checked })}
+                          data-testid="switch-custom-dimensions"
+                        />
                       </div>
-                      <Slider
-                        value={[config.iconSize]}
-                        onValueChange={([value]) => setConfig({ ...config, iconSize: value })}
-                        min={50}
-                        max={100}
-                        step={5}
-                        data-testid="slider-icon-size"
-                      />
+
+                      {!config.useCustomIconDimensions ? (
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <Label>Icon Size</Label>
+                            <span className="text-sm text-muted-foreground">{config.iconSize}px</span>
+                          </div>
+                          <Slider
+                            value={[config.iconSize]}
+                            onValueChange={([value]) => setConfig({ ...config, iconSize: value })}
+                            min={50}
+                            max={100}
+                            step={5}
+                            data-testid="slider-icon-size"
+                          />
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="iconWidth">Width (px)</Label>
+                            <Input
+                              id="iconWidth"
+                              type="number"
+                              value={config.iconWidth}
+                              onChange={(e) => setConfig({ ...config, iconWidth: Math.max(20, Math.min(300, parseInt(e.target.value) || 70)) })}
+                              min={20}
+                              max={300}
+                              data-testid="input-icon-width"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="iconHeight">Height (px)</Label>
+                            <Input
+                              id="iconHeight"
+                              type="number"
+                              value={config.iconHeight}
+                              onChange={(e) => setConfig({ ...config, iconHeight: Math.max(20, Math.min(300, parseInt(e.target.value) || 70)) })}
+                              min={20}
+                              max={300}
+                              data-testid="input-icon-height"
+                            />
+                          </div>
+                          <p className="col-span-2 text-xs text-muted-foreground">
+                            Custom dimensions allow non-square icons (PNG/GIF). No circular mask applied.
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -708,18 +765,18 @@ window.chatvice('identify', { token }); // identify the user with Chatvice`;
                   </div>
 
                   <div
-                    className={`rounded-full cursor-pointer shadow-lg flex items-center justify-center relative ${config.bubblePosition === "left" ? "mr-auto" : "ml-auto"}`}
+                    className={`cursor-pointer shadow-lg flex items-center justify-center relative ${config.bubblePosition === "left" ? "mr-auto" : "ml-auto"} ${config.useCustomIconDimensions && config.iconUrl ? "" : "rounded-full"}`}
                     style={{
-                      width: config.iconSize,
-                      height: config.iconSize,
-                      backgroundColor: config.primaryColor,
+                      width: config.useCustomIconDimensions ? config.iconWidth : config.iconSize,
+                      height: config.useCustomIconDimensions ? config.iconHeight : config.iconSize,
+                      backgroundColor: config.useCustomIconDimensions && config.iconUrl ? "transparent" : config.primaryColor,
                     }}
                   >
                     {config.iconUrl ? (
                       <img
                         src={config.iconUrl}
                         alt="Chat icon"
-                        className="w-full h-full object-cover rounded-full"
+                        className={`w-full h-full object-contain ${config.useCustomIconDimensions ? "" : "rounded-full object-cover"}`}
                         onError={(e) => {
                           e.currentTarget.style.display = "none";
                         }}
@@ -727,11 +784,13 @@ window.chatvice('identify', { token }); // identify the user with Chatvice`;
                     ) : (
                       <Bot className="w-1/2 h-1/2 text-white" />
                     )}
-                    <div
-                      className={`absolute bottom-1 right-1 w-3 h-3 rounded-full border-2 border-white ${
-                        config.online ? "bg-status-online" : "bg-status-offline"
-                      }`}
-                    />
+                    {!config.useCustomIconDimensions && (
+                      <div
+                        className={`absolute bottom-1 right-1 w-3 h-3 rounded-full border-2 border-white ${
+                          config.online ? "bg-status-online" : "bg-status-offline"
+                        }`}
+                      />
+                    )}
                   </div>
 
                   <div 

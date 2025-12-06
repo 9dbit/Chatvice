@@ -15,6 +15,9 @@ interface MerchantConfig {
   primaryColor: string;
   iconUrl: string;
   iconSize: number;
+  iconWidth?: number;
+  iconHeight?: number;
+  useCustomIconDimensions?: boolean;
   welcomeMessage: string;
   companyName: string;
   agentName: string;
@@ -483,6 +486,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
   const primaryColor = merchantConfig?.primaryColor || "#6b5dfc";
   const iconSize = merchantConfig?.iconSize || 70;
+  const iconWidth = merchantConfig?.iconWidth || iconSize;
+  const iconHeight = merchantConfig?.iconHeight || iconSize;
+  const useCustomIconDimensions = merchantConfig?.useCustomIconDimensions || false;
   const isOnline = merchantConfig?.online ?? true;
 
   interface ProcessedMessage {
@@ -684,12 +690,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             }}
             className="shadow-lg flex items-center justify-center transition-transform hover:scale-105 relative"
             style={{
-              width: merchantConfig?.iconUrl ? 'auto' : iconSize,
-              height: merchantConfig?.iconUrl ? 'auto' : iconSize,
-              minWidth: iconSize,
-              minHeight: iconSize,
+              width: useCustomIconDimensions && merchantConfig?.iconUrl ? iconWidth : (merchantConfig?.iconUrl ? 'auto' : iconSize),
+              height: useCustomIconDimensions && merchantConfig?.iconUrl ? iconHeight : (merchantConfig?.iconUrl ? 'auto' : iconSize),
+              minWidth: useCustomIconDimensions ? iconWidth : iconSize,
+              minHeight: useCustomIconDimensions ? iconHeight : iconSize,
               backgroundColor: merchantConfig?.iconUrl ? 'transparent' : primaryColor,
-              borderRadius: merchantConfig?.iconUrl ? '8px' : '50%',
+              borderRadius: useCustomIconDimensions && merchantConfig?.iconUrl ? '0' : (merchantConfig?.iconUrl ? '8px' : '50%'),
             }}
             data-testid="button-open-widget"
           >
@@ -697,16 +703,16 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               <img
                 src={merchantConfig.iconUrl}
                 alt="Chat"
-                className="max-w-[80px] max-h-[80px] object-contain"
+                className={`object-contain ${useCustomIconDimensions ? 'w-full h-full' : 'max-w-[80px] max-h-[80px]'}`}
                 style={{ 
-                  width: 'auto',
-                  height: 'auto',
+                  width: useCustomIconDimensions ? iconWidth : 'auto',
+                  height: useCustomIconDimensions ? iconHeight : 'auto',
                 }}
               />
             ) : (
               <Bot className="w-1/2 h-1/2 text-white" />
             )}
-            {!merchantConfig?.iconUrl && (
+            {!useCustomIconDimensions && !merchantConfig?.iconUrl && (
               <span
                 className={`absolute bottom-1 right-1 w-3 h-3 rounded-full border-2 border-white ${
                   isOnline ? "bg-status-online" : "bg-status-offline"

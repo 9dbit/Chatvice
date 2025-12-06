@@ -1,9 +1,9 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, X, Send, Loader2, Sparkles, Minimize2 } from "lucide-react";
+import { Bot, X, Send, Loader2, Sparkles, Minimize2, GripVertical, EyeOff, Eye } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -23,14 +23,113 @@ const INITIAL_MESSAGE = `Hi! I'm Chatvice Guide, here to help you make the most 
 
 What would you like to know?`;
 
+const STORAGE_KEY = "chatvice-guide-position";
+const HIDDEN_KEY = "chatvice-guide-hidden";
+const CARD_WIDTH = 384;
+const CARD_HEIGHT = 500;
+const BUTTON_SIZE = 56;
+
+function safeGetItem(key: string): string | null {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return localStorage.getItem(key);
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function safeSetItem(key: string, value: string): void {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.setItem(key, value);
+    }
+  } catch {
+    // Silently fail if localStorage is not available
+  }
+}
+
 export function AIHelpBubble() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [isHidden, setIsHidden] = useState(() => {
+    const saved = safeGetItem(HIDDEN_KEY);
+    return saved === "true";
+  });
+  const [isHovered, setIsHovered] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [position, setPosition] = useState(() => {
+    const saved = safeGetItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return { x: 24, y: 24 };
+      }
+    }
+    return { x: 24, y: 24 };
+  });
   const [messages, setMessages] = useState<Message[]>([
     { role: "assistant", content: INITIAL_MESSAGE }
   ]);
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const dragStartPos = useRef({ x: 0, y: 0 });
+  const initialPosition = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    safeSetItem(STORAGE_KEY, JSON.stringify(position));
+  }, [position]);
+
+  useEffect(() => {
+    safeSetItem(HIDDEN_KEY, String(isHidden));
+  }, [isHidden]);
+
+  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    dragStartPos.current = { x: clientX, y: clientY };
+    initialPosition.current = { ...position };
+  }, [position]);
+
+  const handleDrag = useCallback((e: MouseEvent | TouchEvent) => {
+    if (!isDragging) return;
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    const deltaX = dragStartPos.current.x - clientX;
+    const deltaY = dragStartPos.current.y - clientY;
+    
+    const minX = 0;
+    const maxX = Math.max(0, window.innerWidth - CARD_WIDTH - 24);
+    const minY = 0;
+    const maxY = Math.max(0, window.innerHeight - CARD_HEIGHT - 24);
+    
+    const newX = Math.max(minX, Math.min(maxX, initialPosition.current.x + deltaX));
+    const newY = Math.max(minY, Math.min(maxY, initialPosition.current.y + deltaY));
+    setPosition({ x: newX, y: newY });
+  }, [isDragging]);
+
+  const handleDragEnd = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleDrag);
+      window.addEventListener('mouseup', handleDragEnd);
+      window.addEventListener('touchmove', handleDrag);
+      window.addEventListener('touchend', handleDragEnd);
+      return () => {
+        window.removeEventListener('mousemove', handleDrag);
+        window.removeEventListener('mouseup', handleDragEnd);
+        window.removeEventListener('touchmove', handleDrag);
+        window.removeEventListener('touchend', handleDragEnd);
+      };
+    }
+  }, [isDragging, handleDrag, handleDragEnd]);
 
   const askMutation = useMutation({
     mutationFn: async (question: string) => {
@@ -70,22 +169,77 @@ export function AIHelpBubble() {
     }
   }, [messages]);
 
+  const toggleHidden = () => {
+    setIsHidden(!isHidden);
+  };
+
+  if (isHidden) {
+    return (
+      <div 
+        className="fixed z-50"
+        style={{ bottom: position.y, right: position.x }}
+      >
+        <Button
+          size="icon"
+          variant="outline"
+          onClick={toggleHidden}
+          className="rounded-full w-10 h-10 shadow-lg bg-background/80 backdrop-blur-sm"
+          title="Show Chatvice Guide"
+          data-testid="button-show-ai-help"
+        >
+          <Eye className="w-4 h-4" />
+        </Button>
+      </div>
+    );
+  }
+
   if (!isOpen) {
     return (
-      <div className="fixed bottom-6 right-6 z-50">
-        <Button
-          size="lg"
-          onClick={() => setIsOpen(true)}
-          className="rounded-full w-14 h-14 shadow-lg bg-gradient-to-br from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white"
-          data-testid="button-ai-help"
+      <div 
+        className="fixed z-50"
+        style={{ bottom: position.y, right: position.x }}
+      >
+        <div 
+          className="relative group"
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
         >
-          <Sparkles className="w-6 h-6" />
-        </Button>
-        <div className="absolute -top-2 -right-1">
-          <span className="flex h-4 w-4">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-4 w-4 bg-pink-500"></span>
-          </span>
+          {isHovered && (
+            <div className="absolute -left-12 top-1/2 -translate-y-1/2 flex flex-col gap-1 animate-in fade-in slide-in-from-right-2 duration-150">
+              <button
+                onClick={toggleHidden}
+                className="p-2 bg-muted/90 hover:bg-muted rounded-full shadow-md transition-colors"
+                title="Hide guide"
+                data-testid="button-hide-ai-help"
+              >
+                <EyeOff className="w-4 h-4 text-muted-foreground" />
+              </button>
+              <button
+                onMouseDown={handleDragStart}
+                onTouchStart={handleDragStart}
+                className="p-2 bg-muted/90 hover:bg-muted rounded-full shadow-md cursor-grab active:cursor-grabbing transition-colors"
+                title="Drag to reposition"
+                data-testid="button-drag-ai-help"
+              >
+                <GripVertical className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
+          )}
+          
+          <Button
+            size="lg"
+            onClick={() => setIsOpen(true)}
+            className="rounded-full w-14 h-14 shadow-lg bg-gradient-to-br from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white"
+            data-testid="button-ai-help"
+          >
+            <Sparkles className="w-6 h-6" />
+          </Button>
+          <div className="absolute -top-2 -right-1">
+            <span className="flex h-4 w-4">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-4 w-4 bg-pink-500"></span>
+            </span>
+          </div>
         </div>
       </div>
     );
@@ -93,9 +247,12 @@ export function AIHelpBubble() {
 
   if (isMinimized) {
     return (
-      <div className="fixed bottom-6 right-6 z-50">
+      <div 
+        className="fixed z-50"
+        style={{ bottom: position.y, right: position.x }}
+      >
         <Card className="w-64 shadow-xl border-2 border-primary/20">
-          <CardHeader className="p-3 flex flex-row items-center justify-between space-y-0 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-orange-500/10">
+          <CardHeader className="p-3 flex flex-row items-center justify-between space-y-0 gap-2 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-orange-500/10">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center">
                 <Bot className="w-4 h-4 text-white" />
@@ -129,9 +286,12 @@ export function AIHelpBubble() {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div 
+      className="fixed z-50"
+      style={{ bottom: position.y, right: position.x }}
+    >
       <Card className="w-96 shadow-xl border-2 border-primary/20">
-        <CardHeader className="p-4 flex flex-row items-center justify-between space-y-0 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-orange-500/10 border-b">
+        <CardHeader className="p-4 flex flex-row items-center justify-between space-y-0 gap-2 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-orange-500/10 border-b">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center">
               <Bot className="w-5 h-5 text-white" />

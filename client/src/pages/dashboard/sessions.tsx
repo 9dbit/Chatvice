@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
-import type { Session, Message, Supervisor, Agent } from "@shared/schema";
+import type { Session, Message, Supervisor, Agent, QuickReply } from "@shared/schema";
 
 type SessionStatus = "angry" | "active" | "needs_response" | "ended";
 
@@ -103,6 +103,11 @@ export default function SessionsPage() {
   const [revisedAnswer, setRevisedAnswer] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  
+  const [showQuickReplyPopup, setShowQuickReplyPopup] = useState(false);
+  const [quickReplyFilter, setQuickReplyFilter] = useState("");
+  const [selectedQuickReplyIndex, setSelectedQuickReplyIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const { data: sessions, isLoading: sessionsLoading } = useQuery<SessionWithPreview[]>({
     queryKey: ["/api/sessions", merchantId],
@@ -130,6 +135,38 @@ export default function SessionsPage() {
     queryKey: ["/api/agents"],
     enabled: !!merchantId,
   });
+
+  const { data: quickReplies = [] } = useQuery<QuickReply[]>({
+    queryKey: ["/api/quick-replies"],
+    enabled: !!merchantId,
+  });
+
+  const filteredQuickReplies = quickReplies.filter(qr => {
+    if (!quickReplyFilter) return true;
+    return qr.label.toLowerCase().includes(quickReplyFilter.toLowerCase()) ||
+           qr.content.toLowerCase().includes(quickReplyFilter.toLowerCase());
+  });
+
+  const handleQuickReplyClick = (qr: QuickReply) => {
+    setNewMessage(qr.content);
+    setShowQuickReplyPopup(false);
+    setQuickReplyFilter("");
+    inputRef.current?.focus();
+  };
+
+  const handleMessageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setNewMessage(value);
+    
+    if (value.startsWith("/") && quickReplies.length > 0) {
+      setShowQuickReplyPopup(true);
+      setQuickReplyFilter(value.slice(1));
+      setSelectedQuickReplyIndex(0);
+    } else {
+      setShowQuickReplyPopup(false);
+      setQuickReplyFilter("");
+    }
+  };
 
   const getAgentName = (agentId: string | null | undefined) => {
     const effectiveAgentId = agentId || merchant?.activeAgentId;
@@ -340,6 +377,28 @@ export default function SessionsPage() {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (showQuickReplyPopup) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedQuickReplyIndex(prev => 
+          Math.min(prev + 1, filteredQuickReplies.length - 1)
+        );
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedQuickReplyIndex(prev => Math.max(prev - 1, 0));
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (filteredQuickReplies[selectedQuickReplyIndex]) {
+          handleQuickReplyClick(filteredQuickReplies[selectedQuickReplyIndex]);
+        }
+      } else if (e.key === "Escape") {
+        setShowQuickReplyPopup(false);
+        setQuickReplyFilter("");
+        setNewMessage("");
+      }
+      return;
+    }
+    
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -736,24 +795,52 @@ export default function SessionsPage() {
                   </ScrollArea>
                   {selectedSessionData?.mode === "HUMAN" && (
                     <div className="flex-shrink-0 p-3 border-t bg-background">
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Type your message..."
-                          value={newMessage}
-                          onChange={(e) => setNewMessage(e.target.value)}
-                          onKeyDown={handleKeyPress}
-                          className="h-9"
-                          data-testid="input-send-message"
-                        />
+                      <div className="flex gap-2 relative">
+                        <div className="flex-1 relative">
+                          <Input
+                            ref={inputRef}
+                            placeholder="Type / for quick replies..."
+                            value={newMessage}
+                            onChange={handleMessageInputChange}
+                            onKeyDown={handleKeyPress}
+                            className="h-9"
+                            data-testid="input-send-message"
+                          />
+                          {showQuickReplyPopup && filteredQuickReplies.length > 0 && (
+                            <div 
+                              className="absolute bottom-full left-0 right-0 mb-1 bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto z-50"
+                              data-testid="quick-reply-popup"
+                            >
+                              {filteredQuickReplies.map((qr, index) => (
+                                <button
+                                  key={qr.id}
+                                  onClick={() => handleQuickReplyClick(qr)}
+                                  className={`w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors flex flex-col ${
+                                    index === selectedQuickReplyIndex ? 'bg-muted' : ''
+                                  }`}
+                                  data-testid={`quick-reply-option-${qr.id}`}
+                                >
+                                  <span className="font-medium">{qr.label}</span>
+                                  <span className="text-xs text-muted-foreground truncate">{qr.content}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                         <Button
                           onClick={handleSendMessage}
-                          disabled={sendMessageMutation.isPending || !newMessage.trim()}
+                          disabled={sendMessageMutation.isPending || !newMessage.trim() || showQuickReplyPopup}
                           className="h-9"
                           data-testid="button-send-message"
                         >
                           <Send className="w-4 h-4" />
                         </Button>
                       </div>
+                      {quickReplies.length > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1.5">
+                          Type "/" to see quick replies
+                        </p>
+                      )}
                     </div>
                   )}
                 </CardContent>
