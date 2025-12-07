@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   MessageSquare, Bot, HeadphonesIcon, Send, Search, User, Download, 
   Hand, ArrowLeft, Clock, Edit, Check, X, Loader2, RefreshCw, AlertCircle,
-  CheckCircle2, Circle, XCircle, Filter, ShoppingBag, Plus
+  CheckCircle2, Circle, XCircle, Filter, ShoppingBag, Plus, ImageIcon, Video, FileText
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
@@ -113,6 +113,12 @@ export default function SessionsPage() {
   const [quickReplyFilter, setQuickReplyFilter] = useState("");
   const [selectedQuickReplyIndex, setSelectedQuickReplyIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const documentInputRef = useRef<HTMLInputElement>(null);
+  const [showUploadMenu, setShowUploadMenu] = useState(false);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
 
   const { data: sessions, isLoading: sessionsLoading } = useQuery<SessionWithPreview[]>({
     queryKey: ["/api/sessions", merchantId],
@@ -273,6 +279,60 @@ export default function SessionsPage() {
       });
     },
   });
+
+  const handleFileUpload = async (file: File, type: "photo" | "video" | "document") => {
+    if (!file || !selectedSession) return;
+    
+    setIsUploadingMedia(true);
+    setShowUploadMenu(false);
+    
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("merchantId", merchantId);
+      formData.append("sessionId", selectedSession);
+      formData.append("type", type);
+      formData.append("fromSupervisor", "true");
+      
+      const response = await fetch("/api/chat/upload", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+      
+      const typeLabels: Record<string, string> = {
+        photo: "Photo sent",
+        video: "Video sent",
+        document: "Document sent"
+      };
+      
+      await apiRequest("POST", "/api/session/send-message", {
+        sessionId: selectedSession,
+        message: `[${typeLabels[type]}]`,
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ["/api/messages", selectedSession] });
+      toast({
+        title: "File sent",
+        description: `${type.charAt(0).toUpperCase() + type.slice(1)} has been sent to the customer.`,
+      });
+    } catch {
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload the file. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingMedia(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (videoInputRef.current) videoInputRef.current.value = "";
+      if (documentInputRef.current) documentInputRef.current.value = "";
+    }
+  };
 
   const takeoverMutation = useMutation({
     mutationFn: async (sessionId: string) => {
@@ -794,56 +854,56 @@ export default function SessionsPage() {
                                   )}
                                   <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                                   {(msg as any).messageType === "product_offer" && (msg as any).payload?.productCard && (
-                                    <div className="mt-2 bg-background rounded-lg border overflow-hidden">
-                                      <div className="flex gap-3 p-2">
-                                        {(msg as any).payload.productCard.imageUrl ? (
+                                    <div className="mt-2 bg-background rounded-xl border shadow-sm overflow-hidden max-w-[220px]">
+                                      {(msg as any).payload.productCard.imageUrl ? (
+                                        <div className="aspect-square bg-muted/50 p-4">
                                           <img 
                                             src={(msg as any).payload.productCard.imageUrl} 
                                             alt={(msg as any).payload.productCard.title}
-                                            className="w-16 h-16 rounded object-cover flex-shrink-0"
+                                            className="w-full h-full object-contain"
                                           />
-                                        ) : (
-                                          <div className="w-16 h-16 rounded bg-muted flex items-center justify-center flex-shrink-0">
-                                            <ShoppingBag className="w-6 h-6 text-muted-foreground" />
-                                          </div>
-                                        )}
-                                        <div className="flex-1 min-w-0">
-                                          <p className="font-medium text-sm">{(msg as any).payload.productCard.title}</p>
-                                          {(msg as any).payload.productCard.price && (
-                                            <p className="text-sm text-primary font-semibold">{(msg as any).payload.productCard.price}</p>
-                                          )}
-                                          {(msg as any).payload.productCard.description && (
-                                            <p className="text-xs text-muted-foreground line-clamp-2">{(msg as any).payload.productCard.description}</p>
-                                          )}
                                         </div>
-                                      </div>
-                                      {(msg as any).payload.productCard.buttons?.length > 0 && (
-                                        <div className="flex gap-1 p-2 pt-0">
-                                          {(msg as any).payload.productCard.buttons.map((btn: any) => (
-                                            <Button
-                                              key={btn.id}
-                                              size="sm"
-                                              variant="secondary"
-                                              className="flex-1 h-7 text-xs"
-                                              onClick={() => btn.url && window.open(btn.url, '_blank')}
-                                              disabled={!btn.url}
-                                            >
-                                              {btn.label}
-                                            </Button>
-                                          ))}
+                                      ) : (
+                                        <div className="aspect-square bg-muted/50 flex items-center justify-center">
+                                          <ShoppingBag className="w-12 h-12 text-muted-foreground/50" />
                                         </div>
                                       )}
-                                      {(msg as any).payload.productCard.sourceUrl && (
-                                        <div className="p-2 pt-0">
+                                      <div className="p-3 space-y-2">
+                                        <p className="font-semibold text-sm">{(msg as any).payload.productCard.title}</p>
+                                        {(msg as any).payload.productCard.description && (
+                                          <p className="text-xs text-muted-foreground line-clamp-2">{(msg as any).payload.productCard.description}</p>
+                                        )}
+                                        {(msg as any).payload.productCard.price && (
+                                          <p className="text-sm text-primary font-bold">{(msg as any).payload.productCard.price}</p>
+                                        )}
+                                        {(msg as any).payload.productCard.buttons?.length > 0 ? (
+                                          <div className="flex flex-col gap-1.5 pt-1">
+                                            {(msg as any).payload.productCard.buttons.map((btn: any) => (
+                                              <Button
+                                                key={btn.id}
+                                                size="sm"
+                                                variant="outline"
+                                                className="w-full h-8 text-xs font-medium border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                                                onClick={() => btn.url && window.open(btn.url, '_blank')}
+                                                disabled={!btn.url}
+                                                data-testid={`button-product-action-${btn.id}`}
+                                              >
+                                                {btn.label}
+                                              </Button>
+                                            ))}
+                                          </div>
+                                        ) : (msg as any).payload.productCard.sourceUrl && (
                                           <Button
                                             size="sm"
-                                            className="w-full h-7 text-xs"
+                                            variant="outline"
+                                            className="w-full h-8 text-xs font-medium border-primary text-primary hover:bg-primary hover:text-primary-foreground"
                                             onClick={() => window.open((msg as any).payload.productCard.sourceUrl, '_blank')}
+                                            data-testid="button-view-product"
                                           >
-                                            View Product
+                                            Buy
                                           </Button>
-                                        </div>
-                                      )}
+                                        )}
+                                      </div>
                                     </div>
                                   )}
                                   <p className={`text-[10px] mt-1 ${msg.from === "user" ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
@@ -884,7 +944,100 @@ export default function SessionsPage() {
                   </ScrollArea>
                   {selectedSessionData?.mode === "HUMAN" && (
                     <div className="flex-shrink-0 p-3 border-t bg-background">
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleFileUpload(file, "photo");
+                        }}
+                        data-testid="input-file-photo"
+                      />
+                      <input
+                        type="file"
+                        ref={videoInputRef}
+                        accept="video/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleFileUpload(file, "video");
+                        }}
+                        data-testid="input-file-video"
+                      />
+                      <input
+                        type="file"
+                        ref={documentInputRef}
+                        accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.csv"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleFileUpload(file, "document");
+                        }}
+                        data-testid="input-file-document"
+                      />
                       <div className="flex gap-2 relative">
+                        <Popover open={showUploadMenu} onOpenChange={setShowUploadMenu}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-9 w-9"
+                              disabled={isUploadingMedia}
+                              data-testid="button-upload-menu"
+                            >
+                              {isUploadingMedia ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Plus className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent side="top" align="start" className="w-40 p-1">
+                            <div className="flex flex-col">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="justify-start gap-2 h-9"
+                                onClick={() => {
+                                  fileInputRef.current?.click();
+                                  setShowUploadMenu(false);
+                                }}
+                                data-testid="button-upload-image"
+                              >
+                                <ImageIcon className="w-4 h-4" />
+                                Image
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="justify-start gap-2 h-9"
+                                onClick={() => {
+                                  videoInputRef.current?.click();
+                                  setShowUploadMenu(false);
+                                }}
+                                data-testid="button-upload-video"
+                              >
+                                <Video className="w-4 h-4" />
+                                Video
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="justify-start gap-2 h-9"
+                                onClick={() => {
+                                  documentInputRef.current?.click();
+                                  setShowUploadMenu(false);
+                                }}
+                                data-testid="button-upload-document"
+                              >
+                                <FileText className="w-4 h-4" />
+                                Document
+                              </Button>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                         <div className="flex-1 relative">
                           <Input
                             ref={inputRef}

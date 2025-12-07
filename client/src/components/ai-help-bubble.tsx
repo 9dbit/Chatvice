@@ -26,6 +26,7 @@ What would you like to know?`;
 const CARD_WIDTH = 384;
 const CARD_HEIGHT = 500;
 const BUTTON_SIZE = 56;
+const WELCOME_BUBBLE_DISMISSED_KEY_SUFFIX = "-welcome-dismissed";
 
 function safeGetItem(key: string): string | null {
   try {
@@ -66,12 +67,17 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
   const storageKeySuffix = publicMode ? "-public" : "-dashboard";
   const STORAGE_KEY = `chatvice-guide-position${storageKeySuffix}`;
   const HIDDEN_KEY = `chatvice-guide-hidden${storageKeySuffix}`;
+  const WELCOME_KEY = `chatvice-guide${WELCOME_BUBBLE_DISMISSED_KEY_SUFFIX}${storageKeySuffix}`;
   
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isHidden, setIsHidden] = useState(() => {
     const saved = safeGetItem(HIDDEN_KEY);
     return saved === "true";
+  });
+  const [showWelcomeBubble, setShowWelcomeBubble] = useState(() => {
+    const dismissed = safeGetItem(WELCOME_KEY);
+    return dismissed !== "true";
   });
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -93,6 +99,16 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
   const initialPosition = useRef({ x: 0, y: 0 });
+
+  const dismissWelcomeBubble = () => {
+    setShowWelcomeBubble(false);
+    safeSetItem(WELCOME_KEY, "true");
+  };
+
+  const handleOpenFromWelcome = () => {
+    dismissWelcomeBubble();
+    setIsOpen(true);
+  };
 
   useEffect(() => {
     safeSetItem(STORAGE_KEY, JSON.stringify(position));
@@ -246,6 +262,37 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
             </div>
           )}
           
+          {/* Welcome bubble */}
+          {showWelcomeBubble && !isHovered && (
+            <div className="absolute bottom-full right-0 mb-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="bg-background border shadow-lg rounded-2xl rounded-br-sm p-3 max-w-[200px] sm:max-w-[240px] relative">
+                <button
+                  onClick={dismissWelcomeBubble}
+                  className="absolute -top-2 -right-2 w-5 h-5 bg-muted rounded-full flex items-center justify-center hover:bg-muted/80 transition-colors"
+                  data-testid="button-dismiss-welcome"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+                <p className="text-sm font-medium mb-2">
+                  {publicMode ? "Need help?" : "Need help navigating?"}
+                </p>
+                <p className="text-xs text-muted-foreground mb-2">
+                  {publicMode 
+                    ? "Ask me about Chatvice features and pricing!" 
+                    : "I can guide you through the dashboard features."}
+                </p>
+                <Button
+                  size="sm"
+                  onClick={handleOpenFromWelcome}
+                  className="w-full h-7 text-xs bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
+                  data-testid="button-open-from-welcome"
+                >
+                  Chat with Guide
+                </Button>
+              </div>
+            </div>
+          )}
+          
           <Button
             size="lg"
             onClick={() => setIsOpen(true)}
@@ -268,18 +315,18 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
   if (isMinimized) {
     return (
       <div 
-        className="fixed z-50"
+        className="fixed z-50 max-w-[calc(100vw-16px)] sm:max-w-none"
         style={{ bottom: position.y, right: position.x }}
       >
-        <Card className="w-64 shadow-xl border-2 border-primary/20">
-          <CardHeader className="p-3 flex flex-row items-center justify-between space-y-0 gap-2 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-orange-500/10">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center">
-                <Bot className="w-4 h-4 text-white" />
+        <Card className="w-56 sm:w-64 shadow-xl border-2 border-primary/20">
+          <CardHeader className="p-2.5 sm:p-3 flex flex-row items-center justify-between space-y-0 gap-2 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-orange-500/10">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
               </div>
-              <span className="font-semibold text-sm">Chatvice Guide</span>
+              <span className="font-semibold text-xs sm:text-sm truncate">Chatvice Guide</span>
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-1 flex-shrink-0">
               <Button
                 variant="ghost"
                 size="icon"
@@ -307,43 +354,43 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
 
   return (
     <div 
-      className="fixed z-50"
+      className="fixed z-50 max-w-[calc(100vw-16px)] sm:max-w-none"
       style={{ bottom: position.y, right: position.x }}
     >
-      <Card className="w-96 shadow-xl border-2 border-primary/20">
-        <CardHeader className="p-4 flex flex-row items-center justify-between space-y-0 gap-2 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-orange-500/10 border-b">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-white" />
+      <Card className="w-[calc(100vw-24px)] sm:w-80 md:w-96 shadow-xl border-2 border-primary/20">
+        <CardHeader className="p-3 sm:p-4 flex flex-row items-center justify-between space-y-0 gap-2 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-orange-500/10 border-b">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+              <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
-            <div>
-              <CardTitle className="text-base">Chatvice Guide</CardTitle>
-              <p className="text-xs text-muted-foreground">Here to help you succeed</p>
+            <div className="min-w-0">
+              <CardTitle className="text-sm sm:text-base truncate">Chatvice Guide</CardTitle>
+              <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Here to help you succeed</p>
             </div>
           </div>
-          <div className="flex gap-1">
+          <div className="flex gap-1 flex-shrink-0">
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-7 w-7 sm:h-8 sm:w-8"
               onClick={() => setIsMinimized(true)}
               data-testid="button-minimize-help"
             >
-              <Minimize2 className="w-4 h-4" />
+              <Minimize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-7 w-7 sm:h-8 sm:w-8"
               onClick={() => setIsOpen(false)}
               data-testid="button-close-help"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </Button>
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <ScrollArea className="h-80 p-4" ref={scrollRef}>
+          <ScrollArea className="h-64 sm:h-80 p-3 sm:p-4" ref={scrollRef}>
             <div className="space-y-4">
               {messages.map((msg, index) => (
                 <div 
@@ -382,19 +429,20 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
               )}
             </div>
           </ScrollArea>
-          <div className="p-4 border-t">
+          <div className="p-3 sm:p-4 border-t">
             <div className="flex items-center gap-2">
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask me anything about Chatvice..."
-                className="flex-1"
+                placeholder="Ask me anything..."
+                className="flex-1 text-sm h-9"
                 disabled={askMutation.isPending}
                 data-testid="input-help-question"
               />
               <Button 
                 size="icon" 
+                className="h-9 w-9 flex-shrink-0"
                 onClick={handleSend}
                 disabled={askMutation.isPending || !input.trim()}
                 data-testid="button-help-send"

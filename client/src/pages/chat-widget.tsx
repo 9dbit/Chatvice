@@ -954,54 +954,58 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 >
                   <p className="whitespace-pre-wrap">{msg.content}</p>
                   {(msg as any).messageType === "product_offer" && (msg as any).payload?.productCard && (
-                    <div className="mt-2 bg-background rounded-lg border overflow-hidden">
-                      <div className="flex gap-2 p-2">
-                        {(msg as any).payload.productCard.imageUrl ? (
+                    <div className="mt-2 bg-background rounded-xl border shadow-sm overflow-hidden max-w-[180px]">
+                      {(msg as any).payload.productCard.imageUrl ? (
+                        <div className="aspect-square bg-muted/30 p-3">
                           <img 
                             src={(msg as any).payload.productCard.imageUrl} 
                             alt={(msg as any).payload.productCard.title}
-                            className="w-14 h-14 rounded object-cover flex-shrink-0"
+                            className="w-full h-full object-contain"
                           />
-                        ) : (
-                          <div className="w-14 h-14 rounded bg-muted flex items-center justify-center flex-shrink-0">
-                            <ShoppingBag className="w-5 h-5 text-muted-foreground" />
-                          </div>
+                        </div>
+                      ) : (
+                        <div className="aspect-square bg-muted/30 flex items-center justify-center">
+                          <ShoppingBag className="w-10 h-10 text-muted-foreground/50" />
+                        </div>
+                      )}
+                      <div className="p-2.5 space-y-1.5">
+                        <p className="font-semibold text-sm">{(msg as any).payload.productCard.title}</p>
+                        {(msg as any).payload.productCard.description && (
+                          <p className="text-xs text-muted-foreground line-clamp-2">{(msg as any).payload.productCard.description}</p>
                         )}
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm">{(msg as any).payload.productCard.title}</p>
-                          {(msg as any).payload.productCard.price && (
-                            <p className="text-sm font-semibold" style={{ color: primaryColor }}>{(msg as any).payload.productCard.price}</p>
-                          )}
-                          {(msg as any).payload.productCard.description && (
-                            <p className="text-xs text-muted-foreground line-clamp-2">{(msg as any).payload.productCard.description}</p>
-                          )}
-                        </div>
-                      </div>
-                      {(msg as any).payload.productCard.buttons?.length > 0 && (
-                        <div className="flex gap-1 p-2 pt-0">
-                          {(msg as any).payload.productCard.buttons.map((btn: any) => (
-                            <button
-                              key={btn.id}
-                              className="flex-1 text-xs py-1.5 px-2 rounded bg-muted hover:bg-muted/80 transition-colors"
-                              onClick={() => btn.url && window.open(btn.url, '_blank')}
-                              disabled={!btn.url}
-                            >
-                              {btn.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {(msg as any).payload.productCard.sourceUrl && (
-                        <div className="p-2 pt-0">
+                        {(msg as any).payload.productCard.price && (
+                          <p className="text-sm font-bold" style={{ color: primaryColor }}>{(msg as any).payload.productCard.price}</p>
+                        )}
+                        {(msg as any).payload.productCard.buttons?.length > 0 ? (
+                          <div className="flex flex-col gap-1 pt-1">
+                            {(msg as any).payload.productCard.buttons.map((btn: any) => (
+                              <button
+                                key={btn.id}
+                                className="w-full text-xs py-1.5 px-2 rounded border transition-colors hover:text-white"
+                                style={{ borderColor: primaryColor, color: primaryColor }}
+                                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = primaryColor; e.currentTarget.style.color = 'white'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = primaryColor; }}
+                                onClick={() => btn.url && window.open(btn.url, '_blank')}
+                                disabled={!btn.url}
+                                data-testid={`button-product-action-${btn.id}`}
+                              >
+                                {btn.label}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (msg as any).payload.productCard.sourceUrl && (
                           <button
-                            className="w-full text-xs py-1.5 px-2 rounded text-white transition-colors"
-                            style={{ backgroundColor: primaryColor }}
+                            className="w-full text-xs py-1.5 px-2 rounded border transition-colors hover:text-white"
+                            style={{ borderColor: primaryColor, color: primaryColor }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = primaryColor; e.currentTarget.style.color = 'white'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = primaryColor; }}
                             onClick={() => window.open((msg as any).payload.productCard.sourceUrl, '_blank')}
+                            data-testid="button-buy-product"
                           >
-                            View Product
+                            Buy
                           </button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
