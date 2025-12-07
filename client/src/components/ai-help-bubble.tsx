@@ -75,10 +75,8 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
     const saved = safeGetItem(HIDDEN_KEY);
     return saved === "true";
   });
-  const [showWelcomeBubble, setShowWelcomeBubble] = useState(() => {
-    const dismissed = safeGetItem(WELCOME_KEY);
-    return dismissed !== "true";
-  });
+  const [showWelcomeBubble, setShowWelcomeBubble] = useState(true);
+  const lastDismissedAt = useRef<number>(0);
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [position, setPosition] = useState(() => {
@@ -102,13 +100,24 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
 
   const dismissWelcomeBubble = () => {
     setShowWelcomeBubble(false);
-    safeSetItem(WELCOME_KEY, "true");
+    lastDismissedAt.current = Date.now();
   };
 
   const handleOpenFromWelcome = () => {
     dismissWelcomeBubble();
     setIsOpen(true);
   };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const timeSinceDismissal = Date.now() - lastDismissedAt.current;
+      if (!isOpen && !isHidden && timeSinceDismissal >= 60000) {
+        setShowWelcomeBubble(true);
+      }
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [isOpen, isHidden]);
 
   useEffect(() => {
     safeSetItem(STORAGE_KEY, JSON.stringify(position));

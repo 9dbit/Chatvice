@@ -841,7 +841,10 @@ export default function SessionsPage() {
                                           : getAgentName(selectedSessionData?.agentId)}
                                     </p>
                                   )}
-                                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                                  {!((msg as any).messageType === "media" && (msg as any).payload?.url) && 
+                                   !((msg as any).messageType === "product_offer" && (msg as any).payload?.productCard) && (
+                                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                                  )}
                                   {(msg as any).messageType === "product_offer" && (msg as any).payload?.productCard && (
                                     <div className="mt-2 bg-background rounded-xl border shadow-sm overflow-hidden max-w-[200px]">
                                       {(msg as any).payload.productCard.imageUrl ? (
@@ -901,7 +904,7 @@ export default function SessionsPage() {
                                     </div>
                                   )}
                                   {(msg as any).messageType === "media" && (msg as any).payload && (
-                                    <div className="mt-2">
+                                    <div>
                                       {(msg as any).payload.type === "photo" && (
                                         <a href={(msg as any).payload.url} target="_blank" rel="noopener noreferrer">
                                           <img 
