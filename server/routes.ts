@@ -350,6 +350,25 @@ async function analyzeMediaWithAI(
     }
   }
 
+  let knowledgeContext = "";
+  try {
+    const relevantChunks = await searchKnowledge(merchantId, `image analysis ${filename}`, 3, activeAgentId);
+    if (relevantChunks.length > 0) {
+      knowledgeContext = relevantChunks.join("\n\n---\n\n");
+    } else {
+      const knowledge = activeAgentId 
+        ? await storage.getKnowledgeByAgent(activeAgentId)
+        : await storage.getKnowledge(merchantId);
+      knowledgeContext = knowledge?.content || "";
+    }
+  } catch (error) {
+    console.error("Knowledge search error in media analysis:", error);
+    const knowledge = activeAgentId 
+      ? await storage.getKnowledgeByAgent(activeAgentId)
+      : await storage.getKnowledge(merchantId);
+    knowledgeContext = knowledge?.content || "";
+  }
+
   const baseUrl = process.env.REPLIT_DEV_DOMAIN 
     ? `https://${process.env.REPLIT_DEV_DOMAIN}`
     : requestHost 
@@ -373,7 +392,11 @@ Instructions:
 3. If it's a receipt, invoice, or document - summarize key information
 4. Always be helpful and ask how you can assist further
 5. Respond in the same language the customer likely uses (detect from context or default to Indonesian)
-${agentSystemPrompt ? `\nCustom Instructions: ${agentSystemPrompt}` : ""}`
+6. Use the knowledge base information below to provide accurate, customized responses about company products, services, and policies
+
+${agentSystemPrompt ? `Custom Instructions: ${agentSystemPrompt}\n` : ""}
+Relevant Company Knowledge:
+${knowledgeContext || "No specific knowledge base configured yet."}`
           },
           {
             role: "user",
@@ -428,7 +451,11 @@ ${agentSystemPrompt ? `\nCustom Instructions: ${agentSystemPrompt}` : ""}`
                 role: "system",
                 content: `You are ${agentName}, a helpful AI Customer Service Agent for ${companyName}.
 Analyze this document content and provide helpful insights or ask how you can assist.
-${agentSystemPrompt ? `\nCustom Instructions: ${agentSystemPrompt}` : ""}`
+Use the knowledge base information below to provide accurate, customized responses.
+
+${agentSystemPrompt ? `Custom Instructions: ${agentSystemPrompt}\n` : ""}
+Relevant Company Knowledge:
+${knowledgeContext || "No specific knowledge base configured yet."}`
               },
               {
                 role: "user",

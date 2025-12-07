@@ -64,6 +64,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [showUploadMenu, setShowUploadMenu] = useState(false);
   const [productCarouselIndex, setProductCarouselIndex] = useState(0);
+  const [viewingImage, setViewingImage] = useState<{ url: string; filename: string } | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastProcessedServerMsgId = useRef<string | null>(null);
   
@@ -1004,13 +1005,16 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   {(msg as any).messageType === "media" && (msg as any).payload && (
                     <div>
                       {(msg as any).payload.type === "photo" && (
-                        <a href={(msg as any).payload.url} target="_blank" rel="noopener noreferrer">
-                          <img 
-                            src={(msg as any).payload.url} 
-                            alt={(msg as any).payload.filename || "Image"}
-                            className="max-w-[160px] max-h-[160px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                          />
-                        </a>
+                        <img 
+                          src={(msg as any).payload.url} 
+                          alt={(msg as any).payload.filename || "Image"}
+                          className="max-w-[160px] max-h-[160px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setViewingImage({ url: (msg as any).payload.url, filename: (msg as any).payload.filename || "Image" });
+                          }}
+                          data-testid="img-chat-media"
+                        />
                       )}
                       {(msg as any).payload.type === "video" && (
                         <video 
@@ -1037,13 +1041,16 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   {msg.mediaUrl && (
                     <div>
                       {msg.mediaType === "photo" && (
-                        <a href={msg.mediaUrl} target="_blank" rel="noopener noreferrer">
-                          <img 
-                            src={msg.mediaUrl} 
-                            alt="Uploaded image"
-                            className="max-w-[160px] max-h-[160px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                          />
-                        </a>
+                        <img 
+                          src={msg.mediaUrl} 
+                          alt="Uploaded image"
+                          className="max-w-[160px] max-h-[160px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setViewingImage({ url: msg.mediaUrl!, filename: "Image" });
+                          }}
+                          data-testid="img-chat-media-legacy"
+                        />
                       )}
                       {msg.mediaType === "video" && (
                         <video 
@@ -1256,6 +1263,42 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </p>
         )}
       </div>
+      
+      {viewingImage && (
+        <div 
+          className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center"
+          onClick={() => setViewingImage(null)}
+          data-testid="modal-image-viewer"
+        >
+          <div 
+            className="relative flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="absolute -top-12 right-0 z-[10000] p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+              onClick={() => setViewingImage(null)}
+              data-testid="button-close-image-viewer"
+            >
+              <X className="w-6 h-6 text-white" />
+            </button>
+            <img 
+              src={viewingImage.url} 
+              alt={viewingImage.filename}
+              className="max-w-[90vw] max-h-[80vh] object-contain rounded-lg"
+              data-testid="img-fullscreen-view"
+            />
+            <a
+              href={viewingImage.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="absolute -bottom-12 right-0 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+              data-testid="button-open-image-new-tab"
+            >
+              <ExternalLink className="w-5 h-5 text-white" />
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
