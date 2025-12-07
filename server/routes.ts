@@ -44,7 +44,10 @@ const upload = multer({
     const allowedTypes = [
       "image/jpeg", "image/png", "image/gif", "image/webp", 
       "video/mp4", "video/webm", "video/quicktime",
-      "audio/mpeg", "audio/wav", "audio/ogg", "audio/mp3", "audio/x-wav"
+      "audio/mpeg", "audio/wav", "audio/ogg", "audio/mp3", "audio/x-wav",
+      "application/pdf", "text/plain", "text/csv",
+      "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     ];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
@@ -321,6 +324,142 @@ If you don't have specific information to answer, be honest about it and offer t
       answer: "I'm experiencing some technical difficulties. Please try again in a moment.",
       mode: "AI",
     };
+  }
+}
+
+async function analyzeMediaWithAI(
+  merchantId: string,
+  sessionId: string,
+  mediaType: "photo" | "video" | "document",
+  fileUrl: string,
+  filename: string,
+  requestHost?: string
+): Promise<string> {
+  const merchant = await storage.getMerchant(merchantId);
+  const companyName = merchant?.companyName || "our company";
+  const activeAgentId = merchant?.activeAgentId || undefined;
+  
+  let agentName = "Chatvice";
+  let agentSystemPrompt = "";
+  
+  if (activeAgentId) {
+    const agent = await storage.getAgent(activeAgentId);
+    if (agent) {
+      agentName = agent.name || "Chatvice";
+      agentSystemPrompt = agent.systemPrompt || "";
+    }
+  }
+
+  const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+    ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+    : requestHost 
+      ? `https://${requestHost}`
+      : "http://localhost:5000";
+  const fullImageUrl = `${baseUrl}${fileUrl}`;
+
+  try {
+    if (mediaType === "photo") {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are ${agentName}, a helpful AI Customer Service Agent for ${companyName}.
+Your task is to analyze images sent by customers and offer relevant assistance.
+
+Instructions:
+1. Describe what you see in the image concisely
+2. If it shows a product, damage, issue, or problem - acknowledge it and offer help
+3. If it's a receipt, invoice, or document - summarize key information
+4. Always be helpful and ask how you can assist further
+5. Respond in the same language the customer likely uses (detect from context or default to Indonesian)
+${agentSystemPrompt ? `\nCustom Instructions: ${agentSystemPrompt}` : ""}`
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "Customer sent this image. Please analyze it and offer assistance."
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: fullImageUrl,
+                  detail: "auto"
+                }
+              }
+            ]
+          }
+        ],
+        max_completion_tokens: 500,
+      });
+
+      return completion.choices[0]?.message?.content || 
+        "Saya melihat gambar yang Anda kirim. Bagaimana saya bisa membantu Anda terkait ini?";
+    } 
+    
+    if (mediaType === "video") {
+      return `Terima kasih telah mengirimkan video "${filename}". Saya sudah menerimanya. Mohon jelaskan apa yang ingin Anda tanyakan atau butuhkan bantuan terkait video ini?`;
+    }
+    
+    if (mediaType === "document") {
+      const ext = filename.toLowerCase().split('.').pop() || "";
+      
+      if (ext === "pdf") {
+        return `Terima kasih telah mengirimkan dokumen PDF "${filename}". Saya sudah menerimanya. Apakah ada hal spesifik dari dokumen ini yang ingin Anda tanyakan atau diskusikan?`;
+      }
+      
+      if (ext === "txt" || ext === "csv") {
+        const filePath = path.join(process.cwd(), "uploads", fileUrl.replace("/uploads/", ""));
+        try {
+          const stats = await fs.promises.stat(filePath);
+          if (stats.size > 100 * 1024) {
+            return `Terima kasih telah mengirimkan dokumen "${filename}". File ini cukup besar. Apakah ada bagian spesifik yang ingin Anda tanyakan?`;
+          }
+          
+          const content = await fs.promises.readFile(filePath, "utf-8");
+          const preview = content.substring(0, 1000);
+          
+          const completion = await openai.chat.completions.create({
+            model: "gpt-4.1-mini",
+            messages: [
+              {
+                role: "system",
+                content: `You are ${agentName}, a helpful AI Customer Service Agent for ${companyName}.
+Analyze this document content and provide helpful insights or ask how you can assist.
+${agentSystemPrompt ? `\nCustom Instructions: ${agentSystemPrompt}` : ""}`
+              },
+              {
+                role: "user",
+                content: `Customer sent a ${ext.toUpperCase()} file named "${filename}". Here's the content:\n\n${preview}${content.length > 1000 ? "\n\n[Content truncated...]" : ""}\n\nPlease summarize and offer assistance.`
+              }
+            ],
+            max_completion_tokens: 500,
+          });
+          
+          return completion.choices[0]?.message?.content || 
+            `Saya sudah menerima dokumen "${filename}". Bagaimana saya bisa membantu Anda?`;
+        } catch {
+          return `Terima kasih telah mengirimkan dokumen "${filename}". Bagaimana saya bisa membantu Anda terkait dokumen ini?`;
+        }
+      }
+      
+      if (ext === "doc" || ext === "docx") {
+        return `Terima kasih telah mengirimkan dokumen Word "${filename}". Saya sudah menerimanya. Apakah ada hal spesifik dari dokumen ini yang ingin Anda tanyakan?`;
+      }
+      
+      if (ext === "xls" || ext === "xlsx") {
+        return `Terima kasih telah mengirimkan file Excel "${filename}". Saya sudah menerimanya. Apakah ada data atau informasi spesifik yang ingin Anda tanyakan dari file ini?`;
+      }
+      
+      return `Terima kasih telah mengirimkan dokumen "${filename}". Saya sudah menerimanya. Apakah ada yang bisa saya bantu terkait dokumen ini?`;
+    }
+    
+    return "Saya sudah menerima file Anda. Bagaimana saya bisa membantu?";
+  } catch (error) {
+    console.error("Media analysis error:", error);
+    return "Terima kasih telah mengirimkan file. Bagaimana saya bisa membantu Anda?";
   }
 }
 
@@ -1034,6 +1173,43 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           timestamp: message.timestamp,
         },
       });
+
+      if (!isSupervisor) {
+        const session = await storage.getSession(sessionId);
+        if (session?.mode === "AI") {
+          const requestHost = req.get("host");
+          (async () => {
+            try {
+              const aiAnalysis = await analyzeMediaWithAI(
+                merchantId,
+                sessionId,
+                mediaType,
+                fileUrl,
+                file.originalname,
+                requestHost
+              );
+
+              const aiMessage = await storage.createMessage({
+                sessionId,
+                from: "chatvice",
+                content: aiAnalysis,
+              });
+
+              broadcastToSession(sessionId, {
+                type: "message",
+                message: {
+                  id: aiMessage.id,
+                  from: "chatvice",
+                  content: aiAnalysis,
+                  timestamp: aiMessage.timestamp,
+                },
+              });
+            } catch (aiError) {
+              console.error("AI media analysis error:", aiError);
+            }
+          })();
+        }
+      }
 
       res.json({ 
         success: true, 

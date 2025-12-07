@@ -952,7 +952,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   style={msg.from === "user" ? { backgroundColor: primaryColor } : undefined}
                 >
                   {!((msg as any).messageType === "media" && (msg as any).payload?.url) && 
-                   !((msg as any).messageType === "product_offer" && (msg as any).payload?.productCard) && (
+                   !((msg as any).messageType === "product_offer" && (msg as any).payload?.productCard) &&
+                   !msg.mediaUrl && (
                     <p className="whitespace-pre-wrap">{msg.content}</p>
                   )}
                   {(msg as any).messageType === "product_offer" && (msg as any).payload?.productCard && (
@@ -1043,6 +1044,39 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                           <FileText className="w-4 h-4" style={{ color: primaryColor }} />
                           <span className="text-xs text-foreground truncate max-w-[120px]">
                             {(msg as any).payload.filename || "Document"}
+                          </span>
+                        </a>
+                      )}
+                    </div>
+                  )}
+                  {msg.mediaUrl && (
+                    <div>
+                      {msg.mediaType === "photo" && (
+                        <a href={msg.mediaUrl} target="_blank" rel="noopener noreferrer">
+                          <img 
+                            src={msg.mediaUrl} 
+                            alt="Uploaded image"
+                            className="max-w-[160px] max-h-[160px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                          />
+                        </a>
+                      )}
+                      {msg.mediaType === "video" && (
+                        <video 
+                          src={msg.mediaUrl}
+                          controls
+                          className="max-w-[200px] max-h-[150px] rounded-lg"
+                        />
+                      )}
+                      {msg.mediaType === "document" && (
+                        <a 
+                          href={msg.mediaUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 p-2 bg-background/50 rounded-lg border hover:bg-background transition-colors"
+                        >
+                          <FileText className="w-4 h-4" style={{ color: primaryColor }} />
+                          <span className="text-xs text-foreground truncate max-w-[120px]">
+                            Document
                           </span>
                         </a>
                       )}
