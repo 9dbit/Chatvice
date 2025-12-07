@@ -217,12 +217,15 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
         style={{ bottom: position.y, right: position.x }}
       >
         <div 
-          className="relative group"
+          className="relative"
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
+          {/* Expanded hover hotspot that includes the side buttons area */}
+          <div className="absolute -left-14 -top-2 -bottom-2 -right-2 pointer-events-auto" />
+          
           {isHovered && (
-            <div className="absolute -left-12 top-1/2 -translate-y-1/2 flex flex-col gap-1 animate-in fade-in slide-in-from-right-2 duration-150">
+            <div className="absolute -left-12 top-1/2 -translate-y-1/2 flex flex-col gap-1 animate-in fade-in slide-in-from-right-2 duration-150 z-10">
               <button
                 onClick={toggleHidden}
                 className="p-2 bg-muted/90 hover:bg-muted rounded-full shadow-md transition-colors"
@@ -246,12 +249,12 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
           <Button
             size="lg"
             onClick={() => setIsOpen(true)}
-            className="rounded-full w-14 h-14 shadow-lg bg-gradient-to-br from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white"
+            className="rounded-full w-14 h-14 shadow-lg bg-gradient-to-br from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white relative z-10"
             data-testid="button-ai-help"
           >
             <Sparkles className="w-6 h-6" />
           </Button>
-          <div className="absolute -top-2 -right-1">
+          <div className="absolute -top-2 -right-1 z-10">
             <span className="flex h-4 w-4">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-4 w-4 bg-pink-500"></span>
