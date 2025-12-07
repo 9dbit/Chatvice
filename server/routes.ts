@@ -429,7 +429,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         req.session.userId = supervisor.id;
         req.session.userType = "supervisor";
         req.session.merchantId = supervisor.merchantId;
-        return res.json({ success: true, merchantId: supervisor.id, type: "supervisor" });
+        return res.json({ success: true, merchantId: supervisor.merchantId, type: "supervisor" });
       }
 
       res.status(401).json({ error: "Invalid credentials" });
