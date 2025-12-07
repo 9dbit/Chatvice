@@ -523,9 +523,10 @@ export default function WorkSchedulerPage() {
             <div className="space-y-3">
               <h4 className="font-medium text-sm text-muted-foreground">Supervisor</h4>
               {supervisors.map((supervisor) => {
-                const isAssigned = assignments.some(
+                const existingAssignment = assignments.find(
                   a => a.shiftId === selectedShift?.id && a.assigneeId === supervisor.id
                 );
+                const isAssigned = !!existingAssignment;
                 return (
                   <div 
                     key={supervisor.id}
@@ -537,23 +538,39 @@ export default function WorkSchedulerPage() {
                       </div>
                       <span>{supervisor.name}</span>
                     </div>
-                    <Button
-                      size="sm"
-                      variant={isAssigned ? "secondary" : "outline"}
-                      disabled={isAssigned || assignMutation.isPending}
-                      onClick={() => {
-                        if (selectedShift) {
-                          assignMutation.mutate({
-                            shiftId: selectedShift.id,
-                            assigneeId: supervisor.id,
-                            assigneeType: "supervisor",
-                          });
-                        }
-                      }}
-                      data-testid={`button-assign-supervisor-${supervisor.id}`}
-                    >
-                      {isAssigned ? "Assigned" : "Assign"}
-                    </Button>
+                    {isAssigned ? (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={deleteAssignmentMutation.isPending}
+                        onClick={() => {
+                          if (existingAssignment) {
+                            deleteAssignmentMutation.mutate(existingAssignment.id);
+                          }
+                        }}
+                        data-testid={`button-unassign-supervisor-${supervisor.id}`}
+                      >
+                        Unassign
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={assignMutation.isPending}
+                        onClick={() => {
+                          if (selectedShift) {
+                            assignMutation.mutate({
+                              shiftId: selectedShift.id,
+                              assigneeId: supervisor.id,
+                              assigneeType: "supervisor",
+                            });
+                          }
+                        }}
+                        data-testid={`button-assign-supervisor-${supervisor.id}`}
+                      >
+                        Assign
+                      </Button>
+                    )}
                   </div>
                 );
               })}
@@ -561,9 +578,10 @@ export default function WorkSchedulerPage() {
             <div className="space-y-3">
               <h4 className="font-medium text-sm text-muted-foreground">AI Agents</h4>
               {agents.map((agent) => {
-                const isAssigned = assignments.some(
+                const existingAssignment = assignments.find(
                   a => a.shiftId === selectedShift?.id && a.assigneeId === agent.id
                 );
+                const isAssigned = !!existingAssignment;
                 return (
                   <div 
                     key={agent.id}
@@ -575,23 +593,39 @@ export default function WorkSchedulerPage() {
                       </div>
                       <span>{agent.name}</span>
                     </div>
-                    <Button
-                      size="sm"
-                      variant={isAssigned ? "secondary" : "outline"}
-                      disabled={isAssigned || assignMutation.isPending}
-                      onClick={() => {
-                        if (selectedShift) {
-                          assignMutation.mutate({
-                            shiftId: selectedShift.id,
-                            assigneeId: agent.id,
-                            assigneeType: "agent",
-                          });
-                        }
-                      }}
-                      data-testid={`button-assign-agent-${agent.id}`}
-                    >
-                      {isAssigned ? "Assigned" : "Assign"}
-                    </Button>
+                    {isAssigned ? (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={deleteAssignmentMutation.isPending}
+                        onClick={() => {
+                          if (existingAssignment) {
+                            deleteAssignmentMutation.mutate(existingAssignment.id);
+                          }
+                        }}
+                        data-testid={`button-unassign-agent-${agent.id}`}
+                      >
+                        Unassign
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={assignMutation.isPending}
+                        onClick={() => {
+                          if (selectedShift) {
+                            assignMutation.mutate({
+                              shiftId: selectedShift.id,
+                              assigneeId: agent.id,
+                              assigneeType: "agent",
+                            });
+                          }
+                        }}
+                        data-testid={`button-assign-agent-${agent.id}`}
+                      >
+                        Assign
+                      </Button>
+                    )}
                   </div>
                 );
               })}
