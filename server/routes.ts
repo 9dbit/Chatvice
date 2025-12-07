@@ -972,7 +972,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/chat/upload", upload.single("file"), async (req, res) => {
     try {
       const file = req.file;
-      const { merchantId, sessionId, type } = req.body;
+      const { merchantId, sessionId, type, fromSupervisor } = req.body;
 
       if (!file) {
         return res.status(400).json({ error: "No file uploaded" });
@@ -998,11 +998,49 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         url: fileUrl,
       });
 
+      const isSupervisor = fromSupervisor === "true" || fromSupervisor === true;
+      const messageFrom = isSupervisor ? "supervisor" : "user";
+      
+      const typeLabels: Record<string, string> = {
+        photo: "Photo",
+        video: "Video",
+        document: "Document"
+      };
+      
+      const message = await storage.createMessage({
+        sessionId,
+        from: messageFrom,
+        content: `[${typeLabels[mediaType]} sent]`,
+        messageType: "media",
+        payload: {
+          type: mediaType,
+          url: fileUrl,
+          filename: file.originalname,
+        },
+      });
+
+      broadcastToSession(sessionId, {
+        type: "message",
+        message: {
+          id: message.id,
+          from: messageFrom,
+          content: `[${typeLabels[mediaType]} sent]`,
+          messageType: "media",
+          payload: {
+            type: mediaType,
+            url: fileUrl,
+            filename: file.originalname,
+          },
+          timestamp: message.timestamp,
+        },
+      });
+
       res.json({ 
         success: true, 
         url: fileUrl,
         filename: file.filename,
-        type: mediaType
+        type: mediaType,
+        messageId: message.id,
       });
     } catch (error: any) {
       console.error("Upload error:", error);

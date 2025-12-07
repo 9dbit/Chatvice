@@ -310,6 +310,9 @@ export class DatabaseStorage implements IStorage {
       sessionId: data.sessionId,
       from: data.from,
       content: data.content,
+      messageType: data.messageType || "text",
+      payload: data.payload || null,
+      clientMessageId: data.clientMessageId || null,
     }).returning();
     return result[0];
   }

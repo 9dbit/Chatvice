@@ -1013,6 +1013,39 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                       </div>
                     </div>
                   )}
+                  {(msg as any).messageType === "media" && (msg as any).payload && (
+                    <div className="mt-2">
+                      {(msg as any).payload.type === "photo" && (
+                        <a href={(msg as any).payload.url} target="_blank" rel="noopener noreferrer">
+                          <img 
+                            src={(msg as any).payload.url} 
+                            alt={(msg as any).payload.filename || "Image"}
+                            className="max-w-[160px] max-h-[160px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                          />
+                        </a>
+                      )}
+                      {(msg as any).payload.type === "video" && (
+                        <video 
+                          src={(msg as any).payload.url}
+                          controls
+                          className="max-w-[200px] max-h-[150px] rounded-lg"
+                        />
+                      )}
+                      {(msg as any).payload.type === "document" && (
+                        <a 
+                          href={(msg as any).payload.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 p-2 bg-background/50 rounded-lg border hover:bg-background transition-colors"
+                        >
+                          <FileText className="w-4 h-4" style={{ color: primaryColor }} />
+                          <span className="text-xs text-foreground truncate max-w-[120px]">
+                            {(msg as any).payload.filename || "Document"}
+                          </span>
+                        </a>
+                      )}
+                    </div>
+                  )}
                 </div>
                 {msg.from === "user" && (
                   <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0">

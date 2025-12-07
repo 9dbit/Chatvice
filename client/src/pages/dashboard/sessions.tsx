@@ -304,17 +304,6 @@ export default function SessionsPage() {
         throw new Error("Upload failed");
       }
       
-      const typeLabels: Record<string, string> = {
-        photo: "Photo sent",
-        video: "Video sent",
-        document: "Document sent"
-      };
-      
-      await apiRequest("POST", "/api/session/send-message", {
-        sessionId: selectedSession,
-        message: `[${typeLabels[type]}]`,
-      });
-      
       queryClient.invalidateQueries({ queryKey: ["/api/messages", selectedSession] });
       toast({
         title: "File sent",
@@ -909,6 +898,39 @@ export default function SessionsPage() {
                                           </Button>
                                         )}
                                       </div>
+                                    </div>
+                                  )}
+                                  {(msg as any).messageType === "media" && (msg as any).payload && (
+                                    <div className="mt-2">
+                                      {(msg as any).payload.type === "photo" && (
+                                        <a href={(msg as any).payload.url} target="_blank" rel="noopener noreferrer">
+                                          <img 
+                                            src={(msg as any).payload.url} 
+                                            alt={(msg as any).payload.filename || "Image"}
+                                            className="max-w-[200px] max-h-[200px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                          />
+                                        </a>
+                                      )}
+                                      {(msg as any).payload.type === "video" && (
+                                        <video 
+                                          src={(msg as any).payload.url}
+                                          controls
+                                          className="max-w-[240px] max-h-[180px] rounded-lg"
+                                        />
+                                      )}
+                                      {(msg as any).payload.type === "document" && (
+                                        <a 
+                                          href={(msg as any).payload.url} 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className="flex items-center gap-2 p-2 bg-background/50 rounded-lg border hover:bg-background transition-colors"
+                                        >
+                                          <FileText className="w-5 h-5 text-primary" />
+                                          <span className="text-sm text-foreground truncate max-w-[150px]">
+                                            {(msg as any).payload.filename || "Document"}
+                                          </span>
+                                        </a>
+                                      )}
                                     </div>
                                   )}
                                   <p className={`text-[10px] mt-1 ${msg.from === "user" ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
