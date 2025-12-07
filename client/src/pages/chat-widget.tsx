@@ -39,6 +39,7 @@ interface ChatWidgetProps {
   merchantId: string;
   sessionId?: string;
   embedded?: boolean;
+  previewMode?: boolean;
 }
 
 interface PendingMessage {
@@ -52,7 +53,7 @@ interface PendingMessage {
 
 const generateClientId = () => `client_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
-export default function ChatWidget({ merchantId, sessionId: initialSessionId, embedded = false }: ChatWidgetProps) {
+export default function ChatWidget({ merchantId, sessionId: initialSessionId, embedded = false, previewMode = false }: ChatWidgetProps) {
   const [isOpen, setIsOpen] = useState(embedded);
   const [sessionId] = useState(() => initialSessionId || `sess_${Math.random().toString(36).substring(2, 12)}`);
   const [message, setMessage] = useState("");
@@ -574,13 +575,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     }
   }, [serverMessages]);
 
+  const positionClass = previewMode ? "absolute" : "fixed";
+  
   if (!embedded && !isOpen) {
     if (isWidgetHidden) {
       return (
         <button
           onClick={toggleWidgetHidden}
-          className="fixed right-0 z-50 bg-primary/90 hover:bg-primary text-white px-2 py-3 rounded-l-lg shadow-lg transition-all"
-          style={{ bottom: widgetPosition }}
+          className={`${positionClass} right-0 z-50 bg-primary/90 hover:bg-primary text-white px-2 py-3 rounded-l-lg shadow-lg transition-all`}
+          style={{ bottom: previewMode ? "20px" : widgetPosition }}
           data-testid="button-show-widget"
         >
           <Bot className="w-5 h-5" />
@@ -590,8 +593,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     
     return (
       <div 
-        className="fixed right-5 z-50 flex flex-col items-end gap-3"
-        style={{ bottom: widgetPosition }}
+        className={`${positionClass} right-5 z-50 flex flex-col items-end gap-3`}
+        style={{ bottom: previewMode ? "20px" : widgetPosition }}
       >
         {showWelcomeBubble && welcomeBubble?.isEnabled && (
           <div 
@@ -848,7 +851,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   return (
     <div
       className={`${
-        embedded ? "w-full h-full" : "fixed bottom-5 right-5 w-[360px] h-[520px] z-50"
+        embedded ? "w-full h-full" : `${positionClass} bottom-5 right-5 w-[360px] h-[520px] z-50`
       } bg-card rounded-2xl shadow-xl overflow-hidden flex flex-col border border-card-border`}
       data-testid="widget-container"
     >

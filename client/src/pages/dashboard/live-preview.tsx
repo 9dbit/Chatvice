@@ -72,10 +72,10 @@ export default function LivePreviewPage() {
 
   const getDeviceDimensions = () => {
     switch (deviceView) {
-      case "mobile": return { width: "375px", height: "667px" };
-      case "tablet": return { width: "768px", height: "600px" };
-      case "desktop": return { width: "100%", height: "500px" };
-      default: return { width: "375px", height: "667px" };
+      case "mobile": return { width: 375, height: 667, scale: 0.85 };
+      case "tablet": return { width: 768, height: 600, scale: 0.7 };
+      case "desktop": return { width: 1280, height: 720, scale: 0.55 };
+      default: return { width: 375, height: 667, scale: 0.85 };
     }
   };
 
@@ -233,50 +233,69 @@ export default function LivePreviewPage() {
                   <CardTitle className="text-base">Your Website Preview</CardTitle>
                 </div>
                 <Badge variant="outline">
-                  {deviceView === "mobile" ? "375px" : deviceView === "tablet" ? "768px" : "Full"}
+                  {deviceView === "mobile" ? "375 x 667" : deviceView === "tablet" ? "768 x 600" : "1280 x 720"}
                 </Badge>
               </div>
             </CardHeader>
             <CardContent>
               <div 
-                className="mx-auto bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 rounded-lg overflow-hidden relative"
+                className="flex items-center justify-center bg-muted/30 rounded-xl p-4 overflow-hidden"
                 style={{ 
-                  width: dimensions.width,
-                  maxWidth: "100%",
-                  height: dimensions.height,
+                  minHeight: `${dimensions.height * dimensions.scale + 40}px`,
                 }}
-                data-testid="preview-container"
               >
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="text-center text-muted-foreground">
-                    <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                    <p className="text-sm opacity-60">Your Website Content</p>
-                    <p className="text-xs opacity-40 mt-1">Widget appears in the corner</p>
+                <div 
+                  className="relative bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 rounded-lg shadow-2xl border border-border/50 overflow-hidden"
+                  style={{ 
+                    width: `${dimensions.width}px`,
+                    height: `${dimensions.height}px`,
+                    transform: `scale(${dimensions.scale})`,
+                    transformOrigin: "center center",
+                  }}
+                  data-testid="preview-container"
+                >
+                  <div className="absolute top-0 left-0 right-0 h-8 bg-slate-300 dark:bg-slate-700 flex items-center px-3 gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
+                    <div className="flex-1 mx-3">
+                      <div className="bg-slate-200 dark:bg-slate-600 rounded-md h-4 flex items-center justify-center">
+                        <span className="text-[10px] text-muted-foreground truncate px-2">yourwebsite.com</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                
-                {showWidget && (
-                  <>
-                    <div 
-                      className="absolute inset-0 overflow-hidden"
-                      key={previewKey}
-                    >
-                      <ChatWidget 
-                        merchantId={merchantId} 
-                        sessionId={previewSessionId}
-                      />
+                  
+                  <div className="absolute top-8 left-0 right-0 bottom-0">
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="text-center text-muted-foreground">
+                        <MessageSquare className="w-16 h-16 mx-auto mb-4 opacity-20" />
+                        <p className="text-lg font-medium opacity-40">Your Website Content</p>
+                        <p className="text-sm opacity-30 mt-1">Widget appears in the corner</p>
+                      </div>
                     </div>
                     
-                    {welcomeBubble?.isEnabled && (
-                      <div className="absolute bottom-20 right-4 max-w-[200px] animate-in fade-in slide-in-from-bottom-2 duration-300 pointer-events-none" data-testid="preview-welcome-bubble">
-                        <div className="bg-card rounded-xl p-3 shadow-lg border border-border relative">
-                          <p className="text-sm">{welcomeBubble.message || "Hi! How can I help you today?"}</p>
-                          <div className="absolute -bottom-2 right-4 w-0 h-0 border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-card" />
-                        </div>
+                    {showWidget && (
+                      <div 
+                        className="absolute inset-0"
+                        style={{ position: "relative" }}
+                        key={previewKey}
+                      >
+                        <ChatWidget 
+                          merchantId={merchantId} 
+                          sessionId={previewSessionId}
+                          embedded={false}
+                          previewMode={true}
+                        />
                       </div>
                     )}
-                  </>
-                )}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-center gap-2 mt-3 text-xs text-muted-foreground">
+                <span>Scale: {Math.round(dimensions.scale * 100)}%</span>
+                <span>|</span>
+                <span>Original: {dimensions.width} x {dimensions.height}px</span>
               </div>
             </CardContent>
           </Card>
