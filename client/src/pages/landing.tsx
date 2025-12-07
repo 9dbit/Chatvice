@@ -110,6 +110,7 @@ import purposeBuiltForLlmsImage from "@assets/purpose-built-for-llms_17648656960
 import maleAvatar from "@assets/345c6d52234bbc72407ea25d49ad945e_1764867029228.jpg";
 import femaleAvatar from "@assets/b80ad9fd48f0b1e8d404775c495633be_1764867029228.jpg";
 import heroBackgroundImage from "@assets/IMG_0185_1764870218768.jpeg";
+import heroBackgroundVideo from "@assets/copy_4FA0040D-39DB-40C8-BC72-DE41F25D45A3_1765148004334.gif";
 
 function RunningTextBanner({ settings }: { settings?: LandingPageSettings }) {
   const textContent = settings?.runningTextContent || "MEET LEXA1. THE NEXT POWERFUL AI CHATBOT.";
@@ -671,14 +672,19 @@ function HeroSection() {
       <RunningTextBanner settings={settings} />
 
       <div className="relative h-[500px] md:h-[calc(100vh-64px-300px)] overflow-hidden">
-        <div 
-          className="fixed inset-0 w-full bg-no-repeat -z-10 hero-parallax"
-          style={{ 
-            backgroundImage: `url(${backgroundUrl})`,
-            backgroundSize: '100% auto',
-            backgroundPosition: `center ${bgOffsetY}px`,
-          }}
-        >
+        <div className="fixed inset-0 w-full -z-10 hero-parallax overflow-hidden">
+          <img 
+            src={heroBackgroundVideo}
+            alt=""
+            className="w-full h-auto object-cover"
+            style={{ 
+              position: 'absolute',
+              top: `${bgOffsetY}px`,
+              left: '0',
+              width: '100%',
+              minWidth: '100%',
+            }}
+          />
           <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent via-60% to-[hsl(var(--background))]" />
         </div>
 
