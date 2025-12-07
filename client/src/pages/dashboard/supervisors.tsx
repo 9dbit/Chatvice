@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Users, Plus, Trash2, Mail, User, Camera, Loader2, Edit, Clock, Zap, Timer, AlertCircle, Bot, Check, Crown, ArrowUpRight, Link as LinkIcon, X } from "lucide-react";
 import { Link } from "wouter";
 import type { Supervisor, Agent, Merchant } from "@shared/schema";
@@ -190,11 +191,15 @@ export default function SupervisorsPage() {
       const errorMessage = error.message || "Something went wrong";
       const isDuplicate = errorMessage.toLowerCase().includes("already registered") || 
                           errorMessage.toLowerCase().includes("email already");
+      const isLimitReached = errorMessage.toLowerCase().includes("limit reached") ||
+                             errorMessage.toLowerCase().includes("upgrade your plan");
       
       toast({
-        title: isDuplicate ? "Email already exists" : "Failed to add supervisor",
+        title: isDuplicate ? "Email already exists" : isLimitReached ? "Supervisor Limit Reached" : "Failed to add supervisor",
         description: isDuplicate 
           ? "This email address has already been registered. Please use a different email."
+          : isLimitReached
+          ? "You've reached the supervisor limit for your plan. Please upgrade to add more supervisors."
           : "Something went wrong. Please try again.",
         variant: "destructive",
       });
@@ -352,15 +357,33 @@ export default function SupervisorsPage() {
           </Badge>
           
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button 
-                disabled={!canAddMore}
-                data-testid="button-add-supervisor"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Supervisor
-              </Button>
-            </DialogTrigger>
+            {!canAddMore ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button 
+                      disabled
+                      data-testid="button-add-supervisor"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Supervisor
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Supervisor limit reached. Upgrade your plan to add more.</p>
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <DialogTrigger asChild>
+                <Button 
+                  data-testid="button-add-supervisor"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Supervisor
+                </Button>
+              </DialogTrigger>
+            )}
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Add New Supervisor</DialogTitle>
@@ -507,12 +530,24 @@ export default function SupervisorsPage() {
             <Users className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4" />
             <p className="text-lg font-medium text-muted-foreground">No supervisors yet</p>
             <p className="text-sm text-muted-foreground mb-4">
-              Add team members who can handle escalated conversations
+              {canAddMore 
+                ? "Add team members who can handle escalated conversations"
+                : "Upgrade your plan to add supervisors to your team"
+              }
             </p>
-            <Button onClick={() => setIsDialogOpen(true)} data-testid="button-add-first-supervisor">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Your First Supervisor
-            </Button>
+            {canAddMore ? (
+              <Button onClick={() => setIsDialogOpen(true)} data-testid="button-add-first-supervisor">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Your First Supervisor
+              </Button>
+            ) : (
+              <Link href="/dashboard/plans">
+                <Button data-testid="button-upgrade-first-supervisor">
+                  <ArrowUpRight className="w-4 h-4 mr-2" />
+                  Upgrade Plan
+                </Button>
+              </Link>
+            )}
           </CardContent>
         </Card>
       ) : (
