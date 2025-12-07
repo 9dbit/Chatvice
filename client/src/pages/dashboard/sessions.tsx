@@ -98,7 +98,17 @@ interface SessionWithPreview extends Omit<Session, 'status' | 'needsSupervisorAt
 }
 
 export default function SessionsPage() {
-  const merchantId = localStorage.getItem("merchantId") || "";
+  const { data: authData } = useQuery<{ authenticated: boolean; merchantId?: string }>({
+    queryKey: ["/api/auth/me"],
+  });
+  const merchantId = authData?.merchantId || localStorage.getItem("merchantId") || "";
+  
+  useEffect(() => {
+    if (authData?.merchantId && authData.merchantId !== localStorage.getItem("merchantId")) {
+      localStorage.setItem("merchantId", authData.merchantId);
+    }
+  }, [authData?.merchantId]);
+  
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [agentFilter, setAgentFilter] = useState<string>("all");
