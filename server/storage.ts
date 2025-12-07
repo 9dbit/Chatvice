@@ -28,8 +28,9 @@ import {
   type NotificationSetting, type InsertNotificationSetting,
   type ProductRecommendationSetting, type InsertProductRecommendationSetting,
   type ProductTrigger, type InsertProductTrigger,
+  type SupervisorInvitation, type InsertSupervisorInvitation,
   merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings,
-  workShifts, shiftAssignments, workReports, quickReplies, chatButtons, productCards, productCardButtons, welcomeBubbles, notificationSettings, productRecommendationSettings, productTriggers,
+  workShifts, shiftAssignments, workReports, quickReplies, chatButtons, productCards, productCardButtons, welcomeBubbles, notificationSettings, productRecommendationSettings, productTriggers, supervisorInvitations,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -186,6 +187,15 @@ export interface IStorage {
   createProductTrigger(trigger: InsertProductTrigger): Promise<ProductTrigger>;
   updateProductTrigger(id: string, data: Partial<ProductTrigger>): Promise<ProductTrigger | undefined>;
   deleteProductTrigger(id: string): Promise<boolean>;
+  
+  // Supervisor Invitations
+  getSupervisorInvitations(merchantId: string): Promise<SupervisorInvitation[]>;
+  getSupervisorInvitation(id: string): Promise<SupervisorInvitation | undefined>;
+  getSupervisorInvitationByToken(token: string): Promise<SupervisorInvitation | undefined>;
+  getSupervisorInvitationByEmail(email: string, merchantId: string): Promise<SupervisorInvitation | undefined>;
+  createSupervisorInvitation(invitation: InsertSupervisorInvitation): Promise<SupervisorInvitation>;
+  updateSupervisorInvitation(id: string, data: Partial<SupervisorInvitation>): Promise<SupervisorInvitation | undefined>;
+  deleteSupervisorInvitation(id: string): Promise<boolean>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -1354,6 +1364,50 @@ export class DatabaseStorage implements IStorage {
 
   async deleteProductTrigger(id: string): Promise<boolean> {
     const result = await db.delete(productTriggers).where(eq(productTriggers.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // Supervisor Invitations
+  async getSupervisorInvitations(merchantId: string): Promise<SupervisorInvitation[]> {
+    return db.select().from(supervisorInvitations)
+      .where(eq(supervisorInvitations.merchantId, merchantId))
+      .orderBy(desc(supervisorInvitations.createdAt));
+  }
+
+  async getSupervisorInvitation(id: string): Promise<SupervisorInvitation | undefined> {
+    const result = await db.select().from(supervisorInvitations)
+      .where(eq(supervisorInvitations.id, id));
+    return result[0];
+  }
+
+  async getSupervisorInvitationByToken(token: string): Promise<SupervisorInvitation | undefined> {
+    const result = await db.select().from(supervisorInvitations)
+      .where(eq(supervisorInvitations.token, token));
+    return result[0];
+  }
+
+  async getSupervisorInvitationByEmail(email: string, merchantId: string): Promise<SupervisorInvitation | undefined> {
+    const result = await db.select().from(supervisorInvitations)
+      .where(and(eq(supervisorInvitations.email, email), eq(supervisorInvitations.merchantId, merchantId)));
+    return result[0];
+  }
+
+  async createSupervisorInvitation(invitation: InsertSupervisorInvitation): Promise<SupervisorInvitation> {
+    const id = generateId("inv_");
+    const result = await db.insert(supervisorInvitations).values({ ...invitation, id }).returning();
+    return result[0];
+  }
+
+  async updateSupervisorInvitation(id: string, data: Partial<SupervisorInvitation>): Promise<SupervisorInvitation | undefined> {
+    const result = await db.update(supervisorInvitations)
+      .set(data)
+      .where(eq(supervisorInvitations.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteSupervisorInvitation(id: string): Promise<boolean> {
+    const result = await db.delete(supervisorInvitations).where(eq(supervisorInvitations.id, id));
     return (result.rowCount ?? 0) > 0;
   }
 }

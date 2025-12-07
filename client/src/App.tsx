@@ -9,6 +9,7 @@ import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
 import { LoginPage, RegisterPage, ForgotPasswordPage } from "@/pages/auth";
 import SelectAgentPage from "@/pages/select-agent";
+import VerifySupervisorPage from "@/pages/verify-supervisor";
 import DashboardLayout from "@/pages/dashboard/layout";
 import SupervisorPanel from "@/pages/supervisor";
 import WidgetDemoPage from "@/pages/widget-demo";
@@ -57,6 +58,7 @@ function Router() {
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
       <Route path="/forgot-password" component={ForgotPasswordPage} />
+      <Route path="/verify-supervisor" component={VerifySupervisorPage} />
       <Route path="/select-agent" component={SelectAgentPage} />
       <Route path="/dashboard" component={DashboardLayout} />
       <Route path="/dashboard/:page*" component={DashboardLayout} />

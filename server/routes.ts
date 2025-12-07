@@ -1608,6 +1608,213 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // Supervisor Invitation System
+  app.get("/api/supervisor-invitations", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const invitations = await storage.getSupervisorInvitations(merchantId);
+      res.json(invitations);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/supervisor-invitations/invite", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const invitedById = req.session.userId!;
+      const { name, email } = req.body;
+      
+      if (!name || !email) {
+        return res.status(400).json({ error: "Name and email are required" });
+      }
+      
+      const limitCheck = await checkSubscriptionLimits(merchantId, 'supervisor');
+      if (!limitCheck.allowed) {
+        return res.status(403).json({ error: limitCheck.message });
+      }
+      
+      const existingSupervisor = await storage.getSupervisorByEmail(email);
+      if (existingSupervisor) {
+        return res.status(400).json({ error: "Email already registered as a supervisor" });
+      }
+      
+      const existingInvitation = await storage.getSupervisorInvitationByEmail(email, merchantId);
+      if (existingInvitation && existingInvitation.status === 'pending') {
+        return res.status(400).json({ error: "An invitation is already pending for this email" });
+      }
+      
+      const token = require('crypto').randomBytes(32).toString('hex');
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 48);
+      
+      const invitation = await storage.createSupervisorInvitation({
+        merchantId,
+        email,
+        name,
+        token,
+        status: 'pending',
+        invitedById,
+        expiresAt,
+      });
+      
+      const inviteLink = `${req.protocol}://${req.get('host')}/verify-supervisor?token=${token}`;
+      
+      res.json({ 
+        success: true, 
+        invitation: { ...invitation, token: undefined },
+        inviteLink,
+        message: "Invitation created. Share the link with the supervisor."
+      });
+    } catch (error) {
+      console.error("Error creating invitation:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/supervisor-invitations/verify/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      
+      const invitation = await storage.getSupervisorInvitationByToken(token);
+      if (!invitation) {
+        return res.status(404).json({ error: "Invalid invitation link" });
+      }
+      
+      if (invitation.status !== 'pending') {
+        return res.status(400).json({ error: "This invitation has already been used" });
+      }
+      
+      if (new Date() > new Date(invitation.expiresAt)) {
+        await storage.updateSupervisorInvitation(invitation.id, { status: 'expired' });
+        return res.status(400).json({ error: "This invitation has expired" });
+      }
+      
+      const merchant = await storage.getMerchant(invitation.merchantId);
+      
+      res.json({ 
+        valid: true,
+        email: invitation.email,
+        name: invitation.name,
+        companyName: merchant?.companyName || 'Unknown Company'
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/supervisor-invitations/complete", async (req, res) => {
+    try {
+      const { token, password } = req.body;
+      
+      if (!token || !password) {
+        return res.status(400).json({ error: "Token and password are required" });
+      }
+      
+      if (password.length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters" });
+      }
+      
+      const invitation = await storage.getSupervisorInvitationByToken(token);
+      if (!invitation) {
+        return res.status(404).json({ error: "Invalid invitation link" });
+      }
+      
+      if (invitation.status !== 'pending') {
+        return res.status(400).json({ error: "This invitation has already been used" });
+      }
+      
+      if (new Date() > new Date(invitation.expiresAt)) {
+        await storage.updateSupervisorInvitation(invitation.id, { status: 'expired' });
+        return res.status(400).json({ error: "This invitation has expired" });
+      }
+      
+      const existingSupervisor = await storage.getSupervisorByEmail(invitation.email);
+      if (existingSupervisor) {
+        return res.status(400).json({ error: "Email already registered" });
+      }
+      
+      const hashedPassword = await hashPassword(password);
+      const supervisor = await storage.createSupervisor({
+        merchantId: invitation.merchantId,
+        email: invitation.email,
+        name: invitation.name,
+        password: hashedPassword,
+        role: 'supervisor',
+        isVerified: true,
+        verifiedAt: new Date(),
+        invitedById: invitation.invitedById,
+      });
+      
+      await storage.updateSupervisorInvitation(invitation.id, {
+        status: 'accepted',
+        acceptedAt: new Date(),
+      });
+      
+      req.session.userId = supervisor.id;
+      req.session.userType = "supervisor";
+      req.session.merchantId = invitation.merchantId;
+      
+      const { password: _, ...safeSupervisor } = supervisor;
+      res.json({ 
+        success: true, 
+        supervisor: safeSupervisor,
+        merchantId: invitation.merchantId,
+        message: "Account created successfully"
+      });
+    } catch (error) {
+      console.error("Error completing invitation:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.delete("/api/supervisor-invitations/:invitationId", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const invitation = await storage.getSupervisorInvitation(req.params.invitationId);
+      
+      if (!invitation || invitation.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Invitation not found" });
+      }
+      
+      const success = await storage.deleteSupervisorInvitation(req.params.invitationId);
+      res.json({ success });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/supervisor-invitations/:invitationId/resend", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const invitation = await storage.getSupervisorInvitation(req.params.invitationId);
+      
+      if (!invitation || invitation.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Invitation not found" });
+      }
+      
+      const newToken = require('crypto').randomBytes(32).toString('hex');
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 48);
+      
+      await storage.updateSupervisorInvitation(invitation.id, {
+        token: newToken,
+        status: 'pending',
+        expiresAt,
+      });
+      
+      const inviteLink = `${req.protocol}://${req.get('host')}/verify-supervisor?token=${newToken}`;
+      
+      res.json({ 
+        success: true,
+        inviteLink,
+        message: "Invitation link regenerated"
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/supervisor/notifications/:supervisorId", requireSupervisor, async (req, res) => {
     try {
       if (req.session.userId !== req.params.supervisorId) {

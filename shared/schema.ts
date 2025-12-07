@@ -59,11 +59,32 @@ export const supervisors = pgTable("supervisors", {
   role: text("role").default("supervisor"),
   status: text("status").default("offline"),
   lastSeen: timestamp("last_seen"),
+  isVerified: boolean("is_verified").default(false),
+  verifiedAt: timestamp("verified_at"),
+  invitedById: varchar("invited_by_id", { length: 32 }),
 });
 
 export const insertSupervisorSchema = createInsertSchema(supervisors).omit({ id: true });
 export type InsertSupervisor = z.infer<typeof insertSupervisorSchema>;
 export type Supervisor = typeof supervisors.$inferSelect;
+
+// Supervisor Invitations - for email-based invitation flow
+export const supervisorInvitations = pgTable("supervisor_invitations", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  email: text("email").notNull(),
+  name: text("name").notNull(),
+  token: text("token").notNull(),
+  status: text("status").default("pending"),
+  invitedById: varchar("invited_by_id", { length: 32 }).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  acceptedAt: timestamp("accepted_at"),
+});
+
+export const insertSupervisorInvitationSchema = createInsertSchema(supervisorInvitations).omit({ id: true, createdAt: true });
+export type InsertSupervisorInvitation = z.infer<typeof insertSupervisorInvitationSchema>;
+export type SupervisorInvitation = typeof supervisorInvitations.$inferSelect;
 
 export const sessions = pgTable("sessions", {
   id: varchar("id", { length: 64 }).primaryKey(),
@@ -733,7 +754,7 @@ export const insertProductTriggerSchema = createInsertSchema(productTriggers).om
 export type InsertProductTrigger = z.infer<typeof insertProductTriggerSchema>;
 export type ProductTrigger = typeof productTriggers.$inferSelect;
 
-// Role permissions constants
+// Role permissions constants - controls dashboard page access
 export const rolePermissions = {
   administrator: {
     overview: true,
@@ -749,6 +770,10 @@ export const rolePermissions = {
     supervisors: true,
     workScheduler: true,
     notifications: true,
+    quickReplies: true,
+    teamActivity: true,
+    livePreview: true,
+    productCards: true,
   },
   supervisor: {
     overview: true,
@@ -758,13 +783,18 @@ export const rolePermissions = {
     settings: false,
     knowledgeBase: false,
     widgetSettings: false,
-    sources: false,
+    sources: true,
     analytics: false,
     billing: false,
-    supervisors: false,
+    supervisors: true,
     workScheduler: false,
-    notifications: false,
+    notifications: true,
+    quickReplies: true,
+    teamActivity: false,
+    livePreview: false,
+    productCards: false,
   },
 } as const;
 
+export type UserRole = "merchant" | "supervisor";
 export type SupervisorRole = keyof typeof rolePermissions;
