@@ -117,7 +117,8 @@ export default function SessionsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const documentInputRef = useRef<HTMLInputElement>(null);
-  const [showUploadMenu, setShowUploadMenu] = useState(false);
+  const [showPlusMenu, setShowPlusMenu] = useState(false);
+  const [plusMenuView, setPlusMenuView] = useState<"main" | "products">("main");
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
 
   const { data: sessions, isLoading: sessionsLoading } = useQuery<SessionWithPreview[]>({
@@ -156,8 +157,6 @@ export default function SessionsPage() {
     queryKey: ["/api/product-cards"],
     enabled: !!merchantId,
   });
-  
-  const [showProductPopover, setShowProductPopover] = useState(false);
 
   const offerProductMutation = useMutation({
     mutationFn: async (productCardId: string) => {
@@ -168,7 +167,8 @@ export default function SessionsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/messages", selectedSession] });
-      setShowProductPopover(false);
+      setShowPlusMenu(false);
+      setPlusMenuView("main");
       toast({
         title: "Product offered",
         description: "The product recommendation has been sent to the customer.",
@@ -284,7 +284,7 @@ export default function SessionsPage() {
     if (!file || !selectedSession) return;
     
     setIsUploadingMedia(true);
-    setShowUploadMenu(false);
+    setShowPlusMenu(false);
     
     try {
       const formData = new FormData();
@@ -854,30 +854,35 @@ export default function SessionsPage() {
                                   )}
                                   <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                                   {(msg as any).messageType === "product_offer" && (msg as any).payload?.productCard && (
-                                    <div className="mt-2 bg-background rounded-xl border shadow-sm overflow-hidden max-w-[220px]">
+                                    <div className="mt-2 bg-background rounded-xl border shadow-sm overflow-hidden max-w-[200px]">
                                       {(msg as any).payload.productCard.imageUrl ? (
-                                        <div className="aspect-square bg-muted/50 p-4">
+                                        <div className="bg-blue-50 dark:bg-blue-950/30 p-4">
                                           <img 
                                             src={(msg as any).payload.productCard.imageUrl} 
                                             alt={(msg as any).payload.productCard.title}
-                                            className="w-full h-full object-contain"
+                                            className="w-full h-auto object-contain max-h-28"
                                           />
                                         </div>
                                       ) : (
-                                        <div className="aspect-square bg-muted/50 flex items-center justify-center">
+                                        <div className="bg-blue-50 dark:bg-blue-950/30 h-28 flex items-center justify-center">
                                           <ShoppingBag className="w-12 h-12 text-muted-foreground/50" />
                                         </div>
                                       )}
-                                      <div className="p-3 space-y-2">
+                                      <div className="p-3 space-y-1.5">
                                         <p className="font-semibold text-sm">{(msg as any).payload.productCard.title}</p>
-                                        {(msg as any).payload.productCard.description && (
+                                        {(msg as any).payload.productCard.description ? (
                                           <p className="text-xs text-muted-foreground line-clamp-2">{(msg as any).payload.productCard.description}</p>
+                                        ) : (
+                                          <div className="space-y-1">
+                                            <div className="h-2 bg-muted rounded w-full" />
+                                            <div className="h-2 bg-muted rounded w-3/4" />
+                                          </div>
                                         )}
                                         {(msg as any).payload.productCard.price && (
-                                          <p className="text-sm text-primary font-bold">{(msg as any).payload.productCard.price}</p>
+                                          <p className="text-xs text-muted-foreground">{(msg as any).payload.productCard.price}</p>
                                         )}
                                         {(msg as any).payload.productCard.buttons?.length > 0 ? (
-                                          <div className="flex flex-col gap-1.5 pt-1">
+                                          <div className="flex flex-col gap-1.5 pt-2">
                                             {(msg as any).payload.productCard.buttons.map((btn: any) => (
                                               <Button
                                                 key={btn.id}
@@ -892,15 +897,15 @@ export default function SessionsPage() {
                                               </Button>
                                             ))}
                                           </div>
-                                        ) : (msg as any).payload.productCard.sourceUrl && (
+                                        ) : (
                                           <Button
                                             size="sm"
                                             variant="outline"
-                                            className="w-full h-8 text-xs font-medium border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-                                            onClick={() => window.open((msg as any).payload.productCard.sourceUrl, '_blank')}
-                                            data-testid="button-view-product"
+                                            className="w-full h-8 text-xs font-medium border-primary text-primary hover:bg-primary hover:text-primary-foreground mt-2"
+                                            onClick={() => (msg as any).payload.productCard.sourceUrl && window.open((msg as any).payload.productCard.sourceUrl, '_blank')}
+                                            data-testid="button-select-product"
                                           >
-                                            Buy
+                                            Select product
                                           </Button>
                                         )}
                                       </div>
@@ -978,14 +983,20 @@ export default function SessionsPage() {
                         data-testid="input-file-document"
                       />
                       <div className="flex gap-2 relative">
-                        <Popover open={showUploadMenu} onOpenChange={setShowUploadMenu}>
+                        <Popover 
+                          open={showPlusMenu} 
+                          onOpenChange={(open) => {
+                            setShowPlusMenu(open);
+                            if (!open) setPlusMenuView("main");
+                          }}
+                        >
                           <PopoverTrigger asChild>
                             <Button
                               variant="outline"
                               size="icon"
                               className="h-9 w-9"
                               disabled={isUploadingMedia}
-                              data-testid="button-upload-menu"
+                              data-testid="button-plus-menu"
                             >
                               {isUploadingMedia ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -994,48 +1005,116 @@ export default function SessionsPage() {
                               )}
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent side="top" align="start" className="w-40 p-1">
-                            <div className="flex flex-col">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="justify-start gap-2 h-9"
-                                onClick={() => {
-                                  fileInputRef.current?.click();
-                                  setShowUploadMenu(false);
-                                }}
-                                data-testid="button-upload-image"
-                              >
-                                <ImageIcon className="w-4 h-4" />
-                                Image
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="justify-start gap-2 h-9"
-                                onClick={() => {
-                                  videoInputRef.current?.click();
-                                  setShowUploadMenu(false);
-                                }}
-                                data-testid="button-upload-video"
-                              >
-                                <Video className="w-4 h-4" />
-                                Video
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="justify-start gap-2 h-9"
-                                onClick={() => {
-                                  documentInputRef.current?.click();
-                                  setShowUploadMenu(false);
-                                }}
-                                data-testid="button-upload-document"
-                              >
-                                <FileText className="w-4 h-4" />
-                                Document
-                              </Button>
-                            </div>
+                          <PopoverContent side="top" align="start" className="w-56 p-0">
+                            {plusMenuView === "main" ? (
+                              <div className="flex flex-col p-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="justify-start gap-2 h-9"
+                                  onClick={() => {
+                                    fileInputRef.current?.click();
+                                    setShowPlusMenu(false);
+                                  }}
+                                  data-testid="button-upload-image"
+                                >
+                                  <ImageIcon className="w-4 h-4" />
+                                  Image
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="justify-start gap-2 h-9"
+                                  onClick={() => {
+                                    videoInputRef.current?.click();
+                                    setShowPlusMenu(false);
+                                  }}
+                                  data-testid="button-upload-video"
+                                >
+                                  <Video className="w-4 h-4" />
+                                  Video
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="justify-start gap-2 h-9"
+                                  onClick={() => {
+                                    documentInputRef.current?.click();
+                                    setShowPlusMenu(false);
+                                  }}
+                                  data-testid="button-upload-document"
+                                >
+                                  <FileText className="w-4 h-4" />
+                                  Document
+                                </Button>
+                                <div className="border-t my-1" />
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="justify-start gap-2 h-9"
+                                  onClick={() => setPlusMenuView("products")}
+                                  disabled={productCards.filter(c => c.isActive).length === 0}
+                                  data-testid="button-offer-product"
+                                >
+                                  <ShoppingBag className="w-4 h-4" />
+                                  Offer Product
+                                </Button>
+                              </div>
+                            ) : (
+                              <div>
+                                <div className="p-2 border-b flex items-center gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    onClick={() => setPlusMenuView("main")}
+                                    data-testid="button-back-to-menu"
+                                  >
+                                    <ArrowLeft className="w-4 h-4" />
+                                  </Button>
+                                  <span className="text-sm font-medium">Select Product</span>
+                                </div>
+                                <ScrollArea className="max-h-64">
+                                  <div className="p-2 space-y-1">
+                                    {productCards.filter(c => c.isActive).map((card) => (
+                                      <button
+                                        key={card.id}
+                                        onClick={() => offerProductMutation.mutate(card.id)}
+                                        disabled={offerProductMutation.isPending}
+                                        className="w-full p-2 rounded-md hover:bg-muted transition-colors flex items-start gap-2 text-left"
+                                        data-testid={`product-option-${card.id}`}
+                                      >
+                                        {card.imageUrl ? (
+                                          <img 
+                                            src={card.imageUrl} 
+                                            alt={card.title}
+                                            className="w-10 h-10 rounded object-cover flex-shrink-0"
+                                          />
+                                        ) : (
+                                          <div className="w-10 h-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                                            <ShoppingBag className="w-4 h-4 text-muted-foreground" />
+                                          </div>
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm font-medium truncate">{card.title}</p>
+                                          {card.price && (
+                                            <p className="text-xs text-primary font-medium">{card.price}</p>
+                                          )}
+                                          {card.description && (
+                                            <p className="text-xs text-muted-foreground truncate">{card.description}</p>
+                                          )}
+                                        </div>
+                                      </button>
+                                    ))}
+                                    {productCards.filter(c => c.isActive).length === 0 && (
+                                      <p className="text-sm text-muted-foreground text-center py-4">
+                                        No products available. Add products in Widget Settings.
+                                      </p>
+                                    )}
+                                  </div>
+                                </ScrollArea>
+                              </div>
+                            )}
                           </PopoverContent>
                         </Popover>
                         <div className="flex-1 relative">
@@ -1069,66 +1148,6 @@ export default function SessionsPage() {
                             </div>
                           )}
                         </div>
-                        <Popover open={showProductPopover} onOpenChange={setShowProductPopover}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="h-9"
-                              disabled={productCards.filter(c => c.isActive).length === 0}
-                              data-testid="button-offer-product"
-                            >
-                              <Plus className="w-4 h-4 mr-1" />
-                              <ShoppingBag className="w-4 h-4" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-80 p-0" align="end">
-                            <div className="p-3 border-b">
-                              <h4 className="font-medium text-sm">Offer Product</h4>
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                Select a product to recommend to the customer
-                              </p>
-                            </div>
-                            <ScrollArea className="max-h-64">
-                              <div className="p-2 space-y-1">
-                                {productCards.filter(c => c.isActive).map((card) => (
-                                  <button
-                                    key={card.id}
-                                    onClick={() => offerProductMutation.mutate(card.id)}
-                                    disabled={offerProductMutation.isPending}
-                                    className="w-full p-2 rounded-md hover:bg-muted transition-colors flex items-start gap-2 text-left"
-                                    data-testid={`product-option-${card.id}`}
-                                  >
-                                    {card.imageUrl ? (
-                                      <img 
-                                        src={card.imageUrl} 
-                                        alt={card.title}
-                                        className="w-10 h-10 rounded object-cover flex-shrink-0"
-                                      />
-                                    ) : (
-                                      <div className="w-10 h-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
-                                        <ShoppingBag className="w-4 h-4 text-muted-foreground" />
-                                      </div>
-                                    )}
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-medium truncate">{card.title}</p>
-                                      {card.price && (
-                                        <p className="text-xs text-primary font-medium">{card.price}</p>
-                                      )}
-                                      {card.description && (
-                                        <p className="text-xs text-muted-foreground truncate">{card.description}</p>
-                                      )}
-                                    </div>
-                                  </button>
-                                ))}
-                                {productCards.filter(c => c.isActive).length === 0 && (
-                                  <p className="text-sm text-muted-foreground text-center py-4">
-                                    No products available. Add products in Widget Settings.
-                                  </p>
-                                )}
-                              </div>
-                            </ScrollArea>
-                          </PopoverContent>
-                        </Popover>
                         <Button
                           onClick={handleSendMessage}
                           disabled={sendMessageMutation.isPending || !newMessage.trim() || showQuickReplyPopup}

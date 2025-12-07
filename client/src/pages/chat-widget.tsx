@@ -956,25 +956,30 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   {(msg as any).messageType === "product_offer" && (msg as any).payload?.productCard && (
                     <div className="mt-2 bg-background rounded-xl border shadow-sm overflow-hidden max-w-[180px]">
                       {(msg as any).payload.productCard.imageUrl ? (
-                        <div className="aspect-square bg-muted/30 p-3">
+                        <div className="p-3" style={{ backgroundColor: `${primaryColor}10` }}>
                           <img 
                             src={(msg as any).payload.productCard.imageUrl} 
                             alt={(msg as any).payload.productCard.title}
-                            className="w-full h-full object-contain"
+                            className="w-full h-auto object-contain max-h-24"
                           />
                         </div>
                       ) : (
-                        <div className="aspect-square bg-muted/30 flex items-center justify-center">
+                        <div className="h-24 flex items-center justify-center" style={{ backgroundColor: `${primaryColor}10` }}>
                           <ShoppingBag className="w-10 h-10 text-muted-foreground/50" />
                         </div>
                       )}
                       <div className="p-2.5 space-y-1.5">
                         <p className="font-semibold text-sm">{(msg as any).payload.productCard.title}</p>
-                        {(msg as any).payload.productCard.description && (
+                        {(msg as any).payload.productCard.description ? (
                           <p className="text-xs text-muted-foreground line-clamp-2">{(msg as any).payload.productCard.description}</p>
+                        ) : (
+                          <div className="space-y-1">
+                            <div className="h-2 bg-muted rounded w-full" />
+                            <div className="h-2 bg-muted rounded w-3/4" />
+                          </div>
                         )}
                         {(msg as any).payload.productCard.price && (
-                          <p className="text-sm font-bold" style={{ color: primaryColor }}>{(msg as any).payload.productCard.price}</p>
+                          <p className="text-xs text-muted-foreground">{(msg as any).payload.productCard.price}</p>
                         )}
                         {(msg as any).payload.productCard.buttons?.length > 0 ? (
                           <div className="flex flex-col gap-1 pt-1">
@@ -993,16 +998,16 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                               </button>
                             ))}
                           </div>
-                        ) : (msg as any).payload.productCard.sourceUrl && (
+                        ) : (
                           <button
-                            className="w-full text-xs py-1.5 px-2 rounded border transition-colors hover:text-white"
+                            className="w-full text-xs py-1.5 px-2 rounded border transition-colors hover:text-white mt-1"
                             style={{ borderColor: primaryColor, color: primaryColor }}
                             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = primaryColor; e.currentTarget.style.color = 'white'; }}
                             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = primaryColor; }}
-                            onClick={() => window.open((msg as any).payload.productCard.sourceUrl, '_blank')}
-                            data-testid="button-buy-product"
+                            onClick={() => (msg as any).payload.productCard.sourceUrl && window.open((msg as any).payload.productCard.sourceUrl, '_blank')}
+                            data-testid="button-select-product"
                           >
-                            Buy
+                            Select product
                           </button>
                         )}
                       </div>
