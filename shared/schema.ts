@@ -89,6 +89,8 @@ export const messages = pgTable("messages", {
   sessionId: varchar("session_id", { length: 64 }).notNull(),
   from: text("from").notNull(),
   content: text("content").notNull(),
+  messageType: text("message_type").default("text"),
+  payload: jsonb("payload"),
   clientMessageId: varchar("client_message_id", { length: 64 }),
   timestamp: timestamp("timestamp").defaultNow(),
 });
@@ -715,6 +717,21 @@ export const productRecommendationSettings = pgTable("product_recommendation_set
 export const insertProductRecommendationSettingSchema = createInsertSchema(productRecommendationSettings).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertProductRecommendationSetting = z.infer<typeof insertProductRecommendationSettingSchema>;
 export type ProductRecommendationSetting = typeof productRecommendationSettings.$inferSelect;
+
+// Product Triggers - map keywords to specific product cards for AI recommendations
+export const productTriggers = pgTable("product_triggers", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  agentId: varchar("agent_id", { length: 32 }),
+  productCardId: varchar("product_card_id", { length: 32 }).notNull(),
+  keywords: text("keywords").notNull(),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertProductTriggerSchema = createInsertSchema(productTriggers).omit({ id: true, createdAt: true });
+export type InsertProductTrigger = z.infer<typeof insertProductTriggerSchema>;
+export type ProductTrigger = typeof productTriggers.$inferSelect;
 
 // Role permissions constants
 export const rolePermissions = {
