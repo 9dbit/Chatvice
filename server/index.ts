@@ -1,4 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
+import path from "path";
+import fs from "fs";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -6,6 +8,12 @@ import { OnePayWebhookHandler, type OnePayWebhookPayload } from './onepayWebhook
 import { isOnePayConfigured } from './onepayClient';
 
 const app = express();
+
+const uploadsPath = path.resolve(process.cwd(), "uploads");
+if (!fs.existsSync(uploadsPath)) {
+  fs.mkdirSync(uploadsPath, { recursive: true });
+}
+app.use("/uploads", express.static(uploadsPath));
 const httpServer = createServer(app);
 
 declare module "http" {
