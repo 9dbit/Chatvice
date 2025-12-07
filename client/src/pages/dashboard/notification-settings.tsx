@@ -352,7 +352,7 @@ export default function NotificationSettingsPage() {
               </p>
               <Input
                 type="file"
-                accept="audio/*"
+                accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,audio/mpeg,audio/wav,audio/ogg,audio/mp4,audio/aac,audio/flac"
                 onChange={handleFileUpload}
                 className="hidden"
                 id="sound-upload"
@@ -367,7 +367,7 @@ export default function NotificationSettingsPage() {
                 </Button>
               </Label>
               <p className="text-xs text-muted-foreground mt-2">
-                Supported formats: MP3, WAV, OGG
+                Supported formats: MP3, WAV, OGG, M4A, AAC
               </p>
             </div>
 
