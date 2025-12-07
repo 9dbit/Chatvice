@@ -497,6 +497,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     timestamp: Date;
     mediaUrl?: string;
     mediaType?: string;
+    messageType?: string;
+    payload?: any;
     showProducts?: boolean;
     showButtons?: ChatButton[];
     id?: string;
@@ -513,6 +515,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
         mediaUrl: msg.mediaUrl,
         mediaType: msg.mediaType,
+        messageType: msg.messageType,
+        payload: msg.payload,
         id: msgId,
       };
     }
@@ -524,6 +528,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       from,
       content,
       timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+      messageType: msg.messageType,
+      payload: msg.payload,
       showProducts,
       showButtons: matchingButtons.length > 0 ? matchingButtons : undefined,
       id: msgId,
@@ -548,6 +554,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         from,
         content: msg.content || "",
         timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+        mediaUrl: (msg as any).mediaUrl,
+        mediaType: (msg as any).mediaType,
+        messageType: (msg as any).messageType,
+        payload: (msg as any).payload,
       }, msg.id || `server_${Math.random()}`);
     });
     
