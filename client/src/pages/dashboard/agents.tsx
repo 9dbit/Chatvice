@@ -20,6 +20,7 @@ import { Bot, Plus, Edit, Trash2, Sparkles, Crown, ArrowUpRight, Camera, Loader2
 import { Link } from "wouter";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { PlanLimitPopup } from "@/components/plan-limit-popup";
 import type { Agent, Merchant } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 
@@ -67,6 +68,7 @@ export default function AgentsPage() {
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
   const [photoUrl, setPhotoUrl] = useState("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [showLimitPopup, setShowLimitPopup] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: merchant } = useQuery<Merchant>({
@@ -269,13 +271,24 @@ export default function AgentsPage() {
           <Badge variant="secondary" className="px-2 sm:px-3 py-1 text-xs sm:text-sm whitespace-nowrap">
             {currentCount} / {agentLimit === -1 ? "∞" : agentLimit}
           </Badge>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button disabled={!canAddMore} size="sm" className="sm:size-default" data-testid="button-new-agent">
-                <Plus className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">New AI Agent</span>
-              </Button>
-            </DialogTrigger>
+          {!canAddMore ? (
+            <Button 
+              size="sm" 
+              className="sm:size-default" 
+              data-testid="button-new-agent"
+              onClick={() => setShowLimitPopup(true)}
+            >
+              <Plus className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">New AI Agent</span>
+            </Button>
+          ) : (
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="sm:size-default" data-testid="button-new-agent">
+                  <Plus className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">New AI Agent</span>
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] flex flex-col">
               <DialogHeader className="flex-shrink-0">
                 <DialogTitle>{editingAgent ? "Edit Agent" : "Create New Agent"}</DialogTitle>
@@ -568,7 +581,8 @@ export default function AgentsPage() {
                 </form>
               </Form>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          )}
         </div>
       </div>
 
@@ -683,7 +697,11 @@ export default function AgentsPage() {
               <p className="text-sm text-muted-foreground text-center max-w-sm">
                 Create your first AI agent to start automating customer support.
               </p>
-              <Button className="mt-4" onClick={() => setIsDialogOpen(true)} data-testid="button-create-first-agent">
+              <Button 
+                className="mt-4" 
+                onClick={() => canAddMore ? setIsDialogOpen(true) : setShowLimitPopup(true)} 
+                data-testid="button-create-first-agent"
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Create First Agent
               </Button>
@@ -691,6 +709,20 @@ export default function AgentsPage() {
           </Card>
         )}
       </div>
+
+      <PlanLimitPopup
+        isOpen={showLimitPopup}
+        onClose={() => setShowLimitPopup(false)}
+        limitType="agent"
+        currentPlan={plan.name}
+        currentLimit={agentLimit}
+        onContinueManual={() => {
+          toast({
+            title: "Manual Mode",
+            description: "Supervisors can still handle customer chats manually without an AI agent.",
+          });
+        }}
+      />
     </div>
   );
 }

@@ -17,6 +17,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { PlanLimitPopup } from "@/components/plan-limit-popup";
 import { Users, Plus, Trash2, Mail, User, Camera, Loader2, Edit, Clock, Zap, Timer, AlertCircle, Bot, Check, Crown, ArrowUpRight, Link as LinkIcon, X } from "lucide-react";
 import { Link } from "wouter";
 import type { Supervisor, Agent, Merchant } from "@shared/schema";
@@ -92,6 +93,7 @@ export default function SupervisorsPage() {
   const [photoUrl, setPhotoUrl] = useState("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [showLimitPopup, setShowLimitPopup] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: supervisors = [], isLoading } = useQuery<Supervisor[]>({
@@ -356,25 +358,16 @@ export default function SupervisorsPage() {
             {currentCount} / {supervisorLimit === -1 ? "Unlimited" : supervisorLimit}
           </Badge>
           
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            {!canAddMore ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span>
-                    <Button 
-                      disabled
-                      data-testid="button-add-supervisor"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Supervisor
-                    </Button>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Supervisor limit reached. Upgrade your plan to add more.</p>
-                </TooltipContent>
-              </Tooltip>
-            ) : (
+          {!canAddMore ? (
+            <Button 
+              data-testid="button-add-supervisor"
+              onClick={() => setShowLimitPopup(true)}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Supervisor
+            </Button>
+          ) : (
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button 
                   data-testid="button-add-supervisor"
@@ -383,7 +376,6 @@ export default function SupervisorsPage() {
                   Add Supervisor
                 </Button>
               </DialogTrigger>
-            )}
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Add New Supervisor</DialogTitle>
@@ -498,7 +490,8 @@ export default function SupervisorsPage() {
                 </form>
               </Form>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          )}
         </div>
       </div>
 
@@ -541,12 +534,10 @@ export default function SupervisorsPage() {
                 Add Your First Supervisor
               </Button>
             ) : (
-              <Link href="/dashboard/plans">
-                <Button data-testid="button-upgrade-first-supervisor">
-                  <ArrowUpRight className="w-4 h-4 mr-2" />
-                  Upgrade Plan
-                </Button>
-              </Link>
+              <Button onClick={() => setShowLimitPopup(true)} data-testid="button-upgrade-first-supervisor">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Supervisor
+              </Button>
             )}
           </CardContent>
         </Card>
@@ -739,6 +730,14 @@ export default function SupervisorsPage() {
         accept="image/*"
         className="hidden"
         onChange={handlePhotoUpload}
+      />
+
+      <PlanLimitPopup
+        isOpen={showLimitPopup}
+        onClose={() => setShowLimitPopup(false)}
+        limitType="supervisor"
+        currentPlan={plan.name}
+        currentLimit={supervisorLimit}
       />
     </div>
   );
