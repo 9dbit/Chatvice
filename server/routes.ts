@@ -1138,7 +1138,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       });
 
       const isSupervisor = fromSupervisor === "true" || fromSupervisor === true;
-      const messageFrom = isSupervisor ? "supervisor" : "user";
+      const messageFrom = isSupervisor ? "supervisor" : "customer";
       
       const typeLabels: Record<string, string> = {
         photo: "Photo",

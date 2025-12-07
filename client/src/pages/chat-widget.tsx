@@ -423,32 +423,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       
       const data = await response.json();
       
-      const typeLabels: Record<string, string> = {
-        photo: "Photo attached",
-        video: "Video attached",
-        document: "Document attached"
-      };
-      
-      const clientId = generateClientId();
-      setPendingMessages((prev) => [
-        ...prev,
-        { 
-          clientId,
-          from: "user", 
-          content: `[${typeLabels[type]}]`,
-          timestamp: new Date(),
-          mediaUrl: data.url,
-          mediaType: type
-        },
-      ]);
-      
-      const messageLabels: Record<string, string> = {
-        photo: "Customer sent a photo",
-        video: "Customer sent a video",
-        document: "Customer sent a document"
-      };
-      
-      sendMessageMutation.mutate({ userMessage: `[${messageLabels[type]}]`, clientId });
+      queryClient.invalidateQueries({ queryKey: ["/api/messages", sessionId] });
     } catch {
       setPendingMessages((prev) => [
         ...prev,
