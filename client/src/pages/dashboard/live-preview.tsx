@@ -72,10 +72,10 @@ export default function LivePreviewPage() {
 
   const getDeviceDimensions = () => {
     switch (deviceView) {
-      case "mobile": return { width: 375, height: 667, scale: 0.85 };
-      case "tablet": return { width: 768, height: 600, scale: 0.7 };
-      case "desktop": return { width: 1280, height: 720, scale: 0.55 };
-      default: return { width: 375, height: 667, scale: 0.85 };
+      case "mobile": return { width: 375, height: 667 };
+      case "tablet": return { width: 768, height: 550 };
+      case "desktop": return { width: 1100, height: 600 };
+      default: return { width: 375, height: 667 };
     }
   };
 
@@ -237,65 +237,56 @@ export default function LivePreviewPage() {
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <div 
-                className="flex items-center justify-center bg-muted/30 rounded-xl p-4 overflow-hidden"
+                className="relative bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 rounded-b-lg overflow-hidden"
                 style={{ 
-                  minHeight: `${dimensions.height * dimensions.scale + 40}px`,
+                  width: "100%",
+                  height: `${dimensions.height}px`,
+                  maxHeight: "70vh",
                 }}
+                data-testid="preview-container"
               >
+                <div className="absolute top-0 left-0 right-0 h-8 bg-slate-300 dark:bg-slate-700 flex items-center px-3 gap-1.5 z-10">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
+                  <div className="flex-1 mx-3">
+                    <div className="bg-slate-200 dark:bg-slate-600 rounded-md h-5 flex items-center justify-center">
+                      <span className="text-xs text-muted-foreground truncate px-2">yourwebsite.com</span>
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="text-[10px] h-5">
+                    {deviceView === "mobile" ? "Mobile" : deviceView === "tablet" ? "Tablet" : "Desktop"}
+                  </Badge>
+                </div>
+                
                 <div 
-                  className="relative bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 rounded-lg shadow-2xl border border-border/50 overflow-hidden"
-                  style={{ 
-                    width: `${dimensions.width}px`,
-                    height: `${dimensions.height}px`,
-                    transform: `scale(${dimensions.scale})`,
-                    transformOrigin: "center center",
-                  }}
-                  data-testid="preview-container"
+                  className="absolute top-8 left-0 right-0 bottom-0 overflow-hidden"
+                  style={{ position: "relative" }}
                 >
-                  <div className="absolute top-0 left-0 right-0 h-8 bg-slate-300 dark:bg-slate-700 flex items-center px-3 gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
-                    <div className="flex-1 mx-3">
-                      <div className="bg-slate-200 dark:bg-slate-600 rounded-md h-4 flex items-center justify-center">
-                        <span className="text-[10px] text-muted-foreground truncate px-2">yourwebsite.com</span>
-                      </div>
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                    <div className="text-center text-muted-foreground">
+                      <MessageSquare className="w-20 h-20 mx-auto mb-4 opacity-15" />
+                      <p className="text-xl font-medium opacity-30">Your Website Content</p>
+                      <p className="text-sm opacity-20 mt-2">Widget appears in the corner</p>
                     </div>
                   </div>
                   
-                  <div className="absolute top-8 left-0 right-0 bottom-0">
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="text-center text-muted-foreground">
-                        <MessageSquare className="w-16 h-16 mx-auto mb-4 opacity-20" />
-                        <p className="text-lg font-medium opacity-40">Your Website Content</p>
-                        <p className="text-sm opacity-30 mt-1">Widget appears in the corner</p>
-                      </div>
+                  {showWidget && (
+                    <div 
+                      className="absolute inset-0 z-10"
+                      key={previewKey}
+                    >
+                      <ChatWidget 
+                        merchantId={merchantId} 
+                        sessionId={previewSessionId}
+                        embedded={false}
+                        previewMode={true}
+                      />
                     </div>
-                    
-                    {showWidget && (
-                      <div 
-                        className="absolute inset-0"
-                        style={{ position: "relative" }}
-                        key={previewKey}
-                      >
-                        <ChatWidget 
-                          merchantId={merchantId} 
-                          sessionId={previewSessionId}
-                          embedded={false}
-                          previewMode={true}
-                        />
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
-              </div>
-              
-              <div className="flex items-center justify-center gap-2 mt-3 text-xs text-muted-foreground">
-                <span>Scale: {Math.round(dimensions.scale * 100)}%</span>
-                <span>|</span>
-                <span>Original: {dimensions.width} x {dimensions.height}px</span>
               </div>
             </CardContent>
           </Card>
