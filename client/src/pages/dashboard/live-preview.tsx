@@ -239,7 +239,7 @@ export default function LivePreviewPage() {
             </CardHeader>
             <CardContent className="p-0">
               <div 
-                className="relative bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 rounded-b-lg overflow-hidden"
+                className="bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 rounded-b-lg overflow-hidden flex flex-col"
                 style={{ 
                   width: "100%",
                   height: `${dimensions.height}px`,
@@ -247,7 +247,7 @@ export default function LivePreviewPage() {
                 }}
                 data-testid="preview-container"
               >
-                <div className="absolute top-0 left-0 right-0 h-8 bg-slate-300 dark:bg-slate-700 flex items-center px-3 gap-1.5 z-10">
+                <div className="h-8 bg-slate-300 dark:bg-slate-700 flex items-center px-3 gap-1.5 flex-shrink-0">
                   <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
                   <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
                   <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
@@ -261,11 +261,8 @@ export default function LivePreviewPage() {
                   </Badge>
                 </div>
                 
-                <div 
-                  className="absolute top-8 left-0 right-0 bottom-0 overflow-hidden"
-                  style={{ position: "relative" }}
-                >
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                <div className="flex-1 relative overflow-hidden">
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <div className="text-center text-muted-foreground">
                       <MessageSquare className="w-20 h-20 mx-auto mb-4 opacity-15" />
                       <p className="text-xl font-medium opacity-30">Your Website Content</p>
@@ -275,7 +272,7 @@ export default function LivePreviewPage() {
                   
                   {showWidget && (
                     <div 
-                      className="absolute inset-0 z-10"
+                      className="absolute inset-0"
                       key={previewKey}
                     >
                       <ChatWidget 
