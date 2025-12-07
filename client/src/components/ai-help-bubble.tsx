@@ -271,29 +271,31 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
             </div>
           )}
           
-          {/* Welcome bubble */}
+          {/* Welcome bubble - matching live preview style */}
           {showWelcomeBubble && !isHovered && (
-            <div className="absolute bottom-full right-0 mb-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="bg-background border shadow-lg rounded-2xl rounded-br-sm p-3 max-w-[200px] sm:max-w-[240px] relative">
+            <div className="absolute bottom-full right-0 mb-3 animate-in fade-in slide-in-from-bottom-5 duration-300">
+              <div className="bg-card rounded-2xl shadow-xl p-4 w-72 border border-border relative">
                 <button
                   onClick={dismissWelcomeBubble}
-                  className="absolute -top-2 -right-2 w-5 h-5 bg-muted rounded-full flex items-center justify-center hover:bg-muted/80 transition-colors"
+                  className="absolute top-2 right-2 p-1 rounded-full hover:bg-muted transition-colors"
                   data-testid="button-dismiss-welcome"
                 >
-                  <X className="w-3 h-3" />
+                  <X className="w-4 h-4 text-muted-foreground" />
                 </button>
-                <p className="text-sm font-medium mb-2">
-                  {publicMode ? "Need help?" : "Need help navigating?"}
-                </p>
-                <p className="text-xs text-muted-foreground mb-2">
-                  {publicMode 
-                    ? "Ask me about Chatvice features and pricing!" 
-                    : "I can guide you through the dashboard features."}
-                </p>
+                <div className="mb-3">
+                  <p className="font-semibold text-base">
+                    {publicMode ? "Need help?" : "Need help navigating?"}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {publicMode 
+                      ? "Ask me about Chatvice features and pricing!" 
+                      : "I can guide you through the dashboard features."}
+                  </p>
+                </div>
                 <Button
                   size="sm"
                   onClick={handleOpenFromWelcome}
-                  className="w-full h-7 text-xs bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700"
+                  className="w-full text-white bg-primary hover:bg-primary/90"
                   data-testid="button-open-from-welcome"
                 >
                   Chat with Guide
@@ -302,20 +304,16 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
             </div>
           )}
           
-          <Button
-            size="lg"
+          <button
             onClick={() => setIsOpen(true)}
-            className="rounded-full w-14 h-14 shadow-lg bg-gradient-to-br from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white relative z-10"
+            className="shadow-lg rounded-full w-14 h-14 flex items-center justify-center bg-primary hover:bg-primary/90 text-white relative z-10 transition-transform hover:scale-105"
             data-testid="button-ai-help"
           >
-            <Sparkles className="w-6 h-6" />
-          </Button>
-          <div className="absolute -top-2 -right-1 z-10">
-            <span className="flex h-4 w-4">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-4 w-4 bg-pink-500"></span>
-            </span>
-          </div>
+            <Bot className="w-7 h-7" />
+            <span
+              className="absolute bottom-1 right-1 w-3 h-3 rounded-full border-2 border-white bg-green-500"
+            />
+          </button>
         </div>
       </div>
     );
@@ -327,19 +325,19 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
         className="fixed z-50 max-w-[calc(100vw-16px)] sm:max-w-none"
         style={{ bottom: position.y, right: position.x }}
       >
-        <Card className="w-56 sm:w-64 shadow-xl border-2 border-primary/20">
-          <CardHeader className="p-2.5 sm:p-3 flex flex-row items-center justify-between space-y-0 gap-2 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-orange-500/10">
+        <Card className="w-56 sm:w-64 shadow-xl border border-border">
+          <CardHeader className="p-2.5 sm:p-3 flex flex-row items-center justify-between space-y-0 gap-2 bg-primary">
             <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
                 <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
               </div>
-              <span className="font-semibold text-xs sm:text-sm truncate">Chatvice Guide</span>
+              <span className="font-semibold text-xs sm:text-sm truncate text-white">Chatvice Guide</span>
             </div>
             <div className="flex gap-1 flex-shrink-0">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6"
+                className="h-6 w-6 text-white hover:bg-white/20"
                 onClick={() => setIsMinimized(false)}
                 data-testid="button-maximize-help"
               >
@@ -348,7 +346,7 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6"
+                className="h-6 w-6 text-white hover:bg-white/20"
                 onClick={() => setIsOpen(false)}
                 data-testid="button-close-help"
               >
@@ -366,22 +364,22 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
       className="fixed z-50 max-w-[calc(100vw-16px)] sm:max-w-none"
       style={{ bottom: position.y, right: position.x }}
     >
-      <Card className="w-[calc(100vw-24px)] sm:w-80 md:w-96 shadow-xl border-2 border-primary/20">
-        <CardHeader className="p-3 sm:p-4 flex flex-row items-center justify-between space-y-0 gap-2 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-orange-500/10 border-b">
+      <Card className="w-[calc(100vw-24px)] sm:w-80 md:w-96 shadow-xl border border-border overflow-hidden">
+        <CardHeader className="p-3 sm:p-4 flex flex-row items-center justify-between space-y-0 gap-2 bg-primary">
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
               <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
             <div className="min-w-0">
-              <CardTitle className="text-sm sm:text-base truncate">Chatvice Guide</CardTitle>
-              <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Here to help you succeed</p>
+              <CardTitle className="text-sm sm:text-base truncate text-white">Chatvice Guide</CardTitle>
+              <p className="text-[10px] sm:text-xs text-white/70 truncate">Here to help you succeed</p>
             </div>
           </div>
           <div className="flex gap-1 flex-shrink-0">
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 sm:h-8 sm:w-8"
+              className="h-7 w-7 sm:h-8 sm:w-8 text-white hover:bg-white/20"
               onClick={() => setIsMinimized(true)}
               data-testid="button-minimize-help"
             >
@@ -390,7 +388,7 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 sm:h-8 sm:w-8"
+              className="h-7 w-7 sm:h-8 sm:w-8 text-white hover:bg-white/20"
               onClick={() => setIsOpen(false)}
               data-testid="button-close-help"
             >
@@ -407,14 +405,14 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                   className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}
                 >
                   {msg.role === "assistant" && (
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center shrink-0">
+                    <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center shrink-0">
                       <Bot className="w-4 h-4 text-white" />
                     </div>
                   )}
                   <div 
                     className={`rounded-2xl p-3 max-w-[85%] ${
                       msg.role === "user" 
-                        ? "bg-foreground text-background rounded-br-sm" 
+                        ? "bg-primary text-white rounded-br-sm" 
                         : "bg-muted rounded-bl-sm"
                     }`}
                   >
@@ -424,7 +422,7 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
               ))}
               {askMutation.isPending && (
                 <div className="flex gap-3">
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center shrink-0">
+                  <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center shrink-0">
                     <Bot className="w-4 h-4 text-white" />
                   </div>
                   <div className="bg-muted rounded-2xl rounded-bl-sm p-3">
