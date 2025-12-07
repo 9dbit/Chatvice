@@ -27,8 +27,9 @@ import {
   type WelcomeBubble, type InsertWelcomeBubble,
   type NotificationSetting, type InsertNotificationSetting,
   type ProductRecommendationSetting, type InsertProductRecommendationSetting,
+  type ProductTrigger, type InsertProductTrigger,
   merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings,
-  workShifts, shiftAssignments, workReports, quickReplies, chatButtons, productCards, productCardButtons, welcomeBubbles, notificationSettings, productRecommendationSettings,
+  workShifts, shiftAssignments, workReports, quickReplies, chatButtons, productCards, productCardButtons, welcomeBubbles, notificationSettings, productRecommendationSettings, productTriggers,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -178,6 +179,13 @@ export interface IStorage {
   // Product Recommendation Settings
   getProductRecommendationSettings(merchantId: string): Promise<ProductRecommendationSetting | undefined>;
   upsertProductRecommendationSettings(merchantId: string, data: Partial<InsertProductRecommendationSetting>): Promise<ProductRecommendationSetting>;
+  
+  // Product Triggers
+  getProductTriggers(merchantId: string, agentId?: string): Promise<ProductTrigger[]>;
+  getProductTrigger(id: string): Promise<ProductTrigger | undefined>;
+  createProductTrigger(trigger: InsertProductTrigger): Promise<ProductTrigger>;
+  updateProductTrigger(id: string, data: Partial<ProductTrigger>): Promise<ProductTrigger | undefined>;
+  deleteProductTrigger(id: string): Promise<boolean>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -1309,6 +1317,41 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return result[0];
     }
+  }
+
+  // Product Triggers
+  async getProductTriggers(merchantId: string, agentId?: string): Promise<ProductTrigger[]> {
+    if (agentId) {
+      return db.select().from(productTriggers)
+        .where(and(eq(productTriggers.merchantId, merchantId), eq(productTriggers.agentId, agentId)));
+    }
+    return db.select().from(productTriggers)
+      .where(eq(productTriggers.merchantId, merchantId));
+  }
+
+  async getProductTrigger(id: string): Promise<ProductTrigger | undefined> {
+    const result = await db.select().from(productTriggers)
+      .where(eq(productTriggers.id, id));
+    return result[0];
+  }
+
+  async createProductTrigger(trigger: InsertProductTrigger): Promise<ProductTrigger> {
+    const id = generateId("pt_");
+    const result = await db.insert(productTriggers).values({ ...trigger, id }).returning();
+    return result[0];
+  }
+
+  async updateProductTrigger(id: string, data: Partial<ProductTrigger>): Promise<ProductTrigger | undefined> {
+    const result = await db.update(productTriggers)
+      .set(data)
+      .where(eq(productTriggers.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteProductTrigger(id: string): Promise<boolean> {
+    const result = await db.delete(productTriggers).where(eq(productTriggers.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 }
 

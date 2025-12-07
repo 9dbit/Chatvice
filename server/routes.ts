@@ -893,6 +893,70 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         message: { from: result.mode === "HUMAN" ? "system" : "chatvice", content: result.answer, clientMessageId: responseClientId },
       });
 
+      if (result.mode === "AI") {
+        try {
+          const settings = await storage.getProductRecommendationSettings(merchantId);
+          if (settings?.aiAutoRecommendEnabled) {
+            const productTriggers = await storage.getProductTriggers(merchantId, merchant.activeAgentId || undefined);
+            const lowerMessage = message.toLowerCase();
+            
+            let matchedProductId: string | null = null;
+            for (const trigger of productTriggers) {
+              if (!trigger.isActive) continue;
+              const keywords = trigger.keywords.split(',').map(k => k.trim().toLowerCase());
+              if (keywords.some(keyword => keyword && lowerMessage.includes(keyword))) {
+                matchedProductId = trigger.productCardId;
+                break;
+              }
+            }
+            
+            if (!matchedProductId && settings.aiContextTriggerEnabled && settings.triggerKeywords) {
+              const generalKeywords = settings.triggerKeywords.split(',').map(k => k.trim().toLowerCase());
+              if (generalKeywords.some(keyword => keyword && lowerMessage.includes(keyword))) {
+                const productCards = await storage.getProductCards(merchantId, merchant.activeAgentId || undefined);
+                const activeCards = productCards.filter(c => c.isActive);
+                if (activeCards.length > 0) {
+                  matchedProductId = activeCards[0].id;
+                }
+              }
+            }
+            
+            if (matchedProductId) {
+              const productCard = await storage.getProductCard(matchedProductId);
+              if (productCard && productCard.isActive) {
+                const buttons = await storage.getProductCardButtons(matchedProductId);
+                const payload = {
+                  productCard: {
+                    ...productCard,
+                    buttons,
+                  },
+                };
+                
+                await storage.createMessage({
+                  sessionId,
+                  from: "chatvice",
+                  content: `Based on our conversation, I think you might be interested in this:`,
+                  messageType: "product_offer",
+                  payload,
+                });
+                
+                broadcastToSession(sessionId, {
+                  type: "message",
+                  message: { 
+                    from: "chatvice", 
+                    content: `Based on our conversation, I think you might be interested in this:`,
+                    messageType: "product_offer",
+                    payload,
+                  },
+                });
+              }
+            }
+          }
+        } catch (productError) {
+          console.error("Product recommendation error:", productError);
+        }
+      }
+
       res.json({ 
         answer: result.answer, 
         mode: result.mode,
@@ -1599,6 +1663,65 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.json({ success: true });
     } catch (error) {
       console.error("Send message error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/session/offer-product", requireMerchant, async (req, res) => {
+    try {
+      const { sessionId, productCardId } = req.body;
+      const merchantId = req.session.merchantId!;
+      
+      if (!sessionId || !productCardId) {
+        return res.status(400).json({ error: "Session ID and product card ID are required" });
+      }
+      
+      const session = await storage.getSession(sessionId);
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      
+      if (session.merchantId !== merchantId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      const productCard = await storage.getProductCard(productCardId);
+      if (!productCard || productCard.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Product card not found" });
+      }
+      
+      const buttons = await storage.getProductCardButtons(productCardId);
+      
+      const payload = {
+        productCard: {
+          ...productCard,
+          buttons,
+        },
+      };
+      
+      await storage.createMessage({
+        sessionId,
+        from: "supervisor",
+        content: `I'd like to recommend this product: ${productCard.title}`,
+        messageType: "product_offer",
+        payload,
+      });
+      
+      await storage.updateSession(sessionId, { supervisorId: merchantId });
+
+      broadcastToSession(sessionId, {
+        type: "message",
+        message: { 
+          from: "supervisor", 
+          content: `I'd like to recommend this product: ${productCard.title}`,
+          messageType: "product_offer",
+          payload,
+        },
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Offer product error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });

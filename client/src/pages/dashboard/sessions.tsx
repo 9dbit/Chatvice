@@ -14,11 +14,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   MessageSquare, Bot, HeadphonesIcon, Send, Search, User, Download, 
   Hand, ArrowLeft, Clock, Edit, Check, X, Loader2, RefreshCw, AlertCircle,
-  CheckCircle2, Circle, XCircle, Filter
+  CheckCircle2, Circle, XCircle, Filter, ShoppingBag, Plus
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
-import type { Session, Message, Supervisor, Agent, QuickReply } from "@shared/schema";
+import type { Session, Message, Supervisor, Agent, QuickReply, ProductCard, ProductCardButton } from "@shared/schema";
+
+interface ProductCardWithButtons extends ProductCard {
+  buttons?: ProductCardButton[];
+}
 
 type SessionStatus = "angry" | "active" | "needs_response" | "ended";
 
@@ -139,6 +144,37 @@ export default function SessionsPage() {
   const { data: quickReplies = [] } = useQuery<QuickReply[]>({
     queryKey: ["/api/quick-replies"],
     enabled: !!merchantId,
+  });
+
+  const { data: productCards = [] } = useQuery<ProductCardWithButtons[]>({
+    queryKey: ["/api/product-cards"],
+    enabled: !!merchantId,
+  });
+  
+  const [showProductPopover, setShowProductPopover] = useState(false);
+
+  const offerProductMutation = useMutation({
+    mutationFn: async (productCardId: string) => {
+      return apiRequest("POST", "/api/session/offer-product", {
+        sessionId: selectedSession,
+        productCardId,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/messages", selectedSession] });
+      setShowProductPopover(false);
+      toast({
+        title: "Product offered",
+        description: "The product recommendation has been sent to the customer.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to offer product",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   const filteredQuickReplies = quickReplies.filter(qr => {
@@ -757,6 +793,59 @@ export default function SessionsPage() {
                                     </p>
                                   )}
                                   <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                                  {(msg as any).messageType === "product_offer" && (msg as any).payload?.productCard && (
+                                    <div className="mt-2 bg-background rounded-lg border overflow-hidden">
+                                      <div className="flex gap-3 p-2">
+                                        {(msg as any).payload.productCard.imageUrl ? (
+                                          <img 
+                                            src={(msg as any).payload.productCard.imageUrl} 
+                                            alt={(msg as any).payload.productCard.title}
+                                            className="w-16 h-16 rounded object-cover flex-shrink-0"
+                                          />
+                                        ) : (
+                                          <div className="w-16 h-16 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                                            <ShoppingBag className="w-6 h-6 text-muted-foreground" />
+                                          </div>
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                          <p className="font-medium text-sm">{(msg as any).payload.productCard.title}</p>
+                                          {(msg as any).payload.productCard.price && (
+                                            <p className="text-sm text-primary font-semibold">{(msg as any).payload.productCard.price}</p>
+                                          )}
+                                          {(msg as any).payload.productCard.description && (
+                                            <p className="text-xs text-muted-foreground line-clamp-2">{(msg as any).payload.productCard.description}</p>
+                                          )}
+                                        </div>
+                                      </div>
+                                      {(msg as any).payload.productCard.buttons?.length > 0 && (
+                                        <div className="flex gap-1 p-2 pt-0">
+                                          {(msg as any).payload.productCard.buttons.map((btn: any) => (
+                                            <Button
+                                              key={btn.id}
+                                              size="sm"
+                                              variant="secondary"
+                                              className="flex-1 h-7 text-xs"
+                                              onClick={() => btn.url && window.open(btn.url, '_blank')}
+                                              disabled={!btn.url}
+                                            >
+                                              {btn.label}
+                                            </Button>
+                                          ))}
+                                        </div>
+                                      )}
+                                      {(msg as any).payload.productCard.sourceUrl && (
+                                        <div className="p-2 pt-0">
+                                          <Button
+                                            size="sm"
+                                            className="w-full h-7 text-xs"
+                                            onClick={() => window.open((msg as any).payload.productCard.sourceUrl, '_blank')}
+                                          >
+                                            View Product
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
                                   <p className={`text-[10px] mt-1 ${msg.from === "user" ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
                                     {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
                                   </p>
@@ -827,6 +916,66 @@ export default function SessionsPage() {
                             </div>
                           )}
                         </div>
+                        <Popover open={showProductPopover} onOpenChange={setShowProductPopover}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="h-9"
+                              disabled={productCards.filter(c => c.isActive).length === 0}
+                              data-testid="button-offer-product"
+                            >
+                              <Plus className="w-4 h-4 mr-1" />
+                              <ShoppingBag className="w-4 h-4" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-80 p-0" align="end">
+                            <div className="p-3 border-b">
+                              <h4 className="font-medium text-sm">Offer Product</h4>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Select a product to recommend to the customer
+                              </p>
+                            </div>
+                            <ScrollArea className="max-h-64">
+                              <div className="p-2 space-y-1">
+                                {productCards.filter(c => c.isActive).map((card) => (
+                                  <button
+                                    key={card.id}
+                                    onClick={() => offerProductMutation.mutate(card.id)}
+                                    disabled={offerProductMutation.isPending}
+                                    className="w-full p-2 rounded-md hover:bg-muted transition-colors flex items-start gap-2 text-left"
+                                    data-testid={`product-option-${card.id}`}
+                                  >
+                                    {card.imageUrl ? (
+                                      <img 
+                                        src={card.imageUrl} 
+                                        alt={card.title}
+                                        className="w-10 h-10 rounded object-cover flex-shrink-0"
+                                      />
+                                    ) : (
+                                      <div className="w-10 h-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                                        <ShoppingBag className="w-4 h-4 text-muted-foreground" />
+                                      </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium truncate">{card.title}</p>
+                                      {card.price && (
+                                        <p className="text-xs text-primary font-medium">{card.price}</p>
+                                      )}
+                                      {card.description && (
+                                        <p className="text-xs text-muted-foreground truncate">{card.description}</p>
+                                      )}
+                                    </div>
+                                  </button>
+                                ))}
+                                {productCards.filter(c => c.isActive).length === 0 && (
+                                  <p className="text-sm text-muted-foreground text-center py-4">
+                                    No products available. Add products in Widget Settings.
+                                  </p>
+                                )}
+                              </div>
+                            </ScrollArea>
+                          </PopoverContent>
+                        </Popover>
                         <Button
                           onClick={handleSendMessage}
                           disabled={sendMessageMutation.isPending || !newMessage.trim() || showQuickReplyPopup}

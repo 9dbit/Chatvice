@@ -953,6 +953,57 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   style={msg.from === "user" ? { backgroundColor: primaryColor } : undefined}
                 >
                   <p className="whitespace-pre-wrap">{msg.content}</p>
+                  {(msg as any).messageType === "product_offer" && (msg as any).payload?.productCard && (
+                    <div className="mt-2 bg-background rounded-lg border overflow-hidden">
+                      <div className="flex gap-2 p-2">
+                        {(msg as any).payload.productCard.imageUrl ? (
+                          <img 
+                            src={(msg as any).payload.productCard.imageUrl} 
+                            alt={(msg as any).payload.productCard.title}
+                            className="w-14 h-14 rounded object-cover flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="w-14 h-14 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                            <ShoppingBag className="w-5 h-5 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm">{(msg as any).payload.productCard.title}</p>
+                          {(msg as any).payload.productCard.price && (
+                            <p className="text-sm font-semibold" style={{ color: primaryColor }}>{(msg as any).payload.productCard.price}</p>
+                          )}
+                          {(msg as any).payload.productCard.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-2">{(msg as any).payload.productCard.description}</p>
+                          )}
+                        </div>
+                      </div>
+                      {(msg as any).payload.productCard.buttons?.length > 0 && (
+                        <div className="flex gap-1 p-2 pt-0">
+                          {(msg as any).payload.productCard.buttons.map((btn: any) => (
+                            <button
+                              key={btn.id}
+                              className="flex-1 text-xs py-1.5 px-2 rounded bg-muted hover:bg-muted/80 transition-colors"
+                              onClick={() => btn.url && window.open(btn.url, '_blank')}
+                              disabled={!btn.url}
+                            >
+                              {btn.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {(msg as any).payload.productCard.sourceUrl && (
+                        <div className="p-2 pt-0">
+                          <button
+                            className="w-full text-xs py-1.5 px-2 rounded text-white transition-colors"
+                            style={{ backgroundColor: primaryColor }}
+                            onClick={() => window.open((msg as any).payload.productCard.sourceUrl, '_blank')}
+                          >
+                            View Product
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 {msg.from === "user" && (
                   <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0">
