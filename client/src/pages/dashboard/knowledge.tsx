@@ -297,9 +297,13 @@ export default function KnowledgePage() {
     });
   };
 
-  const handleQuickQuestion = (question: string) => {
+  const handleQuickQuestion = (question: string, preConfiguredAnswer?: string) => {
     setPreviewMessages((prev) => [...prev, { from: "user", content: question }]);
-    testMutation.mutate(question);
+    if (preConfiguredAnswer) {
+      setPreviewMessages((prev) => [...prev, { from: "chatvice", content: preConfiguredAnswer }]);
+    } else {
+      testMutation.mutate(question);
+    }
   };
 
   const handleSave = () => {
@@ -925,7 +929,7 @@ Example:
                       {suggestedQuestions.filter(q => q.isActive !== false).slice(0, 4).map((q) => (
                         <button
                           key={q.id}
-                          onClick={() => handleQuickQuestion(q.question)}
+                          onClick={() => handleQuickQuestion(q.question, q.answer)}
                           disabled={testMutation.isPending}
                           className={`text-xs px-2.5 py-1 rounded-full border transition-colors truncate max-w-[150px] ${
                             testMutation.isPending 
