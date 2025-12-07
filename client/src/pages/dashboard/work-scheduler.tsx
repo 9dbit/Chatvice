@@ -30,7 +30,7 @@ export default function WorkSchedulerPage() {
   const [selectedShift, setSelectedShift] = useState<WorkShift | null>(null);
   const [shiftForm, setShiftForm] = useState<ShiftFormData>({
     name: "",
-    dayType: "weekday",
+    dayType: "everyday",
     startTime: "09:00",
     endTime: "17:00",
     isNightShift: false,
@@ -117,7 +117,7 @@ export default function WorkSchedulerPage() {
   function resetShiftForm() {
     setShiftForm({
       name: "",
-      dayType: "weekday",
+      dayType: "everyday",
       startTime: "09:00",
       endTime: "17:00",
       isNightShift: false,

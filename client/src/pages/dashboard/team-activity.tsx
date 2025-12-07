@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Bot, Clock, CheckCircle, AlertCircle, XCircle } from "lucide-react";
+import { Users, Bot, Clock, CheckCircle, AlertCircle, XCircle, Calendar } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface SupervisorActivity {
@@ -14,6 +14,8 @@ interface SupervisorActivity {
   status: string;
   lastSeen?: string;
   role?: string;
+  assignedShift?: string | null;
+  isOnShift?: boolean;
 }
 
 interface AgentActivity {
@@ -21,6 +23,8 @@ interface AgentActivity {
   name: string;
   photoUrl?: string;
   isActive: boolean;
+  assignedShift?: string | null;
+  isOnShift?: boolean;
 }
 
 interface TeamActivity {
@@ -76,6 +80,8 @@ export default function TeamActivityPage() {
 
   const onlineSupervisors = supervisors.filter(s => s.status === "online").length;
   const activeAgents = agents.filter(a => a.isActive).length;
+  const supervisorsOnShift = supervisors.filter(s => s.isOnShift).length;
+  const agentsOnShift = agents.filter(a => a.isOnShift).length;
 
   return (
     <div className="p-6 space-y-6">
@@ -87,7 +93,7 @@ export default function TeamActivityPage() {
         <p className="text-muted-foreground">Monitor supervisor and AI agent activity in real-time</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Total Supervisor</CardDescription>
@@ -107,6 +113,17 @@ export default function TeamActivityPage() {
           <CardContent>
             <p className="text-xs text-muted-foreground">
               <span className="text-green-500 font-medium">{activeAgents}</span> active
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>On Shift Now</CardDescription>
+            <CardTitle className="text-3xl text-green-500">{supervisorsOnShift + agentsOnShift}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium">{supervisorsOnShift}</span> supervisors, <span className="font-medium">{agentsOnShift}</span> agents
             </p>
           </CardContent>
         </Card>
@@ -180,9 +197,21 @@ export default function TeamActivityPage() {
                           {getStatusBadge(supervisor.status)}
                         </div>
                         <p className="text-sm text-muted-foreground truncate">{supervisor.email}</p>
-                        {supervisor.role && (
-                          <Badge variant="outline" className="mt-2 text-xs">{supervisor.role}</Badge>
-                        )}
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {supervisor.role && (
+                            <Badge variant="outline" className="text-xs">{supervisor.role}</Badge>
+                          )}
+                          {supervisor.assignedShift && (
+                            <Badge 
+                              variant={supervisor.isOnShift ? "default" : "secondary"} 
+                              className={`text-xs flex items-center gap-1 ${supervisor.isOnShift ? "bg-green-500" : ""}`}
+                            >
+                              <Calendar className="w-3 h-3" />
+                              {supervisor.assignedShift}
+                              {supervisor.isOnShift && " (On Shift)"}
+                            </Badge>
+                          )}
+                        </div>
                         {supervisor.lastSeen && supervisor.status !== "online" && (
                           <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
                             <Clock className="w-3 h-3" />
@@ -232,6 +261,16 @@ export default function TeamActivityPage() {
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">AI Agent</p>
+                        {agent.assignedShift && (
+                          <Badge 
+                            variant={agent.isOnShift ? "default" : "secondary"} 
+                            className={`text-xs flex items-center gap-1 mt-2 w-fit ${agent.isOnShift ? "bg-green-500" : ""}`}
+                          >
+                            <Calendar className="w-3 h-3" />
+                            {agent.assignedShift}
+                            {agent.isOnShift && " (On Shift)"}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </CardContent>

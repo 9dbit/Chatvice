@@ -4146,23 +4146,120 @@ ${log.extractedKnowledge}` : ''}
       const merchantId = req.session.merchantId!;
       const supervisors = await storage.getSupervisorsByMerchant(merchantId);
       const agents = await storage.getAgents(merchantId);
+      const shifts = await storage.getWorkShifts(merchantId);
+      const assignments = await storage.getShiftAssignments(merchantId);
+      
+      // Helper function to check if current time is within a shift's time range
+      const isCurrentlyInShift = (startTime: string, endTime: string, isNightShift: boolean): boolean => {
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        const currentTimeMinutes = currentHour * 60 + currentMinute;
+        
+        const [startHour, startMinute] = startTime.split(":").map(Number);
+        const [endHour, endMinute] = endTime.split(":").map(Number);
+        const startTimeMinutes = startHour * 60 + startMinute;
+        const endTimeMinutes = endHour * 60 + endMinute;
+        
+        if (isNightShift || endTimeMinutes < startTimeMinutes) {
+          // Night shift spans across midnight
+          return currentTimeMinutes >= startTimeMinutes || currentTimeMinutes <= endTimeMinutes;
+        } else {
+          // Normal day shift
+          return currentTimeMinutes >= startTimeMinutes && currentTimeMinutes <= endTimeMinutes;
+        }
+      };
+      
+      // Helper to check if today matches the shift's dayType
+      const isDayTypeMatch = (dayType: string): boolean => {
+        const now = new Date();
+        const dayOfWeek = now.getDay(); // 0 = Sunday, 6 = Saturday
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        
+        if (dayType === "weekday") return !isWeekend;
+        if (dayType === "weekend") return isWeekend;
+        if (dayType === "everyday") return true;
+        return true; // default
+      };
+      
+      // Get currently active shifts
+      const activeShiftIds = shifts
+        .filter(shift => 
+          shift.isActive && 
+          isDayTypeMatch(shift.dayType) && 
+          isCurrentlyInShift(shift.startTime, shift.endTime, shift.isNightShift || false)
+        )
+        .map(shift => shift.id);
+      
+      // Check if an assignee is currently on an active shift
+      const isAssigneeOnActiveShift = (assigneeId: string): boolean => {
+        return assignments.some(assignment => 
+          assignment.assigneeId === assigneeId && 
+          activeShiftIds.includes(assignment.shiftId)
+        );
+      };
+      
+      // Get assigned shift info for an assignee
+      const getAssignedShiftInfo = (assigneeId: string): { shiftName: string; isOnShift: boolean } | null => {
+        const assigneeAssignments = assignments.filter(a => a.assigneeId === assigneeId);
+        if (assigneeAssignments.length === 0) return null;
+        
+        // Check if on any active shift
+        for (const assignment of assigneeAssignments) {
+          const shift = shifts.find(s => s.id === assignment.shiftId);
+          if (shift && activeShiftIds.includes(shift.id)) {
+            return { shiftName: shift.name, isOnShift: true };
+          }
+        }
+        
+        // Return first assigned shift (not currently active)
+        const firstAssignment = assigneeAssignments[0];
+        const firstShift = shifts.find(s => s.id === firstAssignment.shiftId);
+        return firstShift ? { shiftName: firstShift.name, isOnShift: false } : null;
+      };
       
       const activity = {
-        supervisors: supervisors.map(s => ({
-          id: s.id,
-          name: s.name,
-          email: s.email,
-          photoUrl: s.photoUrl,
-          status: s.status || "offline",
-          lastSeen: s.lastSeen,
-          role: s.role || "supervisor",
-        })),
-        agents: agents.map(a => ({
-          id: a.id,
-          name: a.name,
-          photoUrl: a.photoUrl,
-          isActive: a.isActive,
-        })),
+        supervisors: supervisors.map(s => {
+          const shiftInfo = getAssignedShiftInfo(s.id);
+          const isOnActiveShift = isAssigneeOnActiveShift(s.id);
+          
+          // Status priority: if on active shift, show as "online" (synced with scheduler)
+          let status = s.status || "offline";
+          if (isOnActiveShift) {
+            status = "online";
+          } else if (shiftInfo && !shiftInfo.isOnShift) {
+            // Has shift assignment but not currently on shift
+            status = s.status || "offline";
+          }
+          
+          return {
+            id: s.id,
+            name: s.name,
+            email: s.email,
+            photoUrl: s.photoUrl,
+            status,
+            lastSeen: s.lastSeen,
+            role: s.role || "supervisor",
+            assignedShift: shiftInfo?.shiftName || null,
+            isOnShift: isOnActiveShift,
+          };
+        }),
+        agents: agents.map(a => {
+          const shiftInfo = getAssignedShiftInfo(a.id);
+          const isOnActiveShift = isAssigneeOnActiveShift(a.id);
+          
+          // If on active shift, consider the agent as active
+          const isActive = isOnActiveShift || a.isActive;
+          
+          return {
+            id: a.id,
+            name: a.name,
+            photoUrl: a.photoUrl,
+            isActive,
+            assignedShift: shiftInfo?.shiftName || null,
+            isOnShift: isOnActiveShift,
+          };
+        }),
       };
       
       res.json(activity);
