@@ -511,9 +511,11 @@ function Lexa1ChatWidget({ config }: { config: WidgetConfig }) {
   }, [messages]);
 
   const bgClass = config.isDark ? "bg-gray-900" : "bg-white";
-  const borderClass = config.isDark ? "border-gray-700" : "border-purple-200 dark:border-purple-800/50";
+  const borderClass = config.isDark ? "border-gray-700" : "border-purple-200";
   const msgBgClass = config.isDark ? "bg-gray-800 text-white border-gray-700" : "bg-white text-gray-900 border-gray-200";
-  const scrollBgClass = config.isDark ? "bg-gray-900" : "bg-gray-50 dark:bg-gray-900";
+  const scrollBgClass = config.isDark ? "bg-gray-900" : "bg-gray-50";
+  const inputClass = config.isDark ? "bg-gray-800 border-gray-700 text-white placeholder:text-gray-400" : "bg-white border-gray-200 text-gray-900";
+  const poweredByClass = config.isDark ? "text-gray-400" : "text-gray-500";
 
   return (
     <div className={`w-full max-w-sm rounded-2xl border ${borderClass} shadow-2xl overflow-hidden ${bgClass}`}>
@@ -615,7 +617,7 @@ function Lexa1ChatWidget({ config }: { config: WidgetConfig }) {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder="Ask Lexa1 anything..."
-            className={`flex-1 ${config.isDark ? "bg-gray-800 border-gray-700 text-white" : ""}`}
+            className={`flex-1 ${inputClass}`}
             data-testid="input-demo-chat"
           />
           <Button 
@@ -628,7 +630,7 @@ function Lexa1ChatWidget({ config }: { config: WidgetConfig }) {
             <Send className="w-4 h-4" />
           </Button>
         </div>
-        <p className={`text-[10px] mt-2 ${config.isDark ? "text-gray-400" : "text-muted-foreground"}`}>
+        <p className={`text-[10px] mt-2 ${poweredByClass}`}>
           Powered by <span className="font-semibold" style={{ color: config.brandColor }}>Lexa1</span> AI Engine
         </p>
       </div>
