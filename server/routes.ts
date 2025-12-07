@@ -1175,7 +1175,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       });
 
       if (!isSupervisor) {
-        const session = await storage.getSession(sessionId);
+        let session = await storage.getSession(sessionId);
+        
+        if (!session) {
+          session = await storage.createSession({
+            id: sessionId,
+            merchantId,
+            mode: "AI",
+            customerName: "Customer",
+            agentId: merchant.activeAgentId || null,
+          });
+        }
+        
         if (session?.mode === "AI") {
           const requestHost = req.get("host");
           (async () => {
