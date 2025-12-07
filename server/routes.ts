@@ -3206,17 +3206,17 @@ You are friendly, helpful, and concise. Guide merchants on how to use Chatvice d
         currentSessionId = session.id;
       }
 
-      // Store user's question message
+      // Store user's question message (use "customer" to match chat/ask endpoint for reconciliation)
       await storage.createMessage({
         sessionId: currentSessionId,
-        from: "user",
+        from: "customer",
         content: question,
       });
 
       // Store the pre-defined answer
       await storage.createMessage({
         sessionId: currentSessionId,
-        from: "ai",
+        from: "chatvice",
         content: answer,
       });
 
