@@ -679,6 +679,11 @@ function HeroSection() {
             loop
             muted
             playsInline
+            onEnded={(e) => {
+              const video = e.currentTarget;
+              video.currentTime = 0;
+              video.play();
+            }}
             className="w-full h-auto object-cover"
             style={{ 
               position: 'absolute',
