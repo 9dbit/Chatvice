@@ -244,31 +244,43 @@ export default function PricingPage() {
               <thead>
                 <tr className="border-b border-border">
                   <th className="text-left py-4 px-4 font-semibold">Feature</th>
+                  <th className="text-center py-4 px-4 font-semibold">Free</th>
                   <th className="text-center py-4 px-4 font-semibold">Starter</th>
-                  <th className="text-center py-4 px-4 font-semibold bg-purple-50 dark:bg-purple-950/20">Professional</th>
+                  <th className="text-center py-4 px-4 font-semibold bg-purple-50 dark:bg-purple-950/20">Pro</th>
                   <th className="text-center py-4 px-4 font-semibold">Enterprise</th>
                   <th className="text-center py-4 px-4 font-semibold">Custom</th>
                 </tr>
               </thead>
               <tbody>
                 {[
-                  { feature: "AI Agents", starter: "1", pro: "5", enterprise: "Unlimited", custom: "Unlimited" },
-                  { feature: "Monthly Messages", starter: "1,000", pro: "10,000", enterprise: "Unlimited", custom: "Unlimited" },
-                  { feature: "Knowledge Base Size", starter: "100 items", pro: "1,000 items", enterprise: "Unlimited", custom: "Unlimited" },
-                  { feature: "Human Escalation", starter: false, pro: true, enterprise: true, custom: true },
-                  { feature: "Custom Widget", starter: false, pro: true, enterprise: true, custom: true },
-                  { feature: "White-label Widget", starter: false, pro: false, enterprise: true, custom: true },
-                  { feature: "Analytics", starter: "Basic", pro: "Advanced", enterprise: "Full", custom: "Full" },
-                  { feature: "API Access", starter: false, pro: false, enterprise: true, custom: true },
-                  { feature: "Identity Verification", starter: false, pro: false, enterprise: true, custom: true },
-                  { feature: "Support", starter: "Email", pro: "Priority", enterprise: "Dedicated", custom: "24/7 Phone" },
-                  { feature: "SLA Guarantee", starter: false, pro: false, enterprise: true, custom: true },
-                  { feature: "Custom Integrations", starter: false, pro: false, enterprise: true, custom: true },
-                  { feature: "On-premise Option", starter: false, pro: false, enterprise: false, custom: true },
-                  { feature: "Dedicated Account Manager", starter: false, pro: false, enterprise: false, custom: true },
+                  { feature: "AI Agents", free: "1", starter: "1", pro: "3", enterprise: "10", custom: "Unlimited" },
+                  { feature: "Supervisors", free: "1", starter: "1", pro: "3", enterprise: "5", custom: "Unlimited" },
+                  { feature: "Monthly Conversations", free: "20", starter: "2,000", pro: "10,000", enterprise: "50,000", custom: "Unlimited" },
+                  { feature: "Knowledge Sources", free: "1", starter: "5", pro: "20", enterprise: "Unlimited", custom: "Unlimited" },
+                  { feature: "Chat History Retention", free: "1 hour", starter: "12 hours", pro: "24 hours", enterprise: "24 hours", custom: "24 hours" },
+                  { feature: "Suggested Questions", free: "0", starter: "5", pro: "5", enterprise: "5", custom: "Unlimited" },
+                  { feature: "Widget Customization", free: "Basic", starter: true, pro: true, enterprise: true, custom: true },
+                  { feature: "Remove Branding", free: false, starter: true, pro: true, enterprise: true, custom: true },
+                  { feature: "Custom Triggers", free: false, starter: false, pro: true, enterprise: true, custom: true },
+                  { feature: "API Access", free: false, starter: false, pro: true, enterprise: true, custom: true },
+                  { feature: "Custom Domain", free: false, starter: false, pro: true, enterprise: true, custom: true },
+                  { feature: "Identity Verification", free: false, starter: false, pro: true, enterprise: true, custom: true },
+                  { feature: "Allowed Domains Control", free: false, starter: false, pro: true, enterprise: true, custom: true },
+                  { feature: "Analytics", free: false, starter: "Basic", pro: "Advanced", enterprise: "Advanced", custom: "Full" },
+                  { feature: "White-label Solution", free: false, starter: false, pro: false, enterprise: true, custom: true },
+                  { feature: "SLA Guarantee", free: false, starter: false, pro: false, enterprise: true, custom: true },
+                  { feature: "Custom Integrations", free: false, starter: false, pro: false, enterprise: true, custom: true },
+                  { feature: "Dedicated Support", free: false, starter: false, pro: false, enterprise: true, custom: true },
+                  { feature: "On-premise Option", free: false, starter: false, pro: false, enterprise: false, custom: true },
+                  { feature: "Support", free: "Community", starter: "Email", pro: "Priority Email", enterprise: "Dedicated Manager", custom: "24/7 Premium" },
                 ].map((row, i) => (
                   <tr key={i} className="border-b border-border">
                     <td className="py-4 px-4 font-medium">{row.feature}</td>
+                    <td className="text-center py-4 px-4">
+                      {typeof row.free === "boolean" ? (
+                        row.free ? <Check className="w-5 h-5 text-purple-600 mx-auto" /> : <X className="w-5 h-5 text-muted-foreground/30 mx-auto" />
+                      ) : row.free}
+                    </td>
                     <td className="text-center py-4 px-4">
                       {typeof row.starter === "boolean" ? (
                         row.starter ? <Check className="w-5 h-5 text-purple-600 mx-auto" /> : <X className="w-5 h-5 text-muted-foreground/30 mx-auto" />

@@ -738,11 +738,11 @@ function HeroSection() {
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="group flex flex-col hover-elevate cursor-pointer">
-                <div className="relative rounded-xl overflow-hidden shadow-xl h-48 md:h-64 mb-4">
+                <div className="relative rounded-xl overflow-hidden shadow-xl mb-4">
                   <img 
                     src={advancedReportingImage} 
                     alt="Advanced Reporting" 
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    className="w-full h-auto object-contain transition-transform duration-700 group-hover:scale-105"
                   />
                 </div>
                 <div className="px-1">
@@ -753,11 +753,11 @@ function HeroSection() {
               </div>
 
               <div className="group flex flex-col hover-elevate cursor-pointer">
-                <div className="relative rounded-xl overflow-hidden shadow-xl h-48 md:h-64 mb-4">
+                <div className="relative rounded-xl overflow-hidden shadow-xl mb-4">
                   <img 
                     src={engineeredForSecurityImage} 
                     alt="Enterprise Security" 
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    className="w-full h-auto object-contain transition-transform duration-700 group-hover:scale-105"
                   />
                 </div>
                 <div className="px-1">
@@ -768,11 +768,11 @@ function HeroSection() {
               </div>
 
               <div className="group flex flex-col hover-elevate cursor-pointer">
-                <div className="relative rounded-xl overflow-hidden shadow-xl h-48 md:h-64 mb-4">
+                <div className="relative rounded-xl overflow-hidden shadow-xl mb-4">
                   <img 
                     src={designedForSimplicityImage} 
                     alt="Easy Setup" 
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    className="w-full h-auto object-contain transition-transform duration-700 group-hover:scale-105"
                   />
                 </div>
                 <div className="px-1">
@@ -783,11 +783,11 @@ function HeroSection() {
               </div>
 
               <div className="group flex flex-col hover-elevate cursor-pointer">
-                <div className="relative rounded-xl overflow-hidden shadow-xl h-48 md:h-64 mb-4">
+                <div className="relative rounded-xl overflow-hidden shadow-xl mb-4">
                   <img 
                     src={purposeBuiltForLlmsImage} 
                     alt="Multi-Model AI" 
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    className="w-full h-auto object-contain transition-transform duration-700 group-hover:scale-105"
                   />
                 </div>
                 <div className="px-1">
