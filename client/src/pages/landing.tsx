@@ -645,12 +645,53 @@ function HeroSection() {
   });
 
   const [isMobile, setIsMobile] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
   
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Force play video on iOS/iPad
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    // Ensure muted attribute is set for iOS
+    video.muted = true;
+    video.setAttribute('muted', '');
+    video.setAttribute('playsinline', '');
+
+    // Try to play the video
+    const playVideo = () => {
+      video.play().catch(() => {
+        // If autoplay fails, try again on user interaction
+        const handleInteraction = () => {
+          video.play();
+          document.removeEventListener('touchstart', handleInteraction);
+          document.removeEventListener('click', handleInteraction);
+        };
+        document.addEventListener('touchstart', handleInteraction, { once: true });
+        document.addEventListener('click', handleInteraction, { once: true });
+      });
+    };
+
+    // Play immediately and also when video becomes visible
+    playVideo();
+    
+    // Also try to play when the page becomes visible
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        playVideo();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const bgOffsetX = isMobile 
@@ -674,11 +715,12 @@ function HeroSection() {
       <div className="relative h-[500px] md:h-[calc(100vh-64px-300px)] overflow-hidden">
         <div className="fixed inset-0 w-full -z-10 hero-parallax overflow-hidden">
           <video 
-            src={heroBackgroundVideo}
+            ref={videoRef}
             autoPlay
             loop
             muted
             playsInline
+            preload="auto"
             onEnded={(e) => {
               const video = e.currentTarget;
               video.currentTime = 0;
@@ -692,7 +734,9 @@ function HeroSection() {
               width: '100%',
               minWidth: '100%',
             }}
-          />
+          >
+            <source src={`${heroBackgroundVideo}#t=0.001`} type="video/mp4" />
+          </video>
           <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent via-60% to-[hsl(var(--background))]" />
         </div>
 
