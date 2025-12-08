@@ -81,7 +81,7 @@ export default function LivePreviewPage() {
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-page-title">Live Preview</h1>
           <p className="text-muted-foreground text-sm sm:text-base">
-            Preview your chat widget with all integrated features
+            Preview your chat widget - appears at bottom right of this page
           </p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
@@ -107,128 +107,80 @@ export default function LivePreviewPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 space-y-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Widget Controls</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Widget Controls</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="show-widget" className="text-sm">Show Widget</Label>
+              <Switch 
+                id="show-widget" 
+                checked={showWidget} 
+                onCheckedChange={setShowWidget}
+                data-testid="switch-show-widget"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Toggle to show/hide the chat widget on this page
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Bot className="w-4 h-4" />
+              Active Agent
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {activeAgent ? (
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-green-500" />
+                <span className="text-sm font-medium">{activeAgent.name}</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <AlertCircle className="w-4 h-4" />
+                <span className="text-sm">No active agent</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Loaded Features</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm">
               <div className="flex items-center justify-between">
-                <Label htmlFor="show-widget" className="text-sm">Show Widget</Label>
-                <Switch 
-                  id="show-widget" 
-                  checked={showWidget} 
-                  onCheckedChange={setShowWidget}
-                  data-testid="switch-show-widget"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Bot className="w-4 h-4" />
-                Active Agent
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {activeAgent ? (
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  <span className="text-sm font-medium">{activeAgent.name}</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <AlertCircle className="w-4 h-4" />
-                  <span className="text-sm">No active agent</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Loaded Features</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Welcome Bubble</span>
-                  <Badge variant={welcomeBubble?.isEnabled ? "default" : "secondary"} className="text-xs">
-                    {welcomeBubble?.isEnabled ? "Active" : "Off"}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Quick Replies</span>
-                  <Badge variant="outline" className="text-xs">{quickReplies.length}</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Product Cards</span>
-                  <Badge variant="outline" className="text-xs">{productCards.length}</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Chat Buttons</span>
-                  <Badge variant="outline" className="text-xs">{chatButtons.length}</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Suggested Questions</span>
-                  <Badge variant="outline" className="text-xs">{suggestedQuestions.length}</Badge>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="lg:col-span-2">
-          <Card className="h-full">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Eye className="w-5 h-5 text-primary" />
-                  <CardTitle className="text-base">Widget Preview</CardTitle>
-                </div>
-                <Badge variant="outline" className="text-xs">
-                  Live
+                <span className="text-muted-foreground">Welcome Bubble</span>
+                <Badge variant={welcomeBubble?.isEnabled ? "default" : "secondary"} className="text-xs">
+                  {welcomeBubble?.isEnabled ? "Active" : "Off"}
                 </Badge>
               </div>
-            </CardHeader>
-            <CardContent className="p-3 sm:p-4">
-              <div 
-                className="bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 rounded-lg overflow-hidden relative border border-border"
-                style={{ 
-                  minHeight: "500px",
-                  height: "calc(100vh - 380px)",
-                  maxHeight: "700px",
-                }}
-                data-testid="preview-container"
-              >
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="text-center text-muted-foreground">
-                    <MessageSquare className="w-16 h-16 mx-auto mb-3 opacity-10" />
-                    <p className="text-lg font-medium opacity-20">Your Website</p>
-                    <p className="text-xs opacity-15 mt-1">Widget appears in the corner</p>
-                  </div>
-                </div>
-                
-                {showWidget && (
-                  <div 
-                    className="absolute inset-0"
-                    key={previewKey}
-                  >
-                    <ChatWidget 
-                      merchantId={merchantId} 
-                      sessionId={previewSessionId}
-                      embedded={false}
-                      previewMode={true}
-                    />
-                  </div>
-                )}
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Quick Replies</span>
+                <Badge variant="outline" className="text-xs">{quickReplies.length}</Badge>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Product Cards</span>
+                <Badge variant="outline" className="text-xs">{productCards.length}</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Chat Buttons</span>
+                <Badge variant="outline" className="text-xs">{chatButtons.length}</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Suggested Questions</span>
+                <Badge variant="outline" className="text-xs">{suggestedQuestions.length}</Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
@@ -279,6 +231,32 @@ export default function LivePreviewPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Card className="border-dashed">
+        <CardContent className="py-8">
+          <div className="flex flex-col items-center justify-center text-center text-muted-foreground">
+            <Eye className="w-12 h-12 mb-4 opacity-30" />
+            <p className="text-lg font-medium">Widget Preview Active</p>
+            <p className="text-sm mt-1">
+              Look at the bottom-right corner of this page to see your chat widget
+            </p>
+            <Badge variant="outline" className="mt-3">
+              <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse" />
+              Live
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
+
+      {showWidget && (
+        <ChatWidget 
+          key={previewKey}
+          merchantId={merchantId} 
+          sessionId={previewSessionId}
+          embedded={false}
+          previewMode={true}
+        />
+      )}
     </div>
   );
 }
