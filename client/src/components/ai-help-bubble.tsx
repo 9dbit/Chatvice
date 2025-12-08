@@ -322,10 +322,10 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
   if (isMinimized) {
     return (
       <div 
-        className="fixed z-50 max-w-[calc(100vw-16px)] sm:max-w-none"
-        style={{ bottom: position.y, right: position.x }}
+        className="fixed z-50"
+        style={{ bottom: position.y, right: Math.max(8, position.x) }}
       >
-        <Card className="w-56 sm:w-64 shadow-xl border border-border">
+        <Card className="w-56 sm:w-64 max-w-[calc(100vw-16px)] shadow-xl border border-border">
           <CardHeader className="p-2.5 sm:p-3 flex flex-row items-center justify-between space-y-0 gap-2 bg-primary">
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
@@ -361,10 +361,10 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
 
   return (
     <div 
-      className="fixed z-50 max-w-[calc(100vw-16px)] sm:max-w-none"
-      style={{ bottom: position.y, right: position.x }}
+      className="fixed z-50"
+      style={{ bottom: position.y, right: Math.max(8, position.x) }}
     >
-      <Card className="w-[calc(100vw-24px)] sm:w-80 md:w-96 shadow-xl border border-border overflow-hidden">
+      <Card className="w-[320px] sm:w-80 md:w-96 max-w-[calc(100vw-16px)] shadow-xl border border-border overflow-hidden">
         <CardHeader className="p-3 sm:p-4 flex flex-row items-center justify-between space-y-0 gap-2 bg-primary">
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
