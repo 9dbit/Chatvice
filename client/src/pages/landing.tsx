@@ -102,11 +102,11 @@ function useParallaxScroll() {
 }
 import chatviceLogoLight from "@assets/Chatvice-02_1764703423166.png";
 import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
-import advancedReportingImage from "@assets/advanced-reporting_1764865696013.webp";
+import advancedReportingImage from "@assets/IMG_0311_1765160576065.jpeg";
 import compareAiModelsImage from "@assets/compare-ai-models_1764865696016.webp";
-import designedForSimplicityImage from "@assets/designed-for-simplicity_1764865696016.webp";
-import engineeredForSecurityImage from "@assets/engineered-for-security_1764865696016.webp";
-import purposeBuiltForLlmsImage from "@assets/purpose-built-for-llms_1764865696017.webp";
+import designedForSimplicityImage from "@assets/IMG_0320_1765160576065.jpeg";
+import engineeredForSecurityImage from "@assets/IMG_0318_1765160576065.jpeg";
+import purposeBuiltForLlmsImage from "@assets/IMG_0315_1765160576065.jpeg";
 import maleAvatar from "@assets/345c6d52234bbc72407ea25d49ad945e_1764867029228.jpg";
 import femaleAvatar from "@assets/b80ad9fd48f0b1e8d404775c495633be_1764867029228.jpg";
 import heroBackgroundImage from "@assets/IMG_0185_1764870218768.jpeg";
@@ -736,60 +736,64 @@ function HeroSection() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="group relative rounded-xl overflow-hidden shadow-xl h-64 md:h-80 hover-elevate cursor-pointer">
-                <img 
-                  src={advancedReportingImage} 
-                  alt="Advanced Reporting" 
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="group flex flex-col hover-elevate cursor-pointer">
+                <div className="relative rounded-xl overflow-hidden shadow-xl h-48 md:h-64 mb-4">
+                  <img 
+                    src={advancedReportingImage} 
+                    alt="Advanced Reporting" 
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                </div>
+                <div className="px-1">
                   <Badge className="bg-[#7c3aed] text-white mb-2 text-xs">Analytics</Badge>
-                  <h3 className="text-lg md:text-xl font-bold text-white mb-1" style={{ fontFamily: "'D-DIN', sans-serif" }}>Advanced Reporting</h3>
-                  <p className="text-white/80 text-xs md:text-sm line-clamp-2">Real-time dashboards with AI-powered insights.</p>
+                  <h3 className="text-lg md:text-xl font-bold text-foreground mb-1" style={{ fontFamily: "'D-DIN', sans-serif" }}>Advanced Reporting</h3>
+                  <p className="text-muted-foreground text-xs md:text-sm">Real-time dashboards with AI-powered insights.</p>
                 </div>
               </div>
 
-              <div className="group relative rounded-xl overflow-hidden shadow-xl h-64 md:h-80 hover-elevate cursor-pointer">
-                <img 
-                  src={engineeredForSecurityImage} 
-                  alt="Enterprise Security" 
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6">
+              <div className="group flex flex-col hover-elevate cursor-pointer">
+                <div className="relative rounded-xl overflow-hidden shadow-xl h-48 md:h-64 mb-4">
+                  <img 
+                    src={engineeredForSecurityImage} 
+                    alt="Enterprise Security" 
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                </div>
+                <div className="px-1">
                   <Badge className="bg-[#7c3aed] text-white mb-2 text-xs">Security</Badge>
-                  <h3 className="text-lg md:text-xl font-bold text-white mb-1" style={{ fontFamily: "'D-DIN', sans-serif" }}>Enterprise Security</h3>
-                  <p className="text-white/80 text-xs md:text-sm line-clamp-2">Bank-level encryption and SOC 2 compliance.</p>
+                  <h3 className="text-lg md:text-xl font-bold text-foreground mb-1" style={{ fontFamily: "'D-DIN', sans-serif" }}>Enterprise Security</h3>
+                  <p className="text-muted-foreground text-xs md:text-sm">Bank-level encryption and SOC 2 compliance.</p>
                 </div>
               </div>
 
-              <div className="group relative rounded-xl overflow-hidden shadow-xl h-64 md:h-80 hover-elevate cursor-pointer">
-                <img 
-                  src={designedForSimplicityImage} 
-                  alt="Easy Setup" 
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6">
+              <div className="group flex flex-col hover-elevate cursor-pointer">
+                <div className="relative rounded-xl overflow-hidden shadow-xl h-48 md:h-64 mb-4">
+                  <img 
+                    src={designedForSimplicityImage} 
+                    alt="Easy Setup" 
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                </div>
+                <div className="px-1">
                   <Badge className="bg-[#7c3aed] text-white mb-2 text-xs">Simplicity</Badge>
-                  <h3 className="text-lg md:text-xl font-bold text-white mb-1" style={{ fontFamily: "'D-DIN', sans-serif" }}>Easy Setup</h3>
-                  <p className="text-white/80 text-xs md:text-sm line-clamp-2">Deploy your AI agent in minutes. No coding required.</p>
+                  <h3 className="text-lg md:text-xl font-bold text-foreground mb-1" style={{ fontFamily: "'D-DIN', sans-serif" }}>Easy Setup</h3>
+                  <p className="text-muted-foreground text-xs md:text-sm">Deploy your AI agent in minutes. No coding required.</p>
                 </div>
               </div>
 
-              <div className="group relative rounded-xl overflow-hidden shadow-xl h-64 md:h-80 hover-elevate cursor-pointer">
-                <img 
-                  src={purposeBuiltForLlmsImage} 
-                  alt="Multi-Model AI" 
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6">
+              <div className="group flex flex-col hover-elevate cursor-pointer">
+                <div className="relative rounded-xl overflow-hidden shadow-xl h-48 md:h-64 mb-4">
+                  <img 
+                    src={purposeBuiltForLlmsImage} 
+                    alt="Multi-Model AI" 
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                </div>
+                <div className="px-1">
                   <Badge className="bg-[#7c3aed] text-white mb-2 text-xs">AI Engine</Badge>
-                  <h3 className="text-lg md:text-xl font-bold text-white mb-1" style={{ fontFamily: "'D-DIN', sans-serif" }}>Multi-Model AI</h3>
-                  <p className="text-white/80 text-xs md:text-sm line-clamp-2">Powered by OpenAI, Google, and Anthropic.</p>
+                  <h3 className="text-lg md:text-xl font-bold text-foreground mb-1" style={{ fontFamily: "'D-DIN', sans-serif" }}>Multi-Model AI</h3>
+                  <p className="text-muted-foreground text-xs md:text-sm">Powered by OpenAI, Google, and Anthropic.</p>
                 </div>
               </div>
             </div>
