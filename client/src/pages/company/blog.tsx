@@ -54,8 +54,18 @@ export default function BlogPage() {
             <Link key={index} href={`/blog/${post.slug}`}>
               <Card className="p-8 mb-12 hover-elevate cursor-pointer" data-testid={`card-featured-${post.slug}`}>
                 <div className="grid md:grid-cols-2 gap-8 items-center">
-                  <div className="aspect-video bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 rounded-xl flex items-center justify-center">
-                    <BookOpen className="w-16 h-16 text-purple-600" />
+                  <div className="aspect-video rounded-xl overflow-hidden">
+                    {post.heroImageUrl ? (
+                      <img 
+                        src={post.heroImageUrl} 
+                        alt={post.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 flex items-center justify-center">
+                        <BookOpen className="w-16 h-16 text-purple-600" />
+                      </div>
+                    )}
                   </div>
                   <div>
                     <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
@@ -91,8 +101,18 @@ export default function BlogPage() {
             {blogArticles.filter(p => !p.featured).map((post, index) => (
               <Link key={index} href={`/blog/${post.slug}`}>
                 <Card className="overflow-hidden hover-elevate group cursor-pointer h-full" data-testid={`card-article-${post.slug}`}>
-                  <div className="aspect-video bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 flex items-center justify-center">
-                    <BookOpen className="w-12 h-12 text-purple-600" />
+                  <div className="aspect-video overflow-hidden">
+                    {post.heroImageUrl ? (
+                      <img 
+                        src={post.heroImageUrl} 
+                        alt={post.title}
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 flex items-center justify-center">
+                        <BookOpen className="w-12 h-12 text-purple-600" />
+                      </div>
+                    )}
                   </div>
                   <div className="p-6">
                     <Badge variant="secondary" className="mb-3">{post.category}</Badge>

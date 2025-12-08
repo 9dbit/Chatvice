@@ -9,6 +9,7 @@ export interface BlogArticle {
   readTime: string;
   featured: boolean;
   heroImage: boolean;
+  heroImageUrl?: string;
   tags: string[];
   content: string;
 }
@@ -25,6 +26,7 @@ export const blogArticles: BlogArticle[] = [
     readTime: "5 min read",
     featured: true,
     heroImage: true,
+    heroImageUrl: "/attached_assets/IMG_0322_1765176461601.jpeg",
     tags: ["AI Engine", "LEXA1", "Product Launch", "Customer Service", "Chatvice"],
     content: `
       <p class="lead">Today marks a significant milestone for <strong>Chatvice</strong> as we officially unveil <strong>LEXA1</strong> — our proprietary AI engine built from the ground up for customer service excellence. Unlike generic chatbot solutions from <em>LiveChat</em>, <em>Zendesk</em>, or <em>Intercom</em>, LEXA1 is purpose-built to understand customer intent with unprecedented accuracy.</p>
@@ -98,6 +100,7 @@ export const blogArticles: BlogArticle[] = [
     readTime: "7 min read",
     featured: false,
     heroImage: true,
+    heroImageUrl: "/attached_assets/IMG_0323_1765176461601.jpeg",
     tags: ["Indonesia", "AI Trends", "Market Analysis", "Customer Service", "Digital Transformation"],
     content: `
       <p class="lead">Indonesia's digital economy is booming, and with it comes a revolution in customer service. As the largest economy in Southeast Asia with over 270 million people, Indonesian businesses are rapidly adopting AI-powered solutions like <strong>Chatvice</strong> to meet growing customer expectations.</p>
@@ -201,6 +204,7 @@ export const blogArticles: BlogArticle[] = [
     readTime: "6 min read",
     featured: false,
     heroImage: true,
+    heroImageUrl: "/attached_assets/adwin_adhynata_A_futuristic_3D_workspace_showing_an_AI_agent_r_1765176461601.png",
     tags: ["Tutorial", "Knowledge Base", "AI Training", "Best Practices", "Chatvice Guide"],
     content: `
       <p class="lead">Your AI chatbot is only as good as its training. Whether you're using <strong>Chatvice</strong>, <strong>Chatbase</strong>, <strong>Tidio</strong>, or any other AI platform, the quality of your knowledge base determines customer satisfaction. Here's our comprehensive guide to AI agent training.</p>
@@ -321,6 +325,7 @@ export const blogArticles: BlogArticle[] = [
     readTime: "8 min read",
     featured: false,
     heroImage: true,
+    heroImageUrl: "/attached_assets/adwin_adhynata_An_editorial_style_photograph_showing_the_balan_1765176461600.png",
     tags: ["Human-AI Collaboration", "Customer Experience", "Escalation", "Best Practices", "Support Strategy"],
     content: `
       <p class="lead">The debate between AI and human customer service is over. The winners aren't those who chose one or the other — they're businesses that mastered the collaboration between both. Here's how <strong>Chatvice</strong> enables the perfect human-AI partnership.</p>
@@ -469,6 +474,7 @@ export const blogArticles: BlogArticle[] = [
     readTime: "5 min read",
     featured: false,
     heroImage: true,
+    heroImageUrl: "/attached_assets/adwin_adhynata_A_diverse_team_of_corporate_strategists_and_eng_1765176461600.png",
     tags: ["Multi-language", "Localization", "Global Support", "AI Translation", "Chatvice"],
     content: `
       <p class="lead">Expanding globally? Your customer support needs to speak your customers' languages. Here's how <strong>Chatvice</strong> enables multi-language support without hiring multilingual teams — a capability that outshines basic translation features in <strong>Zendesk</strong>, <strong>LiveChat</strong>, and <strong>Intercom</strong>.</p>
@@ -607,6 +613,7 @@ export const blogArticles: BlogArticle[] = [
     readTime: "10 min read",
     featured: false,
     heroImage: true,
+    heroImageUrl: "/attached_assets/adwin_adhynata_A_futuristic_digital_exhibition_stage_in_a_mass_1765176461600.png",
     tags: ["Comparison", "LiveChat", "Zendesk", "Intercom", "Alternatives", "Chatvice"],
     content: `
       <p class="lead">Choosing a customer service platform is a critical business decision. In this comprehensive comparison, we analyze <strong>Chatvice</strong>, <strong>LiveChat</strong>, <strong>Zendesk</strong>, and <strong>Intercom</strong> across key dimensions to help you make the right choice.</p>

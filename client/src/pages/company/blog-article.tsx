@@ -95,8 +95,18 @@ export default function BlogArticlePage() {
           </header>
 
           {article.heroImage && (
-            <div className="aspect-video bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 rounded-xl mb-8 flex items-center justify-center">
-              <Bot className="w-24 h-24 text-purple-600" />
+            <div className="aspect-video rounded-xl mb-8 overflow-hidden">
+              {article.heroImageUrl ? (
+                <img 
+                  src={article.heroImageUrl} 
+                  alt={article.title}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 flex items-center justify-center">
+                  <Bot className="w-24 h-24 text-purple-600" />
+                </div>
+              )}
             </div>
           )}
 
