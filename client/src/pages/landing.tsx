@@ -1128,11 +1128,11 @@ function CTASection() {
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </Link>
-            <Link href="/contact">
+            <a href="mailto:hello@chatvice.app">
               <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 px-8">
                 Talk to Sales
               </Button>
-            </Link>
+            </a>
           </div>
         </div>
       </div>
@@ -1152,15 +1152,15 @@ function Footer() {
     company: [
       { label: "About", href: "/about" },
       { label: "Blog", href: "/blog" },
-      { label: "Careers", href: "/careers" },
+      { label: "Careers", href: "mailto:hello@chatvice.app" },
       { label: "Press", href: "/press" },
-      { label: "Partners", href: "/partners" },
+      { label: "Partners", href: "mailto:hello@chatvice.app" },
     ],
     resources: [
       { label: "Documentation", href: "/docs" },
       { label: "Help Center", href: "/help" },
       { label: "FAQ", href: "/faq" },
-      { label: "Contact", href: "/contact" },
+      { label: "Contact", href: "mailto:hello@chatvice.app" },
       { label: "Status", href: "/status" },
     ],
     legal: [
@@ -1209,10 +1209,16 @@ function Footer() {
             <h4 className="font-semibold mb-4">Company</h4>
             <ul className="space-y-2">
               {footerLinks.company.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    {link.label}
-                  </Link>
+                <li key={link.label}>
+                  {link.href.startsWith("mailto:") ? (
+                    <a href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                      {link.label}
+                    </a>
+                  ) : (
+                    <Link href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                      {link.label}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
@@ -1222,10 +1228,16 @@ function Footer() {
             <h4 className="font-semibold mb-4">Resources</h4>
             <ul className="space-y-2">
               {footerLinks.resources.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    {link.label}
-                  </Link>
+                <li key={link.label}>
+                  {link.href.startsWith("mailto:") ? (
+                    <a href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                      {link.label}
+                    </a>
+                  ) : (
+                    <Link href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                      {link.label}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
