@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,19 @@ export default function LivePreviewPage() {
   const [deviceView, setDeviceView] = useState<"mobile" | "tablet" | "desktop">("mobile");
   const [showWidget, setShowWidget] = useState(true);
   const [previewKey, setPreviewKey] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const updateWidth = () => {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.offsetWidth);
+      }
+    };
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    return () => window.removeEventListener('resize', updateWidth);
+  }, []);
 
   const previewSessionId = useMemo(() => 
     `customer_preview_${merchantId}_${Date.now()}_${previewKey}`,
@@ -71,11 +84,36 @@ export default function LivePreviewPage() {
   };
 
   const getDeviceDimensions = () => {
+    const availableWidth = containerWidth - 32; // subtract padding
+    
     switch (deviceView) {
-      case "mobile": return { width: 375, height: 667, scale: 1.0 };
-      case "tablet": return { width: 768, height: 600, scale: 0.9 };
-      case "desktop": return { width: 1280, height: 720, scale: 0.65 };
-      default: return { width: 375, height: 667, scale: 1.0 };
+      case "mobile": {
+        const baseWidth = 375;
+        const baseHeight = 667;
+        // Calculate scale based on available width, max 1.0
+        const scale = Math.min(1.0, availableWidth / baseWidth);
+        return { width: baseWidth, height: baseHeight, scale };
+      }
+      case "tablet": {
+        const baseWidth = 768;
+        const baseHeight = 600;
+        // Calculate scale based on available width, max 0.95
+        const scale = Math.min(0.95, availableWidth / baseWidth);
+        return { width: baseWidth, height: baseHeight, scale };
+      }
+      case "desktop": {
+        const baseWidth = 1280;
+        const baseHeight = 720;
+        // Calculate scale based on available width, max 0.7
+        const scale = Math.min(0.7, availableWidth / baseWidth);
+        return { width: baseWidth, height: baseHeight, scale };
+      }
+      default: {
+        const baseWidth = 375;
+        const baseHeight = 667;
+        const scale = Math.min(1.0, availableWidth / baseWidth);
+        return { width: baseWidth, height: baseHeight, scale };
+      }
     }
   };
 
@@ -237,23 +275,25 @@ export default function LivePreviewPage() {
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent className="p-4">
+            <CardContent className="p-2 sm:p-4">
               <div 
-                className="bg-muted/30 rounded-lg overflow-hidden flex items-center justify-center"
+                ref={containerRef}
+                className="bg-muted/30 rounded-lg overflow-auto flex items-start sm:items-center justify-center"
                 style={{ 
                   width: "100%",
-                  minHeight: "500px",
-                  maxHeight: "70vh",
+                  minHeight: deviceView === "mobile" ? "auto" : "500px",
+                  maxHeight: "80vh",
+                  padding: deviceView === "mobile" ? "8px" : "16px",
                 }}
                 data-testid="preview-container"
               >
                 <div 
-                  className="bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 rounded-lg overflow-hidden flex flex-col shadow-2xl border border-border"
+                  className="bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 rounded-lg overflow-hidden flex flex-col shadow-2xl border border-border flex-shrink-0"
                   style={{ 
                     width: `${dimensions.width}px`,
                     height: `${dimensions.height}px`,
                     transform: `scale(${dimensions.scale})`,
-                    transformOrigin: "center center",
+                    transformOrigin: "top center",
                   }}
                 >
                   <div className="h-8 bg-slate-300 dark:bg-slate-700 flex items-center px-3 gap-1.5 flex-shrink-0">

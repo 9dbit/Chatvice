@@ -920,7 +920,19 @@ export default function SessionsPage() {
                                           <img 
                                             src={(msg as any).payload.url} 
                                             alt={(msg as any).payload.filename || "Image"}
-                                            className="max-w-[200px] max-h-[200px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                            className="max-w-[200px] max-h-[200px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity bg-muted"
+                                            onError={(e) => {
+                                              const target = e.currentTarget;
+                                              target.onerror = null;
+                                              target.style.display = 'none';
+                                              const parent = target.parentElement;
+                                              if (parent) {
+                                                const fallback = document.createElement('div');
+                                                fallback.className = 'w-[200px] h-[150px] rounded-lg bg-muted flex items-center justify-center';
+                                                fallback.innerHTML = '<span class="text-xs text-muted-foreground">Image unavailable</span>';
+                                                parent.appendChild(fallback);
+                                              }
+                                            }}
                                           />
                                         </a>
                                       )}
