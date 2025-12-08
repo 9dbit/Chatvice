@@ -32,6 +32,7 @@ import GDPRPage from "@/pages/legal/gdpr";
 import SecurityPage from "@/pages/legal/security";
 
 import BlogPage from "@/pages/company/blog";
+import BlogArticlePage from "@/pages/company/blog-article";
 import CareersPage from "@/pages/company/careers";
 import PressPage from "@/pages/company/press";
 import PartnersPage from "@/pages/company/partners";
@@ -90,6 +91,7 @@ function Router() {
       <Route path="/security" component={SecurityPage} />
 
       <Route path="/blog" component={BlogPage} />
+      <Route path="/blog/:slug" component={BlogArticlePage} />
       <Route path="/careers" component={CareersPage} />
       <Route path="/press" component={PressPage} />
       <Route path="/partners" component={PartnersPage} />
