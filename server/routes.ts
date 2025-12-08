@@ -2660,6 +2660,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  app.delete("/api/admin/merchants/:merchantId", requireAdmin, async (req, res) => {
+    try {
+      const merchant = await storage.getMerchant(req.params.merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      await storage.deleteMerchant(merchant.id);
+      res.json({ success: true, message: "Merchant deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting merchant:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/admin/stats", requireAdmin, async (req, res) => {
     try {
       const merchants = await storage.getAllMerchants();
