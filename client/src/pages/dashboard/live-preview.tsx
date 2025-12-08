@@ -84,35 +84,32 @@ export default function LivePreviewPage() {
   };
 
   const getDeviceDimensions = () => {
-    const availableWidth = containerWidth - 32; // subtract padding
+    const availableWidth = Math.max(containerWidth - 24, 300); // subtract padding, minimum 300
     
     switch (deviceView) {
       case "mobile": {
-        const baseWidth = 375;
-        const baseHeight = 667;
-        // Calculate scale based on available width, max 1.0
-        const scale = Math.min(1.0, availableWidth / baseWidth);
-        return { width: baseWidth, height: baseHeight, scale };
+        // Mobile: Tall portrait view - fits container width, aspect ratio ~9:16
+        const maxWidth = Math.min(availableWidth, 380);
+        const width = maxWidth;
+        const height = Math.round(width * 1.8); // Taller aspect ratio
+        return { width, height, scale: 1 };
       }
       case "tablet": {
-        const baseWidth = 768;
-        const baseHeight = 600;
-        // Calculate scale based on available width, max 0.95
-        const scale = Math.min(0.95, availableWidth / baseWidth);
-        return { width: baseWidth, height: baseHeight, scale };
+        // Tablet: Square-ish view
+        const maxWidth = Math.min(availableWidth, 600);
+        const width = maxWidth;
+        const height = Math.round(width * 0.85);
+        return { width, height, scale: 1 };
       }
       case "desktop": {
-        const baseWidth = 1280;
-        const baseHeight = 720;
-        // Calculate scale based on available width, max 0.7
-        const scale = Math.min(0.7, availableWidth / baseWidth);
-        return { width: baseWidth, height: baseHeight, scale };
+        // Desktop: Wide landscape view - full container width, shorter height
+        const width = availableWidth;
+        const height = Math.round(width * 0.55); // Landscape aspect ratio
+        return { width, height, scale: 1 };
       }
       default: {
-        const baseWidth = 375;
-        const baseHeight = 667;
-        const scale = Math.min(1.0, availableWidth / baseWidth);
-        return { width: baseWidth, height: baseHeight, scale };
+        const maxWidth = Math.min(availableWidth, 380);
+        return { width: maxWidth, height: Math.round(maxWidth * 1.8), scale: 1 };
       }
     }
   };
