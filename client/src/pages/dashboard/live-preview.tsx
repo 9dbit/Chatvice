@@ -72,10 +72,10 @@ export default function LivePreviewPage() {
 
   const getDeviceDimensions = () => {
     switch (deviceView) {
-      case "mobile": return { width: 375, height: 667 };
-      case "tablet": return { width: 768, height: 550 };
-      case "desktop": return { width: 1100, height: 600 };
-      default: return { width: 375, height: 667 };
+      case "mobile": return { width: 375, height: 667, scale: 0.85 };
+      case "tablet": return { width: 768, height: 600, scale: 0.7 };
+      case "desktop": return { width: 1280, height: 720, scale: 0.55 };
+      default: return { width: 375, height: 667, scale: 0.85 };
     }
   };
 
@@ -237,52 +237,62 @@ export default function LivePreviewPage() {
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-4">
               <div 
-                className="bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 rounded-b-lg overflow-hidden flex flex-col"
+                className="bg-muted/30 rounded-lg overflow-hidden flex items-center justify-center"
                 style={{ 
                   width: "100%",
-                  height: `${dimensions.height}px`,
+                  minHeight: "500px",
                   maxHeight: "70vh",
                 }}
                 data-testid="preview-container"
               >
-                <div className="h-8 bg-slate-300 dark:bg-slate-700 flex items-center px-3 gap-1.5 flex-shrink-0">
-                  <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
-                  <div className="flex-1 mx-3">
-                    <div className="bg-slate-200 dark:bg-slate-600 rounded-md h-5 flex items-center justify-center">
-                      <span className="text-xs text-muted-foreground truncate px-2">yourwebsite.com</span>
+                <div 
+                  className="bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 rounded-lg overflow-hidden flex flex-col shadow-2xl border border-border"
+                  style={{ 
+                    width: `${dimensions.width}px`,
+                    height: `${dimensions.height}px`,
+                    transform: `scale(${dimensions.scale})`,
+                    transformOrigin: "center center",
+                  }}
+                >
+                  <div className="h-8 bg-slate-300 dark:bg-slate-700 flex items-center px-3 gap-1.5 flex-shrink-0">
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
+                    <div className="flex-1 mx-3">
+                      <div className="bg-slate-200 dark:bg-slate-600 rounded-md h-5 flex items-center justify-center">
+                        <span className="text-xs text-muted-foreground truncate px-2">yourwebsite.com</span>
+                      </div>
                     </div>
-                  </div>
-                  <Badge variant="secondary" className="text-[10px] h-5">
-                    {deviceView === "mobile" ? "Mobile" : deviceView === "tablet" ? "Tablet" : "Desktop"}
-                  </Badge>
-                </div>
-                
-                <div className="flex-1 relative overflow-hidden">
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="text-center text-muted-foreground">
-                      <MessageSquare className="w-20 h-20 mx-auto mb-4 opacity-15" />
-                      <p className="text-xl font-medium opacity-30">Your Website Content</p>
-                      <p className="text-sm opacity-20 mt-2">Widget appears in the corner</p>
-                    </div>
+                    <Badge variant="secondary" className="text-[10px] h-5">
+                      {deviceView === "mobile" ? "Mobile" : deviceView === "tablet" ? "Tablet" : "Desktop"}
+                    </Badge>
                   </div>
                   
-                  {showWidget && (
-                    <div 
-                      className="absolute inset-0"
-                      key={previewKey}
-                    >
-                      <ChatWidget 
-                        merchantId={merchantId} 
-                        sessionId={previewSessionId}
-                        embedded={false}
-                        previewMode={true}
-                      />
+                  <div className="flex-1 relative overflow-hidden">
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="text-center text-muted-foreground">
+                        <MessageSquare className="w-20 h-20 mx-auto mb-4 opacity-15" />
+                        <p className="text-xl font-medium opacity-30">Your Website Content</p>
+                        <p className="text-sm opacity-20 mt-2">Widget appears in the corner</p>
+                      </div>
                     </div>
-                  )}
+                    
+                    {showWidget && (
+                      <div 
+                        className="absolute inset-0"
+                        key={previewKey}
+                      >
+                        <ChatWidget 
+                          merchantId={merchantId} 
+                          sessionId={previewSessionId}
+                          embedded={false}
+                          previewMode={true}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </CardContent>

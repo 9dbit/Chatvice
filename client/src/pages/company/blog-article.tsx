@@ -12,15 +12,25 @@ import {
   Bookmark,
   MessageSquare,
   Bot,
-  Shield,
-  Zap,
-  Globe,
-  TrendingUp,
-  Users,
-  CheckCircle,
 } from "lucide-react";
 import PublicPageLayout from "../public-layout";
-import { blogArticles, type BlogArticle } from "./blog-data";
+import { blogArticles } from "./blog-data";
+
+import lexa1Image from "@assets/IMG_0322_1765176461601.jpeg";
+import indonesiaAIImage from "@assets/IMG_0323_1765176461601.jpeg";
+import trainingAIImage from "@assets/adwin_adhynata_A_futuristic_3D_workspace_showing_an_AI_agent_r_1765176461601.png";
+import humanAIImage from "@assets/adwin_adhynata_An_editorial_style_photograph_showing_the_balan_1765176461600.png";
+import multiLanguageImage from "@assets/adwin_adhynata_A_diverse_team_of_corporate_strategists_and_eng_1765176461600.png";
+import comparisonImage from "@assets/adwin_adhynata_A_futuristic_digital_exhibition_stage_in_a_mass_1765176461600.png";
+
+const blogImages: Record<string, string> = {
+  "introducing-lexa1-ai-engine": lexa1Image,
+  "ai-transforming-customer-service-indonesia": indonesiaAIImage,
+  "best-practices-training-ai-agent": trainingAIImage,
+  "human-ai-collaboration-customer-support": humanAIImage,
+  "multi-language-support-strategy": multiLanguageImage,
+  "chatvice-vs-livechat-zendesk-intercom": comparisonImage,
+};
 
 export default function BlogArticlePage() {
   const params = useParams();
@@ -96,9 +106,9 @@ export default function BlogArticlePage() {
 
           {article.heroImage && (
             <div className="aspect-video rounded-xl mb-8 overflow-hidden">
-              {article.heroImageUrl ? (
+              {blogImages[slug] ? (
                 <img 
-                  src={article.heroImageUrl} 
+                  src={blogImages[slug]} 
                   alt={article.title}
                   className="w-full h-full object-cover"
                 />
@@ -150,8 +160,18 @@ export default function BlogArticlePage() {
                 {relatedArticles.map((post, index) => (
                   <Link key={index} href={`/blog/${post.slug}`}>
                     <Card className="overflow-hidden hover-elevate group h-full">
-                      <div className="aspect-video bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 flex items-center justify-center">
-                        <MessageSquare className="w-8 h-8 text-purple-600" />
+                      <div className="aspect-video overflow-hidden">
+                        {blogImages[post.slug] ? (
+                          <img 
+                            src={blogImages[post.slug]} 
+                            alt={post.title}
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 flex items-center justify-center">
+                            <MessageSquare className="w-8 h-8 text-purple-600" />
+                          </div>
+                        )}
                       </div>
                       <div className="p-4">
                         <Badge variant="secondary" className="mb-2 text-xs">{post.category}</Badge>
