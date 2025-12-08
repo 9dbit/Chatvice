@@ -72,10 +72,10 @@ export default function LivePreviewPage() {
 
   const getDeviceDimensions = () => {
     switch (deviceView) {
-      case "mobile": return { width: 375, height: 667, scale: 0.85 };
-      case "tablet": return { width: 768, height: 600, scale: 0.7 };
-      case "desktop": return { width: 1280, height: 720, scale: 0.55 };
-      default: return { width: 375, height: 667, scale: 0.85 };
+      case "mobile": return { width: 375, height: 667, scale: 1.0 };
+      case "tablet": return { width: 768, height: 600, scale: 0.9 };
+      case "desktop": return { width: 1280, height: 720, scale: 0.65 };
+      default: return { width: 375, height: 667, scale: 1.0 };
     }
   };
 
