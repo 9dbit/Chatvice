@@ -1,37 +1,21 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { 
-  Eye, Smartphone, Monitor, Tablet, RefreshCw, 
-  MessageSquare, Bot, Loader2, ExternalLink,
-  Settings, Sparkles, Package, MousePointer
+  Eye, RefreshCw, MessageSquare, Bot, Loader2, ExternalLink,
+  Settings, Sparkles, Package, MousePointer, CheckCircle2, AlertCircle
 } from "lucide-react";
 import ChatWidget from "@/pages/chat-widget";
 import type { Agent, WelcomeBubble, QuickReply, ProductCard, ChatButton, SuggestedQuestion, Merchant } from "@shared/schema";
 
 export default function LivePreviewPage() {
   const merchantId = localStorage.getItem("merchantId") || "";
-  const [deviceView, setDeviceView] = useState<"mobile" | "tablet" | "desktop">("mobile");
   const [showWidget, setShowWidget] = useState(true);
   const [previewKey, setPreviewKey] = useState(0);
-  const [containerWidth, setContainerWidth] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const updateWidth = () => {
-      if (containerRef.current) {
-        setContainerWidth(containerRef.current.offsetWidth);
-      }
-    };
-    updateWidth();
-    window.addEventListener('resize', updateWidth);
-    return () => window.removeEventListener('resize', updateWidth);
-  }, []);
 
   const previewSessionId = useMemo(() => 
     `customer_preview_${merchantId}_${Date.now()}_${previewKey}`,
@@ -83,37 +67,6 @@ export default function LivePreviewPage() {
     }, 100);
   };
 
-  const getDeviceDimensions = () => {
-    const availableWidth = Math.max(containerWidth - 24, 300); // subtract padding, minimum 300
-    
-    switch (deviceView) {
-      case "mobile": {
-        // Mobile: Tall portrait view - fits container width, aspect ratio ~9:16
-        const maxWidth = Math.min(availableWidth, 380);
-        const width = maxWidth;
-        const height = Math.round(width * 1.8); // Taller aspect ratio
-        return { width, height, scale: 1 };
-      }
-      case "tablet": {
-        // Tablet: Square-ish view
-        const maxWidth = Math.min(availableWidth, 600);
-        const width = maxWidth;
-        const height = Math.round(width * 0.85);
-        return { width, height, scale: 1 };
-      }
-      case "desktop": {
-        // Desktop: Wide landscape view - full container width, shorter height
-        const width = availableWidth;
-        const height = Math.round(width * 0.55); // Landscape aspect ratio
-        return { width, height, scale: 1 };
-      }
-      default: {
-        const maxWidth = Math.min(availableWidth, 380);
-        return { width: maxWidth, height: Math.round(maxWidth * 1.8), scale: 1 };
-      }
-    }
-  };
-
   if (agentsLoading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
@@ -122,26 +75,24 @@ export default function LivePreviewPage() {
     );
   }
 
-  const dimensions = getDeviceDimensions();
-
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-page-title">Live Preview</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-sm sm:text-base">
             Preview your chat widget with all integrated features
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Button 
             variant="outline" 
             size="sm"
             onClick={handleRefresh}
             data-testid="button-refresh-preview"
           >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
+            <RefreshCw className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
           <a 
             href={`/embed/${merchantId}/${activeAgent?.id || ''}`}
@@ -149,98 +100,15 @@ export default function LivePreviewPage() {
             rel="noopener noreferrer"
           >
             <Button variant="outline" size="sm" data-testid="button-open-fullscreen">
-              <ExternalLink className="w-4 h-4 mr-2" />
-              Fullscreen
+              <ExternalLink className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Fullscreen</span>
             </Button>
           </a>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Device View</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Tabs value={deviceView} onValueChange={(v) => setDeviceView(v as typeof deviceView)}>
-                <TabsList className="grid grid-cols-3 w-full">
-                  <TabsTrigger value="mobile" data-testid="tab-mobile">
-                    <Smartphone className="w-4 h-4" />
-                  </TabsTrigger>
-                  <TabsTrigger value="tablet" data-testid="tab-tablet">
-                    <Tablet className="w-4 h-4" />
-                  </TabsTrigger>
-                  <TabsTrigger value="desktop" data-testid="tab-desktop">
-                    <Monitor className="w-4 h-4" />
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Features Status</CardTitle>
-              <CardDescription className="text-sm">
-                Active features in the widget
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Welcome Bubble</span>
-                <Badge variant={welcomeBubble?.isEnabled ? "default" : "secondary"}>
-                  {welcomeBubble?.isEnabled ? "Active" : "Inactive"}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Quick Replies</span>
-                <Badge variant={quickReplies.length > 0 ? "default" : "secondary"}>
-                  {quickReplies.length > 0 ? `${quickReplies.length} items` : "Inactive"}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Product Cards</span>
-                <Badge variant={productCards.length > 0 ? "default" : "secondary"}>
-                  {productCards.length > 0 ? `${productCards.length} items` : "Inactive"}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Chat Buttons</span>
-                <Badge variant={chatButtons.length > 0 ? "default" : "secondary"}>
-                  {chatButtons.length > 0 ? `${chatButtons.length} items` : "Inactive"}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Suggested Questions</span>
-                <Badge variant={suggestedQuestions.length > 0 ? "default" : "secondary"}>
-                  {suggestedQuestions.length > 0 ? `${suggestedQuestions.length} items` : "Inactive"}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Active Agent</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {!activeAgent ? (
-                <p className="text-sm text-muted-foreground">No active agent configured</p>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Bot className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">{activeAgent.name}</p>
-                    <p className="text-xs text-muted-foreground">Active</p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Widget Controls</CardTitle>
@@ -257,80 +125,106 @@ export default function LivePreviewPage() {
               </div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Bot className="w-4 h-4" />
+                Active Agent
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {activeAgent ? (
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  <span className="text-sm font-medium">{activeAgent.name}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <AlertCircle className="w-4 h-4" />
+                  <span className="text-sm">No active agent</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Loaded Features</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Welcome Bubble</span>
+                  <Badge variant={welcomeBubble?.isEnabled ? "default" : "secondary"} className="text-xs">
+                    {welcomeBubble?.isEnabled ? "Active" : "Off"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Quick Replies</span>
+                  <Badge variant="outline" className="text-xs">{quickReplies.length}</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Product Cards</span>
+                  <Badge variant="outline" className="text-xs">{productCards.length}</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Chat Buttons</span>
+                  <Badge variant="outline" className="text-xs">{chatButtons.length}</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Suggested Questions</span>
+                  <Badge variant="outline" className="text-xs">{suggestedQuestions.length}</Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-2">
           <Card className="h-full">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <Eye className="w-5 h-5 text-primary" />
-                  <CardTitle className="text-base">Your Website Preview</CardTitle>
+                  <CardTitle className="text-base">Widget Preview</CardTitle>
                 </div>
-                <Badge variant="outline">
-                  {deviceView === "mobile" ? "375 x 667" : deviceView === "tablet" ? "768 x 600" : "1280 x 720"}
+                <Badge variant="outline" className="text-xs">
+                  Live
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent className="p-2 sm:p-4">
+            <CardContent className="p-3 sm:p-4">
               <div 
-                ref={containerRef}
-                className="bg-muted/30 rounded-lg overflow-auto flex items-start sm:items-center justify-center"
+                className="bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 rounded-lg overflow-hidden relative border border-border"
                 style={{ 
-                  width: "100%",
-                  minHeight: deviceView === "mobile" ? "auto" : "500px",
-                  maxHeight: "80vh",
-                  padding: deviceView === "mobile" ? "8px" : "16px",
+                  minHeight: "500px",
+                  height: "calc(100vh - 380px)",
+                  maxHeight: "700px",
                 }}
                 data-testid="preview-container"
               >
-                <div 
-                  className="bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 rounded-lg overflow-hidden flex flex-col shadow-2xl border border-border flex-shrink-0"
-                  style={{ 
-                    width: `${dimensions.width}px`,
-                    height: `${dimensions.height}px`,
-                    transform: `scale(${dimensions.scale})`,
-                    transformOrigin: "top center",
-                  }}
-                >
-                  <div className="h-8 bg-slate-300 dark:bg-slate-700 flex items-center px-3 gap-1.5 flex-shrink-0">
-                    <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
-                    <div className="flex-1 mx-3">
-                      <div className="bg-slate-200 dark:bg-slate-600 rounded-md h-5 flex items-center justify-center">
-                        <span className="text-xs text-muted-foreground truncate px-2">yourwebsite.com</span>
-                      </div>
-                    </div>
-                    <Badge variant="secondary" className="text-[10px] h-5">
-                      {deviceView === "mobile" ? "Mobile" : deviceView === "tablet" ? "Tablet" : "Desktop"}
-                    </Badge>
-                  </div>
-                  
-                  <div className="flex-1 relative overflow-hidden">
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="text-center text-muted-foreground">
-                        <MessageSquare className="w-20 h-20 mx-auto mb-4 opacity-15" />
-                        <p className="text-xl font-medium opacity-30">Your Website Content</p>
-                        <p className="text-sm opacity-20 mt-2">Widget appears in the corner</p>
-                      </div>
-                    </div>
-                    
-                    {showWidget && (
-                      <div 
-                        className="absolute inset-0"
-                        key={previewKey}
-                      >
-                        <ChatWidget 
-                          merchantId={merchantId} 
-                          sessionId={previewSessionId}
-                          embedded={false}
-                          previewMode={true}
-                        />
-                      </div>
-                    )}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="text-center text-muted-foreground">
+                    <MessageSquare className="w-16 h-16 mx-auto mb-3 opacity-10" />
+                    <p className="text-lg font-medium opacity-20">Your Website</p>
+                    <p className="text-xs opacity-15 mt-1">Widget appears in the corner</p>
                   </div>
                 </div>
+                
+                {showWidget && (
+                  <div 
+                    className="absolute inset-0"
+                    key={previewKey}
+                  >
+                    <ChatWidget 
+                      merchantId={merchantId} 
+                      sessionId={previewSessionId}
+                      embedded={false}
+                      previewMode={true}
+                    />
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -345,41 +239,41 @@ export default function LivePreviewPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3">
             <a href="/dashboard/widget">
               <Button variant="outline" className="w-full h-auto py-3 flex flex-col gap-1" data-testid="link-widget-settings">
                 <Settings className="w-5 h-5" />
-                <span className="text-xs">Widget Settings</span>
+                <span className="text-xs">Widget</span>
               </Button>
             </a>
             <a href="/dashboard/welcome-bubble">
               <Button variant="outline" className="w-full h-auto py-3 flex flex-col gap-1" data-testid="link-welcome-bubble">
                 <Sparkles className="w-5 h-5" />
-                <span className="text-xs">Welcome Bubble</span>
+                <span className="text-xs">Welcome</span>
               </Button>
             </a>
             <a href="/dashboard/quick-replies">
               <Button variant="outline" className="w-full h-auto py-3 flex flex-col gap-1" data-testid="link-quick-replies">
                 <MessageSquare className="w-5 h-5" />
-                <span className="text-xs">Quick Replies</span>
+                <span className="text-xs">Replies</span>
               </Button>
             </a>
             <a href="/dashboard/product-cards">
               <Button variant="outline" className="w-full h-auto py-3 flex flex-col gap-1" data-testid="link-product-cards">
                 <Package className="w-5 h-5" />
-                <span className="text-xs">Product Cards</span>
+                <span className="text-xs">Products</span>
               </Button>
             </a>
             <a href="/dashboard/chat-buttons">
               <Button variant="outline" className="w-full h-auto py-3 flex flex-col gap-1" data-testid="link-chat-buttons">
                 <MousePointer className="w-5 h-5" />
-                <span className="text-xs">Chat Buttons</span>
+                <span className="text-xs">Buttons</span>
               </Button>
             </a>
             <a href="/dashboard/agents">
               <Button variant="outline" className="w-full h-auto py-3 flex flex-col gap-1" data-testid="link-agents">
                 <Bot className="w-5 h-5" />
-                <span className="text-xs">AI Agents</span>
+                <span className="text-xs">Agents</span>
               </Button>
             </a>
           </div>
