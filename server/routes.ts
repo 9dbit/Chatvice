@@ -200,6 +200,31 @@ async function notifySupervisors(merchantId: string, sessionId: string) {
   }
 }
 
+// Round-robin agent assignment tracking per merchant
+const lastAssignedAgentIndex: Map<string, number> = new Map();
+
+async function getNextAgentId(merchantId: string): Promise<string | null> {
+  const agents = await storage.getAgents(merchantId);
+  const activeAgents = agents.filter(a => a.isActive);
+  
+  if (activeAgents.length === 0) {
+    // No active agents, return null
+    return null;
+  }
+  
+  if (activeAgents.length === 1) {
+    // Only one active agent, always use it
+    return activeAgents[0].id;
+  }
+  
+  // Round-robin for 2+ active agents
+  const lastIndex = lastAssignedAgentIndex.get(merchantId) ?? -1;
+  const nextIndex = (lastIndex + 1) % activeAgents.length;
+  lastAssignedAgentIndex.set(merchantId, nextIndex);
+  
+  return activeAgents[nextIndex].id;
+}
+
 async function askChatvice(
   sessionId: string,
   merchantId: string,
@@ -207,13 +232,14 @@ async function askChatvice(
 ): Promise<{ answer: string; mode: "AI" | "HUMAN" }> {
   let session = await storage.getSession(sessionId);
   if (!session) {
-    const merchant = await storage.getMerchant(merchantId);
+    // Use round-robin agent assignment for new sessions
+    const assignedAgentId = await getNextAgentId(merchantId);
     session = await storage.createSession({
       id: sessionId,
       merchantId,
       mode: "AI",
       customerName: "Customer",
-      agentId: merchant?.activeAgentId || null,
+      agentId: assignedAgentId,
     });
   }
 

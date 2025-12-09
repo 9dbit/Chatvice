@@ -555,15 +555,56 @@ export default function SessionsPage() {
       <div className="flex-shrink-0 pb-2 sm:pb-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mb-2 sm:mb-4">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2 sm:gap-3" data-testid="text-page-title">
-              Chat Sessions
-              {(statusCounts.needsResponse > 0 || statusCounts.angry > 0) && (
-                <span className="relative flex h-2.5 w-2.5 sm:h-3 sm:w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 sm:h-3 sm:w-3 bg-red-500" />
-                </span>
+            <div className="flex items-center gap-3 sm:gap-4">
+              <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2 sm:gap-3" data-testid="text-page-title">
+                Chat Sessions
+                {(statusCounts.needsResponse > 0 || statusCounts.angry > 0) && (
+                  <span className="relative flex h-2.5 w-2.5 sm:h-3 sm:w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 sm:h-3 sm:w-3 bg-red-500" />
+                  </span>
+                )}
+              </h1>
+              {/* Active handlers thumbnails */}
+              {selectedSessionData && (
+                <div className="flex items-center gap-1.5 ml-2" data-testid="active-handlers">
+                  {/* Agent thumbnail */}
+                  {selectedSessionData.mode === "AI" && (
+                    <div className="relative" title={`Agent: ${getAgentName(selectedSessionData.agentId)}`}>
+                      <Avatar className="h-7 w-7 border-2 border-green-500">
+                        {getAgentPhoto(selectedSessionData.agentId) ? (
+                          <AvatarImage src={getAgentPhoto(selectedSessionData.agentId)!} alt="Agent" />
+                        ) : null}
+                        <AvatarFallback className="bg-primary/10 text-[10px]">
+                          <Bot className="h-3.5 w-3.5 text-primary" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500" />
+                      </span>
+                    </div>
+                  )}
+                  {/* Supervisor thumbnail */}
+                  {selectedSessionData.mode === "HUMAN" && selectedSessionData.supervisorId && (
+                    <div className="relative" title={`Supervisor: ${getSupervisorName(selectedSessionData.supervisorId, selectedSessionData.agentId)}`}>
+                      <Avatar className="h-7 w-7 border-2 border-green-500">
+                        {getSupervisorPhoto(selectedSessionData.supervisorId, selectedSessionData.agentId) ? (
+                          <AvatarImage src={getSupervisorPhoto(selectedSessionData.supervisorId, selectedSessionData.agentId)!} alt="Supervisor" />
+                        ) : null}
+                        <AvatarFallback className="bg-primary/10 text-[10px]">
+                          <HeadphonesIcon className="h-3.5 w-3.5 text-primary" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500" />
+                      </span>
+                    </div>
+                  )}
+                </div>
               )}
-            </h1>
+            </div>
             <p className="text-muted-foreground text-xs sm:text-sm hidden sm:block">View and manage customer conversations</p>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs flex-wrap">
@@ -721,19 +762,9 @@ export default function SessionsPage() {
                         supervisorPhoto={getSupervisorPhoto(selectedSessionData?.supervisorId, selectedSessionData?.agentId)}
                       />
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 sm:gap-2">
-                          <CardTitle className="text-sm sm:text-base truncate" data-testid="text-selected-customer">
-                            {selectedSessionData?.customerName || "Customer"}
-                          </CardTitle>
-                          <Badge 
-                            variant={selectedSessionData?.mode === "AI" ? "secondary" : "default"}
-                            className="h-4 sm:h-5 text-[9px] sm:text-[10px]"
-                          >
-                            {selectedSessionData?.mode === "AI" 
-                              ? getAgentName(selectedSessionData?.agentId)
-                              : getSupervisorName(selectedSessionData?.supervisorId, selectedSessionData?.agentId) || "Supervisor"}
-                          </Badge>
-                        </div>
+                        <CardTitle className="text-sm sm:text-base truncate" data-testid="text-selected-customer">
+                          {selectedSessionData?.customerName || "Customer"}
+                        </CardTitle>
                         <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground">
                           <span className="font-mono truncate max-w-[80px] sm:max-w-[120px] hidden sm:inline">
                             {selectedSession.slice(0, 12)}...
@@ -750,51 +781,59 @@ export default function SessionsPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => refetchMessages()}
-                        title="Refresh"
-                        className="h-7 w-7 sm:h-8 sm:w-8"
-                        data-testid="button-refresh-messages"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                      </Button>
-                      {selectedSessionData?.mode === "AI" ? (
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <div className="flex items-center gap-1 sm:gap-1.5">
                         <Button
-                          size="sm"
-                          onClick={() => takeoverMutation.mutate(selectedSession)}
-                          disabled={takeoverMutation.isPending}
-                          className="h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3"
-                          data-testid="button-takeover-session"
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => refetchMessages()}
+                          title="Refresh"
+                          className="h-7 w-7 sm:h-8 sm:w-8"
+                          data-testid="button-refresh-messages"
                         >
-                          <Hand className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-1.5" />
-                          <span className="hidden sm:inline">Take Over</span>
+                          <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </Button>
-                      ) : (
+                        {selectedSessionData?.mode === "AI" ? (
+                          <Button
+                            size="sm"
+                            onClick={() => takeoverMutation.mutate(selectedSession)}
+                            disabled={takeoverMutation.isPending}
+                            className="h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3"
+                            data-testid="button-takeover-session"
+                          >
+                            <Hand className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-1.5" />
+                            <span className="hidden sm:inline">Take Over</span>
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => returnToBotMutation.mutate(selectedSession)}
+                            disabled={returnToBotMutation.isPending}
+                            className="h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3"
+                            data-testid="button-return-to-bot"
+                          >
+                            <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-1.5" />
+                            <span className="hidden sm:inline">Return to Bot</span>
+                          </Button>
+                        )}
                         <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => returnToBotMutation.mutate(selectedSession)}
-                          disabled={returnToBotMutation.isPending}
-                          className="h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3"
-                          data-testid="button-return-to-bot"
+                          size="icon"
+                          variant="ghost"
+                          onClick={handleExportTranscript}
+                          title="Export"
+                          className="h-7 w-7 sm:h-8 sm:w-8"
+                          data-testid="button-export-transcript"
                         >
-                          <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-1.5" />
-                          <span className="hidden sm:inline">Return to Bot</span>
+                          <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </Button>
-                      )}
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={handleExportTranscript}
-                        title="Export"
-                        className="h-7 w-7 sm:h-8 sm:w-8"
-                        data-testid="button-export-transcript"
-                      >
-                        <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                      </Button>
+                      </div>
+                      {/* Agent/Supervisor name below buttons */}
+                      <p className="text-[10px] text-muted-foreground" data-testid="text-handler-name">
+                        {selectedSessionData?.mode === "AI" 
+                          ? `Agent: ${getAgentName(selectedSessionData?.agentId)}`
+                          : `Supervisor: ${getSupervisorName(selectedSessionData?.supervisorId, selectedSessionData?.agentId) || "Awaiting"}`}
+                      </p>
                     </div>
                   </div>
                 </CardHeader>
@@ -812,25 +851,13 @@ export default function SessionsPage() {
                           {messages.map((msg, index) => (
                             <div
                               key={msg.id || index}
-                              className={`flex gap-2.5 ${msg.from === "user" ? "justify-end" : "justify-start"} group`}
+                              className={`flex gap-2.5 ${msg.from === "user" ? "justify-start" : "justify-end"} group`}
                             >
-                              {msg.from !== "user" && (
+                              {/* Customer avatar on left */}
+                              {msg.from === "user" && (
                                 <Avatar className="h-7 w-7 flex-shrink-0">
-                                  {msg.from === "chatvice" ? (
-                                    getAgentPhoto(selectedSessionData?.agentId) ? (
-                                      <AvatarImage src={getAgentPhoto(selectedSessionData?.agentId)!} alt="AI" />
-                                    ) : null
-                                  ) : (
-                                    getSupervisorPhoto(selectedSessionData?.supervisorId, selectedSessionData?.agentId) ? (
-                                      <AvatarImage src={getSupervisorPhoto(selectedSessionData?.supervisorId, selectedSessionData?.agentId)!} alt="Supervisor" />
-                                    ) : null
-                                  )}
-                                  <AvatarFallback className="text-xs">
-                                    {msg.from === "chatvice" ? (
-                                      <Bot className="h-3.5 w-3.5" />
-                                    ) : (
-                                      <HeadphonesIcon className="h-3.5 w-3.5" />
-                                    )}
+                                  <AvatarFallback className="bg-muted text-xs">
+                                    <User className="h-3.5 w-3.5" />
                                   </AvatarFallback>
                                 </Avatar>
                               )}
@@ -838,12 +865,12 @@ export default function SessionsPage() {
                                 <div
                                   className={`p-2.5 ${
                                     msg.from === "user"
-                                      ? "bg-primary text-primary-foreground rounded-2xl rounded-br-sm"
-                                      : "bg-muted rounded-2xl rounded-bl-sm"
+                                      ? "bg-muted rounded-2xl rounded-bl-sm"
+                                      : "bg-primary text-primary-foreground rounded-2xl rounded-br-sm"
                                   }`}
                                 >
                                   {msg.from !== "user" && msg.from !== "system" && (
-                                    <p className="text-[10px] font-medium mb-1 text-primary/80">
+                                    <p className="text-[10px] font-medium mb-1 text-primary-foreground/80">
                                       {msg.from === "chatvice" || msg.from === "bot" || msg.from === "ai"
                                         ? getAgentName(selectedSessionData?.agentId)
                                         : msg.from === "supervisor" 
@@ -871,7 +898,7 @@ export default function SessionsPage() {
                                         </div>
                                       )}
                                       <div className="p-3 space-y-1.5">
-                                        <p className="font-semibold text-sm">{(msg as any).payload.productCard.title}</p>
+                                        <p className="font-semibold text-sm text-foreground">{(msg as any).payload.productCard.title}</p>
                                         {(msg as any).payload.productCard.description ? (
                                           <p className="text-xs text-muted-foreground line-clamp-2">{(msg as any).payload.productCard.description}</p>
                                         ) : (
@@ -958,7 +985,7 @@ export default function SessionsPage() {
                                       )}
                                     </div>
                                   )}
-                                  <p className={`text-[10px] mt-1 ${msg.from === "user" ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
+                                  <p className={`text-[10px] mt-1 ${msg.from === "user" ? "text-muted-foreground" : "text-primary-foreground/60"}`}>
                                     {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
                                   </p>
                                 </div>
@@ -966,7 +993,7 @@ export default function SessionsPage() {
                                   <Button
                                     size="icon"
                                     variant="ghost"
-                                    className="absolute -right-9 top-0 opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7"
+                                    className="absolute -left-9 top-0 opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7"
                                     onClick={() => handleReviseAnswer(msg)}
                                     title="Revise"
                                     data-testid={`button-revise-${msg.id}`}
@@ -975,10 +1002,24 @@ export default function SessionsPage() {
                                   </Button>
                                 )}
                               </div>
-                              {msg.from === "user" && (
+                              {/* Agent/Supervisor avatar on right */}
+                              {msg.from !== "user" && (
                                 <Avatar className="h-7 w-7 flex-shrink-0">
-                                  <AvatarFallback className="bg-muted text-xs">
-                                    <User className="h-3.5 w-3.5" />
+                                  {msg.from === "chatvice" || msg.from === "bot" || msg.from === "ai" ? (
+                                    getAgentPhoto(selectedSessionData?.agentId) ? (
+                                      <AvatarImage src={getAgentPhoto(selectedSessionData?.agentId)!} alt="AI" />
+                                    ) : null
+                                  ) : (
+                                    getSupervisorPhoto(selectedSessionData?.supervisorId, selectedSessionData?.agentId) ? (
+                                      <AvatarImage src={getSupervisorPhoto(selectedSessionData?.supervisorId, selectedSessionData?.agentId)!} alt="Supervisor" />
+                                    ) : null
+                                  )}
+                                  <AvatarFallback className="bg-primary/10 text-xs">
+                                    {msg.from === "chatvice" || msg.from === "bot" || msg.from === "ai" ? (
+                                      <Bot className="h-3.5 w-3.5 text-primary" />
+                                    ) : (
+                                      <HeadphonesIcon className="h-3.5 w-3.5 text-primary" />
+                                    )}
                                   </AvatarFallback>
                                 </Avatar>
                               )}
@@ -1121,34 +1162,34 @@ export default function SessionsPage() {
                                   </Button>
                                   <span className="text-sm font-medium">Select Product</span>
                                 </div>
-                                <ScrollArea className="max-h-64">
-                                  <div className="p-2 space-y-1">
+                                <ScrollArea className="max-h-72">
+                                  <div className="p-2 space-y-1.5">
                                     {productCards.filter(c => c.isActive).map((card) => (
                                       <button
                                         key={card.id}
                                         onClick={() => offerProductMutation.mutate(card.id)}
                                         disabled={offerProductMutation.isPending}
-                                        className="w-full p-2 rounded-md hover:bg-muted transition-colors flex items-start gap-2 text-left"
+                                        className="w-full p-2.5 rounded-md hover:bg-muted transition-colors flex items-start gap-3 text-left border border-border/50 hover:border-border"
                                         data-testid={`product-option-${card.id}`}
                                       >
                                         {card.imageUrl ? (
                                           <img 
                                             src={card.imageUrl} 
                                             alt={card.title}
-                                            className="w-10 h-10 rounded object-cover flex-shrink-0"
+                                            className="w-12 h-12 rounded object-cover flex-shrink-0"
                                           />
                                         ) : (
-                                          <div className="w-10 h-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
-                                            <ShoppingBag className="w-4 h-4 text-muted-foreground" />
+                                          <div className="w-12 h-12 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                                            <ShoppingBag className="w-5 h-5 text-muted-foreground" />
                                           </div>
                                         )}
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-sm font-medium truncate">{card.title}</p>
+                                        <div className="flex-1 min-w-0 overflow-hidden">
+                                          <p className="text-sm font-medium line-clamp-2 break-words">{card.title}</p>
                                           {card.price && (
-                                            <p className="text-xs text-primary font-medium">{card.price}</p>
+                                            <p className="text-xs text-primary font-semibold mt-0.5">{card.price}</p>
                                           )}
                                           {card.description && (
-                                            <p className="text-xs text-muted-foreground truncate">{card.description}</p>
+                                            <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5 break-words">{card.description}</p>
                                           )}
                                         </div>
                                       </button>
