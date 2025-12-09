@@ -2547,6 +2547,7 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
   const [newSourceUrl, setNewSourceUrl] = useState("");
   const [newSourceName, setNewSourceName] = useState("");
   const [isCrawling, setIsCrawling] = useState(false);
+  const [hasLoadedInitialContent, setHasLoadedInitialContent] = useState(false);
 
   const { data: platformSettings, refetch: refetchSettings } = useQuery({
     queryKey: ["/api/admin/platform-settings"],
@@ -2575,17 +2576,21 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
           buttonIconHeight: parseInt(settings.guide_button_icon_height || "0") || 0,
         }));
       }
-      if (settings.guide_knowledge_content) {
-        setKnowledgeContent(settings.guide_knowledge_content);
-      }
-      if (settings.guide_promo_image_enabled !== undefined) {
-        setPromoImageEnabled(settings.guide_promo_image_enabled === "true");
-      }
-      if (settings.guide_promo_image_url) {
-        setPromoImageUrl(settings.guide_promo_image_url);
+      // Only load knowledge content on initial load to prevent overwriting user input
+      if (!hasLoadedInitialContent) {
+        if (settings.guide_knowledge_content !== undefined) {
+          setKnowledgeContent(settings.guide_knowledge_content);
+        }
+        if (settings.guide_promo_image_enabled !== undefined) {
+          setPromoImageEnabled(settings.guide_promo_image_enabled === "true");
+        }
+        if (settings.guide_promo_image_url) {
+          setPromoImageUrl(settings.guide_promo_image_url);
+        }
+        setHasLoadedInitialContent(true);
       }
     }
-  }, [platformSettings]);
+  }, [platformSettings, hasLoadedInitialContent]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -2653,10 +2658,13 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
     onSuccess: (data) => {
       setIsCrawling(false);
       setSources(data.sources);
-      if (data.extractedContent) {
+      // Update local knowledge content with extracted content
+      if (data.extractedContent && data.source?.name) {
         setKnowledgeContent(prev => {
-          if (prev) return prev + "\n\n---\n\n" + `[Source: ${newSourceName || newSourceUrl}]\n${data.extractedContent}`;
-          return `[Source: ${newSourceName || newSourceUrl}]\n${data.extractedContent}`;
+          if (prev && prev.trim()) {
+            return prev + "\n\n---\n\n" + `[Source: ${data.source.name}]\n${data.extractedContent}`;
+          }
+          return `[Source: ${data.source.name}]\n${data.extractedContent}`;
         });
       }
       setShowAddSourceDialog(false);
@@ -2666,7 +2674,6 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
         title: "Source Added",
         description: "URL has been crawled and content extracted successfully.",
       });
-      refetchSettings();
       refetchSources();
     },
     onError: (error: any) => {
@@ -2716,7 +2723,12 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
       });
       return;
     }
-    crawlMutation.mutate({ url: newSourceUrl.trim(), name: newSourceName.trim() });
+    // Auto-add https:// if no protocol specified
+    let urlToProcess = newSourceUrl.trim();
+    if (!urlToProcess.startsWith('http://') && !urlToProcess.startsWith('https://')) {
+      urlToProcess = 'https://' + urlToProcess;
+    }
+    crawlMutation.mutate({ url: urlToProcess, name: newSourceName.trim() });
   };
 
   return (
