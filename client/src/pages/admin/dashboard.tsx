@@ -1707,9 +1707,9 @@ function SEOBrandingTab({ toast }: { toast: any }) {
   const [ogImageUrl, setOgImageUrl] = useState("");
   const [metaTitle, setMetaTitle] = useState("Chatvice - AI-Powered Customer Service Platform");
   const [metaDescription, setMetaDescription] = useState("Transform your customer support with Chatvice's AI-powered chatbots. Reduce costs, improve satisfaction, and scale your customer service effortlessly.");
-  const [canonicalUrl, setCanonicalUrl] = useState("https://chatvice.com");
+  const [canonicalUrl, setCanonicalUrl] = useState("");
   const [robotsTxt, setRobotsTxt] = useState("User-agent: *\nAllow: /\n\nSitemap: https://chatvice.com/sitemap.xml");
-  const [sitemapUrl, setSitemapUrl] = useState("https://chatvice.com/sitemap.xml");
+  const [sitemapUrl, setSitemapUrl] = useState("");
   
   const logoInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
@@ -1718,8 +1718,73 @@ function SEOBrandingTab({ toast }: { toast: any }) {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [faviconPreview, setFaviconPreview] = useState<string | null>(null);
   const [ogImagePreview, setOgImagePreview] = useState<string | null>(null);
+
+  const { data: landingSettings, refetch: refetchSettings } = useQuery({
+    queryKey: ["/api/landing-settings"],
+  });
+
+  useEffect(() => {
+    if (landingSettings) {
+      const settings = landingSettings as any;
+      if (settings.logoUrl) {
+        setLogoUrl(settings.logoUrl);
+        setLogoPreview(settings.logoUrl);
+      }
+      if (settings.faviconUrl) {
+        setFaviconUrl(settings.faviconUrl);
+        setFaviconPreview(settings.faviconUrl);
+      }
+      if (settings.ogImageUrl) {
+        setOgImageUrl(settings.ogImageUrl);
+        setOgImagePreview(settings.ogImageUrl);
+      }
+      if (settings.metaTitle) setMetaTitle(settings.metaTitle);
+      if (settings.metaDescription) setMetaDescription(settings.metaDescription);
+      if (settings.canonicalUrl) setCanonicalUrl(settings.canonicalUrl);
+      if (settings.robotsTxt) setRobotsTxt(settings.robotsTxt);
+      if (settings.sitemapUrl) setSitemapUrl(settings.sitemapUrl);
+    }
+  }, [landingSettings]);
   
-  const handleFileUpload = (type: 'logo' | 'favicon' | 'ogImage') => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const uploadFileMutation = useMutation({
+    mutationFn: async ({ file, type }: { file: File; type: 'logo' | 'favicon' | 'ogImage' }) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch("/api/admin/brand-upload", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Upload failed");
+      return { ...(await response.json()), type };
+    },
+    onSuccess: (data) => {
+      const { url, type } = data;
+      if (type === 'logo') {
+        setLogoUrl(url);
+        setLogoPreview(url);
+      } else if (type === 'favicon') {
+        setFaviconUrl(url);
+        setFaviconPreview(url);
+      } else {
+        setOgImageUrl(url);
+        setOgImagePreview(url);
+      }
+      toast({
+        title: "File Uploaded",
+        description: "Your brand asset has been uploaded successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload file. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleFileUpload = (type: 'logo' | 'favicon' | 'ogImage') => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -1727,28 +1792,49 @@ function SEOBrandingTab({ toast }: { toast: any }) {
         const preview = reader.result as string;
         if (type === 'logo') {
           setLogoPreview(preview);
-          setLogoUrl(file.name);
         } else if (type === 'favicon') {
           setFaviconPreview(preview);
-          setFaviconUrl(file.name);
         } else {
           setOgImagePreview(preview);
-          setOgImageUrl(file.name);
         }
       };
       reader.readAsDataURL(file);
-      toast({
-        title: "File Selected",
-        description: `${file.name} ready to upload.`,
-      });
+      uploadFileMutation.mutate({ file, type });
     }
   };
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("PUT", "/api/admin/landing-settings", {
+        logoUrl,
+        faviconUrl,
+        ogImageUrl,
+        metaTitle,
+        metaDescription,
+        canonicalUrl,
+        robotsTxt,
+        sitemapUrl,
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "SEO Settings Saved",
+        description: "Your SEO and branding settings have been updated.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/landing-settings"] });
+      refetchSettings();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save settings. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
   
   const handleSave = () => {
-    toast({
-      title: "SEO Settings Saved",
-      description: "Your SEO and branding settings have been updated.",
-    });
+    saveMutation.mutate();
   };
 
   return (
@@ -1921,9 +2007,13 @@ function SEOBrandingTab({ toast }: { toast: any }) {
       </Card>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave} data-testid="button-save-seo">
-          <Save className="w-4 h-4 mr-2" />
-          Save SEO Settings
+        <Button onClick={handleSave} disabled={saveMutation.isPending || uploadFileMutation.isPending} data-testid="button-save-seo">
+          {saveMutation.isPending ? (
+            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Save className="w-4 h-4 mr-2" />
+          )}
+          {saveMutation.isPending ? "Saving..." : "Save SEO Settings"}
         </Button>
       </div>
     </div>

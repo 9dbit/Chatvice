@@ -554,6 +554,16 @@ export const landingPageSettings = pgTable("landing_page_settings", {
   // Additional Settings
   extras: jsonb("extras").default({}),
   updatedAt: timestamp("updated_at").defaultNow(),
+  // Brand Identity
+  logoUrl: text("logo_url").default(""),
+  faviconUrl: text("favicon_url").default(""),
+  ogImageUrl: text("og_image_url").default(""),
+  // SEO Meta Tags
+  metaTitle: text("meta_title").default("Chatvice - AI-Powered Customer Service Platform"),
+  metaDescription: text("meta_description").default("Transform your customer support with Chatvice's AI-powered chatbots. Reduce costs, improve satisfaction, and scale your customer service effortlessly."),
+  canonicalUrl: text("canonical_url").default(""),
+  robotsTxt: text("robots_txt").default("User-agent: *\nAllow: /\n\nSitemap: https://chatvice.com/sitemap.xml"),
+  sitemapUrl: text("sitemap_url").default(""),
 });
 
 export const insertLandingPageSettingsSchema = createInsertSchema(landingPageSettings).omit({ id: true, updatedAt: true });

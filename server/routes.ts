@@ -2793,6 +2793,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // Brand identity file upload endpoint
+  app.post("/api/admin/brand-upload", requireAdmin, upload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      const fileUrl = `/uploads/${req.file.filename}`;
+      res.json({ url: fileUrl, filename: req.file.filename });
+    } catch (error) {
+      console.error("Error uploading brand file:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/widget/chatvice.js", async (req, res) => {
     const merchantId = req.query.merchant || "demo";
     const script = `
