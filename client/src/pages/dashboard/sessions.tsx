@@ -14,7 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   MessageSquare, Bot, HeadphonesIcon, Send, Search, User, Download, 
   Hand, ArrowLeft, Clock, Edit, Check, X, Loader2, RefreshCw, AlertCircle,
-  CheckCircle2, Circle, XCircle, Filter, ShoppingBag, Plus, ImageIcon, Video, FileText
+  CheckCircle2, Circle, XCircle, Filter, ShoppingBag, Plus, ImageIcon, Video, FileText,
+  ExternalLink, Maximize2, Minimize2
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
@@ -97,6 +98,13 @@ interface SessionWithPreview extends Omit<Session, 'status' | 'needsSupervisorAt
   needsSupervisorAttention?: boolean | null;
 }
 
+interface PreviewContent {
+  type: "photo" | "video" | "document" | "url";
+  url: string;
+  filename?: string;
+  title?: string;
+}
+
 export default function SessionsPage() {
   const { data: authData } = useQuery<{ authenticated: boolean; merchantId?: string }>({
     queryKey: ["/api/auth/me"],
@@ -130,6 +138,16 @@ export default function SessionsPage() {
   const [showPlusMenu, setShowPlusMenu] = useState(false);
   const [plusMenuView, setPlusMenuView] = useState<"main" | "products">("main");
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  
+  // Preview panel state
+  const [previewContent, setPreviewContent] = useState<PreviewContent | null>(null);
+  const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
+  
+  // Clear preview when session changes
+  useEffect(() => {
+    setPreviewContent(null);
+    setIsPreviewExpanded(false);
+  }, [selectedSession]);
 
   const { data: sessions, isLoading: sessionsLoading } = useQuery<SessionWithPreview[]>({
     queryKey: ["/api/sessions", merchantId],
@@ -740,8 +758,8 @@ export default function SessionsPage() {
           </Card>
         </div>
 
-        <div className={`lg:col-span-8 xl:col-span-9 flex flex-col min-h-0 ${selectedSession ? 'flex' : 'hidden lg:flex'}`}>
-          <Card className="flex flex-col h-full">
+        <div className={`lg:col-span-8 xl:col-span-9 flex min-h-0 gap-3 ${selectedSession ? 'flex' : 'hidden lg:flex'}`}>
+          <Card className={`flex flex-col h-full transition-all duration-300 ${previewContent ? 'flex-1' : 'w-full'}`}>
             {selectedSession ? (
               <>
                 <CardHeader className="flex-shrink-0 border-b py-2 sm:py-3 px-3 sm:px-4">
@@ -885,13 +903,21 @@ export default function SessionsPage() {
                                   {(msg as any).messageType === "product_offer" && (msg as any).payload?.productCard && (
                                     <div className="mt-2 bg-background rounded-xl border shadow-sm overflow-hidden max-w-[200px]">
                                       {(msg as any).payload.productCard.imageUrl ? (
-                                        <div className="bg-blue-50 dark:bg-blue-950/30 p-4">
+                                        <button 
+                                          className="bg-blue-50 dark:bg-blue-950/30 p-4 w-full cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                                          onClick={() => setPreviewContent({
+                                            type: "photo",
+                                            url: (msg as any).payload.productCard.imageUrl,
+                                            title: (msg as any).payload.productCard.title
+                                          })}
+                                          data-testid={`button-preview-product-image-${msg.id}`}
+                                        >
                                           <img 
                                             src={(msg as any).payload.productCard.imageUrl} 
                                             alt={(msg as any).payload.productCard.title}
                                             className="w-full h-auto object-contain max-h-28"
                                           />
-                                        </div>
+                                        </button>
                                       ) : (
                                         <div className="bg-blue-50 dark:bg-blue-950/30 h-28 flex items-center justify-center">
                                           <ShoppingBag className="w-12 h-12 text-muted-foreground/50" />
@@ -943,7 +969,15 @@ export default function SessionsPage() {
                                   {(msg as any).messageType === "media" && (msg as any).payload && (
                                     <div>
                                       {(msg as any).payload.type === "photo" && (
-                                        <a href={(msg as any).payload.url} target="_blank" rel="noopener noreferrer">
+                                        <button 
+                                          onClick={() => setPreviewContent({
+                                            type: "photo",
+                                            url: (msg as any).payload.url,
+                                            filename: (msg as any).payload.filename
+                                          })}
+                                          className="block"
+                                          data-testid={`button-preview-photo-${msg.id}`}
+                                        >
                                           <img 
                                             src={(msg as any).payload.url} 
                                             alt={(msg as any).payload.filename || "Image"}
@@ -961,27 +995,46 @@ export default function SessionsPage() {
                                               }
                                             }}
                                           />
-                                        </a>
+                                        </button>
                                       )}
                                       {(msg as any).payload.type === "video" && (
-                                        <video 
-                                          src={(msg as any).payload.url}
-                                          controls
-                                          className="max-w-[240px] max-h-[180px] rounded-lg"
-                                        />
+                                        <button 
+                                          onClick={() => setPreviewContent({
+                                            type: "video",
+                                            url: (msg as any).payload.url,
+                                            filename: (msg as any).payload.filename
+                                          })}
+                                          className="block relative group"
+                                          data-testid={`button-preview-video-${msg.id}`}
+                                        >
+                                          <video 
+                                            src={(msg as any).payload.url}
+                                            className="max-w-[240px] max-h-[180px] rounded-lg cursor-pointer"
+                                            muted
+                                          />
+                                          <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center">
+                                              <Maximize2 className="w-5 h-5 text-foreground" />
+                                            </div>
+                                          </div>
+                                        </button>
                                       )}
                                       {(msg as any).payload.type === "document" && (
-                                        <a 
-                                          href={(msg as any).payload.url} 
-                                          target="_blank" 
-                                          rel="noopener noreferrer"
+                                        <button 
+                                          onClick={() => setPreviewContent({
+                                            type: "document",
+                                            url: (msg as any).payload.url,
+                                            filename: (msg as any).payload.filename
+                                          })}
                                           className="flex items-center gap-2 p-2 bg-background/50 rounded-lg border hover:bg-background transition-colors"
+                                          data-testid={`button-preview-document-${msg.id}`}
                                         >
                                           <FileText className="w-5 h-5 text-primary" />
                                           <span className="text-sm text-foreground truncate max-w-[150px]">
                                             {(msg as any).payload.filename || "Document"}
                                           </span>
-                                        </a>
+                                          <Maximize2 className="w-3 h-3 text-muted-foreground" />
+                                        </button>
                                       )}
                                     </div>
                                   )}
@@ -1266,6 +1319,111 @@ export default function SessionsPage() {
               </CardContent>
             )}
           </Card>
+          
+          {/* Preview Panel */}
+          {previewContent && (
+            <Card className={`flex flex-col h-full transition-all duration-300 ${isPreviewExpanded ? 'w-2/3' : 'w-80'}`} data-testid="card-preview-panel">
+              <CardHeader className="flex-shrink-0 border-b py-2 px-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0" data-testid="preview-header-info">
+                    {previewContent.type === "photo" && <ImageIcon className="w-4 h-4 text-blue-500" data-testid="icon-preview-photo" />}
+                    {previewContent.type === "video" && <Video className="w-4 h-4 text-purple-500" data-testid="icon-preview-video" />}
+                    {previewContent.type === "document" && <FileText className="w-4 h-4 text-orange-500" data-testid="icon-preview-document" />}
+                    {previewContent.type === "url" && <ExternalLink className="w-4 h-4 text-green-500" data-testid="icon-preview-url" />}
+                    <span className="text-sm font-medium truncate" data-testid="text-preview-title">
+                      {previewContent.title || previewContent.filename || "Preview"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => setIsPreviewExpanded(!isPreviewExpanded)}
+                      title={isPreviewExpanded ? "Minimize" : "Expand"}
+                      className="h-7 w-7"
+                      data-testid="button-toggle-preview-size"
+                    >
+                      {isPreviewExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => {
+                        if (!previewContent?.url) return;
+                        const link = document.createElement('a');
+                        link.href = previewContent.url;
+                        link.download = previewContent.filename || 'download';
+                        link.target = '_blank';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }}
+                      title="Download"
+                      className="h-7 w-7"
+                      data-testid="button-download-preview"
+                    >
+                      <Download className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => {
+                        setPreviewContent(null);
+                        setIsPreviewExpanded(false);
+                      }}
+                      title="Close"
+                      className="h-7 w-7"
+                      data-testid="button-close-preview"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="flex-1 p-3 overflow-auto flex items-center justify-center bg-muted/30" data-testid="preview-content-area">
+                {previewContent.type === "photo" && (
+                  <img 
+                    src={previewContent.url} 
+                    alt={previewContent.filename || "Preview"} 
+                    className="max-w-full max-h-full object-contain rounded-lg"
+                    data-testid="preview-image"
+                  />
+                )}
+                {previewContent.type === "video" && (
+                  <video 
+                    src={previewContent.url} 
+                    controls 
+                    autoPlay
+                    className="max-w-full max-h-full rounded-lg"
+                    data-testid="preview-video"
+                  />
+                )}
+                {previewContent.type === "document" && (
+                  <iframe 
+                    src={previewContent.url} 
+                    className="w-full h-full border-0 rounded-lg bg-white"
+                    title={previewContent.filename || "Document"}
+                    sandbox="allow-scripts"
+                    data-testid="preview-document"
+                  />
+                )}
+                {previewContent.type === "url" && (
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-4" data-testid="preview-url-container">
+                    <ExternalLink className="w-12 h-12 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground text-center">External links cannot be previewed inline for security reasons.</p>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => window.open(previewContent.url, '_blank')}
+                      data-testid="button-open-external-link"
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Open in New Tab
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
