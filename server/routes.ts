@@ -2952,9 +2952,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return res.status(400).json({ error: "URL is required" });
       }
       
-      const result = await extractFAQContent(url);
+      // Normalize URL - add https:// if not present
+      let normalizedUrl = url.trim();
+      if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+        normalizedUrl = 'https://' + normalizedUrl;
+      }
+      
+      console.log("Crawling URL:", normalizedUrl);
+      
+      const result = await extractFAQContent(normalizedUrl);
       if (!result.success) {
-        return res.status(400).json({ error: result.content || "Failed to extract content from URL" });
+        console.log("Crawl failed:", result.error);
+        return res.status(400).json({ error: result.error || "Failed to extract content from URL" });
       }
       
       // Get existing sources from platform settings

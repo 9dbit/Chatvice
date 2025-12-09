@@ -2653,7 +2653,11 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
     mutationFn: async ({ url, name }: { url: string; name: string }) => {
       setIsCrawling(true);
       const res = await apiRequest("POST", "/api/admin/guide/crawl", { url, name });
-      return res.json();
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to crawl URL");
+      }
+      return data;
     },
     onSuccess: (data) => {
       setIsCrawling(false);
@@ -2676,11 +2680,21 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
       });
       refetchSources();
     },
-    onError: (error: any) => {
+    onError: async (error: any) => {
       setIsCrawling(false);
+      let errorMessage = "Failed to extract content from URL.";
+      // Try to get error message from response
+      if (error?.response) {
+        try {
+          const data = await error.response.json();
+          errorMessage = data.error || errorMessage;
+        } catch {}
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
       toast({
         title: "Crawl Failed",
-        description: error?.message || "Failed to extract content from URL.",
+        description: errorMessage,
         variant: "destructive",
       });
     },
