@@ -2342,6 +2342,7 @@ function SEOBrandingTab({ toast }: { toast: any }) {
               <div 
                 className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors aspect-video flex items-center justify-center"
                 onClick={() => logoInputRef.current?.click()}
+                data-testid="upload-logo-area"
               >
                 {logoPreview && !logoError ? (
                   <img 
@@ -2349,6 +2350,7 @@ function SEOBrandingTab({ toast }: { toast: any }) {
                     alt="Logo preview" 
                     className="max-h-full max-w-full object-contain" 
                     onError={() => setLogoError(true)}
+                    data-testid="img-logo-preview"
                   />
                 ) : (
                   <div className="text-center">
@@ -2357,6 +2359,12 @@ function SEOBrandingTab({ toast }: { toast: any }) {
                   </div>
                 )}
               </div>
+              {logoUrl && (
+                <div className="bg-muted/50 rounded p-2" data-testid="logo-url-display">
+                  <p className="text-xs text-muted-foreground mb-1">Uploaded URL:</p>
+                  <code className="text-xs break-all text-primary">{logoUrl}</code>
+                </div>
+              )}
               <p className="text-xs text-muted-foreground">Recommended: 200x60px, PNG/SVG</p>
             </div>
             
@@ -2372,6 +2380,7 @@ function SEOBrandingTab({ toast }: { toast: any }) {
               <div 
                 className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors aspect-square max-w-[120px] mx-auto flex items-center justify-center"
                 onClick={() => faviconInputRef.current?.click()}
+                data-testid="upload-favicon-area"
               >
                 {faviconPreview && !faviconError ? (
                   <img 
@@ -2379,6 +2388,7 @@ function SEOBrandingTab({ toast }: { toast: any }) {
                     alt="Favicon preview" 
                     className="max-h-full max-w-full object-contain" 
                     onError={() => setFaviconError(true)}
+                    data-testid="img-favicon-preview"
                   />
                 ) : (
                   <div className="text-center">
@@ -2387,6 +2397,12 @@ function SEOBrandingTab({ toast }: { toast: any }) {
                   </div>
                 )}
               </div>
+              {faviconUrl && (
+                <div className="bg-muted/50 rounded p-2" data-testid="favicon-url-display">
+                  <p className="text-xs text-muted-foreground mb-1">Uploaded URL:</p>
+                  <code className="text-xs break-all text-primary">{faviconUrl}</code>
+                </div>
+              )}
               <p className="text-xs text-muted-foreground text-center">ICO or PNG format</p>
             </div>
             
@@ -2402,6 +2418,7 @@ function SEOBrandingTab({ toast }: { toast: any }) {
               <div 
                 className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors aspect-video flex items-center justify-center"
                 onClick={() => ogImageInputRef.current?.click()}
+                data-testid="upload-og-image-area"
               >
                 {ogImagePreview && !ogImageError ? (
                   <img 
@@ -2409,6 +2426,7 @@ function SEOBrandingTab({ toast }: { toast: any }) {
                     alt="OG Image preview" 
                     className="max-h-full max-w-full object-contain" 
                     onError={() => setOgImageError(true)}
+                    data-testid="img-og-preview"
                   />
                 ) : (
                   <div className="text-center">
@@ -2417,6 +2435,12 @@ function SEOBrandingTab({ toast }: { toast: any }) {
                   </div>
                 )}
               </div>
+              {ogImageUrl && (
+                <div className="bg-muted/50 rounded p-2" data-testid="og-image-url-display">
+                  <p className="text-xs text-muted-foreground mb-1">Uploaded URL:</p>
+                  <code className="text-xs break-all text-primary">{ogImageUrl}</code>
+                </div>
+              )}
               <p className="text-xs text-muted-foreground">1200x630px recommended for social sharing</p>
             </div>
           </div>

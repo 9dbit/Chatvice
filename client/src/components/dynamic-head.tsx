@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 interface LandingPageSettings {
@@ -45,7 +45,56 @@ function updateOrCreateLink(rel: string, href: string, type?: string, sizes?: st
   element.setAttribute('href', href);
 }
 
+function getMimeType(url: string): string {
+  const ext = url.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'ico':
+      return 'image/x-icon';
+    case 'png':
+      return 'image/png';
+    case 'svg':
+      return 'image/svg+xml';
+    case 'gif':
+      return 'image/gif';
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'webp':
+      return 'image/webp';
+    default:
+      return 'image/png';
+  }
+}
+
+function updateFavicon(faviconUrl: string) {
+  const mimeType = getMimeType(faviconUrl);
+  const cacheBuster = `?v=${Date.now()}`;
+  const urlWithCache = faviconUrl + cacheBuster;
+  
+  const existingLinks = document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]');
+  existingLinks.forEach(link => link.remove());
+  
+  const link = document.createElement('link');
+  link.rel = 'icon';
+  link.type = mimeType;
+  link.href = urlWithCache;
+  document.head.appendChild(link);
+  
+  const shortcutLink = document.createElement('link');
+  shortcutLink.rel = 'shortcut icon';
+  shortcutLink.type = mimeType;
+  shortcutLink.href = urlWithCache;
+  document.head.appendChild(shortcutLink);
+  
+  const appleTouchLink = document.createElement('link');
+  appleTouchLink.rel = 'apple-touch-icon';
+  appleTouchLink.href = urlWithCache;
+  document.head.appendChild(appleTouchLink);
+}
+
 export function DynamicHead() {
+  const lastFaviconUrl = useRef<string | null>(null);
+  
   const { data: settings, isError } = useQuery<LandingPageSettings>({
     queryKey: ["/api/landing-settings"],
     staleTime: 60000,
@@ -53,18 +102,14 @@ export function DynamicHead() {
   });
 
   useEffect(() => {
-    // Don't update if error and no cached data - use HTML defaults
     if (isError && !settings) return;
     if (!settings) return;
 
-    // Update favicon (multiple formats for browser compatibility)
-    if (settings.faviconUrl) {
-      updateOrCreateLink('icon', settings.faviconUrl, 'image/x-icon');
-      updateOrCreateLink('icon', settings.faviconUrl, 'image/png', '32x32');
-      updateOrCreateLink('apple-touch-icon', settings.faviconUrl);
+    if (settings.faviconUrl && settings.faviconUrl !== lastFaviconUrl.current) {
+      updateFavicon(settings.faviconUrl);
+      lastFaviconUrl.current = settings.faviconUrl;
     }
 
-    // Update OG image for social sharing (WhatsApp, Facebook, Twitter)
     if (settings.ogImageUrl) {
       updateOrCreateMeta('og:image', settings.ogImageUrl);
       updateOrCreateMeta('og:image:width', '1200');
@@ -72,21 +117,18 @@ export function DynamicHead() {
       updateOrCreateMeta('twitter:image', settings.ogImageUrl, true);
     }
 
-    // Update meta title
     if (settings.metaTitle) {
       document.title = settings.metaTitle;
       updateOrCreateMeta('og:title', settings.metaTitle);
       updateOrCreateMeta('twitter:title', settings.metaTitle, true);
     }
 
-    // Update meta description
     if (settings.metaDescription) {
       updateOrCreateMeta('description', settings.metaDescription, true);
       updateOrCreateMeta('og:description', settings.metaDescription);
       updateOrCreateMeta('twitter:description', settings.metaDescription, true);
     }
 
-    // Update canonical URL
     if (settings.canonicalUrl) {
       updateOrCreateLink('canonical', settings.canonicalUrl);
       updateOrCreateMeta('og:url', settings.canonicalUrl);

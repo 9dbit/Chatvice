@@ -40,6 +40,7 @@ import PartnersPage from "@/pages/company/partners";
 import ContactPage from "@/pages/resources/contact";
 import StatusPage from "@/pages/resources/status";
 import DocsPage from "@/pages/resources/docs";
+import DocArticlePage from "@/pages/resources/doc-article";
 import HelpCenterPage from "@/pages/resources/help";
 import { DynamicHead } from "@/components/dynamic-head";
 
@@ -100,6 +101,7 @@ function Router() {
       <Route path="/contact" component={ContactPage} />
       <Route path="/status" component={StatusPage} />
       <Route path="/docs" component={DocsPage} />
+      <Route path="/docs/:slug" component={DocArticlePage} />
       <Route path="/help" component={HelpCenterPage} />
 
       <Route component={NotFound} />
