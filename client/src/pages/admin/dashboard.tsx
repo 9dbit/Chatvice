@@ -2536,13 +2536,17 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
   });
 
   const [knowledgeContent, setKnowledgeContent] = useState("");
-  const [sources, setSources] = useState<{ id: string; name: string; url: string; status: string }[]>([]);
+  const [sources, setSources] = useState<{ id: string; name: string; url: string; status: string; content?: string }[]>([]);
   const [promoImageUrl, setPromoImageUrl] = useState("");
   const [promoImageEnabled, setPromoImageEnabled] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [previewMessages, setPreviewMessages] = useState<{ role: string; content: string }[]>([]);
   const [previewInput, setPreviewInput] = useState("");
   const [isPreviewTyping, setIsPreviewTyping] = useState(false);
+  const [showAddSourceDialog, setShowAddSourceDialog] = useState(false);
+  const [newSourceUrl, setNewSourceUrl] = useState("");
+  const [newSourceName, setNewSourceName] = useState("");
+  const [isCrawling, setIsCrawling] = useState(false);
 
   const { data: platformSettings, refetch: refetchSettings } = useQuery({
     queryKey: ["/api/admin/platform-settings"],
@@ -2626,6 +2630,93 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
 
   const handleSave = () => {
     saveMutation.mutate();
+  };
+
+  // Fetch sources
+  const { data: sourcesData, refetch: refetchSources } = useQuery({
+    queryKey: ["/api/admin/guide/sources"],
+  });
+
+  useEffect(() => {
+    if (sourcesData) {
+      setSources(sourcesData as any);
+    }
+  }, [sourcesData]);
+
+  // Crawl URL mutation
+  const crawlMutation = useMutation({
+    mutationFn: async ({ url, name }: { url: string; name: string }) => {
+      setIsCrawling(true);
+      const res = await apiRequest("POST", "/api/admin/guide/crawl", { url, name });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setIsCrawling(false);
+      setSources(data.sources);
+      if (data.extractedContent) {
+        setKnowledgeContent(prev => {
+          if (prev) return prev + "\n\n---\n\n" + `[Source: ${newSourceName || newSourceUrl}]\n${data.extractedContent}`;
+          return `[Source: ${newSourceName || newSourceUrl}]\n${data.extractedContent}`;
+        });
+      }
+      setShowAddSourceDialog(false);
+      setNewSourceUrl("");
+      setNewSourceName("");
+      toast({
+        title: "Source Added",
+        description: "URL has been crawled and content extracted successfully.",
+      });
+      refetchSettings();
+      refetchSources();
+    },
+    onError: (error: any) => {
+      setIsCrawling(false);
+      toast({
+        title: "Crawl Failed",
+        description: error?.message || "Failed to extract content from URL.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete source mutation
+  const deleteSourceMutation = useMutation({
+    mutationFn: async (sourceId: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/guide/sources/${sourceId}`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setSources(data.sources);
+      // Update knowledge content to reflect the removal
+      if (data.knowledgeContent !== undefined) {
+        setKnowledgeContent(data.knowledgeContent);
+      }
+      toast({
+        title: "Source Deleted",
+        description: "Knowledge source and its content have been removed.",
+      });
+      refetchSources();
+      refetchSettings();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete source.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleAddSource = () => {
+    if (!newSourceUrl.trim()) {
+      toast({
+        title: "URL Required",
+        description: "Please enter a URL to crawl.",
+        variant: "destructive",
+      });
+      return;
+    }
+    crawlMutation.mutate({ url: newSourceUrl.trim(), name: newSourceName.trim() });
   };
 
   return (
@@ -3009,29 +3100,113 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {sources.map((source) => (
-              <div key={source.id} className="flex items-center justify-between p-3 border rounded-lg">
-                <div>
-                  <p className="font-medium text-sm">{source.name}</p>
-                  <p className="text-xs text-muted-foreground">{source.url}</p>
+            {sources.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No sources added yet. Add a URL to crawl for knowledge content.
+              </p>
+            ) : (
+              sources.map((source) => (
+                <div key={source.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex-1 min-w-0 mr-2">
+                    <p className="font-medium text-sm truncate">{source.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{source.url}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={source.status === "active" ? "default" : "secondary"}>
+                      {source.status}
+                    </Badge>
+                    <Button 
+                      size="icon" 
+                      variant="ghost"
+                      onClick={() => deleteSourceMutation.mutate(source.id)}
+                      disabled={deleteSourceMutation.isPending}
+                      data-testid={`button-delete-source-${source.id}`}
+                    >
+                      <Trash className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant={source.status === "active" ? "default" : "secondary"}>
-                    {source.status}
-                  </Badge>
-                  <Button size="icon" variant="ghost">
-                    <Trash className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-            <Button variant="outline" className="w-full" data-testid="button-add-guide-source">
+              ))
+            )}
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={() => setShowAddSourceDialog(true)}
+              data-testid="button-add-guide-source"
+            >
               <Plus className="w-4 h-4 mr-2" />
               Add Source URL
             </Button>
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={showAddSourceDialog} onOpenChange={setShowAddSourceDialog}>
+        <DialogContent data-testid="dialog-add-source">
+          <DialogHeader>
+            <DialogTitle>Add Knowledge Source</DialogTitle>
+            <DialogDescription>
+              Enter a URL to crawl and extract content for the Chatvice Guide knowledge base.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="source-url">URL to Crawl</Label>
+              <Input
+                id="source-url"
+                value={newSourceUrl}
+                onChange={(e) => setNewSourceUrl(e.target.value)}
+                placeholder="https://example.com/faq"
+                className="mt-1"
+                data-testid="input-source-url"
+              />
+            </div>
+            <div>
+              <Label htmlFor="source-name">Source Name (optional)</Label>
+              <Input
+                id="source-name"
+                value={newSourceName}
+                onChange={(e) => setNewSourceName(e.target.value)}
+                placeholder="e.g., FAQ Page, Product Info"
+                className="mt-1"
+                data-testid="input-source-name"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Leave empty to use the domain name automatically
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowAddSourceDialog(false);
+                setNewSourceUrl("");
+                setNewSourceName("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddSource}
+              disabled={isCrawling || !newSourceUrl.trim()}
+              data-testid="button-crawl-source"
+            >
+              {isCrawling ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Crawling...
+                </>
+              ) : (
+                <>
+                  <Globe className="w-4 h-4 mr-2" />
+                  Crawl URL
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardHeader>

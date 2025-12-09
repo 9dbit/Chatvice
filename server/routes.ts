@@ -2944,6 +2944,127 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // Admin endpoint for crawling guide knowledge source URLs
+  app.post("/api/admin/guide/crawl", requireAdmin, async (req, res) => {
+    try {
+      const { url, name } = req.body;
+      if (!url) {
+        return res.status(400).json({ error: "URL is required" });
+      }
+      
+      const result = await extractFAQContent(url);
+      if (!result.success) {
+        return res.status(400).json({ error: result.content || "Failed to extract content from URL" });
+      }
+      
+      // Get existing sources from platform settings
+      const existingSourcesJson = await storage.getPlatformSetting("guide_sources") || "[]";
+      let sources: Array<{ id: string; name: string; url: string; content: string; status: string; createdAt: string }> = [];
+      try {
+        sources = JSON.parse(existingSourcesJson);
+      } catch {
+        sources = [];
+      }
+      
+      // Add new source
+      const sourceId = `src_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      let sourceName: string;
+      try {
+        sourceName = name || new URL(url).hostname;
+      } catch {
+        sourceName = url;
+      }
+      sources.push({
+        id: sourceId,
+        name: sourceName,
+        url,
+        content: result.content || "",
+        status: "active",
+        createdAt: new Date().toISOString(),
+      });
+      
+      // Save sources
+      await storage.setPlatformSetting("guide_sources", JSON.stringify(sources));
+      
+      // Also append to knowledge content
+      let knowledgeContent = await storage.getPlatformSetting("guide_knowledge_content") || "";
+      if (knowledgeContent) {
+        knowledgeContent += "\n\n---\n\n";
+      }
+      knowledgeContent += `[Source: ${sourceName}]\n${result.content}`;
+      await storage.setPlatformSetting("guide_knowledge_content", knowledgeContent);
+      
+      res.json({ 
+        success: true, 
+        source: sources[sources.length - 1],
+        sources,
+        extractedContent: result.content
+      });
+    } catch (error) {
+      console.error("Guide crawl error:", error);
+      res.status(500).json({ error: "Failed to crawl URL" });
+    }
+  });
+
+  // Admin endpoint to get guide sources
+  app.get("/api/admin/guide/sources", requireAdmin, async (req, res) => {
+    try {
+      const sourcesJson = await storage.getPlatformSetting("guide_sources") || "[]";
+      let sources = [];
+      try {
+        sources = JSON.parse(sourcesJson);
+      } catch {
+        sources = [];
+      }
+      res.json(sources);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Admin endpoint to delete guide source
+  app.delete("/api/admin/guide/sources/:sourceId", requireAdmin, async (req, res) => {
+    try {
+      const { sourceId } = req.params;
+      const sourcesJson = await storage.getPlatformSetting("guide_sources") || "[]";
+      let sources: Array<{ id: string; name: string; url: string; content?: string; status: string }> = [];
+      try {
+        sources = JSON.parse(sourcesJson);
+      } catch {
+        sources = [];
+      }
+      
+      // Find source to delete and its name for content removal
+      const sourceToDelete = sources.find((s) => s.id === sourceId);
+      const filteredSources = sources.filter((s) => s.id !== sourceId);
+      await storage.setPlatformSetting("guide_sources", JSON.stringify(filteredSources));
+      
+      // Remove corresponding content from knowledge content
+      if (sourceToDelete) {
+        let knowledgeContent = await storage.getPlatformSetting("guide_knowledge_content") || "";
+        if (knowledgeContent) {
+          // Remove the source content block (format: [Source: name]\ncontent)
+          const sourcePattern = new RegExp(
+            `(---\\n\\n)?\\[Source: ${sourceToDelete.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\][\\s\\S]*?(?=\\n\\n---|$)`,
+            'g'
+          );
+          knowledgeContent = knowledgeContent.replace(sourcePattern, '').trim();
+          // Clean up any resulting double separators
+          knowledgeContent = knowledgeContent.replace(/\n\n---\n\n---\n\n/g, '\n\n---\n\n');
+          knowledgeContent = knowledgeContent.replace(/^---\n\n/, '').replace(/\n\n---$/, '');
+          await storage.setPlatformSetting("guide_knowledge_content", knowledgeContent);
+        }
+      }
+      
+      // Get updated knowledge content to return
+      const updatedKnowledge = await storage.getPlatformSetting("guide_knowledge_content") || "";
+      
+      res.json({ success: true, sources: filteredSources, knowledgeContent: updatedKnowledge });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // Public endpoint to get trial days for pricing page
   app.get("/api/platform/trial-days", async (req, res) => {
     try {
