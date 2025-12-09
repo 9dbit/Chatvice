@@ -883,6 +883,281 @@ function StatsSection() {
   );
 }
 
+function BenefitsSections() {
+  const benefits = [
+    { icon: TrendingUp, text: "Increase online sales" },
+    { icon: Users, text: "Improve customer satisfaction" },
+    { icon: Bot, text: "Automate customer service" },
+  ];
+
+  const testimonials = [
+    {
+      stars: 5,
+      company: "Tech Solutions ID",
+      location: "Indonesia",
+      quote: "We've been using Chatvice for about a year now. It has greatly enhanced our ability to assist our customers.",
+    },
+    {
+      stars: 5,
+      company: "Jakarta Commerce",
+      location: "Indonesia",
+      quote: "LOVE this platform! Being able to help people live has really helped sales and engagement.",
+    },
+    {
+      stars: 5,
+      company: "Bali Hotels Group",
+      location: "Indonesia",
+      quote: "The AI responses are incredibly accurate. Our team can focus on complex issues while AI handles routine queries.",
+    },
+  ];
+
+  return (
+    <>
+      {/* Increase Sales Section */}
+      <section className="py-12 md:py-20 bg-background">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+            <div className="order-2 lg:order-1">
+              <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 mb-3 text-xs">
+                INCREASE ONLINE SALES
+              </Badge>
+              <h2 className="text-2xl md:text-4xl font-bold mb-3 leading-tight">
+                Engage with live chat, sell with ease
+              </h2>
+              <p className="text-sm md:text-base text-muted-foreground mb-4 leading-relaxed">
+                Your visitors are already interested — now put live chat to work. Start conversations with pre-set messages, recommend products, and guide them to the ideal purchase.
+              </p>
+              <Button asChild variant="outline" size="sm" className="text-xs" data-testid="button-sales-tools">
+                <Link href="/features">
+                  Sales boosting tools
+                  <ArrowRight className="w-3 h-3 ml-1" />
+                </Link>
+              </Button>
+            </div>
+            <div className="order-1 lg:order-2">
+              <Card className="p-4 md:p-6 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border-amber-200 dark:border-amber-800">
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center shrink-0">
+                    <Bot className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-medium text-purple-600">Support Agent</p>
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-2 mt-1 text-xs shadow-sm">
+                      Hi! Do you have any sunglasses for men?
+                    </div>
+                  </div>
+                </div>
+                <div className="ml-11 space-y-2">
+                  <div className="bg-purple-100 dark:bg-purple-900/30 rounded-lg p-2 text-xs">
+                    <p className="font-medium mb-1">Absolutely!</p>
+                    <p className="text-muted-foreground">We've got some great options that might catch your eye.</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Card className="p-2 flex-1 bg-white dark:bg-gray-800 shadow-sm">
+                      <div className="h-12 bg-gradient-to-br from-amber-200 to-amber-300 rounded mb-1" />
+                      <p className="text-[10px] font-medium">Wooden Frame</p>
+                      <Badge className="w-full mt-1 justify-center text-[10px] bg-amber-500 text-white cursor-pointer">View</Badge>
+                    </Card>
+                    <Card className="p-2 flex-1 bg-white dark:bg-gray-800 shadow-sm">
+                      <div className="h-12 bg-gradient-to-br from-orange-200 to-orange-300 rounded mb-1" />
+                      <p className="text-[10px] font-medium">Classic Style</p>
+                      <Badge className="w-full mt-1 justify-center text-[10px] bg-amber-500 text-white cursor-pointer">View</Badge>
+                    </Card>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Premium Support Section */}
+      <section className="py-12 md:py-20 bg-muted/30">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+            <div>
+              <Card className="p-4 md:p-6 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 border-blue-200 dark:border-blue-800">
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
+                    <HeadphonesIcon className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-medium text-blue-600">Retreat Hotel</p>
+                  </div>
+                </div>
+                <div className="space-y-2 text-xs">
+                  <div className="bg-amber-100 dark:bg-amber-900/30 rounded-lg p-2 ml-auto max-w-[80%]">
+                    Hi, my plane landed 30 minutes early. Can I get picked up sooner?
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-2 shadow-sm max-w-[80%]">
+                    <p>Hi Olivia!</p>
+                    <p className="mt-1">I'll arrange an earlier pick-up for you.</p>
+                  </div>
+                  <div className="bg-purple-100 dark:bg-purple-900/30 rounded-lg p-2 max-w-[80%]">
+                    <p>You'll get the details soon so you can kick off your getaway right away!</p>
+                    <Badge className="mt-1 text-[9px] bg-purple-200 text-purple-700">AI-powered</Badge>
+                  </div>
+                  <div className="bg-amber-100 dark:bg-amber-900/30 rounded-lg p-2 ml-auto max-w-[80%]">
+                    Great! Thank you!
+                  </div>
+                </div>
+              </Card>
+            </div>
+            <div>
+              <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 mb-3 text-xs">
+                IMPROVE CUSTOMER SATISFACTION
+              </Badge>
+              <h2 className="text-2xl md:text-4xl font-bold mb-3 leading-tight">
+                Make premium support your new standard
+              </h2>
+              <p className="text-sm md:text-base text-muted-foreground mb-4 leading-relaxed">
+                Streamline your communication by handling all customer messages in the live chat app. With instant access to customer info, you'll deliver the top-notch service your customers deserve.
+              </p>
+              <Button asChild variant="outline" size="sm" className="text-xs" data-testid="button-support-features">
+                <Link href="/features">
+                  Efficient support features
+                  <ArrowRight className="w-3 h-3 ml-1" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Automate Section */}
+      <section className="py-12 md:py-20 bg-purple-50 dark:bg-purple-950/10">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+            <div className="order-2 lg:order-1">
+              <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-3 text-xs">
+                AUTOMATE CUSTOMER SERVICE
+              </Badge>
+              <h2 className="text-2xl md:text-4xl font-bold mb-3 leading-tight">
+                Automate support and sales with AI customer service chatbots
+              </h2>
+              <p className="text-sm md:text-base text-muted-foreground mb-4 leading-relaxed">
+                When your live chat agents deal with repetitive tasks or common questions, use chatbots to handle inquiries automatically. Let chatbots manage the routine and your team focus on delivering exceptional experience.
+              </p>
+              <Button asChild variant="outline" size="sm" className="text-xs" data-testid="button-automate-features">
+                <Link href="/features">
+                  Automate with Chatvice AI
+                  <ArrowRight className="w-3 h-3 ml-1" />
+                </Link>
+              </Button>
+            </div>
+            <div className="order-1 lg:order-2">
+              <Card className="p-4 md:p-6 bg-white dark:bg-gray-900 border-purple-200 dark:border-purple-800">
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center shrink-0">
+                    <Bot className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-medium text-green-600">Coffee Bot</p>
+                    <div className="bg-green-100 dark:bg-green-900/30 rounded-lg p-2 mt-1 text-xs">
+                      Hi! I'm Coffee Bot. How can I help you today?
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1 ml-11 mb-3">
+                  {["Coffee workshops", "Events", "Book a table", "Your order"].map((opt) => (
+                    <Badge key={opt} variant="outline" className="text-[10px] cursor-pointer hover:bg-muted">
+                      {opt}
+                    </Badge>
+                  ))}
+                </div>
+                <div className="ml-11 space-y-2">
+                  <Card className="p-2 bg-gradient-to-r from-purple-100 to-purple-50 dark:from-purple-900/30 dark:to-purple-950/20">
+                    <p className="text-[10px] font-medium text-purple-700 dark:text-purple-300">Exciting events ahead:</p>
+                    <div className="flex gap-2 mt-2">
+                      <div className="flex-1 bg-white dark:bg-gray-800 rounded p-1.5 text-center">
+                        <p className="text-[9px] font-medium">Latte Degustation</p>
+                        <p className="text-[8px] text-muted-foreground">Dec 14, 7:30 pm</p>
+                      </div>
+                      <div className="flex-1 bg-white dark:bg-gray-800 rounded p-1.5 text-center">
+                        <p className="text-[9px] font-medium">History of Coffee</p>
+                        <p className="text-[8px] text-muted-foreground">Jan 8, 8:00 pm</p>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section className="py-12 md:py-20 bg-background">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl md:text-4xl font-bold mb-2">
+              They say... chatting has never been easier
+            </h2>
+          </div>
+          <div className="grid md:grid-cols-3 gap-4 md:gap-6">
+            {testimonials.map((t, i) => (
+              <Card key={i} className="p-4 md:p-6 hover-elevate">
+                <div className="flex gap-0.5 mb-2">
+                  {Array.from({ length: t.stars }).map((_, j) => (
+                    <Star key={j} className="w-4 h-4 fill-amber-400 text-amber-400" />
+                  ))}
+                </div>
+                <p className="font-semibold text-sm mb-1">{t.company}</p>
+                <p className="text-[10px] text-muted-foreground mb-1">{t.location}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">"{t.quote}"</p>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 24/7/365 Support Section */}
+      <section className="py-12 md:py-20 bg-muted/30">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+          <div className="text-center max-w-2xl mx-auto">
+            <h2 className="text-2xl md:text-4xl font-bold mb-3">
+              We're here for you 24/7/365
+            </h2>
+            <p className="text-sm md:text-base text-muted-foreground mb-4 leading-relaxed">
+              You're looking for the best AI chat software to meet your needs. We're here to offer you more than just a product.
+            </p>
+            <p className="text-sm md:text-base text-muted-foreground mb-6 leading-relaxed">
+              Chatvice® Product Experts are available for you 24/7/365 to provide live chat support and help you drive your business growth.
+            </p>
+            <div className="flex justify-center gap-2 mb-6">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="relative">
+                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                    {["A", "M", "S", "L", "R"][i - 1]}
+                  </div>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
+                </div>
+              ))}
+            </div>
+            <Button asChild className="bg-purple-600 hover:bg-purple-700 text-sm" data-testid="button-chat-expert">
+              <a href="mailto:hello@chatvice.app">
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Chat with a Product Expert
+              </a>
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Intuitive Software Description */}
+      <section className="py-12 md:py-20 bg-background">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+          <div className="text-center max-w-3xl mx-auto">
+            <h2 className="text-2xl md:text-4xl font-bold mb-4 leading-tight">
+              Chatvice® is <span className="text-purple-600">intuitive customer service software</span>. Quick to set up, easy for your team to use and a go-to choice for your customers.
+            </h2>
+          </div>
+        </div>
+      </section>
+    </>
+  );
+}
+
 function TimelineSection() {
   const milestones = [
     {
@@ -1343,6 +1618,7 @@ export default function LandingPage() {
       <Navbar />
       <HeroSection />
       <StatsSection />
+      <BenefitsSections />
       <WidgetCustomizerSection />
       <TimelineSection />
       <FeaturesPreview />

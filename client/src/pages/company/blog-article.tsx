@@ -3,6 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   ArrowLeft,
   ArrowRight,
   Calendar,
@@ -12,7 +17,15 @@ import {
   Bookmark,
   MessageSquare,
   Bot,
+  Copy,
+  Mail,
+  MessageCircle,
+  ExternalLink,
 } from "lucide-react";
+import { SiWhatsapp, SiTelegram, SiLinkedin, SiFacebook } from "react-icons/si";
+import { FaXTwitter } from "react-icons/fa6";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 import PublicPageLayout from "../public-layout";
 import { blogArticles } from "./blog-data";
 
@@ -35,8 +48,45 @@ const blogImages: Record<string, string> = {
 export default function BlogArticlePage() {
   const params = useParams();
   const slug = params.slug as string;
+  const { toast } = useToast();
+  const [shareOpen, setShareOpen] = useState(false);
   
   const article = blogArticles.find(a => a.slug === slug);
+  
+  const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/blog/${slug}` : `https://chatvice.app/blog/${slug}`;
+  const shareTitle = article?.title || 'Chatvice Blog';
+  const shareText = article?.metaDescription || '';
+  
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast({ title: "Link copied!", description: "Article link copied to clipboard" });
+      setShareOpen(false);
+    } catch {
+      toast({ title: "Failed to copy", variant: "destructive" });
+    }
+  };
+  
+  type ShareOption = {
+    name: string;
+    icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+    action?: () => void;
+    href?: string;
+    color?: string;
+  };
+  
+  const shareOptions: ShareOption[] = [
+    { name: "Copy Link", icon: Copy, action: copyLink },
+    { name: "WhatsApp", icon: SiWhatsapp, href: `https://wa.me/?text=${encodeURIComponent(`${shareTitle}\n${shareUrl}`)}`, color: "#25D366" },
+    { name: "Email", icon: Mail, href: `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(`${shareText}\n\n${shareUrl}`)}` },
+    { name: "SMS", icon: MessageCircle, href: `sms:?body=${encodeURIComponent(`${shareTitle}\n${shareUrl}`)}` },
+    { name: "X (Twitter)", icon: FaXTwitter, href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareTitle)}&url=${encodeURIComponent(shareUrl)}` },
+    { name: "LinkedIn", icon: SiLinkedin, href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`, color: "#0A66C2" },
+    { name: "Facebook", icon: SiFacebook, href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, color: "#1877F2" },
+    { name: "Telegram", icon: SiTelegram, href: `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareTitle)}`, color: "#0088CC" },
+    { name: "ChatGPT", icon: ExternalLink, href: `https://chat.openai.com/?q=${encodeURIComponent(`Summarize this article: ${shareUrl}`)}`, color: "#10A37F" },
+    { name: "Gemini", icon: ExternalLink, href: `https://gemini.google.com/app?q=${encodeURIComponent(`Summarize this article: ${shareUrl}`)}`, color: "#8E75B2" },
+  ];
   
   if (!article) {
     return (
@@ -93,11 +143,45 @@ export default function BlogArticlePage() {
               </span>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm">
-                <Share2 className="w-4 h-4 mr-2" />
-                Share
-              </Button>
-              <Button variant="outline" size="sm">
+              <Popover open={shareOpen} onOpenChange={setShareOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" data-testid="button-share">
+                    <Share2 className="w-4 h-4 mr-2" />
+                    Share
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-2" align="start">
+                  <div className="grid gap-1">
+                    {shareOptions.map((option, idx) => (
+                      option.action ? (
+                        <button
+                          key={idx}
+                          onClick={option.action}
+                          className="flex items-center gap-3 w-full px-3 py-2 text-xs rounded-md hover-elevate text-left"
+                          data-testid={`button-share-${option.name.toLowerCase().replace(/\s+/g, '-')}`}
+                        >
+                          <option.icon className="w-4 h-4" style={option.color ? { color: option.color } : undefined} />
+                          <span>{option.name}</span>
+                        </button>
+                      ) : (
+                        <a
+                          key={idx}
+                          href={option.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => setShareOpen(false)}
+                          className="flex items-center gap-3 w-full px-3 py-2 text-xs rounded-md hover-elevate"
+                          data-testid={`button-share-${option.name.toLowerCase().replace(/\s+/g, '-')}`}
+                        >
+                          <option.icon className="w-4 h-4" style={option.color ? { color: option.color } : undefined} />
+                          <span>{option.name}</span>
+                        </a>
+                      )
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <Button variant="outline" size="sm" data-testid="button-save">
                 <Bookmark className="w-4 h-4 mr-2" />
                 Save
               </Button>
