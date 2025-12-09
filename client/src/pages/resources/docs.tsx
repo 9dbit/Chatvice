@@ -24,67 +24,78 @@ export default function DocsPage() {
     {
       icon: Rocket,
       title: "Getting Started",
-      description: "Quick start guides to get you up and running.",
+      description: "Complete guides to set up your AI-powered customer service in minutes.",
       articles: [
-        "Creating your account",
-        "Setting up your first agent",
-        "Adding to your knowledge base",
-        "Embedding the widget",
+        "Creating your Chatvice account and verifying email",
+        "Setting up your first AI agent with custom name and branding",
+        "Building your knowledge base with FAQs and website content",
+        "Embedding the chat widget on your website or app",
+        "Testing your AI agent before going live",
       ]
     },
     {
       icon: Brain,
       title: "AI & Knowledge Base",
-      description: "Configure and train your AI agents.",
+      description: "Train your AI agents to provide accurate, helpful responses.",
       articles: [
-        "Understanding LEXA1",
-        "Knowledge base best practices",
-        "System prompts guide",
-        "Semantic search explained",
+        "Understanding LEXA1 AI engine and capabilities",
+        "Knowledge base best practices for accurate responses",
+        "Writing effective system prompts for your business",
+        "Semantic search and how embeddings work",
+        "Importing content from URLs, PDFs, and documents",
+        "Managing multiple knowledge sources",
       ]
     },
     {
       icon: MessageCircle,
       title: "Chat Widget",
-      description: "Customize and deploy your chat widget.",
+      description: "Customize every aspect of your customer chat experience.",
       articles: [
-        "Widget customization",
-        "Embed code options",
-        "Identity verification",
-        "Allowed domains",
+        "Widget color, position, and branding customization",
+        "Welcome messages and suggested questions",
+        "Mobile responsive design and behavior",
+        "Product cards and quick reply buttons",
+        "Custom button icons and dimensions",
+        "Allowed domains and security settings",
       ]
     },
     {
       icon: Users,
       title: "Team & Escalation",
-      description: "Manage supervisors and escalation workflows.",
+      description: "Set up human support for complex customer inquiries.",
       articles: [
-        "Adding supervisors",
-        "Escalation triggers",
-        "Round-robin assignment",
-        "Chat takeover",
+        "Adding and managing supervisor accounts",
+        "Configuring automatic escalation triggers",
+        "Round-robin and priority-based assignment",
+        "Live chat takeover from AI to human",
+        "Supervisor work schedules and shifts",
+        "Team activity monitoring and reports",
       ]
     },
     {
       icon: Code,
       title: "API Reference",
-      description: "Integrate Chatvice into your applications.",
+      description: "Full API documentation for custom integrations.",
       articles: [
-        "Authentication",
-        "Agents API",
-        "Sessions API",
-        "Messages API",
+        "API authentication and security tokens",
+        "Agents API: Create, update, delete agents",
+        "Sessions API: Manage customer conversations",
+        "Messages API: Send and receive messages",
+        "Webhooks for real-time event notifications",
+        "Rate limits and best practices",
       ]
     },
     {
       icon: Shield,
       title: "Security & Compliance",
-      description: "Security features and data protection.",
+      description: "Enterprise-grade security and data protection measures.",
       articles: [
-        "Data encryption",
-        "GDPR compliance",
-        "Access controls",
-        "Audit logs",
+        "End-to-end encryption for all data",
+        "GDPR compliance and data subject rights",
+        "Role-based access controls (RBAC)",
+        "Session security and JWT verification",
+        "Data retention and deletion policies",
+        "Security audit logs and monitoring",
       ]
     },
   ];
@@ -158,7 +169,7 @@ export default function DocsPage() {
                     </li>
                   ))}
                 </ul>
-                <Button variant="link" className="px-0 mt-4 text-purple-600">
+                <Button variant="ghost" className="px-0 mt-4 text-purple-600 hover:text-purple-700 hover:bg-transparent">
                   View all articles
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>

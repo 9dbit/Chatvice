@@ -42,8 +42,8 @@ export default function ContactPage() {
       icon: Mail,
       title: "Email Us",
       description: "For general inquiries and support",
-      contact: "hello@chatvice.com",
-      action: "mailto:hello@chatvice.com"
+      contact: "hello@chatvice.app",
+      action: "mailto:hello@chatvice.app"
     },
     {
       icon: MessageCircle,

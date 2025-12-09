@@ -39,7 +39,7 @@ const INITIAL_MESSAGE = `Hi! I'm Chatvice Guide, here to help you make the most 
 What would you like to know?`;
 
 const CARD_WIDTH = 384;
-const CARD_HEIGHT = 500;
+const CARD_HEIGHT = 700; // Increased by 40% from 500
 const BUTTON_SIZE = 56;
 const WELCOME_BUBBLE_DISMISSED_KEY_SUFFIX = "-welcome-dismissed";
 
@@ -482,7 +482,7 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <ScrollArea className="h-64 sm:h-80 p-3 sm:p-4" ref={scrollRef}>
+          <ScrollArea className="h-[360px] sm:h-[448px] p-3 sm:p-4" ref={scrollRef}>
             <div className="space-y-4">
               {messages.map((msg, index) => (
                 <div 

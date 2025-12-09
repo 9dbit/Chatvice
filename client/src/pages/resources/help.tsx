@@ -21,25 +21,25 @@ export default function HelpCenterPage() {
     {
       icon: Lightbulb,
       title: "Getting Started",
-      description: "New to Chatvice? Start here.",
+      description: "Create your account, set up your first AI agent, and deploy in minutes.",
       link: "/docs"
     },
     {
       icon: MessageCircle,
       title: "Chat Widget",
-      description: "Setup and customize your widget.",
+      description: "Customize colors, position, welcome messages, and embed on your website.",
       link: "/docs"
     },
     {
       icon: BookOpen,
       title: "Knowledge Base",
-      description: "Train your AI agent.",
+      description: "Add FAQs, crawl URLs, upload documents to train your AI agent.",
       link: "/docs"
     },
     {
       icon: FileText,
       title: "Billing & Plans",
-      description: "Subscriptions and payments.",
+      description: "Compare plans, manage subscriptions, view invoices and payment history.",
       link: "/pricing"
     },
   ];
@@ -47,19 +47,31 @@ export default function HelpCenterPage() {
   const faqs = [
     {
       question: "How do I reset my password?",
-      answer: "Click 'Forgot Password' on the login page and follow the instructions sent to your email."
+      answer: "Click 'Forgot Password' on the login page and follow the instructions sent to your email. If you don't receive the email within 5 minutes, check your spam folder or contact us at hello@chatvice.app."
     },
     {
-      question: "How do I add more agents?",
-      answer: "Go to Dashboard → Agents → Create New Agent. Your plan determines how many agents you can create."
+      question: "How do I add more AI agents?",
+      answer: "Navigate to Dashboard → Agents → Create New Agent. Enter your agent name, configure the system prompt, and customize the widget appearance. Your subscription plan determines the maximum number of agents you can create."
     },
     {
-      question: "How do I change my subscription?",
-      answer: "Go to Dashboard → Settings → Billing to upgrade, downgrade, or cancel your plan."
+      question: "How do I change my subscription plan?",
+      answer: "Go to Dashboard → Settings → Billing to view your current plan. You can upgrade to a higher tier anytime. For downgrades or cancellations, changes take effect at the end of your billing cycle."
+    },
+    {
+      question: "How do I train my AI with custom knowledge?",
+      answer: "Visit Dashboard → Knowledge Base to add content. You can manually enter FAQs, crawl your website URLs, or upload documents. The AI uses this knowledge to provide accurate responses to customers."
+    },
+    {
+      question: "How do I embed the chat widget on my website?",
+      answer: "Go to Dashboard → Widget Settings to customize the appearance. Copy the embed code provided and paste it before the closing </body> tag on your website. The widget will appear instantly."
+    },
+    {
+      question: "How do I set up human escalation?",
+      answer: "Configure escalation triggers in Dashboard → Triggers. Add supervisors in Dashboard → Supervisors. When customers request human help or match trigger conditions, conversations are automatically routed to available supervisors."
     },
     {
       question: "How do I contact support?",
-      answer: "Use the chat widget on this page, email us at support@chatvice.com, or visit our contact page."
+      answer: "Use the Chatvice Guide widget on this page for instant AI help. For human support, email us at hello@chatvice.app or visit our contact page. We respond within 24 hours on business days."
     },
   ];
 
@@ -113,7 +125,7 @@ export default function HelpCenterPage() {
                 ))}
               </div>
               <Link href="/faq">
-                <Button variant="link" className="px-0 mt-4 text-purple-600">
+                <Button variant="ghost" className="px-0 mt-4 text-purple-600 hover:text-purple-700 hover:bg-transparent">
                   View all FAQs
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
@@ -150,8 +162,10 @@ export default function HelpCenterPage() {
                       <p className="text-sm text-muted-foreground mb-3">
                         Send us an email and we'll respond within 24 hours.
                       </p>
-                      <Button variant="outline">
-                        support@chatvice.com
+                      <Button asChild variant="outline">
+                        <a href="mailto:hello@chatvice.app">
+                          hello@chatvice.app
+                        </a>
                       </Button>
                     </div>
                   </div>

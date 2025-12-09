@@ -79,12 +79,12 @@ export default function CareersPage() {
             We're looking for passionate people to help us transform how businesses 
             connect with their customers through AI.
           </p>
-          <a href="#openings">
-            <Button size="lg" className="bg-white text-purple-600 hover:bg-purple-50">
+          <Button asChild size="lg" className="bg-white text-purple-600 hover:bg-purple-50">
+            <a href="#openings">
               View Open Positions
               <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </a>
+            </a>
+          </Button>
         </div>
       </section>
 
@@ -196,9 +196,11 @@ export default function CareersPage() {
                       </span>
                     </div>
                   </div>
-                  <Button className="bg-purple-600 hover:bg-purple-700">
-                    Apply Now
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                  <Button asChild className="bg-purple-600 hover:bg-purple-700">
+                    <a href={`mailto:hello@chatvice.app?subject=Job Application: ${job.title}`}>
+                      Apply Now
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </a>
                   </Button>
                 </div>
               </Card>
@@ -208,13 +210,16 @@ export default function CareersPage() {
           <div className="mt-12 p-8 bg-muted/50 rounded-xl text-center">
             <h3 className="font-semibold mb-2">Don't see a perfect fit?</h3>
             <p className="text-muted-foreground mb-4">
-              We're always looking for talented people. Send us your resume anyway!
+              We're always looking for talented people. Send us your resume at{" "}
+              <a href="mailto:hello@chatvice.app" className="text-purple-600 hover:underline font-medium">
+                hello@chatvice.app
+              </a>
             </p>
-            <Link href="/contact">
-              <Button variant="outline">
+            <Button asChild variant="outline">
+              <a href="mailto:hello@chatvice.app?subject=General Application - Chatvice">
                 Send General Application
-              </Button>
-            </Link>
+              </a>
+            </Button>
           </div>
         </div>
       </section>

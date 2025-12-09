@@ -155,15 +155,23 @@ export default function PartnersPage() {
             Ready to Partner?
           </h2>
           <p className="text-purple-100 mb-8">
-            Contact our partnerships team to discuss opportunities.
+            Contact our partnerships team to discuss opportunities. Email us at{" "}
+            <a href="mailto:hello@chatvice.app" className="underline font-semibold">
+              hello@chatvice.app
+            </a>
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/contact">
-              <Button size="lg" className="bg-white text-purple-600 hover:bg-purple-50">
-                Contact Partnerships
+            <Button asChild size="lg" className="bg-white text-purple-600 hover:bg-purple-50">
+              <a href="mailto:hello@chatvice.app">
+                Email Partnership Team
                 <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
+              </a>
+            </Button>
+            <Button asChild size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10">
+              <Link href="/contact">
+                Contact Form
+              </Link>
+            </Button>
           </div>
         </div>
       </section>
