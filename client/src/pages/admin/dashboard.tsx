@@ -283,8 +283,12 @@ export default function AdminDashboard() {
         {sidebarItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => handleTabChange(item.id)}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors ${
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleTabChange(item.id);
+            }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors relative ${
               activeTab === item.id
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -317,7 +321,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-background flex">
-      <aside className="hidden lg:flex w-64 bg-sidebar border-r flex-col fixed h-full">
+      <aside className="hidden lg:flex w-64 bg-sidebar border-r flex-col fixed h-full z-40">
         <SidebarContent />
       </aside>
 
