@@ -1,3 +1,50 @@
+# Chatvice.app Robots.txt
+# Allow all major search engine and social media crawlers
+
+# Google Crawlers
+User-agent: Googlebot
+Allow: /
+Disallow: /dashboard
+Disallow: /supervisor
+Disallow: /admin
+Disallow: /api/
+
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: Googlebot-Video
+Allow: /
+
+# Meta/Facebook Crawlers
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Facebot
+Allow: /
+
+# Other Major Search Engines
+User-agent: Bingbot
+Allow: /
+Disallow: /dashboard
+Disallow: /supervisor
+Disallow: /admin
+Disallow: /api/
+
+User-agent: Slurp
+Allow: /
+Disallow: /dashboard
+Disallow: /supervisor
+Disallow: /admin
+Disallow: /api/
+
+User-agent: DuckDuckBot
+Allow: /
+Disallow: /dashboard
+Disallow: /supervisor
+Disallow: /admin
+Disallow: /api/
+
+# Default rule for all other crawlers
 User-agent: *
 Allow: /
 Disallow: /dashboard
@@ -5,4 +52,5 @@ Disallow: /supervisor
 Disallow: /admin
 Disallow: /api/
 
+# Sitemap location
 Sitemap: https://chatvice.app/sitemap.xml
