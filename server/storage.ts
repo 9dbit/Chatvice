@@ -196,6 +196,15 @@ export interface IStorage {
   createSupervisorInvitation(invitation: InsertSupervisorInvitation): Promise<SupervisorInvitation>;
   updateSupervisorInvitation(id: string, data: Partial<SupervisorInvitation>): Promise<SupervisorInvitation | undefined>;
   deleteSupervisorInvitation(id: string): Promise<boolean>;
+  
+  // Admin & Platform Settings
+  getAdmin(id: string): Promise<Admin | undefined>;
+  getAdminByEmail(email: string): Promise<Admin | undefined>;
+  createAdmin(data: InsertAdmin): Promise<Admin>;
+  getPlatformSetting(key: string): Promise<string | null>;
+  setPlatformSetting(key: string, value: string): Promise<void>;
+  getAllPlatformSettings(): Promise<Record<string, string>>;
+  recalculateTrialExpiryForActiveMerchants(trialDays: number): Promise<number>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -657,6 +666,34 @@ export class DatabaseStorage implements IStorage {
       if (s.value) acc[s.key] = s.value;
       return acc;
     }, {} as Record<string, string>);
+  }
+
+  async recalculateTrialExpiryForActiveMerchants(trialDays: number): Promise<number> {
+    // Find all merchants who are on trial (free plan with trial not yet expired)
+    const allMerchants = await db.select().from(merchants);
+    const now = new Date();
+    let updatedCount = 0;
+    
+    for (const merchant of allMerchants) {
+      // Only update merchants who are on free plan and their trial has not expired yet
+      if (merchant.subscriptionPlanId === "free" && merchant.trialEndsAt) {
+        const originalTrialEnd = new Date(merchant.trialEndsAt as Date);
+        // Only recalculate if trial hasn't expired
+        if (originalTrialEnd > now) {
+          // Recalculate based on createdAt + new trial days
+          const createdAt = merchant.createdAt ? new Date(merchant.createdAt) : new Date();
+          const newTrialEnd = new Date(createdAt);
+          newTrialEnd.setDate(newTrialEnd.getDate() + trialDays);
+          
+          await db.update(merchants)
+            .set({ trialEndsAt: newTrialEnd })
+            .where(eq(merchants.id, merchant.id));
+          updatedCount++;
+        }
+      }
+    }
+    
+    return updatedCount;
   }
 
   async getAllMerchants(): Promise<Merchant[]> {

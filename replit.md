@@ -36,7 +36,9 @@ Chatvice is a monorepo application structured with `/client`, `/server`, and `/s
 - **Work Scheduler**: Shift management system for supervisors and AI agents, including assignments and reports.
 - **Landing Page Customization**: Admin Panel allows non-technical customization of the public landing page (hero section, colors, banner, features layout).
 - **Configurable Trial Period**: Admin-configurable trial days setting in Pricing tab. All public pages (pricing, features, FAQ, auth, billing) dynamically fetch trial days from `/api/platform-settings` endpoint.
-- **Chatvice Guide Configuration**: Admin dashboard "Chatvice Guide" tab for managing the AI help widget across landing page and merchant dashboard. Settings include AI agent name, system prompt, welcome message, temperature, widget position, color, and visibility toggles.
+- **Chatvice Guide Configuration**: Admin dashboard "Chatvice Guide" tab for managing the AI help widget across landing page and merchant dashboard. Settings include AI agent name, system prompt, welcome message, temperature, widget position, color, visibility toggles, promo image option for chat bubble, and live preview widget to test settings and knowledge base.
+- **Trial Expiry Sync**: When admin changes trial days in Pricing tab, all active trial merchants automatically have their trialEndsAt recalculated based on their account creation date + new trial days.
+- **Admin Accounts**: Master admin panel accessible at /admin/login. Admin credentials: master@chatvice.app / #Chatadmin1 (created December 2025).
 
 **Data Model Highlights**:
 Core entities include Merchants, Supervisors, Sessions, Messages (with `clientMessageId` for optimistic UI reconciliation), Triggers, Knowledge Base content (with `agentId` scoping), Knowledge Chunks, Notifications, Subscription Plans, Merchant Subscriptions, Agents, and Sources. New tables support `supervisor_roles`, `shifts`, `shift_assignments`, `work_reports`, `product_cards`, `product_card_buttons`, `quick_replies`, `chat_buttons`, `welcome_bubbles`, and `notification_settings`.

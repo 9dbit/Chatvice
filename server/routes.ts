@@ -2830,6 +2830,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return res.status(400).json({ error: "Key is required" });
       }
       await storage.setPlatformSetting(key, value);
+      
+      // When trial_days is updated, recalculate trialEndsAt for existing trial merchants
+      if (key === "trial_days") {
+        const trialDays = parseInt(value) || 14;
+        await storage.recalculateTrialExpiryForActiveMerchants(trialDays);
+      }
+      
       const settings = await storage.getAllPlatformSettings();
       res.json(settings);
     } catch (error) {
@@ -2847,6 +2854,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       for (const [key, value] of Object.entries(settings)) {
         await storage.setPlatformSetting(key, String(value));
       }
+      
+      // If trial_days was included in batch, recalculate trial expiry for active merchants
+      if (settings.trial_days) {
+        const trialDays = parseInt(settings.trial_days) || 14;
+        await storage.recalculateTrialExpiryForActiveMerchants(trialDays);
+      }
+      
       const allSettings = await storage.getAllPlatformSettings();
       res.json(allSettings);
     } catch (error) {

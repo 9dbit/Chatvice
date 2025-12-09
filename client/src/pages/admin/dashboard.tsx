@@ -104,6 +104,10 @@ import {
   AlertTriangle,
   Search,
   Share2,
+  RefreshCw,
+  MessageCircle,
+  Send,
+  ImageIcon,
 } from "lucide-react";
 import { format, subDays, startOfMonth, startOfYear } from "date-fns";
 import { subscriptionPlans } from "@shared/schema";
@@ -2040,10 +2044,13 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
   });
 
   const [knowledgeContent, setKnowledgeContent] = useState("");
-  const [sources, setSources] = useState<{ id: string; name: string; url: string; status: string }[]>([
-    { id: "1", name: "Chatvice Documentation", url: "https://docs.chatvice.com", status: "active" },
-    { id: "2", name: "FAQ Page", url: "https://chatvice.com/faq", status: "active" },
-  ]);
+  const [sources, setSources] = useState<{ id: string; name: string; url: string; status: string }[]>([]);
+  const [promoImageUrl, setPromoImageUrl] = useState("");
+  const [promoImageEnabled, setPromoImageEnabled] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewMessages, setPreviewMessages] = useState<{ role: string; content: string }[]>([]);
+  const [previewInput, setPreviewInput] = useState("");
+  const [isPreviewTyping, setIsPreviewTyping] = useState(false);
 
   const { data: platformSettings, refetch: refetchSettings } = useQuery({
     queryKey: ["/api/admin/platform-settings"],
@@ -2072,6 +2079,12 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
       if (settings.guide_knowledge_content) {
         setKnowledgeContent(settings.guide_knowledge_content);
       }
+      if (settings.guide_promo_image_enabled !== undefined) {
+        setPromoImageEnabled(settings.guide_promo_image_enabled === "true");
+      }
+      if (settings.guide_promo_image_url) {
+        setPromoImageUrl(settings.guide_promo_image_url);
+      }
     }
   }, [platformSettings]);
 
@@ -2092,6 +2105,8 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
           guide_bubble_enabled: String(guideSettings.bubbleEnabled),
           guide_bubble_text: guideSettings.bubbleText,
           guide_knowledge_content: knowledgeContent,
+          guide_promo_image_enabled: String(promoImageEnabled),
+          guide_promo_image_url: promoImageUrl,
         },
       });
     },
@@ -2299,6 +2314,48 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
               data-testid="input-guide-bubble-text"
             />
           </div>
+
+          <div className="p-3 border rounded-lg space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                  <p className="font-medium text-sm">Promo Image</p>
+                  <Checkbox 
+                    checked={promoImageEnabled} 
+                    onCheckedChange={(checked) => setPromoImageEnabled(!!checked)}
+                    data-testid="checkbox-guide-promo-image"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Display a promotional image near the chat bubble</p>
+              </div>
+            </div>
+            {promoImageEnabled && (
+              <div className="space-y-2">
+                <Label htmlFor="promo-image-url">Image URL</Label>
+                <Input 
+                  id="promo-image-url"
+                  value={promoImageUrl}
+                  onChange={(e) => setPromoImageUrl(e.target.value)}
+                  placeholder="https://example.com/promo-image.png"
+                  data-testid="input-guide-promo-image-url"
+                />
+                {promoImageUrl && (
+                  <div className="mt-2 p-2 border rounded-lg bg-muted/30">
+                    <p className="text-xs text-muted-foreground mb-2">Preview:</p>
+                    <img 
+                      src={promoImageUrl} 
+                      alt="Promo preview" 
+                      className="max-w-[200px] max-h-[100px] object-contain rounded"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -2361,6 +2418,191 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
             </Button>
           </div>
         </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Eye className="w-5 h-5" />
+                Live Preview
+              </CardTitle>
+              <CardDescription>Test the Chatvice Guide with current settings</CardDescription>
+            </div>
+            <Button
+              variant={showPreview ? "default" : "outline"}
+              onClick={() => {
+                setShowPreview(!showPreview);
+                if (!showPreview) {
+                  setPreviewMessages([{ role: "assistant", content: guideSettings.welcomeMessage }]);
+                }
+              }}
+              data-testid="button-toggle-preview"
+            >
+              {showPreview ? (
+                <>
+                  <X className="w-4 h-4 mr-2" />
+                  Close Preview
+                </>
+              ) : (
+                <>
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Open Preview
+                </>
+              )}
+            </Button>
+          </div>
+        </CardHeader>
+        {showPreview && (
+          <CardContent>
+            <div className="border rounded-lg overflow-hidden" style={{ maxWidth: "400px" }}>
+              <div 
+                className="p-3 text-white flex items-center gap-2"
+                style={{ backgroundColor: guideSettings.widgetColor }}
+              >
+                <Bot className="w-5 h-5" />
+                <span className="font-medium">{guideSettings.name}</span>
+              </div>
+              <ScrollArea className="h-[300px] p-4 bg-background">
+                <div className="space-y-3">
+                  {previewMessages.map((msg, idx) => (
+                    <div 
+                      key={idx}
+                      className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                    >
+                      <div 
+                        className={`max-w-[80%] rounded-lg p-3 text-sm ${
+                          msg.role === "user" 
+                            ? "bg-primary text-primary-foreground" 
+                            : "bg-muted"
+                        }`}
+                      >
+                        {msg.content}
+                      </div>
+                    </div>
+                  ))}
+                  {isPreviewTyping && (
+                    <div className="flex justify-start">
+                      <div className="bg-muted rounded-lg p-3 text-sm">
+                        <span className="flex gap-1">
+                          <span className="animate-bounce">.</span>
+                          <span className="animate-bounce" style={{ animationDelay: "0.1s" }}>.</span>
+                          <span className="animate-bounce" style={{ animationDelay: "0.2s" }}>.</span>
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+              <div className="p-3 border-t flex gap-2">
+                <Input 
+                  value={previewInput}
+                  onChange={(e) => setPreviewInput(e.target.value)}
+                  placeholder="Type a test message..."
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && previewInput.trim() && !isPreviewTyping) {
+                      const userMessage = previewInput.trim();
+                      setPreviewMessages(prev => [...prev, { role: "user", content: userMessage }]);
+                      setPreviewInput("");
+                      setIsPreviewTyping(true);
+                      
+                      fetch("/api/chatvice-guide/chat", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ 
+                          message: userMessage,
+                          context: "admin_preview"
+                        }),
+                      })
+                        .then(res => res.json())
+                        .then(data => {
+                          setIsPreviewTyping(false);
+                          setPreviewMessages(prev => [...prev, { 
+                            role: "assistant", 
+                            content: data.response || "I'm here to help with any questions about Chatvice."
+                          }]);
+                        })
+                        .catch(() => {
+                          setIsPreviewTyping(false);
+                          setPreviewMessages(prev => [...prev, { 
+                            role: "assistant", 
+                            content: "Preview mode: AI response will appear here in production."
+                          }]);
+                        });
+                    }
+                  }}
+                  data-testid="input-preview-message"
+                />
+                <Button 
+                  size="icon" 
+                  disabled={!previewInput.trim() || isPreviewTyping}
+                  onClick={() => {
+                    if (previewInput.trim() && !isPreviewTyping) {
+                      const userMessage = previewInput.trim();
+                      setPreviewMessages(prev => [...prev, { role: "user", content: userMessage }]);
+                      setPreviewInput("");
+                      setIsPreviewTyping(true);
+                      
+                      fetch("/api/chatvice-guide/chat", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ 
+                          message: userMessage,
+                          context: "admin_preview"
+                        }),
+                      })
+                        .then(res => res.json())
+                        .then(data => {
+                          setIsPreviewTyping(false);
+                          setPreviewMessages(prev => [...prev, { 
+                            role: "assistant", 
+                            content: data.response || "I'm here to help with any questions about Chatvice."
+                          }]);
+                        })
+                        .catch(() => {
+                          setIsPreviewTyping(false);
+                          setPreviewMessages(prev => [...prev, { 
+                            role: "assistant", 
+                            content: "Preview mode: AI response will appear here in production."
+                          }]);
+                        });
+                    }
+                  }}
+                  data-testid="button-send-preview"
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
+              {promoImageEnabled && promoImageUrl && (
+                <div className="p-3 border-t bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-2">Promo image preview:</p>
+                  <img 
+                    src={promoImageUrl} 
+                    alt="Promo" 
+                    className="max-w-full max-h-[80px] object-contain rounded"
+                  />
+                </div>
+              )}
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  setPreviewMessages([{ role: "assistant", content: guideSettings.welcomeMessage }]);
+                }}
+                data-testid="button-reset-preview"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Reset Preview
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Test messages are processed using current knowledge base settings
+              </p>
+            </div>
+          </CardContent>
+        )}
       </Card>
 
       <div className="flex justify-end">
@@ -2901,9 +3143,11 @@ function PricingTab({ toast }: { toast: any }) {
     onSuccess: () => {
       toast({
         title: "Settings Saved",
-        description: `Trial period set to ${trialDays} days. New merchants will receive this trial period.`,
+        description: `Trial period set to ${trialDays} days. Existing trial merchants have been updated.`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/platform-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/merchants"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
     },
     onError: () => {
       toast({
