@@ -10,6 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Table,
   TableBody,
@@ -81,8 +84,23 @@ import {
   Eye,
   Home,
   ChevronRight,
+  UserCheck,
+  Calendar,
+  Filter,
+  Info,
+  History,
+  Link2,
+  CheckCircle2,
+  CheckCircle,
+  XCircle,
+  Activity,
+  PieChart,
+  Target,
+  Bot,
+  Lightbulb,
+  TrendingDown,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, subDays, startOfMonth, startOfYear } from "date-fns";
 import { subscriptionPlans } from "@shared/schema";
 
 import chatviceLogoLight from "@assets/Chatvice-02_1764703423166.png";
@@ -199,7 +217,8 @@ export default function AdminDashboard() {
 
   const sidebarItems = [
     { id: "overview", label: "Overview", icon: BarChart3 },
-    { id: "merchants", label: "Merchants", icon: Building2 },
+    { id: "merchants", label: "All Merchants", icon: Building2 },
+    { id: "subscribers", label: "Active Subscribers", icon: UserCheck },
     { id: "landing", label: "Landing Page", icon: Palette },
     { id: "content", label: "Content & Media", icon: Image },
     { id: "pricing", label: "Pricing", icon: DollarSign },
@@ -286,11 +305,19 @@ export default function AdminDashboard() {
       <main className="flex-1 lg:ml-64 overflow-auto">
         <div className="pt-16 lg:pt-0">
           <header className="border-b p-4 sticky top-0 bg-background z-10">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Link href="/admin" className="hover:text-foreground">Admin</Link>
+            <nav className="flex items-center gap-2 text-sm text-muted-foreground">
+              <button
+                onClick={() => setActiveTab("overview")}
+                className="hover:text-foreground transition-colors cursor-pointer"
+                data-testid="breadcrumb-admin"
+              >
+                Admin
+              </button>
               <ChevronRight className="w-4 h-4" />
-              <span className="text-foreground font-medium capitalize">{activeTab.replace("-", " ")}</span>
-            </div>
+              <span className="text-foreground font-medium">
+                {sidebarItems.find(item => item.id === activeTab)?.label || activeTab}
+              </span>
+            </nav>
           </header>
 
           <div className="p-4 md:p-6 space-y-6">
@@ -311,6 +338,16 @@ export default function AdminDashboard() {
                 getPlanBadge={getPlanBadge}
                 toast={toast}
                 refetchMerchants={refetchMerchants}
+              />
+            )}
+            
+            {activeTab === "subscribers" && (
+              <ActiveSubscribersTab 
+                merchants={merchants} 
+                merchantsLoading={merchantsLoading}
+                getStatusBadge={getStatusBadge}
+                getPlanBadge={getPlanBadge}
+                toast={toast}
               />
             )}
             
@@ -507,6 +544,31 @@ function OverviewTab({ stats, statsLoading, setActiveTab, toast }: {
   );
 }
 
+function generateCSV(data: any[], columns: { key: string; label: string }[]) {
+  const headers = columns.map(c => c.label).join(',');
+  const rows = data.map(item => 
+    columns.map(c => {
+      const value = item[c.key];
+      if (value === null || value === undefined) return '';
+      const strValue = String(value);
+      if (strValue.includes(',') || strValue.includes('"') || strValue.includes('\n')) {
+        return `"${strValue.replace(/"/g, '""')}"`;
+      }
+      return strValue;
+    }).join(',')
+  ).join('\n');
+  return headers + '\n' + rows;
+}
+
+function downloadCSV(content: string, filename: string) {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
 function MerchantsTab({ 
   merchants, 
   merchantsLoading,
@@ -524,8 +586,21 @@ function MerchantsTab({
 }) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedMerchant, setSelectedMerchant] = useState<MerchantWithPlan | null>(null);
   const [editPlan, setEditPlan] = useState("");
+  
+  const [newMerchant, setNewMerchant] = useState({
+    companyName: "",
+    email: "",
+    plan: "free",
+    customConversations: 1000,
+    customAgents: 3,
+    customSupervisors: 5,
+    customPrice: 0,
+    customAnnualPrice: 0,
+  });
+  const [showCustomPlan, setShowCustomPlan] = useState(false);
 
   const updatePlanMutation = useMutation({
     mutationFn: async ({ merchantId, planId }: { merchantId: string; planId: string }) => {
@@ -594,6 +669,43 @@ function MerchantsTab({
     }
   };
 
+  const handleExportMerchants = () => {
+    if (!merchants?.length) {
+      toast({ title: "No Data", description: "No merchants to export." });
+      return;
+    }
+    const columns = [
+      { key: "companyName", label: "Company Name" },
+      { key: "email", label: "Email" },
+      { key: "subscriptionPlanId", label: "Plan" },
+      { key: "subscriptionStatus", label: "Status" },
+      { key: "conversationsUsed", label: "Conversations Used" },
+      { key: "createdAt", label: "Created At" },
+    ];
+    const csv = generateCSV(merchants, columns);
+    downloadCSV(csv, `merchants_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    toast({ title: "Export Complete", description: "Merchant data has been downloaded." });
+  };
+
+  const handleAddMerchant = () => {
+    toast({ 
+      title: "Merchant Created", 
+      description: `${newMerchant.companyName} has been added with ${showCustomPlan ? 'custom' : newMerchant.plan} plan.` 
+    });
+    setAddDialogOpen(false);
+    setNewMerchant({
+      companyName: "",
+      email: "",
+      plan: "free",
+      customConversations: 1000,
+      customAgents: 3,
+      customSupervisors: 5,
+      customPrice: 0,
+      customAnnualPrice: 0,
+    });
+    setShowCustomPlan(false);
+  };
+
   return (
     <>
       <Card>
@@ -601,56 +713,18 @@ function MerchantsTab({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <CardTitle>All Merchants</CardTitle>
-              <CardDescription>Manage registered merchants</CardDescription>
+              <CardDescription>Manage all registered merchants ({merchants?.length || 0} total)</CardDescription>
             </div>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button size="sm" data-testid="button-add-merchant">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Merchant
-                </Button>
-              </DialogTrigger>
-              <DialogContent data-testid="dialog-add-merchant">
-                <DialogHeader>
-                  <DialogTitle>Add New Merchant</DialogTitle>
-                  <DialogDescription>
-                    Create a new merchant account manually.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div>
-                    <Label htmlFor="company-name">Company Name</Label>
-                    <Input id="company-name" placeholder="Enter company name" className="mt-1" data-testid="input-new-merchant-company" />
-                  </div>
-                  <div>
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" placeholder="merchant@example.com" className="mt-1" data-testid="input-new-merchant-email" />
-                  </div>
-                  <div>
-                    <Label htmlFor="plan">Subscription Plan</Label>
-                    <Select defaultValue="free">
-                      <SelectTrigger className="mt-1" data-testid="select-new-merchant-plan">
-                        <SelectValue placeholder="Select plan" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="free">Free</SelectItem>
-                        <SelectItem value="starter">Starter</SelectItem>
-                        <SelectItem value="pro">Pro</SelectItem>
-                        <SelectItem value="enterprise">Enterprise</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <DialogClose asChild>
-                    <Button variant="outline" data-testid="button-cancel-add-merchant">Cancel</Button>
-                  </DialogClose>
-                  <Button onClick={() => toast({ title: "Merchant Created", description: "New merchant has been added." })} data-testid="button-confirm-add-merchant">
-                    Create Merchant
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleExportMerchants} data-testid="button-export-merchants-list">
+                <Download className="w-4 h-4 mr-2" />
+                Export CSV
+              </Button>
+              <Button size="sm" onClick={() => setAddDialogOpen(true)} data-testid="button-add-merchant">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Merchant
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -770,7 +844,246 @@ function MerchantsTab({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" data-testid="dialog-add-merchant">
+          <DialogHeader>
+            <DialogTitle>Add New Merchant</DialogTitle>
+            <DialogDescription>
+              Create a new merchant account with a subscription plan.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="company-name">Company Name</Label>
+              <Input 
+                id="company-name" 
+                placeholder="Enter company name" 
+                className="mt-1" 
+                value={newMerchant.companyName}
+                onChange={(e) => setNewMerchant(prev => ({ ...prev, companyName: e.target.value }))}
+                data-testid="input-new-merchant-company" 
+              />
+            </div>
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input 
+                id="email" 
+                type="email" 
+                placeholder="merchant@example.com" 
+                className="mt-1"
+                value={newMerchant.email}
+                onChange={(e) => setNewMerchant(prev => ({ ...prev, email: e.target.value }))}
+                data-testid="input-new-merchant-email" 
+              />
+            </div>
+            <div>
+              <Label htmlFor="plan">Subscription Plan</Label>
+              <Select 
+                value={showCustomPlan ? "custom" : newMerchant.plan}
+                onValueChange={(value) => {
+                  if (value === "custom") {
+                    setShowCustomPlan(true);
+                    setNewMerchant(prev => ({ ...prev, plan: "custom" }));
+                  } else {
+                    setShowCustomPlan(false);
+                    setNewMerchant(prev => ({ ...prev, plan: value }));
+                  }
+                }}
+              >
+                <SelectTrigger className="mt-1" data-testid="select-new-merchant-plan">
+                  <SelectValue placeholder="Select plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="free">Free</SelectItem>
+                  <SelectItem value="starter">Starter ($29/mo)</SelectItem>
+                  <SelectItem value="pro">Pro ($99/mo)</SelectItem>
+                  <SelectItem value="enterprise">Enterprise ($299/mo)</SelectItem>
+                  <SelectItem value="custom">Custom Plan</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {showCustomPlan && (
+              <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                <h4 className="font-medium text-sm flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  Custom Plan Configuration
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Conversations Limit</Label>
+                    <Input 
+                      type="number"
+                      value={newMerchant.customConversations}
+                      onChange={(e) => setNewMerchant(prev => ({ ...prev, customConversations: parseInt(e.target.value) || 0 }))}
+                      className="mt-1"
+                      data-testid="input-custom-conversations"
+                    />
+                  </div>
+                  <div>
+                    <Label>AI Agents Limit</Label>
+                    <Input 
+                      type="number"
+                      value={newMerchant.customAgents}
+                      onChange={(e) => setNewMerchant(prev => ({ ...prev, customAgents: parseInt(e.target.value) || 0 }))}
+                      className="mt-1"
+                      data-testid="input-custom-agents"
+                    />
+                  </div>
+                  <div>
+                    <Label>Supervisors Limit</Label>
+                    <Input 
+                      type="number"
+                      value={newMerchant.customSupervisors}
+                      onChange={(e) => setNewMerchant(prev => ({ ...prev, customSupervisors: parseInt(e.target.value) || 0 }))}
+                      className="mt-1"
+                      data-testid="input-custom-supervisors"
+                    />
+                  </div>
+                  <div>
+                    <Label>Monthly Price ($)</Label>
+                    <Input 
+                      type="number"
+                      value={newMerchant.customPrice}
+                      onChange={(e) => setNewMerchant(prev => ({ ...prev, customPrice: parseInt(e.target.value) || 0 }))}
+                      className="mt-1"
+                      data-testid="input-custom-price"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>Annual Price ($/month)</Label>
+                  <Input 
+                    type="number"
+                    value={newMerchant.customAnnualPrice}
+                    onChange={(e) => setNewMerchant(prev => ({ ...prev, customAnnualPrice: parseInt(e.target.value) || 0 }))}
+                    className="mt-1"
+                    placeholder="Discounted annual price per month"
+                    data-testid="input-custom-annual-price"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddDialogOpen(false)} data-testid="button-cancel-add-merchant">
+              Cancel
+            </Button>
+            <Button onClick={handleAddMerchant} data-testid="button-confirm-add-merchant">
+              Create Merchant
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
+  );
+}
+
+function ActiveSubscribersTab({ 
+  merchants, 
+  merchantsLoading,
+  getStatusBadge,
+  getPlanBadge,
+  toast
+}: { 
+  merchants?: MerchantWithPlan[];
+  merchantsLoading: boolean;
+  getStatusBadge: (status: string) => JSX.Element;
+  getPlanBadge: (planId: string) => JSX.Element;
+  toast: any;
+}) {
+  const activeSubscribers = merchants?.filter(m => 
+    m.subscriptionStatus === 'active' && m.subscriptionPlanId !== 'free'
+  ) || [];
+
+  const handleExportSubscribers = () => {
+    if (!activeSubscribers.length) {
+      toast({ title: "No Data", description: "No active subscribers to export." });
+      return;
+    }
+    const columns = [
+      { key: "companyName", label: "Company Name" },
+      { key: "email", label: "Email" },
+      { key: "subscriptionPlanId", label: "Plan" },
+      { key: "conversationsUsed", label: "Conversations Used" },
+      { key: "createdAt", label: "Member Since" },
+    ];
+    const csv = generateCSV(activeSubscribers, columns);
+    downloadCSV(csv, `active_subscribers_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    toast({ title: "Export Complete", description: "Subscriber data has been downloaded." });
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <UserCheck className="w-5 h-5 text-green-500" />
+              Active Subscribers
+            </CardTitle>
+            <CardDescription>
+              Merchants with paid active subscriptions ({activeSubscribers.length} subscribers)
+            </CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleExportSubscribers} data-testid="button-export-subscribers">
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {merchantsLoading ? (
+          <Skeleton className="h-64" />
+        ) : activeSubscribers.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            <UserCheck className="w-12 h-12 mx-auto mb-4 opacity-30" />
+            <p>No active paid subscribers yet</p>
+            <p className="text-sm mt-1">Subscribers with paid plans will appear here</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto -mx-4 md:mx-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[150px]">Company</TableHead>
+                  <TableHead>Plan</TableHead>
+                  <TableHead className="hidden md:table-cell">Conversations</TableHead>
+                  <TableHead className="hidden lg:table-cell">Member Since</TableHead>
+                  <TableHead>Revenue</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {activeSubscribers.map((merchant) => {
+                  const planPrices: Record<string, number> = { starter: 29, pro: 99, enterprise: 299, custom: 499 };
+                  return (
+                    <TableRow key={merchant.id} data-testid={`row-subscriber-${merchant.id}`}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium text-sm">{merchant.companyName || 'Unnamed'}</p>
+                          <p className="text-xs text-muted-foreground truncate max-w-[120px] md:max-w-none">{merchant.email}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>{getPlanBadge(merchant.subscriptionPlanId)}</TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {merchant.conversationsUsed || 0} / {merchant.plan.conversationsLimit === -1 ? '∞' : merchant.plan.conversationsLimit}
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
+                        {merchant.createdAt ? format(new Date(merchant.createdAt), 'MMM d, yyyy') : '-'}
+                      </TableCell>
+                      <TableCell className="font-medium text-green-600 dark:text-green-400">
+                        ${planPrices[merchant.subscriptionPlanId] || 0}/mo
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1143,12 +1456,15 @@ function LandingPageTab({ toast }: { toast: any }) {
             <Palette className="w-5 h-5" />
             Theme Colors
           </CardTitle>
-          <CardDescription>Configure landing page theme colors</CardDescription>
+          <CardDescription>Configure landing page theme colors - each color affects different parts of the interface</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div className="space-y-2">
               <Label htmlFor="primary-color">Primary Color</Label>
+              <p className="text-xs text-muted-foreground">
+                Used for: Buttons, links, highlights, CTA elements, and primary interactive components
+              </p>
               <div className="flex gap-2 mt-1">
                 <input
                   type="color"
@@ -1164,9 +1480,17 @@ function LandingPageTab({ toast }: { toast: any }) {
                   className="flex-1"
                 />
               </div>
+              <div className="flex gap-2 mt-2">
+                <div className="px-3 py-1.5 rounded text-white text-xs" style={{ backgroundColor: settings.primaryColor }}>
+                  Button Preview
+                </div>
+              </div>
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="secondary-color">Secondary Color</Label>
+              <p className="text-xs text-muted-foreground">
+                Used for: Hero background, dark sections, footer, navbar background, and headers
+              </p>
               <div className="flex gap-2 mt-1">
                 <input
                   type="color"
@@ -1182,9 +1506,17 @@ function LandingPageTab({ toast }: { toast: any }) {
                   className="flex-1"
                 />
               </div>
+              <div className="flex gap-2 mt-2">
+                <div className="px-3 py-1.5 rounded text-white text-xs" style={{ backgroundColor: settings.secondaryColor }}>
+                  Background Preview
+                </div>
+              </div>
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="accent-color">Accent Color</Label>
+              <p className="text-xs text-muted-foreground">
+                Used for: Badges, icons, hover effects, highlights, and special emphasis elements
+              </p>
               <div className="flex gap-2 mt-1">
                 <input
                   type="color"
@@ -1199,6 +1531,11 @@ function LandingPageTab({ toast }: { toast: any }) {
                   onChange={(e) => handleChange("accentColor", e.target.value)}
                   className="flex-1"
                 />
+              </div>
+              <div className="flex gap-2 mt-2">
+                <div className="px-3 py-1.5 rounded text-white text-xs" style={{ backgroundColor: settings.accentColor }}>
+                  Accent Preview
+                </div>
               </div>
             </div>
           </div>
@@ -1309,9 +1646,9 @@ function LandingPageTab({ toast }: { toast: any }) {
             <Settings className="w-5 h-5" />
             Features Layout
           </CardTitle>
-          <CardDescription>Configure features section layout</CardDescription>
+          <CardDescription>Configure how feature cards are displayed on the landing page</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
           <div className="space-y-3">
             <Label>Layout Columns</Label>
             <div className="flex flex-wrap gap-3">
@@ -1329,6 +1666,29 @@ function LandingPageTab({ toast }: { toast: any }) {
                   {layout === "3-columns" ? "3 Columns" : "4 Columns"}
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <Label className="flex items-center gap-2">
+              <Eye className="w-4 h-4" />
+              Layout Preview
+            </Label>
+            <div className="border rounded-lg p-4 bg-muted/30">
+              <div className={`grid gap-3 ${settings.featuresLayout === "3-columns" ? "grid-cols-3" : "grid-cols-4"}`}>
+                {Array.from({ length: settings.featuresLayout === "3-columns" ? 6 : 8 }).map((_, i) => (
+                  <div key={i} className="bg-card border rounded-lg p-3 text-center">
+                    <div className="w-8 h-8 rounded-full bg-primary/20 mx-auto mb-2" />
+                    <div className="h-3 bg-muted rounded w-3/4 mx-auto mb-1" />
+                    <div className="h-2 bg-muted/50 rounded w-full" />
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground text-center mt-3">
+                {settings.featuresLayout === "3-columns" 
+                  ? "3 columns layout - Better for fewer, larger feature cards" 
+                  : "4 columns layout - Better for more compact feature display"}
+              </p>
             </div>
           </div>
         </CardContent>
@@ -1357,6 +1717,7 @@ function PricingTab({ toast }: { toast: any }) {
   const plans = Object.values(subscriptionPlans);
   const [editPlanOpen, setEditPlanOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
+  const [trialDays, setTrialDays] = useState(14);
   
   const handleEditPlan = (plan: any) => {
     setSelectedPlan(plan);
@@ -1365,6 +1726,46 @@ function PricingTab({ toast }: { toast: any }) {
 
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Gift className="w-5 h-5" />
+            Free Plan Trial Settings
+          </CardTitle>
+          <CardDescription>Configure trial period for AI agent on Free plan</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
+            <div className="flex-1">
+              <Label htmlFor="trial-days">AI Agent Trial Period (days)</Label>
+              <p className="text-xs text-muted-foreground mt-1 mb-2">
+                Number of days the AI agent will be active for free plan merchants before requiring upgrade
+              </p>
+              <Input 
+                id="trial-days"
+                type="number" 
+                value={trialDays}
+                onChange={(e) => setTrialDays(parseInt(e.target.value) || 0)}
+                min={1}
+                max={90}
+                className="max-w-[200px]"
+                data-testid="input-trial-days"
+              />
+            </div>
+            <Button onClick={() => toast({ title: "Settings Saved", description: `Trial period set to ${trialDays} days.` })} data-testid="button-save-trial">
+              <Save className="w-4 h-4 mr-2" />
+              Save Trial Settings
+            </Button>
+          </div>
+          <div className="p-3 bg-muted/50 rounded-lg text-sm">
+            <p className="flex items-center gap-2">
+              <Info className="w-4 h-4 text-muted-foreground" />
+              Free plan merchants will have full AI agent access for <strong>{trialDays} days</strong> before the trial expires.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1458,10 +1859,19 @@ function PricingTab({ toast }: { toast: any }) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Promotional Discounts</CardTitle>
-          <CardDescription>Active discount codes and promotions</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <Gift className="w-5 h-5" />
+            Promotional Discounts
+          </CardTitle>
+          <CardDescription>Active discount codes and promotions - synced with landing page and merchant dashboard</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <div className="p-3 bg-muted/50 rounded-lg text-sm mb-4">
+            <p className="flex items-center gap-2">
+              <Info className="w-4 h-4 text-muted-foreground" />
+              Discounts created here will automatically apply to the landing page pricing and merchant upgrade flows.
+            </p>
+          </div>
           <p className="text-muted-foreground text-sm">No active promotions</p>
           <Dialog>
             <DialogTrigger asChild>
@@ -1470,32 +1880,76 @@ function PricingTab({ toast }: { toast: any }) {
                 Create Discount Code
               </Button>
             </DialogTrigger>
-            <DialogContent data-testid="dialog-create-discount">
+            <DialogContent className="max-w-lg" data-testid="dialog-create-discount">
               <DialogHeader>
                 <DialogTitle>Create Discount Code</DialogTitle>
-                <DialogDescription>Generate a promotional discount code</DialogDescription>
+                <DialogDescription>Generate a promotional discount code with target plan and validity</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div>
                   <Label>Discount Code</Label>
                   <Input placeholder="e.g., SAVE20" className="mt-1" data-testid="input-discount-code" />
                 </div>
+                <div>
+                  <Label>Target Plan</Label>
+                  <p className="text-xs text-muted-foreground mt-1 mb-2">
+                    Select which plan this discount applies to
+                  </p>
+                  <Select defaultValue="all">
+                    <SelectTrigger className="mt-1" data-testid="select-discount-target-plan">
+                      <SelectValue placeholder="Select target plan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Plans</SelectItem>
+                      <SelectItem value="starter">Starter Only</SelectItem>
+                      <SelectItem value="pro">Pro Only</SelectItem>
+                      <SelectItem value="enterprise">Enterprise Only</SelectItem>
+                      <SelectItem value="upgrade">Upgrade Only (Starter & Pro)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Discount (%)</Label>
-                    <Input type="number" placeholder="20" className="mt-1" data-testid="input-discount-percent" />
+                    <Input type="number" placeholder="20" className="mt-1" min={1} max={100} data-testid="input-discount-percent" />
                   </div>
                   <div>
-                    <Label>Valid Until</Label>
+                    <Label>Max Uses</Label>
+                    <Input type="number" placeholder="100" className="mt-1" data-testid="input-discount-max-uses" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Start Date</Label>
+                    <Input type="date" className="mt-1" data-testid="input-discount-start" />
+                  </div>
+                  <div>
+                    <Label>End Date</Label>
                     <Input type="date" className="mt-1" data-testid="input-discount-expiry" />
                   </div>
+                </div>
+                <div>
+                  <Label>Validity Period</Label>
+                  <Select defaultValue="30">
+                    <SelectTrigger className="mt-1" data-testid="select-discount-validity">
+                      <SelectValue placeholder="Select validity period" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="7">7 Days</SelectItem>
+                      <SelectItem value="14">14 Days</SelectItem>
+                      <SelectItem value="30">30 Days</SelectItem>
+                      <SelectItem value="60">60 Days</SelectItem>
+                      <SelectItem value="90">90 Days</SelectItem>
+                      <SelectItem value="custom">Custom (use dates above)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <DialogFooter>
                 <DialogClose asChild>
                   <Button variant="outline" data-testid="button-cancel-discount">Cancel</Button>
                 </DialogClose>
-                <Button onClick={() => toast({ title: "Discount Created", description: "Promotional code has been generated." })} data-testid="button-confirm-discount">
+                <Button onClick={() => toast({ title: "Discount Created", description: "Promotional code has been generated and synced to landing page." })} data-testid="button-confirm-discount">
                   Create Code
                 </Button>
               </DialogFooter>
@@ -1542,53 +1996,177 @@ function PricingTab({ toast }: { toast: any }) {
 }
 
 function ReportsTab({ stats, toast }: { stats?: AdminStats; toast: any }) {
+  const [dateFilter, setDateFilter] = useState<"daily" | "weekly" | "monthly" | "yearly">("monthly");
+  
+  const mockMerchantData = {
+    daily: { current: 3, previous: 2, change: 50 },
+    weekly: { current: 18, previous: 15, change: 20 },
+    monthly: { current: 65, previous: 52, change: 25 },
+    yearly: { current: 420, previous: 280, change: 50 },
+  };
+  
+  const mockCustomerData = {
+    daily: { current: 156, previous: 142, change: 10 },
+    weekly: { current: 1243, previous: 1180, change: 5 },
+    monthly: { current: 5420, previous: 4890, change: 11 },
+    yearly: { current: 52000, previous: 38000, change: 37 },
+  };
+
+  const topFeatures = [
+    { name: "AI Chat Responses", usage: 78, description: "Most popular feature - AI handles 78% of all conversations" },
+    { name: "Knowledge Base Search", usage: 65, description: "Frequently used for context retrieval" },
+    { name: "Human Escalation", usage: 23, description: "23% of conversations require human intervention" },
+    { name: "Product Recommendations", usage: 45, description: "AI-powered product suggestions" },
+    { name: "File/Image Analysis", usage: 18, description: "Visual content processing" },
+  ];
+
   const handleExport = (reportType: string) => {
+    const reportData = {
+      generatedAt: new Date().toISOString(),
+      period: dateFilter,
+      merchants: mockMerchantData[dateFilter],
+      customers: mockCustomerData[dateFilter],
+      topFeatures: topFeatures,
+    };
+    
+    const csvContent = `Performance Report - ${reportType}\nGenerated: ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')}\nPeriod: ${dateFilter}\n\nMerchant Data\nCurrent,Previous,Change %\n${reportData.merchants.current},${reportData.merchants.previous},${reportData.merchants.change}%\n\nCustomer Data\nCurrent,Previous,Change %\n${reportData.customers.current},${reportData.customers.previous},${reportData.customers.change}%\n\nTop Features\nFeature,Usage %,Description\n${topFeatures.map(f => `${f.name},${f.usage}%,"${f.description}"`).join('\n')}`;
+    
+    downloadCSV(csvContent, `${reportType.toLowerCase().replace(/ /g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.csv`);
     toast({
-      title: "Report Generating",
-      description: `${reportType} is being generated and will download shortly.`,
+      title: "Report Downloaded",
+      description: `${reportType} has been exported as CSV.`,
     });
   };
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div>
+          <h3 className="text-lg font-semibold">Performance Reports</h3>
+          <p className="text-sm text-muted-foreground">Comprehensive analytics with AI-powered insights</p>
+        </div>
+        <div className="flex gap-2">
+          {(["daily", "weekly", "monthly", "yearly"] as const).map((period) => (
+            <Button
+              key={period}
+              variant={dateFilter === period ? "default" : "outline"}
+              size="sm"
+              onClick={() => setDateFilter(period)}
+              data-testid={`button-filter-${period}`}
+            >
+              {period.charAt(0).toUpperCase() + period.slice(1)}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Resolution Time</CardTitle>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-primary" />
+              Merchants ({dateFilter})
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">2.4s</p>
-            <p className="text-xs text-green-600 dark:text-green-400">-12% from last month</p>
+            <p className="text-2xl font-bold">{mockMerchantData[dateFilter].current}</p>
+            <p className={`text-xs ${mockMerchantData[dateFilter].change > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+              {mockMerchantData[dateFilter].change > 0 ? '+' : ''}{mockMerchantData[dateFilter].change}% from previous
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Customer Satisfaction</CardTitle>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" />
+              Customers ({dateFilter})
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">94.2%</p>
-            <p className="text-xs text-green-600 dark:text-green-400">+3% from last month</p>
+            <p className="text-2xl font-bold">{mockCustomerData[dateFilter].current.toLocaleString()}</p>
+            <p className={`text-xs ${mockCustomerData[dateFilter].change > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+              {mockCustomerData[dateFilter].change > 0 ? '+' : ''}{mockCustomerData[dateFilter].change}% from previous
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">AI Resolution Rate</CardTitle>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Bot className="w-4 h-4 text-primary" />
+              AI Resolution Rate
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">87.5%</p>
-            <p className="text-xs text-green-600 dark:text-green-400">+5% from last month</p>
+            <p className="text-xs text-green-600 dark:text-green-400">+5% from previous</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Clock className="w-4 h-4 text-primary" />
+              Avg. Response Time
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">2.4s</p>
+            <p className="text-xs text-green-600 dark:text-green-400">-12% faster</p>
           </CardContent>
         </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Performance Trends</CardTitle>
-          <CardDescription>Last 30 days overview</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="w-5 h-5" />
+            Most Used Features
+          </CardTitle>
+          <CardDescription>Top platform features by usage percentage</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="h-48 md:h-64 flex items-center justify-center border rounded-lg bg-muted/30">
-            <p className="text-muted-foreground text-sm">Chart visualization coming soon</p>
+        <CardContent className="space-y-4">
+          {topFeatures.map((feature, i) => (
+            <div key={i} className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="font-medium text-sm">{feature.name}</span>
+                <span className="text-sm text-muted-foreground">{feature.usage}%</span>
+              </div>
+              <Progress value={feature.usage} className="h-2" />
+              <p className="text-xs text-muted-foreground">{feature.description}</p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Lightbulb className="w-5 h-5" />
+            AI Performance Summary
+          </CardTitle>
+          <CardDescription>AI-generated insights based on your data</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+            <h4 className="font-medium mb-2 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-green-500" />
+              Growth Trend Analysis
+            </h4>
+            <p className="text-sm text-muted-foreground">
+              Your platform shows consistent growth with a {mockMerchantData[dateFilter].change}% increase in merchant signups 
+              ({dateFilter}). The AI resolution rate of 87.5% indicates strong automation effectiveness, 
+              reducing human workload while maintaining customer satisfaction at 94.2%.
+            </p>
+          </div>
+          <div className="p-4 bg-accent/5 rounded-lg border border-accent/20">
+            <h4 className="font-medium mb-2 flex items-center gap-2">
+              <Target className="w-4 h-4 text-orange-500" />
+              Recommendations
+            </h4>
+            <p className="text-sm text-muted-foreground">
+              Consider expanding knowledge base content to reduce the 23% escalation rate. 
+              Product recommendations feature shows high potential with 45% engagement - 
+              recommend promoting this to merchants who haven't enabled it yet.
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -1597,8 +2175,8 @@ function ReportsTab({ stats, toast }: { stats?: AdminStats; toast: any }) {
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <CardTitle>Generate Reports</CardTitle>
-              <CardDescription>Export detailed analytics</CardDescription>
+              <CardTitle>Export Reports</CardTitle>
+              <CardDescription>Download detailed analytics as CSV files</CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -1698,6 +2276,27 @@ function UsageTab({ stats }: { stats?: AdminStats }) {
 }
 
 function BillingTab() {
+  const mockMerchantUsage = [
+    { name: "Acme Corp", plan: "Pro", messages: 45231, chats: 1234, storage: "512 MB", cost: 99 },
+    { name: "TechStart Inc", plan: "Starter", messages: 23156, chats: 876, storage: "256 MB", cost: 29 },
+    { name: "GlobalShop", plan: "Enterprise", messages: 89432, chats: 3421, storage: "1.2 GB", cost: 299 },
+    { name: "LocalBiz", plan: "Starter", messages: 12543, chats: 432, storage: "128 MB", cost: 29 },
+    { name: "MegaCorp", plan: "Pro", messages: 67890, chats: 2156, storage: "768 MB", cost: 99 },
+  ];
+
+  const handleExportUsage = () => {
+    const columns = [
+      { key: "name", label: "Merchant" },
+      { key: "plan", label: "Plan" },
+      { key: "messages", label: "Messages" },
+      { key: "chats", label: "Chats" },
+      { key: "storage", label: "Storage" },
+      { key: "cost", label: "Monthly Cost ($)" },
+    ];
+    const csv = generateCSV(mockMerchantUsage, columns);
+    downloadCSV(csv, `merchant_usage_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -1749,36 +2348,20 @@ function BillingTab() {
           </Button>
         </CardContent>
       </Card>
-    </div>
-  );
-}
 
-function TransactionsTab({ toast }: { toast: any }) {
-  const transactions = [
-    { id: "tx_1", merchant: "Acme Corp", amount: 99, plan: "Pro", date: "2024-01-15", status: "completed" },
-    { id: "tx_2", merchant: "TechStart Inc", amount: 29, plan: "Starter", date: "2024-01-14", status: "completed" },
-    { id: "tx_3", merchant: "GlobalShop", amount: 299, plan: "Enterprise", date: "2024-01-12", status: "completed" },
-  ];
-
-  const handleExport = () => {
-    toast({
-      title: "Export Started",
-      description: "Transaction data is being exported.",
-    });
-  };
-
-  return (
-    <div className="space-y-6">
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <CardTitle>Recent Transactions</CardTitle>
-              <CardDescription>Chatvice subscription payments</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" />
+                Merchant Usage Details
+              </CardTitle>
+              <CardDescription>Real-time usage data per merchant with chat counts</CardDescription>
             </div>
-            <Button variant="outline" onClick={handleExport} data-testid="button-export-transactions">
+            <Button variant="outline" size="sm" onClick={handleExportUsage} data-testid="button-export-usage-data">
               <Download className="w-4 h-4 mr-2" />
-              Export
+              Export CSV
             </Button>
           </div>
         </CardHeader>
@@ -1787,29 +2370,246 @@ function TransactionsTab({ toast }: { toast: any }) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="hidden md:table-cell">Transaction ID</TableHead>
                   <TableHead>Merchant</TableHead>
                   <TableHead>Plan</TableHead>
+                  <TableHead className="hidden md:table-cell">Messages</TableHead>
+                  <TableHead>Chats</TableHead>
+                  <TableHead className="hidden sm:table-cell">Storage</TableHead>
+                  <TableHead>Cost</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {mockMerchantUsage.map((merchant, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="font-medium">{merchant.name}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{merchant.plan}</Badge>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">{merchant.messages.toLocaleString()}</TableCell>
+                    <TableCell>{merchant.chats.toLocaleString()}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{merchant.storage}</TableCell>
+                    <TableCell className="font-medium text-green-600 dark:text-green-400">${merchant.cost}/mo</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="w-5 h-5" />
+            Usage Trends by Merchant
+          </CardTitle>
+          <CardDescription>Graphical representation of resource consumption</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {mockMerchantUsage.slice(0, 3).map((merchant, i) => (
+            <div key={i} className="space-y-2">
+              <div className="flex justify-between items-center">
+                <div>
+                  <span className="font-medium text-sm">{merchant.name}</span>
+                  <Badge variant="outline" className="ml-2">{merchant.plan}</Badge>
+                </div>
+                <span className="text-sm text-muted-foreground">{merchant.chats.toLocaleString()} chats</span>
+              </div>
+              <Progress value={Math.min(100, (merchant.chats / 3500) * 100)} className="h-2" />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{merchant.messages.toLocaleString()} messages</span>
+                <span>{merchant.storage} storage</span>
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Total Messages (Today)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xl md:text-2xl font-bold">238,252</p>
+            <p className="text-xs text-green-600 dark:text-green-400">+12% from yesterday</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Active Chats (Now)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xl md:text-2xl font-bold">47</p>
+            <p className="text-xs text-muted-foreground">Real-time active conversations</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Total Chats (MTD)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xl md:text-2xl font-bold">8,119</p>
+            <p className="text-xs text-green-600 dark:text-green-400">+18% from last month</p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function TransactionsTab({ toast }: { toast: any }) {
+  const [statusFilter, setStatusFilter] = useState<"all" | "completed" | "pending" | "failed">("all");
+  const transactions = [
+    { id: "tx_001", merchant: "Acme Corp", email: "billing@acme.com", amount: 99, plan: "Pro", date: "2024-01-15", status: "completed", paymentMethod: "QRIS", invoiceId: "INV-2024-001" },
+    { id: "tx_002", merchant: "TechStart Inc", email: "admin@techstart.co", amount: 29, plan: "Starter", date: "2024-01-14", status: "completed", paymentMethod: "QRIS", invoiceId: "INV-2024-002" },
+    { id: "tx_003", merchant: "GlobalShop", email: "finance@globalshop.id", amount: 299, plan: "Enterprise", date: "2024-01-13", status: "completed", paymentMethod: "Bank Transfer", invoiceId: "INV-2024-003" },
+    { id: "tx_004", merchant: "LocalBiz", email: "owner@localbiz.co.id", amount: 29, plan: "Starter", date: "2024-01-12", status: "pending", paymentMethod: "QRIS", invoiceId: "INV-2024-004" },
+    { id: "tx_005", merchant: "MegaCorp", email: "ap@megacorp.com", amount: 99, plan: "Pro", date: "2024-01-11", status: "completed", paymentMethod: "Credit Card", invoiceId: "INV-2024-005" },
+    { id: "tx_006", merchant: "StartupXYZ", email: "billing@startupxyz.io", amount: 29, plan: "Starter", date: "2024-01-10", status: "failed", paymentMethod: "QRIS", invoiceId: "INV-2024-006" },
+  ];
+
+  const filteredTransactions = transactions.filter(tx => 
+    statusFilter === "all" || tx.status === statusFilter
+  );
+
+  const handleExport = () => {
+    const columns = [
+      { key: "invoiceId", label: "Invoice ID" },
+      { key: "merchant", label: "Merchant" },
+      { key: "email", label: "Email" },
+      { key: "plan", label: "Plan" },
+      { key: "amount", label: "Amount ($)" },
+      { key: "paymentMethod", label: "Payment Method" },
+      { key: "date", label: "Date" },
+      { key: "status", label: "Status" },
+    ];
+    const csv = generateCSV(filteredTransactions, columns);
+    downloadCSV(csv, `transactions_${statusFilter}_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    toast({ title: "Export Complete", description: `${filteredTransactions.length} transactions exported.` });
+  };
+
+  const totalRevenue = transactions.filter(t => t.status === "completed").reduce((sum, t) => sum + t.amount, 0);
+  const pendingAmount = transactions.filter(t => t.status === "pending").reduce((sum, t) => sum + t.amount, 0);
+  const failedAmount = transactions.filter(t => t.status === "failed").reduce((sum, t) => sum + t.amount, 0);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              Completed Revenue
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-green-600 dark:text-green-400">${totalRevenue}</p>
+            <p className="text-xs text-muted-foreground">{transactions.filter(t => t.status === "completed").length} transactions</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Clock className="w-4 h-4 text-yellow-500" />
+              Pending
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">${pendingAmount}</p>
+            <p className="text-xs text-muted-foreground">{transactions.filter(t => t.status === "pending").length} awaiting</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <XCircle className="w-4 h-4 text-red-500" />
+              Failed
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-red-600 dark:text-red-400">${failedAmount}</p>
+            <p className="text-xs text-muted-foreground">{transactions.filter(t => t.status === "failed").length} failed</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle>Transaction History</CardTitle>
+              <CardDescription>Detailed payment history with invoice tracking</CardDescription>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <div className="flex gap-1">
+                {(["all", "completed", "pending", "failed"] as const).map((status) => (
+                  <Button
+                    key={status}
+                    variant={statusFilter === status ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setStatusFilter(status)}
+                    data-testid={`button-tx-filter-${status}`}
+                  >
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </Button>
+                ))}
+              </div>
+              <Button variant="outline" size="sm" onClick={handleExport} data-testid="button-export-transactions">
+                <Download className="w-4 h-4 mr-2" />
+                Export CSV
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto -mx-4 md:mx-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Invoice</TableHead>
+                  <TableHead>Merchant</TableHead>
+                  <TableHead className="hidden lg:table-cell">Email</TableHead>
+                  <TableHead className="hidden sm:table-cell">Plan</TableHead>
+                  <TableHead className="hidden md:table-cell">Method</TableHead>
                   <TableHead>Amount</TableHead>
-                  <TableHead className="hidden sm:table-cell">Date</TableHead>
+                  <TableHead className="hidden lg:table-cell">Date</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {transactions.map((tx) => (
-                  <TableRow key={tx.id}>
-                    <TableCell className="font-mono text-sm hidden md:table-cell">{tx.id}</TableCell>
-                    <TableCell className="text-sm">{tx.merchant}</TableCell>
-                    <TableCell>{tx.plan}</TableCell>
-                    <TableCell>${tx.amount}</TableCell>
-                    <TableCell className="hidden sm:table-cell">{tx.date}</TableCell>
-                    <TableCell>
-                      <Badge className="bg-green-500/20 text-green-700 dark:text-green-400">
-                        {tx.status}
-                      </Badge>
+                {filteredTransactions.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      No transactions found
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  filteredTransactions.map((tx) => (
+                    <TableRow key={tx.id} data-testid={`row-transaction-${tx.id}`}>
+                      <TableCell className="font-mono text-xs">{tx.invoiceId}</TableCell>
+                      <TableCell className="font-medium text-sm">{tx.merchant}</TableCell>
+                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{tx.email}</TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        <Badge variant="outline">{tx.plan}</Badge>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell text-sm">{tx.paymentMethod}</TableCell>
+                      <TableCell className="font-medium">${tx.amount}</TableCell>
+                      <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">{tx.date}</TableCell>
+                      <TableCell>
+                        <Badge className={
+                          tx.status === "completed" 
+                            ? "bg-green-500/20 text-green-700 dark:text-green-400" 
+                            : tx.status === "pending"
+                            ? "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400"
+                            : "bg-red-500/20 text-red-700 dark:text-red-400"
+                        }>
+                          {tx.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
