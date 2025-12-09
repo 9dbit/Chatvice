@@ -1725,6 +1725,9 @@ function SEOBrandingTab({ toast }: { toast: any }) {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [faviconPreview, setFaviconPreview] = useState<string | null>(null);
   const [ogImagePreview, setOgImagePreview] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState(false);
+  const [faviconError, setFaviconError] = useState(false);
+  const [ogImageError, setOgImageError] = useState(false);
 
   const { data: landingSettings, refetch: refetchSettings } = useQuery({
     queryKey: ["/api/landing-settings"],
@@ -1770,12 +1773,15 @@ function SEOBrandingTab({ toast }: { toast: any }) {
       if (type === 'logo') {
         setLogoUrl(url);
         setLogoPreview(url);
+        setLogoError(false);
       } else if (type === 'favicon') {
         setFaviconUrl(url);
         setFaviconPreview(url);
+        setFaviconError(false);
       } else {
         setOgImageUrl(url);
         setOgImagePreview(url);
+        setOgImageError(false);
       }
       toast({
         title: "File Uploaded",
@@ -1869,12 +1875,17 @@ function SEOBrandingTab({ toast }: { toast: any }) {
                 className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors aspect-video flex items-center justify-center"
                 onClick={() => logoInputRef.current?.click()}
               >
-                {logoPreview ? (
-                  <img src={logoPreview} alt="Logo preview" className="max-h-full max-w-full object-contain" />
+                {logoPreview && !logoError ? (
+                  <img 
+                    src={logoPreview} 
+                    alt="Logo preview" 
+                    className="max-h-full max-w-full object-contain" 
+                    onError={() => setLogoError(true)}
+                  />
                 ) : (
                   <div className="text-center">
                     <Upload className="w-6 h-6 mx-auto text-muted-foreground mb-1" />
-                    <p className="text-xs text-muted-foreground">Upload Logo</p>
+                    <p className="text-xs text-muted-foreground">{logoError ? "Image missing - click to re-upload" : "Upload Logo"}</p>
                   </div>
                 )}
               </div>
@@ -1894,12 +1905,17 @@ function SEOBrandingTab({ toast }: { toast: any }) {
                 className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors aspect-square max-w-[120px] mx-auto flex items-center justify-center"
                 onClick={() => faviconInputRef.current?.click()}
               >
-                {faviconPreview ? (
-                  <img src={faviconPreview} alt="Favicon preview" className="max-h-full max-w-full object-contain" />
+                {faviconPreview && !faviconError ? (
+                  <img 
+                    src={faviconPreview} 
+                    alt="Favicon preview" 
+                    className="max-h-full max-w-full object-contain" 
+                    onError={() => setFaviconError(true)}
+                  />
                 ) : (
                   <div className="text-center">
                     <Upload className="w-5 h-5 mx-auto text-muted-foreground mb-1" />
-                    <p className="text-xs text-muted-foreground">32x32px</p>
+                    <p className="text-xs text-muted-foreground">{faviconError ? "Missing" : "32x32px"}</p>
                   </div>
                 )}
               </div>
@@ -1919,12 +1935,17 @@ function SEOBrandingTab({ toast }: { toast: any }) {
                 className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors aspect-video flex items-center justify-center"
                 onClick={() => ogImageInputRef.current?.click()}
               >
-                {ogImagePreview ? (
-                  <img src={ogImagePreview} alt="OG Image preview" className="max-h-full max-w-full object-contain" />
+                {ogImagePreview && !ogImageError ? (
+                  <img 
+                    src={ogImagePreview} 
+                    alt="OG Image preview" 
+                    className="max-h-full max-w-full object-contain" 
+                    onError={() => setOgImageError(true)}
+                  />
                 ) : (
                   <div className="text-center">
                     <Share2 className="w-6 h-6 mx-auto text-muted-foreground mb-1" />
-                    <p className="text-xs text-muted-foreground">Upload OG Image</p>
+                    <p className="text-xs text-muted-foreground">{ogImageError ? "Image missing - click to re-upload" : "Upload OG Image"}</p>
                   </div>
                 )}
               </div>
