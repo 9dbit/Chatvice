@@ -8,13 +8,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Shield, Lock } from "lucide-react";
-import logoUrl from "@assets/logo.png";
+import { useTheme } from "@/components/theme-provider";
+import chatviceLogoLight from "@assets/Chatvice-02_1764703423166.png";
+import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
 
 export default function AdminLogin() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { resolvedTheme } = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  
+  const chatviceLogo = resolvedTheme === "dark" ? chatviceLogoDark : chatviceLogoLight;
 
   const loginMutation = useMutation<{ success: boolean; adminId: string; name: string }, Error, { email: string; password: string }>({
     mutationFn: async (data) => {
@@ -44,7 +49,7 @@ export default function AdminLogin() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4">
-            <img src={logoUrl} alt="Chatvice" className="h-12 mx-auto" />
+            <img src={chatviceLogo} alt="Chatvice" className="h-12 mx-auto" />
           </div>
           <div className="flex items-center justify-center gap-2 mb-2">
             <Shield className="w-5 h-5 text-primary" />

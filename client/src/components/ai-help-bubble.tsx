@@ -4,8 +4,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Bot, X, Send, Loader2, Sparkles, Minimize2, GripVertical, EyeOff, Eye } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+
+interface PlatformSettings {
+  guide_enabled?: string;
+  guide_name?: string;
+  guide_welcome_message?: string;
+  guide_show_landing?: string;
+  guide_show_dashboard?: string;
+  guide_widget_position?: string;
+  guide_widget_color?: string;
+  guide_bubble_enabled?: string;
+  guide_bubble_text?: string;
+}
 
 interface Message {
   role: "user" | "assistant";
@@ -69,6 +81,33 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
   const HIDDEN_KEY = `chatvice-guide-hidden${storageKeySuffix}`;
   const WELCOME_KEY = `chatvice-guide${WELCOME_BUBBLE_DISMISSED_KEY_SUFFIX}${storageKeySuffix}`;
   
+  // Fetch platform settings for guide configuration
+  const { data: platformSettings, isLoading: settingsLoading, isError: settingsError } = useQuery<PlatformSettings>({
+    queryKey: ["/api/platform-settings"],
+    retry: 2,
+    staleTime: 30000,
+  });
+  
+  // Settings are ready when loaded successfully OR when errored (use fallbacks)
+  const settingsReady = !settingsLoading;
+  const hasSettings = platformSettings !== undefined;
+  
+  // Always use fallback defaults when settings are missing or failed to load
+  // This ensures the widget always works even if API is unavailable
+  const defaultWelcomeMessage = publicMode ? PUBLIC_INITIAL_MESSAGE : INITIAL_MESSAGE;
+  
+  const isEnabled = hasSettings ? platformSettings?.guide_enabled !== "false" : true;
+  const guideName = platformSettings?.guide_name || "Chatvice Guide";
+  const welcomeMessage = platformSettings?.guide_welcome_message || defaultWelcomeMessage;
+  const showOnLanding = hasSettings ? platformSettings?.guide_show_landing !== "false" : true;
+  const showOnDashboard = hasSettings ? platformSettings?.guide_show_dashboard !== "false" : true;
+  const widgetColor = platformSettings?.guide_widget_color || "#7c3aed";
+  const bubbleEnabled = hasSettings ? platformSettings?.guide_bubble_enabled !== "false" : true;
+  const bubbleText = platformSettings?.guide_bubble_text || "Need help?";
+  
+  // Determine if widget should be shown - always show with defaults if API fails
+  const shouldShow = settingsReady && isEnabled && (publicMode ? showOnLanding : showOnDashboard);
+  
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isHidden, setIsHidden] = useState(() => {
@@ -90,9 +129,22 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
     }
     return { x: 24, y: 24 };
   });
-  const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", content: publicMode ? PUBLIC_INITIAL_MESSAGE : INITIAL_MESSAGE }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [lastWelcomeMessage, setLastWelcomeMessage] = useState<string>("");
+  
+  // Initialize messages once settings are loaded, and update if welcome message changes
+  useEffect(() => {
+    if (settingsReady && welcomeMessage) {
+      // Only update if this is the first load OR if welcome message changed and no user messages yet
+      const hasOnlyBotMessage = messages.length <= 1 && messages.every(m => m.role === "assistant");
+      const welcomeChanged = welcomeMessage !== lastWelcomeMessage;
+      
+      if (messages.length === 0 || (hasOnlyBotMessage && welcomeChanged)) {
+        setMessages([{ role: "assistant", content: welcomeMessage }]);
+        setLastWelcomeMessage(welcomeMessage);
+      }
+    }
+  }, [settingsReady, welcomeMessage, messages.length, lastWelcomeMessage]);
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
@@ -215,6 +267,11 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
     setIsHidden(!isHidden);
   };
 
+  // Don't render if widget is disabled via platform settings
+  if (!shouldShow) {
+    return null;
+  }
+
   if (isHidden) {
     return (
       <div 
@@ -226,7 +283,7 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
           variant="outline"
           onClick={toggleHidden}
           className="rounded-full w-10 h-10 shadow-lg bg-background/80 backdrop-blur-sm"
-          title="Show Chatvice Guide"
+          title={`Show ${guideName}`}
           data-testid="button-show-ai-help"
         >
           <Eye className="w-4 h-4" />
@@ -271,8 +328,8 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
             </div>
           )}
           
-          {/* Welcome bubble - matching live preview style */}
-          {showWelcomeBubble && !isHovered && (
+          {/* Welcome bubble - matching live preview style, only show if enabled in settings */}
+          {showWelcomeBubble && !isHovered && bubbleEnabled && (
             <div className="absolute bottom-full right-0 mb-3 animate-in fade-in slide-in-from-bottom-5 duration-300">
               <div className="bg-card rounded-2xl shadow-xl p-4 w-72 border border-border relative">
                 <button
@@ -284,11 +341,11 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                 </button>
                 <div className="mb-3">
                   <p className="font-semibold text-base">
-                    {publicMode ? "Need help?" : "Need help navigating?"}
+                    {bubbleEnabled ? bubbleText : (publicMode ? "Need help?" : "Need help navigating?")}
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
                     {publicMode 
-                      ? "Ask me about Chatvice features and pricing!" 
+                      ? `Ask me about ${guideName.replace('Guide', '').trim()} features and pricing!` 
                       : "I can guide you through the dashboard features."}
                   </p>
                 </div>
@@ -306,7 +363,8 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
           
           <button
             onClick={() => setIsOpen(true)}
-            className="shadow-lg rounded-full w-14 h-14 flex items-center justify-center bg-primary hover:bg-primary/90 text-white relative z-10 transition-transform hover:scale-105"
+            className="shadow-lg rounded-full w-14 h-14 flex items-center justify-center text-white relative z-10 transition-transform hover:scale-105"
+            style={{ backgroundColor: widgetColor }}
             data-testid="button-ai-help"
           >
             <Bot className="w-7 h-7" />
@@ -326,12 +384,12 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
         style={{ bottom: position.y, right: Math.max(8, position.x) }}
       >
         <Card className="w-56 sm:w-64 max-w-[calc(100vw-16px)] shadow-xl border border-border">
-          <CardHeader className="p-2.5 sm:p-3 flex flex-row items-center justify-between space-y-0 gap-2 bg-primary">
+          <CardHeader className="p-2.5 sm:p-3 flex flex-row items-center justify-between space-y-0 gap-2" style={{ backgroundColor: widgetColor }}>
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
                 <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
               </div>
-              <span className="font-semibold text-xs sm:text-sm truncate text-white">Chatvice Guide</span>
+              <span className="font-semibold text-xs sm:text-sm truncate text-white">{guideName}</span>
             </div>
             <div className="flex gap-1 flex-shrink-0">
               <Button
@@ -365,13 +423,13 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
       style={{ bottom: position.y, right: Math.max(8, position.x) }}
     >
       <Card className="w-[320px] sm:w-80 md:w-96 max-w-[calc(100vw-16px)] shadow-xl border border-border overflow-hidden">
-        <CardHeader className="p-3 sm:p-4 flex flex-row items-center justify-between space-y-0 gap-2 bg-primary">
+        <CardHeader className="p-3 sm:p-4 flex flex-row items-center justify-between space-y-0 gap-2" style={{ backgroundColor: widgetColor }}>
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
               <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
             <div className="min-w-0">
-              <CardTitle className="text-sm sm:text-base truncate text-white">Chatvice Guide</CardTitle>
+              <CardTitle className="text-sm sm:text-base truncate text-white">{guideName}</CardTitle>
               <p className="text-[10px] sm:text-xs text-white/70 truncate">Here to help you succeed</p>
             </div>
           </div>

@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /supervisor
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: https://chatvice.app/sitemap.xml

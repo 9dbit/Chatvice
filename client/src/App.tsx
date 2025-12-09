@@ -41,6 +41,7 @@ import ContactPage from "@/pages/resources/contact";
 import StatusPage from "@/pages/resources/status";
 import DocsPage from "@/pages/resources/docs";
 import HelpCenterPage from "@/pages/resources/help";
+import { DynamicHead } from "@/components/dynamic-head";
 
 function ScrollToTop() {
   const [location] = useLocation();
@@ -111,6 +112,7 @@ function App() {
     <ThemeProvider defaultTheme="system" storageKey="chatvice-ui-theme">
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
+          <DynamicHead />
           <ScrollToTop />
           <Toaster />
           <Router />
