@@ -2339,24 +2339,43 @@ function SEOBrandingTab({ toast }: { toast: any }) {
                 className="hidden"
                 onChange={handleFileUpload('logo')}
               />
-              <div 
-                className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors aspect-video flex items-center justify-center"
-                onClick={() => logoInputRef.current?.click()}
-                data-testid="upload-logo-area"
-              >
-                {logoPreview && !logoError ? (
-                  <img 
-                    src={logoPreview} 
-                    alt="Logo preview" 
-                    className="max-h-full max-w-full object-contain" 
-                    onError={() => setLogoError(true)}
-                    data-testid="img-logo-preview"
-                  />
-                ) : (
-                  <div className="text-center">
-                    <Upload className="w-6 h-6 mx-auto text-muted-foreground mb-1" />
-                    <p className="text-xs text-muted-foreground">{logoError ? "Image missing - click to re-upload" : "Upload Logo"}</p>
-                  </div>
+              <div className="relative">
+                <div 
+                  className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors aspect-video flex items-center justify-center"
+                  onClick={() => logoInputRef.current?.click()}
+                  data-testid="upload-logo-area"
+                >
+                  {logoPreview && !logoError ? (
+                    <img 
+                      src={logoPreview} 
+                      alt="Logo preview" 
+                      className="max-h-full max-w-full object-contain" 
+                      onError={() => setLogoError(true)}
+                      data-testid="img-logo-preview"
+                    />
+                  ) : (
+                    <div className="text-center">
+                      <Upload className="w-6 h-6 mx-auto text-muted-foreground mb-1" />
+                      <p className="text-xs text-muted-foreground">{logoError ? "Image missing - click to re-upload" : "Upload Logo"}</p>
+                    </div>
+                  )}
+                </div>
+                {logoUrl && (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="destructive"
+                    className="absolute -top-2 -right-2 h-6 w-6"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLogoUrl("");
+                      setLogoPreview("");
+                      setLogoError(false);
+                    }}
+                    data-testid="button-delete-logo"
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
                 )}
               </div>
               {logoUrl && (
@@ -2365,7 +2384,19 @@ function SEOBrandingTab({ toast }: { toast: any }) {
                   <code className="text-xs break-all text-primary">{logoUrl}</code>
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">Recommended: 200x60px, PNG/SVG</p>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => logoInputRef.current?.click()}
+                  data-testid="button-upload-logo"
+                >
+                  <Upload className="w-3 h-3 mr-1" />
+                  {logoUrl ? "Replace" : "Upload"}
+                </Button>
+                <p className="text-xs text-muted-foreground">200x60px, PNG/SVG</p>
+              </div>
             </div>
             
             <div className="space-y-3">
@@ -2377,24 +2408,43 @@ function SEOBrandingTab({ toast }: { toast: any }) {
                 className="hidden"
                 onChange={handleFileUpload('favicon')}
               />
-              <div 
-                className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors aspect-square max-w-[120px] mx-auto flex items-center justify-center"
-                onClick={() => faviconInputRef.current?.click()}
-                data-testid="upload-favicon-area"
-              >
-                {faviconPreview && !faviconError ? (
-                  <img 
-                    src={faviconPreview} 
-                    alt="Favicon preview" 
-                    className="max-h-full max-w-full object-contain" 
-                    onError={() => setFaviconError(true)}
-                    data-testid="img-favicon-preview"
-                  />
-                ) : (
-                  <div className="text-center">
-                    <Upload className="w-5 h-5 mx-auto text-muted-foreground mb-1" />
-                    <p className="text-xs text-muted-foreground">{faviconError ? "Missing" : "32x32px"}</p>
-                  </div>
+              <div className="relative max-w-[120px] mx-auto">
+                <div 
+                  className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors aspect-square flex items-center justify-center"
+                  onClick={() => faviconInputRef.current?.click()}
+                  data-testid="upload-favicon-area"
+                >
+                  {faviconPreview && !faviconError ? (
+                    <img 
+                      src={faviconPreview} 
+                      alt="Favicon preview" 
+                      className="max-h-full max-w-full object-contain" 
+                      onError={() => setFaviconError(true)}
+                      data-testid="img-favicon-preview"
+                    />
+                  ) : (
+                    <div className="text-center">
+                      <Upload className="w-5 h-5 mx-auto text-muted-foreground mb-1" />
+                      <p className="text-xs text-muted-foreground">{faviconError ? "Missing" : "32x32px"}</p>
+                    </div>
+                  )}
+                </div>
+                {faviconUrl && (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="destructive"
+                    className="absolute -top-2 -right-2 h-6 w-6"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFaviconUrl("");
+                      setFaviconPreview("");
+                      setFaviconError(false);
+                    }}
+                    data-testid="button-delete-favicon"
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
                 )}
               </div>
               {faviconUrl && (
@@ -2403,6 +2453,18 @@ function SEOBrandingTab({ toast }: { toast: any }) {
                   <code className="text-xs break-all text-primary">{faviconUrl}</code>
                 </div>
               )}
+              <div className="flex items-center justify-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => faviconInputRef.current?.click()}
+                  data-testid="button-upload-favicon"
+                >
+                  <Upload className="w-3 h-3 mr-1" />
+                  {faviconUrl ? "Replace" : "Upload"}
+                </Button>
+              </div>
               <p className="text-xs text-muted-foreground text-center">ICO or PNG format</p>
             </div>
             
@@ -2415,24 +2477,43 @@ function SEOBrandingTab({ toast }: { toast: any }) {
                 className="hidden"
                 onChange={handleFileUpload('ogImage')}
               />
-              <div 
-                className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors aspect-video flex items-center justify-center"
-                onClick={() => ogImageInputRef.current?.click()}
-                data-testid="upload-og-image-area"
-              >
-                {ogImagePreview && !ogImageError ? (
-                  <img 
-                    src={ogImagePreview} 
-                    alt="OG Image preview" 
-                    className="max-h-full max-w-full object-contain" 
-                    onError={() => setOgImageError(true)}
-                    data-testid="img-og-preview"
-                  />
-                ) : (
-                  <div className="text-center">
-                    <Share2 className="w-6 h-6 mx-auto text-muted-foreground mb-1" />
-                    <p className="text-xs text-muted-foreground">{ogImageError ? "Image missing - click to re-upload" : "Upload OG Image"}</p>
-                  </div>
+              <div className="relative">
+                <div 
+                  className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors aspect-video flex items-center justify-center"
+                  onClick={() => ogImageInputRef.current?.click()}
+                  data-testid="upload-og-image-area"
+                >
+                  {ogImagePreview && !ogImageError ? (
+                    <img 
+                      src={ogImagePreview} 
+                      alt="OG Image preview" 
+                      className="max-h-full max-w-full object-contain" 
+                      onError={() => setOgImageError(true)}
+                      data-testid="img-og-preview"
+                    />
+                  ) : (
+                    <div className="text-center">
+                      <Share2 className="w-6 h-6 mx-auto text-muted-foreground mb-1" />
+                      <p className="text-xs text-muted-foreground">{ogImageError ? "Image missing - click to re-upload" : "Upload OG Image"}</p>
+                    </div>
+                  )}
+                </div>
+                {ogImageUrl && (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="destructive"
+                    className="absolute -top-2 -right-2 h-6 w-6"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOgImageUrl("");
+                      setOgImagePreview("");
+                      setOgImageError(false);
+                    }}
+                    data-testid="button-delete-og-image"
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
                 )}
               </div>
               {ogImageUrl && (
@@ -2441,7 +2522,19 @@ function SEOBrandingTab({ toast }: { toast: any }) {
                   <code className="text-xs break-all text-primary">{ogImageUrl}</code>
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">1200x630px recommended for social sharing</p>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => ogImageInputRef.current?.click()}
+                  data-testid="button-upload-og-image"
+                >
+                  <Upload className="w-3 h-3 mr-1" />
+                  {ogImageUrl ? "Replace" : "Upload"}
+                </Button>
+                <p className="text-xs text-muted-foreground">1200x630px recommended</p>
+              </div>
             </div>
           </div>
         </CardContent>
