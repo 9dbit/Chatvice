@@ -125,6 +125,108 @@ export const metricGlossary: Record<string, MetricDefinition> = {
     description: "Total disk space consumed by uploaded files, media, and knowledge base content.",
     unit: "GB"
   },
+  totalMerchants: {
+    title: "Total Merchants",
+    description: "Total number of businesses registered on the Chatvice platform. Includes both active and inactive accounts across all subscription tiers.",
+  },
+  totalCustomers: {
+    title: "Total Customers",
+    description: "Cumulative count of unique end-users who have interacted with chatbots across all merchants. Each customer is counted once regardless of multiple conversations.",
+  },
+  aiResolutions: {
+    title: "AI Resolutions",
+    description: "Percentage of customer inquiries successfully resolved by the AI without requiring human escalation. Higher values indicate effective AI training and knowledge base coverage.",
+    unit: "%"
+  },
+  avgRespondTime: {
+    title: "Average Response Time",
+    description: "Mean time between a customer sending a message and receiving a response. Includes both AI (typically <2s) and human supervisor responses. Lower times improve customer satisfaction.",
+    unit: "seconds"
+  },
+  globalBandwidth: {
+    title: "Global Bandwidth (Chatvice)",
+    description: "Total data transfer across the entire Chatvice platform including all merchants, API calls, media uploads, and real-time communications.",
+    unit: "GB"
+  },
+  merchantBandwidth: {
+    title: "Merchant Bandwidth",
+    description: "Data transfer used by this specific merchant including chat messages, media files, knowledge base content, and widget interactions.",
+    unit: "MB"
+  },
+  globalStorage: {
+    title: "Global Storage (Chatvice)",
+    description: "Total storage consumed across all merchants on the platform including knowledge base content, uploaded media, and conversation history.",
+    unit: "GB"
+  },
+  merchantStorage: {
+    title: "Merchant Storage",
+    description: "Storage used by this specific merchant for their knowledge base, uploaded files, and conversation archives.",
+    unit: "MB"
+  },
+  globalApiCalls: {
+    title: "Global API Calls (Chatvice)",
+    description: "Total API requests processed by the Chatvice platform across all merchants and integrations.",
+  },
+  merchantApiCalls: {
+    title: "Merchant API Calls",
+    description: "Number of API requests made by this specific merchant's widget and dashboard operations.",
+  },
+  freePlanMerchants: {
+    title: "Free Plan Merchants",
+    description: "Number of merchants on the free tier with limited features. These accounts may convert to paid plans.",
+  },
+  starterPlanMerchants: {
+    title: "Starter Plan Merchants",
+    description: "Number of merchants subscribed to the Starter plan, designed for small businesses and startups.",
+  },
+  proPlanMerchants: {
+    title: "Pro Plan Merchants",
+    description: "Number of merchants on the Pro plan with advanced features and higher usage limits.",
+  },
+  enterprisePlanMerchants: {
+    title: "Enterprise Plan Merchants",
+    description: "Number of merchants on custom Enterprise agreements with dedicated support and unlimited features.",
+  },
+  customPlanMerchants: {
+    title: "Custom Plan Merchants",
+    description: "Number of merchants with specially negotiated plans tailored to their specific requirements.",
+  },
+  totalMessages: {
+    title: "Total Messages",
+    description: "Cumulative count of all messages exchanged between customers and the support system (both AI and human responses).",
+  },
+  activeChats: {
+    title: "Active Chats",
+    description: "Number of chat sessions currently in progress with ongoing customer interactions.",
+  },
+  totalChats: {
+    title: "Total Chats",
+    description: "Total number of chat sessions including active, completed, and archived conversations.",
+  },
+  dailySubscriptions: {
+    title: "Daily Subscriptions",
+    description: "Number of new subscription sign-ups recorded today.",
+  },
+  weeklySubscriptions: {
+    title: "Weekly Subscriptions",
+    description: "Number of new subscription sign-ups in the past 7 days.",
+  },
+  monthlySubscriptions: {
+    title: "Monthly Subscriptions",
+    description: "Number of new subscription sign-ups in the past 30 days.",
+  },
+  yearlySubscriptions: {
+    title: "Yearly Subscriptions",
+    description: "Number of new subscription sign-ups in the past 12 months.",
+  },
+  overviewMetrics: {
+    title: "Overview Metrics",
+    description: "High-level dashboard showing key performance indicators including merchants, revenue, conversations, and platform health at a glance.",
+  },
+  dataUsageMetrics: {
+    title: "Data Usage Metrics",
+    description: "Detailed breakdown of platform resource consumption including bandwidth, storage, API calls, and message volume across all merchants.",
+  },
 };
 
 export function getMetricInfo(key: string): MetricDefinition {

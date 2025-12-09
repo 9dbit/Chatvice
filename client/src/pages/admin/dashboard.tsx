@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, Redirect, Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { MetricTooltip } from "@/components/analytics/MetricTooltip";
-import { RealtimeSparkline, GrowthAreaChart } from "@/components/analytics/RealtimeChart";
+import { RealtimeSparkline, GrowthAreaChart, MiniSparkline, SubscriptionBarChart, MultiSeriesBarChart } from "@/components/analytics/RealtimeChart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -914,8 +914,84 @@ function MerchantsTab({
     return null;
   };
 
+  const planCounts = {
+    free: merchants?.filter(m => m.subscriptionPlanId === 'free').length || 0,
+    starter: merchants?.filter(m => m.subscriptionPlanId === 'starter').length || 0,
+    pro: merchants?.filter(m => m.subscriptionPlanId === 'pro').length || 0,
+    enterprise: merchants?.filter(m => m.subscriptionPlanId === 'enterprise').length || 0,
+    custom: merchants?.filter(m => m.subscriptionPlanId === 'custom').length || 0,
+  };
+
+  const subscriptionTrendData = [
+    { label: "Daily", free: 2, starter: 1, pro: 1, enterprise: 0, custom: 0 },
+    { label: "Weekly", free: 8, starter: 5, pro: 3, enterprise: 1, custom: 0 },
+    { label: "Monthly", free: 25, starter: 18, pro: 12, enterprise: 4, custom: 2 },
+    { label: "Yearly", free: 120, starter: 85, pro: 52, enterprise: 18, custom: 8 },
+  ];
+
+  const subscriptionSeries = [
+    { key: "free", color: "hsl(var(--muted-foreground))", label: "Free" },
+    { key: "starter", color: "hsl(210, 100%, 50%)", label: "Starter" },
+    { key: "pro", color: "hsl(142, 76%, 36%)", label: "Pro" },
+    { key: "enterprise", color: "hsl(280, 70%, 50%)", label: "Enterprise" },
+    { key: "custom", color: "hsl(38, 92%, 50%)", label: "Custom" },
+  ];
+
   return (
     <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="w-5 h-5" />
+            Subscription Plan Distribution
+          </CardTitle>
+          <CardDescription>Breakdown of merchants by subscription plan</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div className="p-3 rounded-lg border bg-muted/30 text-center">
+              <MetricTooltip metricKey="freePlanMerchants">
+                <p className="text-xs text-muted-foreground mb-1">Free</p>
+              </MetricTooltip>
+              <p className="text-2xl font-bold">{planCounts.free}</p>
+            </div>
+            <div className="p-3 rounded-lg border bg-blue-500/10 text-center">
+              <MetricTooltip metricKey="starterPlanMerchants">
+                <p className="text-xs text-blue-600 dark:text-blue-400 mb-1">Starter</p>
+              </MetricTooltip>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{planCounts.starter}</p>
+            </div>
+            <div className="p-3 rounded-lg border bg-green-500/10 text-center">
+              <MetricTooltip metricKey="proPlanMerchants">
+                <p className="text-xs text-green-600 dark:text-green-400 mb-1">Pro</p>
+              </MetricTooltip>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">{planCounts.pro}</p>
+            </div>
+            <div className="p-3 rounded-lg border bg-purple-500/10 text-center">
+              <MetricTooltip metricKey="enterprisePlanMerchants">
+                <p className="text-xs text-purple-600 dark:text-purple-400 mb-1">Enterprise</p>
+              </MetricTooltip>
+              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{planCounts.enterprise}</p>
+            </div>
+            <div className="p-3 rounded-lg border bg-amber-500/10 text-center">
+              <MetricTooltip metricKey="customPlanMerchants">
+                <p className="text-xs text-amber-600 dark:text-amber-400 mb-1">Custom</p>
+              </MetricTooltip>
+              <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{planCounts.custom}</p>
+            </div>
+          </div>
+
+          <MultiSeriesBarChart
+            title="Subscription Trend (Daily / Weekly / Monthly / Yearly)"
+            data={subscriptionTrendData}
+            series={subscriptionSeries}
+            height={220}
+            xAxisLabel="Time Period"
+            yAxisLabel="Merchants"
+          />
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -2840,109 +2916,150 @@ function UsageTab({ stats }: { stats?: AdminStats }) {
     return Math.floor(5 + Math.random() * 25 + (stats?.activeMerchants || 0) * 0.3);
   }, [stats?.activeMerchants]);
 
+  const merchantUsageData = [
+    { 
+      name: "Acme Corp", 
+      status: "active", 
+      messages: 45231, 
+      apiCalls: 125000, 
+      storage: "512 MB",
+      bandwidthData: [45, 52, 48, 55, 60, 58, 62, 65, 70, 68],
+      customersData: [12, 15, 18, 14, 20, 22, 25, 23, 28, 26]
+    },
+    { 
+      name: "TechStart Inc", 
+      status: "active", 
+      messages: 23156, 
+      apiCalls: 89000, 
+      storage: "256 MB",
+      bandwidthData: [20, 25, 22, 28, 30, 32, 35, 33, 38, 36],
+      customersData: [8, 10, 12, 9, 14, 15, 18, 16, 20, 18]
+    },
+    { 
+      name: "GlobalShop", 
+      status: "active", 
+      messages: 67892, 
+      apiCalls: 201000, 
+      storage: "892 MB",
+      bandwidthData: [70, 75, 80, 78, 85, 90, 88, 95, 100, 98],
+      customersData: [25, 30, 35, 32, 40, 45, 42, 50, 55, 52]
+    },
+    { 
+      name: "LocalBiz", 
+      status: "active", 
+      messages: 12543, 
+      apiCalls: 45000, 
+      storage: "128 MB",
+      bandwidthData: [10, 12, 15, 13, 18, 20, 18, 22, 25, 23],
+      customersData: [5, 6, 8, 7, 10, 12, 11, 14, 16, 15]
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <MetricTooltip metricKey="messageVolume">
-              <CardTitle className="text-xs md:text-sm font-medium">Total Messages</CardTitle>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Globe className="w-5 h-5 text-primary" />
+            <MetricTooltip metricKey="dataUsageMetrics">
+              <CardTitle>Global Chatvice Platform Usage</CardTitle>
             </MetricTooltip>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xl md:text-2xl font-bold">{stats?.totalMessages?.toLocaleString() || 0}</p>
-            <p className="text-xs text-green-600 dark:text-green-400">+22% from last month</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <MetricTooltip metricKey="apiCalls">
-              <CardTitle className="text-xs md:text-sm font-medium">API Calls (Today)</CardTitle>
-            </MetricTooltip>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xl md:text-2xl font-bold">12,453</p>
-            <p className="text-xs text-green-600 dark:text-green-400">+15% from yesterday</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <MetricTooltip metricKey="storageUsed">
-              <CardTitle className="text-xs md:text-sm font-medium">Storage Used</CardTitle>
-            </MetricTooltip>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xl md:text-2xl font-bold">2.4 GB</p>
-            <p className="text-xs text-muted-foreground">of 10 GB allocated</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <MetricTooltip metricKey="dataUsage">
-              <CardTitle className="text-xs md:text-sm font-medium">Bandwidth</CardTitle>
-            </MetricTooltip>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xl md:text-2xl font-bold">45.2 GB</p>
-            <p className="text-xs text-green-600 dark:text-green-400">+8% from last month</p>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+          <CardDescription>Aggregate resource consumption across the entire Chatvice platform</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+            <div className="p-3 rounded-lg border bg-muted/30">
+              <MetricTooltip metricKey="globalBandwidth">
+                <p className="text-xs text-muted-foreground mb-1">Total Bandwidth</p>
+              </MetricTooltip>
+              <p className="text-xl font-bold">45.2 GB</p>
+              <p className="text-xs text-green-600 dark:text-green-400">+8% from last month</p>
+            </div>
+            <div className="p-3 rounded-lg border bg-muted/30">
+              <MetricTooltip metricKey="globalStorage">
+                <p className="text-xs text-muted-foreground mb-1">Total Storage</p>
+              </MetricTooltip>
+              <p className="text-xl font-bold">2.4 GB</p>
+              <p className="text-xs text-muted-foreground">of 10 GB allocated</p>
+            </div>
+            <div className="p-3 rounded-lg border bg-muted/30">
+              <MetricTooltip metricKey="globalApiCalls">
+                <p className="text-xs text-muted-foreground mb-1">Total API Calls</p>
+              </MetricTooltip>
+              <p className="text-xl font-bold">12,453</p>
+              <p className="text-xs text-green-600 dark:text-green-400">+15% from yesterday</p>
+            </div>
+            <div className="p-3 rounded-lg border bg-muted/30">
+              <MetricTooltip metricKey="messageVolume">
+                <p className="text-xs text-muted-foreground mb-1">Total Messages</p>
+              </MetricTooltip>
+              <p className="text-xl font-bold">{stats?.totalMessages?.toLocaleString() || 0}</p>
+              <p className="text-xs text-green-600 dark:text-green-400">+22% from last month</p>
+            </div>
+          </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        <RealtimeSparkline 
-          metricKey="bandwidth" 
-          color="hsl(var(--primary))"
-          height={80}
-          maxPoints={40}
-          updateInterval={250}
-          valueGenerator={bandwidthGenerator}
-        />
-        <RealtimeSparkline 
-          metricKey="customersServed" 
-          color="hsl(142, 76%, 36%)"
-          height={80}
-          maxPoints={40}
-          updateInterval={1000}
-          valueGenerator={customersGenerator}
-        />
-      </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <RealtimeSparkline 
+              metricKey="globalBandwidth" 
+              color="hsl(var(--primary))"
+              height={100}
+              maxPoints={40}
+              updateInterval={250}
+              valueGenerator={bandwidthGenerator}
+              showGrid={true}
+            />
+            <RealtimeSparkline 
+              metricKey="customersServed" 
+              color="hsl(142, 76%, 36%)"
+              height={100}
+              maxPoints={40}
+              updateInterval={1000}
+              valueGenerator={customersGenerator}
+              showGrid={true}
+            />
+          </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        <GrowthAreaChart
-          title="API Usage Trend"
-          metricKey="apiCalls"
-          data={[
-            { label: "Mon", value: 8500 },
-            { label: "Tue", value: 9200 },
-            { label: "Wed", value: 10100 },
-            { label: "Thu", value: 11400 },
-            { label: "Fri", value: 12453 },
-            { label: "Sat", value: 8900 },
-          ]}
-          color="hsl(var(--primary))"
-          height={160}
-        />
-        <GrowthAreaChart
-          title="Storage Growth"
-          metricKey="storageUsed"
-          data={[
-            { label: "Jan", value: 1.2 },
-            { label: "Feb", value: 1.5 },
-            { label: "Mar", value: 1.8 },
-            { label: "Apr", value: 2.0 },
-            { label: "May", value: 2.2 },
-            { label: "Jun", value: 2.4 },
-          ]}
-          color="hsl(280, 70%, 50%)"
-          height={160}
-        />
-      </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <GrowthAreaChart
+              title="Platform API Usage Trend"
+              metricKey="apiCalls"
+              data={[
+                { label: "Mon", value: 8500 },
+                { label: "Tue", value: 9200 },
+                { label: "Wed", value: 10100 },
+                { label: "Thu", value: 11400 },
+                { label: "Fri", value: 12453 },
+                { label: "Sat", value: 8900 },
+              ]}
+              color="hsl(var(--primary))"
+              height={160}
+            />
+            <GrowthAreaChart
+              title="Platform Storage Growth"
+              metricKey="storageUsed"
+              data={[
+                { label: "Jan", value: 1.2 },
+                { label: "Feb", value: 1.5 },
+                { label: "Mar", value: 1.8 },
+                { label: "Apr", value: 2.0 },
+                { label: "May", value: 2.2 },
+                { label: "Jun", value: 2.4 },
+              ]}
+              color="hsl(280, 70%, 50%)"
+              height={160}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Resource Usage by Merchant</CardTitle>
-          <CardDescription>Top consumers of platform resources (synced with active merchants)</CardDescription>
+          <div className="flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-primary" />
+            <CardTitle>Per-Merchant Resource Usage</CardTitle>
+          </div>
+          <CardDescription>Individual merchant resource consumption with real-time bandwidth and customer activity</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto -mx-4 md:mx-0">
@@ -2954,30 +3071,46 @@ function UsageTab({ stats }: { stats?: AdminStats }) {
                   <TableHead>Messages</TableHead>
                   <TableHead className="hidden sm:table-cell">API Calls</TableHead>
                   <TableHead>Storage</TableHead>
+                  <TableHead className="text-right">
+                    <MetricTooltip metricKey="merchantBandwidth">
+                      <span>Bandwidth</span>
+                    </MetricTooltip>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <MetricTooltip metricKey="customersServed">
+                      <span>Customers</span>
+                    </MetricTooltip>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow>
-                  <TableCell className="font-medium">Acme Corp</TableCell>
-                  <TableCell><Badge className="bg-green-500/20 text-green-700 dark:text-green-400">Active</Badge></TableCell>
-                  <TableCell>45,231</TableCell>
-                  <TableCell className="hidden sm:table-cell">125,000</TableCell>
-                  <TableCell>512 MB</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">TechStart Inc</TableCell>
-                  <TableCell><Badge className="bg-green-500/20 text-green-700 dark:text-green-400">Active</Badge></TableCell>
-                  <TableCell>23,156</TableCell>
-                  <TableCell className="hidden sm:table-cell">89,000</TableCell>
-                  <TableCell>256 MB</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">GlobalShop</TableCell>
-                  <TableCell><Badge className="bg-green-500/20 text-green-700 dark:text-green-400">Active</Badge></TableCell>
-                  <TableCell>67,892</TableCell>
-                  <TableCell className="hidden sm:table-cell">201,000</TableCell>
-                  <TableCell>892 MB</TableCell>
-                </TableRow>
+                {merchantUsageData.map((merchant, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell className="font-medium">{merchant.name}</TableCell>
+                    <TableCell>
+                      <Badge className="bg-green-500/20 text-green-700 dark:text-green-400">Active</Badge>
+                    </TableCell>
+                    <TableCell>{merchant.messages.toLocaleString()}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{merchant.apiCalls.toLocaleString()}</TableCell>
+                    <TableCell>{merchant.storage}</TableCell>
+                    <TableCell className="text-right">
+                      <MiniSparkline 
+                        data={merchant.bandwidthData} 
+                        color="hsl(var(--primary))" 
+                        width={50} 
+                        height={20}
+                      />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <MiniSparkline 
+                        data={merchant.customersData} 
+                        color="hsl(142, 76%, 36%)" 
+                        width={50} 
+                        height={20}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </div>
@@ -3181,7 +3314,9 @@ function BillingTab() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Messages (Today)</CardTitle>
+            <MetricTooltip metricKey="totalMessages">
+              <CardTitle className="text-sm font-medium">Total Messages (Today)</CardTitle>
+            </MetricTooltip>
           </CardHeader>
           <CardContent>
             <p className="text-xl md:text-2xl font-bold">238,252</p>
@@ -3190,7 +3325,9 @@ function BillingTab() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Active Chats (Now)</CardTitle>
+            <MetricTooltip metricKey="activeChats">
+              <CardTitle className="text-sm font-medium">Active Chats (Now)</CardTitle>
+            </MetricTooltip>
           </CardHeader>
           <CardContent>
             <p className="text-xl md:text-2xl font-bold">47</p>
@@ -3199,13 +3336,61 @@ function BillingTab() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Chats (MTD)</CardTitle>
+            <MetricTooltip metricKey="totalChats">
+              <CardTitle className="text-sm font-medium">Total Chats (MTD)</CardTitle>
+            </MetricTooltip>
           </CardHeader>
           <CardContent>
             <p className="text-xl md:text-2xl font-bold">8,119</p>
             <p className="text-xs text-green-600 dark:text-green-400">+18% from last month</p>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <GrowthAreaChart
+          title="Messages Trend (Last 7 Days)"
+          metricKey="totalMessages"
+          data={[
+            { label: "Mon", value: 180000 },
+            { label: "Tue", value: 195000 },
+            { label: "Wed", value: 210000 },
+            { label: "Thu", value: 225000 },
+            { label: "Fri", value: 238252 },
+            { label: "Sat", value: 190000 },
+            { label: "Sun", value: 175000 },
+          ]}
+          color="hsl(var(--primary))"
+          height={150}
+        />
+        <GrowthAreaChart
+          title="Active Chats (Last 24 Hours)"
+          metricKey="activeChats"
+          data={[
+            { label: "12AM", value: 15 },
+            { label: "4AM", value: 8 },
+            { label: "8AM", value: 25 },
+            { label: "12PM", value: 42 },
+            { label: "4PM", value: 55 },
+            { label: "8PM", value: 47 },
+          ]}
+          color="hsl(142, 76%, 36%)"
+          height={150}
+        />
+        <GrowthAreaChart
+          title="Total Chats Trend (Monthly)"
+          metricKey="totalChats"
+          data={[
+            { label: "Jan", value: 4500 },
+            { label: "Feb", value: 5200 },
+            { label: "Mar", value: 5800 },
+            { label: "Apr", value: 6500 },
+            { label: "May", value: 7200 },
+            { label: "Jun", value: 8119 },
+          ]}
+          color="hsl(280, 70%, 50%)"
+          height={150}
+        />
       </div>
     </div>
   );

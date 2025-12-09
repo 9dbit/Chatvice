@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, LineChart, Line, BarChart, Bar } from "recharts";
 import { MetricTooltip } from "./MetricTooltip";
 import { getMetricInfo } from "@/lib/metricGlossary";
 
@@ -15,6 +15,7 @@ interface RealtimeSparklineProps {
   maxPoints?: number;
   updateInterval?: number;
   valueGenerator?: () => number;
+  showGrid?: boolean;
 }
 
 export function RealtimeSparkline({ 
@@ -23,7 +24,8 @@ export function RealtimeSparkline({
   height = 60,
   maxPoints = 30,
   updateInterval = 500,
-  valueGenerator
+  valueGenerator,
+  showGrid = true
 }: RealtimeSparklineProps) {
   const [data, setData] = useState<DataPoint[]>([]);
   const [currentValue, setCurrentValue] = useState(0);
@@ -68,13 +70,45 @@ export function RealtimeSparkline({
       </div>
       <div style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+          <AreaChart data={data} margin={{ top: 5, right: 5, left: showGrid ? 30 : 0, bottom: showGrid ? 20 : 0 }}>
             <defs>
               <linearGradient id={`gradient-${metricKey}`} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor={color} stopOpacity={0.3} />
                 <stop offset="95%" stopColor={color} stopOpacity={0} />
               </linearGradient>
             </defs>
+            {showGrid && (
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+            )}
+            {showGrid && (
+              <XAxis 
+                dataKey="time" 
+                axisLine={{ stroke: 'hsl(var(--border))' }}
+                tickLine={{ stroke: 'hsl(var(--border))' }}
+                tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                tickFormatter={(value) => new Date(value).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).split(':')[2]}
+                interval={Math.floor(maxPoints / 5)}
+              />
+            )}
+            {showGrid && (
+              <YAxis 
+                axisLine={{ stroke: 'hsl(var(--border))' }}
+                tickLine={{ stroke: 'hsl(var(--border))' }}
+                tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                width={25}
+                tickFormatter={(value) => value.toFixed(0)}
+              />
+            )}
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'hsl(var(--card))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '6px',
+                fontSize: '11px'
+              }}
+              labelFormatter={(label) => new Date(label).toLocaleTimeString()}
+              formatter={(value: number) => [value.toFixed(1), info.title]}
+            />
             <Area
               type="monotone"
               dataKey="value"
@@ -86,6 +120,44 @@ export function RealtimeSparkline({
           </AreaChart>
         </ResponsiveContainer>
       </div>
+    </div>
+  );
+}
+
+interface MiniSparklineProps {
+  data: number[];
+  color?: string;
+  width?: number;
+  height?: number;
+  label?: string;
+}
+
+export function MiniSparkline({ 
+  data, 
+  color = "hsl(var(--primary))",
+  width = 60,
+  height = 24,
+  label
+}: MiniSparklineProps) {
+  const chartData = data.map((value, index) => ({ index, value }));
+  
+  return (
+    <div className="flex items-center gap-1">
+      <div style={{ width, height }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+            <Line
+              type="monotone"
+              dataKey="value"
+              stroke={color}
+              strokeWidth={1.5}
+              dot={false}
+              isAnimationActive={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+      {label && <span className="text-xs text-muted-foreground">{label}</span>}
     </div>
   );
 }
@@ -141,15 +213,16 @@ export function GrowthAreaChart({
                 <stop offset="95%" stopColor={color} stopOpacity={0} />
               </linearGradient>
             </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
             <XAxis 
               dataKey="label" 
-              axisLine={false} 
-              tickLine={false}
+              axisLine={{ stroke: 'hsl(var(--border))' }}
+              tickLine={{ stroke: 'hsl(var(--border))' }}
               tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
             />
             <YAxis 
-              axisLine={false} 
-              tickLine={false}
+              axisLine={{ stroke: 'hsl(var(--border))' }}
+              tickLine={{ stroke: 'hsl(var(--border))' }}
               tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
               width={40}
             />
@@ -181,6 +254,126 @@ export function GrowthAreaChart({
               fill={`url(#growth-gradient-${metricKey})`}
             />
           </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+interface SubscriptionBarChartProps {
+  title: string;
+  data: { label: string; value: number; color?: string }[];
+  height?: number;
+  xAxisLabel?: string;
+  yAxisLabel?: string;
+}
+
+export function SubscriptionBarChart({
+  title,
+  data,
+  height = 200,
+  xAxisLabel = "Time",
+  yAxisLabel = "Count"
+}: SubscriptionBarChartProps) {
+  return (
+    <div className="p-4 rounded-lg border bg-card">
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-sm font-medium">{title}</span>
+      </div>
+      <div style={{ height }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+            <XAxis 
+              dataKey="label" 
+              axisLine={{ stroke: 'hsl(var(--border))' }}
+              tickLine={{ stroke: 'hsl(var(--border))' }}
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              label={{ value: xAxisLabel, position: 'bottom', offset: 0, fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+            />
+            <YAxis 
+              axisLine={{ stroke: 'hsl(var(--border))' }}
+              tickLine={{ stroke: 'hsl(var(--border))' }}
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              width={35}
+              label={{ value: yAxisLabel, angle: -90, position: 'insideLeft', fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+            />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: 'hsl(var(--card))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '8px',
+                fontSize: '12px'
+              }}
+            />
+            <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+interface MultiSeriesBarChartProps {
+  title: string;
+  data: Record<string, any>[];
+  series: { key: string; color: string; label: string }[];
+  height?: number;
+  xAxisLabel?: string;
+  yAxisLabel?: string;
+}
+
+export function MultiSeriesBarChart({
+  title,
+  data,
+  series,
+  height = 250,
+  xAxisLabel = "Time",
+  yAxisLabel = "Merchants"
+}: MultiSeriesBarChartProps) {
+  return (
+    <div className="p-4 rounded-lg border bg-card">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-medium">{title}</span>
+        <div className="flex flex-wrap gap-3">
+          {series.map((s) => (
+            <div key={s.key} className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: s.color }} />
+              <span className="text-xs text-muted-foreground">{s.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{ height }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 25 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+            <XAxis 
+              dataKey="label" 
+              axisLine={{ stroke: 'hsl(var(--border))' }}
+              tickLine={{ stroke: 'hsl(var(--border))' }}
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              label={{ value: xAxisLabel, position: 'bottom', offset: 5, fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+            />
+            <YAxis 
+              axisLine={{ stroke: 'hsl(var(--border))' }}
+              tickLine={{ stroke: 'hsl(var(--border))' }}
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              width={35}
+              label={{ value: yAxisLabel, angle: -90, position: 'insideLeft', fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+            />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: 'hsl(var(--card))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '8px',
+                fontSize: '12px'
+              }}
+            />
+            {series.map((s) => (
+              <Bar key={s.key} dataKey={s.key} fill={s.color} radius={[2, 2, 0, 0]} />
+            ))}
+          </BarChart>
         </ResponsiveContainer>
       </div>
     </div>
