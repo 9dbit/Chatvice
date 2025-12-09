@@ -42,6 +42,14 @@ export const merchants = pgTable("merchants", {
   collectCustomerEmail: boolean("collect_customer_email").default(false),
   collectCustomerPhone: boolean("collect_customer_phone").default(false),
   activeAgentId: varchar("active_agent_id", { length: 32 }),
+  // Custom plan configuration (used when subscriptionPlanId is "custom")
+  customConversationsLimit: integer("custom_conversations_limit"),
+  customAgentsLimit: integer("custom_agents_limit"),
+  customSupervisorsLimit: integer("custom_supervisors_limit"),
+  customSourcesLimit: integer("custom_sources_limit"),
+  customSuggestedQuestionsLimit: integer("custom_suggested_questions_limit"),
+  customMonthlyPrice: integer("custom_monthly_price"),
+  customAnnualPrice: integer("custom_annual_price"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
