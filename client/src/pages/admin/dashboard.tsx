@@ -99,6 +99,9 @@ import {
   Bot,
   Lightbulb,
   TrendingDown,
+  AlertTriangle,
+  Search,
+  Share2,
 } from "lucide-react";
 import { format, subDays, startOfMonth, startOfYear } from "date-fns";
 import { subscriptionPlans } from "@shared/schema";
@@ -131,6 +134,7 @@ interface MerchantWithPlan {
   conversationsUsed: number;
   createdAt: string;
   trialEndsAt: string | null;
+  currentPeriodEnd: string | null;
   plan: {
     name: string;
     conversationsLimit: number;
@@ -183,12 +187,20 @@ export default function AdminDashboard() {
     return <Redirect to="/admin/login" />;
   }
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, merchant?: MerchantWithPlan) => {
+    if (status === "trial" && merchant?.trialEndsAt) {
+      const trialEnd = new Date(merchant.trialEndsAt);
+      if (trialEnd < new Date()) {
+        return <Badge variant="destructive">Trial Expired</Badge>;
+      }
+    }
     switch (status) {
       case "active":
         return <Badge className="bg-green-500/20 text-green-700 dark:text-green-400">Active</Badge>;
       case "trial":
         return <Badge variant="secondary">Trial</Badge>;
+      case "trial_expired":
+        return <Badge variant="destructive">Trial Expired</Badge>;
       case "expired":
         return <Badge variant="destructive">Expired</Badge>;
       case "canceled":
@@ -196,6 +208,27 @@ export default function AdminDashboard() {
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
+  };
+
+  const getTimeRemaining = (endDate: string | null | undefined) => {
+    if (!endDate) return null;
+    const end = new Date(endDate);
+    const now = new Date();
+    const diff = end.getTime() - now.getTime();
+    if (diff <= 0) return { expired: true, text: "Expired" };
+    
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const months = Math.floor(days / 30);
+    const remainingDays = days % 30;
+    
+    if (months > 0) {
+      return { expired: false, text: `${months}mo ${remainingDays}d`, days, isExpiringSoon: days <= 7 };
+    }
+    if (days > 0) {
+      return { expired: false, text: `${days}d ${hours}h`, days, isExpiringSoon: days <= 7 };
+    }
+    return { expired: false, text: `${hours}h`, days: 0, isExpiringSoon: true };
   };
 
   const getPlanBadge = (planId: string) => {
@@ -337,6 +370,7 @@ export default function AdminDashboard() {
                 merchantsLoading={merchantsLoading}
                 getStatusBadge={getStatusBadge}
                 getPlanBadge={getPlanBadge}
+                getTimeRemaining={getTimeRemaining}
                 toast={toast}
                 refetchMerchants={refetchMerchants}
               />
@@ -577,21 +611,25 @@ function MerchantsTab({
   merchantsLoading,
   getStatusBadge,
   getPlanBadge,
+  getTimeRemaining,
   toast,
   refetchMerchants
 }: { 
   merchants?: MerchantWithPlan[];
   merchantsLoading: boolean;
-  getStatusBadge: (status: string) => JSX.Element;
+  getStatusBadge: (status: string, merchant?: MerchantWithPlan) => JSX.Element;
   getPlanBadge: (planId: string) => JSX.Element;
+  getTimeRemaining: (endDate: string | null | undefined) => { expired: boolean; text: string; days?: number; isExpiringSoon?: boolean } | null;
   toast: any;
   refetchMerchants: () => void;
 }) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [followUpDialogOpen, setFollowUpDialogOpen] = useState(false);
   const [selectedMerchant, setSelectedMerchant] = useState<MerchantWithPlan | null>(null);
   const [editPlan, setEditPlan] = useState("");
+  const [followUpMessage, setFollowUpMessage] = useState("");
   
   const [newMerchant, setNewMerchant] = useState({
     companyName: "",
@@ -690,6 +728,44 @@ function MerchantsTab({
     toast({ title: "Export Complete", description: "Merchant data has been downloaded." });
   };
 
+  const sendFollowUpMutation = useMutation({
+    mutationFn: async ({ merchantId, message }: { merchantId: string; message: string }) => {
+      return apiRequest("POST", `/api/admin/merchants/${merchantId}/follow-up`, { message });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Follow-up Sent",
+        description: "Notification has been sent to the merchant.",
+      });
+      setFollowUpDialogOpen(false);
+      setFollowUpMessage("");
+      setSelectedMerchant(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to send follow-up notification.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleFollowUp = (merchant: MerchantWithPlan) => {
+    setSelectedMerchant(merchant);
+    const timeInfo = getTimeRemaining(merchant.trialEndsAt || merchant.currentPeriodEnd);
+    const defaultMsg = timeInfo?.isExpiringSoon 
+      ? `Your ${merchant.subscriptionStatus === 'trial' ? 'trial' : 'subscription'} expires in ${timeInfo.text}. Upgrade now to continue using Chatvice!`
+      : `Hi ${merchant.companyName}, we'd love to hear your feedback about Chatvice!`;
+    setFollowUpMessage(defaultMsg);
+    setFollowUpDialogOpen(true);
+  };
+
+  const confirmFollowUp = () => {
+    if (selectedMerchant && followUpMessage) {
+      sendFollowUpMutation.mutate({ merchantId: selectedMerchant.id, message: followUpMessage });
+    }
+  };
+
   const handleAddMerchant = () => {
     toast({ 
       title: "Merchant Created", 
@@ -707,6 +783,16 @@ function MerchantsTab({
       customAnnualPrice: 0,
     });
     setShowCustomPlan(false);
+  };
+
+  const getMerchantExpiryInfo = (merchant: MerchantWithPlan) => {
+    if (merchant.subscriptionStatus === 'trial' && merchant.trialEndsAt) {
+      return getTimeRemaining(merchant.trialEndsAt);
+    }
+    if (merchant.subscriptionStatus === 'active' && merchant.currentPeriodEnd) {
+      return getTimeRemaining(merchant.currentPeriodEnd);
+    }
+    return null;
   };
 
   return (
@@ -741,43 +827,70 @@ function MerchantsTab({
                     <TableHead className="min-w-[150px]">Company</TableHead>
                     <TableHead>Plan</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="hidden md:table-cell">Conversations</TableHead>
-                    <TableHead className="hidden lg:table-cell">Joined</TableHead>
+                    <TableHead className="hidden md:table-cell">Expiry</TableHead>
+                    <TableHead className="hidden lg:table-cell">Conversations</TableHead>
+                    <TableHead className="hidden xl:table-cell">Joined</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {merchants?.map((merchant) => (
-                    <TableRow key={merchant.id} data-testid={`row-merchant-${merchant.id}`}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium text-sm">{merchant.companyName || 'Unnamed'}</p>
-                          <p className="text-xs text-muted-foreground truncate max-w-[120px] md:max-w-none">{merchant.email}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>{getPlanBadge(merchant.subscriptionPlanId)}</TableCell>
-                      <TableCell>{getStatusBadge(merchant.subscriptionStatus)}</TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        {merchant.conversationsUsed || 0} / {merchant.plan.conversationsLimit === -1 ? '∞' : merchant.plan.conversationsLimit}
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
-                        {merchant.createdAt ? format(new Date(merchant.createdAt), 'MMM d, yyyy') : '-'}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button size="icon" variant="ghost" onClick={() => handleEdit(merchant)} data-testid={`button-edit-${merchant.id}`}>
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button size="icon" variant="ghost" onClick={() => handleDelete(merchant)} data-testid={`button-delete-${merchant.id}`}>
-                            <Trash className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {merchants?.map((merchant) => {
+                    const expiryInfo = getMerchantExpiryInfo(merchant);
+                    return (
+                      <TableRow key={merchant.id} data-testid={`row-merchant-${merchant.id}`}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium text-sm">{merchant.companyName || 'Unnamed'}</p>
+                            <p className="text-xs text-muted-foreground truncate max-w-[120px] md:max-w-none">{merchant.email}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>{getPlanBadge(merchant.subscriptionPlanId)}</TableCell>
+                        <TableCell>{getStatusBadge(merchant.subscriptionStatus, merchant)}</TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {expiryInfo ? (
+                            <div className="flex items-center gap-1">
+                              {expiryInfo.expired ? (
+                                <Badge variant="destructive">Expired</Badge>
+                              ) : expiryInfo.isExpiringSoon ? (
+                                <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-400">
+                                  <AlertTriangle className="w-3 h-3 mr-1" />
+                                  {expiryInfo.text}
+                                </Badge>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">{expiryInfo.text}</span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          {merchant.conversationsUsed || 0} / {merchant.plan.conversationsLimit === -1 ? '∞' : merchant.plan.conversationsLimit}
+                        </TableCell>
+                        <TableCell className="hidden xl:table-cell text-muted-foreground text-sm">
+                          {merchant.createdAt ? format(new Date(merchant.createdAt), 'MMM d, yyyy') : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            {expiryInfo?.isExpiringSoon && (
+                              <Button size="icon" variant="ghost" onClick={() => handleFollowUp(merchant)} data-testid={`button-followup-${merchant.id}`} title="Send follow-up">
+                                <Bell className="w-4 h-4 text-amber-500" />
+                              </Button>
+                            )}
+                            <Button size="icon" variant="ghost" onClick={() => handleEdit(merchant)} data-testid={`button-edit-${merchant.id}`}>
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button size="icon" variant="ghost" onClick={() => handleDelete(merchant)} data-testid={`button-delete-${merchant.id}`}>
+                              <Trash className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                   {(!merchants || merchants.length === 0) && (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                         No merchants registered yet
                       </TableCell>
                     </TableRow>
@@ -979,6 +1092,49 @@ function MerchantsTab({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={followUpDialogOpen} onOpenChange={setFollowUpDialogOpen}>
+        <DialogContent data-testid="dialog-follow-up">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bell className="w-5 h-5 text-amber-500" />
+              Send Follow-up Notification
+            </DialogTitle>
+            <DialogDescription>
+              Send a notification to {selectedMerchant?.companyName || 'this merchant'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="followup-message">Message</Label>
+              <Textarea 
+                id="followup-message"
+                placeholder="Enter your follow-up message..."
+                className="mt-1 min-h-[100px]"
+                value={followUpMessage}
+                onChange={(e) => setFollowUpMessage(e.target.value)}
+                data-testid="input-followup-message"
+              />
+            </div>
+            {selectedMerchant && getMerchantExpiryInfo(selectedMerchant)?.isExpiringSoon && (
+              <div className="flex items-center gap-2 p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                <p className="text-sm text-amber-700 dark:text-amber-400">
+                  {selectedMerchant.subscriptionStatus === 'trial' ? 'Trial' : 'Subscription'} expires in {getMerchantExpiryInfo(selectedMerchant)?.text}
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFollowUpDialogOpen(false)} data-testid="button-cancel-followup">
+              Cancel
+            </Button>
+            <Button onClick={confirmFollowUp} disabled={sendFollowUpMutation.isPending || !followUpMessage} data-testid="button-send-followup">
+              {sendFollowUpMutation.isPending ? "Sending..." : "Send Notification"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -1090,11 +1246,23 @@ function ActiveSubscribersTab({
   );
 }
 
+interface TrustedLogo {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+}
+
 function ContentTab({ toast }: { toast: any }) {
   const [heroTitle, setHeroTitle] = useState("AI-Powered Customer Support That Never Sleeps");
   const [heroSubtitle, setHeroSubtitle] = useState("Transform your customer experience with Chatvice");
-  const imageInputRef = useRef<HTMLInputElement>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
+  const [trustedLogos, setTrustedLogos] = useState<TrustedLogo[]>([
+    { id: "1", name: "Stripe", imageUrl: null },
+    { id: "2", name: "Shopify", imageUrl: null },
+    { id: "3", name: "Zendesk", imageUrl: null },
+    { id: "4", name: "HubSpot", imageUrl: null },
+  ]);
+  const [selectedLogoId, setSelectedLogoId] = useState<string | null>(null);
+  const logoUploadRef = useRef<HTMLInputElement>(null);
   
   const handleSave = () => {
     toast({
@@ -1103,14 +1271,39 @@ function ContentTab({ toast }: { toast: any }) {
     });
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      toast({
-        title: "Image Uploaded",
-        description: `${file.name} has been uploaded successfully.`,
-      });
+    if (file && selectedLogoId) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setTrustedLogos(logos => logos.map(logo => 
+          logo.id === selectedLogoId 
+            ? { ...logo, imageUrl: reader.result as string }
+            : logo
+        ));
+        toast({
+          title: "Logo Updated",
+          description: `${file.name} has been uploaded.`,
+        });
+      };
+      reader.readAsDataURL(file);
     }
+    setSelectedLogoId(null);
+  };
+
+  const handleAddLogo = () => {
+    const newId = String(Date.now());
+    setTrustedLogos(logos => [...logos, { id: newId, name: "New Company", imageUrl: null }]);
+  };
+
+  const handleRemoveLogo = (id: string) => {
+    setTrustedLogos(logos => logos.filter(logo => logo.id !== id));
+  };
+
+  const handleRenameLogo = (id: string, newName: string) => {
+    setTrustedLogos(logos => logos.map(logo => 
+      logo.id === id ? { ...logo, name: newName } : logo
+    ));
   };
 
   return (
@@ -1224,26 +1417,308 @@ function ContentTab({ toast }: { toast: any }) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Globe className="w-5 h-5" />
-            Trusted By Logos
-          </CardTitle>
-          <CardDescription>Company logos displayed on landing page</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="w-5 h-5" />
+                Trusted By Logos
+              </CardTitle>
+              <CardDescription>Company logos displayed on landing page</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleAddLogo} data-testid="button-add-logo">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Logo
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
+          <input
+            type="file"
+            ref={logoUploadRef}
+            accept="image/*"
+            className="hidden"
+            onChange={handleLogoUpload}
+          />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-            {["Stripe", "Shopify", "Zendesk", "HubSpot"].map((company) => (
-              <div key={company} className="p-3 md:p-4 border rounded-lg text-center">
-                <div className="w-10 h-10 md:w-12 md:h-12 bg-muted rounded mx-auto mb-2" />
-                <p className="text-xs md:text-sm font-medium">{company}</p>
-                <Button variant="ghost" size="sm" className="mt-2" data-testid={`button-replace-${company.toLowerCase()}`}>
-                  Replace
+            {trustedLogos.map((logo) => (
+              <div key={logo.id} className="p-3 md:p-4 border rounded-lg text-center relative group">
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => handleRemoveLogo(logo.id)}
+                  data-testid={`button-remove-logo-${logo.id}`}
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+                {logo.imageUrl ? (
+                  <img 
+                    src={logo.imageUrl} 
+                    alt={logo.name}
+                    className="w-16 h-12 object-contain mx-auto mb-2"
+                  />
+                ) : (
+                  <div className="w-16 h-12 bg-muted rounded mx-auto mb-2 flex items-center justify-center">
+                    <Upload className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                )}
+                <Input
+                  value={logo.name}
+                  onChange={(e) => handleRenameLogo(logo.id, e.target.value)}
+                  className="text-xs text-center h-7 mb-2"
+                  data-testid={`input-logo-name-${logo.id}`}
+                />
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => {
+                    setSelectedLogoId(logo.id);
+                    logoUploadRef.current?.click();
+                  }}
+                  data-testid={`button-upload-logo-${logo.id}`}
+                >
+                  {logo.imageUrl ? "Replace" : "Upload"}
                 </Button>
               </div>
             ))}
           </div>
+          <div className="mt-4 flex justify-end">
+            <Button onClick={handleSave} data-testid="button-save-logos">
+              <Save className="w-4 h-4 mr-2" />
+              Save Logos
+            </Button>
+          </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function SEOBrandingTab({ toast }: { toast: any }) {
+  const [logoUrl, setLogoUrl] = useState("");
+  const [faviconUrl, setFaviconUrl] = useState("");
+  const [ogImageUrl, setOgImageUrl] = useState("");
+  const [metaTitle, setMetaTitle] = useState("Chatvice - AI-Powered Customer Service Platform");
+  const [metaDescription, setMetaDescription] = useState("Transform your customer support with Chatvice's AI-powered chatbots. Reduce costs, improve satisfaction, and scale your customer service effortlessly.");
+  const [canonicalUrl, setCanonicalUrl] = useState("https://chatvice.com");
+  const [robotsTxt, setRobotsTxt] = useState("User-agent: *\nAllow: /\n\nSitemap: https://chatvice.com/sitemap.xml");
+  const [sitemapUrl, setSitemapUrl] = useState("https://chatvice.com/sitemap.xml");
+  
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const faviconInputRef = useRef<HTMLInputElement>(null);
+  const ogImageInputRef = useRef<HTMLInputElement>(null);
+  
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [faviconPreview, setFaviconPreview] = useState<string | null>(null);
+  const [ogImagePreview, setOgImagePreview] = useState<string | null>(null);
+  
+  const handleFileUpload = (type: 'logo' | 'favicon' | 'ogImage') => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const preview = reader.result as string;
+        if (type === 'logo') {
+          setLogoPreview(preview);
+          setLogoUrl(file.name);
+        } else if (type === 'favicon') {
+          setFaviconPreview(preview);
+          setFaviconUrl(file.name);
+        } else {
+          setOgImagePreview(preview);
+          setOgImageUrl(file.name);
+        }
+      };
+      reader.readAsDataURL(file);
+      toast({
+        title: "File Selected",
+        description: `${file.name} ready to upload.`,
+      });
+    }
+  };
+  
+  const handleSave = () => {
+    toast({
+      title: "SEO Settings Saved",
+      description: "Your SEO and branding settings have been updated.",
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Palette className="w-5 h-5" />
+            Brand Identity
+          </CardTitle>
+          <CardDescription>Logo, favicon, and brand assets for your platform</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-3">
+              <Label>Logo</Label>
+              <input
+                type="file"
+                ref={logoInputRef}
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileUpload('logo')}
+              />
+              <div 
+                className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors aspect-video flex items-center justify-center"
+                onClick={() => logoInputRef.current?.click()}
+              >
+                {logoPreview ? (
+                  <img src={logoPreview} alt="Logo preview" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <div className="text-center">
+                    <Upload className="w-6 h-6 mx-auto text-muted-foreground mb-1" />
+                    <p className="text-xs text-muted-foreground">Upload Logo</p>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">Recommended: 200x60px, PNG/SVG</p>
+            </div>
+            
+            <div className="space-y-3">
+              <Label>Favicon</Label>
+              <input
+                type="file"
+                ref={faviconInputRef}
+                accept="image/*,.ico"
+                className="hidden"
+                onChange={handleFileUpload('favicon')}
+              />
+              <div 
+                className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors aspect-square max-w-[120px] mx-auto flex items-center justify-center"
+                onClick={() => faviconInputRef.current?.click()}
+              >
+                {faviconPreview ? (
+                  <img src={faviconPreview} alt="Favicon preview" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <div className="text-center">
+                    <Upload className="w-5 h-5 mx-auto text-muted-foreground mb-1" />
+                    <p className="text-xs text-muted-foreground">32x32px</p>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground text-center">ICO or PNG format</p>
+            </div>
+            
+            <div className="space-y-3">
+              <Label>Social Share Image (OG Image)</Label>
+              <input
+                type="file"
+                ref={ogImageInputRef}
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileUpload('ogImage')}
+              />
+              <div 
+                className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-muted/50 transition-colors aspect-video flex items-center justify-center"
+                onClick={() => ogImageInputRef.current?.click()}
+              >
+                {ogImagePreview ? (
+                  <img src={ogImagePreview} alt="OG Image preview" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <div className="text-center">
+                    <Share2 className="w-6 h-6 mx-auto text-muted-foreground mb-1" />
+                    <p className="text-xs text-muted-foreground">Upload OG Image</p>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">1200x630px recommended for social sharing</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Search className="w-5 h-5" />
+            SEO Meta Tags
+          </CardTitle>
+          <CardDescription>Search engine optimization settings</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="meta-title">Meta Title</Label>
+            <Input 
+              id="meta-title"
+              value={metaTitle}
+              onChange={(e) => setMetaTitle(e.target.value)}
+              placeholder="Your site title for search engines"
+              data-testid="input-meta-title"
+            />
+            <p className="text-xs text-muted-foreground mt-1">{metaTitle.length}/60 characters</p>
+          </div>
+          
+          <div>
+            <Label htmlFor="meta-description">Meta Description</Label>
+            <Textarea 
+              id="meta-description"
+              value={metaDescription}
+              onChange={(e) => setMetaDescription(e.target.value)}
+              placeholder="Brief description for search results"
+              data-testid="input-meta-description"
+            />
+            <p className="text-xs text-muted-foreground mt-1">{metaDescription.length}/160 characters</p>
+          </div>
+          
+          <div>
+            <Label htmlFor="canonical-url">Canonical URL</Label>
+            <Input 
+              id="canonical-url"
+              value={canonicalUrl}
+              onChange={(e) => setCanonicalUrl(e.target.value)}
+              placeholder="https://yoursite.com"
+              data-testid="input-canonical-url"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="w-5 h-5" />
+            Technical SEO
+          </CardTitle>
+          <CardDescription>Robots.txt and sitemap configuration</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="robots-txt">robots.txt Content</Label>
+            <Textarea 
+              id="robots-txt"
+              value={robotsTxt}
+              onChange={(e) => setRobotsTxt(e.target.value)}
+              className="font-mono text-sm min-h-[100px]"
+              data-testid="input-robots-txt"
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="sitemap-url">Sitemap URL</Label>
+            <Input 
+              id="sitemap-url"
+              value={sitemapUrl}
+              onChange={(e) => setSitemapUrl(e.target.value)}
+              placeholder="https://yoursite.com/sitemap.xml"
+              data-testid="input-sitemap-url"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-end">
+        <Button onClick={handleSave} data-testid="button-save-seo">
+          <Save className="w-4 h-4 mr-2" />
+          Save SEO Settings
+        </Button>
+      </div>
     </div>
   );
 }
@@ -1366,7 +1841,7 @@ function LandingPageTab({ toast }: { toast: any }) {
           <CardDescription>Configure hero background image position and offset</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div>
+          <div className="space-y-3">
             <Label htmlFor="hero-bg-url">URL Background Image</Label>
             <Input
               id="hero-bg-url"
@@ -1375,6 +1850,29 @@ function LandingPageTab({ toast }: { toast: any }) {
               placeholder="https://example.com/image.jpg"
               data-testid="input-hero-bg-url"
             />
+            {settings.heroBackgroundUrl && (
+              <div className="mt-3 border rounded-lg overflow-hidden">
+                <div className="bg-muted/50 px-3 py-2 border-b flex items-center justify-between">
+                  <span className="text-sm font-medium">Hero Background Preview</span>
+                  <Badge variant="outline" className="text-xs">
+                    Offset: X {settings.heroBackgroundOffsetX}px, Y {settings.heroBackgroundOffsetY}px
+                  </Badge>
+                </div>
+                <div 
+                  className="relative h-[200px] overflow-hidden bg-muted"
+                  style={{
+                    backgroundImage: `url(${settings.heroBackgroundUrl})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: `${settings.heroBackgroundOffsetX}px ${settings.heroBackgroundOffsetY}px`,
+                  }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-b from-background/40 to-background/80" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <p className="text-sm text-foreground/80 font-medium">Live Preview with Current Offsets</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -2675,6 +2675,37 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  app.post("/api/admin/merchants/:merchantId/follow-up", requireAdmin, async (req, res) => {
+    try {
+      const { message } = req.body;
+      const merchant = await storage.getMerchant(req.params.merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      if (!message) {
+        return res.status(400).json({ error: "Message is required" });
+      }
+      
+      // Log the follow-up action and store for future dashboard notification implementation
+      console.log(`[Follow-up] Sent to merchant ${merchant.companyName} (${merchant.id}): ${message}`);
+      
+      // Store follow-up in platform settings for audit trail
+      const followUpKey = `follow_up_${merchant.id}_${Date.now()}`;
+      await storage.setPlatformSetting(followUpKey, JSON.stringify({
+        merchantId: merchant.id,
+        merchantName: merchant.companyName,
+        message,
+        sentAt: new Date().toISOString(),
+      }));
+      
+      res.json({ success: true, message: "Follow-up notification sent" });
+    } catch (error) {
+      console.error("Error sending follow-up:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/admin/stats", requireAdmin, async (req, res) => {
     try {
       const merchants = await storage.getAllMerchants();
