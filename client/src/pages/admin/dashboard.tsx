@@ -221,6 +221,7 @@ export default function AdminDashboard() {
     { id: "subscribers", label: "Active Subscribers", icon: UserCheck },
     { id: "landing", label: "Landing Page", icon: Palette },
     { id: "content", label: "Content & Media", icon: Image },
+    { id: "seo", label: "SEO & Branding", icon: Globe },
     { id: "pricing", label: "Pricing", icon: DollarSign },
     { id: "reports", label: "Performance", icon: TrendingUp },
     { id: "usage", label: "Data Usage", icon: Database },
@@ -354,6 +355,8 @@ export default function AdminDashboard() {
             {activeTab === "landing" && <LandingPageTab toast={toast} />}
             
             {activeTab === "content" && <ContentTab toast={toast} />}
+            
+            {activeTab === "seo" && <SEOBrandingTab toast={toast} />}
             
             {activeTab === "pricing" && <PricingTab toast={toast} />}
             
