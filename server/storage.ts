@@ -712,6 +712,13 @@ export class DatabaseStorage implements IStorage {
     billingInterval?: string;
     conversationsUsed?: number;
     conversationsResetAt?: Date;
+    customConversationsLimit?: number | null;
+    customAgentsLimit?: number | null;
+    customSupervisorsLimit?: number | null;
+    customSourcesLimit?: number | null;
+    customSuggestedQuestionsLimit?: number | null;
+    customMonthlyPrice?: number | null;
+    customAnnualPrice?: number | null;
   }): Promise<Merchant | undefined> {
     const result = await db.update(merchants)
       .set(data)

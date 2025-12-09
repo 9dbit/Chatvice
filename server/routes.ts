@@ -2648,7 +2648,17 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.post("/api/admin/merchants/:merchantId/subscription", requireAdmin, async (req, res) => {
     try {
-      const { planId, status } = req.body;
+      const { 
+        planId, 
+        status,
+        customConversationsLimit,
+        customAgentsLimit,
+        customSupervisorsLimit,
+        customSourcesLimit,
+        customSuggestedQuestionsLimit,
+        customMonthlyPrice,
+        customAnnualPrice
+      } = req.body;
       const merchant = await storage.getMerchant(req.params.merchantId);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
@@ -2657,6 +2667,17 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const updateData: any = {};
       if (planId) updateData.subscriptionPlanId = planId;
       if (status) updateData.subscriptionStatus = status;
+      
+      // Custom plan configuration
+      if (planId === 'custom') {
+        if (customConversationsLimit !== undefined) updateData.customConversationsLimit = customConversationsLimit;
+        if (customAgentsLimit !== undefined) updateData.customAgentsLimit = customAgentsLimit;
+        if (customSupervisorsLimit !== undefined) updateData.customSupervisorsLimit = customSupervisorsLimit;
+        if (customSourcesLimit !== undefined) updateData.customSourcesLimit = customSourcesLimit;
+        if (customSuggestedQuestionsLimit !== undefined) updateData.customSuggestedQuestionsLimit = customSuggestedQuestionsLimit;
+        if (customMonthlyPrice !== undefined) updateData.customMonthlyPrice = customMonthlyPrice;
+        if (customAnnualPrice !== undefined) updateData.customAnnualPrice = customAnnualPrice;
+      }
       
       const updated = await storage.updateMerchantSubscription(merchant.id, updateData);
       res.json({ success: true, merchant: updated });
