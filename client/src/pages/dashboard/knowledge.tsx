@@ -49,8 +49,12 @@ export default function KnowledgePage() {
   });
 
   const plan = merchant ? subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free : subscriptionPlans.free;
-  const isQuestionFeatureAvailable = plan.suggestedQuestionsLimit !== 0;
-  const questionsLimit = plan.suggestedQuestionsLimit === -1 ? Infinity : plan.suggestedQuestionsLimit;
+  // Use custom limits for custom plan, otherwise use base plan limits
+  const effectiveSuggestedQuestionsLimit = merchant?.subscriptionPlanId === 'custom' && (merchant as any).customSuggestedQuestionsLimit !== undefined 
+    ? (merchant as any).customSuggestedQuestionsLimit 
+    : plan.suggestedQuestionsLimit;
+  const isQuestionFeatureAvailable = effectiveSuggestedQuestionsLimit !== 0;
+  const questionsLimit = effectiveSuggestedQuestionsLimit === -1 ? Infinity : effectiveSuggestedQuestionsLimit;
   const canAddMoreQuestions = suggestedQuestions.length < questionsLimit;
 
   const otherAgents = agents?.filter(a => a.id !== merchant?.activeAgentId) || [];

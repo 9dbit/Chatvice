@@ -112,7 +112,10 @@ export default function SupervisorsPage() {
   });
 
   const plan = merchant ? subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free : subscriptionPlans.free;
-  const supervisorLimit = plan.supervisorsLimit;
+  // Use custom limits for custom plan, otherwise use base plan limits
+  const supervisorLimit = merchant?.subscriptionPlanId === 'custom' && (merchant as any).customSupervisorsLimit !== undefined 
+    ? (merchant as any).customSupervisorsLimit 
+    : plan.supervisorsLimit;
   const currentCount = supervisors.length;
   const canAddMore = supervisorLimit === -1 || currentCount < supervisorLimit;
 

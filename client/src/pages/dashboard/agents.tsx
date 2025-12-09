@@ -81,7 +81,10 @@ export default function AgentsPage() {
   });
 
   const plan = merchant ? subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free : subscriptionPlans.free;
-  const agentLimit = plan.agentsLimit;
+  // Use custom limits for custom plan, otherwise use base plan limits
+  const agentLimit = merchant?.subscriptionPlanId === 'custom' && (merchant as any).customAgentsLimit !== undefined 
+    ? (merchant as any).customAgentsLimit 
+    : plan.agentsLimit;
   const currentCount = agents?.length || 0;
   const canAddMore = agentLimit === -1 || currentCount < agentLimit;
 

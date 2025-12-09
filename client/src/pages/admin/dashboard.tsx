@@ -394,6 +394,7 @@ export default function AdminDashboard() {
                 getStatusBadge={getStatusBadge}
                 getPlanBadge={getPlanBadge}
                 toast={toast}
+                refetchMerchants={refetchMerchants}
               />
             )}
             
@@ -759,6 +760,15 @@ function MerchantsTab({
   const [followUpDialogOpen, setFollowUpDialogOpen] = useState(false);
   const [selectedMerchant, setSelectedMerchant] = useState<MerchantWithPlan | null>(null);
   const [editPlan, setEditPlan] = useState("");
+  const [editCustomConfig, setEditCustomConfig] = useState({
+    customConversationsLimit: 1000,
+    customAgentsLimit: 3,
+    customSupervisorsLimit: 5,
+    customSourcesLimit: 10,
+    customSuggestedQuestionsLimit: 5,
+    customMonthlyPrice: 0,
+    customAnnualPrice: 0,
+  });
   const [followUpMessage, setFollowUpMessage] = useState("");
   
   const [newMerchant, setNewMerchant] = useState({
@@ -774,8 +784,22 @@ function MerchantsTab({
   const [showCustomPlan, setShowCustomPlan] = useState(false);
 
   const updatePlanMutation = useMutation({
-    mutationFn: async ({ merchantId, planId }: { merchantId: string; planId: string }) => {
-      return apiRequest("POST", `/api/admin/merchants/${merchantId}/subscription`, { planId });
+    mutationFn: async ({ merchantId, planId, customConfig }: { 
+      merchantId: string; 
+      planId: string; 
+      customConfig?: typeof editCustomConfig;
+    }) => {
+      const payload: any = { planId };
+      if (planId === 'custom' && customConfig) {
+        payload.customConversationsLimit = customConfig.customConversationsLimit;
+        payload.customAgentsLimit = customConfig.customAgentsLimit;
+        payload.customSupervisorsLimit = customConfig.customSupervisorsLimit;
+        payload.customSourcesLimit = customConfig.customSourcesLimit;
+        payload.customSuggestedQuestionsLimit = customConfig.customSuggestedQuestionsLimit;
+        payload.customMonthlyPrice = customConfig.customMonthlyPrice;
+        payload.customAnnualPrice = customConfig.customAnnualPrice;
+      }
+      return apiRequest("POST", `/api/admin/merchants/${merchantId}/subscription`, payload);
     },
     onSuccess: () => {
       toast({
@@ -784,6 +808,7 @@ function MerchantsTab({
       });
       setEditDialogOpen(false);
       refetchMerchants();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
     },
     onError: () => {
       toast({
@@ -820,6 +845,16 @@ function MerchantsTab({
   const handleEdit = (merchant: MerchantWithPlan) => {
     setSelectedMerchant(merchant);
     setEditPlan(merchant.subscriptionPlanId);
+    // Load existing custom config if merchant has custom plan
+    setEditCustomConfig({
+      customConversationsLimit: (merchant as any).customConversationsLimit ?? 1000,
+      customAgentsLimit: (merchant as any).customAgentsLimit ?? 3,
+      customSupervisorsLimit: (merchant as any).customSupervisorsLimit ?? 5,
+      customSourcesLimit: (merchant as any).customSourcesLimit ?? 10,
+      customSuggestedQuestionsLimit: (merchant as any).customSuggestedQuestionsLimit ?? 5,
+      customMonthlyPrice: (merchant as any).customMonthlyPrice ?? 0,
+      customAnnualPrice: (merchant as any).customAnnualPrice ?? 0,
+    });
     setEditDialogOpen(true);
   };
 
@@ -830,7 +865,11 @@ function MerchantsTab({
 
   const confirmEdit = () => {
     if (selectedMerchant && editPlan) {
-      updatePlanMutation.mutate({ merchantId: selectedMerchant.id, planId: editPlan });
+      updatePlanMutation.mutate({ 
+        merchantId: selectedMerchant.id, 
+        planId: editPlan,
+        customConfig: editPlan === 'custom' ? editCustomConfig : undefined
+      });
     }
   };
 
@@ -1109,7 +1148,7 @@ function MerchantsTab({
       </Card>
 
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent data-testid="dialog-edit-merchant">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" data-testid="dialog-edit-merchant">
           <DialogHeader>
             <DialogTitle>Edit Merchant</DialogTitle>
             <DialogDescription>
@@ -1140,6 +1179,126 @@ function MerchantsTab({
                 </SelectContent>
               </Select>
             </div>
+            
+            {editPlan === 'custom' && (
+              <div className="space-y-4 p-4 bg-muted/50 rounded-lg border">
+                <h4 className="font-medium text-sm">Custom Plan Configuration</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="edit-conversations">Conversations/month</Label>
+                    <Input
+                      id="edit-conversations"
+                      type="number"
+                      min="-1"
+                      className="mt-1"
+                      value={editCustomConfig.customConversationsLimit}
+                      onChange={(e) => setEditCustomConfig(prev => ({ 
+                        ...prev, 
+                        customConversationsLimit: parseInt(e.target.value) || 0 
+                      }))}
+                      data-testid="input-edit-custom-conversations"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">-1 = unlimited</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-agents">AI Agents</Label>
+                    <Input
+                      id="edit-agents"
+                      type="number"
+                      min="-1"
+                      className="mt-1"
+                      value={editCustomConfig.customAgentsLimit}
+                      onChange={(e) => setEditCustomConfig(prev => ({ 
+                        ...prev, 
+                        customAgentsLimit: parseInt(e.target.value) || 0 
+                      }))}
+                      data-testid="input-edit-custom-agents"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">-1 = unlimited</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-supervisors">Supervisors</Label>
+                    <Input
+                      id="edit-supervisors"
+                      type="number"
+                      min="-1"
+                      className="mt-1"
+                      value={editCustomConfig.customSupervisorsLimit}
+                      onChange={(e) => setEditCustomConfig(prev => ({ 
+                        ...prev, 
+                        customSupervisorsLimit: parseInt(e.target.value) || 0 
+                      }))}
+                      data-testid="input-edit-custom-supervisors"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">-1 = unlimited</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sources">Knowledge Sources</Label>
+                    <Input
+                      id="edit-sources"
+                      type="number"
+                      min="-1"
+                      className="mt-1"
+                      value={editCustomConfig.customSourcesLimit}
+                      onChange={(e) => setEditCustomConfig(prev => ({ 
+                        ...prev, 
+                        customSourcesLimit: parseInt(e.target.value) || 0 
+                      }))}
+                      data-testid="input-edit-custom-sources"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">-1 = unlimited</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-questions">Suggested Questions</Label>
+                    <Input
+                      id="edit-questions"
+                      type="number"
+                      min="-1"
+                      className="mt-1"
+                      value={editCustomConfig.customSuggestedQuestionsLimit}
+                      onChange={(e) => setEditCustomConfig(prev => ({ 
+                        ...prev, 
+                        customSuggestedQuestionsLimit: parseInt(e.target.value) || 0 
+                      }))}
+                      data-testid="input-edit-custom-questions"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">-1 = unlimited</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                  <div>
+                    <Label htmlFor="edit-monthly-price">Monthly Price ($)</Label>
+                    <Input
+                      id="edit-monthly-price"
+                      type="number"
+                      min="0"
+                      className="mt-1"
+                      value={editCustomConfig.customMonthlyPrice}
+                      onChange={(e) => setEditCustomConfig(prev => ({ 
+                        ...prev, 
+                        customMonthlyPrice: parseInt(e.target.value) || 0 
+                      }))}
+                      data-testid="input-edit-custom-monthly-price"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-annual-price">Annual Price ($)</Label>
+                    <Input
+                      id="edit-annual-price"
+                      type="number"
+                      min="0"
+                      className="mt-1"
+                      value={editCustomConfig.customAnnualPrice}
+                      onChange={(e) => setEditCustomConfig(prev => ({ 
+                        ...prev, 
+                        customAnnualPrice: parseInt(e.target.value) || 0 
+                      }))}
+                      data-testid="input-edit-custom-annual-price"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)} data-testid="button-cancel-edit-merchant">Cancel</Button>
@@ -1350,17 +1509,128 @@ function ActiveSubscribersTab({
   merchantsLoading,
   getStatusBadge,
   getPlanBadge,
-  toast
+  toast,
+  refetchMerchants
 }: { 
   merchants?: MerchantWithPlan[];
   merchantsLoading: boolean;
   getStatusBadge: (status: string) => JSX.Element;
   getPlanBadge: (planId: string) => JSX.Element;
   toast: any;
+  refetchMerchants: () => void;
 }) {
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedMerchant, setSelectedMerchant] = useState<MerchantWithPlan | null>(null);
+  const [editPlan, setEditPlan] = useState("");
+  const [editCustomConfig, setEditCustomConfig] = useState({
+    customConversationsLimit: 1000,
+    customAgentsLimit: 3,
+    customSupervisorsLimit: 5,
+    customSourcesLimit: 10,
+    customSuggestedQuestionsLimit: 5,
+    customMonthlyPrice: 0,
+    customAnnualPrice: 0,
+  });
+
   const activeSubscribers = merchants?.filter(m => 
     m.subscriptionStatus === 'active' && m.subscriptionPlanId !== 'free'
   ) || [];
+
+  const updatePlanMutation = useMutation({
+    mutationFn: async ({ merchantId, planId, customConfig }: { 
+      merchantId: string; 
+      planId: string; 
+      customConfig?: typeof editCustomConfig;
+    }) => {
+      const payload: any = { planId };
+      if (planId === 'custom' && customConfig) {
+        payload.customConversationsLimit = customConfig.customConversationsLimit;
+        payload.customAgentsLimit = customConfig.customAgentsLimit;
+        payload.customSupervisorsLimit = customConfig.customSupervisorsLimit;
+        payload.customSourcesLimit = customConfig.customSourcesLimit;
+        payload.customSuggestedQuestionsLimit = customConfig.customSuggestedQuestionsLimit;
+        payload.customMonthlyPrice = customConfig.customMonthlyPrice;
+        payload.customAnnualPrice = customConfig.customAnnualPrice;
+      }
+      return apiRequest("POST", `/api/admin/merchants/${merchantId}/subscription`, payload);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Subscription Updated",
+        description: "Subscriber plan has been updated successfully.",
+      });
+      setEditDialogOpen(false);
+      refetchMerchants();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update subscriber plan.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMerchantMutation = useMutation({
+    mutationFn: async (merchantId: string) => {
+      return apiRequest("DELETE", `/api/admin/merchants/${merchantId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Subscriber Deleted",
+        description: `${selectedMerchant?.companyName || 'Subscriber'} has been removed.`,
+      });
+      setDeleteDialogOpen(false);
+      setSelectedMerchant(null);
+      refetchMerchants();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete subscriber.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleEdit = (merchant: MerchantWithPlan) => {
+    setSelectedMerchant(merchant);
+    setEditPlan(merchant.subscriptionPlanId);
+    setEditCustomConfig({
+      customConversationsLimit: (merchant as any).customConversationsLimit ?? 1000,
+      customAgentsLimit: (merchant as any).customAgentsLimit ?? 3,
+      customSupervisorsLimit: (merchant as any).customSupervisorsLimit ?? 5,
+      customSourcesLimit: (merchant as any).customSourcesLimit ?? 10,
+      customSuggestedQuestionsLimit: (merchant as any).customSuggestedQuestionsLimit ?? 5,
+      customMonthlyPrice: (merchant as any).customMonthlyPrice ?? 0,
+      customAnnualPrice: (merchant as any).customAnnualPrice ?? 0,
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleDelete = (merchant: MerchantWithPlan) => {
+    setSelectedMerchant(merchant);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmEdit = () => {
+    if (selectedMerchant && editPlan) {
+      updatePlanMutation.mutate({ 
+        merchantId: selectedMerchant.id, 
+        planId: editPlan,
+        customConfig: editPlan === 'custom' ? editCustomConfig : undefined
+      });
+    }
+  };
+
+  const confirmDelete = () => {
+    if (selectedMerchant) {
+      deleteMerchantMutation.mutate(selectedMerchant.id);
+    }
+  };
 
   const handleExportSubscribers = () => {
     if (!activeSubscribers.length) {
@@ -1380,75 +1650,269 @@ function ActiveSubscribersTab({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <UserCheck className="w-5 h-5 text-green-500" />
-              Active Subscribers
-            </CardTitle>
-            <CardDescription>
-              Merchants with paid active subscriptions ({activeSubscribers.length} subscribers)
-            </CardDescription>
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <UserCheck className="w-5 h-5 text-green-500" />
+                Active Subscribers
+              </CardTitle>
+              <CardDescription>
+                Merchants with paid active subscriptions ({activeSubscribers.length} subscribers)
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleExportSubscribers} data-testid="button-export-subscribers">
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
           </div>
-          <Button variant="outline" size="sm" onClick={handleExportSubscribers} data-testid="button-export-subscribers">
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {merchantsLoading ? (
-          <Skeleton className="h-64" />
-        ) : activeSubscribers.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <UserCheck className="w-12 h-12 mx-auto mb-4 opacity-30" />
-            <p>No active paid subscribers yet</p>
-            <p className="text-sm mt-1">Subscribers with paid plans will appear here</p>
+        </CardHeader>
+        <CardContent>
+          {merchantsLoading ? (
+            <Skeleton className="h-64" />
+          ) : activeSubscribers.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <UserCheck className="w-12 h-12 mx-auto mb-4 opacity-30" />
+              <p>No active paid subscribers yet</p>
+              <p className="text-sm mt-1">Subscribers with paid plans will appear here</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto -mx-4 md:mx-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[150px]">Company</TableHead>
+                    <TableHead>Plan</TableHead>
+                    <TableHead className="hidden md:table-cell">Conversations</TableHead>
+                    <TableHead className="hidden lg:table-cell">Member Since</TableHead>
+                    <TableHead>Revenue</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {activeSubscribers.map((merchant) => {
+                    const planPrices: Record<string, number> = { starter: 29, pro: 99, enterprise: 299, custom: 499 };
+                    const customPrice = (merchant as any).customMonthlyPrice;
+                    const displayPrice = merchant.subscriptionPlanId === 'custom' && customPrice ? customPrice : planPrices[merchant.subscriptionPlanId] || 0;
+                    return (
+                      <TableRow key={merchant.id} data-testid={`row-subscriber-${merchant.id}`}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium text-sm">{merchant.companyName || 'Unnamed'}</p>
+                            <p className="text-xs text-muted-foreground truncate max-w-[120px] md:max-w-none">{merchant.email}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>{getPlanBadge(merchant.subscriptionPlanId)}</TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {merchant.conversationsUsed || 0} / {merchant.plan.conversationsLimit === -1 ? '∞' : merchant.plan.conversationsLimit}
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
+                          {merchant.createdAt ? format(new Date(merchant.createdAt), 'MMM d, yyyy') : '-'}
+                        </TableCell>
+                        <TableCell className="font-medium text-green-600 dark:text-green-400">
+                          ${displayPrice}/mo
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button size="icon" variant="ghost" onClick={() => handleEdit(merchant)} data-testid={`button-edit-subscriber-${merchant.id}`}>
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button size="icon" variant="ghost" onClick={() => handleDelete(merchant)} data-testid={`button-delete-subscriber-${merchant.id}`}>
+                              <Trash className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" data-testid="dialog-edit-subscriber">
+          <DialogHeader>
+            <DialogTitle>Edit Subscriber</DialogTitle>
+            <DialogDescription>
+              Update subscription for {selectedMerchant?.companyName || 'this subscriber'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>Company</Label>
+              <p className="text-sm text-muted-foreground">{selectedMerchant?.companyName}</p>
+            </div>
+            <div>
+              <Label>Email</Label>
+              <p className="text-sm text-muted-foreground">{selectedMerchant?.email}</p>
+            </div>
+            <div>
+              <Label htmlFor="edit-subscriber-plan">Subscription Plan</Label>
+              <Select value={editPlan} onValueChange={setEditPlan}>
+                <SelectTrigger className="mt-1" data-testid="select-edit-subscriber-plan">
+                  <SelectValue placeholder="Select plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="free">Free</SelectItem>
+                  <SelectItem value="starter">Starter</SelectItem>
+                  <SelectItem value="pro">Pro</SelectItem>
+                  <SelectItem value="enterprise">Enterprise</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {editPlan === 'custom' && (
+              <div className="space-y-4 p-4 bg-muted/50 rounded-lg border">
+                <h4 className="font-medium text-sm">Custom Plan Configuration</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="sub-edit-conversations">Conversations/month</Label>
+                    <Input
+                      id="sub-edit-conversations"
+                      type="number"
+                      min="-1"
+                      className="mt-1"
+                      value={editCustomConfig.customConversationsLimit}
+                      onChange={(e) => setEditCustomConfig(prev => ({ 
+                        ...prev, 
+                        customConversationsLimit: parseInt(e.target.value) || 0 
+                      }))}
+                      data-testid="input-sub-edit-custom-conversations"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">-1 = unlimited</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="sub-edit-agents">AI Agents</Label>
+                    <Input
+                      id="sub-edit-agents"
+                      type="number"
+                      min="-1"
+                      className="mt-1"
+                      value={editCustomConfig.customAgentsLimit}
+                      onChange={(e) => setEditCustomConfig(prev => ({ 
+                        ...prev, 
+                        customAgentsLimit: parseInt(e.target.value) || 0 
+                      }))}
+                      data-testid="input-sub-edit-custom-agents"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">-1 = unlimited</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="sub-edit-supervisors">Supervisors</Label>
+                    <Input
+                      id="sub-edit-supervisors"
+                      type="number"
+                      min="-1"
+                      className="mt-1"
+                      value={editCustomConfig.customSupervisorsLimit}
+                      onChange={(e) => setEditCustomConfig(prev => ({ 
+                        ...prev, 
+                        customSupervisorsLimit: parseInt(e.target.value) || 0 
+                      }))}
+                      data-testid="input-sub-edit-custom-supervisors"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">-1 = unlimited</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="sub-edit-sources">Knowledge Sources</Label>
+                    <Input
+                      id="sub-edit-sources"
+                      type="number"
+                      min="-1"
+                      className="mt-1"
+                      value={editCustomConfig.customSourcesLimit}
+                      onChange={(e) => setEditCustomConfig(prev => ({ 
+                        ...prev, 
+                        customSourcesLimit: parseInt(e.target.value) || 0 
+                      }))}
+                      data-testid="input-sub-edit-custom-sources"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">-1 = unlimited</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="sub-edit-questions">Suggested Questions</Label>
+                    <Input
+                      id="sub-edit-questions"
+                      type="number"
+                      min="-1"
+                      className="mt-1"
+                      value={editCustomConfig.customSuggestedQuestionsLimit}
+                      onChange={(e) => setEditCustomConfig(prev => ({ 
+                        ...prev, 
+                        customSuggestedQuestionsLimit: parseInt(e.target.value) || 0 
+                      }))}
+                      data-testid="input-sub-edit-custom-questions"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">-1 = unlimited</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                  <div>
+                    <Label htmlFor="sub-edit-monthly-price">Monthly Price ($)</Label>
+                    <Input
+                      id="sub-edit-monthly-price"
+                      type="number"
+                      min="0"
+                      className="mt-1"
+                      value={editCustomConfig.customMonthlyPrice}
+                      onChange={(e) => setEditCustomConfig(prev => ({ 
+                        ...prev, 
+                        customMonthlyPrice: parseInt(e.target.value) || 0 
+                      }))}
+                      data-testid="input-sub-edit-custom-monthly-price"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="sub-edit-annual-price">Annual Price ($)</Label>
+                    <Input
+                      id="sub-edit-annual-price"
+                      type="number"
+                      min="0"
+                      className="mt-1"
+                      value={editCustomConfig.customAnnualPrice}
+                      onChange={(e) => setEditCustomConfig(prev => ({ 
+                        ...prev, 
+                        customAnnualPrice: parseInt(e.target.value) || 0 
+                      }))}
+                      data-testid="input-sub-edit-custom-annual-price"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="overflow-x-auto -mx-4 md:mx-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="min-w-[150px]">Company</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead className="hidden md:table-cell">Conversations</TableHead>
-                  <TableHead className="hidden lg:table-cell">Member Since</TableHead>
-                  <TableHead>Revenue</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {activeSubscribers.map((merchant) => {
-                  const planPrices: Record<string, number> = { starter: 29, pro: 99, enterprise: 299, custom: 499 };
-                  return (
-                    <TableRow key={merchant.id} data-testid={`row-subscriber-${merchant.id}`}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium text-sm">{merchant.companyName || 'Unnamed'}</p>
-                          <p className="text-xs text-muted-foreground truncate max-w-[120px] md:max-w-none">{merchant.email}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>{getPlanBadge(merchant.subscriptionPlanId)}</TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        {merchant.conversationsUsed || 0} / {merchant.plan.conversationsLimit === -1 ? '∞' : merchant.plan.conversationsLimit}
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
-                        {merchant.createdAt ? format(new Date(merchant.createdAt), 'MMM d, yyyy') : '-'}
-                      </TableCell>
-                      <TableCell className="font-medium text-green-600 dark:text-green-400">
-                        ${planPrices[merchant.subscriptionPlanId] || 0}/mo
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)} data-testid="button-cancel-edit-subscriber">Cancel</Button>
+            <Button onClick={confirmEdit} disabled={updatePlanMutation.isPending} data-testid="button-confirm-edit-subscriber">
+              {updatePlanMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent data-testid="dialog-delete-subscriber">
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {selectedMerchant?.companyName}? This will remove all associated data and cancel their subscription.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} data-testid="button-cancel-delete-subscriber">Cancel</Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleteMerchantMutation.isPending} data-testid="button-confirm-delete-subscriber">
+              {deleteMerchantMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

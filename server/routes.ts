@@ -20,7 +20,7 @@ import fs from "fs";
 import { processKnowledgeBase, searchKnowledge } from "./embeddings";
 import { extractFAQContent } from "./crawler";
 import { createQRISPayment, checkPaymentStatus, isOnePayConfigured, convertToIDR, formatIDR } from "./onepayClient";
-import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
+import { subscriptionPlans, type SubscriptionPlanId, type Merchant } from "@shared/schema";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -109,13 +109,42 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+// Helper function to get effective plan limits (respects custom plan configuration)
+function getEffectivePlanLimits(merchant: Merchant) {
+  const basePlan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+  
+  // If not custom plan, return base plan limits
+  if (merchant.subscriptionPlanId !== 'custom') {
+    return {
+      conversationsLimit: basePlan.conversationsLimit,
+      agentsLimit: basePlan.agentsLimit,
+      supervisorsLimit: basePlan.supervisorsLimit,
+      sourcesLimit: basePlan.sourcesLimit,
+      suggestedQuestionsLimit: basePlan.suggestedQuestionsLimit,
+      monthlyPrice: basePlan.monthlyPrice,
+      annualPrice: basePlan.annualPrice,
+    };
+  }
+  
+  // For custom plan, use merchant's custom configuration or fallback to base plan
+  return {
+    conversationsLimit: merchant.customConversationsLimit ?? basePlan.conversationsLimit,
+    agentsLimit: merchant.customAgentsLimit ?? basePlan.agentsLimit,
+    supervisorsLimit: merchant.customSupervisorsLimit ?? basePlan.supervisorsLimit,
+    sourcesLimit: merchant.customSourcesLimit ?? basePlan.sourcesLimit,
+    suggestedQuestionsLimit: merchant.customSuggestedQuestionsLimit ?? basePlan.suggestedQuestionsLimit,
+    monthlyPrice: merchant.customMonthlyPrice ?? basePlan.monthlyPrice,
+    annualPrice: merchant.customAnnualPrice ?? basePlan.annualPrice,
+  };
+}
+
 async function checkSubscriptionLimits(merchantId: string, type: 'conversation' | 'supervisor'): Promise<{ allowed: boolean; message?: string }> {
   const merchant = await storage.getMerchant(merchantId);
   if (!merchant) {
     return { allowed: false, message: "Merchant not found" };
   }
   
-  const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+  const effectiveLimits = getEffectivePlanLimits(merchant);
   
   if (merchant.subscriptionStatus === 'trial') {
     const trialExpired = merchant.trialEndsAt && new Date(merchant.trialEndsAt) < new Date();
@@ -127,18 +156,18 @@ async function checkSubscriptionLimits(merchantId: string, type: 'conversation' 
   }
   
   if (type === 'conversation') {
-    if (plan.conversationsLimit === -1) return { allowed: true };
+    if (effectiveLimits.conversationsLimit === -1) return { allowed: true };
     const used = merchant.conversationsUsed || 0;
-    if (used >= plan.conversationsLimit) {
-      return { allowed: false, message: `Monthly conversation limit reached (${plan.conversationsLimit}). Please upgrade your plan.` };
+    if (used >= effectiveLimits.conversationsLimit) {
+      return { allowed: false, message: `Monthly conversation limit reached (${effectiveLimits.conversationsLimit}). Please upgrade your plan.` };
     }
   }
   
   if (type === 'supervisor') {
     const supervisors = await storage.getSupervisorsByMerchant(merchantId);
-    if (plan.supervisorsLimit === -1) return { allowed: true };
-    if (supervisors.length >= plan.supervisorsLimit) {
-      return { allowed: false, message: `Supervisor limit reached (${plan.supervisorsLimit}). Please upgrade your plan.` };
+    if (effectiveLimits.supervisorsLimit === -1) return { allowed: true };
+    if (supervisors.length >= effectiveLimits.supervisorsLimit) {
+      return { allowed: false, message: `Supervisor limit reached (${effectiveLimits.supervisorsLimit}). Please upgrade your plan.` };
     }
   }
   
@@ -2615,10 +2644,23 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get("/api/admin/merchants", requireAdmin, async (req, res) => {
     try {
       const merchants = await storage.getAllMerchants();
-      const safeMerchants = merchants.map(({ password, ...m }) => ({
-        ...m,
-        plan: subscriptionPlans[m.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free,
-      }));
+      const safeMerchants = merchants.map(({ password, ...m }) => {
+        const basePlan = subscriptionPlans[m.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+        const effectivePlan = m.subscriptionPlanId === 'custom' ? {
+          ...basePlan,
+          conversationsLimit: m.customConversationsLimit ?? basePlan.conversationsLimit,
+          agentsLimit: m.customAgentsLimit ?? basePlan.agentsLimit,
+          supervisorsLimit: m.customSupervisorsLimit ?? basePlan.supervisorsLimit,
+          sourcesLimit: m.customSourcesLimit ?? basePlan.sourcesLimit,
+          suggestedQuestionsLimit: m.customSuggestedQuestionsLimit ?? basePlan.suggestedQuestionsLimit,
+          monthlyPrice: m.customMonthlyPrice ?? basePlan.monthlyPrice,
+          annualPrice: m.customAnnualPrice ?? basePlan.annualPrice,
+        } : basePlan;
+        return {
+          ...m,
+          plan: effectivePlan,
+        };
+      });
       res.json(safeMerchants);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -2635,9 +2677,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const sessions = await storage.getSessionsByMerchant(merchant.id);
       const supervisors = await storage.getSupervisorsByMerchant(merchant.id);
       
+      const basePlan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+      const effectivePlan = merchant.subscriptionPlanId === 'custom' ? {
+        ...basePlan,
+        conversationsLimit: merchant.customConversationsLimit ?? basePlan.conversationsLimit,
+        agentsLimit: merchant.customAgentsLimit ?? basePlan.agentsLimit,
+        supervisorsLimit: merchant.customSupervisorsLimit ?? basePlan.supervisorsLimit,
+        sourcesLimit: merchant.customSourcesLimit ?? basePlan.sourcesLimit,
+        suggestedQuestionsLimit: merchant.customSuggestedQuestionsLimit ?? basePlan.suggestedQuestionsLimit,
+        monthlyPrice: merchant.customMonthlyPrice ?? basePlan.monthlyPrice,
+        annualPrice: merchant.customAnnualPrice ?? basePlan.annualPrice,
+      } : basePlan;
+      
       res.json({
         ...safeMerchant,
-        plan: subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free,
+        plan: effectivePlan,
         sessionsCount: sessions.length,
         supervisorsCount: supervisors.length,
       });
