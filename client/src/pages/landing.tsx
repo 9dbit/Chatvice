@@ -52,6 +52,7 @@ import {
   Image as ImageIcon,
   Camera,
   Video,
+  User,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -1178,8 +1179,241 @@ function BenefitsSections() {
         </div>
       </section>
 
-      {/* Testimonials Section */}
+      {/* Advance Reporting Section */}
       <section className="py-12 md:py-20 bg-background">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+          <div className="text-center mb-8">
+            <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-3 text-xs">
+              ADVANCE REPORTING
+            </Badge>
+            <h2 className="text-2xl md:text-4xl font-bold mb-3 leading-tight">
+              Data-driven insights at your fingertips
+            </h2>
+            <p className="text-sm md:text-base text-muted-foreground max-w-2xl mx-auto">
+              Track performance, analyze trends, and make informed decisions with our comprehensive merchant dashboard analytics.
+            </p>
+          </div>
+          
+          {/* Dashboard Screenshots Grid - Light Mode Style */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            {/* Analytics Overview Card */}
+            <Card className="overflow-hidden border-gray-200 shadow-lg bg-white">
+              <div className="bg-gray-50 border-b border-gray-100 p-3 flex items-center gap-2">
+                <div className="flex gap-1">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
+                </div>
+                <span className="text-xs text-gray-600 ml-2">Analytics Overview</span>
+              </div>
+              <div className="p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-purple-50 rounded-lg p-3 text-center">
+                    <p className="text-xl font-bold text-purple-700">2,847</p>
+                    <p className="text-[10px] text-gray-600">Total Conversations</p>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-3 text-center">
+                    <p className="text-xl font-bold text-green-700">94.2%</p>
+                    <p className="text-[10px] text-gray-600">Satisfaction Rate</p>
+                  </div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-[10px] text-gray-600">Response Time</span>
+                    <span className="text-xs font-semibold text-gray-800">1.2s avg</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-1.5">
+                    <div className="bg-purple-600 h-1.5 rounded-full" style={{ width: "85%" }} />
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Conversation Trends Card */}
+            <Card className="overflow-hidden border-gray-200 shadow-lg bg-white">
+              <div className="bg-gray-50 border-b border-gray-100 p-3 flex items-center gap-2">
+                <div className="flex gap-1">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
+                </div>
+                <span className="text-xs text-gray-600 ml-2">Conversation Trends</span>
+              </div>
+              <div className="p-4">
+                <div className="flex items-end gap-1 h-24 mb-2">
+                  {[45, 62, 38, 75, 55, 82, 68].map((h, i) => (
+                    <div key={i} className="flex-1 bg-purple-500 rounded-t" style={{ height: `${h}%` }} />
+                  ))}
+                </div>
+                <div className="flex justify-between text-[9px] text-gray-500">
+                  <span>Mon</span>
+                  <span>Tue</span>
+                  <span>Wed</span>
+                  <span>Thu</span>
+                  <span>Fri</span>
+                  <span>Sat</span>
+                  <span>Sun</span>
+                </div>
+                <div className="mt-3 flex items-center gap-2">
+                  <TrendingUp className="w-3 h-3 text-green-600" />
+                  <span className="text-[10px] text-gray-600">+23% from last week</span>
+                </div>
+              </div>
+            </Card>
+
+            {/* AI Performance Card */}
+            <Card className="overflow-hidden border-gray-200 shadow-lg bg-white">
+              <div className="bg-gray-50 border-b border-gray-100 p-3 flex items-center gap-2">
+                <div className="flex gap-1">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
+                </div>
+                <span className="text-xs text-gray-600 ml-2">AI Performance</span>
+              </div>
+              <div className="p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
+                    <Bot className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">AI Resolution Rate</p>
+                    <p className="text-[10px] text-gray-500">Auto-resolved conversations</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-bold text-purple-700">78%</span>
+                  <Badge className="bg-green-100 text-green-700 text-[9px]">
+                    <TrendingUp className="w-2.5 h-2.5 mr-0.5" />
+                    +5%
+                  </Badge>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px]">
+                    <span className="text-gray-600">Handled by AI</span>
+                    <span className="font-medium text-gray-800">2,218</span>
+                  </div>
+                  <div className="flex justify-between text-[10px]">
+                    <span className="text-gray-600">Escalated to Human</span>
+                    <span className="font-medium text-gray-800">629</span>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Session Duration Card */}
+            <Card className="overflow-hidden border-gray-200 shadow-lg bg-white">
+              <div className="bg-gray-50 border-b border-gray-100 p-3 flex items-center gap-2">
+                <div className="flex gap-1">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
+                </div>
+                <span className="text-xs text-gray-600 ml-2">Session Duration</span>
+              </div>
+              <div className="p-4">
+                <div className="flex items-center justify-center mb-3">
+                  <div className="relative w-20 h-20">
+                    <svg className="w-20 h-20 -rotate-90" viewBox="0 0 36 36">
+                      <circle cx="18" cy="18" r="16" fill="none" stroke="#e5e7eb" strokeWidth="3" />
+                      <circle cx="18" cy="18" r="16" fill="none" stroke="#9333ea" strokeWidth="3" strokeDasharray="75 25" strokeLinecap="round" />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-sm font-bold text-gray-800">3.2m</span>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-center text-[10px] text-gray-600">Average session duration</p>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-center">
+                  <div className="bg-gray-50 rounded p-2">
+                    <p className="text-xs font-semibold text-gray-800">1.8m</p>
+                    <p className="text-[9px] text-gray-500">AI sessions</p>
+                  </div>
+                  <div className="bg-gray-50 rounded p-2">
+                    <p className="text-xs font-semibold text-gray-800">5.1m</p>
+                    <p className="text-[9px] text-gray-500">Human sessions</p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Top Queries Card */}
+            <Card className="overflow-hidden border-gray-200 shadow-lg bg-white">
+              <div className="bg-gray-50 border-b border-gray-100 p-3 flex items-center gap-2">
+                <div className="flex gap-1">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
+                </div>
+                <span className="text-xs text-gray-600 ml-2">Top Customer Queries</span>
+              </div>
+              <div className="p-4 space-y-2">
+                {[
+                  { query: "Order status", count: 423, pct: 85 },
+                  { query: "Return policy", count: 312, pct: 65 },
+                  { query: "Product availability", count: 287, pct: 58 },
+                  { query: "Shipping info", count: 198, pct: 42 },
+                ].map((item, i) => (
+                  <div key={i} className="space-y-1">
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-gray-700">{item.query}</span>
+                      <span className="text-gray-500">{item.count}</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-1">
+                      <div className="bg-purple-500 h-1 rounded-full" style={{ width: `${item.pct}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* Agent Performance Card */}
+            <Card className="overflow-hidden border-gray-200 shadow-lg bg-white">
+              <div className="bg-gray-50 border-b border-gray-100 p-3 flex items-center gap-2">
+                <div className="flex gap-1">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
+                </div>
+                <span className="text-xs text-gray-600 ml-2">Agent Performance</span>
+              </div>
+              <div className="p-4 space-y-2">
+                {[
+                  { name: "Sarah M.", rating: 4.9, chats: 145 },
+                  { name: "John D.", rating: 4.8, chats: 132 },
+                  { name: "Lisa K.", rating: 4.7, chats: 128 },
+                ].map((agent, i) => (
+                  <div key={i} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                    <div className="w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 text-[10px] font-bold">
+                      {agent.name.charAt(0)}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-gray-800">{agent.name}</p>
+                      <p className="text-[9px] text-gray-500">{agent.chats} chats</p>
+                    </div>
+                    <div className="flex items-center gap-0.5">
+                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                      <span className="text-[10px] font-medium text-gray-700">{agent.rating}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+
+          <div className="text-center mt-8">
+            <Button asChild variant="outline" size="sm" className="text-xs" data-testid="button-view-analytics">
+              <Link href="/features">
+                Explore all analytics features
+                <ArrowRight className="w-3 h-3 ml-1" />
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section className="py-12 md:py-20 bg-muted/30">
         <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
           <div className="text-center mb-8">
             <h2 className="text-2xl md:text-4xl font-bold mb-2">
