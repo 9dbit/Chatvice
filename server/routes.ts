@@ -556,8 +556,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
       
       const hashedPassword = await hashPassword(data.password);
+      
+      // Get configurable trial days from platform settings (default 14 days)
+      const trialDaysSetting = await storage.getPlatformSetting("trial_days");
+      const trialDays = trialDaysSetting ? parseInt(trialDaysSetting) : 14;
+      
       const trialEndsAt = new Date();
-      trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+      trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
       
       const merchant = await storage.createMerchant({
         ...data,
@@ -2803,6 +2808,88 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.json({ url: fileUrl, filename: req.file.filename });
     } catch (error) {
       console.error("Error uploading brand file:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Platform Settings API
+  app.get("/api/admin/platform-settings", requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getAllPlatformSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error getting platform settings:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.put("/api/admin/platform-settings", requireAdmin, async (req, res) => {
+    try {
+      const { key, value } = req.body;
+      if (!key) {
+        return res.status(400).json({ error: "Key is required" });
+      }
+      await storage.setPlatformSetting(key, value);
+      const settings = await storage.getAllPlatformSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating platform setting:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/admin/platform-settings/batch", requireAdmin, async (req, res) => {
+    try {
+      const { settings } = req.body;
+      if (!settings || typeof settings !== 'object') {
+        return res.status(400).json({ error: "Settings object is required" });
+      }
+      for (const [key, value] of Object.entries(settings)) {
+        await storage.setPlatformSetting(key, String(value));
+      }
+      const allSettings = await storage.getAllPlatformSettings();
+      res.json(allSettings);
+    } catch (error) {
+      console.error("Error updating platform settings:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Public endpoint to get trial days for pricing page
+  app.get("/api/platform/trial-days", async (req, res) => {
+    try {
+      const trialDays = await storage.getPlatformSetting("trial_days");
+      res.json({ trialDays: trialDays ? parseInt(trialDays) : 14 });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Public endpoint to get platform settings for public pages
+  app.get("/api/platform-settings", async (req, res) => {
+    try {
+      const allSettings = await storage.getAllPlatformSettings();
+      // Filter to only return public settings (trial days, guide settings)
+      const publicKeys = [
+        'trial_days', 
+        'guide_enabled', 
+        'guide_name', 
+        'guide_welcome_message',
+        'guide_show_landing',
+        'guide_show_dashboard',
+        'guide_widget_position',
+        'guide_widget_color',
+        'guide_bubble_enabled',
+        'guide_bubble_text'
+      ];
+      const publicSettings: Record<string, string> = {};
+      for (const key of publicKeys) {
+        if (allSettings[key] !== undefined) {
+          publicSettings[key] = allSettings[key];
+        }
+      }
+      res.json(publicSettings);
+    } catch (error) {
       res.status(500).json({ error: "Server error" });
     }
   });

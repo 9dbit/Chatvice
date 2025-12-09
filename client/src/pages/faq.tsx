@@ -28,7 +28,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import PublicPageLayout from "./public-layout";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useRef, useEffect } from "react";
 
@@ -340,8 +340,20 @@ function Lexa1FAQAssistant() {
 export default function FAQPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
+  
+  const { data: platformSettings } = useQuery({
+    queryKey: ["/api/platform-settings"],
+  });
+  
+  const trialDays = (platformSettings as any)?.trial_days ? parseInt((platformSettings as any).trial_days) : 14;
 
   const filteredCategories = faqCategories.map(category => ({
+    ...category,
+    questions: category.questions.map(q => ({
+      ...q,
+      a: q.a.replace(/14-day/g, `${trialDays}-day`)
+    }))
+  })).map(category => ({
     ...category,
     questions: category.questions.filter(
       q => 
@@ -485,7 +497,7 @@ export default function FAQPage() {
             Ready to get started?
           </h2>
           <p className="text-purple-100 mb-8 max-w-2xl text-left">
-            Start your 14-day free trial and see how LEXA1 can transform your customer service.
+            Start your {trialDays}-day free trial and see how LEXA1 can transform your customer service.
           </p>
           <Link href="/register">
             <Button size="lg" className="bg-white text-purple-600 hover:bg-purple-50">

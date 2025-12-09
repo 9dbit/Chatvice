@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Check,
   X,
@@ -20,6 +21,12 @@ import {
 
 export default function PricingPage() {
   const [isYearly, setIsYearly] = useState(false);
+  
+  const { data: platformSettings } = useQuery({
+    queryKey: ["/api/platform-settings"],
+  });
+  
+  const trialDays = (platformSettings as any)?.trial_days ? parseInt((platformSettings as any).trial_days) : 14;
 
   const plans = [
     {
@@ -111,7 +118,7 @@ export default function PricingPage() {
   const faqs = [
     {
       q: "Is there a free trial?",
-      a: "Yes! All plans include a 14-day free trial with full access to features. No credit card required."
+      a: `Yes! All plans include a ${trialDays}-day free trial with full access to features. No credit card required.`
     },
     {
       q: "What payment methods do you accept?",
@@ -147,7 +154,7 @@ export default function PricingPage() {
             Simple, Transparent Pricing
           </h1>
           <p className="text-lg text-purple-100 max-w-2xl mb-8 text-left">
-            Choose the plan that fits your business. All plans include a 14-day free trial.
+            Choose the plan that fits your business. All plans include a {trialDays}-day free trial.
           </p>
           
           <div className="flex items-center gap-3">

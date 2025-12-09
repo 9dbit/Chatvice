@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +55,12 @@ function useParallaxScroll() {
 }
 
 export default function FeaturesPage() {
+  const { data: platformSettings } = useQuery({
+    queryKey: ["/api/platform-settings"],
+  });
+  
+  const trialDays = (platformSettings as any)?.trial_days ? parseInt((platformSettings as any).trial_days) : 14;
+
   const mainFeatures = [
     {
       icon: Brain,
@@ -318,7 +325,7 @@ export default function FeaturesPage() {
             Ready to Transform Your Customer Service?
           </h2>
           <p className="text-lg text-purple-100 mb-8 max-w-2xl text-left">
-            Start your 14-day free trial. No credit card required.
+            Start your {trialDays}-day free trial. No credit card required.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
             <Link href="/register">

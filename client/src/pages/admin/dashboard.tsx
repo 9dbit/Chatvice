@@ -257,6 +257,7 @@ export default function AdminDashboard() {
     { id: "landing", label: "Landing Page", icon: Palette },
     { id: "content", label: "Content & Media", icon: Image },
     { id: "seo", label: "SEO & Branding", icon: Globe },
+    { id: "guide", label: "Chatvice Guide", icon: Bot },
     { id: "pricing", label: "Pricing", icon: DollarSign },
     { id: "reports", label: "Performance", icon: TrendingUp },
     { id: "usage", label: "Data Usage", icon: Database },
@@ -393,6 +394,8 @@ export default function AdminDashboard() {
             {activeTab === "content" && <ContentTab toast={toast} />}
             
             {activeTab === "seo" && <SEOBrandingTab toast={toast} />}
+            
+            {activeTab === "guide" && <ChatviceGuideTab toast={toast} />}
             
             {activeTab === "pricing" && <PricingTab toast={toast} />}
             
@@ -2020,6 +2023,365 @@ function SEOBrandingTab({ toast }: { toast: any }) {
   );
 }
 
+function ChatviceGuideTab({ toast }: { toast: any }) {
+  const [guideSettings, setGuideSettings] = useState({
+    enabled: true,
+    name: "Chatvice Guide",
+    description: "AI assistant to help users navigate the platform",
+    systemPrompt: "You are Chatvice Guide, a helpful AI assistant that helps users understand the Chatvice platform. Be friendly, concise, and helpful.",
+    welcomeMessage: "Hi! I'm Chatvice Guide. I can help you learn about our AI customer service platform.",
+    temperature: "0.7",
+    showOnLanding: true,
+    showOnDashboard: true,
+    widgetPosition: "bottom-right",
+    widgetColor: "#7c3aed",
+    bubbleEnabled: true,
+    bubbleText: "Need help?",
+  });
+
+  const [knowledgeContent, setKnowledgeContent] = useState("");
+  const [sources, setSources] = useState<{ id: string; name: string; url: string; status: string }[]>([
+    { id: "1", name: "Chatvice Documentation", url: "https://docs.chatvice.com", status: "active" },
+    { id: "2", name: "FAQ Page", url: "https://chatvice.com/faq", status: "active" },
+  ]);
+
+  const { data: platformSettings, refetch: refetchSettings } = useQuery({
+    queryKey: ["/api/admin/platform-settings"],
+  });
+
+  useEffect(() => {
+    if (platformSettings) {
+      const settings = platformSettings as any;
+      if (settings.guide_enabled !== undefined) {
+        setGuideSettings(prev => ({
+          ...prev,
+          enabled: settings.guide_enabled === "true",
+          name: settings.guide_name || prev.name,
+          description: settings.guide_description || prev.description,
+          systemPrompt: settings.guide_system_prompt || prev.systemPrompt,
+          welcomeMessage: settings.guide_welcome_message || prev.welcomeMessage,
+          temperature: settings.guide_temperature || prev.temperature,
+          showOnLanding: settings.guide_show_landing !== "false",
+          showOnDashboard: settings.guide_show_dashboard !== "false",
+          widgetPosition: settings.guide_widget_position || prev.widgetPosition,
+          widgetColor: settings.guide_widget_color || prev.widgetColor,
+          bubbleEnabled: settings.guide_bubble_enabled !== "false",
+          bubbleText: settings.guide_bubble_text || prev.bubbleText,
+        }));
+      }
+      if (settings.guide_knowledge_content) {
+        setKnowledgeContent(settings.guide_knowledge_content);
+      }
+    }
+  }, [platformSettings]);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/admin/platform-settings/batch", {
+        settings: {
+          guide_enabled: String(guideSettings.enabled),
+          guide_name: guideSettings.name,
+          guide_description: guideSettings.description,
+          guide_system_prompt: guideSettings.systemPrompt,
+          guide_welcome_message: guideSettings.welcomeMessage,
+          guide_temperature: guideSettings.temperature,
+          guide_show_landing: String(guideSettings.showOnLanding),
+          guide_show_dashboard: String(guideSettings.showOnDashboard),
+          guide_widget_position: guideSettings.widgetPosition,
+          guide_widget_color: guideSettings.widgetColor,
+          guide_bubble_enabled: String(guideSettings.bubbleEnabled),
+          guide_bubble_text: guideSettings.bubbleText,
+          guide_knowledge_content: knowledgeContent,
+        },
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Settings Saved",
+        description: "Chatvice Guide settings have been updated.",
+      });
+      refetchSettings();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save settings.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSave = () => {
+    saveMutation.mutate();
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bot className="w-5 h-5" />
+            Chatvice Guide AI Agent
+          </CardTitle>
+          <CardDescription>Configure the AI assistant that helps users on landing page and merchant dashboard</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div>
+              <p className="font-medium">Enable Chatvice Guide</p>
+              <p className="text-sm text-muted-foreground">Show the AI help bubble across the platform</p>
+            </div>
+            <Checkbox 
+              checked={guideSettings.enabled} 
+              onCheckedChange={(checked) => setGuideSettings(prev => ({ ...prev, enabled: !!checked }))}
+              data-testid="checkbox-guide-enabled"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="guide-name">Agent Name</Label>
+              <Input 
+                id="guide-name"
+                value={guideSettings.name}
+                onChange={(e) => setGuideSettings(prev => ({ ...prev, name: e.target.value }))}
+                className="mt-1"
+                data-testid="input-guide-name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="guide-temp">Temperature</Label>
+              <Select 
+                value={guideSettings.temperature} 
+                onValueChange={(value) => setGuideSettings(prev => ({ ...prev, temperature: value }))}
+              >
+                <SelectTrigger className="mt-1" data-testid="select-guide-temperature">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0.3">0.3 - More Focused</SelectItem>
+                  <SelectItem value="0.5">0.5 - Balanced</SelectItem>
+                  <SelectItem value="0.7">0.7 - Creative</SelectItem>
+                  <SelectItem value="0.9">0.9 - Very Creative</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="guide-desc">Description</Label>
+            <Input 
+              id="guide-desc"
+              value={guideSettings.description}
+              onChange={(e) => setGuideSettings(prev => ({ ...prev, description: e.target.value }))}
+              className="mt-1"
+              data-testid="input-guide-description"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="guide-welcome">Welcome Message</Label>
+            <Textarea 
+              id="guide-welcome"
+              value={guideSettings.welcomeMessage}
+              onChange={(e) => setGuideSettings(prev => ({ ...prev, welcomeMessage: e.target.value }))}
+              className="mt-1"
+              rows={2}
+              data-testid="input-guide-welcome"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="guide-prompt">System Prompt</Label>
+            <Textarea 
+              id="guide-prompt"
+              value={guideSettings.systemPrompt}
+              onChange={(e) => setGuideSettings(prev => ({ ...prev, systemPrompt: e.target.value }))}
+              className="mt-1"
+              rows={4}
+              data-testid="input-guide-prompt"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Define the AI's personality and behavior</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5" />
+            Widget Settings
+          </CardTitle>
+          <CardDescription>Configure where and how the Chatvice Guide appears</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-center justify-between p-3 border rounded-lg">
+              <div>
+                <p className="font-medium text-sm">Show on Landing Page</p>
+                <p className="text-xs text-muted-foreground">Display on public website</p>
+              </div>
+              <Checkbox 
+                checked={guideSettings.showOnLanding} 
+                onCheckedChange={(checked) => setGuideSettings(prev => ({ ...prev, showOnLanding: !!checked }))}
+                data-testid="checkbox-guide-landing"
+              />
+            </div>
+            <div className="flex items-center justify-between p-3 border rounded-lg">
+              <div>
+                <p className="font-medium text-sm">Show on Merchant Dashboard</p>
+                <p className="text-xs text-muted-foreground">Help merchants navigate</p>
+              </div>
+              <Checkbox 
+                checked={guideSettings.showOnDashboard} 
+                onCheckedChange={(checked) => setGuideSettings(prev => ({ ...prev, showOnDashboard: !!checked }))}
+                data-testid="checkbox-guide-dashboard"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>Widget Position</Label>
+              <Select 
+                value={guideSettings.widgetPosition} 
+                onValueChange={(value) => setGuideSettings(prev => ({ ...prev, widgetPosition: value }))}
+              >
+                <SelectTrigger className="mt-1" data-testid="select-guide-position">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="bottom-right">Bottom Right</SelectItem>
+                  <SelectItem value="bottom-left">Bottom Left</SelectItem>
+                  <SelectItem value="top-right">Top Right</SelectItem>
+                  <SelectItem value="top-left">Top Left</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="guide-color">Widget Color</Label>
+              <div className="flex gap-2 mt-1">
+                <Input 
+                  id="guide-color"
+                  type="color"
+                  value={guideSettings.widgetColor}
+                  onChange={(e) => setGuideSettings(prev => ({ ...prev, widgetColor: e.target.value }))}
+                  className="w-12 h-9 p-1"
+                  data-testid="input-guide-color"
+                />
+                <Input 
+                  value={guideSettings.widgetColor}
+                  onChange={(e) => setGuideSettings(prev => ({ ...prev, widgetColor: e.target.value }))}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-3 border rounded-lg">
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <p className="font-medium text-sm">Welcome Bubble</p>
+                <Checkbox 
+                  checked={guideSettings.bubbleEnabled} 
+                  onCheckedChange={(checked) => setGuideSettings(prev => ({ ...prev, bubbleEnabled: !!checked }))}
+                  data-testid="checkbox-guide-bubble"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">Show a tooltip bubble to attract attention</p>
+            </div>
+            <Input 
+              value={guideSettings.bubbleText}
+              onChange={(e) => setGuideSettings(prev => ({ ...prev, bubbleText: e.target.value }))}
+              className="w-48"
+              placeholder="Need help?"
+              disabled={!guideSettings.bubbleEnabled}
+              data-testid="input-guide-bubble-text"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="w-5 h-5" />
+            Knowledge Base
+          </CardTitle>
+          <CardDescription>Train the Chatvice Guide with platform information</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="guide-knowledge">Knowledge Content</Label>
+            <Textarea 
+              id="guide-knowledge"
+              value={knowledgeContent}
+              onChange={(e) => setKnowledgeContent(e.target.value)}
+              className="mt-1 font-mono text-sm"
+              rows={8}
+              placeholder="Add information about Chatvice features, pricing, FAQs, etc..."
+              data-testid="input-guide-knowledge"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              This content will be used to train the AI to answer questions about your platform
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Link2 className="w-5 h-5" />
+            Knowledge Sources
+          </CardTitle>
+          <CardDescription>Web pages and documents to crawl for knowledge</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {sources.map((source) => (
+              <div key={source.id} className="flex items-center justify-between p-3 border rounded-lg">
+                <div>
+                  <p className="font-medium text-sm">{source.name}</p>
+                  <p className="text-xs text-muted-foreground">{source.url}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant={source.status === "active" ? "default" : "secondary"}>
+                    {source.status}
+                  </Badge>
+                  <Button size="icon" variant="ghost">
+                    <Trash className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <Button variant="outline" className="w-full" data-testid="button-add-guide-source">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Source URL
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-end">
+        <Button onClick={handleSave} disabled={saveMutation.isPending} data-testid="button-save-guide">
+          {saveMutation.isPending ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4 mr-2" />
+              Save Chatvice Guide Settings
+            </>
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 interface LandingPageSettings {
   id: string;
   heroBackgroundUrl: string | null;
@@ -2517,6 +2879,41 @@ function PricingTab({ toast }: { toast: any }) {
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [trialDays, setTrialDays] = useState(14);
   
+  // Fetch platform settings including trial days
+  const { data: platformSettings } = useQuery({
+    queryKey: ["/api/admin/platform-settings"],
+  });
+
+  // Sync trial days from platform settings
+  useEffect(() => {
+    if (platformSettings && (platformSettings as any).trial_days) {
+      setTrialDays(parseInt((platformSettings as any).trial_days));
+    }
+  }, [platformSettings]);
+
+  const saveTrialDaysMutation = useMutation({
+    mutationFn: async (days: number) => {
+      return apiRequest("PUT", "/api/admin/platform-settings", {
+        key: "trial_days",
+        value: String(days),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Settings Saved",
+        description: `Trial period set to ${trialDays} days. New merchants will receive this trial period.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/platform-settings"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save trial settings.",
+        variant: "destructive",
+      });
+    },
+  });
+  
   const handleEditPlan = (plan: any) => {
     setSelectedPlan(plan);
     setEditPlanOpen(true);
@@ -2550,9 +2947,13 @@ function PricingTab({ toast }: { toast: any }) {
                 data-testid="input-trial-days"
               />
             </div>
-            <Button onClick={() => toast({ title: "Settings Saved", description: `Trial period set to ${trialDays} days.` })} data-testid="button-save-trial">
-              <Save className="w-4 h-4 mr-2" />
-              Save Trial Settings
+            <Button onClick={() => saveTrialDaysMutation.mutate(trialDays)} disabled={saveTrialDaysMutation.isPending} data-testid="button-save-trial">
+              {saveTrialDaysMutation.isPending ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              {saveTrialDaysMutation.isPending ? "Saving..." : "Save Trial Settings"}
             </Button>
           </div>
           <div className="p-3 bg-muted/50 rounded-lg text-sm">

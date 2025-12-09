@@ -78,6 +78,12 @@ export default function BillingPage() {
   const { data: billingStatus, isLoading, refetch } = useQuery<BillingStatus>({
     queryKey: ["/api/billing/status"],
   });
+  
+  const { data: platformSettings } = useQuery({
+    queryKey: ["/api/platform-settings"],
+  });
+  
+  const trialDays = (platformSettings as any)?.trial_days ? parseInt((platformSettings as any).trial_days) : 7;
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -630,7 +636,7 @@ export default function BillingPage() {
               <p className="font-medium">Secure Payment with QRIS</p>
               <p className="text-sm text-muted-foreground mt-1">
                 We accept payments via QRIS - scan the QR code with any Indonesian e-wallet or mobile banking app (GoPay, OVO, DANA, ShopeePay, BCA Mobile, Mandiri Livin, etc.).
-                All plans include a 7-day free trial. Start with the Starter plan and upgrade anytime as your business grows.
+                All plans include a {trialDays}-day free trial. Start with the Starter plan and upgrade anytime as your business grows.
               </p>
             </div>
           </div>

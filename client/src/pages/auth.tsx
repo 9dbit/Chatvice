@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Bot, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -275,6 +275,12 @@ export function RegisterPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
+  
+  const { data: platformSettings } = useQuery({
+    queryKey: ["/api/platform-settings"],
+  });
+  
+  const trialDays = (platformSettings as any)?.trial_days ? parseInt((platformSettings as any).trial_days) : 14;
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -320,7 +326,7 @@ export function RegisterPage() {
   };
 
   return (
-    <AuthLayout title="Create your account" subtitle="Start your 14-day free trial">
+    <AuthLayout title="Create your account" subtitle={`Start your ${trialDays}-day free trial`}>
       <div className="space-y-4">
         <Button 
           variant="outline" 

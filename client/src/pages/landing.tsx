@@ -1071,6 +1071,11 @@ function FeaturesPreview() {
 }
 
 function PricingPreview() {
+  const { data: platformSettings } = useQuery({
+    queryKey: ["/api/platform-settings"],
+  });
+  
+  const trialDays = (platformSettings as any)?.trial_days ? parseInt((platformSettings as any).trial_days) : 14;
   const allPlanKeys = ["free", "starter", "pro", "enterprise", "custom"] as const;
 
   const getPrice = (plan: typeof subscriptionPlans[keyof typeof subscriptionPlans]) => {
@@ -1096,7 +1101,7 @@ function PricingPreview() {
             Simple, Transparent Pricing
           </h2>
           <p className="text-muted-foreground max-w-2xl">
-            Choose the plan that fits your business. All plans include a 14-day free trial.
+            Choose the plan that fits your business. All plans include a {trialDays}-day free trial.
           </p>
         </div>
 

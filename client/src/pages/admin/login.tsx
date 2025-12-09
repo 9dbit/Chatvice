@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Shield, Lock } from "lucide-react";
+import logoUrl from "@assets/logo.png";
 
 export default function AdminLogin() {
   const [, setLocation] = useLocation();
@@ -42,10 +43,13 @@ export default function AdminLogin() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto w-12 h-12 bg-primary rounded-lg flex items-center justify-center mb-4">
-            <Shield className="w-6 h-6 text-primary-foreground" />
+          <div className="mx-auto mb-4">
+            <img src={logoUrl} alt="Chatvice" className="h-12 mx-auto" />
           </div>
-          <CardTitle className="text-2xl">Admin Portal</CardTitle>
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Shield className="w-5 h-5 text-primary" />
+            <CardTitle className="text-2xl">Admin Portal</CardTitle>
+          </div>
           <CardDescription>
             Sign in to access the master control panel
           </CardDescription>
