@@ -3112,9 +3112,14 @@ Be helpful, friendly, and concise. If asked about something not related to Chatv
         });
       }
       
-      const chatviceGuide = `
-You are Chatvice Guide, helping potential customers learn about the Chatvice platform:
-
+      // Fetch guide settings from platform settings
+      const guideSystemPrompt = await storage.getPlatformSetting("guide_system_prompt");
+      const guideKnowledgeContent = await storage.getPlatformSetting("guide_knowledge_content");
+      const guideTemperature = await storage.getPlatformSetting("guide_temperature");
+      const guideName = await storage.getPlatformSetting("guide_name") || "Chatvice Guide";
+      
+      // Default knowledge if none configured
+      const defaultKnowledge = `
 WHAT IS CHATVICE?
 Chatvice is an AI-powered customer service chatbot platform that helps businesses automate customer support while maintaining high-quality service through smart AI-to-human handoff mechanisms.
 
@@ -3142,20 +3147,26 @@ GETTING STARTED:
 
 All plans include a 7-day free trial. No credit card required.
 `;
+
+      const knowledgeContext = guideKnowledgeContent || defaultKnowledge;
+      const systemPromptBase = guideSystemPrompt || `You are ${guideName}, helping potential customers learn about the Chatvice platform. You are friendly, helpful, and enthusiastic about Chatvice. Help potential customers understand how Chatvice can help their business. Be concise and focused on value.`;
+      const temperature = guideTemperature ? parseFloat(guideTemperature) : 0.7;
+      
+      const fullSystemPrompt = `${systemPromptBase}
+
+KNOWLEDGE BASE:
+${knowledgeContext}
+
+Use the knowledge base above to answer questions. If you don't have specific information, be honest about it.`;
       
       const response = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
         messages: [
-          {
-            role: "system",
-            content: `${chatviceGuide}
-
-You are friendly, helpful, and enthusiastic about Chatvice. Help potential customers understand how Chatvice can help their business. Be concise and focused on value.`
-          },
+          { role: "system", content: fullSystemPrompt },
           { role: "user", content: question }
         ],
         max_tokens: 300,
-        temperature: 0.7,
+        temperature,
       });
       
       res.json({ answer: response.choices[0].message.content || "I'm here to help you learn about Chatvice! What would you like to know?" });
@@ -3169,9 +3180,14 @@ You are friendly, helpful, and enthusiastic about Chatvice. Help potential custo
     try {
       const { question } = req.body;
       
-      const dashboardGuide = `
-You are Chatvice Guide, helping merchants use the Chatvice dashboard. Here's what you know about the platform:
-
+      // Fetch guide settings from platform settings
+      const guideSystemPrompt = await storage.getPlatformSetting("guide_system_prompt");
+      const guideKnowledgeContent = await storage.getPlatformSetting("guide_knowledge_content");
+      const guideTemperature = await storage.getPlatformSetting("guide_temperature");
+      const guideName = await storage.getPlatformSetting("guide_name") || "Chatvice Guide";
+      
+      // Default dashboard knowledge if none configured
+      const defaultDashboardKnowledge = `
 DASHBOARD SECTIONS:
 1. Overview - Real-time analytics showing active sessions, message counts, AI resolution rate, and daily trends
 2. Agents - Manage AI agents (plan limits: Free/Starter: 1, Pro: 3, Enterprise: 10, Custom: unlimited)
@@ -3206,20 +3222,26 @@ TIPS:
 - Review analytics to identify common questions and improve responses
 - Test your widget before going live
 `;
+
+      const knowledgeContext = guideKnowledgeContent || defaultDashboardKnowledge;
+      const systemPromptBase = guideSystemPrompt || `You are ${guideName}, helping merchants use the Chatvice dashboard. You are friendly, helpful, and concise. Guide merchants on how to use Chatvice dashboard features.`;
+      const temperature = guideTemperature ? parseFloat(guideTemperature) : 0.7;
+      
+      const fullSystemPrompt = `${systemPromptBase}
+
+KNOWLEDGE BASE:
+${knowledgeContext}
+
+Use the knowledge base above to answer questions. If they ask about something unrelated, gently redirect them to dashboard features.`;
       
       const response = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
         messages: [
-          {
-            role: "system",
-            content: `${dashboardGuide}
-
-You are friendly, helpful, and concise. Guide merchants on how to use Chatvice dashboard features. If they ask about something unrelated, gently redirect them to dashboard features.`
-          },
+          { role: "system", content: fullSystemPrompt },
           { role: "user", content: question }
         ],
         max_tokens: 400,
-        temperature: 0.7,
+        temperature,
       });
       
       res.json({ answer: response.choices[0].message.content || "I'm here to help you with the Chatvice dashboard! What would you like to know?" });
