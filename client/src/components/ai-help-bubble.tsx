@@ -17,6 +17,9 @@ interface PlatformSettings {
   guide_widget_color?: string;
   guide_bubble_enabled?: string;
   guide_bubble_text?: string;
+  guide_button_icon_url?: string;
+  guide_button_icon_width?: string;
+  guide_button_icon_height?: string;
 }
 
 interface Message {
@@ -104,6 +107,9 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
   const widgetColor = platformSettings?.guide_widget_color || "#7c3aed";
   const bubbleEnabled = hasSettings ? platformSettings?.guide_bubble_enabled !== "false" : true;
   const bubbleText = platformSettings?.guide_bubble_text || "Need help?";
+  const buttonIconUrl = platformSettings?.guide_button_icon_url || "";
+  const buttonIconWidth = parseInt(platformSettings?.guide_button_icon_width || "0") || 0;
+  const buttonIconHeight = parseInt(platformSettings?.guide_button_icon_height || "0") || 0;
   
   // Determine if widget should be shown - always show with defaults if API fails
   const shouldShow = settingsReady && isEnabled && (publicMode ? showOnLanding : showOnDashboard);
@@ -361,17 +367,38 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
             </div>
           )}
           
-          <button
-            onClick={() => setIsOpen(true)}
-            className="shadow-lg rounded-full w-14 h-14 flex items-center justify-center text-white relative z-10 transition-transform hover:scale-105"
-            style={{ backgroundColor: widgetColor }}
-            data-testid="button-ai-help"
-          >
-            <Bot className="w-7 h-7" />
-            <span
-              className="absolute bottom-1 right-1 w-3 h-3 rounded-full border-2 border-white bg-green-500"
-            />
-          </button>
+          {buttonIconUrl && buttonIconWidth > 0 && buttonIconHeight > 0 ? (
+            <button
+              onClick={() => setIsOpen(true)}
+              className="shadow-lg flex items-center justify-center relative z-10 transition-transform hover:scale-105"
+              style={{ 
+                width: buttonIconWidth,
+                height: buttonIconHeight,
+              }}
+              data-testid="button-ai-help"
+            >
+              <img 
+                src={buttonIconUrl} 
+                alt={guideName}
+                className="w-full h-full object-contain"
+              />
+              <span
+                className="absolute bottom-1 right-1 w-3 h-3 rounded-full border-2 border-white bg-green-500"
+              />
+            </button>
+          ) : (
+            <button
+              onClick={() => setIsOpen(true)}
+              className="shadow-lg rounded-full w-14 h-14 flex items-center justify-center text-white relative z-10 transition-transform hover:scale-105"
+              style={{ backgroundColor: widgetColor }}
+              data-testid="button-ai-help"
+            >
+              <Bot className="w-7 h-7" />
+              <span
+                className="absolute bottom-1 right-1 w-3 h-3 rounded-full border-2 border-white bg-green-500"
+              />
+            </button>
+          )}
         </div>
       </div>
     );

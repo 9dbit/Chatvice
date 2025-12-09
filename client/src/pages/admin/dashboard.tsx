@@ -2041,6 +2041,9 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
     widgetColor: "#7c3aed",
     bubbleEnabled: true,
     bubbleText: "Need help?",
+    buttonIconUrl: "",
+    buttonIconWidth: 0,
+    buttonIconHeight: 0,
   });
 
   const [knowledgeContent, setKnowledgeContent] = useState("");
@@ -2074,6 +2077,9 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
           widgetColor: settings.guide_widget_color || prev.widgetColor,
           bubbleEnabled: settings.guide_bubble_enabled !== "false",
           bubbleText: settings.guide_bubble_text || prev.bubbleText,
+          buttonIconUrl: settings.guide_button_icon_url || "",
+          buttonIconWidth: parseInt(settings.guide_button_icon_width || "0") || 0,
+          buttonIconHeight: parseInt(settings.guide_button_icon_height || "0") || 0,
         }));
       }
       if (settings.guide_knowledge_content) {
@@ -2104,6 +2110,9 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
           guide_widget_color: guideSettings.widgetColor,
           guide_bubble_enabled: String(guideSettings.bubbleEnabled),
           guide_bubble_text: guideSettings.bubbleText,
+          guide_button_icon_url: guideSettings.buttonIconUrl,
+          guide_button_icon_width: String(guideSettings.buttonIconWidth),
+          guide_button_icon_height: String(guideSettings.buttonIconHeight),
           guide_knowledge_content: knowledgeContent,
           guide_promo_image_enabled: String(promoImageEnabled),
           guide_promo_image_url: promoImageUrl,
@@ -2289,6 +2298,121 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
                   onChange={(e) => setGuideSettings(prev => ({ ...prev, widgetColor: e.target.value }))}
                   className="flex-1"
                 />
+              </div>
+            </div>
+          </div>
+
+          <div className="p-3 border rounded-lg space-y-3">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                <p className="font-medium text-sm">Custom Button Icon</p>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">Upload a custom icon for the widget button. Button size will match the image dimensions (no masking/cropping).</p>
+              
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="button-icon-url" className="text-xs">Image URL or Upload</Label>
+                  <div className="flex gap-2 mt-1">
+                    <Input 
+                      id="button-icon-url"
+                      value={guideSettings.buttonIconUrl}
+                      onChange={(e) => {
+                        const url = e.target.value;
+                        setGuideSettings(prev => ({ ...prev, buttonIconUrl: url, buttonIconWidth: 0, buttonIconHeight: 0 }));
+                        if (url) {
+                          const img = new (window as any).Image();
+                          img.onload = () => {
+                            setGuideSettings(prev => ({ ...prev, buttonIconWidth: img.width, buttonIconHeight: img.height }));
+                          };
+                          img.src = url;
+                        }
+                      }}
+                      placeholder="https://example.com/icon.png or upload below"
+                      className="flex-1"
+                      data-testid="input-guide-button-icon-url"
+                    />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      id="button-icon-upload"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const formData = new FormData();
+                          formData.append("file", file);
+                          try {
+                            const response = await fetch("/api/upload", {
+                              method: "POST",
+                              body: formData,
+                            });
+                            if (response.ok) {
+                              const data = await response.json();
+                              const url = data.url;
+                              const img = new (window as any).Image();
+                              img.onload = () => {
+                                setGuideSettings(prev => ({ 
+                                  ...prev, 
+                                  buttonIconUrl: url,
+                                  buttonIconWidth: img.width, 
+                                  buttonIconHeight: img.height 
+                                }));
+                              };
+                              img.src = url;
+                            }
+                          } catch (err) {
+                            toast({
+                              title: "Upload Failed",
+                              description: "Failed to upload icon image",
+                              variant: "destructive",
+                            });
+                          }
+                        }
+                      }}
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => document.getElementById('button-icon-upload')?.click()}
+                      data-testid="button-upload-icon"
+                    >
+                      <Upload className="w-4 h-4 mr-1" />
+                      Upload
+                    </Button>
+                  </div>
+                </div>
+
+                {guideSettings.buttonIconUrl && (
+                  <div className="flex items-start gap-4 p-3 bg-muted/30 rounded-lg">
+                    <div className="flex-shrink-0">
+                      <p className="text-xs text-muted-foreground mb-2">Preview:</p>
+                      <img 
+                        src={guideSettings.buttonIconUrl} 
+                        alt="Button icon preview" 
+                        className="max-w-[100px] max-h-[100px] object-contain rounded"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <div className="text-xs text-muted-foreground">
+                        Detected size: {guideSettings.buttonIconWidth} x {guideSettings.buttonIconHeight}px
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setGuideSettings(prev => ({ ...prev, buttonIconUrl: "", buttonIconWidth: 0, buttonIconHeight: 0 }))}
+                        className="text-destructive hover:text-destructive"
+                        data-testid="button-remove-icon"
+                      >
+                        <Trash className="w-3 h-3 mr-1" />
+                        Remove Icon
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
