@@ -3372,6 +3372,68 @@ Use the knowledge base above to answer questions. If they ask about something un
     }
   });
 
+  // Admin preview endpoint for Chatvice Guide - uses saved knowledge base settings
+  app.post("/api/chatvice-guide/chat", requireAdmin, async (req, res) => {
+    try {
+      const { message, context } = req.body;
+      
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ error: "Message is required" });
+      }
+      
+      // Fetch guide settings from platform settings
+      const guideSystemPrompt = await storage.getPlatformSetting("guide_system_prompt");
+      const guideKnowledgeContent = await storage.getPlatformSetting("guide_knowledge_content");
+      const guideTemperature = await storage.getPlatformSetting("guide_temperature");
+      const guideName = await storage.getPlatformSetting("guide_name") || "Chatvice Guide";
+      
+      // Default knowledge if none configured
+      const defaultKnowledge = `
+WHAT IS CHATVICE?
+Chatvice is an AI-powered customer service chatbot platform that helps businesses automate customer support while maintaining high-quality service through smart AI-to-human handoff mechanisms.
+
+KEY FEATURES:
+1. AI-Powered Chatbot - Automates customer responses using a customizable knowledge base
+2. Human Escalation - Automatically escalates to human supervisors when needed
+3. Multi-Language Support - Responds in the customer's language
+4. Customizable Widget - Embeddable chat widget for your website
+5. Analytics Dashboard - Track performance, popular topics, and resolution rates
+6. Knowledge Base Management - Train your AI with your business information
+`;
+      
+      const knowledgeBase = guideKnowledgeContent || defaultKnowledge;
+      const temperature = guideTemperature ? parseFloat(guideTemperature) : 0.7;
+      
+      const systemPromptBase = guideSystemPrompt || `You are ${guideName}, a helpful AI assistant for Chatvice platform. You help users learn about Chatvice features and answer questions.`;
+      
+      const fullSystemPrompt = `${systemPromptBase}
+
+KNOWLEDGE BASE:
+${knowledgeBase}
+
+Use the knowledge base above to answer questions. Be helpful, friendly, and concise.`;
+      
+      const response = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: [
+          { role: "system", content: fullSystemPrompt },
+          { role: "user", content: message }
+        ],
+        max_tokens: 500,
+        temperature,
+      });
+      
+      res.json({ 
+        response: response.choices[0].message.content || "I'm here to help! What would you like to know about Chatvice?" 
+      });
+    } catch (error) {
+      console.error("Chatvice guide chat error:", error);
+      res.json({ 
+        response: "I apologize, but I'm having trouble responding right now. Please try again later." 
+      });
+    }
+  });
+
   app.get("/api/agents", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
