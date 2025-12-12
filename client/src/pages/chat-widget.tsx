@@ -54,6 +54,9 @@ interface PendingMessage {
 const generateClientId = () => `client_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
 export default function ChatWidget({ merchantId, sessionId: initialSessionId, embedded = false, previewMode = false }: ChatWidgetProps) {
+  const urlParams = new URLSearchParams(window.location.search);
+  const showCloseButton = urlParams.get("showClose") === "true";
+  
   const [isOpen, setIsOpen] = useState(embedded);
   const [sessionId] = useState(() => initialSessionId || `sess_${Math.random().toString(36).substring(2, 12)}`);
   const [message, setMessage] = useState("");
@@ -577,7 +580,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
   const positionClass = previewMode ? "absolute" : "fixed";
   
-  if (!embedded && !isOpen) {
+  const FloatingButton = () => {
+    if (embedded || isOpen) return null;
+    
     if (isWidgetHidden) {
       return (
         <button
@@ -712,6 +717,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         </div>
       </div>
     );
+  };
+  
+  if (!embedded && !isOpen) {
+    return <FloatingButton />;
   }
 
   const ProductCarousel = ({ cards }: { cards: ProductCardWithButtons[] }) => {
@@ -887,13 +896,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             </div>
           </div>
         </div>
-        {!embedded && (
+        {(!embedded || showCloseButton) && (
           <div className="flex gap-1">
             <Button
               size="icon"
               variant="ghost"
               className="text-white hover:bg-white/20"
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                if (embedded && showCloseButton) {
+                  window.parent.postMessage({ type: "chatvice-close" }, "*");
+                } else {
+                  setIsOpen(false);
+                }
+              }}
               data-testid="button-minimize-widget"
             >
               <Minimize2 className="w-4 h-4" />
@@ -902,7 +917,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               size="icon"
               variant="ghost"
               className="text-white hover:bg-white/20"
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                if (embedded && showCloseButton) {
+                  window.parent.postMessage({ type: "chatvice-close" }, "*");
+                } else {
+                  setIsOpen(false);
+                }
+              }}
               data-testid="button-close-widget"
             >
               <X className="w-4 h-4" />

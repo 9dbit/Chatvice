@@ -3141,35 +3141,67 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.get("/api/widget/chatvice.js", async (req, res) => {
     const merchantId = req.query.merchant || "demo";
+    const baseUrl = process.env.REPL_SLUG 
+      ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
+      : (req.headers.origin || `https://${req.headers.host}`);
     const script = `
 (function() {
   var merchantId = "${merchantId}";
   var sessionId = "sess_" + Math.random().toString(36).substring(2, 12);
+  var baseUrl = "${baseUrl}";
   
   var iframe = document.createElement("iframe");
-  iframe.src = "${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : ""}/widget/" + merchantId + "?session=" + sessionId;
-  iframe.style.cssText = "position:fixed;bottom:20px;right:20px;width:380px;height:550px;border:none;z-index:99999;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,0.15);";
+  iframe.src = baseUrl + "/widget/" + merchantId + "?session=" + sessionId + "&showClose=true";
+  iframe.style.cssText = "position:fixed;bottom:20px;right:20px;width:380px;height:550px;border:none;z-index:99999;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,0.15);display:none;";
   iframe.id = "chatvice-widget-frame";
+  iframe.allow = "microphone; camera";
   
   var button = document.createElement("div");
   button.id = "chatvice-widget-button";
-  button.style.cssText = "position:fixed;bottom:20px;right:20px;width:60px;height:60px;border-radius:50%;background:#6b5dfc;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:99999;box-shadow:0 4px 15px rgba(107,93,252,0.4);";
+  button.style.cssText = "position:fixed;bottom:20px;right:20px;width:60px;height:60px;border-radius:50%;background:#6b5dfc;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:99999;box-shadow:0 4px 15px rgba(107,93,252,0.4);transition:transform 0.2s ease;";
   button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
+  button.onmouseover = function() { button.style.transform = "scale(1.05)"; };
+  button.onmouseout = function() { button.style.transform = "scale(1)"; };
   
   var isOpen = false;
   
+  function openWidget() {
+    iframe.style.display = "block";
+    button.style.display = "none";
+    isOpen = true;
+  }
+  
+  function closeWidget() {
+    iframe.style.display = "none";
+    button.style.display = "flex";
+    isOpen = false;
+  }
+  
   button.onclick = function() {
     if (isOpen) {
-      document.body.removeChild(iframe);
-      button.style.display = "flex";
+      closeWidget();
     } else {
-      document.body.appendChild(iframe);
-      button.style.display = "none";
+      openWidget();
     }
-    isOpen = !isOpen;
   };
   
+  window.addEventListener("message", function(event) {
+    if (event.source !== iframe.contentWindow) return;
+    if (event.data && event.data.type === "chatvice-close") {
+      closeWidget();
+    }
+    if (event.data && event.data.type === "chatvice-open") {
+      openWidget();
+    }
+  });
+  
+  document.body.appendChild(iframe);
   document.body.appendChild(button);
+  
+  window.chatvice = window.chatvice || {};
+  window.chatvice.open = openWidget;
+  window.chatvice.close = closeWidget;
+  window.chatvice.toggle = function() { isOpen ? closeWidget() : openWidget(); };
 })();
 `;
     res.type("application/javascript").send(script);
