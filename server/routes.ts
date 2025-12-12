@@ -3149,6 +3149,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   var merchantId = "${merchantId}";
   var sessionId = "sess_" + Math.random().toString(36).substring(2, 12);
   var baseUrl = "${baseUrl}";
+  var isOpen = false;
+  
+  // Cleanup existing widget for same merchant (allows re-initialization)
+  var existingIframe = document.getElementById("chatvice-widget-frame");
+  var existingButton = document.getElementById("chatvice-widget-button");
+  if (existingIframe) existingIframe.remove();
+  if (existingButton) existingButton.remove();
   
   var iframe = document.createElement("iframe");
   iframe.src = baseUrl + "/widget/" + merchantId + "?session=" + sessionId + "&showClose=true";
@@ -3163,8 +3170,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   button.onmouseover = function() { button.style.transform = "scale(1.05)"; };
   button.onmouseout = function() { button.style.transform = "scale(1)"; };
   
-  var isOpen = false;
-  
   function openWidget() {
     iframe.style.display = "block";
     button.style.display = "none";
@@ -3178,19 +3183,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   }
   
   button.onclick = function() {
-    if (isOpen) {
-      closeWidget();
-    } else {
-      openWidget();
-    }
+    openWidget();
   };
   
+  // Listen for messages from iframe (close button clicked inside widget)
   window.addEventListener("message", function(event) {
+    // Validate message source is from our iframe
     if (event.source !== iframe.contentWindow) return;
-    if (event.data && event.data.type === "chatvice-close") {
+    if (!event.data || typeof event.data !== "object") return;
+    
+    if (event.data.type === "chatvice-close") {
       closeWidget();
-    }
-    if (event.data && event.data.type === "chatvice-open") {
+    } else if (event.data.type === "chatvice-open") {
       openWidget();
     }
   });
@@ -3198,10 +3202,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   document.body.appendChild(iframe);
   document.body.appendChild(button);
   
-  window.chatvice = window.chatvice || {};
-  window.chatvice.open = openWidget;
-  window.chatvice.close = closeWidget;
-  window.chatvice.toggle = function() { isOpen ? closeWidget() : openWidget(); };
+  // Expose public API
+  window.chatvice = {
+    open: openWidget,
+    close: closeWidget,
+    toggle: function() { isOpen ? closeWidget() : openWidget(); },
+    isOpen: function() { return isOpen; }
+  };
 })();
 `;
     res.type("application/javascript").send(script);

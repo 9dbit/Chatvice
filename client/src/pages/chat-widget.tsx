@@ -298,6 +298,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     }
   }, [isOpen, merchantConfig, serverMessages, pendingMessages.length]);
 
+  // Notify parent frame that widget is ready for communication
+  useEffect(() => {
+    if (embedded && showCloseButton && window.parent !== window) {
+      window.parent.postMessage({ type: "chatvice-ready" }, "*");
+    }
+  }, [embedded, showCloseButton]);
+
   const handleSend = () => {
     if (!message.trim()) return;
     const userMessage = message.trim();
