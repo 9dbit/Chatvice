@@ -50,6 +50,13 @@ export const merchants = pgTable("merchants", {
   customSuggestedQuestionsLimit: integer("custom_suggested_questions_limit"),
   customMonthlyPrice: integer("custom_monthly_price"),
   customAnnualPrice: integer("custom_annual_price"),
+  // Additional merchant profile fields
+  websiteUrl: text("website_url").default(""),
+  picName: text("pic_name").default(""), // Person in Charge
+  phone: text("phone").default(""),
+  country: text("country").default(""),
+  city: text("city").default(""),
+  region: text("region").default(""),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -224,6 +231,12 @@ export const registerMerchantSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   companyName: z.string().min(2),
+  websiteUrl: z.string().optional(),
+  picName: z.string().optional(),
+  phone: z.string().optional(),
+  country: z.string().optional(),
+  city: z.string().optional(),
+  region: z.string().optional(),
 });
 export type RegisterMerchantRequest = z.infer<typeof registerMerchantSchema>;
 

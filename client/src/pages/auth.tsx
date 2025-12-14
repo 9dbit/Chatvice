@@ -23,6 +23,12 @@ const registerSchema = z.object({
   email: z.string().email("Please enter a valid email"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   companyName: z.string().min(2, "Company name must be at least 2 characters"),
+  websiteUrl: z.string().optional(),
+  picName: z.string().optional(),
+  phone: z.string().optional(),
+  country: z.string().optional(),
+  city: z.string().optional(),
+  region: z.string().optional(),
 });
 
 const forgotPasswordSchema = z.object({
@@ -288,6 +294,12 @@ export function RegisterPage() {
       email: "",
       password: "",
       companyName: "",
+      websiteUrl: "",
+      picName: "",
+      phone: "",
+      country: "",
+      city: "",
+      region: "",
     },
   });
 
@@ -424,6 +436,117 @@ export function RegisterPage() {
                 </FormItem>
               )}
             />
+            
+            <div className="pt-4 border-t border-zinc-800">
+              <p className="text-xs text-zinc-500 mb-3">Additional Information (Optional)</p>
+              <div className="grid grid-cols-2 gap-3">
+                <FormField
+                  control={form.control}
+                  name="picName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-zinc-300 text-xs">Contact Person</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Your name"
+                          className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-10 text-sm"
+                          data-testid="input-register-pic"
+                          {...field}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-zinc-300 text-xs">Phone</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="+62..."
+                          className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-10 text-sm"
+                          data-testid="input-register-phone"
+                          {...field}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormField
+                control={form.control}
+                name="websiteUrl"
+                render={({ field }) => (
+                  <FormItem className="mt-3">
+                    <FormLabel className="text-zinc-300 text-xs">Website URL</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="https://yourcompany.com"
+                        className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-10 text-sm"
+                        data-testid="input-register-website"
+                        {...field}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <div className="grid grid-cols-3 gap-3 mt-3">
+                <FormField
+                  control={form.control}
+                  name="city"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-zinc-300 text-xs">City</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Jakarta"
+                          className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-10 text-sm"
+                          data-testid="input-register-city"
+                          {...field}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="region"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-zinc-300 text-xs">Region</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="DKI"
+                          className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-10 text-sm"
+                          data-testid="input-register-region"
+                          {...field}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="country"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-zinc-300 text-xs">Country</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Indonesia"
+                          className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-10 text-sm"
+                          data-testid="input-register-country"
+                          {...field}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+            
             <Button
               type="submit"
               className="w-full h-11"

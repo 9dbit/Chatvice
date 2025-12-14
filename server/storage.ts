@@ -234,6 +234,16 @@ export class DatabaseStorage implements IStorage {
       online: data.online ?? true,
       primaryColor: data.primaryColor || "#6b5dfc",
       welcomeMessage: data.welcomeMessage || "Hi! How can I help you today?",
+      websiteUrl: data.websiteUrl || "",
+      picName: data.picName || "",
+      phone: data.phone || "",
+      country: data.country || "",
+      city: data.city || "",
+      region: data.region || "",
+      trialEndsAt: data.trialEndsAt,
+      subscriptionStatus: data.subscriptionStatus || "trial",
+      subscriptionPlanId: data.subscriptionPlanId || "starter",
+      conversationsUsed: data.conversationsUsed || 0,
     }).returning();
     return result[0];
   }

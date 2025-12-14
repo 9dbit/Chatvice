@@ -141,6 +141,12 @@ interface MerchantWithPlan {
   createdAt: string;
   trialEndsAt: string | null;
   currentPeriodEnd: string | null;
+  websiteUrl?: string;
+  picName?: string;
+  phone?: string;
+  country?: string;
+  city?: string;
+  region?: string;
   plan: {
     name: string;
     conversationsLimit: number;
@@ -885,8 +891,15 @@ function MerchantsTab({
       return;
     }
     const columns = [
+      { key: "id", label: "Merchant ID" },
       { key: "companyName", label: "Company Name" },
       { key: "email", label: "Email" },
+      { key: "websiteUrl", label: "Website URL" },
+      { key: "picName", label: "PIC Name" },
+      { key: "phone", label: "Phone" },
+      { key: "country", label: "Country" },
+      { key: "city", label: "City" },
+      { key: "region", label: "Region" },
       { key: "subscriptionPlanId", label: "Plan" },
       { key: "subscriptionStatus", label: "Status" },
       { key: "conversationsUsed", label: "Conversations Used" },
@@ -1069,7 +1082,11 @@ function MerchantsTab({
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="min-w-[80px]">ID</TableHead>
                     <TableHead className="min-w-[150px]">Company</TableHead>
+                    <TableHead className="hidden lg:table-cell">PIC</TableHead>
+                    <TableHead className="hidden xl:table-cell">Phone</TableHead>
+                    <TableHead className="hidden xl:table-cell">Location</TableHead>
                     <TableHead>Plan</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="hidden md:table-cell">Expiry</TableHead>
@@ -1084,9 +1101,33 @@ function MerchantsTab({
                     return (
                       <TableRow key={merchant.id} data-testid={`row-merchant-${merchant.id}`}>
                         <TableCell>
+                          <p className="text-xs font-mono text-muted-foreground">{merchant.id.substring(0, 8)}...</p>
+                        </TableCell>
+                        <TableCell>
                           <div>
                             <p className="font-medium text-sm">{merchant.companyName || 'Unnamed'}</p>
                             <p className="text-xs text-muted-foreground truncate max-w-[120px] md:max-w-none">{merchant.email}</p>
+                            {merchant.websiteUrl && (
+                              <a href={merchant.websiteUrl.startsWith('http') ? merchant.websiteUrl : `https://${merchant.websiteUrl}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate block max-w-[120px] md:max-w-none">
+                                {merchant.websiteUrl}
+                              </a>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          <p className="text-sm">{merchant.picName || '-'}</p>
+                        </TableCell>
+                        <TableCell className="hidden xl:table-cell">
+                          <p className="text-sm">{merchant.phone || '-'}</p>
+                        </TableCell>
+                        <TableCell className="hidden xl:table-cell">
+                          <div className="text-sm">
+                            {merchant.city || merchant.region || merchant.country ? (
+                              <>
+                                <p>{[merchant.city, merchant.region].filter(Boolean).join(', ')}</p>
+                                <p className="text-xs text-muted-foreground">{merchant.country}</p>
+                              </>
+                            ) : '-'}
                           </div>
                         </TableCell>
                         <TableCell>{getPlanBadge(merchant.subscriptionPlanId)}</TableCell>
@@ -1135,7 +1176,7 @@ function MerchantsTab({
                   })}
                   {(!merchants || merchants.length === 0) && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
                         No merchants registered yet
                       </TableCell>
                     </TableRow>
