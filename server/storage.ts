@@ -29,8 +29,11 @@ import {
   type ProductRecommendationSetting, type InsertProductRecommendationSetting,
   type ProductTrigger, type InsertProductTrigger,
   type SupervisorInvitation, type InsertSupervisorInvitation,
+  type EmailVerificationToken, type InsertEmailVerificationToken,
+  type PasswordResetToken, type InsertPasswordResetToken,
   merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings,
   workShifts, shiftAssignments, workReports, quickReplies, chatButtons, productCards, productCardButtons, welcomeBubbles, notificationSettings, productRecommendationSettings, productTriggers, supervisorInvitations,
+  emailVerificationTokens, passwordResetTokens,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -205,6 +208,16 @@ export interface IStorage {
   setPlatformSetting(key: string, value: string): Promise<void>;
   getAllPlatformSettings(): Promise<Record<string, string>>;
   recalculateTrialExpiryForActiveMerchants(trialDays: number): Promise<number>;
+  
+  // Email Verification Tokens
+  createEmailVerificationToken(data: InsertEmailVerificationToken): Promise<EmailVerificationToken>;
+  getEmailVerificationTokenByToken(token: string): Promise<EmailVerificationToken | undefined>;
+  markEmailVerificationTokenUsed(id: string): Promise<void>;
+  
+  // Password Reset Tokens
+  createPasswordResetToken(data: InsertPasswordResetToken): Promise<PasswordResetToken>;
+  getPasswordResetTokenByToken(token: string): Promise<PasswordResetToken | undefined>;
+  markPasswordResetTokenUsed(id: string): Promise<void>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -1463,6 +1476,44 @@ export class DatabaseStorage implements IStorage {
   async deleteSupervisorInvitation(id: string): Promise<boolean> {
     const result = await db.delete(supervisorInvitations).where(eq(supervisorInvitations.id, id));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  // Email Verification Tokens
+  async createEmailVerificationToken(data: InsertEmailVerificationToken): Promise<EmailVerificationToken> {
+    const id = generateId("evt_");
+    const result = await db.insert(emailVerificationTokens).values({ ...data, id }).returning();
+    return result[0];
+  }
+
+  async getEmailVerificationTokenByToken(token: string): Promise<EmailVerificationToken | undefined> {
+    const result = await db.select().from(emailVerificationTokens)
+      .where(eq(emailVerificationTokens.token, token));
+    return result[0];
+  }
+
+  async markEmailVerificationTokenUsed(id: string): Promise<void> {
+    await db.update(emailVerificationTokens)
+      .set({ usedAt: new Date() })
+      .where(eq(emailVerificationTokens.id, id));
+  }
+
+  // Password Reset Tokens
+  async createPasswordResetToken(data: InsertPasswordResetToken): Promise<PasswordResetToken> {
+    const id = generateId("prt_");
+    const result = await db.insert(passwordResetTokens).values({ ...data, id }).returning();
+    return result[0];
+  }
+
+  async getPasswordResetTokenByToken(token: string): Promise<PasswordResetToken | undefined> {
+    const result = await db.select().from(passwordResetTokens)
+      .where(eq(passwordResetTokens.token, token));
+    return result[0];
+  }
+
+  async markPasswordResetTokenUsed(id: string): Promise<void> {
+    await db.update(passwordResetTokens)
+      .set({ usedAt: new Date() })
+      .where(eq(passwordResetTokens.id, id));
   }
 }
 

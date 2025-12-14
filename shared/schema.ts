@@ -57,8 +57,39 @@ export const merchants = pgTable("merchants", {
   country: text("country").default(""),
   city: text("city").default(""),
   region: text("region").default(""),
+  // Email verification
+  isEmailVerified: boolean("is_email_verified").default(false),
+  emailVerifiedAt: timestamp("email_verified_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// Email verification tokens for merchant registration
+export const emailVerificationTokens = pgTable("email_verification_tokens", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertEmailVerificationTokenSchema = createInsertSchema(emailVerificationTokens).omit({ id: true, createdAt: true });
+export type InsertEmailVerificationToken = z.infer<typeof insertEmailVerificationTokenSchema>;
+export type EmailVerificationToken = typeof emailVerificationTokens.$inferSelect;
+
+// Password reset tokens
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens).omit({ id: true, createdAt: true });
+export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 
 export const insertMerchantSchema = createInsertSchema(merchants).omit({ id: true });
 export type InsertMerchant = z.infer<typeof insertMerchantSchema>;

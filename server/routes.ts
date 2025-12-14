@@ -20,7 +20,9 @@ import fs from "fs";
 import { processKnowledgeBase, searchKnowledge } from "./embeddings";
 import { extractFAQContent } from "./crawler";
 import { createQRISPayment, checkPaymentStatus, isOnePayConfigured, convertToIDR, formatIDR } from "./onepayClient";
+import { sendVerificationEmail, sendPasswordResetEmail } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant } from "@shared/schema";
+import crypto from "crypto";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -668,13 +670,32 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         subscriptionPlanId: "starter",
         trialEndsAt,
         conversationsUsed: 0,
+        isEmailVerified: false,
       });
       
-      req.session.userId = merchant.id;
-      req.session.userType = "merchant";
-      req.session.merchantId = merchant.id;
+      // Create email verification token (expires in 24 hours)
+      const verificationToken = crypto.randomBytes(32).toString("hex");
+      const tokenExpiresAt = new Date();
+      tokenExpiresAt.setHours(tokenExpiresAt.getHours() + 24);
       
-      res.json({ success: true, merchantId: merchant.id });
+      await storage.createEmailVerificationToken({
+        merchantId: merchant.id,
+        token: verificationToken,
+        expiresAt: tokenExpiresAt,
+      });
+      
+      // Send verification email (non-blocking)
+      sendVerificationEmail(data.email, verificationToken, data.companyName).catch((err) => {
+        console.error("Failed to send verification email:", err);
+      });
+      
+      // Don't log user in yet - they need to verify email first
+      res.json({ 
+        success: true, 
+        merchantId: merchant.id,
+        requiresVerification: true,
+        message: "Account created. Please check your email to verify your account."
+      });
     } catch (error: any) {
       res.status(400).json({ error: error.message || "Invalid request" });
     }
@@ -686,6 +707,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       
       const merchant = await storage.getMerchantByEmail(data.email);
       if (merchant && await verifyPassword(data.password, merchant.password)) {
+        // Check if email is verified
+        if (!merchant.isEmailVerified) {
+          return res.status(403).json({ 
+            error: "Please verify your email address before logging in.",
+            requiresVerification: true,
+            email: merchant.email
+          });
+        }
         req.session.userId = merchant.id;
         req.session.userType = "merchant";
         req.session.merchantId = merchant.id;
@@ -703,6 +732,88 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.status(401).json({ error: "Invalid credentials" });
     } catch (error: any) {
       res.status(400).json({ error: error.message || "Invalid request" });
+    }
+  });
+
+  // Email verification endpoint
+  app.get("/api/auth/verify-email", async (req, res) => {
+    try {
+      const token = req.query.token as string;
+      if (!token) {
+        return res.status(400).json({ error: "Verification token is required" });
+      }
+
+      const tokenRecord = await storage.getEmailVerificationTokenByToken(token);
+      if (!tokenRecord) {
+        return res.status(400).json({ error: "Invalid verification token" });
+      }
+
+      if (tokenRecord.usedAt) {
+        return res.status(400).json({ error: "This verification link has already been used" });
+      }
+
+      if (new Date() > tokenRecord.expiresAt) {
+        return res.status(400).json({ error: "Verification link has expired. Please request a new one." });
+      }
+
+      // Mark token as used and verify the merchant's email
+      await storage.markEmailVerificationTokenUsed(tokenRecord.id);
+      await storage.updateMerchant(tokenRecord.merchantId, {
+        isEmailVerified: true,
+        emailVerifiedAt: new Date(),
+      });
+
+      // Log the user in after verification
+      const merchant = await storage.getMerchant(tokenRecord.merchantId);
+      if (merchant) {
+        req.session.userId = merchant.id;
+        req.session.userType = "merchant";
+        req.session.merchantId = merchant.id;
+      }
+
+      res.json({ success: true, message: "Email verified successfully" });
+    } catch (error: any) {
+      console.error("Email verification error:", error);
+      res.status(500).json({ error: "Failed to verify email" });
+    }
+  });
+
+  // Resend verification email
+  app.post("/api/auth/resend-verification", async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+
+      const merchant = await storage.getMerchantByEmail(email);
+      if (!merchant) {
+        // Don't reveal if email exists or not
+        return res.json({ success: true, message: "If that email exists, a verification link will be sent." });
+      }
+
+      if (merchant.isEmailVerified) {
+        return res.status(400).json({ error: "Email is already verified" });
+      }
+
+      // Create new verification token
+      const verificationToken = crypto.randomBytes(32).toString("hex");
+      const tokenExpiresAt = new Date();
+      tokenExpiresAt.setHours(tokenExpiresAt.getHours() + 24);
+
+      await storage.createEmailVerificationToken({
+        merchantId: merchant.id,
+        token: verificationToken,
+        expiresAt: tokenExpiresAt,
+      });
+
+      // Send verification email
+      await sendVerificationEmail(email, verificationToken, merchant.companyName);
+
+      res.json({ success: true, message: "Verification email sent" });
+    } catch (error: any) {
+      console.error("Resend verification error:", error);
+      res.status(500).json({ error: "Failed to send verification email" });
     }
   });
 

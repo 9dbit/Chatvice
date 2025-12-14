@@ -1,11 +1,11 @@
-import { useState } from "react";
-import { useLocation } from "wouter";
+import { useState, useEffect } from "react";
+import { useLocation, useSearch } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Bot, Eye, EyeOff } from "lucide-react";
+import { Bot, Eye, EyeOff, Mail, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -103,6 +103,8 @@ export function LoginPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
+  const [requiresVerification, setRequiresVerification] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState("");
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -115,7 +117,11 @@ export function LoginPage() {
   const loginMutation = useMutation({
     mutationFn: async (data: LoginFormData) => {
       const res = await apiRequest("POST", "/api/auth/login", data);
-      return res.json();
+      const responseData = await res.json();
+      if (!res.ok) {
+        throw { ...responseData, status: res.status };
+      }
+      return responseData;
     },
     onSuccess: (data: { success: boolean; merchantId: string; type: string }) => {
       localStorage.setItem("merchantId", data.merchantId);
@@ -131,15 +137,45 @@ export function LoginPage() {
       }
     },
     onError: (error: any) => {
+      if (error.requiresVerification || error.error?.includes("verify your email") || error.message?.includes("verify your email")) {
+        setRequiresVerification(true);
+        setUnverifiedEmail(form.getValues("email"));
+      } else {
+        toast({
+          title: "Login failed",
+          description: error.error || error.message || "Invalid credentials. Please try again.",
+          variant: "destructive",
+        });
+      }
+    },
+  });
+
+  const resendMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const res = await apiRequest("POST", "/api/auth/resend-verification", { email });
+      const responseData = await res.json();
+      if (!res.ok) {
+        throw { ...responseData, status: res.status };
+      }
+      return responseData;
+    },
+    onSuccess: () => {
       toast({
-        title: "Login failed",
-        description: error.message || "Invalid credentials. Please try again.",
+        title: "Verification email sent!",
+        description: "Please check your inbox for the verification link.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to send email",
+        description: error.error || error.message || "Please try again later.",
         variant: "destructive",
       });
     },
   });
 
   const onSubmit = (data: LoginFormData) => {
+    setRequiresVerification(false);
     loginMutation.mutate(data);
   };
 
@@ -149,6 +185,61 @@ export function LoginPage() {
       description: `${provider} login will be available soon.`,
     });
   };
+
+  if (requiresVerification) {
+    return (
+      <AuthLayout title="Email Verification Required" subtitle="Please verify your email to continue">
+        <div className="space-y-6">
+          <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+            <div className="flex items-start gap-3">
+              <Mail className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-white text-sm font-medium">Verification required</p>
+                <p className="text-zinc-400 text-sm mt-1">
+                  We sent a verification email to <span className="text-white font-medium">{unverifiedEmail}</span>. 
+                  Please check your inbox and click the verification link.
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="space-y-3">
+            <Button
+              className="w-full h-11"
+              onClick={() => resendMutation.mutate(unverifiedEmail)}
+              disabled={resendMutation.isPending}
+              data-testid="button-resend-verification"
+            >
+              {resendMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                "Resend Verification Email"
+              )}
+            </Button>
+            
+            <Button
+              variant="outline"
+              className="w-full h-11 bg-zinc-900 border-zinc-700 text-white hover:bg-zinc-800"
+              onClick={() => {
+                setRequiresVerification(false);
+                form.reset();
+              }}
+              data-testid="button-back-to-login"
+            >
+              Back to Login
+            </Button>
+          </div>
+          
+          <p className="text-center text-sm text-zinc-500">
+            Didn't receive the email? Check your spam folder or try resending.
+          </p>
+        </div>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout title="Welcome back!" subtitle="Log in to your Chatvice account">
@@ -281,6 +372,8 @@ export function RegisterPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
   
   const { data: platformSettings } = useQuery({
     queryKey: ["/api/platform-settings"],
@@ -306,21 +399,54 @@ export function RegisterPage() {
   const registerMutation = useMutation({
     mutationFn: async (data: RegisterFormData) => {
       const res = await apiRequest("POST", "/api/auth/register", data);
-      return res.json();
+      const responseData = await res.json();
+      if (!res.ok) {
+        throw { ...responseData, status: res.status };
+      }
+      return responseData;
     },
-    onSuccess: (data: { success: boolean; merchantId: string }) => {
-      localStorage.setItem("merchantId", data.merchantId);
-      localStorage.setItem("userType", "merchant");
-      toast({
-        title: "Account created!",
-        description: "Welcome to Chatvice. Let's set up your chatbot.",
-      });
-      setLocation("/dashboard");
+    onSuccess: (data: { success: boolean; merchantId: string; requiresVerification?: boolean }) => {
+      if (data.requiresVerification) {
+        setRegistrationSuccess(true);
+        setRegisteredEmail(form.getValues("email"));
+      } else {
+        localStorage.setItem("merchantId", data.merchantId);
+        localStorage.setItem("userType", "merchant");
+        toast({
+          title: "Account created!",
+          description: "Welcome to Chatvice. Let's set up your chatbot.",
+        });
+        setLocation("/dashboard");
+      }
     },
     onError: (error: any) => {
       toast({
         title: "Registration failed",
-        description: error.message || "Something went wrong. Please try again.",
+        description: error.error || error.message || "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resendMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const res = await apiRequest("POST", "/api/auth/resend-verification", { email });
+      const responseData = await res.json();
+      if (!res.ok) {
+        throw { ...responseData, status: res.status };
+      }
+      return responseData;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Verification email sent!",
+        description: "Please check your inbox for the verification link.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to send email",
+        description: error.error || error.message || "Please try again later.",
         variant: "destructive",
       });
     },
@@ -336,6 +462,59 @@ export function RegisterPage() {
       description: `${provider} signup will be available soon.`,
     });
   };
+
+  if (registrationSuccess) {
+    return (
+      <AuthLayout title="Check Your Email" subtitle="Verify your account to get started">
+        <div className="space-y-6">
+          <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+            <div className="flex items-start gap-3">
+              <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-white text-sm font-medium">Account created successfully!</p>
+                <p className="text-zinc-400 text-sm mt-1">
+                  We sent a verification email to <span className="text-white font-medium">{registeredEmail}</span>. 
+                  Please check your inbox and click the verification link to activate your account.
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="space-y-3">
+            <Button
+              className="w-full h-11"
+              onClick={() => resendMutation.mutate(registeredEmail)}
+              disabled={resendMutation.isPending}
+              data-testid="button-resend-verification-register"
+            >
+              {resendMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                "Resend Verification Email"
+              )}
+            </Button>
+            
+            <Link href="/login">
+              <Button
+                variant="outline"
+                className="w-full h-11 bg-zinc-900 border-zinc-700 text-white hover:bg-zinc-800"
+                data-testid="button-go-to-login"
+              >
+                Go to Login
+              </Button>
+            </Link>
+          </div>
+          
+          <p className="text-center text-sm text-zinc-500">
+            Didn't receive the email? Check your spam folder or try resending.
+          </p>
+        </div>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout title="Create your account" subtitle={`Start your ${trialDays}-day free trial`}>
@@ -665,6 +844,124 @@ export function ForgotPasswordPage() {
           Sign in
         </Link>
       </p>
+    </AuthLayout>
+  );
+}
+
+export function VerifyEmailPage() {
+  const [, setLocation] = useLocation();
+  const searchString = useSearch();
+  const { toast } = useToast();
+  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    const token = params.get("token");
+    
+    if (!token) {
+      setStatus("error");
+      setErrorMessage("Invalid verification link. No token provided.");
+      return;
+    }
+
+    const verifyEmail = async () => {
+      try {
+        const res = await fetch(`/api/auth/verify-email?token=${token}`);
+        const data = await res.json();
+        
+        if (res.ok && data.success) {
+          setStatus("success");
+          if (data.merchantId) {
+            localStorage.setItem("merchantId", data.merchantId);
+            localStorage.setItem("userType", "merchant");
+          }
+          toast({
+            title: "Email verified!",
+            description: "Your account has been verified. Redirecting to dashboard...",
+          });
+          setTimeout(() => {
+            setLocation("/dashboard");
+          }, 2000);
+        } else {
+          setStatus("error");
+          setErrorMessage(data.message || "Verification failed. The link may be expired or invalid.");
+        }
+      } catch (error: any) {
+        setStatus("error");
+        setErrorMessage("An error occurred during verification. Please try again.");
+      }
+    };
+
+    verifyEmail();
+  }, [searchString, setLocation, toast]);
+
+  return (
+    <AuthLayout 
+      title={status === "loading" ? "Verifying Email..." : status === "success" ? "Email Verified!" : "Verification Failed"} 
+      subtitle={status === "loading" ? "Please wait while we verify your email" : status === "success" ? "Your account is now active" : "Something went wrong"}
+    >
+      <div className="space-y-6">
+        {status === "loading" && (
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="w-12 h-12 text-primary animate-spin" />
+            <p className="text-zinc-400 text-sm">Verifying your email address...</p>
+          </div>
+        )}
+        
+        {status === "success" && (
+          <div className="space-y-4">
+            <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+              <div className="flex items-start gap-3">
+                <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-white text-sm font-medium">Email verified successfully!</p>
+                  <p className="text-zinc-400 text-sm mt-1">
+                    Your account is now active. You will be redirected to the dashboard shortly.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <Button
+              className="w-full h-11"
+              onClick={() => setLocation("/dashboard")}
+              data-testid="button-go-dashboard"
+            >
+              Go to Dashboard
+            </Button>
+          </div>
+        )}
+        
+        {status === "error" && (
+          <div className="space-y-4">
+            <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+              <div className="flex items-start gap-3">
+                <XCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-white text-sm font-medium">Verification failed</p>
+                  <p className="text-zinc-400 text-sm mt-1">{errorMessage}</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <Link href="/login">
+                <Button className="w-full h-11" data-testid="button-try-login">
+                  Go to Login
+                </Button>
+              </Link>
+              <Link href="/register">
+                <Button
+                  variant="outline"
+                  className="w-full h-11 bg-zinc-900 border-zinc-700 text-white hover:bg-zinc-800"
+                  data-testid="button-try-register"
+                >
+                  Create New Account
+                </Button>
+              </Link>
+            </div>
+          </div>
+        )}
+      </div>
     </AuthLayout>
   );
 }
