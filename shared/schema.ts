@@ -60,6 +60,9 @@ export const merchants = pgTable("merchants", {
   // Email verification
   isEmailVerified: boolean("is_email_verified").default(false),
   emailVerifiedAt: timestamp("email_verified_at"),
+  // OAuth providers
+  googleId: text("google_id"),
+  githubId: text("github_id"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

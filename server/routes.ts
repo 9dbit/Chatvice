@@ -65,7 +65,17 @@ declare module "express-session" {
     userType: "merchant" | "supervisor" | "admin";
     merchantId: string;
     isAdmin?: boolean;
+    oauthState?: string;
   }
+}
+
+function getBaseUrl(req: Request): string {
+  if (process.env.REPLIT_DEV_DOMAIN) {
+    return `https://${process.env.REPLIT_DEV_DOMAIN}`;
+  }
+  const protocol = req.headers["x-forwarded-proto"] || req.protocol || "http";
+  const host = req.headers["x-forwarded-host"] || req.headers.host || "localhost:5000";
+  return `${protocol}://${host}`;
 }
 
 const openai = new OpenAI({
@@ -836,6 +846,148 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       });
     }
     res.json({ authenticated: false });
+  });
+
+  // Google OAuth - Initiate login flow
+  app.get("/api/auth/google", (req, res) => {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      return res.status(500).json({ error: "Google OAuth not configured" });
+    }
+
+    const redirectUri = `${getBaseUrl(req)}/api/auth/google/callback`;
+    const scope = encodeURIComponent("openid email profile");
+    const state = crypto.randomBytes(16).toString("hex");
+    
+    // Store state in session for CSRF protection
+    req.session.oauthState = state;
+    
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+      `client_id=${clientId}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&response_type=code` +
+      `&scope=${scope}` +
+      `&state=${state}` +
+      `&access_type=offline` +
+      `&prompt=select_account`;
+    
+    res.redirect(authUrl);
+  });
+
+  // Google OAuth - Handle callback
+  app.get("/api/auth/google/callback", async (req, res) => {
+    try {
+      const { code, state } = req.query;
+      
+      // Verify state for CSRF protection
+      if (!state || state !== req.session.oauthState) {
+        return res.redirect("/login?error=invalid_state");
+      }
+      delete req.session.oauthState;
+
+      if (!code || typeof code !== "string") {
+        return res.redirect("/login?error=no_code");
+      }
+
+      const clientId = process.env.GOOGLE_CLIENT_ID;
+      const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+      
+      if (!clientId || !clientSecret) {
+        return res.redirect("/login?error=oauth_not_configured");
+      }
+
+      const redirectUri = `${getBaseUrl(req)}/api/auth/google/callback`;
+
+      // Exchange code for tokens
+      const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          code,
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: redirectUri,
+          grant_type: "authorization_code",
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        console.error("Google token exchange failed:", await tokenResponse.text());
+        return res.redirect("/login?error=token_exchange_failed");
+      }
+
+      const tokens = await tokenResponse.json() as { access_token: string; id_token: string };
+
+      // Get user info from Google
+      const userInfoResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
+      });
+
+      if (!userInfoResponse.ok) {
+        console.error("Google user info failed:", await userInfoResponse.text());
+        return res.redirect("/login?error=user_info_failed");
+      }
+
+      const googleUser = await userInfoResponse.json() as {
+        id: string;
+        email: string;
+        name: string;
+        picture?: string;
+      };
+
+      // Check if merchant exists with this Google ID
+      let merchant = await storage.getMerchantByGoogleId(googleUser.id);
+      
+      if (!merchant) {
+        // Check if merchant exists with this email
+        const existingMerchant = await storage.getMerchantByEmail(googleUser.email);
+        
+        if (existingMerchant) {
+          // Only allow linking if the account has no password (OAuth-only account)
+          // This prevents account takeover of password-based accounts
+          if (existingMerchant.password && existingMerchant.password !== "") {
+            // Account exists with password - don't auto-link, show error
+            return res.redirect("/login?error=email_exists&message=An account with this email already exists. Please login with your password.");
+          }
+          // OAuth-only account (no password) - safe to link
+          await storage.updateMerchant(existingMerchant.id, { 
+            googleId: googleUser.id,
+            isEmailVerified: true,
+            emailVerifiedAt: new Date(),
+          });
+          merchant = existingMerchant;
+        } else {
+          // Create new merchant with Google account
+          const trialDays = await storage.getPlatformSetting("trial_days");
+          const trialPeriodDays = trialDays ? parseInt(trialDays) : 14;
+          const trialEndsAt = new Date();
+          trialEndsAt.setDate(trialEndsAt.getDate() + trialPeriodDays);
+
+          merchant = await storage.createMerchant({
+            email: googleUser.email,
+            password: "", // No password for OAuth users
+            companyName: googleUser.name || googleUser.email.split("@")[0],
+            isEmailVerified: true,
+            emailVerifiedAt: new Date(),
+            googleId: googleUser.id,
+            profilePhotoUrl: googleUser.picture || "",
+            subscriptionStatus: "trial",
+            subscriptionPlanId: "free",
+            trialEndsAt,
+          });
+        }
+      }
+
+      // Create session
+      req.session.userId = merchant.id;
+      req.session.userType = "merchant";
+      req.session.merchantId = merchant.id;
+
+      res.redirect("/dashboard");
+    } catch (error) {
+      console.error("Google OAuth callback error:", error);
+      res.redirect("/login?error=oauth_failed");
+    }
   });
 
   app.get("/api/merchant/identity-secret", requireMerchant, async (req, res) => {

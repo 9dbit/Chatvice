@@ -180,6 +180,10 @@ export function LoginPage() {
   };
 
   const handleSocialLogin = (provider: string) => {
+    if (provider === "Google") {
+      window.location.href = "/api/auth/google";
+      return;
+    }
     toast({
       title: "Coming Soon",
       description: `${provider} login will be available soon.`,
@@ -457,6 +461,10 @@ export function RegisterPage() {
   };
 
   const handleSocialLogin = (provider: string) => {
+    if (provider === "Google") {
+      window.location.href = "/api/auth/google";
+      return;
+    }
     toast({
       title: "Coming Soon",
       description: `${provider} signup will be available soon.`,

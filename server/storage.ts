@@ -54,6 +54,8 @@ export interface AnalyticsData {
 export interface IStorage {
   getMerchant(id: string): Promise<Merchant | undefined>;
   getMerchantByEmail(email: string): Promise<Merchant | undefined>;
+  getMerchantByGoogleId(googleId: string): Promise<Merchant | undefined>;
+  getMerchantByGithubId(githubId: string): Promise<Merchant | undefined>;
   createMerchant(merchant: InsertMerchant): Promise<Merchant>;
   updateMerchant(id: string, data: Partial<Merchant>): Promise<Merchant | undefined>;
 
@@ -235,6 +237,16 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+  async getMerchantByGoogleId(googleId: string): Promise<Merchant | undefined> {
+    const result = await db.select().from(merchants).where(eq(merchants.googleId, googleId));
+    return result[0];
+  }
+
+  async getMerchantByGithubId(githubId: string): Promise<Merchant | undefined> {
+    const result = await db.select().from(merchants).where(eq(merchants.githubId, githubId));
+    return result[0];
+  }
+
   async createMerchant(data: InsertMerchant): Promise<Merchant> {
     const id = generateId("m_");
     const result = await db.insert(merchants).values({
@@ -257,6 +269,11 @@ export class DatabaseStorage implements IStorage {
       subscriptionStatus: data.subscriptionStatus || "trial",
       subscriptionPlanId: data.subscriptionPlanId || "starter",
       conversationsUsed: data.conversationsUsed || 0,
+      isEmailVerified: data.isEmailVerified || false,
+      emailVerifiedAt: data.emailVerifiedAt,
+      googleId: data.googleId,
+      githubId: data.githubId,
+      profilePhotoUrl: data.profilePhotoUrl || "",
     }).returning();
     return result[0];
   }
