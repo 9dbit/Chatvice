@@ -602,6 +602,48 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   }
 
+  // Dynamic favicon route - serves from database settings or falls back to default
+  app.get("/favicon.ico", async (req, res) => {
+    try {
+      const settings = await storage.getLandingPageSettings();
+      if (settings?.faviconUrl && settings.faviconUrl.startsWith("/uploads/")) {
+        const filePath = path.join(process.cwd(), settings.faviconUrl);
+        if (fs.existsSync(filePath)) {
+          return res.sendFile(filePath);
+        }
+      }
+      // Fallback to default favicon
+      const defaultPath = path.join(process.cwd(), "client", "public", "favicon.ico");
+      if (fs.existsSync(defaultPath)) {
+        return res.sendFile(defaultPath);
+      }
+      res.status(404).send("Favicon not found");
+    } catch (error) {
+      res.status(500).send("Error serving favicon");
+    }
+  });
+
+  // Dynamic OG image route - serves from database settings or falls back to default
+  app.get("/og-image.png", async (req, res) => {
+    try {
+      const settings = await storage.getLandingPageSettings();
+      if (settings?.ogImageUrl && settings.ogImageUrl.startsWith("/uploads/")) {
+        const filePath = path.join(process.cwd(), settings.ogImageUrl);
+        if (fs.existsSync(filePath)) {
+          return res.sendFile(filePath);
+        }
+      }
+      // Fallback to default OG image
+      const defaultPath = path.join(process.cwd(), "client", "public", "og-image.png");
+      if (fs.existsSync(defaultPath)) {
+        return res.sendFile(defaultPath);
+      }
+      res.status(404).send("OG image not found");
+    } catch (error) {
+      res.status(500).send("Error serving OG image");
+    }
+  });
+
   app.post("/api/auth/register", async (req, res) => {
     try {
       const data = registerMerchantSchema.parse(req.body);
