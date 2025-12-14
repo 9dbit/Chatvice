@@ -990,6 +990,188 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // GitHub OAuth - Initiate login flow
+  app.get("/api/auth/github", (req, res) => {
+    const clientId = process.env.GITHUB_CLIENT_ID;
+    if (!clientId) {
+      return res.status(500).json({ error: "GitHub OAuth not configured" });
+    }
+
+    const redirectUri = `${getBaseUrl(req)}/api/auth/github/callback`;
+    const scope = "read:user user:email";
+    const state = crypto.randomBytes(16).toString("hex");
+    
+    // Store state in session for CSRF protection
+    req.session.oauthState = state;
+    
+    const authUrl = `https://github.com/login/oauth/authorize?` +
+      `client_id=${clientId}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&scope=${encodeURIComponent(scope)}` +
+      `&state=${state}`;
+    
+    res.redirect(authUrl);
+  });
+
+  // GitHub OAuth - Handle callback
+  app.get("/api/auth/github/callback", async (req, res) => {
+    try {
+      const { code, state } = req.query;
+      
+      // Verify state for CSRF protection
+      if (!state || state !== req.session.oauthState) {
+        return res.redirect("/login?error=invalid_state");
+      }
+      delete req.session.oauthState;
+
+      if (!code || typeof code !== "string") {
+        return res.redirect("/login?error=no_code");
+      }
+
+      const clientId = process.env.GITHUB_CLIENT_ID;
+      const clientSecret = process.env.GITHUB_CLIENT_SECRET;
+      
+      if (!clientId || !clientSecret) {
+        return res.redirect("/login?error=oauth_not_configured");
+      }
+
+      const redirectUri = `${getBaseUrl(req)}/api/auth/github/callback`;
+
+      // Exchange code for access token
+      const tokenResponse = await fetch("https://github.com/login/oauth/access_token", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify({
+          client_id: clientId,
+          client_secret: clientSecret,
+          code,
+          redirect_uri: redirectUri,
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        console.error("GitHub token exchange failed:", await tokenResponse.text());
+        return res.redirect("/login?error=token_exchange_failed");
+      }
+
+      const tokenData = await tokenResponse.json() as { access_token?: string; error?: string };
+      
+      if (tokenData.error || !tokenData.access_token) {
+        console.error("GitHub token error:", tokenData.error);
+        return res.redirect("/login?error=token_exchange_failed");
+      }
+
+      // Get user info from GitHub
+      const userInfoResponse = await fetch("https://api.github.com/user", {
+        headers: { 
+          Authorization: `Bearer ${tokenData.access_token}`,
+          "Accept": "application/json",
+          "User-Agent": "Chatvice-App",
+        },
+      });
+
+      if (!userInfoResponse.ok) {
+        console.error("GitHub user info failed:", await userInfoResponse.text());
+        return res.redirect("/login?error=user_info_failed");
+      }
+
+      const githubUser = await userInfoResponse.json() as {
+        id: number;
+        login: string;
+        name?: string;
+        email?: string;
+        avatar_url?: string;
+      };
+
+      // If email is not public, fetch from emails endpoint
+      let userEmail = githubUser.email;
+      if (!userEmail) {
+        const emailsResponse = await fetch("https://api.github.com/user/emails", {
+          headers: { 
+            Authorization: `Bearer ${tokenData.access_token}`,
+            "Accept": "application/json",
+            "User-Agent": "Chatvice-App",
+          },
+        });
+
+        if (emailsResponse.ok) {
+          const emails = await emailsResponse.json() as Array<{ email: string; primary: boolean; verified: boolean }>;
+          const primaryEmail = emails.find(e => e.primary && e.verified);
+          if (primaryEmail) {
+            userEmail = primaryEmail.email;
+          } else {
+            const verifiedEmail = emails.find(e => e.verified);
+            if (verifiedEmail) {
+              userEmail = verifiedEmail.email;
+            }
+          }
+        }
+      }
+
+      if (!userEmail) {
+        return res.redirect("/login?error=no_email&message=Could not retrieve email from GitHub. Please ensure your email is verified on GitHub.");
+      }
+
+      const githubId = githubUser.id.toString();
+
+      // Check if merchant exists with this GitHub ID
+      let merchant = await storage.getMerchantByGithubId(githubId);
+      
+      if (!merchant) {
+        // Check if merchant exists with this email
+        const existingMerchant = await storage.getMerchantByEmail(userEmail);
+        
+        if (existingMerchant) {
+          // Only allow linking if the account has no password (OAuth-only account)
+          // This prevents account takeover of password-based accounts
+          if (existingMerchant.password && existingMerchant.password !== "") {
+            // Account exists with password - don't auto-link, show error
+            return res.redirect("/login?error=email_exists&message=An account with this email already exists. Please login with your password.");
+          }
+          // OAuth-only account (no password) - safe to link
+          await storage.updateMerchant(existingMerchant.id, { 
+            githubId: githubId,
+            isEmailVerified: true,
+            emailVerifiedAt: new Date(),
+          });
+          merchant = existingMerchant;
+        } else {
+          // Create new merchant with GitHub account
+          const trialDays = await storage.getPlatformSetting("trial_days");
+          const trialPeriodDays = trialDays ? parseInt(trialDays) : 14;
+          const trialEndsAt = new Date();
+          trialEndsAt.setDate(trialEndsAt.getDate() + trialPeriodDays);
+
+          merchant = await storage.createMerchant({
+            email: userEmail,
+            password: "", // No password for OAuth users
+            companyName: githubUser.name || githubUser.login,
+            isEmailVerified: true,
+            emailVerifiedAt: new Date(),
+            githubId: githubId,
+            profilePhotoUrl: githubUser.avatar_url || "",
+            subscriptionStatus: "trial",
+            subscriptionPlanId: "free",
+            trialEndsAt,
+          });
+        }
+      }
+
+      // Create session
+      req.session.userId = merchant.id;
+      req.session.userType = "merchant";
+      req.session.merchantId = merchant.id;
+
+      res.redirect("/dashboard");
+    } catch (error) {
+      console.error("GitHub OAuth callback error:", error);
+      res.redirect("/login?error=oauth_failed");
+    }
+  });
+
   app.get("/api/merchant/identity-secret", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;

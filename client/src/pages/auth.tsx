@@ -184,6 +184,10 @@ export function LoginPage() {
       window.location.href = "/api/auth/google";
       return;
     }
+    if (provider === "GitHub") {
+      window.location.href = "/api/auth/github";
+      return;
+    }
     toast({
       title: "Coming Soon",
       description: `${provider} login will be available soon.`,
@@ -463,6 +467,10 @@ export function RegisterPage() {
   const handleSocialLogin = (provider: string) => {
     if (provider === "Google") {
       window.location.href = "/api/auth/google";
+      return;
+    }
+    if (provider === "GitHub") {
+      window.location.href = "/api/auth/github";
       return;
     }
     toast({
