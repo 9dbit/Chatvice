@@ -41,17 +41,47 @@
     <meta name="twitter:description" content="Automate your customer service with AI. Smart escalation, customizable live chat widgets, and real-time analytics." />
     <meta name="twitter:image" content="https://chatvice.app/og-image.png" />
     
-    <!-- Favicon -->
+    <!-- Favicon - Google requires minimum 48x48px for search results -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
-    <link rel="apple-touch-icon" href="/favicon.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon.png" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon.png" />
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
     
-    <!-- Structured Data for SEO -->
+    <!-- Structured Data for SEO - Organization (for logo in search) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Chatvice",
+      "url": "https://chatvice.app",
+      "logo": "https://chatvice.app/favicon.png",
+      "sameAs": [],
+      "description": "AI-powered customer service chatbot platform with live chat, automated responses, and human escalation."
+    }
+    </script>
+    
+    <!-- Structured Data for SEO - WebSite (for sitelinks search) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Chatvice",
+      "url": "https://chatvice.app",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://chatvice.app/search?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+    
+    <!-- Structured Data for SEO - SoftwareApplication -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
