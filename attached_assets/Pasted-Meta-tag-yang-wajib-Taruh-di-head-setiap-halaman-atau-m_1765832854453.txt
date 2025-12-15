@@ -1,0 +1,83 @@
+Meta tag yang wajib
+
+Taruh di <head> setiap halaman (atau minimal homepage + halaman penting):
+
+<!-- Primary -->
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://chatvice.app/" />
+<meta property="og:title" content="Chatvice | Multi-Model AI for Customer Service" />
+<meta property="og:description" content="AI customer service dengan upselling, cost efficient, dan reporting real-time." />
+<meta property="og:image" content="https://chatvice.app/og/cover.jpg" />
+
+<!-- Optional but recommended -->
+<meta property="og:site_name" content="Chatvice" />
+<meta property="og:locale" content="id_ID" />
+
+<!-- Twitter (biar rapi juga di X) -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Chatvice | Multi-Model AI for Customer Service" />
+<meta name="twitter:description" content="AI customer service dengan upselling, cost efficient, dan reporting real-time." />
+<meta name="twitter:image" content="https://chatvice.app/og/cover.jpg" />
+
+Spek gambar OG yang benar
+
+Ukuran aman: 1200 × 630 px
+
+Rasio: 1.91:1
+
+File: JPG/PNG
+
+URL harus public (tanpa login), status 200 OK, tidak diblok robots
+
+Disarankan < 1–2 MB
+
+Jika pakai Next.js (App Router)
+
+Di file page kamu:
+
+export const metadata = {
+  title: "Chatvice | Multi-Model AI for Customer Service",
+  description: "AI customer service dengan upselling, cost efficient, dan reporting real-time.",
+  openGraph: {
+    type: "website",
+    url: "https://chatvice.app/",
+    siteName: "Chatvice",
+    title: "Chatvice | Multi-Model AI for Customer Service",
+    description: "AI customer service dengan upselling, cost efficient, dan reporting real-time.",
+    images: [
+      {
+        url: "https://chatvice.app/og/cover.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Chatvice Open Graph Cover",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Chatvice | Multi-Model AI for Customer Service",
+    description: "AI customer service dengan upselling, cost efficient, dan reporting real-time.",
+    images: ["https://chatvice.app/og/cover.jpg"],
+  },
+};
+
+Test dan “refresh cache” Facebook
+
+Facebook suka nyimpen preview lama. Pakai:
+Facebook Sharing Debugger (Search: “Facebook Sharing Debugger”)
+
+paste URL kamu
+
+klik Debug
+
+klik Scrape Again
+
+Itu akan “paksa” FB ambil OG terbaru.
+
+Penyebab paling sering OG tidak muncul
+
+OG image URL redirect atau 403/404
+
+Server kasih X-Frame-Options/hotlink block (jarang tapi ada)
+
+Meta tag muncul via JS client-side (FB bot kadang tidak execute JS). Solusi: pastikan OG ada di HTML SSR.
