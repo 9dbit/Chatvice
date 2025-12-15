@@ -1334,6 +1334,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return res.json({
           iconUrl: "",
           iconSize: 70,
+          iconWidth: 70,
+          iconHeight: 70,
+          useCustomIconDimensions: false,
           online: true,
           primaryColor: "#6b5dfc",
           welcomeMessage: "Hi! How can I help you today?",
@@ -1344,17 +1347,36 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         });
       }
       
+      // Check if there's an active agent with widget settings
+      let agentSettings: { primaryColor?: string; widgetWelcomeMessage?: string; name?: string; photoUrl?: string; widgetTheme?: string; bubblePosition?: string } = {};
+      if (merchant.activeAgentId) {
+        const agent = await storage.getAgent(merchant.activeAgentId);
+        if (agent) {
+          agentSettings = {
+            primaryColor: agent.primaryColor || undefined,
+            widgetWelcomeMessage: agent.widgetWelcomeMessage || undefined,
+            name: agent.name || undefined,
+            photoUrl: agent.photoUrl || undefined,
+            widgetTheme: agent.widgetTheme || undefined,
+            bubblePosition: agent.bubblePosition || undefined,
+          };
+        }
+      }
+      
       res.json({
-        iconUrl: merchant.iconUrl,
-        iconSize: merchant.iconSize,
-        online: merchant.online,
-        primaryColor: merchant.primaryColor,
-        welcomeMessage: merchant.welcomeMessage,
+        iconUrl: merchant.iconUrl || "",
+        iconSize: merchant.iconSize ?? 70,
+        iconWidth: merchant.iconWidth ?? 70,
+        iconHeight: merchant.iconHeight ?? 70,
+        useCustomIconDimensions: merchant.useCustomIconDimensions ?? false,
+        online: merchant.online ?? true,
+        primaryColor: agentSettings.primaryColor || merchant.primaryColor || "#6b5dfc",
+        welcomeMessage: agentSettings.widgetWelcomeMessage || merchant.welcomeMessage || "Hi! How can I help you today?",
         companyName: merchant.companyName,
-        agentName: merchant.agentName || "Chatvice",
-        agentPhotoUrl: merchant.agentPhotoUrl || "",
-        widgetTheme: merchant.widgetTheme || "light",
-        bubblePosition: merchant.bubblePosition || "right",
+        agentName: agentSettings.name || merchant.agentName || "Chatvice",
+        agentPhotoUrl: agentSettings.photoUrl || merchant.agentPhotoUrl || "",
+        widgetTheme: agentSettings.widgetTheme || merchant.widgetTheme || "light",
+        bubblePosition: agentSettings.bubblePosition || merchant.bubblePosition || "right",
       });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
