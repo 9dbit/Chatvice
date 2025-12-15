@@ -625,6 +625,21 @@ export const insertLandingPageSettingsSchema = createInsertSchema(landingPageSet
 export type InsertLandingPageSettings = z.infer<typeof insertLandingPageSettingsSchema>;
 export type LandingPageSettings = typeof landingPageSettings.$inferSelect;
 
+// Stored Files - for persistent file storage in database
+export const storedFiles = pgTable("stored_files", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  filename: text("filename").notNull(),
+  mimeType: text("mime_type").notNull(),
+  size: integer("size").notNull(),
+  content: text("content").notNull(), // Base64 encoded content
+  category: text("category").default("brand"), // brand, avatar, etc.
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertStoredFileSchema = createInsertSchema(storedFiles).omit({ createdAt: true });
+export type InsertStoredFile = z.infer<typeof insertStoredFileSchema>;
+export type StoredFile = typeof storedFiles.$inferSelect;
+
 // Work Scheduler - Shifts for supervisors and AI agents
 export const workShifts = pgTable("work_shifts", {
   id: varchar("id", { length: 32 }).primaryKey(),

@@ -17,6 +17,7 @@ import {
   type MediaAttachment, type InsertMediaAttachment,
   type PlatformSetting,
   type LandingPageSettings, type InsertLandingPageSettings,
+  type StoredFile, type InsertStoredFile,
   type WorkShift, type InsertWorkShift,
   type ShiftAssignment, type InsertShiftAssignment,
   type WorkReport, type InsertWorkReport,
@@ -31,7 +32,7 @@ import {
   type SupervisorInvitation, type InsertSupervisorInvitation,
   type EmailVerificationToken, type InsertEmailVerificationToken,
   type PasswordResetToken, type InsertPasswordResetToken,
-  merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings,
+  merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings, storedFiles,
   workShifts, shiftAssignments, workReports, quickReplies, chatButtons, productCards, productCardButtons, welcomeBubbles, notificationSettings, productRecommendationSettings, productTriggers, supervisorInvitations,
   emailVerificationTokens, passwordResetTokens,
 } from "@shared/schema";
@@ -125,6 +126,11 @@ export interface IStorage {
   // Landing Page Settings
   getLandingPageSettings(): Promise<LandingPageSettings | undefined>;
   updateLandingPageSettings(data: Partial<InsertLandingPageSettings>): Promise<LandingPageSettings>;
+  
+  // Stored Files (database-backed file storage)
+  storeFile(file: InsertStoredFile): Promise<StoredFile>;
+  getStoredFile(id: string): Promise<StoredFile | undefined>;
+  deleteStoredFile(id: string): Promise<boolean>;
   
   // Work Scheduler
   getWorkShifts(merchantId: string): Promise<WorkShift[]>;
@@ -1124,6 +1130,22 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return result[0];
     }
+  }
+
+  // Stored Files implementations (database-backed file storage)
+  async storeFile(file: InsertStoredFile): Promise<StoredFile> {
+    const result = await db.insert(storedFiles).values(file).returning();
+    return result[0];
+  }
+  
+  async getStoredFile(id: string): Promise<StoredFile | undefined> {
+    const result = await db.select().from(storedFiles).where(eq(storedFiles.id, id));
+    return result[0];
+  }
+  
+  async deleteStoredFile(id: string): Promise<boolean> {
+    const result = await db.delete(storedFiles).where(eq(storedFiles.id, id)).returning();
+    return result.length > 0;
   }
 
   // Work Scheduler implementations

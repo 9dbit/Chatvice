@@ -23,6 +23,7 @@ import { createQRISPayment, checkPaymentStatus, isOnePayConfigured, convertToIDR
 import { sendVerificationEmail, sendPasswordResetEmail } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant } from "@shared/schema";
 import crypto from "crypto";
+import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -614,44 +615,72 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   }
 
-  // Dynamic favicon route - serves from database settings or falls back to default
+  // Dynamic favicon route - serves from Object Storage, local uploads, or falls back to default
   app.get("/favicon.ico", async (req, res) => {
     try {
       const settings = await storage.getLandingPageSettings();
-      if (settings?.faviconUrl && settings.faviconUrl.startsWith("/uploads/")) {
-        const filePath = path.join(process.cwd(), settings.faviconUrl);
-        if (fs.existsSync(filePath)) {
-          return res.sendFile(filePath);
+      const objectStorage = new ObjectStorageService();
+      
+      if (settings?.faviconUrl) {
+        if (settings.faviconUrl.startsWith("/storage/") && objectStorage.isConfigured()) {
+          try {
+            const file = await objectStorage.getFile(settings.faviconUrl);
+            return await objectStorage.downloadObject(file, res, 86400);
+          } catch (err) {
+            console.log("Object Storage favicon not found, trying fallback");
+          }
+        }
+        
+        if (settings.faviconUrl.startsWith("/uploads/")) {
+          const filePath = path.join(process.cwd(), settings.faviconUrl);
+          if (fs.existsSync(filePath)) {
+            return res.sendFile(filePath);
+          }
         }
       }
-      // Fallback to default favicon
+      
       const defaultPath = path.join(process.cwd(), "client", "public", "favicon.ico");
       if (fs.existsSync(defaultPath)) {
         return res.sendFile(defaultPath);
       }
       res.status(404).send("Favicon not found");
     } catch (error) {
+      console.error("Error serving favicon:", error);
       res.status(500).send("Error serving favicon");
     }
   });
 
-  // Dynamic OG image route - serves from database settings or falls back to default
+  // Dynamic OG image route - serves from Object Storage, local uploads, or falls back to default
   app.get("/og-image.png", async (req, res) => {
     try {
       const settings = await storage.getLandingPageSettings();
-      if (settings?.ogImageUrl && settings.ogImageUrl.startsWith("/uploads/")) {
-        const filePath = path.join(process.cwd(), settings.ogImageUrl);
-        if (fs.existsSync(filePath)) {
-          return res.sendFile(filePath);
+      const objectStorage = new ObjectStorageService();
+      
+      if (settings?.ogImageUrl) {
+        if (settings.ogImageUrl.startsWith("/storage/") && objectStorage.isConfigured()) {
+          try {
+            const file = await objectStorage.getFile(settings.ogImageUrl);
+            return await objectStorage.downloadObject(file, res, 86400);
+          } catch (err) {
+            console.log("Object Storage OG image not found, trying fallback");
+          }
+        }
+        
+        if (settings.ogImageUrl.startsWith("/uploads/")) {
+          const filePath = path.join(process.cwd(), settings.ogImageUrl);
+          if (fs.existsSync(filePath)) {
+            return res.sendFile(filePath);
+          }
         }
       }
-      // Fallback to default OG image
+      
       const defaultPath = path.join(process.cwd(), "client", "public", "og-image.png");
       if (fs.existsSync(defaultPath)) {
         return res.sendFile(defaultPath);
       }
       res.status(404).send("OG image not found");
     } catch (error) {
+      console.error("Error serving OG image:", error);
       res.status(500).send("Error serving OG image");
     }
   });
@@ -3492,16 +3521,87 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  // Brand identity file upload endpoint
+  // Brand identity file upload endpoint - uses Object Storage for persistence, falls back to database
   app.post("/api/admin/brand-upload", requireAdmin, upload.single("file"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No file uploaded" });
       }
-      const fileUrl = `/uploads/${req.file.filename}`;
-      res.json({ url: fileUrl, filename: req.file.filename });
+      
+      const objectStorage = new ObjectStorageService();
+      const fileBuffer = fs.readFileSync(req.file.path);
+      const uniqueFilename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(req.file.originalname)}`;
+      
+      // Try Object Storage first
+      if (objectStorage.isConfigured()) {
+        try {
+          const fileUrl = await objectStorage.uploadFile(fileBuffer, uniqueFilename, req.file.mimetype);
+          fs.unlinkSync(req.file.path);
+          return res.json({ url: fileUrl, filename: uniqueFilename });
+        } catch (storageError) {
+          console.log("Object Storage failed, falling back to database:", storageError);
+        }
+      }
+      
+      // Fallback: Store file in database (for small brand assets like logo, favicon, og image)
+      const base64Content = fileBuffer.toString("base64");
+      const fileId = `brand_${uniqueFilename}`;
+      
+      await storage.storeFile({
+        id: fileId,
+        filename: uniqueFilename,
+        mimeType: req.file.mimetype,
+        size: fileBuffer.length,
+        content: base64Content,
+        category: "brand"
+      });
+      
+      fs.unlinkSync(req.file.path);
+      
+      const fileUrl = `/db-files/${fileId}`;
+      res.json({ url: fileUrl, filename: uniqueFilename });
     } catch (error) {
       console.error("Error uploading brand file:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Serve files from database storage
+  app.get("/db-files/:fileId", async (req, res) => {
+    try {
+      const file = await storage.getStoredFile(req.params.fileId);
+      if (!file) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      
+      const buffer = Buffer.from(file.content, "base64");
+      res.setHeader("Content-Type", file.mimeType);
+      res.setHeader("Content-Length", buffer.length);
+      res.setHeader("Cache-Control", "public, max-age=31536000"); // Cache for 1 year
+      res.send(buffer);
+    } catch (error) {
+      console.error("Error serving file from database:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Serve files from Object Storage
+  app.get("/storage/*", async (req, res) => {
+    try {
+      const objectStorage = new ObjectStorageService();
+      
+      if (!objectStorage.isConfigured()) {
+        return res.status(404).json({ error: "Object storage not configured" });
+      }
+      
+      const objectPath = req.path;
+      const file = await objectStorage.getFile(objectPath);
+      await objectStorage.downloadObject(file, res);
+    } catch (error) {
+      if (error instanceof ObjectNotFoundError) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      console.error("Error serving file from storage:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
