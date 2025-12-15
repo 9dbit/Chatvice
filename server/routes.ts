@@ -709,6 +709,80 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // Dynamic sitemap.xml route
+  app.get("/sitemap.xml", async (req, res) => {
+    try {
+      const baseUrl = `https://${req.get("host")}`;
+      
+      // Static pages
+      const staticPages = [
+        { url: "/", priority: "1.0", changefreq: "weekly" },
+        { url: "/features", priority: "0.8", changefreq: "monthly" },
+        { url: "/pricing", priority: "0.8", changefreq: "monthly" },
+        { url: "/faq", priority: "0.7", changefreq: "monthly" },
+        { url: "/docs", priority: "0.8", changefreq: "weekly" },
+        { url: "/blog", priority: "0.8", changefreq: "weekly" },
+        { url: "/login", priority: "0.5", changefreq: "yearly" },
+        { url: "/register", priority: "0.6", changefreq: "yearly" },
+      ];
+
+      const today = new Date().toISOString().split("T")[0];
+
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+`;
+
+      for (const page of staticPages) {
+        xml += `  <url>
+    <loc>${baseUrl}${page.url}</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>${page.changefreq}</changefreq>
+    <priority>${page.priority}</priority>
+  </url>
+`;
+      }
+
+      xml += `</urlset>`;
+
+      res.setHeader("Content-Type", "application/xml");
+      res.setHeader("Cache-Control", "public, max-age=3600"); // Cache for 1 hour
+      res.send(xml);
+    } catch (error) {
+      console.error("Error generating sitemap:", error);
+      res.status(500).send("Error generating sitemap");
+    }
+  });
+
+  // Dynamic robots.txt route
+  app.get("/robots.txt", async (req, res) => {
+    try {
+      const settings = await storage.getLandingPageSettings();
+      const baseUrl = `https://${req.get("host")}`;
+      
+      // Use custom robots.txt from settings if available, otherwise use default
+      let robotsTxt = settings?.robotsTxt;
+      
+      if (!robotsTxt || robotsTxt.trim() === "") {
+        robotsTxt = `User-agent: *
+Allow: /
+
+Sitemap: ${baseUrl}/sitemap.xml`;
+      } else {
+        // Replace placeholder sitemap URL if needed
+        if (!robotsTxt.includes("Sitemap:")) {
+          robotsTxt += `\n\nSitemap: ${baseUrl}/sitemap.xml`;
+        }
+      }
+
+      res.setHeader("Content-Type", "text/plain");
+      res.setHeader("Cache-Control", "public, max-age=86400"); // Cache for 1 day
+      res.send(robotsTxt);
+    } catch (error) {
+      console.error("Error serving robots.txt:", error);
+      res.status(500).send("Error serving robots.txt");
+    }
+  });
+
   app.post("/api/auth/register", async (req, res) => {
     try {
       const data = registerMerchantSchema.parse(req.body);
