@@ -631,6 +631,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           }
         }
         
+        if (settings.faviconUrl.startsWith("/db-files/")) {
+          const fileId = settings.faviconUrl.replace("/db-files/", "");
+          const file = await storage.getStoredFile(fileId);
+          if (file) {
+            const buffer = Buffer.from(file.content, "base64");
+            res.setHeader("Content-Type", file.mimeType);
+            res.setHeader("Content-Length", buffer.length);
+            res.setHeader("Cache-Control", "public, max-age=86400");
+            return res.send(buffer);
+          }
+        }
+        
         if (settings.faviconUrl.startsWith("/uploads/")) {
           const filePath = path.join(process.cwd(), settings.faviconUrl);
           if (fs.existsSync(filePath)) {
@@ -663,6 +675,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
             return await objectStorage.downloadObject(file, res, 86400);
           } catch (err) {
             console.log("Object Storage OG image not found, trying fallback");
+          }
+        }
+        
+        if (settings.ogImageUrl.startsWith("/db-files/")) {
+          const fileId = settings.ogImageUrl.replace("/db-files/", "");
+          const file = await storage.getStoredFile(fileId);
+          if (file) {
+            const buffer = Buffer.from(file.content, "base64");
+            res.setHeader("Content-Type", file.mimeType);
+            res.setHeader("Content-Length", buffer.length);
+            res.setHeader("Cache-Control", "public, max-age=86400");
+            return res.send(buffer);
           }
         }
         
