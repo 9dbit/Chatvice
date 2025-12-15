@@ -7,7 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
-import { LoginPage, RegisterPage, ForgotPasswordPage, VerifyEmailPage } from "@/pages/auth";
+import { LoginPage, RegisterPage, ForgotPasswordPage, VerifyEmailPage, ResetPasswordPage } from "@/pages/auth";
 import SelectAgentPage from "@/pages/select-agent";
 import VerifySupervisorPage from "@/pages/verify-supervisor";
 import DashboardLayout from "@/pages/dashboard/layout";
@@ -61,6 +61,7 @@ function Router() {
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
       <Route path="/forgot-password" component={ForgotPasswordPage} />
+      <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/verify-email" component={VerifyEmailPage} />
       <Route path="/verify-supervisor" component={VerifySupervisorPage} />
       <Route path="/select-agent" component={SelectAgentPage} />

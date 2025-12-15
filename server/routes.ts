@@ -827,6 +827,90 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // Forgot password - Request password reset
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+
+      const merchant = await storage.getMerchantByEmail(email);
+      if (!merchant) {
+        // Don't reveal if email exists - security best practice
+        return res.json({ success: true, message: "If that email exists, a password reset link will be sent." });
+      }
+
+      // Create password reset token
+      const resetToken = crypto.randomBytes(32).toString("hex");
+      const tokenExpiresAt = new Date();
+      tokenExpiresAt.setHours(tokenExpiresAt.getHours() + 1); // Expires in 1 hour
+
+      await storage.createPasswordResetToken({
+        merchantId: merchant.id,
+        token: resetToken,
+        expiresAt: tokenExpiresAt,
+      });
+
+      // Send password reset email
+      await sendPasswordResetEmail(email, resetToken, merchant.companyName);
+
+      res.json({ success: true, message: "Password reset link sent" });
+    } catch (error: any) {
+      console.error("Forgot password error:", error);
+      res.status(500).json({ error: "Failed to send password reset email" });
+    }
+  });
+
+  // Reset password - Complete password reset
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { token, password } = req.body;
+      
+      if (!token || !password) {
+        return res.status(400).json({ error: "Token and password are required" });
+      }
+
+      if (password.length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters" });
+      }
+
+      // Find the token
+      const resetToken = await storage.getPasswordResetTokenByToken(token);
+      if (!resetToken) {
+        return res.status(400).json({ error: "Invalid or expired reset link" });
+      }
+
+      // Check if token is expired
+      if (new Date(resetToken.expiresAt) < new Date()) {
+        return res.status(400).json({ error: "Reset link has expired. Please request a new one." });
+      }
+
+      // Check if token was already used
+      if (resetToken.usedAt) {
+        return res.status(400).json({ error: "This reset link has already been used" });
+      }
+
+      // Get the merchant
+      const merchant = await storage.getMerchant(resetToken.merchantId);
+      if (!merchant) {
+        return res.status(400).json({ error: "Account not found" });
+      }
+
+      // Hash the new password and update
+      const hashedPassword = await hashPassword(password);
+      await storage.updateMerchant(merchant.id, { password: hashedPassword });
+
+      // Mark token as used
+      await storage.markPasswordResetTokenUsed(resetToken.id);
+
+      res.json({ success: true, message: "Password has been reset successfully" });
+    } catch (error: any) {
+      console.error("Reset password error:", error);
+      res.status(500).json({ error: "Failed to reset password" });
+    }
+  });
+
   app.post("/api/auth/logout", (req, res) => {
     req.session.destroy((err) => {
       if (err) {

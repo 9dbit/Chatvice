@@ -35,9 +35,18 @@ const forgotPasswordSchema = z.object({
   email: z.string().email("Please enter a valid email"),
 });
 
+const resetPasswordSchema = z.object({
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
 type LoginFormData = z.infer<typeof loginSchema>;
 type RegisterFormData = z.infer<typeof registerSchema>;
 type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
+type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 
 function AuthLayout({ children, title, subtitle }: { children: React.ReactNode; title: string; subtitle: string }) {
   return (
@@ -778,8 +787,12 @@ export function ForgotPasswordPage() {
 
   const forgotMutation = useMutation({
     mutationFn: async (data: ForgotPasswordFormData) => {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return { success: true };
+      const res = await apiRequest("POST", "/api/auth/forgot-password", data);
+      const responseData = await res.json();
+      if (!res.ok) {
+        throw { ...responseData, status: res.status };
+      }
+      return responseData;
     },
     onSuccess: () => {
       setSubmitted(true);
@@ -791,7 +804,7 @@ export function ForgotPasswordPage() {
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Something went wrong. Please try again.",
+        description: error.error || error.message || "Something went wrong. Please try again.",
         variant: "destructive",
       });
     },
@@ -978,6 +991,232 @@ export function VerifyEmailPage() {
           </div>
         )}
       </div>
+    </AuthLayout>
+  );
+}
+
+export function ResetPasswordPage() {
+  const [, setLocation] = useLocation();
+  const searchString = useSearch();
+  const { toast } = useToast();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [status, setStatus] = useState<"form" | "success" | "error">("form");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const params = new URLSearchParams(searchString);
+  const token = params.get("token");
+
+  const form = useForm<ResetPasswordFormData>({
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: {
+      password: "",
+      confirmPassword: "",
+    },
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: async (data: ResetPasswordFormData) => {
+      const res = await apiRequest("POST", "/api/auth/reset-password", {
+        token,
+        password: data.password,
+      });
+      const responseData = await res.json();
+      if (!res.ok) {
+        throw { ...responseData, status: res.status };
+      }
+      return responseData;
+    },
+    onSuccess: () => {
+      setStatus("success");
+      toast({
+        title: "Password reset successful!",
+        description: "You can now log in with your new password.",
+      });
+    },
+    onError: (error: any) => {
+      setStatus("error");
+      setErrorMessage(error.error || error.message || "Failed to reset password. Please try again.");
+      toast({
+        title: "Reset failed",
+        description: error.error || error.message || "Failed to reset password.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = (data: ResetPasswordFormData) => {
+    resetMutation.mutate(data);
+  };
+
+  if (!token) {
+    return (
+      <AuthLayout title="Invalid Link" subtitle="This password reset link is invalid">
+        <div className="space-y-4">
+          <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+            <div className="flex items-start gap-3">
+              <XCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-white text-sm font-medium">Invalid reset link</p>
+                <p className="text-zinc-400 text-sm mt-1">
+                  No reset token was provided. Please request a new password reset.
+                </p>
+              </div>
+            </div>
+          </div>
+          <Link href="/forgot-password">
+            <Button className="w-full h-11" data-testid="button-request-reset">
+              Request New Reset Link
+            </Button>
+          </Link>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  if (status === "success") {
+    return (
+      <AuthLayout title="Password Reset!" subtitle="Your password has been changed">
+        <div className="space-y-4">
+          <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
+            <div className="flex items-start gap-3">
+              <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-white text-sm font-medium">Password changed successfully!</p>
+                <p className="text-zinc-400 text-sm mt-1">
+                  You can now log in with your new password.
+                </p>
+              </div>
+            </div>
+          </div>
+          <Link href="/login">
+            <Button className="w-full h-11" data-testid="button-go-login">
+              Go to Login
+            </Button>
+          </Link>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <AuthLayout title="Reset Failed" subtitle="Something went wrong">
+        <div className="space-y-4">
+          <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+            <div className="flex items-start gap-3">
+              <XCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-white text-sm font-medium">Password reset failed</p>
+                <p className="text-zinc-400 text-sm mt-1">{errorMessage}</p>
+              </div>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <Link href="/forgot-password">
+              <Button className="w-full h-11" data-testid="button-try-again">
+                Request New Reset Link
+              </Button>
+            </Link>
+            <Link href="/login">
+              <Button
+                variant="outline"
+                className="w-full h-11 bg-zinc-900 border-zinc-700 text-white hover:bg-zinc-800"
+                data-testid="button-back-login"
+              >
+                Back to Login
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  return (
+    <AuthLayout title="Reset Password" subtitle="Enter your new password">
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-zinc-300">New Password</FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter new password"
+                      className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-11 pr-10"
+                      data-testid="input-reset-password"
+                      {...field}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="confirmPassword"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-zinc-300">Confirm Password</FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <Input
+                      type={showConfirmPassword ? "text" : "password"}
+                      placeholder="Confirm new password"
+                      className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-11 pr-10"
+                      data-testid="input-reset-confirm-password"
+                      {...field}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <Button
+            type="submit"
+            className="w-full h-11"
+            disabled={resetMutation.isPending}
+            data-testid="button-reset-submit"
+          >
+            {resetMutation.isPending ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Resetting...
+              </>
+            ) : (
+              "Reset Password"
+            )}
+          </Button>
+        </form>
+      </Form>
+      
+      <p className="text-center text-sm text-zinc-500 mt-4">
+        Remember your password?{" "}
+        <Link href="/login" className="text-primary hover:underline" data-testid="link-login-reset">
+          Sign in
+        </Link>
+      </p>
     </AuthLayout>
   );
 }
