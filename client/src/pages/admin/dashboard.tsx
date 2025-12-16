@@ -4468,8 +4468,13 @@ function PricingTab({ toast }: { toast: any }) {
                 <Label>Conversations Limit</Label>
                 <Input 
                   type="number" 
-                  value={editConversationsLimit === -1 ? -1 : editConversationsLimit} 
-                  onChange={(e) => setEditConversationsLimit(parseInt(e.target.value) || 0)}
+                  min="-1"
+                  value={editConversationsLimit} 
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '' || val === '-') return;
+                    setEditConversationsLimit(parseInt(val));
+                  }}
                   className="mt-1" 
                   data-testid="input-edit-plan-conversations" 
                 />
@@ -4479,8 +4484,13 @@ function PricingTab({ toast }: { toast: any }) {
                 <Label>Agents Limit</Label>
                 <Input 
                   type="number" 
-                  value={editAgentsLimit === -1 ? -1 : editAgentsLimit} 
-                  onChange={(e) => setEditAgentsLimit(parseInt(e.target.value) || 0)}
+                  min="-1"
+                  value={editAgentsLimit} 
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '' || val === '-') return;
+                    setEditAgentsLimit(parseInt(val));
+                  }}
                   className="mt-1" 
                   data-testid="input-edit-plan-agents" 
                 />
