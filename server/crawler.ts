@@ -146,7 +146,54 @@ export async function fetchWebContent(url: string): Promise<string> {
   }
 }
 
+function extractMetaInfo(html: string): string {
+  const metaContent: string[] = [];
+  
+  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+  if (titleMatch) {
+    metaContent.push(`Title: ${titleMatch[1].trim()}`);
+  }
+  
+  const metaDescMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
+  if (metaDescMatch) {
+    metaContent.push(`Description: ${metaDescMatch[1].trim()}`);
+  }
+  
+  const ogTitleMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i);
+  if (ogTitleMatch) {
+    metaContent.push(`OG Title: ${ogTitleMatch[1].trim()}`);
+  }
+  
+  const ogDescMatch = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i);
+  if (ogDescMatch) {
+    metaContent.push(`OG Description: ${ogDescMatch[1].trim()}`);
+  }
+  
+  const keywordsMatch = html.match(/<meta[^>]*name=["']keywords["'][^>]*content=["']([^"']+)["']/i);
+  if (keywordsMatch) {
+    metaContent.push(`Keywords: ${keywordsMatch[1].trim()}`);
+  }
+  
+  const jsonLdRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let jsonLdMatch;
+  while ((jsonLdMatch = jsonLdRegex.exec(html)) !== null) {
+    try {
+      const jsonData = JSON.parse(jsonLdMatch[1]);
+      if (jsonData.description) {
+        metaContent.push(`Structured Data: ${jsonData.description}`);
+      }
+      if (jsonData.name) {
+        metaContent.push(`Name: ${jsonData.name}`);
+      }
+    } catch {}
+  }
+  
+  return metaContent.join('\n');
+}
+
 function stripHtml(html: string): string {
+  const metaInfo = extractMetaInfo(html);
+  
   let text = html
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
@@ -180,6 +227,10 @@ function stripHtml(html: string): string {
     .replace(/^\s+|\s+$/gm, '')
     .trim();
   
+  if (metaInfo) {
+    text = metaInfo + '\n\n---\n\n' + text;
+  }
+  
   const maxLength = 15000;
   if (text.length > maxLength) {
     text = text.substring(0, maxLength) + '\n\n[Content truncated...]';
@@ -197,7 +248,7 @@ export async function extractFAQContent(url: string): Promise<{
     const html = await fetchWebContent(url);
     const textContent = stripHtml(html);
     
-    if (textContent.length < 100) {
+    if (textContent.length < 50) {
       return {
         success: false,
         error: "The page content is too short to extract meaningful information.",
