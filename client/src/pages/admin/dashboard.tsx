@@ -4088,10 +4088,18 @@ function LandingPageTab({ toast }: { toast: any }) {
 }
 
 function PricingTab({ toast }: { toast: any }) {
-  const plans = Object.values(subscriptionPlans);
   const [editPlanOpen, setEditPlanOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [trialDays, setTrialDays] = useState(14);
+  const [editMonthlyPrice, setEditMonthlyPrice] = useState(0);
+  const [editAnnualPrice, setEditAnnualPrice] = useState(0);
+  const [editConversationsLimit, setEditConversationsLimit] = useState(0);
+  const [editAgentsLimit, setEditAgentsLimit] = useState(0);
+  
+  // Fetch subscription plans from database
+  const { data: plans = [], isLoading: plansLoading } = useQuery<any[]>({
+    queryKey: ["/api/subscription-plans"],
+  });
   
   // Fetch platform settings including trial days
   const { data: platformSettings } = useQuery({
@@ -4130,9 +4138,57 @@ function PricingTab({ toast }: { toast: any }) {
     },
   });
   
+  const updatePlanMutation = useMutation({
+    mutationFn: async ({ planId, monthlyPrice, annualPrice, conversationsLimit, agentsLimit }: { 
+      planId: string; 
+      monthlyPrice: number; 
+      annualPrice: number;
+      conversationsLimit: number;
+      agentsLimit: number;
+    }) => {
+      return apiRequest("PUT", `/api/admin/subscription-plans/${planId}`, {
+        monthlyPrice,
+        annualPrice,
+        conversationsLimit,
+        agentsLimit,
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Plan Updated",
+        description: "Subscription plan has been modified and synced across the platform.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/subscription-plans"] });
+      setEditPlanOpen(false);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update subscription plan.",
+        variant: "destructive",
+      });
+    },
+  });
+  
   const handleEditPlan = (plan: any) => {
     setSelectedPlan(plan);
+    setEditMonthlyPrice(plan.monthlyPrice);
+    setEditAnnualPrice(plan.annualPrice);
+    setEditConversationsLimit(plan.conversationsLimit);
+    setEditAgentsLimit(plan.agentsLimit);
     setEditPlanOpen(true);
+  };
+  
+  const handleSavePlan = () => {
+    if (selectedPlan) {
+      updatePlanMutation.mutate({
+        planId: selectedPlan.id,
+        monthlyPrice: editMonthlyPrice,
+        annualPrice: editAnnualPrice,
+        conversationsLimit: editConversationsLimit,
+        agentsLimit: editAgentsLimit,
+      });
+    }
   };
 
   return (
@@ -4377,31 +4433,65 @@ function PricingTab({ toast }: { toast: any }) {
         <DialogContent data-testid="dialog-edit-plan">
           <DialogHeader>
             <DialogTitle>Edit Plan: {selectedPlan?.name}</DialogTitle>
-            <DialogDescription>Modify subscription plan details</DialogDescription>
+            <DialogDescription>Modify subscription plan details. Changes will sync to landing page, dashboard, and payment system.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
               <Label>Plan Name</Label>
-              <Input defaultValue={selectedPlan?.name} className="mt-1" data-testid="input-edit-plan-name" />
+              <Input value={selectedPlan?.name || ""} disabled className="mt-1 bg-muted" data-testid="input-edit-plan-name" />
+              <p className="text-xs text-muted-foreground mt-1">Plan names cannot be changed</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Monthly Price ($)</Label>
-                <Input type="number" defaultValue={selectedPlan?.monthlyPrice} className="mt-1" data-testid="input-edit-plan-monthly" />
+                <Input 
+                  type="number" 
+                  value={editMonthlyPrice} 
+                  onChange={(e) => setEditMonthlyPrice(parseInt(e.target.value) || 0)}
+                  className="mt-1" 
+                  data-testid="input-edit-plan-monthly" 
+                />
               </div>
               <div>
                 <Label>Annual Price ($)</Label>
-                <Input type="number" defaultValue={selectedPlan?.annualPrice} className="mt-1" data-testid="input-edit-plan-annual" />
+                <Input 
+                  type="number" 
+                  value={editAnnualPrice} 
+                  onChange={(e) => setEditAnnualPrice(parseInt(e.target.value) || 0)}
+                  className="mt-1" 
+                  data-testid="input-edit-plan-annual" 
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Conversations Limit</Label>
+                <Input 
+                  type="number" 
+                  value={editConversationsLimit === -1 ? -1 : editConversationsLimit} 
+                  onChange={(e) => setEditConversationsLimit(parseInt(e.target.value) || 0)}
+                  className="mt-1" 
+                  data-testid="input-edit-plan-conversations" 
+                />
+                <p className="text-xs text-muted-foreground mt-1">Use -1 for unlimited</p>
+              </div>
+              <div>
+                <Label>Agents Limit</Label>
+                <Input 
+                  type="number" 
+                  value={editAgentsLimit === -1 ? -1 : editAgentsLimit} 
+                  onChange={(e) => setEditAgentsLimit(parseInt(e.target.value) || 0)}
+                  className="mt-1" 
+                  data-testid="input-edit-plan-agents" 
+                />
+                <p className="text-xs text-muted-foreground mt-1">Use -1 for unlimited</p>
               </div>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditPlanOpen(false)} data-testid="button-cancel-edit-plan">Cancel</Button>
-            <Button onClick={() => {
-              toast({ title: "Plan Updated", description: "Subscription plan has been modified." });
-              setEditPlanOpen(false);
-            }} data-testid="button-confirm-edit-plan">
-              Save Changes
+            <Button onClick={handleSavePlan} disabled={updatePlanMutation.isPending} data-testid="button-confirm-edit-plan">
+              {updatePlanMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>

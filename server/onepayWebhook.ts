@@ -1,6 +1,7 @@
 import { verifyWebhookSignature } from './onepayClient';
 import { storage } from './storage';
 import { subscriptionPlans, type SubscriptionPlanId } from '@shared/schema';
+import { getEffectiveSubscriptionPlan } from './subscriptionPlanUtils';
 
 export interface OnePayWebhookPayload {
   transaction_id: string;
@@ -99,9 +100,14 @@ export class OnePayWebhookHandler {
     billingInterval: string,
     transactionId: string
   ): Promise<void> {
-    const plan = subscriptionPlans[planId];
+    // Use effective plan with custom overrides from database
+    const plan = await getEffectiveSubscriptionPlan(planId);
     if (!plan) {
-      throw new Error(`Invalid plan: ${planId}`);
+      // Fallback to base plan if effective plan fails
+      const basePlan = subscriptionPlans[planId];
+      if (!basePlan) {
+        throw new Error(`Invalid plan: ${planId}`);
+      }
     }
 
     const periodEnd = new Date();

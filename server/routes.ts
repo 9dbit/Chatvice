@@ -70,6 +70,9 @@ declare module "express-session" {
   }
 }
 
+// Import subscription plan utility with caching
+import { getEffectiveSubscriptionPlan, getAllEffectiveSubscriptionPlans, clearPlanCache } from './subscriptionPlanUtils';
+
 function getBaseUrl(req: Request): string {
   if (process.env.REPLIT_DEV_DOMAIN) {
     return `https://${process.env.REPLIT_DEV_DOMAIN}`;
@@ -122,32 +125,58 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-// Helper function to get effective plan limits (respects custom plan configuration)
-function getEffectivePlanLimits(merchant: Merchant) {
-  const basePlan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
-  
-  // If not custom plan, return base plan limits
-  if (merchant.subscriptionPlanId !== 'custom') {
+// Helper function to get effective plan limits (respects custom plan configuration and DB overrides)
+async function getEffectivePlanLimitsAsync(merchant: Merchant) {
+  // For custom plans, always use merchant-level custom configuration
+  if (merchant.subscriptionPlanId === 'custom') {
+    const basePlan = subscriptionPlans.custom;
     return {
-      conversationsLimit: basePlan.conversationsLimit,
-      agentsLimit: basePlan.agentsLimit,
-      supervisorsLimit: basePlan.supervisorsLimit,
-      sourcesLimit: basePlan.sourcesLimit,
-      suggestedQuestionsLimit: basePlan.suggestedQuestionsLimit,
-      monthlyPrice: basePlan.monthlyPrice,
-      annualPrice: basePlan.annualPrice,
+      conversationsLimit: merchant.customConversationsLimit ?? basePlan.conversationsLimit,
+      agentsLimit: merchant.customAgentsLimit ?? basePlan.agentsLimit,
+      supervisorsLimit: merchant.customSupervisorsLimit ?? basePlan.supervisorsLimit,
+      sourcesLimit: merchant.customSourcesLimit ?? basePlan.sourcesLimit,
+      suggestedQuestionsLimit: merchant.customSuggestedQuestionsLimit ?? basePlan.suggestedQuestionsLimit,
+      monthlyPrice: merchant.customMonthlyPrice ?? basePlan.monthlyPrice,
+      annualPrice: merchant.customAnnualPrice ?? basePlan.annualPrice,
     };
   }
   
-  // For custom plan, use merchant's custom configuration or fallback to base plan
+  // For standard plans, use the effective plan with DB overrides
+  const effectivePlan = await getEffectiveSubscriptionPlan(merchant.subscriptionPlanId);
+  if (!effectivePlan) {
+    // Fallback to free plan if effective plan cannot be retrieved
+    const freePlan = await getEffectiveSubscriptionPlan('free');
+    if (!freePlan) {
+      // Ultimate fallback to hardcoded values
+      return {
+        conversationsLimit: 20,
+        agentsLimit: 1,
+        supervisorsLimit: 1,
+        sourcesLimit: 1,
+        suggestedQuestionsLimit: 3,
+        monthlyPrice: 0,
+        annualPrice: 0,
+      };
+    }
+    return {
+      conversationsLimit: freePlan.conversationsLimit,
+      agentsLimit: freePlan.agentsLimit,
+      supervisorsLimit: freePlan.supervisorsLimit,
+      sourcesLimit: freePlan.sourcesLimit,
+      suggestedQuestionsLimit: freePlan.suggestedQuestionsLimit,
+      monthlyPrice: freePlan.monthlyPrice,
+      annualPrice: freePlan.annualPrice,
+    };
+  }
+  
   return {
-    conversationsLimit: merchant.customConversationsLimit ?? basePlan.conversationsLimit,
-    agentsLimit: merchant.customAgentsLimit ?? basePlan.agentsLimit,
-    supervisorsLimit: merchant.customSupervisorsLimit ?? basePlan.supervisorsLimit,
-    sourcesLimit: merchant.customSourcesLimit ?? basePlan.sourcesLimit,
-    suggestedQuestionsLimit: merchant.customSuggestedQuestionsLimit ?? basePlan.suggestedQuestionsLimit,
-    monthlyPrice: merchant.customMonthlyPrice ?? basePlan.monthlyPrice,
-    annualPrice: merchant.customAnnualPrice ?? basePlan.annualPrice,
+    conversationsLimit: effectivePlan.conversationsLimit,
+    agentsLimit: effectivePlan.agentsLimit,
+    supervisorsLimit: effectivePlan.supervisorsLimit,
+    sourcesLimit: effectivePlan.sourcesLimit,
+    suggestedQuestionsLimit: effectivePlan.suggestedQuestionsLimit,
+    monthlyPrice: effectivePlan.monthlyPrice,
+    annualPrice: effectivePlan.annualPrice,
   };
 }
 
@@ -157,7 +186,7 @@ async function checkSubscriptionLimits(merchantId: string, type: 'conversation' 
     return { allowed: false, message: "Merchant not found" };
   }
   
-  const effectiveLimits = getEffectivePlanLimits(merchant);
+  const effectiveLimits = await getEffectivePlanLimitsAsync(merchant);
   
   if (merchant.subscriptionStatus === 'trial') {
     const trialExpired = merchant.trialEndsAt && new Date(merchant.trialEndsAt) < new Date();
@@ -2998,7 +3027,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(404).json({ error: "Merchant not found" });
       }
       
-      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+      // Use effective plan with custom pricing from database
+      const plan = await getEffectiveSubscriptionPlan(merchant.subscriptionPlanId) || await getEffectiveSubscriptionPlan('free');
       const isTrialExpired = merchant.trialEndsAt && new Date(merchant.trialEndsAt) < new Date();
       
       res.json({
@@ -3031,12 +3061,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(400).json({ error: "Plan ID required" });
       }
       
-      const newPlan = subscriptionPlans[planId as SubscriptionPlanId];
+      // Use effective plans with custom pricing from database
+      const newPlan = await getEffectiveSubscriptionPlan(planId);
       if (!newPlan) {
         return res.status(400).json({ error: "Invalid plan" });
       }
       
-      const currentPlan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+      const currentPlan = await getEffectiveSubscriptionPlan(merchant.subscriptionPlanId) || await getEffectiveSubscriptionPlan('free');
+      if (!currentPlan) {
+        return res.status(500).json({ error: "Could not determine current plan" });
+      }
       const requestedInterval = billingInterval === 'annual' ? 'annual' : 'monthly';
       
       const newPlanPrice = requestedInterval === 'annual' ? newPlan.annualPrice : newPlan.monthlyPrice;
@@ -3120,7 +3154,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(404).json({ error: "Merchant not found" });
       }
       
-      const plan = subscriptionPlans[planId as SubscriptionPlanId];
+      // Use effective plan with custom pricing from database
+      const plan = await getEffectiveSubscriptionPlan(planId);
       if (!plan) {
         return res.status(400).json({ error: "Invalid plan" });
       }
@@ -3757,6 +3792,69 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       res.json(allSettings);
     } catch (error) {
       console.error("Error updating platform settings:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get subscription plans (uses cached utility for consistent data)
+  app.get("/api/subscription-plans", async (req, res) => {
+    try {
+      // Use the centralized utility to get effective plans with DB overrides
+      const plans = await getAllEffectiveSubscriptionPlans();
+      res.json(plans);
+    } catch (error) {
+      console.error("Error fetching subscription plans:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Admin: Update subscription plan
+  app.put("/api/admin/subscription-plans/:planId", requireAdmin, async (req, res) => {
+    try {
+      const { planId } = req.params;
+      const { monthlyPrice, annualPrice, conversationsLimit, agentsLimit, supervisorsLimit, sourcesLimit } = req.body;
+      
+      // Get existing custom overrides
+      const customPlansJson = await storage.getPlatformSetting("subscription_plans_custom") || "{}";
+      let customOverrides: Record<string, any> = {};
+      try {
+        customOverrides = JSON.parse(customPlansJson);
+      } catch {
+        customOverrides = {};
+      }
+      
+      // Update the specific plan
+      customOverrides[planId] = {
+        ...(customOverrides[planId] || {}),
+        ...(monthlyPrice !== undefined && { monthlyPrice }),
+        ...(annualPrice !== undefined && { annualPrice }),
+        ...(conversationsLimit !== undefined && { conversationsLimit }),
+        ...(agentsLimit !== undefined && { agentsLimit }),
+        ...(supervisorsLimit !== undefined && { supervisorsLimit }),
+        ...(sourcesLimit !== undefined && { sourcesLimit }),
+      };
+      
+      // Save back to platform settings
+      await storage.setPlatformSetting("subscription_plans_custom", JSON.stringify(customOverrides));
+      
+      // Clear the plan cache so changes take effect immediately
+      clearPlanCache();
+      
+      // Return the updated plan
+      const defaultPlan = subscriptionPlans[planId as keyof typeof subscriptionPlans];
+      if (!defaultPlan) {
+        return res.status(404).json({ error: "Plan not found" });
+      }
+      
+      const updatedPlan = {
+        ...defaultPlan,
+        id: planId,
+        ...customOverrides[planId],
+      };
+      
+      res.json({ success: true, plan: updatedPlan });
+    } catch (error) {
+      console.error("Error updating subscription plan:", error);
       res.status(500).json({ error: "Server error" });
     }
   });

@@ -26,14 +26,28 @@ export default function PricingPage() {
     queryKey: ["/api/platform-settings"],
   });
   
+  // Fetch subscription plans from database
+  const { data: dbPlans = [] } = useQuery<any[]>({
+    queryKey: ["/api/subscription-plans"],
+  });
+  
   const trialDays = (platformSettings as any)?.trial_days ? parseInt((platformSettings as any).trial_days) : 14;
+
+  // Map database plans to display format
+  const getDbPlanPrice = (planId: string, priceType: 'monthly' | 'annual') => {
+    const dbPlan = dbPlans.find((p: any) => p.id === planId);
+    if (dbPlan) {
+      return priceType === 'monthly' ? dbPlan.monthlyPrice : dbPlan.annualPrice;
+    }
+    return null;
+  };
 
   const plans = [
     {
       name: "Starter",
       description: "Perfect for small businesses getting started with AI support.",
-      monthlyPrice: 29,
-      yearlyPrice: 24,
+      monthlyPrice: getDbPlanPrice('starter', 'monthly') ?? 29,
+      yearlyPrice: getDbPlanPrice('starter', 'annual') ?? 24,
       features: [
         { text: "1 AI Agent", included: true },
         { text: "1 Supervisor", included: true },
@@ -53,8 +67,8 @@ export default function PricingPage() {
     {
       name: "Pro",
       description: "For growing teams that need more power and flexibility.",
-      monthlyPrice: 99,
-      yearlyPrice: 83,
+      monthlyPrice: getDbPlanPrice('pro', 'monthly') ?? 99,
+      yearlyPrice: getDbPlanPrice('pro', 'annual') ?? 83,
       features: [
         { text: "3 AI Agents", included: true },
         { text: "3 Supervisors", included: true },
@@ -74,8 +88,8 @@ export default function PricingPage() {
     {
       name: "Enterprise",
       description: "For large organizations with custom needs.",
-      monthlyPrice: 499,
-      yearlyPrice: 416,
+      monthlyPrice: getDbPlanPrice('enterprise', 'monthly') ?? 499,
+      yearlyPrice: getDbPlanPrice('enterprise', 'annual') ?? 416,
       features: [
         { text: "10 AI Agents", included: true },
         { text: "5 Supervisors", included: true },

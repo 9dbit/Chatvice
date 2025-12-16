@@ -23,7 +23,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Lock, Loader2, CheckCircle2, Sparkles, Gift, Building2, ChevronDown, ChevronUp, QrCode, Timer, RefreshCw, Copy, XCircle } from "lucide-react";
 import { format } from "date-fns";
-import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
+import { type SubscriptionPlanId } from "@shared/schema";
 
 interface BillingStatus {
   status: string;
@@ -57,7 +57,7 @@ export default function BillingPage() {
   const { toast } = useToast();
   const [isAnnual, setIsAnnual] = useState(false);
   const [qrisPaymentOpen, setQrisPaymentOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<typeof subscriptionPlans[keyof typeof subscriptionPlans] | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [paymentStep, setPaymentStep] = useState<'loading' | 'qris' | 'checking' | 'success' | 'expired' | 'error'>('loading');
   const [qrisData, setQrisData] = useState<QRISPaymentResponse | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
@@ -81,6 +81,11 @@ export default function BillingPage() {
   
   const { data: platformSettings } = useQuery({
     queryKey: ["/api/platform-settings"],
+  });
+  
+  // Fetch subscription plans from database
+  const { data: dbPlans = [] } = useQuery<any[]>({
+    queryKey: ["/api/subscription-plans"],
   });
   
   const trialDays = (platformSettings as any)?.trial_days ? parseInt((platformSettings as any).trial_days) : 7;
@@ -232,7 +237,7 @@ export default function BillingPage() {
   });
 
   const handleUpgrade = async (planId: string) => {
-    const plan = Object.values(subscriptionPlans).find(p => p.id === planId);
+    const plan = dbPlans.find((p: any) => p.id === planId);
     if (plan) {
       setSelectedPlan(plan);
       setQrisPaymentOpen(true);
@@ -307,7 +312,7 @@ export default function BillingPage() {
     }
   };
 
-  const plans = Object.entries(subscriptionPlans).map(([_, plan]) => ({
+  const plans = dbPlans.map((plan: any) => ({
     ...plan,
     monthlyDisplay: plan.monthlyPrice,
     annualMonthlyDisplay: Math.round(plan.annualPrice),
@@ -521,7 +526,7 @@ export default function BillingPage() {
                   </div>
                   
                   <ul className="space-y-1.5">
-                    {plan.features.slice(0, 5).map((feature, index) => (
+                    {plan.features.slice(0, 5).map((feature: string, index: number) => (
                       <li key={index} className="flex items-start gap-1.5 text-xs">
                         <Check className="w-3 h-3 text-green-500 shrink-0 mt-0.5" />
                         <span>{feature}</span>
@@ -545,7 +550,7 @@ export default function BillingPage() {
                     >
                       <CollapsibleContent>
                         <ul className="space-y-1.5 mt-1.5">
-                          {plan.features.slice(5).map((feature, index) => (
+                          {plan.features.slice(5).map((feature: string, index: number) => (
                             <li key={index + 5} className="flex items-start gap-1.5 text-xs">
                               <Check className="w-3 h-3 text-green-500 shrink-0 mt-0.5" />
                               <span>{feature}</span>
