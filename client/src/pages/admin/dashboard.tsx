@@ -3135,9 +3135,10 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
                               });
                             }
                           } catch (err) {
+                            console.error("Upload error:", err);
                             toast({
                               title: "Upload Failed",
-                              description: "Failed to upload icon image",
+                              description: err instanceof Error ? err.message : "Failed to upload icon image",
                               variant: "destructive",
                             });
                           }

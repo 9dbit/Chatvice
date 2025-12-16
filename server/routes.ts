@@ -3655,7 +3655,15 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   });
 
   // Brand identity file upload endpoint - uses Object Storage for persistence, falls back to database
-  app.post("/api/admin/brand-upload", requireAdmin, upload.single("file"), async (req, res) => {
+  app.post("/api/admin/brand-upload", requireAdmin, (req, res, next) => {
+    upload.single("file")(req, res, (err) => {
+      if (err) {
+        console.error("Multer upload error:", err);
+        return res.status(400).json({ error: err.message || "File upload failed" });
+      }
+      next();
+    });
+  }, async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No file uploaded" });
