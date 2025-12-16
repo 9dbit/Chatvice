@@ -3106,9 +3106,11 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
                         if (file) {
                           const formData = new FormData();
                           formData.append("file", file);
+                          formData.append("type", "guide_icon");
                           try {
-                            const response = await fetch("/api/upload", {
+                            const response = await fetch("/api/admin/brand-upload", {
                               method: "POST",
+                              credentials: "include",
                               body: formData,
                             });
                             if (response.ok) {
@@ -3124,6 +3126,13 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
                                 }));
                               };
                               img.src = url;
+                            } else {
+                              const errorData = await response.json().catch(() => ({}));
+                              toast({
+                                title: "Upload Failed",
+                                description: errorData.error || "Failed to upload icon image",
+                                variant: "destructive",
+                              });
                             }
                           } catch (err) {
                             toast({

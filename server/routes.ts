@@ -4018,7 +4018,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         'guide_widget_position',
         'guide_widget_color',
         'guide_bubble_enabled',
-        'guide_bubble_text'
+        'guide_bubble_text',
+        'guide_button_icon_url',
+        'guide_button_icon_width',
+        'guide_button_icon_height',
+        'guide_promo_image_enabled',
+        'guide_promo_image_url'
       ];
       const publicSettings: Record<string, string> = {};
       for (const key of publicKeys) {
