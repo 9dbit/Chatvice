@@ -3391,6 +3391,39 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // Resend Webhook - Email Event Notifications
+  app.post("/api/resend/webhook", async (req, res) => {
+    try {
+      const signature = req.headers['resend-signature'] as string;
+      const webhookSecret = process.env.RESEND_WEBHOOK_SECRET;
+
+      // Verify webhook signature if secret is configured
+      if (webhookSecret && signature) {
+        const rawBody = JSON.stringify(req.body);
+        const { ResendWebhookHandler } = await import('./resendWebhook');
+        
+        const isValid = ResendWebhookHandler.verifySignature(rawBody, signature, webhookSecret);
+        if (!isValid) {
+          console.warn('Invalid Resend webhook signature');
+          return res.status(401).json({ error: 'Invalid signature' });
+        }
+      }
+
+      // Process the webhook event
+      const { ResendWebhookHandler } = await import('./resendWebhook');
+      const result = await ResendWebhookHandler.processWebhook(req.body);
+
+      if (result.success) {
+        res.status(200).json({ success: true, message: result.message });
+      } else {
+        res.status(400).json({ success: false, message: result.message });
+      }
+    } catch (error: any) {
+      console.error('Resend webhook error:', error);
+      res.status(500).json({ error: 'Webhook processing failed' });
+    }
+  });
+
   app.post("/api/admin/login", async (req, res) => {
     try {
       const { email, password } = req.body;
