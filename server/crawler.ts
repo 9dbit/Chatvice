@@ -32,7 +32,15 @@ function validateUrl(urlString: string): { valid: boolean; url?: URL; error?: st
       return { valid: false, error: "URL is too long" };
     }
 
-    const normalizedUrl = urlString.startsWith('http') ? urlString : `https://${urlString}`;
+    // Normalize URL with case-insensitive protocol check
+    let normalizedUrl = urlString.trim();
+    const lowerUrl = normalizedUrl.toLowerCase();
+    if (!lowerUrl.startsWith('http://') && !lowerUrl.startsWith('https://')) {
+      normalizedUrl = `https://${normalizedUrl}`;
+    } else {
+      // Fix case where user typed "Https://" or "HTTP://" - normalize to lowercase protocol
+      normalizedUrl = normalizedUrl.replace(/^https?:\/\//i, (match) => match.toLowerCase());
+    }
     const url = new URL(normalizedUrl);
     
     if (!['http:', 'https:'].includes(url.protocol)) {

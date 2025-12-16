@@ -3769,10 +3769,14 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(400).json({ error: "URL is required" });
       }
       
-      // Normalize URL - add https:// if not present
+      // Normalize URL - add https:// if not present (case-insensitive check)
       let normalizedUrl = url.trim();
-      if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+      const lowerUrl = normalizedUrl.toLowerCase();
+      if (!lowerUrl.startsWith('http://') && !lowerUrl.startsWith('https://')) {
         normalizedUrl = 'https://' + normalizedUrl;
+      } else if (lowerUrl.startsWith('http://') || lowerUrl.startsWith('https://')) {
+        // Fix case where user typed "Https://" or "HTTP://" - normalize to lowercase protocol
+        normalizedUrl = normalizedUrl.replace(/^https?:\/\//i, (match: string) => match.toLowerCase());
       }
       
       console.log("Crawling URL:", normalizedUrl);
