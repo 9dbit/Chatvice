@@ -44,7 +44,16 @@ export async function getUncachableResendClient() {
 export async function sendVerificationEmail(toEmail: string, verificationToken: string, merchantName: string): Promise<boolean> {
   try {
     const { client, fromEmail } = await getUncachableResendClient();
-    const verificationUrl = `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000'}/verify-email?token=${verificationToken}`;
+    
+    // Use production domain for verification URL
+    const baseUrl = process.env.REPLIT_DEPLOYMENT_ID 
+      ? 'https://chatvice.app'
+      : process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+        : 'http://localhost:5000';
+    const verificationUrl = `${baseUrl}/verify-email?token=${verificationToken}`;
+    
+    console.log('Sending verification email:', { to: toEmail, from: fromEmail, url: verificationUrl });
     
     const { error } = await client.emails.send({
       from: fromEmail,
@@ -85,9 +94,10 @@ export async function sendVerificationEmail(toEmail: string, verificationToken: 
     });
 
     if (error) {
-      console.error('Resend error:', error);
+      console.error('Resend verification email error:', error);
       return false;
     }
+    console.log('Verification email sent successfully to:', toEmail);
     return true;
   } catch (error) {
     console.error('Failed to send verification email:', error);
@@ -98,7 +108,16 @@ export async function sendVerificationEmail(toEmail: string, verificationToken: 
 export async function sendPasswordResetEmail(toEmail: string, resetToken: string, merchantName: string): Promise<boolean> {
   try {
     const { client, fromEmail } = await getUncachableResendClient();
-    const resetUrl = `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000'}/reset-password?token=${resetToken}`;
+    
+    // Use production domain for reset URL
+    const baseUrl = process.env.REPLIT_DEPLOYMENT_ID 
+      ? 'https://chatvice.app'
+      : process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+        : 'http://localhost:5000';
+    const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
+    
+    console.log('Sending password reset email:', { to: toEmail, from: fromEmail, url: resetUrl });
     
     const { error } = await client.emails.send({
       from: fromEmail,
