@@ -62,48 +62,34 @@ interface ParsedPart {
 
 function parseMessageContent(content: string): ParsedPart[] {
   const parts: ParsedPart[] = [];
-  const buttonRegex = /\[BTN:([^\]:]+):([^\]]+)\]/g;
-  const linkRegex = /\[LINK:([^\]:]+):([^\]]+)\]/g;
+  const regex = /\[BTN:([^\]:]+)(?::([^\]]+))?\]|\[LINK:([^\]:]+):([^\]]+)\]/g;
   
   let lastIndex = 0;
-  const matches: { index: number; length: number; part: ParsedPart }[] = [];
-  
   let match;
-  while ((match = buttonRegex.exec(content)) !== null) {
-    const label = match[1].trim();
-    const action = match[2].trim();
-    if (label && action) {
-      matches.push({
-        index: match.index,
-        length: match[0].length,
-        part: { type: "button", content: label, action }
-      });
-    }
-  }
   
-  while ((match = linkRegex.exec(content)) !== null) {
-    const text = match[1].trim();
-    const url = match[2].trim();
-    if (text && url) {
-      matches.push({
-        index: match.index,
-        length: match[0].length,
-        part: { type: "link", content: text, url }
-      });
-    }
-  }
-  
-  matches.sort((a, b) => a.index - b.index);
-  
-  for (const m of matches) {
-    if (m.index > lastIndex) {
-      const text = content.slice(lastIndex, m.index);
-      if (text) {
-        parts.push({ type: "text", content: text });
+  while ((match = regex.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      const textBefore = content.slice(lastIndex, match.index);
+      if (textBefore) {
+        parts.push({ type: "text", content: textBefore });
       }
     }
-    parts.push(m.part);
-    lastIndex = m.index + m.length;
+    
+    if (match[1]) {
+      parts.push({ 
+        type: "button", 
+        content: match[1], 
+        action: match[2] || match[1] 
+      });
+    } else if (match[3] && match[4]) {
+      parts.push({ 
+        type: "link", 
+        content: match[3], 
+        url: match[4] 
+      });
+    }
+    
+    lastIndex = match.index + match[0].length;
   }
   
   if (lastIndex < content.length) {
@@ -113,7 +99,7 @@ function parseMessageContent(content: string): ParsedPart[] {
     }
   }
   
-  if (parts.length === 0 && content) {
+  if (parts.length === 0) {
     parts.push({ type: "text", content });
   }
   

@@ -67,10 +67,13 @@ Core entities include Merchants, Supervisors, Sessions, Messages (with `clientMe
 - AI responses can include interactive buttons and clickable links for practical customer interaction
 - Button format: `[BTN:Label:action text]` - Creates clickable button that sends "action text" as user message
 - Link format: `[LINK:Display Text:/path]` - Creates clickable link to specified page
-- parseMessageContent() function in ai-help-bubble.tsx parses and renders these elements
+- parseMessageContent() function parses and renders these elements in both:
+  - ai-help-bubble.tsx (Chatvice Guide on landing page and dashboard)
+  - chat-widget.tsx (Merchant embedded widget for customer support)
 - Available links: /features, /pricing, /register, /docs, /blog (public), /agents, /sources, /analytics, etc. (dashboard)
 - Buttons appear at bottom of AI message with primary hover styling
 - Links render inline with underline on hover and external link icon for external URLs
+- System prompts in askChatvice (merchant widget) and Chatvice Guide endpoints include INTERACTIVE FORMATTING instructions
 
 ## External Dependencies
 
