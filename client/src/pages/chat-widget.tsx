@@ -53,6 +53,69 @@ interface PendingMessage {
 
 const generateClientId = () => `client_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
+interface ParsedPart {
+  type: "text" | "button" | "link";
+  content: string;
+  action?: string;
+  url?: string;
+}
+
+function parseMessageContent(content: string): ParsedPart[] {
+  const parts: ParsedPart[] = [];
+  const buttonRegex = /\[BTN:([^\]:]+):([^\]]+)\]/g;
+  const linkRegex = /\[LINK:([^\]:]+):([^\]]+)\]/g;
+  
+  let lastIndex = 0;
+  const matches: { index: number; length: number; part: ParsedPart }[] = [];
+  
+  let match;
+  while ((match = buttonRegex.exec(content)) !== null) {
+    matches.push({
+      index: match.index,
+      length: match[0].length,
+      part: { type: "button", content: match[1].trim(), action: match[2].trim() }
+    });
+  }
+  
+  while ((match = linkRegex.exec(content)) !== null) {
+    matches.push({
+      index: match.index,
+      length: match[0].length,
+      part: { type: "link", content: match[1].trim(), url: match[2].trim() }
+    });
+  }
+  
+  matches.sort((a, b) => a.index - b.index);
+  
+  for (const m of matches) {
+    if (m.index > lastIndex) {
+      const text = content.slice(lastIndex, m.index);
+      if (text.trim()) {
+        parts.push({ type: "text", content: text });
+      }
+    }
+    if (m.part.type === "link") {
+      parts.push(m.part);
+    } else {
+      parts.push(m.part);
+    }
+    lastIndex = m.index + m.length;
+  }
+  
+  if (lastIndex < content.length) {
+    const remaining = content.slice(lastIndex);
+    if (remaining.trim()) {
+      parts.push({ type: "text", content: remaining });
+    }
+  }
+  
+  if (parts.length === 0 && content.trim()) {
+    parts.push({ type: "text", content });
+  }
+  
+  return parts;
+}
+
 export default function ChatWidget({ merchantId, sessionId: initialSessionId, embedded = false, previewMode = false }: ChatWidgetProps) {
   const urlParams = new URLSearchParams(window.location.search);
   const showCloseButton = urlParams.get("showClose") === "true";
@@ -312,6 +375,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     setPendingMessages((prev) => [...prev, { clientId, from: "user", content: userMessage, timestamp: new Date() }]);
     setMessage("");
     sendMessageMutation.mutate({ userMessage, clientId });
+  };
+  
+  const sendButtonMessage = (buttonAction: string) => {
+    if (!buttonAction.trim() || sendMessageMutation.isPending) return;
+    const clientId = generateClientId();
+    setPendingMessages((prev) => [...prev, { clientId, from: "user", content: buttonAction, timestamp: new Date() }]);
+    sendMessageMutation.mutate({ userMessage: buttonAction, clientId });
   };
 
   const useSuggestedQuestionMutation = useMutation({
@@ -970,9 +1040,60 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 >
                   {!((msg as any).messageType === "media" && (msg as any).payload?.url) && 
                    !((msg as any).messageType === "product_offer" && (msg as any).payload?.productCard) &&
-                   !msg.mediaUrl && (
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
-                  )}
+                   !msg.mediaUrl && (() => {
+                    const isAiMessage = msg.from === "chatvice" || msg.from === "supervisor";
+                    if (!isAiMessage) {
+                      return <p className="whitespace-pre-wrap">{msg.content}</p>;
+                    }
+                    const parsed = parseMessageContent(msg.content);
+                    const hasButtons = parsed.some(p => p.type === "button");
+                    return (
+                      <div className="text-sm">
+                        {parsed.map((part, partIndex) => {
+                          if (part.type === "text") {
+                            return <span key={partIndex} className="whitespace-pre-wrap">{part.content}</span>;
+                          }
+                          if (part.type === "link") {
+                            const isExternal = part.url?.startsWith("http");
+                            return (
+                              <a
+                                key={partIndex}
+                                href={part.url}
+                                target={isExternal ? "_blank" : "_self"}
+                                rel={isExternal ? "noopener noreferrer" : undefined}
+                                className="inline-flex items-center gap-1 font-medium hover:underline"
+                                style={{ color: primaryColor }}
+                                data-testid={`link-widget-${partIndex}`}
+                              >
+                                {part.content}
+                                {isExternal && <ExternalLink className="w-3 h-3" />}
+                              </a>
+                            );
+                          }
+                          return null;
+                        })}
+                        {hasButtons && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {parsed.filter(p => p.type === "button").map((btn, btnIndex) => (
+                              <button
+                                key={`btn-${btnIndex}`}
+                                className="px-3 py-1.5 text-xs rounded-full border transition-colors hover:text-white"
+                                style={{ borderColor: primaryColor, color: primaryColor }}
+                                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = primaryColor; e.currentTarget.style.color = 'white'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = primaryColor; }}
+                                onClick={() => sendButtonMessage(btn.action || btn.content)}
+                                disabled={sendMessageMutation.isPending}
+                                data-testid={`button-widget-quick-${btnIndex}`}
+                              >
+                                <ChevronRight className="w-3 h-3 mr-1 inline" />
+                                {btn.content}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                   {(msg as any).messageType === "product_offer" && (msg as any).payload?.productCard && (
                     <div className="mt-2 bg-background rounded-xl border shadow-sm overflow-hidden max-w-[180px]">
                       {(msg as any).payload.productCard.imageUrl ? (

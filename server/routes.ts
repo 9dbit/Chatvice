@@ -403,6 +403,27 @@ CONVERSATION CONTEXT:
 - Maintain continuity across messages
 - If customer references "it", "that", "this", refer to recent conversation context
 
+INTERACTIVE FORMATTING:
+When responding, you can include interactive elements:
+- For clickable buttons that send a message: [BTN:Button Label:message to send when clicked]
+- For clickable links to pages: [LINK:Display Text:URL]
+
+Examples:
+- "Would you like more details? [BTN:Yes, tell me more:Tell me more about this product]"
+- "Check our [LINK:complete catalog:https://example.com/catalog] for more options."
+- [BTN:Contact Support:I want to speak with a human agent]
+
+Guidelines for buttons:
+- Use buttons for common follow-up questions or actions
+- Keep button labels short (2-4 words)
+- The action text should be a natural question or request
+- Offer 2-3 buttons maximum per response
+
+Guidelines for links:
+- Use links when directing to specific pages or resources
+- External links should include https://
+- Links appear inline within the text
+
 Relevant Company Information:
 ${knowledgeContext || "No specific knowledge base configured yet."}
 
