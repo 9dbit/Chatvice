@@ -11,6 +11,8 @@ import {
   ArrowRight,
   Zap,
   HelpCircle,
+  Gift,
+  Clock,
 } from "lucide-react";
 import PublicPageLayout from "./public-layout";
 import {
@@ -18,6 +20,18 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+
+interface ActivePromotion {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  discountPercent: number;
+  targetPlans: string[];
+  billingCycle: string;
+  endDate: string;
+  showUpsell: boolean;
+}
 
 export default function PricingPage() {
   const [isYearly, setIsYearly] = useState(false);
@@ -31,7 +45,44 @@ export default function PricingPage() {
     queryKey: ["/api/subscription-plans"],
   });
   
+  // Fetch active public promotions
+  const { data: activePromos = [] } = useQuery<ActivePromotion[]>({
+    queryKey: ["/api/promotions/active"],
+  });
+  
   const trialDays = (platformSettings as any)?.trial_days ? parseInt((platformSettings as any).trial_days) : 14;
+
+  // Get the first active promotion that applies to current billing cycle
+  const currentBillingCycle = isYearly ? "annual" : "monthly";
+  const applicablePromo = activePromos.find(p => 
+    p.billingCycle === "both" || p.billingCycle === currentBillingCycle
+  );
+
+  // Check if promotion applies to a specific plan
+  const getPromoForPlan = (planId: string) => {
+    if (!applicablePromo) return null;
+    const targets = applicablePromo.targetPlans || [];
+    if (targets.includes("all")) return applicablePromo;
+    if (targets.includes(planId)) return applicablePromo;
+    if (targets.includes("upgrade") && (planId === "starter" || planId === "pro")) return applicablePromo;
+    return null;
+  };
+
+  // Calculate discounted price
+  const getDiscountedPrice = (price: number, planId: string) => {
+    const promo = getPromoForPlan(planId);
+    if (!promo) return price;
+    return Math.round(price * (1 - promo.discountPercent / 100));
+  };
+
+  // Format remaining days for promo
+  const getPromoRemainingDays = (endDate: string) => {
+    const end = new Date(endDate);
+    const now = new Date();
+    const diffTime = end.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
 
   // Map database plans to display format
   const getDbPlanPrice = (planId: string, priceType: 'monthly' | 'annual') => {
@@ -158,6 +209,24 @@ export default function PricingPage() {
 
   return (
     <PublicPageLayout>
+      {/* Promotional Banner */}
+      {applicablePromo && (
+        <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white py-3" data-testid="promo-banner">
+          <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 flex items-center justify-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Gift className="w-5 h-5" />
+              <span className="font-semibold">{applicablePromo.name}:</span>
+              <span>Save {applicablePromo.discountPercent}% with code</span>
+              <code className="bg-white/20 px-2 py-0.5 rounded font-mono font-bold">{applicablePromo.code}</code>
+            </div>
+            <div className="flex items-center gap-1 text-sm opacity-90">
+              <Clock className="w-4 h-4" />
+              <span>Ends in {getPromoRemainingDays(applicablePromo.endDate)} days</span>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <section className="bg-purple-600 text-white py-20">
         <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
           <Badge className="bg-white/20 text-white mb-4">
@@ -204,22 +273,46 @@ export default function PricingPage() {
                   <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
                   <p className="text-sm text-muted-foreground mb-4">{plan.description}</p>
                   
-                  {plan.monthlyPrice ? (
-                    <div className="flex items-baseline justify-center gap-1">
-                      <span className="text-5xl font-bold">
-                        ${isYearly ? plan.yearlyPrice : plan.monthlyPrice}
-                      </span>
-                      <span className="text-muted-foreground">/month</span>
-                    </div>
-                  ) : (
+                  {plan.monthlyPrice ? (() => {
+                    const planId = plan.name.toLowerCase();
+                    const originalPrice = isYearly ? plan.yearlyPrice : plan.monthlyPrice;
+                    const promo = getPromoForPlan(planId);
+                    const discountedPrice = getDiscountedPrice(originalPrice, planId);
+                    const hasDiscount = promo && discountedPrice < originalPrice;
+                    
+                    return (
+                      <>
+                        {hasDiscount && (
+                          <Badge className="bg-green-500 text-white text-xs mb-2" data-testid={`badge-discount-${planId}`}>
+                            Save {promo?.discountPercent}%
+                          </Badge>
+                        )}
+                        <div className="flex items-baseline justify-center gap-1">
+                          {hasDiscount && (
+                            <span className="text-2xl text-muted-foreground line-through mr-1">
+                              ${originalPrice}
+                            </span>
+                          )}
+                          <span className={`text-5xl font-bold ${hasDiscount ? 'text-green-600' : ''}`}>
+                            ${hasDiscount ? discountedPrice : originalPrice}
+                          </span>
+                          <span className="text-muted-foreground">/month</span>
+                        </div>
+                      </>
+                    );
+                  })() : (
                     <div className="text-4xl font-bold">Custom</div>
                   )}
                   
-                  {isYearly && plan.monthlyPrice && (
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Billed ${(plan.yearlyPrice || 0) * 12}/year
-                    </p>
-                  )}
+                  {isYearly && plan.monthlyPrice && (() => {
+                    const planId = plan.name.toLowerCase();
+                    const discountedPrice = getDiscountedPrice(plan.yearlyPrice || 0, planId);
+                    return (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Billed ${discountedPrice * 12}/year
+                      </p>
+                    );
+                  })()}
                 </div>
 
                 <ul className="space-y-3 mb-8 flex-1">

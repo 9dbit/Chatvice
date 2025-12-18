@@ -4258,6 +4258,24 @@ function LandingPageTab({ toast }: { toast: any }) {
   );
 }
 
+interface Promotion {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  discountPercent: number;
+  targetPlans: string[];
+  billingCycle: string;
+  maxUses?: number | null;
+  usedCount: number;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  isPublic: boolean;
+  showUpsell: boolean;
+  createdAt: string;
+}
+
 function PricingTab({ toast }: { toast: any }) {
   const [editPlanOpen, setEditPlanOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
@@ -4267,9 +4285,29 @@ function PricingTab({ toast }: { toast: any }) {
   const [editConversationsLimit, setEditConversationsLimit] = useState(0);
   const [editAgentsLimit, setEditAgentsLimit] = useState(0);
   
+  // Promotions state
+  const [promoDialogOpen, setPromoDialogOpen] = useState(false);
+  const [editingPromo, setEditingPromo] = useState<Promotion | null>(null);
+  const [promoCode, setPromoCode] = useState("");
+  const [promoName, setPromoName] = useState("");
+  const [promoDescription, setPromoDescription] = useState("");
+  const [promoDiscountPercent, setPromoDiscountPercent] = useState(20);
+  const [promoTargetPlans, setPromoTargetPlans] = useState("all");
+  const [promoBillingCycle, setPromoBillingCycle] = useState("both");
+  const [promoMaxUses, setPromoMaxUses] = useState("");
+  const [promoStartDate, setPromoStartDate] = useState("");
+  const [promoEndDate, setPromoEndDate] = useState("");
+  const [promoIsPublic, setPromoIsPublic] = useState(false);
+  const [promoShowUpsell, setPromoShowUpsell] = useState(true);
+  
   // Fetch subscription plans from database
   const { data: plans = [], isLoading: plansLoading } = useQuery<any[]>({
     queryKey: ["/api/subscription-plans"],
+  });
+  
+  // Fetch promotions
+  const { data: promotions = [], isLoading: promosLoading } = useQuery<Promotion[]>({
+    queryKey: ["/api/admin/promotions"],
   });
   
   // Fetch platform settings including trial days
@@ -4360,6 +4398,127 @@ function PricingTab({ toast }: { toast: any }) {
         agentsLimit: editAgentsLimit,
       });
     }
+  };
+
+  // Promotion mutations
+  const createPromoMutation = useMutation({
+    mutationFn: async (data: any) => apiRequest("POST", "/api/admin/promotions", data),
+    onSuccess: () => {
+      toast({ title: "Promotion Created", description: "Discount code has been created and synced to pricing pages." });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/promotions"] });
+      setPromoDialogOpen(false);
+      resetPromoForm();
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message || "Failed to create promotion.", variant: "destructive" }),
+  });
+
+  const updatePromoMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => apiRequest("PUT", `/api/admin/promotions/${id}`, data),
+    onSuccess: () => {
+      toast({ title: "Promotion Updated", description: "Discount code has been updated." });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/promotions"] });
+      setPromoDialogOpen(false);
+      setEditingPromo(null);
+      resetPromoForm();
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message || "Failed to update promotion.", variant: "destructive" }),
+  });
+
+  const deletePromoMutation = useMutation({
+    mutationFn: async (id: string) => apiRequest("DELETE", `/api/admin/promotions/${id}`),
+    onSuccess: () => {
+      toast({ title: "Promotion Deleted", description: "Discount code has been removed." });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/promotions"] });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to delete promotion.", variant: "destructive" }),
+  });
+
+  const togglePromoMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => 
+      apiRequest("PUT", `/api/admin/promotions/${id}`, { isActive }),
+    onSuccess: () => {
+      toast({ title: "Status Updated", description: "Promotion status has been changed." });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/promotions"] });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to update promotion status.", variant: "destructive" }),
+  });
+
+  const resetPromoForm = () => {
+    setPromoCode("");
+    setPromoName("");
+    setPromoDescription("");
+    setPromoDiscountPercent(20);
+    setPromoTargetPlans("all");
+    setPromoBillingCycle("both");
+    setPromoMaxUses("");
+    setPromoStartDate("");
+    setPromoEndDate("");
+    setPromoIsPublic(false);
+    setPromoShowUpsell(true);
+  };
+
+  const openCreatePromo = () => {
+    resetPromoForm();
+    setEditingPromo(null);
+    const today = new Date().toISOString().split('T')[0];
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 30);
+    setPromoStartDate(today);
+    setPromoEndDate(endDate.toISOString().split('T')[0]);
+    setPromoDialogOpen(true);
+  };
+
+  const openEditPromo = (promo: Promotion) => {
+    setEditingPromo(promo);
+    setPromoCode(promo.code);
+    setPromoName(promo.name);
+    setPromoDescription(promo.description || "");
+    setPromoDiscountPercent(promo.discountPercent);
+    setPromoTargetPlans(promo.targetPlans.includes("all") ? "all" : promo.targetPlans[0] || "all");
+    setPromoBillingCycle(promo.billingCycle);
+    setPromoMaxUses(promo.maxUses?.toString() || "");
+    setPromoStartDate(new Date(promo.startDate).toISOString().split('T')[0]);
+    setPromoEndDate(new Date(promo.endDate).toISOString().split('T')[0]);
+    setPromoIsPublic(promo.isPublic);
+    setPromoShowUpsell(promo.showUpsell);
+    setPromoDialogOpen(true);
+  };
+
+  const handleSavePromo = () => {
+    const data = {
+      code: promoCode.toUpperCase(),
+      name: promoName,
+      description: promoDescription || null,
+      discountPercent: promoDiscountPercent,
+      targetPlans: promoTargetPlans === "all" ? ["all"] : 
+                   promoTargetPlans === "upgrade" ? ["upgrade"] : [promoTargetPlans],
+      billingCycle: promoBillingCycle,
+      maxUses: promoMaxUses ? parseInt(promoMaxUses) : null,
+      startDate: promoStartDate,
+      endDate: promoEndDate,
+      isActive: true,
+      isPublic: promoIsPublic,
+      showUpsell: promoShowUpsell,
+    };
+    if (editingPromo) {
+      updatePromoMutation.mutate({ id: editingPromo.id, data });
+    } else {
+      createPromoMutation.mutate(data);
+    }
+  };
+
+  const getPromoStatus = (promo: Promotion) => {
+    const now = new Date();
+    const start = new Date(promo.startDate);
+    const end = new Date(promo.endDate);
+    if (!promo.isActive) return { text: "Inactive", color: "secondary" as const };
+    if (now < start) return { text: "Scheduled", color: "outline" as const };
+    if (now > end) return { text: "Expired", color: "destructive" as const };
+    return { text: "Active", color: "default" as const };
+  };
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
   return (
@@ -4500,12 +4659,18 @@ function PricingTab({ toast }: { toast: any }) {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Gift className="w-5 h-5" />
-            Promotional Discounts
-          </CardTitle>
-          <CardDescription>Active discount codes and promotions - synced with landing page and merchant dashboard</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Gift className="w-5 h-5" />
+              Promotional Discounts
+            </CardTitle>
+            <CardDescription>Active discount codes and promotions - synced with landing page and merchant dashboard</CardDescription>
+          </div>
+          <Button onClick={openCreatePromo} data-testid="button-create-discount">
+            <Plus className="w-4 h-4 mr-2" />
+            Create Discount
+          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="p-3 bg-muted/50 rounded-lg text-sm mb-4">
@@ -4514,91 +4679,242 @@ function PricingTab({ toast }: { toast: any }) {
               Discounts created here will automatically apply to the landing page pricing and merchant upgrade flows.
             </p>
           </div>
-          <p className="text-muted-foreground text-sm">No active promotions</p>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="mt-4" data-testid="button-create-discount">
-                <Plus className="w-4 h-4 mr-2" />
-                Create Discount Code
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg" data-testid="dialog-create-discount">
-              <DialogHeader>
-                <DialogTitle>Create Discount Code</DialogTitle>
-                <DialogDescription>Generate a promotional discount code with target plan and validity</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div>
-                  <Label>Discount Code</Label>
-                  <Input placeholder="e.g., SAVE20" className="mt-1" data-testid="input-discount-code" />
-                </div>
-                <div>
-                  <Label>Target Plan</Label>
-                  <p className="text-xs text-muted-foreground mt-1 mb-2">
-                    Select which plan this discount applies to
-                  </p>
-                  <Select defaultValue="all">
-                    <SelectTrigger className="mt-1" data-testid="select-discount-target-plan">
-                      <SelectValue placeholder="Select target plan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Plans</SelectItem>
-                      <SelectItem value="starter">Starter Only</SelectItem>
-                      <SelectItem value="pro">Pro Only</SelectItem>
-                      <SelectItem value="enterprise">Enterprise Only</SelectItem>
-                      <SelectItem value="upgrade">Upgrade Only (Starter & Pro)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Discount (%)</Label>
-                    <Input type="number" placeholder="20" className="mt-1" min={1} max={100} data-testid="input-discount-percent" />
-                  </div>
-                  <div>
-                    <Label>Max Uses</Label>
-                    <Input type="number" placeholder="100" className="mt-1" data-testid="input-discount-max-uses" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Start Date</Label>
-                    <Input type="date" className="mt-1" data-testid="input-discount-start" />
-                  </div>
-                  <div>
-                    <Label>End Date</Label>
-                    <Input type="date" className="mt-1" data-testid="input-discount-expiry" />
-                  </div>
-                </div>
-                <div>
-                  <Label>Validity Period</Label>
-                  <Select defaultValue="30">
-                    <SelectTrigger className="mt-1" data-testid="select-discount-validity">
-                      <SelectValue placeholder="Select validity period" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="7">7 Days</SelectItem>
-                      <SelectItem value="14">14 Days</SelectItem>
-                      <SelectItem value="30">30 Days</SelectItem>
-                      <SelectItem value="60">60 Days</SelectItem>
-                      <SelectItem value="90">90 Days</SelectItem>
-                      <SelectItem value="custom">Custom (use dates above)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button variant="outline" data-testid="button-cancel-discount">Cancel</Button>
-                </DialogClose>
-                <Button onClick={() => toast({ title: "Discount Created", description: "Promotional code has been generated and synced to landing page." })} data-testid="button-confirm-discount">
-                  Create Code
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          
+          {promosLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : promotions.length === 0 ? (
+            <p className="text-muted-foreground text-sm text-center py-4">No promotions yet. Create your first discount code.</p>
+          ) : (
+            <div className="overflow-x-auto -mx-4 md:mx-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Code</TableHead>
+                    <TableHead>Discount</TableHead>
+                    <TableHead className="hidden sm:table-cell">Target</TableHead>
+                    <TableHead className="hidden md:table-cell">Period</TableHead>
+                    <TableHead>Usage</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {promotions.map((promo) => {
+                    const status = getPromoStatus(promo);
+                    return (
+                      <TableRow key={promo.id}>
+                        <TableCell className="font-mono font-bold">{promo.code}</TableCell>
+                        <TableCell className="text-green-600 font-semibold">{promo.discountPercent}%</TableCell>
+                        <TableCell className="hidden sm:table-cell capitalize">
+                          {promo.targetPlans.includes("all") ? "All Plans" : promo.targetPlans.join(", ")}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell text-sm">
+                          {formatDate(promo.startDate)} - {formatDate(promo.endDate)}
+                        </TableCell>
+                        <TableCell>
+                          {promo.usedCount}{promo.maxUses ? `/${promo.maxUses}` : ""}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={status.color}>{status.text}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button size="icon" variant="ghost" onClick={() => openEditPromo(promo)} data-testid={`button-edit-promo-${promo.id}`}>
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              onClick={() => togglePromoMutation.mutate({ id: promo.id, isActive: !promo.isActive })}
+                              data-testid={`button-toggle-promo-${promo.id}`}
+                            >
+                              {promo.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="icon" variant="ghost" data-testid={`button-delete-promo-${promo.id}`}>
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Promotion?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This will permanently delete the "{promo.code}" discount code. This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => deletePromoMutation.mutate(promo.id)}>Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Create/Edit Promotion Dialog */}
+      <Dialog open={promoDialogOpen} onOpenChange={(open) => { setPromoDialogOpen(open); if (!open) { setEditingPromo(null); resetPromoForm(); } }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" data-testid="dialog-create-discount">
+          <DialogHeader>
+            <DialogTitle>{editingPromo ? "Edit Discount Code" : "Create Discount Code"}</DialogTitle>
+            <DialogDescription>Configure promotional discount with target plan, billing cycle, and validity period</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Discount Code</Label>
+                <Input 
+                  placeholder="e.g., SAVE20" 
+                  value={promoCode} 
+                  onChange={(e) => setPromoCode(e.target.value.toUpperCase())} 
+                  className="mt-1 uppercase" 
+                  data-testid="input-discount-code" 
+                />
+              </div>
+              <div>
+                <Label>Promotion Name</Label>
+                <Input 
+                  placeholder="e.g., New Year Sale" 
+                  value={promoName} 
+                  onChange={(e) => setPromoName(e.target.value)} 
+                  className="mt-1" 
+                  data-testid="input-discount-name" 
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Description (optional)</Label>
+              <Input 
+                placeholder="e.g., Special discount for early adopters" 
+                value={promoDescription} 
+                onChange={(e) => setPromoDescription(e.target.value)} 
+                className="mt-1" 
+                data-testid="input-discount-description" 
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Target Plan</Label>
+                <Select value={promoTargetPlans} onValueChange={setPromoTargetPlans}>
+                  <SelectTrigger className="mt-1" data-testid="select-discount-target-plan">
+                    <SelectValue placeholder="Select target plan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Plans</SelectItem>
+                    <SelectItem value="starter">Starter Only</SelectItem>
+                    <SelectItem value="pro">Pro Only</SelectItem>
+                    <SelectItem value="enterprise">Enterprise Only</SelectItem>
+                    <SelectItem value="upgrade">Upgrade Only (Starter & Pro)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Billing Cycle</Label>
+                <Select value={promoBillingCycle} onValueChange={setPromoBillingCycle}>
+                  <SelectTrigger className="mt-1" data-testid="select-discount-billing">
+                    <SelectValue placeholder="Select billing" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="both">Monthly & Annual</SelectItem>
+                    <SelectItem value="monthly">Monthly Only</SelectItem>
+                    <SelectItem value="annual">Annual Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Discount (%)</Label>
+                <Input 
+                  type="number" 
+                  placeholder="20" 
+                  value={promoDiscountPercent} 
+                  onChange={(e) => setPromoDiscountPercent(parseInt(e.target.value) || 0)} 
+                  min={1} 
+                  max={100} 
+                  className="mt-1" 
+                  data-testid="input-discount-percent" 
+                />
+              </div>
+              <div>
+                <Label>Max Uses (optional)</Label>
+                <Input 
+                  type="number" 
+                  placeholder="Unlimited" 
+                  value={promoMaxUses} 
+                  onChange={(e) => setPromoMaxUses(e.target.value)} 
+                  className="mt-1" 
+                  data-testid="input-discount-max-uses" 
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Start Date</Label>
+                <Input 
+                  type="date" 
+                  value={promoStartDate} 
+                  onChange={(e) => setPromoStartDate(e.target.value)} 
+                  className="mt-1" 
+                  data-testid="input-discount-start" 
+                />
+              </div>
+              <div>
+                <Label>End Date</Label>
+                <Input 
+                  type="date" 
+                  value={promoEndDate} 
+                  onChange={(e) => setPromoEndDate(e.target.value)} 
+                  className="mt-1" 
+                  data-testid="input-discount-expiry" 
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-4 pt-2">
+              <div className="flex items-center space-x-2">
+                <Switch 
+                  id="promo-public" 
+                  checked={promoIsPublic} 
+                  onCheckedChange={setPromoIsPublic}
+                  data-testid="switch-promo-public"
+                />
+                <Label htmlFor="promo-public" className="text-sm">Show publicly on pricing page</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch 
+                  id="promo-upsell" 
+                  checked={promoShowUpsell} 
+                  onCheckedChange={setPromoShowUpsell}
+                  data-testid="switch-promo-upsell"
+                />
+                <Label htmlFor="promo-upsell" className="text-sm">Show upsell info</Label>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPromoDialogOpen(false)} data-testid="button-cancel-discount">Cancel</Button>
+            <Button 
+              onClick={handleSavePromo} 
+              disabled={!promoCode || !promoName || !promoStartDate || !promoEndDate || createPromoMutation.isPending || updatePromoMutation.isPending}
+              data-testid="button-confirm-discount"
+            >
+              {(createPromoMutation.isPending || updatePromoMutation.isPending) && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+              {editingPromo ? "Update Code" : "Create Code"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={editPlanOpen} onOpenChange={setEditPlanOpen}>
         <DialogContent data-testid="dialog-edit-plan">

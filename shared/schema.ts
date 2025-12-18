@@ -889,3 +889,44 @@ export const rolePermissions = {
 
 export type UserRole = "merchant" | "supervisor";
 export type SupervisorRole = keyof typeof rolePermissions;
+
+// Promotional Discounts - platform-wide discount codes managed by admin
+export const promotions = pgTable("promotions", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  code: varchar("code", { length: 50 }).notNull().unique(),
+  name: text("name").notNull(),
+  description: text("description"),
+  discountPercent: integer("discount_percent").notNull(),
+  targetPlans: text("target_plans").array().notNull(), // ['all', 'starter', 'pro', 'enterprise'] or specific plans
+  billingCycle: varchar("billing_cycle", { length: 20 }).default("both"), // 'monthly', 'annual', 'both'
+  maxUses: integer("max_uses"), // null means unlimited
+  usedCount: integer("used_count").default(0),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  isActive: boolean("is_active").default(true),
+  isPublic: boolean("is_public").default(false), // true = show on pricing pages automatically
+  showUpsell: boolean("show_upsell").default(true), // show "Save X%" badge on pricing
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertPromotionSchema = createInsertSchema(promotions).omit({ id: true, usedCount: true, createdAt: true, updatedAt: true });
+export type InsertPromotion = z.infer<typeof insertPromotionSchema>;
+export type Promotion = typeof promotions.$inferSelect;
+
+// Promotion Usage History - tracks each time a promotion is used
+export const promotionUsage = pgTable("promotion_usage", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  promotionId: varchar("promotion_id", { length: 32 }).notNull(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  planId: varchar("plan_id", { length: 32 }).notNull(),
+  originalPrice: integer("original_price").notNull(),
+  discountedPrice: integer("discounted_price").notNull(),
+  discountAmount: integer("discount_amount").notNull(),
+  billingCycle: varchar("billing_cycle", { length: 20 }).notNull(),
+  usedAt: timestamp("used_at").defaultNow(),
+});
+
+export const insertPromotionUsageSchema = createInsertSchema(promotionUsage).omit({ id: true, usedAt: true });
+export type InsertPromotionUsage = z.infer<typeof insertPromotionUsageSchema>;
+export type PromotionUsage = typeof promotionUsage.$inferSelect;

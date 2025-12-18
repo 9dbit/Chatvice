@@ -32,9 +32,11 @@ import {
   type SupervisorInvitation, type InsertSupervisorInvitation,
   type EmailVerificationToken, type InsertEmailVerificationToken,
   type PasswordResetToken, type InsertPasswordResetToken,
+  type Promotion, type InsertPromotion,
+  type PromotionUsage, type InsertPromotionUsage,
   merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings, storedFiles,
   workShifts, shiftAssignments, workReports, quickReplies, chatButtons, productCards, productCardButtons, welcomeBubbles, notificationSettings, productRecommendationSettings, productTriggers, supervisorInvitations,
-  emailVerificationTokens, passwordResetTokens,
+  emailVerificationTokens, passwordResetTokens, promotions, promotionUsage,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -226,6 +228,21 @@ export interface IStorage {
   createPasswordResetToken(data: InsertPasswordResetToken): Promise<PasswordResetToken>;
   getPasswordResetTokenByToken(token: string): Promise<PasswordResetToken | undefined>;
   markPasswordResetTokenUsed(id: string): Promise<void>;
+  
+  // Promotions
+  getPromotions(): Promise<Promotion[]>;
+  getPromotion(id: string): Promise<Promotion | undefined>;
+  getPromotionByCode(code: string): Promise<Promotion | undefined>;
+  getActivePromotions(): Promise<Promotion[]>;
+  getPublicActivePromotions(): Promise<Promotion[]>;
+  createPromotion(data: InsertPromotion): Promise<Promotion>;
+  updatePromotion(id: string, data: Partial<Promotion>): Promise<Promotion | undefined>;
+  deletePromotion(id: string): Promise<boolean>;
+  incrementPromotionUsage(id: string): Promise<boolean>;
+  
+  // Promotion Usage
+  getPromotionUsage(promotionId: string): Promise<PromotionUsage[]>;
+  createPromotionUsage(data: InsertPromotionUsage): Promise<PromotionUsage>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -1553,6 +1570,90 @@ export class DatabaseStorage implements IStorage {
     await db.update(passwordResetTokens)
       .set({ usedAt: new Date() })
       .where(eq(passwordResetTokens.id, id));
+  }
+
+  // Promotions
+  async getPromotions(): Promise<Promotion[]> {
+    return db.select().from(promotions).orderBy(desc(promotions.createdAt));
+  }
+
+  async getPromotion(id: string): Promise<Promotion | undefined> {
+    const result = await db.select().from(promotions).where(eq(promotions.id, id));
+    return result[0];
+  }
+
+  async getPromotionByCode(code: string): Promise<Promotion | undefined> {
+    const result = await db.select().from(promotions)
+      .where(eq(promotions.code, code.toUpperCase()));
+    return result[0];
+  }
+
+  async getActivePromotions(): Promise<Promotion[]> {
+    const now = new Date();
+    return db.select().from(promotions)
+      .where(and(
+        eq(promotions.isActive, true),
+        gte(promotions.endDate, now)
+      ))
+      .orderBy(desc(promotions.discountPercent));
+  }
+
+  async getPublicActivePromotions(): Promise<Promotion[]> {
+    const now = new Date();
+    return db.select().from(promotions)
+      .where(and(
+        eq(promotions.isActive, true),
+        eq(promotions.isPublic, true),
+        gte(promotions.endDate, now)
+      ))
+      .orderBy(desc(promotions.discountPercent));
+  }
+
+  async createPromotion(data: InsertPromotion): Promise<Promotion> {
+    const id = generateId("promo_");
+    const result = await db.insert(promotions).values({
+      ...data,
+      id,
+      code: data.code.toUpperCase(),
+    }).returning();
+    return result[0];
+  }
+
+  async updatePromotion(id: string, data: Partial<Promotion>): Promise<Promotion | undefined> {
+    const updateData = { ...data, updatedAt: new Date() };
+    if (data.code) {
+      updateData.code = data.code.toUpperCase();
+    }
+    const result = await db.update(promotions)
+      .set(updateData)
+      .where(eq(promotions.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deletePromotion(id: string): Promise<boolean> {
+    const result = await db.delete(promotions).where(eq(promotions.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async incrementPromotionUsage(id: string): Promise<boolean> {
+    const result = await db.update(promotions)
+      .set({ usedCount: sql`${promotions.usedCount} + 1` })
+      .where(eq(promotions.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // Promotion Usage
+  async getPromotionUsage(promotionId: string): Promise<PromotionUsage[]> {
+    return db.select().from(promotionUsage)
+      .where(eq(promotionUsage.promotionId, promotionId))
+      .orderBy(desc(promotionUsage.usedAt));
+  }
+
+  async createPromotionUsage(data: InsertPromotionUsage): Promise<PromotionUsage> {
+    const id = generateId("pu_");
+    const result = await db.insert(promotionUsage).values({ ...data, id }).returning();
+    return result[0];
   }
 }
 

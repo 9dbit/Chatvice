@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -21,9 +22,31 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
-import { Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Lock, Loader2, CheckCircle2, Sparkles, Gift, Building2, ChevronDown, ChevronUp, QrCode, Timer, RefreshCw, Copy, XCircle } from "lucide-react";
+import { Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Lock, Loader2, CheckCircle2, Sparkles, Gift, Building2, ChevronDown, ChevronUp, QrCode, Timer, RefreshCw, Copy, XCircle, Tag } from "lucide-react";
 import { format } from "date-fns";
 import { type SubscriptionPlanId } from "@shared/schema";
+
+interface ActivePromotion {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  discountPercent: number;
+  targetPlans: string[];
+  billingCycle: string;
+  endDate: string;
+  showUpsell: boolean;
+}
+
+interface ValidatedPromo {
+  id: string;
+  code: string;
+  name: string;
+  discountPercent: number;
+  targetPlans: string[];
+  billingCycle: string;
+  validatedBillingCycle: string;
+}
 
 interface BillingStatus {
   status: string;
@@ -72,6 +95,12 @@ export default function BillingPage() {
     prorationApplied: boolean;
   } | null>(null);
   
+  // Promo code state
+  const [promoCodeInput, setPromoCodeInput] = useState("");
+  const [validatedPromo, setValidatedPromo] = useState<ValidatedPromo | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [isValidatingPromo, setIsValidatingPromo] = useState(false);
+  
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -88,7 +117,108 @@ export default function BillingPage() {
     queryKey: ["/api/subscription-plans"],
   });
   
+  // Fetch active public promotions
+  const { data: activePromos = [] } = useQuery<ActivePromotion[]>({
+    queryKey: ["/api/promotions/active"],
+  });
+  
   const trialDays = (platformSettings as any)?.trial_days ? parseInt((platformSettings as any).trial_days) : 7;
+
+  // Get applicable promotion for current billing cycle
+  const currentBillingCycle = isAnnual ? "annual" : "monthly";
+  const applicablePromo = activePromos.find(p => 
+    p.billingCycle === "both" || p.billingCycle === currentBillingCycle
+  );
+
+  // Validate promo code for a specific plan
+  const validatePromoCode = async (planId: string) => {
+    if (!promoCodeInput.trim()) {
+      setPromoError("Please enter a promo code");
+      return;
+    }
+    
+    setIsValidatingPromo(true);
+    setPromoError(null);
+    
+    try {
+      const response = await fetch("/api/promotions/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          code: promoCodeInput.trim().toUpperCase(),
+          planId,
+          billingCycle: currentBillingCycle,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        setPromoError(data.error || "Invalid promo code");
+        setValidatedPromo(null);
+      } else if (data.valid) {
+        // Store validated promo with qualifying info
+        setValidatedPromo({
+          ...data.promotion,
+          validatedBillingCycle: currentBillingCycle,
+        });
+        setPromoError(null);
+        toast({
+          title: "Promo code applied!",
+          description: `${data.promotion.discountPercent}% discount will be applied to qualifying plans.`,
+        });
+      }
+    } catch (err) {
+      setPromoError("Failed to validate promo code");
+    } finally {
+      setIsValidatingPromo(false);
+    }
+  };
+
+  // Check if a promo applies to a specific plan and billing cycle
+  const getPromoForPlan = (planId: string): { discountPercent: number; code: string } | null => {
+    // Check if we have a validated promo that applies to this plan and current billing cycle
+    if (validatedPromo) {
+      // Check if the promo's billing cycle restriction matches current selection
+      const billingCycleMatches = validatedPromo.billingCycle === "both" || 
+                                   validatedPromo.billingCycle === currentBillingCycle;
+      if (billingCycleMatches) {
+        // Check if this plan qualifies for the validated promo
+        const targets = validatedPromo.targetPlans || [];
+        const isTarget = targets.includes("all") || targets.includes(planId) ||
+                         (targets.includes("upgrade") && (planId === "starter" || planId === "pro" || planId === "enterprise"));
+        if (isTarget) {
+          return { discountPercent: validatedPromo.discountPercent, code: validatedPromo.code };
+        }
+      }
+    }
+    // Check if there's an applicable public promo
+    if (applicablePromo) {
+      const targets = applicablePromo.targetPlans || [];
+      const isTarget = targets.includes("all") || targets.includes(planId) ||
+                       (targets.includes("upgrade") && (planId === "starter" || planId === "pro" || planId === "enterprise"));
+      if (isTarget) {
+        return { discountPercent: applicablePromo.discountPercent, code: applicablePromo.code };
+      }
+    }
+    return null;
+  };
+
+  // Calculate discounted price
+  const getDiscountedPrice = (price: number, planId: string) => {
+    const promo = getPromoForPlan(planId);
+    if (promo) {
+      return Math.round(price * (1 - promo.discountPercent / 100));
+    }
+    return price;
+  };
+
+  // Clear promo when billing cycle changes
+  useEffect(() => {
+    setValidatedPromo(null);
+    setPromoError(null);
+  }, [isAnnual]);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -148,8 +278,8 @@ export default function BillingPage() {
   }, []);
 
   const checkoutMutation = useMutation({
-    mutationFn: async ({ planId, billingInterval }: { planId: string; billingInterval: string }) => {
-      return apiRequest("POST", "/api/billing/checkout", { planId, billingInterval }) as Promise<QRISPaymentResponse>;
+    mutationFn: async ({ planId, billingInterval, promoCode }: { planId: string; billingInterval: string; promoCode?: string }) => {
+      return apiRequest("POST", "/api/billing/checkout", { planId, billingInterval, promoCode }) as Promise<QRISPaymentResponse>;
     },
     onSuccess: (data) => {
       setQrisData(data);
@@ -259,9 +389,12 @@ export default function BillingPage() {
         }
       }
       
+      // Get applicable promo code for this plan (only if plan qualifies)
+      const promo = getPromoForPlan(planId);
       checkoutMutation.mutate({
         planId,
         billingInterval: isAnnual ? 'annual' : 'monthly',
+        promoCode: promo?.code,
       });
     }
   };
@@ -279,9 +412,11 @@ export default function BillingPage() {
   const handleRetryPayment = () => {
     if (selectedPlan) {
       setPaymentStep('loading');
+      const promo = getPromoForPlan(selectedPlan.id);
       checkoutMutation.mutate({
         planId: selectedPlan.id,
         billingInterval: isAnnual ? 'annual' : 'monthly',
+        promoCode: promo?.code,
       });
     }
   };
@@ -468,6 +603,62 @@ export default function BillingPage() {
           </div>
         </div>
 
+        {/* Promo Banner and Code Input */}
+        {(applicablePromo || validatedPromo) && (
+          <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center justify-between gap-4 flex-wrap" data-testid="promo-banner">
+            <div className="flex items-center gap-2">
+              <Gift className="w-5 h-5 text-green-600" />
+              <span className="font-medium text-green-700 dark:text-green-400">
+                {validatedPromo ? (
+                  <>Code "{validatedPromo.code}" applied: {validatedPromo.discountPercent}% off</>
+                ) : applicablePromo ? (
+                  <>Use code "{applicablePromo.code}" for {applicablePromo.discountPercent}% off!</>
+                ) : null}
+              </span>
+            </div>
+            {validatedPromo && (
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                onClick={() => { setValidatedPromo(null); setPromoCodeInput(""); }}
+                className="text-red-500 hover:text-red-700"
+                data-testid="button-remove-promo"
+              >
+                <XCircle className="w-4 h-4 mr-1" />
+                Remove
+              </Button>
+            )}
+          </div>
+        )}
+        
+        {!validatedPromo && (
+          <div className="mb-4 flex items-center gap-2 flex-wrap" data-testid="promo-input-section">
+            <div className="flex items-center gap-2">
+              <Tag className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Have a promo code?</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Enter code"
+                value={promoCodeInput}
+                onChange={(e) => { setPromoCodeInput(e.target.value.toUpperCase()); setPromoError(null); }}
+                className="w-32 h-8 text-sm uppercase"
+                data-testid="input-promo-code"
+              />
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => validatePromoCode("all")}
+                disabled={isValidatingPromo || !promoCodeInput.trim()}
+                data-testid="button-apply-promo"
+              >
+                {isValidatingPromo ? <Loader2 className="w-3 h-3 animate-spin" /> : "Apply"}
+              </Button>
+            </div>
+            {promoError && <span className="text-xs text-red-500">{promoError}</span>}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {plans.map((plan) => {
             const isCurrent = billingStatus?.planId === plan.id;
@@ -510,19 +701,39 @@ export default function BillingPage() {
                       <span className="text-2xl font-bold">Contact Us</span>
                     ) : isFree ? (
                       <span className="text-2xl font-bold">$0</span>
-                    ) : (
-                      <>
-                        <span className="text-2xl font-bold">
-                          ${isAnnual ? plan.annualMonthlyDisplay : plan.monthlyDisplay}
-                        </span>
-                        <span className="text-muted-foreground text-sm">/mo</span>
-                        {isAnnual && plan.monthlyPrice > 0 && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            ${plan.annualPrice * 12}/yr
-                          </p>
-                        )}
-                      </>
-                    )}
+                    ) : (() => {
+                      const originalPrice = isAnnual ? plan.annualMonthlyDisplay : plan.monthlyDisplay;
+                      const promo = getPromoForPlan(plan.id);
+                      const discountedPrice = promo ? Math.round(originalPrice * (1 - promo.discountPercent / 100)) : originalPrice;
+                      const hasDiscount = promo !== null;
+                      const discountPercent = promo?.discountPercent;
+                      
+                      return (
+                        <>
+                          {hasDiscount && (
+                            <Badge className="bg-green-500 text-white text-xs mb-1">
+                              {discountPercent}% off
+                            </Badge>
+                          )}
+                          <div className="flex items-baseline gap-1">
+                            {hasDiscount && (
+                              <span className="text-lg text-muted-foreground line-through">
+                                ${originalPrice}
+                              </span>
+                            )}
+                            <span className={`text-2xl font-bold ${hasDiscount ? 'text-green-600' : ''}`}>
+                              ${hasDiscount ? discountedPrice : originalPrice}
+                            </span>
+                            <span className="text-muted-foreground text-sm">/mo</span>
+                          </div>
+                          {isAnnual && plan.monthlyPrice > 0 && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              ${discountedPrice * 12}/yr
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                   
                   <ul className="space-y-1.5">

@@ -4011,6 +4011,214 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // ============ PROMOTIONS ROUTES ============
+  
+  // Get all promotions (admin)
+  app.get("/api/admin/promotions", requireAdmin, async (req, res) => {
+    try {
+      const promos = await storage.getPromotions();
+      res.json(promos);
+    } catch (error) {
+      console.error("Error fetching promotions:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get single promotion (admin)
+  app.get("/api/admin/promotions/:id", requireAdmin, async (req, res) => {
+    try {
+      const promo = await storage.getPromotion(req.params.id);
+      if (!promo) {
+        return res.status(404).json({ error: "Promotion not found" });
+      }
+      res.json(promo);
+    } catch (error) {
+      console.error("Error fetching promotion:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Create promotion (admin)
+  app.post("/api/admin/promotions", requireAdmin, async (req, res) => {
+    try {
+      const { code, name, description, discountPercent, targetPlans, billingCycle, maxUses, startDate, endDate, isActive, isPublic, showUpsell } = req.body;
+      
+      if (!code || !name || !discountPercent || !targetPlans || !startDate || !endDate) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      // Check if code already exists
+      const existing = await storage.getPromotionByCode(code);
+      if (existing) {
+        return res.status(400).json({ error: "Promotion code already exists" });
+      }
+
+      const promo = await storage.createPromotion({
+        code,
+        name,
+        description,
+        discountPercent: parseInt(discountPercent),
+        targetPlans: Array.isArray(targetPlans) ? targetPlans : [targetPlans],
+        billingCycle: billingCycle || "both",
+        maxUses: maxUses ? parseInt(maxUses) : null,
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+        isActive: isActive !== false,
+        isPublic: isPublic === true,
+        showUpsell: showUpsell !== false,
+      });
+      res.json(promo);
+    } catch (error) {
+      console.error("Error creating promotion:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Update promotion (admin)
+  app.put("/api/admin/promotions/:id", requireAdmin, async (req, res) => {
+    try {
+      const { code, name, description, discountPercent, targetPlans, billingCycle, maxUses, startDate, endDate, isActive, isPublic, showUpsell } = req.body;
+      
+      const updateData: any = {};
+      if (code !== undefined) updateData.code = code;
+      if (name !== undefined) updateData.name = name;
+      if (description !== undefined) updateData.description = description;
+      if (discountPercent !== undefined) updateData.discountPercent = parseInt(discountPercent);
+      if (targetPlans !== undefined) updateData.targetPlans = Array.isArray(targetPlans) ? targetPlans : [targetPlans];
+      if (billingCycle !== undefined) updateData.billingCycle = billingCycle;
+      if (maxUses !== undefined) updateData.maxUses = maxUses ? parseInt(maxUses) : null;
+      if (startDate !== undefined) updateData.startDate = new Date(startDate);
+      if (endDate !== undefined) updateData.endDate = new Date(endDate);
+      if (isActive !== undefined) updateData.isActive = isActive;
+      if (isPublic !== undefined) updateData.isPublic = isPublic;
+      if (showUpsell !== undefined) updateData.showUpsell = showUpsell;
+
+      const promo = await storage.updatePromotion(req.params.id, updateData);
+      if (!promo) {
+        return res.status(404).json({ error: "Promotion not found" });
+      }
+      res.json(promo);
+    } catch (error) {
+      console.error("Error updating promotion:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Delete promotion (admin)
+  app.delete("/api/admin/promotions/:id", requireAdmin, async (req, res) => {
+    try {
+      const deleted = await storage.deletePromotion(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Promotion not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting promotion:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get promotion usage history (admin)
+  app.get("/api/admin/promotions/:id/usage", requireAdmin, async (req, res) => {
+    try {
+      const usage = await storage.getPromotionUsage(req.params.id);
+      res.json(usage);
+    } catch (error) {
+      console.error("Error fetching promotion usage:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Public endpoint: Get active public promotions (for pricing pages)
+  app.get("/api/promotions/active", async (req, res) => {
+    try {
+      const promos = await storage.getPublicActivePromotions();
+      // Filter to only return necessary info for public display
+      const publicPromos = promos.map(p => ({
+        id: p.id,
+        code: p.code,
+        name: p.name,
+        description: p.description,
+        discountPercent: p.discountPercent,
+        targetPlans: p.targetPlans,
+        billingCycle: p.billingCycle,
+        endDate: p.endDate,
+        showUpsell: p.showUpsell,
+      }));
+      res.json(publicPromos);
+    } catch (error) {
+      console.error("Error fetching active promotions:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Validate and apply promo code (for checkout)
+  app.post("/api/promotions/validate", async (req, res) => {
+    try {
+      const { code, planId, billingCycle } = req.body;
+      
+      if (!code || !planId) {
+        return res.status(400).json({ error: "Missing code or plan ID" });
+      }
+
+      const promo = await storage.getPromotionByCode(code);
+      if (!promo) {
+        return res.status(404).json({ error: "Invalid promotion code" });
+      }
+
+      const now = new Date();
+      
+      // Check if promo is active
+      if (!promo.isActive) {
+        return res.status(400).json({ error: "This promotion is no longer active" });
+      }
+
+      // Check date validity
+      if (now < promo.startDate) {
+        return res.status(400).json({ error: "This promotion has not started yet" });
+      }
+      if (now > promo.endDate) {
+        return res.status(400).json({ error: "This promotion has expired" });
+      }
+
+      // Check max uses
+      if (promo.maxUses !== null && promo.usedCount !== null && promo.usedCount >= promo.maxUses) {
+        return res.status(400).json({ error: "This promotion has reached its usage limit" });
+      }
+
+      // Check target plans - "all" as planId means just validate the code without plan restriction
+      const targets = promo.targetPlans || [];
+      const isAllPlans = targets.includes("all");
+      const isPlanTarget = targets.includes(planId);
+      const isUpgrade = targets.includes("upgrade") && (planId === "starter" || planId === "pro" || planId === "enterprise");
+      const isGenericCheck = planId === "all"; // Special: just validate code exists without plan check
+      
+      if (!isGenericCheck && !isAllPlans && !isPlanTarget && !isUpgrade) {
+        return res.status(400).json({ error: "This promotion is not valid for the selected plan" });
+      }
+
+      // Check billing cycle
+      if (promo.billingCycle !== "both" && promo.billingCycle !== billingCycle) {
+        return res.status(400).json({ error: `This promotion is only valid for ${promo.billingCycle} billing` });
+      }
+
+      res.json({
+        valid: true,
+        promotion: {
+          id: promo.id,
+          code: promo.code,
+          name: promo.name,
+          discountPercent: promo.discountPercent,
+          targetPlans: promo.targetPlans || [],
+          billingCycle: promo.billingCycle,
+        },
+      });
+    } catch (error) {
+      console.error("Error validating promotion:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // Admin endpoint for crawling guide knowledge source URLs
   app.post("/api/admin/guide/crawl", requireAdmin, async (req, res) => {
     try {
