@@ -1067,8 +1067,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                             {parsed.filter(p => p.type === "button").map((btn, btnIndex) => (
                               <button
                                 key={`btn-${btnIndex}`}
-                                className="px-3 py-1 text-xs rounded-md border-2 transition-all duration-200 bg-transparent hover:opacity-80"
-                                style={{ borderColor: primaryColor, color: primaryColor }}
+                                className="px-3 py-1 text-xs rounded-md border transition-all duration-200 bg-white/10 hover:bg-white/20 text-gray-200 border-gray-400/50"
                                 onClick={() => sendButtonMessage(btn.action || btn.content)}
                                 disabled={sendMessageMutation.isPending}
                                 data-testid={`button-widget-quick-${btnIndex}`}
