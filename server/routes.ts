@@ -385,13 +385,18 @@ async function askChatvice(
     try {
       const allPlans = await getAllEffectiveSubscriptionPlans();
       const pricingInfo = allPlans.map(plan => {
-        const monthlyFormatted = new Intl.NumberFormat('id-ID').format(plan.monthlyPrice);
-        const annualFormatted = new Intl.NumberFormat('id-ID').format(plan.annualPrice);
-        return `**${plan.name}**: Rp ${monthlyFormatted}/bulan atau Rp ${annualFormatted}/tahun
-- ${plan.conversationsLimit === -1 ? 'Unlimited' : plan.conversationsLimit} percakapan/bulan
-- ${plan.agentsLimit} AI agent
-- ${plan.supervisorsLimit === -1 ? 'Unlimited' : plan.supervisorsLimit} supervisor
-- ${plan.sourcesLimit} knowledge sources
+        const priceText = plan.monthlyPrice === 0 
+          ? "GRATIS" 
+          : `$${plan.monthlyPrice}/bulan atau $${plan.annualPrice}/bulan (tahunan)`;
+        const supervisorsText = plan.supervisorsLimit === -1 ? 'Unlimited' : plan.supervisorsLimit;
+        const sourcesText = plan.sourcesLimit === -1 ? 'Unlimited' : plan.sourcesLimit;
+        const agentsText = plan.agentsLimit === -1 ? 'Unlimited' : plan.agentsLimit;
+        const conversationsText = plan.conversationsLimit === -1 ? 'Unlimited' : plan.conversationsLimit;
+        return `**${plan.name}**: ${priceText}
+- ${conversationsText} percakapan/bulan
+- ${agentsText} AI agent
+- ${supervisorsText} supervisor
+- ${sourcesText} knowledge sources
 - Fitur: ${plan.features.join(', ')}`;
       }).join('\n\n');
       
@@ -448,6 +453,19 @@ Guidelines for links:
 - Use links when directing to specific pages or resources
 - External links should include https://
 - Links appear inline within the text
+
+PRICING RESPONSE FORMAT:
+Jika customer bertanya tentang harga/pricing/paket dan ada info subscription plans dalam knowledge, gunakan data dari knowledge dan FORMAT seperti ini:
+
+**NAMA_PAKET** - $XX/bulan
+• Fitur 1
+• Fitur 2 
+• Fitur 3
+
+[BTN:Pilih Paket:Saya tertarik dengan paket ini]
+[BTN:Tanya Detail:Jelaskan lebih detail fitur paket ini]
+
+PENTING: Gunakan harga PERSIS seperti yang ada di knowledge (dalam USD).
 
 Relevant Company Information:
 ${knowledgeContext || "No specific knowledge base configured yet."}
@@ -4346,37 +4364,98 @@ Be helpful, friendly, and concise. If asked about something not related to Chatv
       const guideTemperature = await storage.getPlatformSetting("guide_temperature");
       const guideName = await storage.getPlatformSetting("guide_name") || "Chatvice Guide";
       
+      // Fetch dynamic subscription plan pricing
+      const { getAllEffectiveSubscriptionPlans } = await import('./subscriptionPlanUtils');
+      const plans = await getAllEffectiveSubscriptionPlans();
+      const trialDays = await storage.getPlatformSetting("trial_days") || "7";
+      
+      // Build dynamic pricing knowledge - prices stored in USD
+      const pricingKnowledge = plans.map(plan => {
+        const priceText = plan.monthlyPrice === 0 
+          ? "GRATIS" 
+          : `$${plan.monthlyPrice}/bulan (atau $${plan.annualPrice}/bulan jika bayar tahunan)`;
+        const supervisorsText = plan.supervisorsLimit === -1 ? 'Unlimited' : plan.supervisorsLimit;
+        const sourcesText = plan.sourcesLimit === -1 ? 'Unlimited' : plan.sourcesLimit;
+        const agentsText = plan.agentsLimit === -1 ? 'Unlimited' : plan.agentsLimit;
+        const conversationsText = plan.conversationsLimit === -1 ? 'Unlimited' : plan.conversationsLimit.toLocaleString();
+        return `${plan.name.toUpperCase()} - ${priceText}
+  - ${conversationsText} percakapan AI/bulan
+  - ${agentsText} AI Agent
+  - ${supervisorsText} Supervisor
+  - ${sourcesText} Knowledge sources
+  - Fitur: ${plan.features.slice(0, 5).join(', ')}`;
+      }).join('\n\n');
+      
+      // Comprehensive FAQ knowledge
+      const faqKnowledge = `
+FREQUENTLY ASKED QUESTIONS (FAQ):
+
+Q: Apa itu Chatvice?
+A: Chatvice adalah platform chatbot customer service berbasis AI untuk bisnis di Indonesia dan global. Membantu otomasi customer support 24/7 dengan AI agent powered by LEXA1 engine.
+
+Q: Apa itu LEXA1?
+A: LEXA1 adalah AI engine yang mempoweri Chatvice. Built on GPT-4 dengan semantic search menggunakan vector embeddings. LEXA1 memahami konteks dan memberikan respons akurat dalam berbagai bahasa.
+
+Q: Bagaimana AI belajar tentang bisnis saya?
+A: AI belajar melalui knowledge base. Anda bisa: 1) Upload dokumen (PDF, TXT, DOCX), 2) Tambah Q&A manual, 3) Crawl website untuk FAQs, 4) Import dari agent lain.
+
+Q: Apa itu human escalation?
+A: Eskalasi otomatis ke supervisor manusia ketika: 1) AI tidak bisa menjawab, 2) Customer minta bantuan manusia, 3) Keyword trigger terdeteksi (misal 'refund', 'komplain').
+
+Q: Bagaimana cara menambah widget ke website?
+A: Cukup tambah 1 baris kode: <script src="URL/widget.js" data-merchant-id="ID_ANDA"></script>. Widget akan muncul di pojok kanan bawah.
+
+Q: Apakah ada free trial?
+A: Ya! Semua paket termasuk ${trialDays} hari free trial dengan akses penuh ke semua fitur. Tidak perlu kartu kredit.
+
+Q: Metode pembayaran apa yang diterima?
+A: Untuk Indonesia, kami menerima 1-Pay dengan QRIS - kompatibel dengan GoPay, OVO, DANA, ShopeePay, LinkAja, dan semua e-wallet Indonesia.
+
+Q: Bahasa apa saja yang didukung?
+A: LEXA1 support deteksi bahasa otomatis: English, Bahasa Indonesia, Chinese, Japanese, Korean, Spanish, French, German, dan 50+ bahasa lainnya.
+
+Q: Apakah data saya aman?
+A: Ya! Kami implementasi: TLS encryption, encrypted database storage, session-based authentication dengan bcrypt, JWT verification untuk widget identity.
+`;
+      
       // Default knowledge if none configured
       const defaultKnowledge = `
 WHAT IS CHATVICE?
-Chatvice is an AI-powered customer service chatbot platform that helps businesses automate customer support while maintaining high-quality service through smart AI-to-human handoff mechanisms.
+Chatvice adalah platform chatbot customer service berbasis AI yang membantu bisnis mengotomasi customer support dengan kualitas tinggi melalui mekanisme smart AI-to-human handoff.
 
 KEY FEATURES:
-1. AI-Powered Chatbot - Automates customer responses using a customizable knowledge base
-2. Human Escalation - Automatically escalates to human supervisors when needed
-3. Multi-Language Support - Responds in the customer's language
-4. Customizable Widget - Embeddable chat widget for your website
-5. Analytics Dashboard - Track performance, popular topics, and resolution rates
-6. Knowledge Base Management - Train your AI with your business information
+1. AI-Powered Chatbot - Otomasi respons customer menggunakan knowledge base yang bisa dikustomisasi
+2. Human Escalation - Eskalasi otomatis ke supervisor manusia saat dibutuhkan
+3. Multi-Language Support - Respons dalam bahasa customer
+4. Customizable Widget - Chat widget yang bisa di-embed di website Anda
+5. Analytics Dashboard - Track performa, topik populer, dan resolution rate
+6. Knowledge Base Management - Train AI dengan informasi bisnis Anda
 
-PRICING PLANS:
-- Free: 50 conversations/month, 1 AI agent - Great to get started
-- Starter ($29/mo): 500 conversations, 1 agent, email support
-- Pro ($79/mo): 5,000 conversations, 3 agents, advanced analytics
-- Enterprise ($299/mo): 50,000 conversations, 10 agents, dedicated support
-- Custom: Contact sales for unlimited features
+===== PAKET HARGA CHATVICE =====
+${pricingKnowledge}
+
+Semua paket termasuk ${trialDays} hari FREE TRIAL. Tidak perlu kartu kredit!
+
+${faqKnowledge}
 
 GETTING STARTED:
-1. Sign up for a free account
-2. Add your knowledge sources (FAQs, product info, etc.)
-3. Customize your chat widget
-4. Embed the widget on your website
-5. Start automating customer support!
-
-All plans include a 7-day free trial. No credit card required.
+1. Daftar akun gratis di /register
+2. Tambah knowledge sources (FAQs, info produk, dll)
+3. Kustomisasi chat widget
+4. Embed widget di website Anda
+5. Mulai otomasi customer support!
 `;
 
-      const knowledgeContext = guideKnowledgeContent || defaultKnowledge;
+      // Always include pricing and FAQ knowledge, appending to custom knowledge if set
+      const baseKnowledge = guideKnowledgeContent || defaultKnowledge;
+      const knowledgeContext = `${baseKnowledge}
+
+===== PAKET HARGA CHATVICE (TERBARU) =====
+${pricingKnowledge}
+
+Semua paket termasuk ${trialDays} hari FREE TRIAL. Tidak perlu kartu kredit!
+
+${faqKnowledge}`;
       const systemPromptBase = guideSystemPrompt || `You are ${guideName}, helping potential customers learn about the Chatvice platform. You are friendly, helpful, and enthusiastic about Chatvice. Help potential customers understand how Chatvice can help their business. Be concise and focused on value.`;
       const temperature = guideTemperature ? parseFloat(guideTemperature) : 0.7;
       
@@ -4413,11 +4492,29 @@ Available pages to link:
 - /login - Halaman login
 - /docs - Halaman dokumentasi
 - /blog - Halaman blog
+- /faq - Halaman FAQ
+
+PRICING RESPONSE FORMAT:
+Ketika user bertanya tentang harga/pricing/paket, gunakan data dari PAKET HARGA di knowledge base.
+Format jawaban seperti ini:
+
+**NAMA_PAKET** - [harga dari knowledge]
+• [fitur 1]
+• [fitur 2]
+• [fitur 3]
+
+(Ulangi untuk setiap paket yang tersedia)
+
+Selalu akhiri dengan:
+[BTN:Mulai Free Trial:Saya mau daftar free trial]
+[LINK:Lihat Detail Lengkap:/pricing]
 
 IMPORTANT RULES:
+- SELALU gunakan harga dari knowledge base, JANGAN menggunakan harga dari sumber lain
 - Always use buttons when offering 2-3 choices to make selection easier
+- SELALU akhiri jawaban pricing dengan tombol dan link ke /pricing
 - Use links when mentioning specific pages or features
-- Respond in the same language as the customer
+- Respond in the same language as the customer (default Bahasa Indonesia)
 - Keep responses concise and helpful
 - Don't overuse buttons - max 3-4 per response
 
@@ -4444,7 +4541,7 @@ Use the knowledge base above to answer questions. If you don't have specific inf
       const response = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
         messages,
-        max_tokens: 300,
+        max_tokens: 600,
         temperature,
       });
       
