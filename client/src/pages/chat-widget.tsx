@@ -70,19 +70,27 @@ function parseMessageContent(content: string): ParsedPart[] {
   
   let match;
   while ((match = buttonRegex.exec(content)) !== null) {
-    matches.push({
-      index: match.index,
-      length: match[0].length,
-      part: { type: "button", content: match[1].trim(), action: match[2].trim() }
-    });
+    const label = match[1].trim();
+    const action = match[2].trim();
+    if (label && action) {
+      matches.push({
+        index: match.index,
+        length: match[0].length,
+        part: { type: "button", content: label, action }
+      });
+    }
   }
   
   while ((match = linkRegex.exec(content)) !== null) {
-    matches.push({
-      index: match.index,
-      length: match[0].length,
-      part: { type: "link", content: match[1].trim(), url: match[2].trim() }
-    });
+    const text = match[1].trim();
+    const url = match[2].trim();
+    if (text && url) {
+      matches.push({
+        index: match.index,
+        length: match[0].length,
+        part: { type: "link", content: text, url }
+      });
+    }
   }
   
   matches.sort((a, b) => a.index - b.index);
@@ -90,26 +98,22 @@ function parseMessageContent(content: string): ParsedPart[] {
   for (const m of matches) {
     if (m.index > lastIndex) {
       const text = content.slice(lastIndex, m.index);
-      if (text.trim()) {
+      if (text) {
         parts.push({ type: "text", content: text });
       }
     }
-    if (m.part.type === "link") {
-      parts.push(m.part);
-    } else {
-      parts.push(m.part);
-    }
+    parts.push(m.part);
     lastIndex = m.index + m.length;
   }
   
   if (lastIndex < content.length) {
     const remaining = content.slice(lastIndex);
-    if (remaining.trim()) {
+    if (remaining) {
       parts.push({ type: "text", content: remaining });
     }
   }
   
-  if (parts.length === 0 && content.trim()) {
+  if (parts.length === 0 && content) {
     parts.push({ type: "text", content });
   }
   
