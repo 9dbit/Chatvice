@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, X, Send, Loader2, Sparkles, Minimize2, GripVertical, EyeOff, Eye, ExternalLink, ChevronRight } from "lucide-react";
+import { Bot, X, Send, Loader2, Sparkles, Minimize2, GripVertical, EyeOff, Eye, ExternalLink, ChevronRight, ChevronUp } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -187,6 +187,9 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
     return saved === "true";
   });
   const [showWelcomeBubble, setShowWelcomeBubble] = useState(true);
+  const [bubbleCollapsed, setBubbleCollapsed] = useState(false);
+  const [bubbleTranslateY, setBubbleTranslateY] = useState(0);
+  const bubbleTouchStart = useRef<{ y: number; time: number } | null>(null);
   const lastDismissedAt = useRef<number>(0);
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -253,6 +256,41 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
   const handleOpenFromWelcome = () => {
     dismissWelcomeBubble();
     setIsOpen(true);
+  };
+
+  // Welcome bubble swipe handlers for mobile
+  const handleBubbleTouchStart = (e: React.TouchEvent) => {
+    bubbleTouchStart.current = { y: e.touches[0].clientY, time: Date.now() };
+    setBubbleTranslateY(0);
+  };
+
+  const handleBubbleTouchMove = (e: React.TouchEvent) => {
+    if (!bubbleTouchStart.current) return;
+    const deltaY = e.touches[0].clientY - bubbleTouchStart.current.y;
+    // Limit to half screen height (50vh)
+    const maxDrag = window.innerHeight * 0.5;
+    const clampedDelta = Math.max(-maxDrag, Math.min(maxDrag, deltaY));
+    setBubbleTranslateY(clampedDelta);
+  };
+
+  const handleBubbleTouchEnd = () => {
+    if (!bubbleTouchStart.current) return;
+    const threshold = 50; // pixels to trigger toggle
+    
+    if (bubbleTranslateY > threshold) {
+      // Swiped down - collapse
+      setBubbleCollapsed(true);
+    } else if (bubbleTranslateY < -threshold) {
+      // Swiped up - expand
+      setBubbleCollapsed(false);
+    }
+    
+    setBubbleTranslateY(0);
+    bubbleTouchStart.current = null;
+  };
+
+  const toggleBubbleCollapse = () => {
+    setBubbleCollapsed(!bubbleCollapsed);
   };
 
   useEffect(() => {
@@ -490,9 +528,26 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
             </div>
           )}
           
-          {/* Combined Promo Image + Welcome Bubble container */}
+          {/* Combined Promo Image + Welcome Bubble container with smooth toggle */}
           {showWelcomeBubble && !isHovered && bubbleEnabled && (
-            <div className="absolute bottom-full right-0 mb-2 animate-in fade-in slide-in-from-bottom-5 duration-300">
+            <div 
+              className="absolute bottom-full right-0 mb-2 touch-pan-y"
+              style={{
+                transform: `translateY(${bubbleTranslateY}px)`,
+                transition: bubbleTranslateY === 0 ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease' : 'none',
+                opacity: bubbleCollapsed ? 0 : 1,
+                pointerEvents: bubbleCollapsed ? 'none' : 'auto',
+                maxHeight: '50vh',
+              }}
+              onTouchStart={handleBubbleTouchStart}
+              onTouchMove={handleBubbleTouchMove}
+              onTouchEnd={handleBubbleTouchEnd}
+              data-testid="container-welcome-bubble"
+            >
+              {/* Drag handle indicator for mobile */}
+              <div className="flex justify-center mb-1 md:hidden">
+                <div className="w-8 h-1 bg-muted-foreground/30 rounded-full" />
+              </div>
               {/* Promo Image - displayed above welcome bubble when enabled, same width */}
               {promoImageEnabled && promoImageUrl && (
                 <img 
@@ -532,6 +587,18 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                 </Button>
               </div>
             </div>
+          )}
+          
+          {/* Collapsed state indicator - tap to expand (mobile only) */}
+          {showWelcomeBubble && bubbleCollapsed && bubbleEnabled && !isHovered && (
+            <button
+              onClick={toggleBubbleCollapse}
+              className="absolute bottom-full right-0 mb-2 w-56 py-2 bg-card/90 backdrop-blur-sm rounded-xl border border-border shadow-lg flex items-center justify-center gap-2 transition-all duration-300 md:hidden"
+              data-testid="button-expand-bubble"
+            >
+              <ChevronUp className="w-4 h-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Tap to expand</span>
+            </button>
           )}
           
           {buttonIconUrl && buttonIconWidth > 0 && buttonIconHeight > 0 ? (
