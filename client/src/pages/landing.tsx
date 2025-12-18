@@ -80,7 +80,6 @@ interface LandingPageSettings {
 }
 import { useTheme } from "@/components/theme-provider";
 import { subscriptionPlans } from "@shared/schema";
-import { AIHelpBubble } from "@/components/ai-help-bubble";
 
 function useParallaxScroll() {
   useEffect(() => {
@@ -1951,7 +1950,6 @@ export default function LandingPage() {
       <PricingPreview />
       <CTASection />
       <Footer />
-      <AIHelpBubble publicMode />
     </div>
   );
 }

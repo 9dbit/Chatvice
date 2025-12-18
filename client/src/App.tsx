@@ -43,6 +43,7 @@ import DocsPage from "@/pages/resources/docs";
 import DocArticlePage from "@/pages/resources/doc-article";
 import HelpCenterPage from "@/pages/resources/help";
 import { DynamicHead } from "@/components/dynamic-head";
+import { AIHelpBubble } from "@/components/ai-help-bubble";
 
 function ScrollToTop() {
   const [location] = useLocation();
@@ -52,6 +53,29 @@ function ScrollToTop() {
   }, [location]);
   
   return null;
+}
+
+function GlobalHelpBubble() {
+  const [location] = useLocation();
+  
+  const excludedPaths = [
+    '/dashboard',
+    '/supervisor',
+    '/admin',
+    '/widget',
+    '/widget-demo',
+    '/select-agent',
+    '/verify-supervisor',
+    '/verify-email',
+    '/reset-password',
+    '/forgot-password',
+  ];
+  
+  const shouldShow = !excludedPaths.some(path => location.startsWith(path));
+  
+  if (!shouldShow) return null;
+  
+  return <AIHelpBubble publicMode />;
 }
 
 function Router() {
@@ -120,6 +144,7 @@ function App() {
           <ScrollToTop />
           <Toaster />
           <Router />
+          <GlobalHelpBubble />
         </TooltipProvider>
       </QueryClientProvider>
     </ThemeProvider>

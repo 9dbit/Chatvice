@@ -656,11 +656,12 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                           ? "bg-primary text-white rounded-br-sm" 
                           : "bg-muted rounded-bl-sm"
                       }`}
+                      style={{ overflowWrap: 'anywhere' }}
                     >
                       {msg.role === "user" ? (
-                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                        <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
                       ) : (
-                        <div className="text-sm">
+                        <div className="text-sm break-words">
                           {parsedContent?.map((part, partIndex) => {
                             if (part.type === "text") {
                               return <span key={partIndex} className="whitespace-pre-wrap">{part.content}</span>;
