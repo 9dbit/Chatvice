@@ -20,6 +20,8 @@ interface PlatformSettings {
   guide_button_icon_url?: string;
   guide_button_icon_width?: string;
   guide_button_icon_height?: string;
+  guide_promo_image_enabled?: string;
+  guide_promo_image_url?: string;
 }
 
 interface Message {
@@ -172,6 +174,8 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
   const buttonIconUrl = platformSettings?.guide_button_icon_url || "";
   const buttonIconWidth = parseInt(platformSettings?.guide_button_icon_width || "0") || 0;
   const buttonIconHeight = parseInt(platformSettings?.guide_button_icon_height || "0") || 0;
+  const promoImageEnabled = platformSettings?.guide_promo_image_enabled === "true";
+  const promoImageUrl = platformSettings?.guide_promo_image_url || "";
   
   // Determine if widget should be shown - always show with defaults if API fails
   const shouldShow = settingsReady && isEnabled && (publicMode ? showOnLanding : showOnDashboard);
@@ -486,31 +490,44 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
             </div>
           )}
           
-          {/* Welcome bubble - matching live preview style, only show if enabled in settings */}
+          {/* Promo Image - displayed above welcome bubble when enabled */}
+          {promoImageEnabled && promoImageUrl && !isHovered && (
+            <div className="absolute bottom-full right-0 mb-2 animate-in fade-in slide-in-from-bottom-3 duration-300" style={{ marginBottom: bubbleEnabled && showWelcomeBubble ? '140px' : '70px' }}>
+              <img 
+                src={promoImageUrl} 
+                alt="Promotion" 
+                className="max-w-[200px] max-h-[100px] object-contain rounded-lg shadow-lg"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+                data-testid="img-promo-bubble"
+              />
+            </div>
+          )}
+          
+          {/* Welcome bubble - compact style, only show if enabled in settings */}
           {showWelcomeBubble && !isHovered && bubbleEnabled && (
-            <div className="absolute bottom-full right-0 mb-3 animate-in fade-in slide-in-from-bottom-5 duration-300">
-              <div className="bg-card rounded-2xl shadow-xl p-4 w-72 border border-border relative">
+            <div className="absolute bottom-full right-0 mb-2 animate-in fade-in slide-in-from-bottom-5 duration-300">
+              <div className="bg-card rounded-xl shadow-xl p-3 w-56 border border-border relative">
                 <button
                   onClick={dismissWelcomeBubble}
-                  className="absolute top-2 right-2 p-1 rounded-full hover:bg-muted transition-colors"
+                  className="absolute top-1.5 right-1.5 p-0.5 rounded-full hover:bg-muted transition-colors"
                   data-testid="button-dismiss-welcome"
                 >
-                  <X className="w-4 h-4 text-muted-foreground" />
+                  <X className="w-3 h-3 text-muted-foreground" />
                 </button>
-                <div className="mb-3">
-                  <p className="font-semibold text-base">
-                    {bubbleEnabled ? bubbleText : (publicMode ? "Need help?" : "Need help navigating?")}
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {publicMode 
-                      ? `Ask me about ${guideName.replace('Guide', '').trim()} features and pricing!` 
-                      : "I can guide you through the dashboard features."}
-                  </p>
-                </div>
+                <p className="font-semibold text-sm pr-4">
+                  {bubbleEnabled ? bubbleText : (publicMode ? "Need help?" : "Need help navigating?")}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {publicMode 
+                    ? `Ask me about ${guideName.replace('Guide', '').trim()} features and pricing!` 
+                    : "I can guide you through the dashboard features."}
+                </p>
                 <Button
                   size="sm"
                   onClick={handleOpenFromWelcome}
-                  className="w-full text-white bg-primary hover:bg-primary/90"
+                  className="w-full mt-2 h-7 text-xs text-white bg-primary hover:bg-primary/90"
                   data-testid="button-open-from-welcome"
                 >
                   Chat with Guide
