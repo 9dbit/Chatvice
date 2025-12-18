@@ -19,7 +19,7 @@ Chatvice is a monorepo application structured with `/client`, `/server`, and `/s
 - **AI Integration**: OpenAI API (GPT-4.1-mini for chat, text-embedding-3-small for embeddings).
 
 **Key Features:**
-- **AI-Powered Chatbot**: Automates customer responses using semantic search from a per-agent knowledge base.
+- **AI-Powered Chatbot**: Automates customer responses using semantic search from a per-agent knowledge base with conversation memory optimization (last 10 messages for context continuity).
 - **Human Escalation**: Automatically or manually escalates conversations to human supervisors based on triggers or customer requests, with localized messages and supervisor assignment.
 - **Multi-Language Support**: Automatic language detection and AI responses.
 - **Configurable Chat Widget**: Embeddable, customizable widget with dynamic theming, real-time status, media upload (photo/video/camera), suggested questions, optional welcome bubble, custom icon dimensions (width/height in pixels without circular mask), and draggable/hideable widget button. Script embed method (chatvice.js) uses postMessage communication between parent page and iframe for open/close synchronization, with source validation for security. Exposes `window.chatvice.open()`, `window.chatvice.close()`, and `window.chatvice.toggle()` APIs for programmatic control.
@@ -52,6 +52,15 @@ Core entities include Merchants, Supervisors, Sessions, Messages (with `clientMe
 - Reconciliation uses `serverMsg.clientMessageId === pending.clientId` as primary match
 - Fallback: content + timestamp within 10 seconds
 - Notification sounds use `lastProcessedServerMsgId` to prevent duplicates
+
+**AI Conversation Memory Optimization**:
+- All AI agents maintain conversation context across messages for natural follow-up discussions
+- Chatvice Guide (landing page and dashboard) sends conversation history with each request
+- Merchant widget AI agents fetch last 10 session messages from database for context
+- System prompts include CONVERSATION CONTEXT instructions to properly use history
+- Memory is token-efficient (limited to 10 messages) while maintaining meaningful context
+- Supports pronoun references ("it", "that") and follow-up questions about previous topics
+- Endpoints: `/api/help/public-ask`, `/api/help/ask`, `/api/chatvice-guide/chat`, and `askChatvice` function
 
 ## External Dependencies
 

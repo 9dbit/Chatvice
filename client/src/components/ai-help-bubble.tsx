@@ -231,9 +231,9 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
   }, [isDragging, handleDrag, handleDragEnd]);
 
   const askMutation = useMutation({
-    mutationFn: async (question: string) => {
+    mutationFn: async ({ question, conversationHistory }: { question: string; conversationHistory: Message[] }) => {
       const endpoint = publicMode ? "/api/help/public-ask" : "/api/help/ask";
-      const response = await apiRequest("POST", endpoint, { question });
+      const response = await apiRequest("POST", endpoint, { question, conversationHistory });
       return response.json();
     },
     onSuccess: (data) => {
@@ -251,9 +251,16 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
     if (!input.trim() || askMutation.isPending) return;
     
     const userMessage = input.trim();
+    // Capture current messages BEFORE adding the new user message (for history)
+    // Exclude the initial welcome message from history (first assistant message)
+    const conversationHistory = messages.length > 1 ? messages.slice(1) : [];
+    
+    // Update UI with new user message
     setMessages(prev => [...prev, { role: "user", content: userMessage }]);
     setInput("");
-    askMutation.mutate(userMessage);
+    
+    // Send question and history (history doesn't include current question - backend adds it)
+    askMutation.mutate({ question: userMessage, conversationHistory });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

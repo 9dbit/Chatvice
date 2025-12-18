@@ -397,18 +397,45 @@ ${agentSystemPrompt ? `
 CUSTOM INSTRUCTIONS (FOLLOW THESE STRICTLY):
 ${agentSystemPrompt.trim()}` : ""}
 
+CONVERSATION CONTEXT:
+- You have memory of the conversation history
+- If a follow-up question relates to previous topics, use that context
+- Maintain continuity across messages
+- If customer references "it", "that", "this", refer to recent conversation context
+
 Relevant Company Information:
 ${knowledgeContext || "No specific knowledge base configured yet."}
 
 If you don't have specific information to answer, be honest about it and offer to connect with a human agent.`;
 
   try {
+    // Fetch conversation history from session messages for context continuity
+    const sessionMessages = await storage.getMessages(sessionId);
+    
+    // Build messages array with history (limit to last 10 messages for token efficiency)
+    const chatMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+      { role: "system", content: systemMessage }
+    ];
+    
+    // Add conversation history (limit to last 10 messages)
+    if (sessionMessages.length > 0) {
+      const recentMessages = sessionMessages.slice(-10);
+      for (const msg of recentMessages) {
+        if (msg.from === 'customer') {
+          chatMessages.push({ role: "user", content: msg.content });
+        } else if (msg.from === 'chatvice') {
+          chatMessages.push({ role: "assistant", content: msg.content });
+        }
+        // Skip supervisor messages in AI context
+      }
+    }
+    
+    // Add current message
+    chatMessages.push({ role: "user", content: message });
+    
     const completion = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
-      messages: [
-        { role: "system", content: systemMessage },
-        { role: "user", content: message }
-      ],
+      messages: chatMessages,
       max_completion_tokens: 500,
       temperature: temperature,
     });
@@ -4258,7 +4285,7 @@ Be helpful, friendly, and concise. If asked about something not related to Chatv
         keysToDelete.forEach(key => publicHelpRateLimit.delete(key));
       }
       
-      const { question } = req.body;
+      const { question, conversationHistory } = req.body;
       
       if (!question || typeof question !== 'string' || question.length > 500) {
         return res.status(400).json({ 
@@ -4312,14 +4339,35 @@ All plans include a 7-day free trial. No credit card required.
 KNOWLEDGE BASE:
 ${knowledgeContext}
 
+CONVERSATION CONTEXT:
+- You have memory of the conversation history
+- If a follow-up question relates to previous topics, use that context
+- Maintain continuity across messages
+- If user references "it", "that", "this", refer to recent conversation context
+
 Use the knowledge base above to answer questions. If you don't have specific information, be honest about it.`;
+      
+      // Build conversation messages with history for context continuity
+      const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+        { role: "system", content: fullSystemPrompt }
+      ];
+      
+      // Add conversation history (limit to last 10 messages for token efficiency)
+      if (Array.isArray(conversationHistory) && conversationHistory.length > 0) {
+        const recentHistory = conversationHistory.slice(-10);
+        for (const msg of recentHistory) {
+          if (msg.role === 'user' || msg.role === 'assistant') {
+            messages.push({ role: msg.role, content: msg.content });
+          }
+        }
+      }
+      
+      // Add current question
+      messages.push({ role: "user", content: question });
       
       const response = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
-        messages: [
-          { role: "system", content: fullSystemPrompt },
-          { role: "user", content: question }
-        ],
+        messages,
         max_tokens: 300,
         temperature,
       });
@@ -4333,7 +4381,7 @@ Use the knowledge base above to answer questions. If you don't have specific inf
 
   app.post("/api/help/ask", requireMerchant, async (req, res) => {
     try {
-      const { question } = req.body;
+      const { question, conversationHistory } = req.body;
       
       // Fetch guide settings from platform settings
       const guideSystemPrompt = await storage.getPlatformSetting("guide_system_prompt");
@@ -4387,14 +4435,35 @@ TIPS:
 KNOWLEDGE BASE:
 ${knowledgeContext}
 
+CONVERSATION CONTEXT:
+- You have memory of the conversation history
+- If a follow-up question relates to previous topics, use that context
+- Maintain continuity across messages
+- If user references "it", "that", "this", refer to recent conversation context
+
 Use the knowledge base above to answer questions. If they ask about something unrelated, gently redirect them to dashboard features.`;
+      
+      // Build conversation messages with history for context continuity
+      const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+        { role: "system", content: fullSystemPrompt }
+      ];
+      
+      // Add conversation history (limit to last 10 messages for token efficiency)
+      if (Array.isArray(conversationHistory) && conversationHistory.length > 0) {
+        const recentHistory = conversationHistory.slice(-10);
+        for (const msg of recentHistory) {
+          if (msg.role === 'user' || msg.role === 'assistant') {
+            messages.push({ role: msg.role, content: msg.content });
+          }
+        }
+      }
+      
+      // Add current question
+      messages.push({ role: "user", content: question });
       
       const response = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
-        messages: [
-          { role: "system", content: fullSystemPrompt },
-          { role: "user", content: question }
-        ],
+        messages,
         max_tokens: 400,
         temperature,
       });
@@ -4409,7 +4478,7 @@ Use the knowledge base above to answer questions. If they ask about something un
   // Admin preview endpoint for Chatvice Guide - uses saved knowledge base settings
   app.post("/api/chatvice-guide/chat", requireAdmin, async (req, res) => {
     try {
-      const { message, context } = req.body;
+      const { message, context, conversationHistory } = req.body;
       
       if (!message || typeof message !== 'string') {
         return res.status(400).json({ error: "Message is required" });
@@ -4445,14 +4514,35 @@ KEY FEATURES:
 KNOWLEDGE BASE:
 ${knowledgeBase}
 
+CONVERSATION CONTEXT:
+- You have memory of the conversation history
+- If a follow-up question relates to previous topics, use that context
+- Maintain continuity across messages
+- If user references "it", "that", "this", refer to recent conversation context
+
 Use the knowledge base above to answer questions. Be helpful, friendly, and concise.`;
+      
+      // Build conversation messages with history for context continuity
+      const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+        { role: "system", content: fullSystemPrompt }
+      ];
+      
+      // Add conversation history (limit to last 10 messages for token efficiency)
+      if (Array.isArray(conversationHistory) && conversationHistory.length > 0) {
+        const recentHistory = conversationHistory.slice(-10);
+        for (const msg of recentHistory) {
+          if (msg.role === 'user' || msg.role === 'assistant') {
+            messages.push({ role: msg.role, content: msg.content });
+          }
+        }
+      }
+      
+      // Add current message
+      messages.push({ role: "user", content: message });
       
       const response = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
-        messages: [
-          { role: "system", content: fullSystemPrompt },
-          { role: "user", content: message }
-        ],
+        messages,
         max_tokens: 500,
         temperature,
       });
