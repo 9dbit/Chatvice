@@ -414,13 +414,12 @@ Always answer in a clear, structured way while maintaining a conversational tone
 TONE/STYLE INSTRUCTION:
 ${toneInstruction}
 
-IMPORTANT LANGUAGE INSTRUCTION:
-- Detect the language of the customer's message
-- ALWAYS respond in the SAME language the customer is using
-- If the customer writes in Spanish, respond in Spanish
-- If the customer writes in French, respond in French
-- If the customer writes in German, respond in German
-- And so on for any other language
+LANGUAGE MATCHING (CRITICAL - WAJIB DIIKUTI):
+- WAJIB: Selalu jawab menggunakan bahasa yang SAMA dengan bahasa pesan TERAKHIR customer
+- Jika customer bertanya dalam Bahasa Indonesia, JAWAB dalam Bahasa Indonesia
+- Jika customer bertanya dalam English, JAWAB dalam English
+- Jika customer menulis dalam bahasa lain (Spanish, French, dll), JAWAB dalam bahasa yang sama
+- JANGAN campur bahasa - konsisten gunakan satu bahasa sesuai pertanyaan customer
 - This includes greeting messages - match their language
 ${agentSystemPrompt ? `
 
@@ -4509,12 +4508,17 @@ Selalu akhiri dengan:
 [BTN:Mulai Free Trial:Saya mau daftar free trial]
 [LINK:Lihat Detail Lengkap:/pricing]
 
+LANGUAGE MATCHING (CRITICAL):
+- WAJIB: Selalu jawab menggunakan bahasa yang SAMA dengan bahasa pesan TERAKHIR user
+- Jika user bertanya dalam Bahasa Indonesia, JAWAB dalam Bahasa Indonesia
+- Jika user bertanya dalam English, JAWAB dalam English
+- JANGAN campur bahasa - konsisten gunakan satu bahasa sesuai pertanyaan user
+
 IMPORTANT RULES:
 - SELALU gunakan harga dari knowledge base, JANGAN menggunakan harga dari sumber lain
 - Always use buttons when offering 2-3 choices to make selection easier
 - SELALU akhiri jawaban pricing dengan tombol dan link ke /pricing
 - Use links when mentioning specific pages or features
-- Respond in the same language as the customer (default Bahasa Indonesia)
 - Keep responses concise and helpful
 - Don't overuse buttons - max 3-4 per response
 
@@ -4638,11 +4642,16 @@ Dashboard pages to link:
 - /billing - Billing info
 - /settings - Account settings
 
+LANGUAGE MATCHING (CRITICAL):
+- WAJIB: Selalu jawab menggunakan bahasa yang SAMA dengan bahasa pesan TERAKHIR user
+- Jika user bertanya dalam Bahasa Indonesia, JAWAB dalam Bahasa Indonesia
+- Jika user bertanya dalam English, JAWAB dalam English
+- JANGAN campur bahasa - konsisten gunakan satu bahasa sesuai pertanyaan user
+
 RULES:
 - Use buttons for 2-3 choices
 - Use links when mentioning specific pages
 - Max 3-4 buttons per response
-- Respond in user's language
 
 Use the knowledge base above to answer questions. If they ask about something unrelated, gently redirect them to dashboard features.`;
       
@@ -4728,6 +4737,12 @@ INTERACTIVE FORMATTING:
 2. CLICKABLE LINKS: [LINK:Text:/path]
 
 Available pages: /features, /pricing, /register, /docs, /blog
+
+LANGUAGE MATCHING (CRITICAL):
+- WAJIB: Selalu jawab menggunakan bahasa yang SAMA dengan bahasa pesan TERAKHIR user
+- Jika user bertanya dalam Bahasa Indonesia, JAWAB dalam Bahasa Indonesia
+- Jika user bertanya dalam English, JAWAB dalam English
+- JANGAN campur bahasa - konsisten gunakan satu bahasa sesuai pertanyaan user
 
 Use buttons for choices and links when mentioning pages. Be helpful, friendly, and concise.`;
       
