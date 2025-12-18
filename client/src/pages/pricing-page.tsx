@@ -216,14 +216,22 @@ export default function PricingPage() {
       {/* Promotional Banner */}
       {applicablePromo && (
         <div 
-          className="py-3" 
+          className="relative py-3" 
           style={{ 
-            backgroundColor: applicablePromo.bgColor || "#16a34a",
+            backgroundColor: applicablePromo.bannerMode === "image" ? "transparent" : (applicablePromo.bgColor || "#16a34a"),
             color: applicablePromo.textColor || "#ffffff"
           }}
           data-testid="promo-banner"
         >
-          <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 flex items-center justify-center gap-4 flex-wrap">
+          {applicablePromo.bannerMode === "image" && applicablePromo.bannerImageUrl && (
+            <img 
+              src={applicablePromo.bannerImageUrl} 
+              alt="" 
+              className="absolute inset-0 w-full h-full object-cover"
+              data-testid="promo-banner-image"
+            />
+          )}
+          <div className="relative max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 flex items-center justify-center gap-4 flex-wrap">
             <div className="flex items-center gap-2">
               <Gift className="w-5 h-5" />
               <span className="font-semibold">{applicablePromo.name}:</span>

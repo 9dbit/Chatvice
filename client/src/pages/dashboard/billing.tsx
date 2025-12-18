@@ -36,6 +36,10 @@ interface ActivePromotion {
   billingCycle: string;
   endDate: string;
   showUpsell: boolean;
+  bgColor?: string | null;
+  textColor?: string | null;
+  bannerMode?: string | null;
+  bannerImageUrl?: string | null;
 }
 
 interface ValidatedPromo {
@@ -605,10 +609,30 @@ export default function BillingPage() {
 
         {/* Promo Banner and Code Input */}
         {(applicablePromo || validatedPromo) && (
-          <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center justify-between gap-4 flex-wrap" data-testid="promo-banner">
-            <div className="flex items-center gap-2">
-              <Gift className="w-5 h-5 text-green-600" />
-              <span className="font-medium text-green-700 dark:text-green-400">
+          <div 
+            className="mb-4 p-3 rounded-lg flex items-center justify-between gap-4 flex-wrap relative overflow-hidden" 
+            style={applicablePromo?.bannerMode === "image" && applicablePromo?.bannerImageUrl ? {
+              color: applicablePromo.textColor || "#ffffff"
+            } : {
+              backgroundColor: applicablePromo?.bgColor || undefined,
+              color: applicablePromo?.textColor || undefined
+            }}
+            data-testid="promo-banner"
+          >
+            {applicablePromo?.bannerMode === "image" && applicablePromo?.bannerImageUrl && (
+              <img 
+                src={applicablePromo.bannerImageUrl} 
+                alt="" 
+                className="absolute inset-0 w-full h-full object-cover"
+                data-testid="promo-banner-image"
+              />
+            )}
+            {applicablePromo?.bannerMode !== "image" && !applicablePromo?.bgColor && (
+              <div className="absolute inset-0 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg" />
+            )}
+            <div className="flex items-center gap-2 relative z-10">
+              <Gift className={`w-5 h-5 ${applicablePromo?.bgColor || applicablePromo?.bannerMode === "image" ? "" : "text-green-600"}`} />
+              <span className={`font-medium ${applicablePromo?.bgColor || applicablePromo?.bannerMode === "image" ? "" : "text-green-700 dark:text-green-400"}`}>
                 {validatedPromo ? (
                   <>Code "{validatedPromo.code}" applied: {validatedPromo.discountPercent}% off</>
                 ) : applicablePromo ? (
@@ -621,7 +645,7 @@ export default function BillingPage() {
                 size="sm" 
                 variant="ghost" 
                 onClick={() => { setValidatedPromo(null); setPromoCodeInput(""); }}
-                className="text-red-500 hover:text-red-700"
+                className="text-red-500 hover:text-red-700 relative z-10"
                 data-testid="button-remove-promo"
               >
                 <XCircle className="w-4 h-4 mr-1" />
