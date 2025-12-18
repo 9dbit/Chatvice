@@ -31,6 +31,8 @@ interface ActivePromotion {
   billingCycle: string;
   endDate: string;
   showUpsell: boolean;
+  bgColor?: string | null;
+  textColor?: string | null;
 }
 
 export default function PricingPage() {
@@ -211,7 +213,14 @@ export default function PricingPage() {
     <PublicPageLayout>
       {/* Promotional Banner */}
       {applicablePromo && (
-        <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white py-3" data-testid="promo-banner">
+        <div 
+          className="py-3" 
+          style={{ 
+            backgroundColor: applicablePromo.bgColor || "#16a34a",
+            color: applicablePromo.textColor || "#ffffff"
+          }}
+          data-testid="promo-banner"
+        >
           <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 flex items-center justify-center gap-4 flex-wrap">
             <div className="flex items-center gap-2">
               <Gift className="w-5 h-5" />

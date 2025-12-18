@@ -906,6 +906,8 @@ export const promotions = pgTable("promotions", {
   isActive: boolean("is_active").default(true),
   isPublic: boolean("is_public").default(false), // true = show on pricing pages automatically
   showUpsell: boolean("show_upsell").default(true), // show "Save X%" badge on pricing
+  bgColor: varchar("bg_color", { length: 50 }).default("#16a34a"), // banner background color
+  textColor: varchar("text_color", { length: 50 }).default("#ffffff"), // banner text color
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

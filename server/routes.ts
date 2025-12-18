@@ -4144,6 +4144,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         billingCycle: p.billingCycle,
         endDate: p.endDate,
         showUpsell: p.showUpsell,
+        bgColor: p.bgColor,
+        textColor: p.textColor,
       }));
       res.json(publicPromos);
     } catch (error) {

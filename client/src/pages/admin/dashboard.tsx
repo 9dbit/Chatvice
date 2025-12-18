@@ -4287,6 +4287,8 @@ interface Promotion {
   isActive: boolean;
   isPublic: boolean;
   showUpsell: boolean;
+  bgColor?: string | null;
+  textColor?: string | null;
   createdAt: string;
 }
 
@@ -4313,6 +4315,8 @@ function PricingTab({ toast }: { toast: any }) {
   const [promoEndDate, setPromoEndDate] = useState("");
   const [promoIsPublic, setPromoIsPublic] = useState(false);
   const [promoShowUpsell, setPromoShowUpsell] = useState(true);
+  const [promoBgColor, setPromoBgColor] = useState("#16a34a");
+  const [promoTextColor, setPromoTextColor] = useState("#ffffff");
   
   // Fetch subscription plans from database
   const { data: plans = [], isLoading: plansLoading } = useQuery<any[]>({
@@ -4469,6 +4473,8 @@ function PricingTab({ toast }: { toast: any }) {
     setPromoEndDate("");
     setPromoIsPublic(false);
     setPromoShowUpsell(true);
+    setPromoBgColor("#16a34a");
+    setPromoTextColor("#ffffff");
   };
 
   const openCreatePromo = () => {
@@ -4495,6 +4501,8 @@ function PricingTab({ toast }: { toast: any }) {
     setPromoEndDate(new Date(promo.endDate).toISOString().split('T')[0]);
     setPromoIsPublic(promo.isPublic);
     setPromoShowUpsell(promo.showUpsell);
+    setPromoBgColor(promo.bgColor || "#16a34a");
+    setPromoTextColor(promo.textColor || "#ffffff");
     setPromoDialogOpen(true);
   };
 
@@ -4513,6 +4521,8 @@ function PricingTab({ toast }: { toast: any }) {
       isActive: true,
       isPublic: promoIsPublic,
       showUpsell: promoShowUpsell,
+      bgColor: promoBgColor,
+      textColor: promoTextColor,
     };
     if (editingPromo) {
       updatePromoMutation.mutate({ id: editingPromo.id, data });
@@ -4915,6 +4925,58 @@ function PricingTab({ toast }: { toast: any }) {
                 <Label htmlFor="promo-upsell" className="text-sm">Show upsell info</Label>
               </div>
             </div>
+            {promoIsPublic && (
+              <div className="space-y-3 pt-2 border-t">
+                <Label className="text-sm font-medium">Banner Colors (for public display)</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Background Color</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <input 
+                        type="color" 
+                        value={promoBgColor} 
+                        onChange={(e) => setPromoBgColor(e.target.value)}
+                        className="w-10 h-9 rounded border cursor-pointer"
+                        data-testid="input-promo-bgcolor"
+                      />
+                      <Input 
+                        value={promoBgColor} 
+                        onChange={(e) => setPromoBgColor(e.target.value)}
+                        placeholder="#16a34a"
+                        className="flex-1"
+                        data-testid="input-promo-bgcolor-text"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Text Color</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <input 
+                        type="color" 
+                        value={promoTextColor} 
+                        onChange={(e) => setPromoTextColor(e.target.value)}
+                        className="w-10 h-9 rounded border cursor-pointer"
+                        data-testid="input-promo-textcolor"
+                      />
+                      <Input 
+                        value={promoTextColor} 
+                        onChange={(e) => setPromoTextColor(e.target.value)}
+                        placeholder="#ffffff"
+                        className="flex-1"
+                        data-testid="input-promo-textcolor-text"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div 
+                  className="p-3 rounded-md text-center text-sm font-medium" 
+                  style={{ backgroundColor: promoBgColor, color: promoTextColor }}
+                  data-testid="promo-color-preview"
+                >
+                  Preview: {promoName || "Promotion Name"} - Save {promoDiscountPercent}% with code {promoCode || "CODE"}
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPromoDialogOpen(false)} data-testid="button-cancel-discount">Cancel</Button>
