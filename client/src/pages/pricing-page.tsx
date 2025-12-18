@@ -33,6 +33,8 @@ interface ActivePromotion {
   showUpsell: boolean;
   bgColor?: string | null;
   textColor?: string | null;
+  bannerMode?: string | null;
+  bannerImageUrl?: string | null;
 }
 
 export default function PricingPage() {

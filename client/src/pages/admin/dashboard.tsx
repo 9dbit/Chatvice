@@ -4289,6 +4289,8 @@ interface Promotion {
   showUpsell: boolean;
   bgColor?: string | null;
   textColor?: string | null;
+  bannerMode?: string | null;
+  bannerImageUrl?: string | null;
   createdAt: string;
 }
 
@@ -4317,6 +4319,9 @@ function PricingTab({ toast }: { toast: any }) {
   const [promoShowUpsell, setPromoShowUpsell] = useState(true);
   const [promoBgColor, setPromoBgColor] = useState("#16a34a");
   const [promoTextColor, setPromoTextColor] = useState("#ffffff");
+  const [promoBannerMode, setPromoBannerMode] = useState<"color" | "image">("color");
+  const [promoBannerImageUrl, setPromoBannerImageUrl] = useState("");
+  const [uploadingBannerImage, setUploadingBannerImage] = useState(false);
   
   // Fetch subscription plans from database
   const { data: plans = [], isLoading: plansLoading } = useQuery<any[]>({
@@ -4475,6 +4480,8 @@ function PricingTab({ toast }: { toast: any }) {
     setPromoShowUpsell(true);
     setPromoBgColor("#16a34a");
     setPromoTextColor("#ffffff");
+    setPromoBannerMode("color");
+    setPromoBannerImageUrl("");
   };
 
   const openCreatePromo = () => {
@@ -4503,6 +4510,8 @@ function PricingTab({ toast }: { toast: any }) {
     setPromoShowUpsell(promo.showUpsell);
     setPromoBgColor(promo.bgColor || "#16a34a");
     setPromoTextColor(promo.textColor || "#ffffff");
+    setPromoBannerMode((promo.bannerMode as "color" | "image") || "color");
+    setPromoBannerImageUrl(promo.bannerImageUrl || "");
     setPromoDialogOpen(true);
   };
 
@@ -4523,11 +4532,52 @@ function PricingTab({ toast }: { toast: any }) {
       showUpsell: promoShowUpsell,
       bgColor: promoBgColor,
       textColor: promoTextColor,
+      bannerMode: promoBannerMode,
+      bannerImageUrl: promoBannerImageUrl || null,
     };
     if (editingPromo) {
       updatePromoMutation.mutate({ id: editingPromo.id, data });
     } else {
       createPromoMutation.mutate(data);
+    }
+  };
+
+  const handleBannerImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({ title: "Error", description: "Please upload an image file", variant: "destructive" });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Error", description: "Image must be less than 5MB", variant: "destructive" });
+      return;
+    }
+
+    setUploadingBannerImage(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/admin/upload-promo-banner', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+      
+      const result = await response.json();
+      setPromoBannerImageUrl(result.url);
+      toast({ title: "Success", description: "Banner image uploaded" });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to upload image", variant: "destructive" });
+    } finally {
+      setUploadingBannerImage(false);
     }
   };
 
@@ -4926,55 +4976,152 @@ function PricingTab({ toast }: { toast: any }) {
               </div>
             </div>
             {promoIsPublic && (
-              <div className="space-y-3 pt-2 border-t">
-                <Label className="text-sm font-medium">Banner Colors (for public display)</Label>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Background Color</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <input 
-                        type="color" 
-                        value={promoBgColor} 
-                        onChange={(e) => setPromoBgColor(e.target.value)}
-                        className="w-10 h-9 rounded border cursor-pointer"
-                        data-testid="input-promo-bgcolor"
-                      />
-                      <Input 
-                        value={promoBgColor} 
-                        onChange={(e) => setPromoBgColor(e.target.value)}
-                        placeholder="#16a34a"
-                        className="flex-1"
-                        data-testid="input-promo-bgcolor-text"
-                      />
-                    </div>
+              <div className="space-y-4 pt-2 border-t">
+                <Label className="text-sm font-medium">Banner Style (for public display)</Label>
+                
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="radio" 
+                      id="banner-color" 
+                      name="bannerMode" 
+                      checked={promoBannerMode === "color"} 
+                      onChange={() => setPromoBannerMode("color")}
+                      data-testid="radio-banner-color"
+                    />
+                    <Label htmlFor="banner-color" className="text-sm cursor-pointer">Solid Color</Label>
                   </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Text Color</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <input 
-                        type="color" 
-                        value={promoTextColor} 
-                        onChange={(e) => setPromoTextColor(e.target.value)}
-                        className="w-10 h-9 rounded border cursor-pointer"
-                        data-testid="input-promo-textcolor"
-                      />
-                      <Input 
-                        value={promoTextColor} 
-                        onChange={(e) => setPromoTextColor(e.target.value)}
-                        placeholder="#ffffff"
-                        className="flex-1"
-                        data-testid="input-promo-textcolor-text"
-                      />
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="radio" 
+                      id="banner-image" 
+                      name="bannerMode" 
+                      checked={promoBannerMode === "image"} 
+                      onChange={() => setPromoBannerMode("image")}
+                      data-testid="radio-banner-image"
+                    />
+                    <Label htmlFor="banner-image" className="text-sm cursor-pointer">Banner Image</Label>
                   </div>
                 </div>
-                <div 
-                  className="p-3 rounded-md text-center text-sm font-medium" 
-                  style={{ backgroundColor: promoBgColor, color: promoTextColor }}
-                  data-testid="promo-color-preview"
-                >
-                  Preview: {promoName || "Promotion Name"} - Save {promoDiscountPercent}% with code {promoCode || "CODE"}
-                </div>
+
+                {promoBannerMode === "color" && (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Background Color</Label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <input 
+                            type="color" 
+                            value={promoBgColor} 
+                            onChange={(e) => setPromoBgColor(e.target.value)}
+                            className="w-10 h-9 rounded border cursor-pointer"
+                            data-testid="input-promo-bgcolor"
+                          />
+                          <Input 
+                            value={promoBgColor} 
+                            onChange={(e) => setPromoBgColor(e.target.value)}
+                            placeholder="#16a34a"
+                            className="flex-1"
+                            data-testid="input-promo-bgcolor-text"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Text Color</Label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <input 
+                            type="color" 
+                            value={promoTextColor} 
+                            onChange={(e) => setPromoTextColor(e.target.value)}
+                            className="w-10 h-9 rounded border cursor-pointer"
+                            data-testid="input-promo-textcolor"
+                          />
+                          <Input 
+                            value={promoTextColor} 
+                            onChange={(e) => setPromoTextColor(e.target.value)}
+                            placeholder="#ffffff"
+                            className="flex-1"
+                            data-testid="input-promo-textcolor-text"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div 
+                      className="p-3 rounded-md text-center text-sm font-medium" 
+                      style={{ backgroundColor: promoBgColor, color: promoTextColor }}
+                      data-testid="promo-color-preview"
+                    >
+                      Preview: {promoName || "Promotion Name"} - Save {promoDiscountPercent}% with code {promoCode || "CODE"}
+                    </div>
+                  </div>
+                )}
+
+                {promoBannerMode === "image" && (
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Banner Image (Recommended: 1200x100px, aspect ratio 12:1)</Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Input 
+                          type="file" 
+                          accept="image/*" 
+                          onChange={handleBannerImageUpload}
+                          disabled={uploadingBannerImage}
+                          className="flex-1"
+                          data-testid="input-promo-banner-upload"
+                        />
+                        {uploadingBannerImage && <RefreshCw className="w-4 h-4 animate-spin" />}
+                      </div>
+                    </div>
+                    {promoBannerImageUrl && (
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Preview:</Label>
+                        <div className="relative rounded-md overflow-hidden" style={{ aspectRatio: "12/1" }}>
+                          <img 
+                            src={promoBannerImageUrl} 
+                            alt="Banner preview" 
+                            className="w-full h-full object-cover"
+                            data-testid="promo-banner-preview"
+                          />
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => setPromoBannerImageUrl("")}
+                          data-testid="button-remove-banner"
+                        >
+                          <X className="w-3 h-3 mr-1" /> Remove Image
+                        </Button>
+                      </div>
+                    )}
+                    {!promoBannerImageUrl && (
+                      <div 
+                        className="border-2 border-dashed rounded-md flex items-center justify-center text-muted-foreground text-sm" 
+                        style={{ aspectRatio: "12/1" }}
+                      >
+                        Upload an image to preview
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Text Color (overlay)</Label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <input 
+                            type="color" 
+                            value={promoTextColor} 
+                            onChange={(e) => setPromoTextColor(e.target.value)}
+                            className="w-10 h-9 rounded border cursor-pointer"
+                          />
+                          <Input 
+                            value={promoTextColor} 
+                            onChange={(e) => setPromoTextColor(e.target.value)}
+                            placeholder="#ffffff"
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

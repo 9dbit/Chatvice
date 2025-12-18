@@ -4077,7 +4077,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   // Update promotion (admin)
   app.put("/api/admin/promotions/:id", requireAdmin, async (req, res) => {
     try {
-      const { code, name, description, discountPercent, targetPlans, billingCycle, maxUses, startDate, endDate, isActive, isPublic, showUpsell } = req.body;
+      const { code, name, description, discountPercent, targetPlans, billingCycle, maxUses, startDate, endDate, isActive, isPublic, showUpsell, bgColor, textColor, bannerMode, bannerImageUrl } = req.body;
       
       const updateData: any = {};
       if (code !== undefined) updateData.code = code;
@@ -4092,6 +4092,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (isActive !== undefined) updateData.isActive = isActive;
       if (isPublic !== undefined) updateData.isPublic = isPublic;
       if (showUpsell !== undefined) updateData.showUpsell = showUpsell;
+      if (bgColor !== undefined) updateData.bgColor = bgColor;
+      if (textColor !== undefined) updateData.textColor = textColor;
+      if (bannerMode !== undefined) updateData.bannerMode = bannerMode;
+      if (bannerImageUrl !== undefined) updateData.bannerImageUrl = bannerImageUrl;
 
       const promo = await storage.updatePromotion(req.params.id, updateData);
       if (!promo) {
@@ -4100,6 +4104,26 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       res.json(promo);
     } catch (error) {
       console.error("Error updating promotion:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Upload promo banner image (admin)
+  app.post("/api/admin/upload-promo-banner", requireAdmin, upload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(req.file.mimetype)) {
+        return res.status(400).json({ error: "Invalid file type. Allowed: JPG, PNG, GIF, WebP" });
+      }
+
+      const url = `/uploads/${req.file.filename}`;
+      res.json({ url, filename: req.file.filename });
+    } catch (error) {
+      console.error("Error uploading promo banner:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
@@ -4146,6 +4170,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         showUpsell: p.showUpsell,
         bgColor: p.bgColor,
         textColor: p.textColor,
+        bannerMode: p.bannerMode,
+        bannerImageUrl: p.bannerImageUrl,
       }));
       res.json(publicPromos);
     } catch (error) {
