@@ -4516,6 +4516,9 @@ function PricingTab({ toast }: { toast: any }) {
   };
 
   const handleSavePromo = () => {
+    // If image mode is selected but no image uploaded, fall back to color mode
+    const effectiveBannerMode = promoBannerMode === "image" && !promoBannerImageUrl ? "color" : promoBannerMode;
+    
     const data = {
       code: promoCode.toUpperCase(),
       name: promoName,
@@ -4532,7 +4535,7 @@ function PricingTab({ toast }: { toast: any }) {
       showUpsell: promoShowUpsell,
       bgColor: promoBgColor,
       textColor: promoTextColor,
-      bannerMode: promoBannerMode,
+      bannerMode: effectiveBannerMode,
       bannerImageUrl: promoBannerImageUrl || null,
     };
     if (editingPromo) {

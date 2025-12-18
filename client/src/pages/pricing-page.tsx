@@ -218,7 +218,10 @@ export default function PricingPage() {
         <div 
           className="relative py-3" 
           style={{ 
-            backgroundColor: applicablePromo.bannerMode === "image" ? "transparent" : (applicablePromo.bgColor || "#16a34a"),
+            // Use image mode only if we have a valid image URL, otherwise fallback to color mode
+            backgroundColor: (applicablePromo.bannerMode === "image" && applicablePromo.bannerImageUrl) 
+              ? "transparent" 
+              : (applicablePromo.bgColor || "#16a34a"),
             color: applicablePromo.textColor || "#ffffff"
           }}
           data-testid="promo-banner"
