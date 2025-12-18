@@ -92,6 +92,7 @@ import {
   Info,
   History,
   Link2,
+  Check,
   CheckCircle2,
   CheckCircle,
   XCircle,
@@ -2697,6 +2698,8 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
   const [sources, setSources] = useState<{ id: string; name: string; url: string; status: string; content?: string }[]>([]);
   const [promoImageUrl, setPromoImageUrl] = useState("");
   const [promoImageEnabled, setPromoImageEnabled] = useState(false);
+  const [iconUploadProgress, setIconUploadProgress] = useState<number | null>(null);
+  const [promoUploadProgress, setPromoUploadProgress] = useState<number | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [previewMessages, setPreviewMessages] = useState<{ role: string; content: string }[]>([]);
   const [previewInput, setPreviewInput] = useState("");
@@ -2794,6 +2797,39 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
   const handleSave = () => {
     saveMutation.mutate();
   };
+
+  // Auto-save after settings changes (debounced)
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  
+  useEffect(() => {
+    if (!hasLoadedInitialContent) return;
+    
+    // Clear existing timeout
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+    
+    // Set new timeout for auto-save (1.5 seconds after last change)
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      setAutoSaveStatus('saving');
+      saveMutation.mutate(undefined, {
+        onSuccess: () => {
+          setAutoSaveStatus('saved');
+          setTimeout(() => setAutoSaveStatus('idle'), 2000);
+        },
+        onError: () => {
+          setAutoSaveStatus('idle');
+        }
+      });
+    }, 1500);
+    
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [guideSettings, promoImageEnabled, promoImageUrl, hasLoadedInitialContent]);
 
   // Fetch sources
   const { data: sourcesData, refetch: refetchSources } = useQuery({
@@ -3101,20 +3137,24 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
                       accept="image/*"
                       className="hidden"
                       id="button-icon-upload"
-                      onChange={async (e) => {
+                      onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
                           const formData = new FormData();
                           formData.append("file", file);
                           formData.append("type", "guide_icon");
-                          try {
-                            const response = await fetch("/api/admin/brand-upload", {
-                              method: "POST",
-                              credentials: "include",
-                              body: formData,
-                            });
-                            if (response.ok) {
-                              const data = await response.json();
+                          
+                          const xhr = new XMLHttpRequest();
+                          xhr.upload.addEventListener('progress', (event) => {
+                            if (event.lengthComputable) {
+                              const percent = Math.round((event.loaded / event.total) * 100);
+                              setIconUploadProgress(percent);
+                            }
+                          });
+                          xhr.addEventListener('load', () => {
+                            setIconUploadProgress(null);
+                            if (xhr.status === 200) {
+                              const data = JSON.parse(xhr.responseText);
                               const url = data.url;
                               const img = new (window as any).Image();
                               img.onload = () => {
@@ -3127,34 +3167,44 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
                               };
                               img.src = url;
                             } else {
-                              const errorData = await response.json().catch(() => ({}));
                               toast({
                                 title: "Upload Failed",
-                                description: errorData.error || "Failed to upload icon image",
+                                description: "Failed to upload icon image",
                                 variant: "destructive",
                               });
                             }
-                          } catch (err) {
-                            console.error("Upload error:", err);
+                          });
+                          xhr.addEventListener('error', () => {
+                            setIconUploadProgress(null);
                             toast({
                               title: "Upload Failed",
-                              description: err instanceof Error ? err.message : "Failed to upload icon image",
+                              description: "Failed to upload icon image",
                               variant: "destructive",
                             });
-                          }
+                          });
+                          xhr.open('POST', '/api/admin/brand-upload');
+                          xhr.withCredentials = true;
+                          xhr.send(formData);
                         }
+                        e.target.value = '';
                       }}
                     />
                     <Button 
                       variant="outline" 
                       size="sm"
                       onClick={() => document.getElementById('button-icon-upload')?.click()}
+                      disabled={iconUploadProgress !== null}
                       data-testid="button-upload-icon"
                     >
                       <Upload className="w-4 h-4 mr-1" />
-                      Upload
+                      {iconUploadProgress !== null ? `${iconUploadProgress}%` : 'Upload'}
                     </Button>
                   </div>
+                  {iconUploadProgress !== null && (
+                    <div className="mt-2">
+                      <Progress value={iconUploadProgress} className="h-2" />
+                    </div>
+                  )}
                 </div>
 
                 {guideSettings.buttonIconUrl && (
@@ -3239,7 +3289,7 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
                       accept="image/jpeg,image/png,image/gif"
                       className="hidden"
                       id="promo-image-upload"
-                      onChange={async (e) => {
+                      onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
                           const validTypes = ['image/jpeg', 'image/png', 'image/gif'];
@@ -3249,39 +3299,48 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
                               description: "Please upload JPG, PNG, or GIF image only.",
                               variant: "destructive",
                             });
+                            e.target.value = '';
                             return;
                           }
                           const formData = new FormData();
                           formData.append("file", file);
                           formData.append("type", "promo_image");
-                          try {
-                            const response = await fetch("/api/admin/brand-upload", {
-                              method: "POST",
-                              credentials: "include",
-                              body: formData,
-                            });
-                            if (response.ok) {
-                              const data = await response.json();
+                          
+                          const xhr = new XMLHttpRequest();
+                          xhr.upload.addEventListener('progress', (event) => {
+                            if (event.lengthComputable) {
+                              const percent = Math.round((event.loaded / event.total) * 100);
+                              setPromoUploadProgress(percent);
+                            }
+                          });
+                          xhr.addEventListener('load', () => {
+                            setPromoUploadProgress(null);
+                            if (xhr.status === 200) {
+                              const data = JSON.parse(xhr.responseText);
                               setPromoImageUrl(data.url);
                               toast({
                                 title: "Uploaded",
                                 description: "Promo image uploaded successfully.",
                               });
                             } else {
-                              const errorData = await response.json().catch(() => ({}));
                               toast({
                                 title: "Upload Failed",
-                                description: errorData.error || "Failed to upload promo image",
+                                description: "Failed to upload promo image",
                                 variant: "destructive",
                               });
                             }
-                          } catch (error) {
+                          });
+                          xhr.addEventListener('error', () => {
+                            setPromoUploadProgress(null);
                             toast({
                               title: "Upload Error",
                               description: "Failed to upload image. Please try again.",
                               variant: "destructive",
                             });
-                          }
+                          });
+                          xhr.open('POST', '/api/admin/brand-upload');
+                          xhr.withCredentials = true;
+                          xhr.send(formData);
                         }
                         e.target.value = '';
                       }}
@@ -3292,10 +3351,11 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
                       variant="outline"
                       size="sm"
                       onClick={() => document.getElementById('promo-image-upload')?.click()}
+                      disabled={promoUploadProgress !== null}
                       data-testid="button-upload-promo-image"
                     >
                       <Upload className="w-4 h-4 mr-2" />
-                      Upload Image
+                      {promoUploadProgress !== null ? `${promoUploadProgress}%` : 'Upload Image'}
                     </Button>
                     {promoImageUrl && (
                       <Button
@@ -3310,6 +3370,11 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
                       </Button>
                     )}
                   </div>
+                  {promoUploadProgress !== null && (
+                    <div className="mt-2">
+                      <Progress value={promoUploadProgress} className="h-2" />
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="promo-image-url">Or Enter Image URL</Label>
@@ -3671,7 +3736,19 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
         )}
       </Card>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end items-center gap-3">
+        {autoSaveStatus === 'saving' && (
+          <span className="text-sm text-muted-foreground flex items-center gap-1">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            Auto-saving...
+          </span>
+        )}
+        {autoSaveStatus === 'saved' && (
+          <span className="text-sm text-green-600 flex items-center gap-1">
+            <Check className="w-3 h-3" />
+            Saved
+          </span>
+        )}
         <Button onClick={handleSave} disabled={saveMutation.isPending} data-testid="button-save-guide">
           {saveMutation.isPending ? (
             <>
