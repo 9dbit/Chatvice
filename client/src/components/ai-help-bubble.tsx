@@ -136,21 +136,15 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
     return { x: 24, y: 24 };
   });
   const [messages, setMessages] = useState<Message[]>([]);
-  const [lastWelcomeMessage, setLastWelcomeMessage] = useState<string>("");
+  const isInitialized = useRef(false);
   
-  // Initialize messages once settings are loaded, and update if welcome message changes
+  // Initialize messages ONCE when settings are loaded - never reset during conversation
   useEffect(() => {
-    if (settingsReady && welcomeMessage) {
-      // Only update if this is the first load OR if welcome message changed and no user messages yet
-      const hasOnlyBotMessage = messages.length <= 1 && messages.every(m => m.role === "assistant");
-      const welcomeChanged = welcomeMessage !== lastWelcomeMessage;
-      
-      if (messages.length === 0 || (hasOnlyBotMessage && welcomeChanged)) {
-        setMessages([{ role: "assistant", content: welcomeMessage }]);
-        setLastWelcomeMessage(welcomeMessage);
-      }
+    if (settingsReady && welcomeMessage && !isInitialized.current) {
+      isInitialized.current = true;
+      setMessages([{ role: "assistant", content: welcomeMessage }]);
     }
-  }, [settingsReady, welcomeMessage, messages.length, lastWelcomeMessage]);
+  }, [settingsReady, welcomeMessage]);
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
