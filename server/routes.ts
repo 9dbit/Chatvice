@@ -4345,6 +4345,36 @@ CONVERSATION CONTEXT:
 - Maintain continuity across messages
 - If user references "it", "that", "this", refer to recent conversation context
 
+INTERACTIVE FORMATTING:
+When offering choices or explaining features, use these special formats:
+
+1. OPTION BUTTONS - For offering choices to customers, add buttons at the end:
+   [BTN:Label Text:action text]
+   Example: "Would you like to learn more?" followed by:
+   [BTN:Lihat Harga:Berapa harga paket Chatvice?]
+   [BTN:Fitur Utama:Apa saja fitur utama Chatvice?]
+   [BTN:Cara Mulai:Bagaimana cara memulai menggunakan Chatvice?]
+
+2. CLICKABLE LINKS - For directing to specific pages:
+   [LINK:Display Text:/path]
+   Example: "Cek halaman [LINK:Fitur Lengkap:/features] untuk detail lebih lanjut."
+   Or: "Lihat [LINK:Paket Harga:/pricing] kami."
+
+Available pages to link:
+- /features - Halaman fitur lengkap
+- /pricing - Halaman harga dan paket
+- /register - Halaman pendaftaran
+- /login - Halaman login
+- /docs - Halaman dokumentasi
+- /blog - Halaman blog
+
+IMPORTANT RULES:
+- Always use buttons when offering 2-3 choices to make selection easier
+- Use links when mentioning specific pages or features
+- Respond in the same language as the customer
+- Keep responses concise and helpful
+- Don't overuse buttons - max 3-4 per response
+
 Use the knowledge base above to answer questions. If you don't have specific information, be honest about it.`;
       
       // Build conversation messages with history for context continuity
@@ -4441,6 +4471,36 @@ CONVERSATION CONTEXT:
 - Maintain continuity across messages
 - If user references "it", "that", "this", refer to recent conversation context
 
+INTERACTIVE FORMATTING:
+When offering choices or explaining features, use these special formats:
+
+1. OPTION BUTTONS - For offering choices, add buttons at the end:
+   [BTN:Label Text:action text]
+   Example: [BTN:Setup Agent:Bagaimana cara setup AI agent?]
+
+2. CLICKABLE LINKS - For directing to dashboard pages:
+   [LINK:Display Text:/path]
+   Example: "Lihat [LINK:halaman Agents:/agents] untuk mengelola AI agent."
+
+Dashboard pages to link:
+- /agents - Kelola AI agents
+- /sources - Knowledge sources
+- /knowledge - Knowledge base
+- /analytics - Analytics dashboard
+- /sessions - Chat sessions
+- /triggers - Escalation triggers
+- /widget - Widget settings
+- /supervisors - Supervisor management
+- /plans - Subscription plans
+- /billing - Billing info
+- /settings - Account settings
+
+RULES:
+- Use buttons for 2-3 choices
+- Use links when mentioning specific pages
+- Max 3-4 buttons per response
+- Respond in user's language
+
 Use the knowledge base above to answer questions. If they ask about something unrelated, gently redirect them to dashboard features.`;
       
       // Build conversation messages with history for context continuity
@@ -4520,7 +4580,13 @@ CONVERSATION CONTEXT:
 - Maintain continuity across messages
 - If user references "it", "that", "this", refer to recent conversation context
 
-Use the knowledge base above to answer questions. Be helpful, friendly, and concise.`;
+INTERACTIVE FORMATTING:
+1. OPTION BUTTONS: [BTN:Label:action text]
+2. CLICKABLE LINKS: [LINK:Text:/path]
+
+Available pages: /features, /pricing, /register, /docs, /blog
+
+Use buttons for choices and links when mentioning pages. Be helpful, friendly, and concise.`;
       
       // Build conversation messages with history for context continuity
       const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [

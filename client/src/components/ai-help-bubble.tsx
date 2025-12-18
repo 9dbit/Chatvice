@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, X, Send, Loader2, Sparkles, Minimize2, GripVertical, EyeOff, Eye } from "lucide-react";
+import { Bot, X, Send, Loader2, Sparkles, Minimize2, GripVertical, EyeOff, Eye, ExternalLink, ChevronRight } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -25,6 +25,68 @@ interface PlatformSettings {
 interface Message {
   role: "user" | "assistant";
   content: string;
+}
+
+interface ParsedContent {
+  type: "text" | "button" | "link";
+  content: string;
+  action?: string;
+  url?: string;
+}
+
+// Parse AI response to extract buttons and links
+function parseMessageContent(content: string): ParsedContent[] {
+  const parts: ParsedContent[] = [];
+  
+  // Pattern for buttons: [BTN:Label:action] or [BTN:Label]
+  // Pattern for links: [LINK:Text:/path] or [LINK:Text:https://...]
+  const regex = /\[BTN:([^\]:]+)(?::([^\]]+))?\]|\[LINK:([^\]:]+):([^\]]+)\]/g;
+  
+  let lastIndex = 0;
+  let match;
+  
+  while ((match = regex.exec(content)) !== null) {
+    // Add text before this match (preserve whitespace/newlines)
+    if (match.index > lastIndex) {
+      const textBefore = content.slice(lastIndex, match.index);
+      if (textBefore) {
+        parts.push({ type: "text", content: textBefore });
+      }
+    }
+    
+    if (match[1]) {
+      // Button match: [BTN:Label:action] or [BTN:Label]
+      parts.push({ 
+        type: "button", 
+        content: match[1], 
+        action: match[2] || match[1] 
+      });
+    } else if (match[3] && match[4]) {
+      // Link match: [LINK:Text:url]
+      parts.push({ 
+        type: "link", 
+        content: match[3], 
+        url: match[4] 
+      });
+    }
+    
+    lastIndex = match.index + match[0].length;
+  }
+  
+  // Add remaining text (preserve whitespace)
+  if (lastIndex < content.length) {
+    const remaining = content.slice(lastIndex);
+    if (remaining) {
+      parts.push({ type: "text", content: remaining });
+    }
+  }
+  
+  // If no special elements found, return original content as text
+  if (parts.length === 0) {
+    parts.push({ type: "text", content });
+  }
+  
+  return parts;
 }
 
 const INITIAL_MESSAGE = `Hi! I'm Chatvice Guide, here to help you make the most of your Chatvice dashboard. I can help you with:
@@ -269,6 +331,44 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
       }]);
     }
   });
+
+  // Direct send function that takes message as parameter (for button clicks)
+  const sendMessage = (messageText: string) => {
+    if (!messageText.trim() || askMutation.isPending) return;
+    
+    const userMessage = messageText.trim();
+    
+    // Get fresh messages from sessionStorage
+    let currentMessages = messages;
+    try {
+      const saved = sessionStorage.getItem(CONVERSATION_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          currentMessages = parsed;
+        }
+      }
+    } catch {
+      // Use state if sessionStorage fails
+    }
+    
+    // Build conversation history - exclude welcome message
+    const conversationHistory = currentMessages.length > 1 ? currentMessages.slice(1) : [];
+    
+    // Update UI with new user message
+    const newMessages = [...currentMessages, { role: "user" as const, content: userMessage }];
+    setMessages(newMessages);
+    setInput("");
+    
+    // Save to sessionStorage
+    try {
+      sessionStorage.setItem(CONVERSATION_KEY, JSON.stringify(newMessages));
+    } catch {
+      // Ignore
+    }
+    
+    askMutation.mutate({ question: userMessage, conversationHistory });
+  };
 
   const handleSend = () => {
     if (!input.trim() || askMutation.isPending) return;
@@ -536,27 +636,77 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
         <CardContent className="p-0">
           <ScrollArea className="h-[360px] sm:h-[448px] p-3 sm:p-4" ref={scrollRef}>
             <div className="space-y-4">
-              {messages.map((msg, index) => (
-                <div 
-                  key={index} 
-                  className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}
-                >
-                  {msg.role === "assistant" && (
-                    <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center shrink-0">
-                      <Bot className="w-4 h-4 text-white" />
-                    </div>
-                  )}
+              {messages.map((msg, index) => {
+                const parsedContent = msg.role === "assistant" ? parseMessageContent(msg.content) : null;
+                const hasButtons = parsedContent?.some(p => p.type === "button");
+                
+                return (
                   <div 
-                    className={`rounded-2xl p-3 max-w-[85%] ${
-                      msg.role === "user" 
-                        ? "bg-primary text-white rounded-br-sm" 
-                        : "bg-muted rounded-bl-sm"
-                    }`}
+                    key={index} 
+                    className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}
                   >
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    {msg.role === "assistant" && (
+                      <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center shrink-0">
+                        <Bot className="w-4 h-4 text-white" />
+                      </div>
+                    )}
+                    <div 
+                      className={`rounded-2xl p-3 max-w-[85%] ${
+                        msg.role === "user" 
+                          ? "bg-primary text-white rounded-br-sm" 
+                          : "bg-muted rounded-bl-sm"
+                      }`}
+                    >
+                      {msg.role === "user" ? (
+                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                      ) : (
+                        <div className="text-sm">
+                          {parsedContent?.map((part, partIndex) => {
+                            if (part.type === "text") {
+                              return <span key={partIndex} className="whitespace-pre-wrap">{part.content}</span>;
+                            }
+                            if (part.type === "link") {
+                              const isExternal = part.url?.startsWith("http");
+                              return (
+                                <a
+                                  key={partIndex}
+                                  href={part.url}
+                                  target={isExternal ? "_blank" : "_self"}
+                                  rel={isExternal ? "noopener noreferrer" : undefined}
+                                  className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
+                                  data-testid={`link-feature-${partIndex}`}
+                                >
+                                  {part.content}
+                                  {isExternal && <ExternalLink className="w-3 h-3" />}
+                                </a>
+                              );
+                            }
+                            return null;
+                          })}
+                          {hasButtons && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {parsedContent?.filter(p => p.type === "button").map((btn, btnIndex) => (
+                                <Button
+                                  key={`btn-${btnIndex}`}
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 text-xs bg-background hover:bg-primary hover:text-white transition-colors border-primary/30"
+                                  onClick={() => sendMessage(btn.action || btn.content)}
+                                  disabled={askMutation.isPending}
+                                  data-testid={`button-quick-${btnIndex}`}
+                                >
+                                  <ChevronRight className="w-3 h-3 mr-1" />
+                                  {btn.content}
+                                </Button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {askMutation.isPending && (
                 <div className="flex gap-3">
                   <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center shrink-0">

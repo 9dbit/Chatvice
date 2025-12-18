@@ -56,11 +56,21 @@ Core entities include Merchants, Supervisors, Sessions, Messages (with `clientMe
 **AI Conversation Memory Optimization**:
 - All AI agents maintain conversation context across messages for natural follow-up discussions
 - Chatvice Guide (landing page and dashboard) sends conversation history with each request
+- Conversation history persisted in sessionStorage to survive component remounts
 - Merchant widget AI agents fetch last 10 session messages from database for context
 - System prompts include CONVERSATION CONTEXT instructions to properly use history
 - Memory is token-efficient (limited to 10 messages) while maintaining meaningful context
 - Supports pronoun references ("it", "that") and follow-up questions about previous topics
 - Endpoints: `/api/help/public-ask`, `/api/help/ask`, `/api/chatvice-guide/chat`, and `askChatvice` function
+
+**Interactive AI Responses**:
+- AI responses can include interactive buttons and clickable links for practical customer interaction
+- Button format: `[BTN:Label:action text]` - Creates clickable button that sends "action text" as user message
+- Link format: `[LINK:Display Text:/path]` - Creates clickable link to specified page
+- parseMessageContent() function in ai-help-bubble.tsx parses and renders these elements
+- Available links: /features, /pricing, /register, /docs, /blog (public), /agents, /sources, /analytics, etc. (dashboard)
+- Buttons appear at bottom of AI message with primary hover styling
+- Links render inline with underline on hover and external link icon for external URLs
 
 ## External Dependencies
 
