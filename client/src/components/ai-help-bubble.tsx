@@ -684,20 +684,18 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                             return null;
                           })}
                           {hasButtons && (
-                            <div className="mt-3 flex flex-wrap gap-2">
+                            <div className="mt-2 flex flex-wrap gap-1.5">
                               {parsedContent?.filter(p => p.type === "button").map((btn, btnIndex) => (
-                                <Button
+                                <button
                                   key={`btn-${btnIndex}`}
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 text-xs bg-background hover:bg-primary hover:text-white transition-colors border-primary/30"
+                                  className="px-3 py-1 text-xs rounded-md border-2 transition-all duration-200 bg-transparent hover:opacity-80 text-primary border-primary"
                                   onClick={() => sendMessage(btn.action || btn.content)}
                                   disabled={askMutation.isPending}
                                   data-testid={`button-quick-${btnIndex}`}
                                 >
-                                  <ChevronRight className="w-3 h-3 mr-1" />
+                                  <ChevronRight className="w-3 h-3 mr-1 inline" />
                                   {btn.content}
-                                </Button>
+                                </button>
                               ))}
                             </div>
                           )}

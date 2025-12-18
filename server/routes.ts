@@ -375,6 +375,31 @@ async function askChatvice(
       : await storage.getKnowledge(merchantId);
     knowledgeContext = knowledge?.content || "";
   }
+  
+  // Detect pricing-related questions and inject subscription plan data
+  const pricingKeywords = ["harga", "pricing", "price", "biaya", "cost", "langganan", "subscription", "tarif", "paket harga", "paket langganan", "berapa harga", "berapa biaya"];
+  const lowerMessage = message.toLowerCase();
+  const isPricingQuestion = pricingKeywords.some(keyword => lowerMessage.includes(keyword));
+  
+  if (isPricingQuestion) {
+    try {
+      const allPlans = await getAllEffectiveSubscriptionPlans();
+      const pricingInfo = allPlans.map(plan => {
+        const monthlyFormatted = new Intl.NumberFormat('id-ID').format(plan.monthlyPrice);
+        const annualFormatted = new Intl.NumberFormat('id-ID').format(plan.annualPrice);
+        return `**${plan.name}**: Rp ${monthlyFormatted}/bulan atau Rp ${annualFormatted}/tahun
+- ${plan.conversationsLimit === -1 ? 'Unlimited' : plan.conversationsLimit} percakapan/bulan
+- ${plan.agentsLimit} AI agent
+- ${plan.supervisorsLimit === -1 ? 'Unlimited' : plan.supervisorsLimit} supervisor
+- ${plan.sourcesLimit} knowledge sources
+- Fitur: ${plan.features.join(', ')}`;
+      }).join('\n\n');
+      
+      knowledgeContext += `\n\n--- SUBSCRIPTION PLANS INFO ---\n${pricingInfo}`;
+    } catch (error) {
+      console.error("Error fetching subscription plans:", error);
+    }
+  }
 
   // Build system message with base behavior + custom instructions
   const systemMessage = `You are ${agentName}, a friendly and helpful AI Customer Service Agent for ${companyName}.

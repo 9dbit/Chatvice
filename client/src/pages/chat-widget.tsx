@@ -1063,14 +1063,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                           return null;
                         })}
                         {hasButtons && (
-                          <div className="mt-3 flex flex-wrap gap-2">
+                          <div className="mt-2 flex flex-wrap gap-1.5">
                             {parsed.filter(p => p.type === "button").map((btn, btnIndex) => (
                               <button
                                 key={`btn-${btnIndex}`}
-                                className="px-3 py-1.5 text-xs rounded-full border transition-colors hover:text-white"
+                                className="px-3 py-1 text-xs rounded-md border-2 transition-all duration-200 bg-transparent hover:opacity-80"
                                 style={{ borderColor: primaryColor, color: primaryColor }}
-                                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = primaryColor; e.currentTarget.style.color = 'white'; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = primaryColor; }}
                                 onClick={() => sendButtonMessage(btn.action || btn.content)}
                                 disabled={sendMessageMutation.isPending}
                                 data-testid={`button-widget-quick-${btnIndex}`}
