@@ -3780,6 +3780,27 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // Platform DNS Settings API
+  app.get("/api/admin/dns-settings", requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getPlatformDnsSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error getting DNS settings:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.put("/api/admin/dns-settings", requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.updatePlatformDnsSettings(req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating DNS settings:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // Platform Settings API
   app.get("/api/admin/platform-settings", requireAdmin, async (req, res) => {
     try {

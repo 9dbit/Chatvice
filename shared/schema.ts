@@ -576,6 +576,20 @@ export const subscriptionPlans = {
 export type SubscriptionPlanId = keyof typeof subscriptionPlans;
 export type SubscriptionStatus = "trial" | "active" | "canceled" | "expired" | "past_due";
 
+// Platform DNS Settings
+export const platformDnsSettings = pgTable("platform_dns_settings", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  platformDomain: text("platform_domain").default("chatvice.com"),
+  widgetSubdomain: text("widget_subdomain").default("widget.chatvice.com"),
+  nsPrimary: text("ns_primary").default("ns1.chatvice-dns.com"),
+  nsSecondary: text("ns_secondary").default("ns2.chatvice-dns.com"),
+  dnsTtl: integer("dns_ttl").default(3600),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type PlatformDnsSettings = typeof platformDnsSettings.$inferSelect;
+export type InsertPlatformDnsSettings = typeof platformDnsSettings.$inferInsert;
+
 // Landing Page Settings for Admin customization
 export const landingPageSettings = pgTable("landing_page_settings", {
   id: varchar("id", { length: 32 }).primaryKey(),

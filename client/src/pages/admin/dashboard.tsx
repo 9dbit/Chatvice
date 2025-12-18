@@ -5674,18 +5674,71 @@ function SettingsTab({ toast }: { toast: any }) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Globe className="w-5 h-5" />
-            Domain Settings
+            Platform Domain Settings
           </CardTitle>
-          <CardDescription>Configure your custom domain</CardDescription>
+          <CardDescription>Configure DNS settings for the platform</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label>Custom Domain</Label>
-            <Input placeholder="app.yourdomain.com" className="mt-2" />
+            <Label htmlFor="platform-domain">Platform Domain</Label>
+            <Input 
+              id="platform-domain"
+              placeholder="chatvice.com" 
+              className="mt-2"
+              value={settings.platformDomain || ""}
+              onChange={(e) => handleChange("platformDomain", e.target.value)}
+              data-testid="input-platform-domain"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Main domain for the platform</p>
           </div>
           <div>
-            <Label>Admin Panel Subdomain</Label>
-            <Input placeholder="admin.yourdomain.com" className="mt-2" />
+            <Label htmlFor="widget-subdomain">Widget Subdomain</Label>
+            <Input 
+              id="widget-subdomain"
+              placeholder="widget.chatvice.com" 
+              className="mt-2"
+              value={settings.widgetSubdomain || ""}
+              onChange={(e) => handleChange("widgetSubdomain", e.target.value)}
+              data-testid="input-widget-subdomain"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Subdomain for chat widget deployment</p>
+          </div>
+          <div>
+            <Label htmlFor="ns-primary">Primary Name Server</Label>
+            <Input 
+              id="ns-primary"
+              placeholder="ns1.chatvice-dns.com" 
+              className="mt-2"
+              value={settings.nsPrimary || ""}
+              onChange={(e) => handleChange("nsPrimary", e.target.value)}
+              data-testid="input-ns-primary"
+            />
+          </div>
+          <div>
+            <Label htmlFor="ns-secondary">Secondary Name Server</Label>
+            <Input 
+              id="ns-secondary"
+              placeholder="ns2.chatvice-dns.com" 
+              className="mt-2"
+              value={settings.nsSecondary || ""}
+              onChange={(e) => handleChange("nsSecondary", e.target.value)}
+              data-testid="input-ns-secondary"
+            />
+          </div>
+          <div>
+            <Label htmlFor="dns-ttl">Default DNS TTL (seconds)</Label>
+            <Input 
+              id="dns-ttl"
+              type="number"
+              placeholder="3600" 
+              className="mt-2"
+              value={settings.dnsTtl || 3600}
+              onChange={(e) => handleChange("dnsTtl", parseInt(e.target.value) || 3600)}
+              min={300}
+              max={86400}
+              data-testid="input-dns-ttl"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Time to live for DNS records (300-86400 seconds)</p>
           </div>
           <Button onClick={handleSave} data-testid="button-save-domain">
             <Save className="w-4 h-4 mr-2" />
