@@ -135,16 +135,45 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
     }
     return { x: 24, y: 24 };
   });
-  const [messages, setMessages] = useState<Message[]>([]);
-  const isInitialized = useRef(false);
+  // Session storage key for conversation persistence
+  const CONVERSATION_KEY = `chatvice-guide-conversation${storageKeySuffix}`;
+  
+  // Load conversation from sessionStorage or initialize with welcome message
+  const [messages, setMessages] = useState<Message[]>(() => {
+    try {
+      const saved = sessionStorage.getItem(CONVERSATION_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {
+      // Ignore sessionStorage errors
+    }
+    return [];
+  });
+  
+  const isInitialized = useRef(messages.length > 0);
   
   // Initialize messages ONCE when settings are loaded - never reset during conversation
   useEffect(() => {
-    if (settingsReady && welcomeMessage && !isInitialized.current) {
+    if (settingsReady && welcomeMessage && !isInitialized.current && messages.length === 0) {
       isInitialized.current = true;
       setMessages([{ role: "assistant", content: welcomeMessage }]);
     }
-  }, [settingsReady, welcomeMessage]);
+  }, [settingsReady, welcomeMessage, messages.length]);
+  
+  // Persist messages to sessionStorage whenever they change
+  useEffect(() => {
+    if (messages.length > 0) {
+      try {
+        sessionStorage.setItem(CONVERSATION_KEY, JSON.stringify(messages));
+      } catch {
+        // Ignore sessionStorage errors
+      }
+    }
+  }, [messages, CONVERSATION_KEY]);
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
@@ -245,13 +274,35 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
     if (!input.trim() || askMutation.isPending) return;
     
     const userMessage = input.trim();
-    // Capture current messages BEFORE adding the new user message (for history)
-    // Exclude the initial welcome message from history (first assistant message)
-    const conversationHistory = messages.length > 1 ? messages.slice(1) : [];
+    
+    // Get fresh messages from sessionStorage to avoid stale state issues
+    let currentMessages = messages;
+    try {
+      const saved = sessionStorage.getItem(CONVERSATION_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          currentMessages = parsed;
+        }
+      }
+    } catch {
+      // Use state if sessionStorage fails
+    }
+    
+    // Build conversation history - exclude welcome message (first assistant message)
+    const conversationHistory = currentMessages.length > 1 ? currentMessages.slice(1) : [];
     
     // Update UI with new user message
-    setMessages(prev => [...prev, { role: "user", content: userMessage }]);
+    const newMessages = [...currentMessages, { role: "user" as const, content: userMessage }];
+    setMessages(newMessages);
     setInput("");
+    
+    // Also save to sessionStorage immediately
+    try {
+      sessionStorage.setItem(CONVERSATION_KEY, JSON.stringify(newMessages));
+    } catch {
+      // Ignore
+    }
     
     // Send question and history (history doesn't include current question - backend adds it)
     askMutation.mutate({ question: userMessage, conversationHistory });
