@@ -3229,17 +3229,100 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
               </div>
             </div>
             {promoImageEnabled && (
-              <div className="space-y-2">
-                <Label htmlFor="promo-image-url">Image URL</Label>
-                <Input 
-                  id="promo-image-url"
-                  value={promoImageUrl}
-                  onChange={(e) => setPromoImageUrl(e.target.value)}
-                  placeholder="https://example.com/promo-image.png"
-                  data-testid="input-guide-promo-image-url"
-                />
+              <div className="space-y-3">
+                <div className="p-3 bg-muted/30 rounded-lg border border-dashed">
+                  <p className="text-xs font-medium mb-2">Upload Promo Image</p>
+                  <p className="text-xs text-muted-foreground mb-3">Suggested dimensions: 200x100px. Supports JPG, PNG, GIF formats.</p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif"
+                      className="hidden"
+                      id="promo-image-upload"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const validTypes = ['image/jpeg', 'image/png', 'image/gif'];
+                          if (!validTypes.includes(file.type)) {
+                            toast({
+                              title: "Invalid Format",
+                              description: "Please upload JPG, PNG, or GIF image only.",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+                          const formData = new FormData();
+                          formData.append("file", file);
+                          formData.append("type", "promo_image");
+                          try {
+                            const response = await fetch("/api/admin/brand-upload", {
+                              method: "POST",
+                              credentials: "include",
+                              body: formData,
+                            });
+                            if (response.ok) {
+                              const data = await response.json();
+                              setPromoImageUrl(data.url);
+                              toast({
+                                title: "Uploaded",
+                                description: "Promo image uploaded successfully.",
+                              });
+                            } else {
+                              const errorData = await response.json().catch(() => ({}));
+                              toast({
+                                title: "Upload Failed",
+                                description: errorData.error || "Failed to upload promo image",
+                                variant: "destructive",
+                              });
+                            }
+                          } catch (error) {
+                            toast({
+                              title: "Upload Error",
+                              description: "Failed to upload image. Please try again.",
+                              variant: "destructive",
+                            });
+                          }
+                        }
+                        e.target.value = '';
+                      }}
+                      data-testid="input-promo-image-file"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => document.getElementById('promo-image-upload')?.click()}
+                      data-testid="button-upload-promo-image"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Upload Image
+                    </Button>
+                    {promoImageUrl && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPromoImageUrl("")}
+                        data-testid="button-remove-promo-image"
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="promo-image-url">Or Enter Image URL</Label>
+                  <Input 
+                    id="promo-image-url"
+                    value={promoImageUrl}
+                    onChange={(e) => setPromoImageUrl(e.target.value)}
+                    placeholder="https://example.com/promo-image.png"
+                    data-testid="input-guide-promo-image-url"
+                  />
+                </div>
                 {promoImageUrl && (
-                  <div className="mt-2 p-2 border rounded-lg bg-muted/30">
+                  <div className="mt-2 p-3 border rounded-lg bg-muted/30">
                     <p className="text-xs text-muted-foreground mb-2">Preview:</p>
                     <img 
                       src={promoImageUrl} 
@@ -3249,6 +3332,7 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
                         (e.target as HTMLImageElement).style.display = 'none';
                       }}
                     />
+                    <p className="text-xs text-muted-foreground mt-2 break-all">{promoImageUrl}</p>
                   </div>
                 )}
               </div>
