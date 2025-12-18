@@ -490,25 +490,23 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
             </div>
           )}
           
-          {/* Promo Image - displayed above welcome bubble when enabled */}
-          {promoImageEnabled && promoImageUrl && !isHovered && (
-            <div className="absolute bottom-full right-0 mb-2 animate-in fade-in slide-in-from-bottom-3 duration-300" style={{ marginBottom: bubbleEnabled && showWelcomeBubble ? '140px' : '70px' }}>
-              <img 
-                src={promoImageUrl} 
-                alt="Promotion" 
-                className="max-w-[200px] max-h-[100px] object-contain rounded-lg shadow-lg"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-                data-testid="img-promo-bubble"
-              />
-            </div>
-          )}
-          
-          {/* Welcome bubble - compact style, only show if enabled in settings */}
+          {/* Combined Promo Image + Welcome Bubble container */}
           {showWelcomeBubble && !isHovered && bubbleEnabled && (
             <div className="absolute bottom-full right-0 mb-2 animate-in fade-in slide-in-from-bottom-5 duration-300">
-              <div className="bg-card rounded-xl shadow-xl p-3 w-56 border border-border relative">
+              {/* Promo Image - displayed above welcome bubble when enabled, same width */}
+              {promoImageEnabled && promoImageUrl && (
+                <img 
+                  src={promoImageUrl} 
+                  alt="Promotion" 
+                  className="w-56 h-auto object-cover rounded-t-xl"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                  data-testid="img-promo-bubble"
+                />
+              )}
+              {/* Welcome bubble - compact style */}
+              <div className={`bg-card shadow-xl p-3 w-56 border border-border relative ${promoImageEnabled && promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}>
                 <button
                   onClick={dismissWelcomeBubble}
                   className="absolute top-1.5 right-1.5 p-0.5 rounded-full hover:bg-muted transition-colors"
