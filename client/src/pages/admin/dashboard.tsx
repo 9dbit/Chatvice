@@ -109,7 +109,21 @@ import {
   MessageCircle,
   Send,
   ImageIcon,
+  EyeOff,
+  Trash2,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { format, subDays, startOfMonth, startOfYear } from "date-fns";
 import { subscriptionPlans } from "@shared/schema";
 
@@ -5946,6 +5960,19 @@ function SettingsTab({ toast }: { toast: any }) {
   const [isUploadingSound, setIsUploadingSound] = useState(false);
   const soundInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  
+  // Domain and system settings state
+  const [settings, setSettings] = useState({
+    platformDomain: "",
+    widgetSubdomain: "",
+    nsPrimary: "",
+    nsSecondary: "",
+    dnsTtl: 3600,
+  });
+  
+  const handleChange = (field: string, value: any) => {
+    setSettings((prev) => ({ ...prev, [field]: value }));
+  };
 
   const { data: platformSettings } = useQuery<Record<string, string>>({
     queryKey: ["/api/admin/settings"],
