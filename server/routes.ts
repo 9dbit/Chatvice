@@ -4109,7 +4109,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
-  // Upload promo banner image (admin)
+  // Upload promo banner image (admin) - with persistent storage
   app.post("/api/admin/upload-promo-banner", requireAdmin, upload.single("file"), async (req, res) => {
     try {
       if (!req.file) {
@@ -4121,8 +4121,38 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(400).json({ error: "Invalid file type. Allowed: JPG, PNG, GIF, WebP" });
       }
 
-      const url = `/uploads/${req.file.filename}`;
-      res.json({ url, filename: req.file.filename });
+      const objectStorage = new ObjectStorageService();
+      const fileBuffer = fs.readFileSync(req.file.path);
+      const uniqueFilename = `promo_${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(req.file.originalname)}`;
+      
+      // Try Object Storage first (persistent)
+      if (objectStorage.isConfigured()) {
+        try {
+          const fileUrl = await objectStorage.uploadFile(fileBuffer, uniqueFilename, req.file.mimetype);
+          fs.unlinkSync(req.file.path);
+          return res.json({ url: fileUrl, filename: uniqueFilename });
+        } catch (storageError) {
+          console.log("Object Storage failed for promo banner, falling back to database:", storageError);
+        }
+      }
+      
+      // Fallback: Store file in database (for persistent storage)
+      const base64Content = fileBuffer.toString("base64");
+      const fileId = `promo_banner_${uniqueFilename}`;
+      
+      await storage.storeFile({
+        id: fileId,
+        filename: uniqueFilename,
+        mimeType: req.file.mimetype,
+        size: fileBuffer.length,
+        content: base64Content,
+        category: "promo"
+      });
+      
+      fs.unlinkSync(req.file.path);
+      
+      const fileUrl = `/db-files/${fileId}`;
+      res.json({ url: fileUrl, filename: uniqueFilename });
     } catch (error) {
       console.error("Error uploading promo banner:", error);
       res.status(500).json({ error: "Server error" });
