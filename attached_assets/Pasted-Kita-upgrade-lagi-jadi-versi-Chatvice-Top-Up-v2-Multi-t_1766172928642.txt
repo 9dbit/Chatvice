@@ -1,0 +1,1148 @@
+Kita upgrade lagi jadi versi **Chatvice Top Up v2: Multi-tenant + Domain Hunter** 🛰️
+Sekarang sistemmu bukan cuma jual koin di chat, tapi juga **melacak riwayat domain tiap merchant** dan pakai domain terbaru sebagai bagian dari `order_id`.
+
+Aku susun semuanya dari nol sampai final, sudah termasuk revisi domain dinamis, supaya bisa langsung kamu implementasi di Replit.
+
+---
+
+## 1. Mindset & Arsitektur Besar
+
+### 1.1. Konteks
+
+* Chatvice = **AI chat widget** yang bisa dipasang di **ribuan website eksternal**.
+* Website ini (merchant) sering ganti domain:
+
+  * domain pertama saat widget dipasang harus tercatat,
+  * setiap domain baru yang dipakai widget harus otomatis terdeteksi & disimpan sebagai **history domain**,
+  * **domain terbaru** yang dipakai akan selalu:
+
+    * tercatat di history,
+    * dipakai sebagai **komponen dalam `order_id`**.
+
+### 1.2. Pilar arsitektur
+
+1. **2 mode AI:**
+
+   * Chat Mode → ngobrol bebas.
+   * Payment Mode → flow ketat untuk `login → topup → bayar → confirm`.
+
+2. **Trigger top-up dari agent, bukan tombol UI:**
+
+   * Agent menawarkan:
+
+     > “Mau saya bantu proses login dan pembelian koin, kak?”
+   * Jawaban “ya / mau / ok / y / dsb” → system masuk Payment Mode.
+
+3. **1 Replit app + Subdomain khusus pembayaran:**
+
+   * Widget di ribuan domain.
+   * Subdomain pembayaran: `pay.chatvice.com` (masih 1 codebase).
+   * Di Replit:
+
+     * API Chatvice,
+     * Payment flow,
+     * Webhook Kompas Pay,
+     * Master Control Panel,
+     * Merchant Dashboard.
+
+4. **Token SSO tanpa login ulang di subdomain:**
+
+   * Website/merchant handle login user.
+   * Saat mulai topup:
+
+     * widget panggil `POST /api/start-topup`,
+     * backend buat JWT dengan:
+
+       * `merchant_id`, `site_id`, `site_code`, **`current_domain`**, `user_id`, `return_url`,
+     * user diarahkan ke `https://pay.chatvice.com/topup?token=...`.
+
+5. **Multi-channel payment (via Kompas Pay):**
+
+   * QRIS
+   * Bank transfer
+   * Virtual Account
+   * E-wallet
+   * Next: Card
+   * Next: Crypto
+
+6. **Multi-tenant & domain history:**
+
+   * Tiap **site** punya:
+
+     * `site_code` (kode pendek),
+     * **riwayat domain**: domain pertama, domain terbaru, dan semua log perubahan.
+   * **Domain terbaru** disimpan, dan:
+
+     * disertakan di payload JWT,
+     * dipakai sebagai komponen `order_id`:
+
+       * contoh: `CVT-{siteCode}-{domTag}-{timestamp}-{rand}`.
+
+7. **Dashboard:**
+
+   * Master Control Panel:
+
+     * lihat semua merchant, site, domain history, order, fraud.
+   * Merchant Dashboard:
+
+     * lihat order miliknya sendiri,
+     * lihat domain apa saja yang pernah dipakai widgetnya.
+
+---
+
+## 2. Tracking Domain Dinamis
+
+### 2.1. Cara sistem tahu domain apa yang sedang dipakai?
+
+Saat widget di-embed:
+
+* Snippet widget di merchant akan memanggil **endpoint inisialisasi**:
+
+  * `POST /api/widget/init`
+
+Body:
+
+```json
+{
+  "site_key": "PUBLIC_WIDGET_KEY",
+  "current_domain": "gamexyzz123.com"
+}
+```
+
+* `site_key` = identitas tetap untuk site itu (dibagi saat setup merchant).
+
+* Backend:
+
+  1. Cari `site` berdasarkan `site_key`.
+  2. Cek tabel `site_domains`:
+
+     * kalau `current_domain` **belum ada**:
+
+       * insert new history row,
+       * set sebagai `is_current = true`,
+       * yang sebelumnya `is_current = false`.
+     * kalau sudah ada:
+
+       * update `last_seen_at`,
+       * set `is_current = true` dan lainnya = false.
+
+* Domain terbaru ini disimpan & akan:
+
+  * dipakai di token topup,
+  * dipakai jadi komponen `order_id`,
+  * muncul di Master & Merchant Dashboard.
+
+### 2.2. Desain tabel domain history
+
+**Tabel `site_domains`:**
+
+* `id`
+* `site_id`
+* `domain` (ex: `gamexyz.com`, `gamexyz123.com`)
+* `first_seen_at`
+* `last_seen_at`
+* `is_current` (boolean)
+
+**Aturan:**
+
+* Satu `site_id` bisa punya banyak row domain.
+* Hanya **satu** yang `is_current = true` (domain aktif saat ini).
+* Domain pertama yang ditemukan ≈ “domain pertama embed”.
+
+---
+
+## 3. Workflow Lengkap (End-to-End)
+
+### 3.1. Tahap 1: Widget inisialisasi & tracking domain
+
+1. Merchant embed script widget di halaman mereka.
+2. Saat halaman load, widget melakukan:
+
+```js
+POST /api/widget/init {
+  "site_key": "PUBLIC_WIDGET_KEY",
+  "current_domain": window.location.hostname
+}
+```
+
+3. Backend:
+
+   * Validasi `site_key`.
+   * Resolve ke `merchant_id`, `site_id`, `site_code`.
+   * Update `site_domains`:
+
+     * jika domain baru → insert + mark current.
+   * Kembalikan konfigurasi awal ke widget (opsional):
+
+     * site info,
+     * apakah topup di-enable,
+     * dsb.
+
+### 3.2. Tahap 2: Chat Mode → detect niat top up
+
+1. User chat:
+   “koin saya habis nih”
+
+2. Agent (Chat Mode) mendeteksi niat topup, lalu bertanya:
+
+   > “Mau saya bantu proses login dan pembelian koin, kak?”
+
+3. User jawab: “ya”, “mau”, “ok”, dst.
+
+4. Agent switch ke Payment Mode:
+
+   * “Baik kak, saya bantu proses top up ya. Nanti akan muncul tampilan penuh untuk pilih nominal dan metode pembayaran.”
+
+5. Front-end widget di sisi UI:
+
+   * memanggil `POST /api/start-topup`.
+
+### 3.3. Tahap 3: Start top-up & generate JWT + redirect URL
+
+`POST /api/start-topup` body:
+
+```json
+{
+  "site_key": "PUBLIC_WIDGET_KEY",
+  "user_id": "USER123",
+  "return_url": "https://gamexyzz123.com/home"
+}
+```
+
+Backend:
+
+1. Cari `site` lewat `site_key`:
+
+   * dapat `site_id`, `merchant_id`, `site_code`.
+2. Cari `current_domain` untuk `site_id` dari `site_domains` (`is_current = true`).
+3. Validasi `return_url`:
+
+   * optional: hanya cek bahwa host di `return_url` sama dengan `current_domain` (atau tidak dicek kalau domain sering banget ganti, terserah risk level-mu).
+4. Bentuk payload JWT:
+
+```js
+{
+  merchant_id,
+  site_id,
+  site_code,
+  current_domain,   // <—— penting
+  user_id,
+  return_url,
+  iat,
+  exp
+}
+```
+
+5. Sign dengan `JWT_SECRET`.
+6. Bentuk redirect:
+
+```text
+https://pay.chatvice.com/topup?token=SIGNED_TOKEN
+```
+
+Balikkan ke widget:
+
+```json
+{
+  "success": true,
+  "redirect_url": "https://pay.chatvice.com/topup?token=..."
+}
+```
+
+7. Widget:
+
+   * animasi full screen,
+   * load URL redirect tersebut di iframe / window.
+
+### 3.4. Tahap 4: Payment UI → pilih nominal & metode
+
+1. Di `GET /topup?token=...`:
+
+   * Backend verifikasi token.
+   * Extract:
+
+     * `merchant_id`,
+     * `site_id`,
+     * `site_code`,
+     * `current_domain`,
+     * `user_id`,
+     * `return_url`.
+   * Render halaman full screen:
+
+     * header: nama game, domain (opsional),
+     * step: pilih nominal (25k, 50k, 100k, 200k, 500k),
+     * optional: pilih channel (AUTO/QRIS/VA/EWALLET/etc).
+
+2. Ketika user pilih nominal & klik “Lanjut Bayar”:
+
+   * front-end panggil `POST /api/payment/create-order`.
+
+### 3.5. Tahap 5: Create order, call Kompas Pay
+
+`POST /api/payment/create-order` body:
+
+```json
+{
+  "token": "JWT_TOKEN",
+  "amount": 100000,
+  "channel": "AUTO"
+}
+```
+
+Backend:
+
+1. Verifikasi token (lagi).
+2. Ambil `site_code`, `current_domain`, `site_id`, `merchant_id`, `user_id`, `return_url`.
+3. Validasi nominal.
+4. Generate **order_id** dengan **site & domain aware**:
+
+   * Ambil `domTag` dari `current_domain`, misal:
+
+     * ambil domain tanpa TLD → `gamexyzz123`,
+     * ambil 3–5 karakter awal → `GAMEX`,
+     * atau hash pendek: `D123`.
+   * Format:
+
+```js
+const order_id = `CVT-${site_code}-${domTag}-${Date.now()}-${rand3}`;
+```
+
+Contoh:
+
+```text
+CVT-GXZ-GAMEX-1734683245123-A7F
+```
+
+5. Simpan order:
+
+```js
+{
+  order_id,
+  merchant_id,
+  site_id,
+  user_id,
+  amount,
+  channel_requested,
+  payment_type: null,
+  payment_data: null,
+  status: "PENDING",
+  current_domain,   // <— dicatat juga di order
+  return_url,
+  created_at: now
+}
+```
+
+6. Call Kompas Pay dengan order_id ini:
+
+   * `order_id` = `CVT-GXZ-GAMEX-...`
+   * `amount`, `channel`, `callback_url`, dsb.
+
+7. Dapat response:
+
+   * `payment_type` (QRIS, VA, dsb),
+   * `payment_data` (QR, VA number, link, dll),
+   * `gateway_ref`.
+
+8. Update order:
+
+   * `payment_type`,
+   * `payment_data`,
+   * `gateway_ref`.
+
+9. Kembalikan `payment_instruction` generik ke UI (untuk ditampilkan).
+
+### 3.6. Tahap 6: Pembayaran & webhook
+
+* User bayar via channel yang disediakan.
+* Kompas Pay kirim webhook ke `POST /webhook/kompaspay`:
+
+```json
+{
+  "order_id": "CVT-GXZ-GAMEX-1734683245123-A7F",
+  "status": "PAID",
+  "amount": 100000,
+  "payment_type": "QRIS",
+  "payment_ref": "KP-XYZ",
+  "signature": "..."
+}
+```
+
+Backend:
+
+1. Verifikasi `signature`.
+2. Cari order by `order_id`.
+3. Cocokkan `amount`.
+4. Update status → PAID.
+5. Cari `site` (punya `coin_api_base_url`, `coin_api_secret`).
+6. Call API merchant untuk **credit coin**:
+
+   * body:
+
+     ```json
+     {
+       "user_id": "USER123",
+       "amount": 100000,
+       "order_id": "CVT-GXZ-GAMEX-...",
+       "domain": "gamexyzz123.com",
+       "signature": "HMAC(user_id+amount+order_id+domain, coin_api_secret)"
+     }
+     ```
+7. Jika sukses:
+
+   * `order.status = "COMPLETED"`, set `credited_at`.
+8. Jika gagal:
+
+   * `order.status = "PAID_BUT_NOT_CREDITED"`.
+
+### 3.7. Tahap 7: Result page & kembali ke domain
+
+* Frontend `pay.chatvice.com` bisa polling `GET /api/payment/status?order_id=...` atau redirect ke `/topup/result?order_id=...`.
+* Di `/topup/result`:
+
+  * Kalau COMPLETED → tampil sukses + CTA “Lanjut ke beranda”.
+  * CTA redirect ke `return_url`.
+
+---
+
+## 4. Prompt AI (Final, sudah mencakup semua konsep, domain tidak perlu dia pikirkan)
+
+AI TIDAK perlu tahu soal domain history secara teknis, cukup fokus ke flow percakapan.
+
+Aku ringkas tapi tetap lengkap (kamu bisa pakai versi ini sebagai system prompt):
+
+```text
+Kamu adalah AI agent untuk platform Chatvice yang dipasang sebagai widget di banyak website partner (terutama situs game dengan sistem koin/saldo). Tugas utama kamu:
+
+1. Chat Mode → menjawab pertanyaan umum dan support.
+2. Payment Mode → memandu alur top up saldo/koin secara aman dan terstruktur.
+
+====================================
+MODE OPERASI
+====================================
+
+1. Chat Mode
+------------------------------------
+- Digunakan untuk:
+  - tanya fitur,
+  - masalah login (secara konsep),
+  - info game,
+  - FAQ, dsb.
+- Jawaban boleh lebih bebas, sopan, dan konteksnya relevan dengan website tempat widget dipasang.
+- Di Chat Mode, kamu harus mendeteksi niat user untuk top up, misalnya jika user bilang:
+  - "koin saya habis",
+  - "mau isi saldo",
+  - "beli koin",
+  - "top up dong",
+  - "cara isi diamond", dan sejenisnya.
+
+Jika user menunjukkan niat top up:
+- Jangan langsung memulai transaksi.
+- Tanyakan konfirmasi eksplisit, seperti:
+  "Mau saya bantu proses login dan pembelian koin, kak?"
+
+Jika user menjawab persetujuan (misalnya "iya", "ya", "ok", "oke", "mau", "boleh", "lanjut", "y"):
+- Anggap user setuju untuk memulai proses top up.
+- Saat itu, front-end akan mengubah tampilan ke mode pembayaran (full screen). Kamu cukup menjelaskan prosesnya, tidak perlu membuat URL sendiri.
+
+2. Payment Mode
+------------------------------------
+- Dipicu setelah user setuju atas tawaran:
+  "Mau saya bantu proses login dan pembelian koin, kak?"
+- Di Payment Mode, kamu bertindak sebagai “wizard transaksi”:
+  - jelaskan langkah singkat: pilih nominal → pilih metode bayar → bayar → saldo masuk.
+  - tawarkan pilihan nominal top up:
+    - 25.000, 50.000, 100.000, 200.000, 500.000 (disajikan sebagai opsi/tombol).
+  - minta konfirmasi sebelum melanjutkan ke pembayaran:
+    - "Kamu akan top up Rp[XXX]. Lanjut bayar?"
+  - informasikan bahwa pembayaran dilakukan di halaman resmi yang aman.
+
+- Di Payment Mode, batasi percakapan:
+  - gunakan tombol/quick reply jika bisa,
+  - kalau user melenceng topik, jawab singkat lalu tarik kembali ke flow:
+    "Saat ini kita sedang proses top up saldo. Mau lanjut selesaikan transaksi dulu, atau batal dan kembali ke mode chat biasa?"
+    dengan opsi:
+    - [Lanjutkan Top Up]
+    - [Batalkan Top Up]
+
+- Jangan pernah:
+  - meminta atau menerima nomor kartu kredit, CVV, OTP, PIN, private key, seed phrase.
+  - mengarang status pembayaran (misalnya mengaku “sudah berhasil” tanpa info sistem).
+
+====================================
+METODE PEMBAYARAN
+====================================
+
+Sistem pembayaran di backend mendukung berbagai metode (via Kompas Pay), seperti:
+- QRIS
+- Transfer bank
+- Virtual Account (VA)
+- E-wallet
+- dan pengembangan berikutnya: kartu kredit, crypto.
+
+Peran kamu:
+- Hanya menjelaskan secara konsep, misalnya:
+  "Di halaman pembayaran, kakak bisa pilih metode seperti QRIS, VA, e-wallet, atau transfer bank."
+- Instruksi teknis dan data spesifik (QR code, nomor VA, nomor rekening, alamat crypto) akan diberikan oleh backend/UI, bukan oleh kamu.
+
+====================================
+ALUR TOP UP (PERSPEKTIF AGENT)
+====================================
+
+1. Deteksi user ingin top up.
+2. Tanyakan:
+   "Mau saya bantu proses login dan pembelian koin, kak?"
+3. Jika user setuju:
+   - Jelaskan singkat:
+     "Baik kak, saya bantu proses top up. Nanti akan muncul tampilan penuh untuk pilih nominal dan metode pembayaran. Setelah pembayaran berhasil, koin akan otomatis masuk."
+4. Tawarkan pilihan nominal (25k–500k).
+5. Setelah nominal dipilih, konfirmasi:
+   - "Kamu akan top up Rp[XXX]. Lanjut bayar?"
+6. Setelah user konfirmasi:
+   - Jelaskan bahwa sistem akan menyiapkan order dan halaman pembayaran resmi.
+7. Setelah backend mengkonfirmasi pembayaran sukses:
+   - Sampaikan:
+     - "Pembayaran berhasil, koin/saldo sudah ditambahkan ke akun kakak."
+   - Tawarkan untuk kembali ke beranda atau melanjutkan bermain.
+
+Jika terjadi error:
+- Jelaskan singkat dan sopan.
+- Tawarkan untuk coba lagi atau kembali ke Chat Mode.
+
+====================================
+ATURAN UMUM
+====================================
+
+- Jangan mengumpulkan data finansial rahasia di chat.
+- Jangan mengarang status pembayaran.
+- Jaga Payment Mode tetap pendek, jelas, dan fokus pada alur transaksi.
+- Pastikan ada penutupan flow:
+  - transaksi selesai,
+  - atau dibatalkan,
+  - lalu kembali ke Chat Mode.
+```
+
+---
+
+## 5. Desain Backend API & Data (dengan domain tracking)
+
+### 5.1. Data Model (konseptual)
+
+**Merchant**
+
+* `merchant_id`
+* `name`
+* `status`
+* `created_at`
+
+**Site**
+
+* `site_id`
+* `merchant_id`
+* `site_code` (misal: `GXZ`)
+* `site_key` (public widget key)
+* `name`
+* `status`
+* `created_at`
+
+**SiteDomain**
+
+* `id`
+* `site_id`
+* `domain`
+* `first_seen_at`
+* `last_seen_at`
+* `is_current` (bool)
+
+**Order**
+
+* `order_id` (ex: `CVT-GXZ-GAMEX-1734683245123-A7F`)
+* `merchant_id`
+* `site_id`
+* `user_id`
+* `current_domain`
+* `amount`
+* `channel_requested`
+* `payment_type`
+* `payment_data`
+* `status`
+* `gateway_ref`
+* `return_url`
+* `created_at`
+* `paid_at`
+* `credited_at`
+
+---
+
+### 5.2. Endpoint List
+
+1. `POST /api/widget/init`
+2. `POST /api/start-topup`
+3. `GET /topup`
+4. `POST /api/payment/create-order`
+5. `POST /webhook/kompaspay`
+6. `GET /topup/result`
+7. (Optional) `GET /api/payment/status`
+
+Plus dashboard routes (admin & merchant), tapi backend logic-nya hanya baca tabel yang sama.
+
+---
+
+### 5.3. Detail Endpoint
+
+#### 5.3.1. `POST /api/widget/init`
+
+**Input:**
+
+```json
+{
+  "site_key": "PUBLIC_WIDGET_KEY",
+  "current_domain": "gamexyzz123.com"
+}
+```
+
+**Proses:**
+
+1. Cari `site` by `site_key`.
+
+2. Jika tidak ada → error.
+
+3. Di `site_domains`:
+
+   * cari row dengan `site_id` + `domain = current_domain`.
+   * kalau tidak ada:
+
+     * insert:
+
+       * `first_seen_at = now`,
+       * `last_seen_at = now`,
+       * `is_current = true`.
+     * set semua domain lain `is_current = false`.
+   * kalau ada:
+
+     * update `last_seen_at`,
+     * set `is_current = true`, lain `is_current = false`.
+
+4. Kembalikan konfigurasi dasar widget (opsional):
+
+```json
+{
+  "success": true,
+  "site_code": "GXZ",
+  "merchant_id": "M123",
+  "topup_enabled": true
+}
+```
+
+---
+
+#### 5.3.2. `POST /api/start-topup`
+
+**Input:**
+
+```json
+{
+  "site_key": "PUBLIC_WIDGET_KEY",
+  "user_id": "USER123",
+  "return_url": "https://gamexyzz123.com/home"
+}
+```
+
+**Proses:**
+
+1. Cari `site` by `site_key`.
+2. Cari domain current: `current_domain` dari `site_domains` (`is_current = true`).
+3. Optional: validasi bahwa host `return_url` = `current_domain`.
+4. Buat payload JWT:
+
+```js
+{
+  merchant_id: site.merchant_id,
+  site_id: site.site_id,
+  site_code: site.site_code,
+  current_domain,
+  user_id,
+  return_url,
+  iat,
+  exp
+}
+```
+
+5. Sign → `token`.
+6. Return:
+
+```json
+{
+  "success": true,
+  "redirect_url": "https://pay.chatvice.com/topup?token=..."
+}
+```
+
+---
+
+#### 5.3.3. `GET /topup?token=...`
+
+* Verifikasi token.
+* Render UI Payment Mode.
+
+---
+
+#### 5.3.4. `POST /api/payment/create-order`
+
+**Input:**
+
+```json
+{
+  "token": "JWT_TOKEN",
+  "amount": 100000,
+  "channel": "AUTO"
+}
+```
+
+**Proses:**
+
+1. Verifikasi token → dapat `merchant_id`, `site_id`, `site_code`, `current_domain`, `user_id`, `return_url`.
+2. Validasi nominal.
+3. Bentuk `domTag` dari `current_domain`.
+4. Generate `order_id`:
+
+```js
+const order_id = `CVT-${site_code}-${domTag}-${Date.now()}-${rand3}`;
+```
+
+5. Create order (status PENDING).
+6. Call Kompas Pay.
+7. Update order: `payment_type`, `payment_data`, `gateway_ref`.
+8. Balikkan `payment_instruction`.
+
+---
+
+#### 5.3.5. `POST /webhook/kompaspay`
+
+* Verifikasi signature.
+* Cari order by `order_id`.
+* Cocokkan amount.
+* Update status → PAID.
+* Cari site → call API credit coin (bawa `current_domain` juga).
+* Update status → COMPLETED atau PAID_BUT_NOT_CREDITED.
+
+---
+
+#### 5.3.6. `GET /topup/result?order_id=...`
+
+* Render status & CTA.
+
+---
+
+## 6. Skeleton Kode Replit (Express.js, ringkas tapi mengandung semua logika kunci)
+
+> Catatan: ini skeleton, beberapa bagian pseudo (misalnya DB dan Kompas Pay) kamu sambungkan ke implementasi asli.
+
+```js
+// app.js
+
+import express from "express";
+import bodyParser from "body-parser";
+import jwt from "jsonwebtoken";
+
+const app = express();
+app.use(bodyParser.json());
+
+const JWT_SECRET = process.env.JWT_SECRET || "CHANGE_ME";
+const KOMPAS_PAY_SECRET = process.env.KOMPAS_PAY_SECRET || "CHANGE_ME";
+
+const merchants = new Map();   // merchant_id -> merchant
+const sites = new Map();       // site_key -> site
+const siteDomains = new Map(); // site_id -> array of domains
+const orders = new Map();      // order_id -> order
+
+// ===== Helper JWT =====
+function generateTopupToken(payload) {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: "10m" });
+}
+
+function verifyTopupToken(token) {
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch {
+    return null;
+  }
+}
+
+// ===== Helper domain history =====
+function upsertSiteDomain(site_id, domain) {
+  const list = siteDomains.get(site_id) || [];
+  const now = new Date().toISOString();
+
+  let found = null;
+  for (const d of list) {
+    if (d.domain === domain) {
+      found = d;
+      break;
+    }
+  }
+
+  // set all is_current = false dulu
+  for (const d of list) {
+    d.is_current = false;
+  }
+
+  if (!found) {
+    const newRow = {
+      id: `SD_${site_id}_${list.length + 1}`,
+      site_id,
+      domain,
+      first_seen_at: now,
+      last_seen_at: now,
+      is_current: true
+    };
+    list.push(newRow);
+  } else {
+    found.last_seen_at = now;
+    found.is_current = true;
+  }
+
+  siteDomains.set(site_id, list);
+}
+
+function getCurrentDomain(site_id) {
+  const list = siteDomains.get(site_id) || [];
+  const current = list.find(d => d.is_current);
+  return current ? current.domain : null;
+}
+
+// ===== Helper order =====
+
+function createOrder(order) {
+  orders.set(order.order_id, order);
+}
+
+function getOrder(order_id) {
+  return orders.get(order_id);
+}
+
+function updateOrder(order_id, patch) {
+  const existing = orders.get(order_id);
+  if (!existing) return;
+  orders.set(order_id, { ...existing, ...patch });
+}
+
+function makeDomTag(domain) {
+  if (!domain) return "UNKNOWN";
+  const base = domain.split(".")[0]; // ambil sebelum TLD
+  return base.toUpperCase().slice(0, 5); // max 5 char
+}
+
+// TODO: isi sites & merchants dari DB atau seeding
+// Contoh seeding kasar:
+const exampleMerchant = { merchant_id: "M1", name: "Demo Merchant" };
+merchants.set(exampleMerchant.merchant_id, exampleMerchant);
+
+const exampleSite = {
+  site_id: "S1",
+  merchant_id: "M1",
+  site_code: "GXZ",
+  site_key: "PUBLIC_WIDGET_KEY_DEMO",
+  name: "Demo Game Site",
+  status: "ACTIVE"
+};
+sites.set(exampleSite.site_key, exampleSite);
+
+// ===== 1) WIDGET INIT: track domain =====
+
+app.post("/api/widget/init", (req, res) => {
+  const { site_key, current_domain } = req.body;
+
+  if (!site_key || !current_domain) {
+    return res.status(400).json({
+      success: false,
+      message: "site_key dan current_domain wajib diisi"
+    });
+  }
+
+  const site = sites.get(site_key);
+  if (!site || site.status !== "ACTIVE") {
+    return res.status(404).json({
+      success: false,
+      message: "Site tidak ditemukan atau tidak aktif"
+    });
+  }
+
+  upsertSiteDomain(site.site_id, current_domain);
+
+  return res.json({
+    success: true,
+    site_code: site.site_code,
+    merchant_id: site.merchant_id,
+    topup_enabled: true
+  });
+});
+
+// ===== 2) START TOPUP =====
+
+app.post("/api/start-topup", (req, res) => {
+  const { site_key, user_id, return_url } = req.body;
+
+  if (!site_key || !user_id || !return_url) {
+    return res.status(400).json({
+      success: false,
+      message: "site_key, user_id, return_url wajib diisi"
+    });
+  }
+
+  const site = sites.get(site_key);
+  if (!site || site.status !== "ACTIVE") {
+    return res.status(404).json({
+      success: false,
+      message: "Site tidak ditemukan atau tidak aktif"
+    });
+  }
+
+  const current_domain = getCurrentDomain(site.site_id);
+  if (!current_domain) {
+    return res.status(400).json({
+      success: false,
+      message: "Domain current untuk site ini belum tercatat"
+    });
+  }
+
+  const payload = {
+    merchant_id: site.merchant_id,
+    site_id: site.site_id,
+    site_code: site.site_code,
+    current_domain,
+    user_id,
+    return_url
+  };
+
+  const token = generateTopupToken(payload);
+  const redirect_url = `https://pay.chatvice.com/topup?token=${encodeURIComponent(token)}`;
+
+  return res.json({
+    success: true,
+    redirect_url
+  });
+});
+
+// ===== 3) PAYMENT UI: GET /topup =====
+
+app.get("/topup", (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.status(400).send("Token tidak ditemukan.");
+
+  const decoded = verifyTopupToken(token);
+  if (!decoded) return res.status(401).send("Token tidak valid atau kadaluarsa.");
+
+  // Render HTML sederhana, nanti kamu ganti dengan template/React
+  res.send(`
+    <html>
+      <body>
+        <h1>Top Up Koin</h1>
+        <p>Site: ${decoded.site_code} (${decoded.current_domain})</p>
+        <p>User: ${decoded.user_id}</p>
+        <p>Implementasikan UI untuk pilih nominal dan panggil /api/payment/create-order dari front-end.</p>
+      </body>
+    </html>
+  `);
+});
+
+// ===== 4) CREATE ORDER =====
+
+app.post("/api/payment/create-order", async (req, res) => {
+  const { token, amount, channel } = req.body;
+
+  if (!token || !amount) {
+    return res.status(400).json({
+      success: false,
+      message: "token dan amount wajib diisi"
+    });
+  }
+
+  const decoded = verifyTopupToken(token);
+  if (!decoded) {
+    return res.status(401).json({
+      success: false,
+      message: "Token tidak valid atau kadaluarsa"
+    });
+  }
+
+  const allowedAmounts = [25000, 50000, 100000, 200000, 500000];
+  if (!allowedAmounts.includes(amount)) {
+    return res.status(400).json({
+      success: false,
+      message: "Nominal tidak valid"
+    });
+  }
+
+  const paymentChannel = channel || "AUTO";
+  const domTag = makeDomTag(decoded.current_domain);
+  const rand3 = Math.random().toString(36).substring(2, 5).toUpperCase();
+
+  const order_id = `CVT-${decoded.site_code}-${domTag}-${Date.now()}-${rand3}`;
+
+  const order = {
+    order_id,
+    merchant_id: decoded.merchant_id,
+    site_id: decoded.site_id,
+    user_id: decoded.user_id,
+    current_domain: decoded.current_domain,
+    amount,
+    channel_requested: paymentChannel,
+    payment_type: null,
+    payment_data: null,
+    status: "PENDING",
+    gateway_ref: null,
+    return_url: decoded.return_url,
+    created_at: new Date().toISOString()
+  };
+
+  createOrder(order);
+
+  // TODO: call Kompas Pay API
+  const kompasResponse = {
+    status: "OK",
+    payment_type: "QRIS",
+    payment_data: {
+      qris_image_url: "https://example.com/qris.png",
+      qris_payload: "000201..."
+    },
+    gateway_ref: "KP-XYZ"
+  };
+
+  if (kompasResponse.status !== "OK") {
+    return res.status(500).json({
+      success: false,
+      message: "Gagal membuat instruksi pembayaran"
+    });
+  }
+
+  updateOrder(order_id, {
+    payment_type: kompasResponse.payment_type,
+    payment_data: kompasResponse.payment_data,
+    gateway_ref: kompasResponse.gateway_ref
+  });
+
+  let payment_instruction = {
+    display_type: "QR_CODE",
+    title: "Bayar dengan QRIS",
+    message: "Scan QR berikut menggunakan aplikasi bank/e-wallet.",
+    data: kompasResponse.payment_data
+  };
+
+  return res.json({
+    success: true,
+    order_id,
+    payment_type: kompasResponse.payment_type,
+    payment_instruction
+  });
+});
+
+// ===== 5) WEBHOOK KOMPAS PAY =====
+
+app.post("/webhook/kompaspay", (req, res) => {
+  const payload = req.body;
+
+  // TODO: verifikasi signature dengan KOMPAS_PAY_SECRET
+  const { order_id, status, amount, payment_type, payment_ref } = payload;
+
+  const order = getOrder(order_id);
+  if (!order) {
+    console.log("Order tidak ditemukan:", order_id);
+    return res.status(200).send("OK");
+  }
+
+  if (order.status === "COMPLETED" || order.status === "PAID_BUT_NOT_CREDITED") {
+    return res.status(200).send("OK");
+  }
+
+  if (status === "PAID") {
+    updateOrder(order_id, {
+      status: "PAID",
+      paid_at: new Date().toISOString(),
+      payment_ref,
+      payment_type: payment_type || order.payment_type
+    });
+
+    // TODO: call API merchant untuk credit coin/saldo
+    // gunakan order.site_id, order.user_id, order.amount, order.current_domain
+    const creditSuccess = true; // ganti dengan hasil call sebenarnya
+
+    if (creditSuccess) {
+      updateOrder(order_id, {
+        status: "COMPLETED",
+        credited_at: new Date().toISOString()
+      });
+    } else {
+      updateOrder(order_id, {
+        status: "PAID_BUT_NOT_CREDITED"
+      });
+    }
+  } else if (status === "FAILED" || status === "EXPIRED") {
+    updateOrder(order_id, { status });
+  }
+
+  return res.status(200).send("OK");
+});
+
+// ===== 6) RESULT PAGE =====
+
+app.get("/topup/result", (req, res) => {
+  const { order_id } = req.query;
+  if (!order_id) return res.status(400).send("order_id tidak diberikan");
+
+  const order = getOrder(order_id);
+  if (!order) return res.status(404).send("Order tidak ditemukan");
+
+  if (order.status === "COMPLETED") {
+    return res.send(`
+      <html>
+        <body>
+          <h1>Top Up Berhasil</h1>
+          <p>Pembayaran berhasil dan saldo/koin sudah ditambahkan.</p>
+          <a href="${order.return_url}">Lanjut ke beranda/home page</a>
+        </body>
+      </html>
+    `);
+  }
+
+  if (order.status === "PENDING" || order.status === "PAID") {
+    return res.send(`
+      <html>
+        <body>
+          <h1>Menunggu Konfirmasi</h1>
+          <p>Pembayaran kamu masih diproses. Silakan cek beberapa saat lagi.</p>
+        </body>
+      </html>
+    `);
+  }
+
+  return res.send(`
+    <html>
+      <body>
+        <h1>Top Up Gagal / Kadaluarsa</h1>
+        <p>Status order: ${order.status}</p>
+        <p>Silakan coba lagi dari awal.</p>
+      </body>
+    </html>
+  `);
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log("Server berjalan di port", PORT);
+});
+```
+
+---
+
+Kalau kamu mau, next step kita bisa bikin:
+
+* struktur tabel versi SQL (Postgres/Supabase),
+* atau wireframe UI dashboard Master & Merchant dengan tabel domain history, order list, dsb.
+
+Tapi dengan paket di atas, kamu sudah punya:
+❇️ workflow,
+❇️ framework arsitektur,
+❇️ prompt AI,
+❇️ endpoint sistem,
+❇️ desain backend API & data,
+❇️ skeleton kode Replit yang siap kamu adapt dan pecah ke file-file lebih rapi.
