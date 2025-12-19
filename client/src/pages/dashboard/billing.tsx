@@ -607,7 +607,7 @@ export default function BillingPage() {
           </div>
         </div>
 
-        {/* Promo Banner and Code Input */}
+        {/* Promo Banner - 1200x300px (4:1 aspect ratio) */}
         {(applicablePromo || validatedPromo) && (() => {
           // Only use image mode if we have a valid image URL
           const useImageMode = applicablePromo?.bannerMode === "image" && applicablePromo?.bannerImageUrl;
@@ -615,13 +615,19 @@ export default function BillingPage() {
           
           return (
             <div 
-              className="mb-4 p-3 rounded-lg flex items-center justify-between gap-4 flex-wrap relative overflow-hidden" 
-              style={useImageMode ? {
-                color: applicablePromo.textColor || "#ffffff"
-              } : hasCustomColor ? {
-                backgroundColor: applicablePromo.bgColor!,
-                color: applicablePromo.textColor || "#ffffff"
-              } : undefined}
+              className="mb-4 rounded-lg flex flex-col items-center justify-center gap-3 relative overflow-hidden text-center w-full" 
+              style={{
+                // Enforce 4:1 aspect ratio with minimum height of 300px
+                aspectRatio: "4 / 1",
+                minHeight: "300px",
+                maxHeight: "350px",
+                ...(useImageMode ? {
+                  color: applicablePromo.textColor || "#ffffff"
+                } : hasCustomColor ? {
+                  backgroundColor: applicablePromo.bgColor!,
+                  color: applicablePromo.textColor || "#ffffff"
+                } : {})
+              }}
               data-testid="promo-banner"
             >
               {useImageMode && (
@@ -635,26 +641,33 @@ export default function BillingPage() {
               {!useImageMode && !hasCustomColor && (
                 <div className="absolute inset-0 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg" />
               )}
-              <div className="flex items-center gap-2 relative z-10">
-                <Gift className={`w-5 h-5 ${hasCustomColor || useImageMode ? "" : "text-green-600"}`} />
-                <span className={`font-medium ${hasCustomColor || useImageMode ? "" : "text-green-700 dark:text-green-400"}`}>
+              <div className="flex items-center gap-2 relative z-10 text-lg font-bold">
+                <Gift className={`w-6 h-6 ${hasCustomColor || useImageMode ? "" : "text-green-600"}`} />
+                <span className={hasCustomColor || useImageMode ? "" : "text-green-700 dark:text-green-400"}>
                   {validatedPromo ? (
-                    <>Code "{validatedPromo.code}" applied: {validatedPromo.discountPercent}% off</>
+                    <>Promo Applied!</>
                   ) : applicablePromo ? (
-                    <>Use code "{applicablePromo.code}" for {applicablePromo.discountPercent}% off!</>
+                    <>{applicablePromo.name}</>
                   ) : null}
                 </span>
+              </div>
+              <div className={`relative z-10 text-xl md:text-2xl font-bold ${hasCustomColor || useImageMode ? "" : "text-green-700 dark:text-green-400"}`}>
+                {validatedPromo ? (
+                  <>Save {validatedPromo.discountPercent}% with code <code className="bg-white/20 px-2 py-0.5 rounded font-mono">{validatedPromo.code}</code></>
+                ) : applicablePromo ? (
+                  <>Save {applicablePromo.discountPercent}% with code <code className="bg-white/20 px-2 py-0.5 rounded font-mono">{applicablePromo.code}</code></>
+                ) : null}
               </div>
               {validatedPromo && (
                 <Button 
                   size="sm" 
-                  variant="ghost" 
+                  variant="outline" 
                   onClick={() => { setValidatedPromo(null); setPromoCodeInput(""); }}
-                  className="text-red-500 hover:text-red-700 relative z-10"
+                  className="relative z-10 mt-2"
                   data-testid="button-remove-promo"
                 >
                   <XCircle className="w-4 h-4 mr-1" />
-                  Remove
+                  Remove Code
                 </Button>
               )}
             </div>

@@ -5062,7 +5062,7 @@ function PricingTab({ toast }: { toast: any }) {
                 {promoBannerMode === "image" && (
                   <div className="space-y-3">
                     <div>
-                      <Label className="text-xs text-muted-foreground">Banner Image (Recommended: 1200x100px, aspect ratio 12:1)</Label>
+                      <Label className="text-xs text-muted-foreground">Banner Image (Recommended: 1200x300px, aspect ratio 4:1)</Label>
                       <div className="flex items-center gap-2 mt-1">
                         <Input 
                           type="file" 
@@ -5078,7 +5078,7 @@ function PricingTab({ toast }: { toast: any }) {
                     {promoBannerImageUrl && (
                       <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">Preview:</Label>
-                        <div className="relative rounded-md overflow-hidden" style={{ aspectRatio: "12/1" }}>
+                        <div className="relative rounded-md overflow-hidden" style={{ aspectRatio: "4/1" }}>
                           <img 
                             src={promoBannerImageUrl} 
                             alt="Banner preview" 
@@ -5099,7 +5099,7 @@ function PricingTab({ toast }: { toast: any }) {
                     {!promoBannerImageUrl && (
                       <div 
                         className="border-2 border-dashed rounded-md flex items-center justify-center text-muted-foreground text-sm" 
-                        style={{ aspectRatio: "12/1" }}
+                        style={{ aspectRatio: "4/1" }}
                       >
                         Upload an image to preview
                       </div>

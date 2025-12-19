@@ -213,11 +213,15 @@ export default function PricingPage() {
 
   return (
     <PublicPageLayout>
-      {/* Promotional Banner */}
+      {/* Promotional Banner - 1200x300px (4:1 aspect ratio) */}
       {applicablePromo && (
         <div 
-          className="relative py-3" 
+          className="relative flex items-center justify-center w-full" 
           style={{ 
+            // Enforce 4:1 aspect ratio with minimum height of 300px
+            aspectRatio: "4 / 1",
+            minHeight: "300px",
+            maxHeight: "400px",
             // Use image mode only if we have a valid image URL, otherwise fallback to color mode
             backgroundColor: (applicablePromo.bannerMode === "image" && applicablePromo.bannerImageUrl) 
               ? "transparent" 
@@ -234,12 +238,13 @@ export default function PricingPage() {
               data-testid="promo-banner-image"
             />
           )}
-          <div className="relative max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 flex items-center justify-center gap-4 flex-wrap">
-            <div className="flex items-center gap-2">
-              <Gift className="w-5 h-5" />
-              <span className="font-semibold">{applicablePromo.name}:</span>
-              <span>Save {applicablePromo.discountPercent}% with code</span>
-              <code className="bg-white/20 px-2 py-0.5 rounded font-mono font-bold">{applicablePromo.code}</code>
+          <div className="relative max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 flex flex-col items-center justify-center gap-3 text-center">
+            <div className="flex items-center gap-2 text-lg md:text-xl font-bold">
+              <Gift className="w-6 h-6" />
+              <span>{applicablePromo.name}</span>
+            </div>
+            <div className="text-2xl md:text-3xl font-bold">
+              Save {applicablePromo.discountPercent}% with code <code className="bg-white/20 px-3 py-1 rounded font-mono">{applicablePromo.code}</code>
             </div>
             <div className="flex items-center gap-1 text-sm opacity-90">
               <Clock className="w-4 h-4" />
