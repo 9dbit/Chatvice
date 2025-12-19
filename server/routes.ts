@@ -6616,5 +6616,472 @@ ${log.extractedKnowledge}` : ''}
     }
   });
 
+  // ============== CHATVICE TOP UP v2: Payment Flow ==============
+  
+  // Widget initialization - tracks domain
+  app.post("/api/widget/init", async (req, res) => {
+    try {
+      const { site_key, current_domain } = req.body;
+      
+      if (!site_key || !current_domain) {
+        return res.status(400).json({ error: "Missing site_key or current_domain" });
+      }
+      
+      // Find site by site_key
+      const site = await storage.getWidgetSiteBySiteKey(site_key);
+      if (!site) {
+        return res.status(404).json({ error: "Site not found" });
+      }
+      
+      if (!site.isActive) {
+        return res.status(403).json({ error: "Site is inactive" });
+      }
+      
+      // Track/update domain
+      await storage.upsertSiteDomain(site.id, current_domain);
+      
+      // Return site config
+      res.json({
+        success: true,
+        site_id: site.id,
+        site_code: site.siteCode,
+        site_name: site.siteName,
+        topup_enabled: site.isTopupEnabled,
+        merchant_id: site.merchantId,
+      });
+    } catch (error) {
+      console.error("Widget init error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Start top-up flow - generates JWT token and redirect URL
+  app.post("/api/start-topup", async (req, res) => {
+    try {
+      const { site_key, user_id, return_url } = req.body;
+      
+      if (!site_key || !user_id) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      // Find site
+      const site = await storage.getWidgetSiteBySiteKey(site_key);
+      if (!site) {
+        return res.status(404).json({ error: "Site not found" });
+      }
+      
+      if (!site.isTopupEnabled) {
+        return res.status(403).json({ error: "Top-up is not enabled for this site" });
+      }
+      
+      // Get current domain
+      const currentDomain = await storage.getCurrentDomain(site.id);
+      
+      // Generate JWT token for payment flow
+      const jwt = await import("jsonwebtoken");
+      const JWT_SECRET = process.env.JWT_SECRET || "chatvice_topup_secret_key_2024";
+      
+      const payload = {
+        merchant_id: site.merchantId,
+        site_id: site.id,
+        site_code: site.siteCode,
+        current_domain: currentDomain?.domain || "",
+        user_id,
+        return_url: return_url || "",
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + (30 * 60), // 30 minutes
+      };
+      
+      const token = jwt.default.sign(payload, JWT_SECRET);
+      
+      // Generate redirect URL - using same domain for now (will be pay.chatvice.com later)
+      const baseUrl = process.env.PAYMENT_BASE_URL || `https://${req.get("host")}`;
+      const redirectUrl = `${baseUrl}/topup?token=${token}`;
+      
+      res.json({
+        success: true,
+        redirect_url: redirectUrl,
+        token,
+      });
+    } catch (error) {
+      console.error("Start topup error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Verify topup token and get payment info
+  app.get("/api/topup/verify", async (req, res) => {
+    try {
+      const { token } = req.query;
+      
+      if (!token || typeof token !== "string") {
+        return res.status(400).json({ error: "Missing token" });
+      }
+      
+      const jwt = await import("jsonwebtoken");
+      const JWT_SECRET = process.env.JWT_SECRET || "chatvice_topup_secret_key_2024";
+      
+      try {
+        const decoded = jwt.default.verify(token, JWT_SECRET) as {
+          merchant_id: string;
+          site_id: string;
+          site_code: string;
+          current_domain: string;
+          user_id: string;
+          return_url: string;
+        };
+        
+        // Get site info
+        const site = await storage.getWidgetSite(decoded.site_id);
+        if (!site) {
+          return res.status(404).json({ error: "Site not found" });
+        }
+        
+        // Get available nominals
+        const nominals = await storage.getTopupNominals(site.id);
+        
+        // If no custom nominals, use defaults
+        const defaultNominals = [
+          { amount: 25000, label: "Rp 25.000", coinsGiven: 25, bonusCoins: 0 },
+          { amount: 50000, label: "Rp 50.000", coinsGiven: 50, bonusCoins: 5 },
+          { amount: 100000, label: "Rp 100.000", coinsGiven: 100, bonusCoins: 15 },
+          { amount: 200000, label: "Rp 200.000", coinsGiven: 200, bonusCoins: 40 },
+          { amount: 500000, label: "Rp 500.000", coinsGiven: 500, bonusCoins: 125 },
+        ];
+        
+        res.json({
+          success: true,
+          site_name: site.siteName,
+          site_code: site.siteCode,
+          user_id: decoded.user_id,
+          current_domain: decoded.current_domain,
+          return_url: decoded.return_url,
+          nominals: nominals.length > 0 ? nominals : defaultNominals,
+          payment_channels: ["AUTO", "QRIS", "VA", "EWALLET", "BANK"],
+        });
+      } catch (jwtError: any) {
+        if (jwtError.name === "TokenExpiredError") {
+          return res.status(401).json({ error: "Token expired" });
+        }
+        return res.status(401).json({ error: "Invalid token" });
+      }
+    } catch (error) {
+      console.error("Topup verify error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Create payment order
+  app.post("/api/payment/create-order", async (req, res) => {
+    try {
+      const { token, amount, channel } = req.body;
+      
+      if (!token || !amount) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      const jwt = await import("jsonwebtoken");
+      const JWT_SECRET = process.env.JWT_SECRET || "chatvice_topup_secret_key_2024";
+      
+      let decoded: {
+        merchant_id: string;
+        site_id: string;
+        site_code: string;
+        current_domain: string;
+        user_id: string;
+        return_url: string;
+      };
+      
+      try {
+        decoded = jwt.default.verify(token, JWT_SECRET) as typeof decoded;
+      } catch (jwtError) {
+        return res.status(401).json({ error: "Invalid or expired token" });
+      }
+      
+      // Generate order_id: CVT-{siteCode}-{domTag}-{timestamp}-{rand}
+      const domTag = (decoded.current_domain || "UNKNOWN")
+        .replace(/\.[^.]+$/, "") // remove TLD
+        .substring(0, 5)
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "");
+      const timestamp = Date.now();
+      const rand = crypto.randomBytes(2).toString("hex").toUpperCase();
+      const orderId = `CVT-${decoded.site_code}-${domTag}-${timestamp}-${rand}`;
+      
+      // Create order in database
+      const order = await storage.createCoinOrder({
+        orderId,
+        merchantId: decoded.merchant_id,
+        siteId: decoded.site_id,
+        userId: decoded.user_id,
+        amount,
+        channelRequested: channel || "AUTO",
+        status: "PENDING",
+        currentDomain: decoded.current_domain,
+        returnUrl: decoded.return_url,
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
+      });
+      
+      // TODO: Call Kompas Pay API here when integrated
+      // For now, simulate payment data
+      const paymentData = {
+        type: "QRIS",
+        qr_string: `00020101021126670016ID.CO.KOMPASPAY.WWW0118${orderId}0215TOPUP${amount}5802ID5925CHATVICE6007JAKARTA61051234062070703A0163044B2C`,
+        va_number: null,
+        expiry_time: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      };
+      
+      // Update order with payment data
+      await storage.updateCoinOrder(order.id, {
+        paymentType: "QRIS",
+        paymentData: paymentData as any,
+      });
+      
+      res.json({
+        success: true,
+        order_id: orderId,
+        amount,
+        payment_type: "QRIS",
+        payment_data: paymentData,
+        expires_at: paymentData.expiry_time,
+      });
+    } catch (error) {
+      console.error("Create order error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Check payment status
+  app.get("/api/payment/status", async (req, res) => {
+    try {
+      const { order_id } = req.query;
+      
+      if (!order_id || typeof order_id !== "string") {
+        return res.status(400).json({ error: "Missing order_id" });
+      }
+      
+      const order = await storage.getCoinOrderByOrderId(order_id);
+      if (!order) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+      
+      res.json({
+        success: true,
+        order_id: order.orderId,
+        status: order.status,
+        amount: order.amount,
+        payment_type: order.paymentType,
+        paid_at: order.paidAt,
+        credited_at: order.creditedAt,
+        return_url: order.returnUrl,
+      });
+    } catch (error) {
+      console.error("Payment status error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Kompas Pay webhook (placeholder - will be implemented when API key is available)
+  app.post("/webhook/kompaspay", async (req, res) => {
+    try {
+      const { order_id, status, amount, payment_type, payment_ref, signature } = req.body;
+      
+      console.log("Kompas Pay webhook received:", { order_id, status, amount, payment_type });
+      
+      // TODO: Verify signature with Kompas Pay secret
+      // const isValid = verifyKompasPaySignature(req.body, KOMPAS_PAY_SECRET);
+      // if (!isValid) {
+      //   return res.status(401).json({ error: "Invalid signature" });
+      // }
+      
+      // Find order
+      const order = await storage.getCoinOrderByOrderId(order_id);
+      if (!order) {
+        console.log("Order not found:", order_id);
+        return res.status(404).json({ error: "Order not found" });
+      }
+      
+      // Verify amount matches
+      if (order.amount !== amount) {
+        console.log("Amount mismatch:", { expected: order.amount, received: amount });
+        return res.status(400).json({ error: "Amount mismatch" });
+      }
+      
+      if (status === "PAID") {
+        // Update order to PAID
+        await storage.updateCoinOrder(order.id, {
+          status: "PAID",
+          paidAt: new Date(),
+          gatewayRef: payment_ref,
+          paymentType: payment_type,
+        });
+        
+        // TODO: Call merchant's coin API to credit coins
+        // const site = await storage.getWidgetSite(order.siteId);
+        // if (site?.coinApiBaseUrl) {
+        //   try {
+        //     const creditResult = await creditCoinsToUser(site, order);
+        //     if (creditResult.success) {
+        //       await storage.updateCoinOrder(order.id, {
+        //         status: "COMPLETED",
+        //         creditedAt: new Date(),
+        //       });
+        //     } else {
+        //       await storage.updateCoinOrder(order.id, {
+        //         status: "PAID_BUT_NOT_CREDITED",
+        //         errorMessage: creditResult.error,
+        //       });
+        //     }
+        //   } catch (e) {
+        //     await storage.updateCoinOrder(order.id, {
+        //       status: "PAID_BUT_NOT_CREDITED",
+        //       errorMessage: "Failed to credit coins",
+        //     });
+        //   }
+        // }
+        
+        // For now, mark as completed since we don't have coin API integration
+        await storage.updateCoinOrder(order.id, {
+          status: "COMPLETED",
+          creditedAt: new Date(),
+        });
+      } else if (status === "FAILED" || status === "EXPIRED") {
+        await storage.updateCoinOrder(order.id, {
+          status: status,
+          errorMessage: `Payment ${status.toLowerCase()}`,
+        });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Webhook error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // ============== WIDGET SITES MANAGEMENT (Merchant Dashboard) ==============
+  
+  // Get merchant's widget sites
+  app.get("/api/widget-sites", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session?.merchantId!;
+      const sites = await storage.getWidgetSitesByMerchant(merchantId);
+      
+      // Get domain info for each site
+      const sitesWithDomains = await Promise.all(
+        sites.map(async (site) => {
+          const domains = await storage.getSiteDomains(site.id);
+          const currentDomain = domains.find(d => d.isCurrent);
+          return {
+            ...site,
+            currentDomain: currentDomain?.domain || null,
+            domainCount: domains.length,
+            domains,
+          };
+        })
+      );
+      
+      res.json(sitesWithDomains);
+    } catch (error) {
+      console.error("Get widget sites error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Create widget site
+  app.post("/api/widget-sites", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session?.merchantId!;
+      const { siteName, siteCode, coinApiBaseUrl, coinApiSecret, isTopupEnabled } = req.body;
+      
+      if (!siteName || !siteCode) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      // Generate unique site key
+      const siteKey = `wk_${crypto.randomBytes(16).toString("hex")}`;
+      
+      const site = await storage.createWidgetSite({
+        merchantId,
+        siteName,
+        siteCode: siteCode.toUpperCase(),
+        siteKey,
+        coinApiBaseUrl: coinApiBaseUrl || null,
+        coinApiSecret: coinApiSecret || null,
+        isTopupEnabled: isTopupEnabled || false,
+        isActive: true,
+      });
+      
+      res.json(site);
+    } catch (error: any) {
+      console.error("Create widget site error:", error);
+      if (error.code === "23505") { // unique constraint violation
+        return res.status(400).json({ error: "Site code already exists" });
+      }
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Update widget site
+  app.put("/api/widget-sites/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session?.merchantId!;
+      const { id } = req.params;
+      
+      // Verify ownership
+      const site = await storage.getWidgetSite(id);
+      if (!site || site.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Site not found" });
+      }
+      
+      const { siteName, coinApiBaseUrl, coinApiSecret, isTopupEnabled, isActive } = req.body;
+      
+      const updated = await storage.updateWidgetSite(id, {
+        siteName,
+        coinApiBaseUrl,
+        coinApiSecret,
+        isTopupEnabled,
+        isActive,
+      });
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Update widget site error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Delete widget site
+  app.delete("/api/widget-sites/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session?.merchantId!;
+      const { id } = req.params;
+      
+      // Verify ownership
+      const site = await storage.getWidgetSite(id);
+      if (!site || site.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Site not found" });
+      }
+      
+      await storage.deleteWidgetSite(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete widget site error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Get coin orders for merchant
+  app.get("/api/coin-orders", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session?.merchantId!;
+      const orders = await storage.getCoinOrdersByMerchant(merchantId);
+      res.json(orders);
+    } catch (error) {
+      console.error("Get coin orders error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   return httpServer;
 }
