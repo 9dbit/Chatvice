@@ -4077,7 +4077,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   // Update promotion (admin)
   app.put("/api/admin/promotions/:id", requireAdmin, async (req, res) => {
     try {
-      const { code, name, description, discountPercent, targetPlans, billingCycle, maxUses, startDate, endDate, isActive, isPublic, showUpsell, bgColor, textColor, bannerMode, bannerImageUrl } = req.body;
+      const { code, name, description, discountPercent, targetPlans, billingCycle, maxUses, startDate, endDate, isActive, isPublic, showUpsell, bgColor, textColor, bannerMode, bannerImageUrl, bannerImageMobileUrl } = req.body;
       
       const updateData: any = {};
       if (code !== undefined) updateData.code = code;
@@ -4096,6 +4096,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (textColor !== undefined) updateData.textColor = textColor;
       if (bannerMode !== undefined) updateData.bannerMode = bannerMode;
       if (bannerImageUrl !== undefined) updateData.bannerImageUrl = bannerImageUrl;
+      if (bannerImageMobileUrl !== undefined) updateData.bannerImageMobileUrl = bannerImageMobileUrl;
 
       const promo = await storage.updatePromotion(req.params.id, updateData);
       if (!promo) {
@@ -4172,6 +4173,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         textColor: p.textColor,
         bannerMode: p.bannerMode,
         bannerImageUrl: p.bannerImageUrl,
+        bannerImageMobileUrl: p.bannerImageMobileUrl,
       }));
       res.json(publicPromos);
     } catch (error) {
