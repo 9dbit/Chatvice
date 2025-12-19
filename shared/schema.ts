@@ -935,3 +935,90 @@ export const promotionUsage = pgTable("promotion_usage", {
 export const insertPromotionUsageSchema = createInsertSchema(promotionUsage).omit({ id: true, usedAt: true });
 export type InsertPromotionUsage = z.infer<typeof insertPromotionUsageSchema>;
 export type PromotionUsage = typeof promotionUsage.$inferSelect;
+
+// ============ CHATVICE TOP UP v2: Multi-tenant + Domain Tracking ============
+
+// Widget Sites - represents a site/domain where widget is embedded
+export const widgetSites = pgTable("widget_sites", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  siteCode: varchar("site_code", { length: 20 }).notNull().unique(), // short code like "GXZ"
+  siteKey: varchar("site_key", { length: 64 }).notNull().unique(), // public widget key
+  siteName: text("site_name").notNull(), // display name like "Game XYZ"
+  coinApiBaseUrl: text("coin_api_base_url"), // merchant's coin API endpoint
+  coinApiSecret: text("coin_api_secret"), // secret for signing coin credit requests
+  isTopupEnabled: boolean("is_topup_enabled").default(false),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertWidgetSiteSchema = createInsertSchema(widgetSites).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertWidgetSite = z.infer<typeof insertWidgetSiteSchema>;
+export type WidgetSite = typeof widgetSites.$inferSelect;
+
+// Site Domain History - tracks all domains used by a site
+export const siteDomains = pgTable("site_domains", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  siteId: varchar("site_id", { length: 32 }).notNull(),
+  domain: text("domain").notNull(), // e.g., "gamexyz.com", "gamexyz123.com"
+  firstSeenAt: timestamp("first_seen_at").defaultNow(),
+  lastSeenAt: timestamp("last_seen_at").defaultNow(),
+  isCurrent: boolean("is_current").default(true), // only one per site_id should be true
+});
+
+export const insertSiteDomainSchema = createInsertSchema(siteDomains).omit({ id: true, firstSeenAt: true, lastSeenAt: true });
+export type InsertSiteDomain = z.infer<typeof insertSiteDomainSchema>;
+export type SiteDomain = typeof siteDomains.$inferSelect;
+
+// Coin Orders - tracks all top-up transactions
+export const coinOrders = pgTable("coin_orders", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  orderId: varchar("order_id", { length: 100 }).notNull().unique(), // CVT-{siteCode}-{domTag}-{timestamp}-{rand}
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  siteId: varchar("site_id", { length: 32 }).notNull(),
+  userId: text("user_id").notNull(), // external user ID from merchant site
+  amount: integer("amount").notNull(), // in IDR (e.g., 100000)
+  channelRequested: varchar("channel_requested", { length: 20 }).default("AUTO"), // AUTO, QRIS, VA, EWALLET, BANK
+  paymentType: varchar("payment_type", { length: 30 }), // actual payment method used
+  paymentData: jsonb("payment_data"), // QR code, VA number, etc.
+  gatewayRef: varchar("gateway_ref", { length: 100 }), // reference from payment gateway
+  status: varchar("status", { length: 30 }).default("PENDING"), // PENDING, PAID, PAID_BUT_NOT_CREDITED, COMPLETED, FAILED, EXPIRED
+  currentDomain: text("current_domain"), // domain at time of order
+  returnUrl: text("return_url"), // where to redirect after payment
+  creditedAt: timestamp("credited_at"), // when coins were credited to user
+  paidAt: timestamp("paid_at"), // when payment was confirmed
+  expiresAt: timestamp("expires_at"), // payment expiration
+  errorMessage: text("error_message"), // if status is FAILED
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertCoinOrderSchema = createInsertSchema(coinOrders).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertCoinOrder = z.infer<typeof insertCoinOrderSchema>;
+export type CoinOrder = typeof coinOrders.$inferSelect;
+
+// Top-up Nominals - configurable top-up amounts per site
+export const topupNominals = pgTable("topup_nominals", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  siteId: varchar("site_id", { length: 32 }).notNull(),
+  amount: integer("amount").notNull(), // in IDR
+  coinsGiven: integer("coins_given").notNull(), // how many coins user gets
+  bonusCoins: integer("bonus_coins").default(0), // extra bonus coins
+  label: text("label"), // display label like "100 Coins"
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertTopupNominalSchema = createInsertSchema(topupNominals).omit({ id: true, createdAt: true });
+export type InsertTopupNominal = z.infer<typeof insertTopupNominalSchema>;
+export type TopupNominal = typeof topupNominals.$inferSelect;
+
+// Payment channels supported
+export const paymentChannels = ["AUTO", "QRIS", "VA", "EWALLET", "BANK", "CARD", "CRYPTO"] as const;
+export type PaymentChannel = typeof paymentChannels[number];
+
+// Order status types
+export const orderStatuses = ["PENDING", "PAID", "PAID_BUT_NOT_CREDITED", "COMPLETED", "FAILED", "EXPIRED"] as const;
+export type OrderStatus = typeof orderStatuses[number];

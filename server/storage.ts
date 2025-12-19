@@ -34,9 +34,14 @@ import {
   type PasswordResetToken, type InsertPasswordResetToken,
   type Promotion, type InsertPromotion,
   type PromotionUsage, type InsertPromotionUsage,
+  type WidgetSite, type InsertWidgetSite,
+  type SiteDomain, type InsertSiteDomain,
+  type CoinOrder, type InsertCoinOrder,
+  type TopupNominal, type InsertTopupNominal,
   merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings, storedFiles,
   workShifts, shiftAssignments, workReports, quickReplies, chatButtons, productCards, productCardButtons, welcomeBubbles, notificationSettings, productRecommendationSettings, productTriggers, supervisorInvitations,
   emailVerificationTokens, passwordResetTokens, promotions, promotionUsage,
+  widgetSites, siteDomains, coinOrders, topupNominals,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -243,6 +248,33 @@ export interface IStorage {
   // Promotion Usage
   getPromotionUsage(promotionId: string): Promise<PromotionUsage[]>;
   createPromotionUsage(data: InsertPromotionUsage): Promise<PromotionUsage>;
+  
+  // Widget Sites (Chatvice Top Up v2)
+  getWidgetSite(id: string): Promise<WidgetSite | undefined>;
+  getWidgetSiteBySiteKey(siteKey: string): Promise<WidgetSite | undefined>;
+  getWidgetSitesByMerchant(merchantId: string): Promise<WidgetSite[]>;
+  createWidgetSite(data: InsertWidgetSite): Promise<WidgetSite>;
+  updateWidgetSite(id: string, data: Partial<WidgetSite>): Promise<WidgetSite | undefined>;
+  deleteWidgetSite(id: string): Promise<boolean>;
+  
+  // Site Domains (domain tracking)
+  getSiteDomains(siteId: string): Promise<SiteDomain[]>;
+  getCurrentDomain(siteId: string): Promise<SiteDomain | undefined>;
+  upsertSiteDomain(siteId: string, domain: string): Promise<SiteDomain>;
+  
+  // Coin Orders
+  getCoinOrder(id: string): Promise<CoinOrder | undefined>;
+  getCoinOrderByOrderId(orderId: string): Promise<CoinOrder | undefined>;
+  getCoinOrdersBySite(siteId: string): Promise<CoinOrder[]>;
+  getCoinOrdersByMerchant(merchantId: string): Promise<CoinOrder[]>;
+  createCoinOrder(data: InsertCoinOrder): Promise<CoinOrder>;
+  updateCoinOrder(id: string, data: Partial<CoinOrder>): Promise<CoinOrder | undefined>;
+  
+  // Topup Nominals
+  getTopupNominals(siteId: string): Promise<TopupNominal[]>;
+  createTopupNominal(data: InsertTopupNominal): Promise<TopupNominal>;
+  updateTopupNominal(id: string, data: Partial<TopupNominal>): Promise<TopupNominal | undefined>;
+  deleteTopupNominal(id: string): Promise<boolean>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -1654,6 +1686,164 @@ export class DatabaseStorage implements IStorage {
     const id = generateId("pu_");
     const result = await db.insert(promotionUsage).values({ ...data, id }).returning();
     return result[0];
+  }
+
+  // ============ Widget Sites (Chatvice Top Up v2) ============
+  
+  async getWidgetSite(id: string): Promise<WidgetSite | undefined> {
+    const result = await db.select().from(widgetSites).where(eq(widgetSites.id, id));
+    return result[0];
+  }
+
+  async getWidgetSiteBySiteKey(siteKey: string): Promise<WidgetSite | undefined> {
+    const result = await db.select().from(widgetSites).where(eq(widgetSites.siteKey, siteKey));
+    return result[0];
+  }
+
+  async getWidgetSitesByMerchant(merchantId: string): Promise<WidgetSite[]> {
+    return db.select().from(widgetSites)
+      .where(eq(widgetSites.merchantId, merchantId))
+      .orderBy(desc(widgetSites.createdAt));
+  }
+
+  async createWidgetSite(data: InsertWidgetSite): Promise<WidgetSite> {
+    const id = generateId("site_");
+    const result = await db.insert(widgetSites).values({ ...data, id }).returning();
+    return result[0];
+  }
+
+  async updateWidgetSite(id: string, data: Partial<WidgetSite>): Promise<WidgetSite | undefined> {
+    const result = await db.update(widgetSites)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(widgetSites.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteWidgetSite(id: string): Promise<boolean> {
+    const result = await db.delete(widgetSites).where(eq(widgetSites.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // ============ Site Domains ============
+  
+  async getSiteDomains(siteId: string): Promise<SiteDomain[]> {
+    return db.select().from(siteDomains)
+      .where(eq(siteDomains.siteId, siteId))
+      .orderBy(desc(siteDomains.lastSeenAt));
+  }
+
+  async getCurrentDomain(siteId: string): Promise<SiteDomain | undefined> {
+    const result = await db.select().from(siteDomains)
+      .where(and(
+        eq(siteDomains.siteId, siteId),
+        eq(siteDomains.isCurrent, true)
+      ));
+    return result[0];
+  }
+
+  async upsertSiteDomain(siteId: string, domain: string): Promise<SiteDomain> {
+    // Check if domain already exists for this site
+    const existing = await db.select().from(siteDomains)
+      .where(and(
+        eq(siteDomains.siteId, siteId),
+        eq(siteDomains.domain, domain)
+      ));
+    
+    if (existing[0]) {
+      // Update existing domain - mark as current
+      await db.update(siteDomains)
+        .set({ isCurrent: false })
+        .where(eq(siteDomains.siteId, siteId));
+      
+      const result = await db.update(siteDomains)
+        .set({ lastSeenAt: new Date(), isCurrent: true })
+        .where(eq(siteDomains.id, existing[0].id))
+        .returning();
+      return result[0];
+    } else {
+      // Insert new domain - mark as current, others as not current
+      await db.update(siteDomains)
+        .set({ isCurrent: false })
+        .where(eq(siteDomains.siteId, siteId));
+      
+      const id = generateId("dom_");
+      const result = await db.insert(siteDomains).values({
+        id,
+        siteId,
+        domain,
+        isCurrent: true,
+      }).returning();
+      return result[0];
+    }
+  }
+
+  // ============ Coin Orders ============
+  
+  async getCoinOrder(id: string): Promise<CoinOrder | undefined> {
+    const result = await db.select().from(coinOrders).where(eq(coinOrders.id, id));
+    return result[0];
+  }
+
+  async getCoinOrderByOrderId(orderId: string): Promise<CoinOrder | undefined> {
+    const result = await db.select().from(coinOrders).where(eq(coinOrders.orderId, orderId));
+    return result[0];
+  }
+
+  async getCoinOrdersBySite(siteId: string): Promise<CoinOrder[]> {
+    return db.select().from(coinOrders)
+      .where(eq(coinOrders.siteId, siteId))
+      .orderBy(desc(coinOrders.createdAt));
+  }
+
+  async getCoinOrdersByMerchant(merchantId: string): Promise<CoinOrder[]> {
+    return db.select().from(coinOrders)
+      .where(eq(coinOrders.merchantId, merchantId))
+      .orderBy(desc(coinOrders.createdAt));
+  }
+
+  async createCoinOrder(data: InsertCoinOrder): Promise<CoinOrder> {
+    const id = generateId("co_");
+    const result = await db.insert(coinOrders).values({ ...data, id }).returning();
+    return result[0];
+  }
+
+  async updateCoinOrder(id: string, data: Partial<CoinOrder>): Promise<CoinOrder | undefined> {
+    const result = await db.update(coinOrders)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(coinOrders.id, id))
+      .returning();
+    return result[0];
+  }
+
+  // ============ Topup Nominals ============
+  
+  async getTopupNominals(siteId: string): Promise<TopupNominal[]> {
+    return db.select().from(topupNominals)
+      .where(and(
+        eq(topupNominals.siteId, siteId),
+        eq(topupNominals.isActive, true)
+      ))
+      .orderBy(topupNominals.sortOrder);
+  }
+
+  async createTopupNominal(data: InsertTopupNominal): Promise<TopupNominal> {
+    const id = generateId("nom_");
+    const result = await db.insert(topupNominals).values({ ...data, id }).returning();
+    return result[0];
+  }
+
+  async updateTopupNominal(id: string, data: Partial<TopupNominal>): Promise<TopupNominal | undefined> {
+    const result = await db.update(topupNominals)
+      .set(data)
+      .where(eq(topupNominals.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteTopupNominal(id: string): Promise<boolean> {
+    const result = await db.delete(topupNominals).where(eq(topupNominals.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 }
 
