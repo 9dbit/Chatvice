@@ -20,7 +20,7 @@ import fs from "fs";
 import { processKnowledgeBase, searchKnowledge } from "./embeddings";
 import { extractFAQContent } from "./crawler";
 import { createQRISPayment, checkPaymentStatus, isOnePayConfigured, convertToIDR, formatIDR } from "./onepayClient";
-import { sendVerificationEmail, sendPasswordResetEmail } from "./resendClient";
+import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant } from "@shared/schema";
 import crypto from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
@@ -4008,6 +4008,26 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     } catch (error) {
       console.error("Error updating subscription plan:", error);
       res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ============ RESEND EMAIL TEST ============
+  
+  // Test Resend connection (admin)
+  app.get("/api/admin/test-resend", requireAdmin, async (req, res) => {
+    try {
+      const { client, fromEmail } = await getUncachableResendClient();
+      res.json({ 
+        success: true, 
+        message: "Resend connection successful",
+        fromEmail: fromEmail 
+      });
+    } catch (error: any) {
+      console.error("Resend test error:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error.message || "Failed to connect to Resend" 
+      });
     }
   });
 
