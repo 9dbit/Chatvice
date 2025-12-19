@@ -213,46 +213,65 @@ export default function PricingPage() {
 
   return (
     <PublicPageLayout>
-      {/* Promotional Banner - 1200x300px (4:1 aspect ratio) */}
-      {applicablePromo && (
-        <div 
-          className="relative flex items-center justify-center w-full" 
-          style={{ 
-            // Enforce 4:1 aspect ratio with minimum height of 300px
-            aspectRatio: "4 / 1",
-            minHeight: "300px",
-            maxHeight: "400px",
-            // Use image mode only if we have a valid image URL, otherwise fallback to color mode
-            backgroundColor: (applicablePromo.bannerMode === "image" && applicablePromo.bannerImageUrl) 
-              ? "transparent" 
-              : (applicablePromo.bgColor || "#16a34a"),
-            color: applicablePromo.textColor || "#ffffff"
-          }}
-          data-testid="promo-banner"
-        >
-          {applicablePromo.bannerMode === "image" && applicablePromo.bannerImageUrl && (
-            <img 
-              src={applicablePromo.bannerImageUrl} 
-              alt="" 
-              className="absolute inset-0 w-full h-full object-cover"
-              data-testid="promo-banner-image"
-            />
-          )}
-          <div className="relative max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 flex flex-col items-center justify-center gap-3 text-center">
-            <div className="flex items-center gap-2 text-lg md:text-xl font-bold">
-              <Gift className="w-6 h-6" />
-              <span>{applicablePromo.name}</span>
-            </div>
-            <div className="text-2xl md:text-3xl font-bold">
-              Save {applicablePromo.discountPercent}% with code <code className="bg-white/20 px-3 py-1 rounded font-mono">{applicablePromo.code}</code>
-            </div>
-            <div className="flex items-center gap-1 text-sm opacity-90">
-              <Clock className="w-4 h-4" />
-              <span>Ends in {getPromoRemainingDays(applicablePromo.endDate)} days</span>
-            </div>
+      {/* Promotional Banner - Desktop: 1200x300px (4:1), Mobile: 600x200px (3:1) */}
+      {applicablePromo && (() => {
+        const bannerMode = applicablePromo.bannerMode || "color";
+        const hasImage = applicablePromo.bannerImageUrl;
+        const hasMobileImage = (applicablePromo as any).bannerImageMobileUrl;
+        const showText = bannerMode === "color" || bannerMode === "overlay";
+        const showImage = (bannerMode === "image" || bannerMode === "overlay") && hasImage;
+        
+        return (
+          <div 
+            className="relative flex items-end justify-center w-full overflow-hidden" 
+            style={{ 
+              aspectRatio: "4 / 1",
+              minHeight: "200px",
+              maxHeight: "400px",
+              backgroundColor: showImage ? "transparent" : (applicablePromo.bgColor || "#16a34a"),
+              color: applicablePromo.textColor || "#ffffff"
+            }}
+            data-testid="promo-banner"
+          >
+            {showImage && (
+              <>
+                <img 
+                  src={applicablePromo.bannerImageUrl!} 
+                  alt="" 
+                  className={`absolute inset-0 w-full h-full object-cover ${hasMobileImage ? 'hidden md:block' : ''}`}
+                  data-testid="promo-banner-image"
+                />
+                {hasMobileImage && (
+                  <img 
+                    src={(applicablePromo as any).bannerImageMobileUrl} 
+                    alt="" 
+                    className="absolute inset-0 w-full h-full object-cover md:hidden"
+                    data-testid="promo-banner-image-mobile"
+                  />
+                )}
+              </>
+            )}
+            {bannerMode === "overlay" && showImage && (
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent" />
+            )}
+            {showText && (
+              <div className="relative max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-12 pb-4 sm:pb-6 flex flex-col items-center justify-end gap-1 sm:gap-2 text-center">
+                <div className="flex items-center gap-2 text-base sm:text-lg md:text-xl font-bold">
+                  <Gift className="w-5 h-5 sm:w-6 sm:h-6" />
+                  <span>{applicablePromo.name}</span>
+                </div>
+                <div className="text-lg sm:text-2xl md:text-3xl font-bold">
+                  Save {applicablePromo.discountPercent}% with code <code className="bg-white/20 px-2 sm:px-3 py-1 rounded font-mono">{applicablePromo.code}</code>
+                </div>
+                <div className="flex items-center gap-1 text-xs sm:text-sm opacity-90">
+                  <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span>Ends in {getPromoRemainingDays(applicablePromo.endDate)} days</span>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
       
       <section className="bg-purple-600 text-white py-20">
         <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">

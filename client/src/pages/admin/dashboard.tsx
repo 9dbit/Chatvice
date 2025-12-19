@@ -4319,9 +4319,11 @@ function PricingTab({ toast }: { toast: any }) {
   const [promoShowUpsell, setPromoShowUpsell] = useState(true);
   const [promoBgColor, setPromoBgColor] = useState("#16a34a");
   const [promoTextColor, setPromoTextColor] = useState("#ffffff");
-  const [promoBannerMode, setPromoBannerMode] = useState<"color" | "image">("color");
+  const [promoBannerMode, setPromoBannerMode] = useState<"color" | "image" | "overlay">("color");
   const [promoBannerImageUrl, setPromoBannerImageUrl] = useState("");
+  const [promoBannerImageMobileUrl, setPromoBannerImageMobileUrl] = useState("");
   const [uploadingBannerImage, setUploadingBannerImage] = useState(false);
+  const [uploadingMobileBannerImage, setUploadingMobileBannerImage] = useState(false);
   
   // Fetch subscription plans from database
   const { data: plans = [], isLoading: plansLoading } = useQuery<any[]>({
@@ -4482,6 +4484,7 @@ function PricingTab({ toast }: { toast: any }) {
     setPromoTextColor("#ffffff");
     setPromoBannerMode("color");
     setPromoBannerImageUrl("");
+    setPromoBannerImageMobileUrl("");
   };
 
   const openCreatePromo = () => {
@@ -4510,14 +4513,16 @@ function PricingTab({ toast }: { toast: any }) {
     setPromoShowUpsell(promo.showUpsell);
     setPromoBgColor(promo.bgColor || "#16a34a");
     setPromoTextColor(promo.textColor || "#ffffff");
-    setPromoBannerMode((promo.bannerMode as "color" | "image") || "color");
+    setPromoBannerMode((promo.bannerMode as "color" | "image" | "overlay") || "color");
     setPromoBannerImageUrl(promo.bannerImageUrl || "");
+    setPromoBannerImageMobileUrl((promo as any).bannerImageMobileUrl || "");
     setPromoDialogOpen(true);
   };
 
   const handleSavePromo = () => {
-    // If image mode is selected but no image uploaded, fall back to color mode
-    const effectiveBannerMode = promoBannerMode === "image" && !promoBannerImageUrl ? "color" : promoBannerMode;
+    // If image/overlay mode is selected but no image uploaded, fall back to color mode
+    const needsImage = promoBannerMode === "image" || promoBannerMode === "overlay";
+    const effectiveBannerMode = needsImage && !promoBannerImageUrl ? "color" : promoBannerMode;
     
     const data = {
       code: promoCode.toUpperCase(),
@@ -4537,6 +4542,7 @@ function PricingTab({ toast }: { toast: any }) {
       textColor: promoTextColor,
       bannerMode: effectiveBannerMode,
       bannerImageUrl: promoBannerImageUrl || null,
+      bannerImageMobileUrl: promoBannerImageMobileUrl || null,
     };
     if (editingPromo) {
       updatePromoMutation.mutate({ id: editingPromo.id, data });
@@ -4581,6 +4587,45 @@ function PricingTab({ toast }: { toast: any }) {
       toast({ title: "Error", description: "Failed to upload image", variant: "destructive" });
     } finally {
       setUploadingBannerImage(false);
+    }
+  };
+
+  const handleMobileBannerImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({ title: "Error", description: "Please upload an image file", variant: "destructive" });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Error", description: "Image must be less than 5MB", variant: "destructive" });
+      return;
+    }
+
+    setUploadingMobileBannerImage(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/admin/upload-promo-banner', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+      
+      const result = await response.json();
+      setPromoBannerImageMobileUrl(result.url);
+      toast({ title: "Success", description: "Mobile banner image uploaded" });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to upload image", variant: "destructive" });
+    } finally {
+      setUploadingMobileBannerImage(false);
     }
   };
 
@@ -4980,9 +5025,9 @@ function PricingTab({ toast }: { toast: any }) {
             </div>
             {promoIsPublic && (
               <div className="space-y-4 pt-2 border-t">
-                <Label className="text-sm font-medium">Banner Style (for public display)</Label>
+                <Label className="text-sm font-medium">Banner Display Mode</Label>
                 
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-4">
                   <div className="flex items-center gap-2">
                     <input 
                       type="radio" 
@@ -4992,7 +5037,7 @@ function PricingTab({ toast }: { toast: any }) {
                       onChange={() => setPromoBannerMode("color")}
                       data-testid="radio-banner-color"
                     />
-                    <Label htmlFor="banner-color" className="text-sm cursor-pointer">Solid Color</Label>
+                    <Label htmlFor="banner-color" className="text-sm cursor-pointer">Color + Text</Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <input 
@@ -5003,7 +5048,18 @@ function PricingTab({ toast }: { toast: any }) {
                       onChange={() => setPromoBannerMode("image")}
                       data-testid="radio-banner-image"
                     />
-                    <Label htmlFor="banner-image" className="text-sm cursor-pointer">Banner Image</Label>
+                    <Label htmlFor="banner-image" className="text-sm cursor-pointer">Image Only</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="radio" 
+                      id="banner-overlay" 
+                      name="bannerMode" 
+                      checked={promoBannerMode === "overlay"} 
+                      onChange={() => setPromoBannerMode("overlay")}
+                      data-testid="radio-banner-overlay"
+                    />
+                    <Label htmlFor="banner-overlay" className="text-sm cursor-pointer">Image + Text Overlay</Label>
                   </div>
                 </div>
 
@@ -5050,19 +5106,29 @@ function PricingTab({ toast }: { toast: any }) {
                       </div>
                     </div>
                     <div 
-                      className="p-3 rounded-md text-center text-sm font-medium" 
-                      style={{ backgroundColor: promoBgColor, color: promoTextColor }}
+                      className="p-4 rounded-md flex flex-col items-center justify-end text-sm font-medium" 
+                      style={{ backgroundColor: promoBgColor, color: promoTextColor, aspectRatio: "4/1" }}
                       data-testid="promo-color-preview"
                     >
-                      Preview: {promoName || "Promotion Name"} - Save {promoDiscountPercent}% with code {promoCode || "CODE"}
+                      <div className="text-center">
+                        <div className="font-bold">{promoName || "Promotion Name"}</div>
+                        <div>Save {promoDiscountPercent}% with code {promoCode || "CODE"}</div>
+                      </div>
                     </div>
                   </div>
                 )}
 
-                {promoBannerMode === "image" && (
-                  <div className="space-y-3">
+                {(promoBannerMode === "image" || promoBannerMode === "overlay") && (
+                  <div className="space-y-4">
+                    <div className="p-3 bg-muted/50 rounded-md text-xs text-muted-foreground space-y-1">
+                      <div className="font-medium">Recommended Image Sizes:</div>
+                      <div>Desktop: 1200x300px (4:1 ratio)</div>
+                      <div>Mobile: 600x200px (3:1 ratio) - Optional, will use desktop image if not provided</div>
+                      <div>Formats: JPG, PNG, GIF, WebP (max 5MB)</div>
+                    </div>
+                    
                     <div>
-                      <Label className="text-xs text-muted-foreground">Banner Image (Recommended: 1200x300px, aspect ratio 4:1)</Label>
+                      <Label className="text-xs text-muted-foreground">Desktop Banner (1200x300px)</Label>
                       <div className="flex items-center gap-2 mt-1">
                         <Input 
                           type="file" 
@@ -5077,14 +5143,25 @@ function PricingTab({ toast }: { toast: any }) {
                     </div>
                     {promoBannerImageUrl && (
                       <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Preview:</Label>
+                        <Label className="text-xs text-muted-foreground">Desktop Preview:</Label>
                         <div className="relative rounded-md overflow-hidden" style={{ aspectRatio: "4/1" }}>
                           <img 
                             src={promoBannerImageUrl} 
-                            alt="Banner preview" 
+                            alt="Desktop banner preview" 
                             className="w-full h-full object-cover"
                             data-testid="promo-banner-preview"
                           />
+                          {promoBannerMode === "overlay" && (
+                            <div 
+                              className="absolute inset-0 bg-black/40 flex flex-col items-center justify-end pb-4"
+                              style={{ color: promoTextColor }}
+                            >
+                              <div className="text-center">
+                                <div className="font-bold text-lg">{promoName || "Promotion Name"}</div>
+                                <div>Save {promoDiscountPercent}% with code {promoCode || "CODE"}</div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                         <Button 
                           variant="outline" 
@@ -5092,7 +5169,7 @@ function PricingTab({ toast }: { toast: any }) {
                           onClick={() => setPromoBannerImageUrl("")}
                           data-testid="button-remove-banner"
                         >
-                          <X className="w-3 h-3 mr-1" /> Remove Image
+                          <X className="w-3 h-3 mr-1" /> Remove Desktop Image
                         </Button>
                       </div>
                     )}
@@ -5101,28 +5178,78 @@ function PricingTab({ toast }: { toast: any }) {
                         className="border-2 border-dashed rounded-md flex items-center justify-center text-muted-foreground text-sm" 
                         style={{ aspectRatio: "4/1" }}
                       >
-                        Upload an image to preview
+                        Upload desktop image to preview
                       </div>
                     )}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Text Color (overlay)</Label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <input 
-                            type="color" 
-                            value={promoTextColor} 
-                            onChange={(e) => setPromoTextColor(e.target.value)}
-                            className="w-10 h-9 rounded border cursor-pointer"
-                          />
-                          <Input 
-                            value={promoTextColor} 
-                            onChange={(e) => setPromoTextColor(e.target.value)}
-                            placeholder="#ffffff"
-                            className="flex-1"
-                          />
-                        </div>
+                    
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Mobile Banner (600x200px) - Optional</Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Input 
+                          type="file" 
+                          accept="image/*" 
+                          onChange={handleMobileBannerImageUpload}
+                          disabled={uploadingMobileBannerImage}
+                          className="flex-1"
+                          data-testid="input-promo-mobile-banner-upload"
+                        />
+                        {uploadingMobileBannerImage && <RefreshCw className="w-4 h-4 animate-spin" />}
                       </div>
                     </div>
+                    {promoBannerImageMobileUrl && (
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Mobile Preview:</Label>
+                        <div className="relative rounded-md overflow-hidden max-w-[300px]" style={{ aspectRatio: "3/1" }}>
+                          <img 
+                            src={promoBannerImageMobileUrl} 
+                            alt="Mobile banner preview" 
+                            className="w-full h-full object-cover"
+                            data-testid="promo-mobile-banner-preview"
+                          />
+                          {promoBannerMode === "overlay" && (
+                            <div 
+                              className="absolute inset-0 bg-black/40 flex flex-col items-center justify-end pb-2"
+                              style={{ color: promoTextColor }}
+                            >
+                              <div className="text-center text-xs">
+                                <div className="font-bold">{promoName || "Promo"}</div>
+                                <div>Save {promoDiscountPercent}%</div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => setPromoBannerImageMobileUrl("")}
+                          data-testid="button-remove-mobile-banner"
+                        >
+                          <X className="w-3 h-3 mr-1" /> Remove Mobile Image
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {promoBannerMode === "overlay" && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Text Color (overlay)</Label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <input 
+                              type="color" 
+                              value={promoTextColor} 
+                              onChange={(e) => setPromoTextColor(e.target.value)}
+                              className="w-10 h-9 rounded border cursor-pointer"
+                            />
+                            <Input 
+                              value={promoTextColor} 
+                              onChange={(e) => setPromoTextColor(e.target.value)}
+                              placeholder="#ffffff"
+                              className="flex-1"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

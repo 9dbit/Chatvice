@@ -908,8 +908,9 @@ export const promotions = pgTable("promotions", {
   showUpsell: boolean("show_upsell").default(true), // show "Save X%" badge on pricing
   bgColor: varchar("bg_color", { length: 50 }).default("#16a34a"), // banner background color
   textColor: varchar("text_color", { length: 50 }).default("#ffffff"), // banner text color
-  bannerMode: varchar("banner_mode", { length: 20 }).default("color"), // 'color' or 'image'
-  bannerImageUrl: text("banner_image_url"), // uploaded image URL for image mode
+  bannerMode: varchar("banner_mode", { length: 20 }).default("color"), // 'color' = solid color + text, 'image' = image only, 'overlay' = image + text overlay
+  bannerImageUrl: text("banner_image_url"), // uploaded image URL for image/overlay mode (Desktop: 1200x300px)
+  bannerImageMobileUrl: text("banner_image_mobile_url"), // mobile version image URL (600x200px, 3:1 ratio)
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

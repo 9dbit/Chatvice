@@ -607,68 +607,82 @@ export default function BillingPage() {
           </div>
         </div>
 
-        {/* Promo Banner - 1200x300px (4:1 aspect ratio) */}
+        {/* Promo Banner - Desktop: 1200x300px (4:1), Mobile: 600x200px (3:1) */}
         {(applicablePromo || validatedPromo) && (() => {
-          // Only use image mode if we have a valid image URL
-          const useImageMode = applicablePromo?.bannerMode === "image" && applicablePromo?.bannerImageUrl;
-          const hasCustomColor = applicablePromo?.bgColor;
+          const promo = applicablePromo || validatedPromo;
+          const bannerMode = (promo as any)?.bannerMode || "color";
+          const hasImage = (promo as any)?.bannerImageUrl;
+          const hasMobileImage = (promo as any)?.bannerImageMobileUrl;
+          const showText = bannerMode === "color" || bannerMode === "overlay";
+          const showImage = (bannerMode === "image" || bannerMode === "overlay") && hasImage;
+          const hasCustomColor = (promo as any)?.bgColor;
+          const textColor = (promo as any)?.textColor;
+          const isDefaultStyle = !showImage && !hasCustomColor;
           
           return (
             <div 
-              className="mb-4 rounded-lg flex flex-col items-center justify-center gap-3 relative overflow-hidden text-center w-full" 
+              className="mb-4 rounded-lg flex flex-col items-end justify-end gap-2 relative overflow-hidden text-center w-full" 
               style={{
-                // Enforce 4:1 aspect ratio with minimum height of 300px
                 aspectRatio: "4 / 1",
-                minHeight: "300px",
-                maxHeight: "350px",
-                ...(useImageMode ? {
-                  color: applicablePromo.textColor || "#ffffff"
+                minHeight: "150px",
+                maxHeight: "300px",
+                ...(showImage ? {
+                  color: textColor || "#ffffff"
                 } : hasCustomColor ? {
-                  backgroundColor: applicablePromo.bgColor!,
-                  color: applicablePromo.textColor || "#ffffff"
+                  backgroundColor: hasCustomColor,
+                  color: textColor || "#ffffff"
                 } : {})
               }}
               data-testid="promo-banner"
             >
-              {useImageMode && (
-                <img 
-                  src={applicablePromo.bannerImageUrl!} 
-                  alt="" 
-                  className="absolute inset-0 w-full h-full object-cover"
-                  data-testid="promo-banner-image"
-                />
+              {showImage && (
+                <>
+                  <img 
+                    src={hasImage} 
+                    alt="" 
+                    className={`absolute inset-0 w-full h-full object-cover rounded-lg ${hasMobileImage ? 'hidden md:block' : ''}`}
+                    data-testid="promo-banner-image"
+                  />
+                  {hasMobileImage && (
+                    <img 
+                      src={(promo as any).bannerImageMobileUrl} 
+                      alt="" 
+                      className="absolute inset-0 w-full h-full object-cover rounded-lg md:hidden"
+                      data-testid="promo-banner-image-mobile"
+                    />
+                  )}
+                </>
               )}
-              {!useImageMode && !hasCustomColor && (
+              {bannerMode === "overlay" && showImage && (
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent rounded-lg" />
+              )}
+              {isDefaultStyle && (
                 <div className="absolute inset-0 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg" />
               )}
-              <div className="flex items-center gap-2 relative z-10 text-lg font-bold">
-                <Gift className={`w-6 h-6 ${hasCustomColor || useImageMode ? "" : "text-green-600"}`} />
-                <span className={hasCustomColor || useImageMode ? "" : "text-green-700 dark:text-green-400"}>
-                  {validatedPromo ? (
-                    <>Promo Applied!</>
-                  ) : applicablePromo ? (
-                    <>{applicablePromo.name}</>
-                  ) : null}
-                </span>
-              </div>
-              <div className={`relative z-10 text-xl md:text-2xl font-bold ${hasCustomColor || useImageMode ? "" : "text-green-700 dark:text-green-400"}`}>
-                {validatedPromo ? (
-                  <>Save {validatedPromo.discountPercent}% with code <code className="bg-white/20 px-2 py-0.5 rounded font-mono">{validatedPromo.code}</code></>
-                ) : applicablePromo ? (
-                  <>Save {applicablePromo.discountPercent}% with code <code className="bg-white/20 px-2 py-0.5 rounded font-mono">{applicablePromo.code}</code></>
-                ) : null}
-              </div>
-              {validatedPromo && (
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={() => { setValidatedPromo(null); setPromoCodeInput(""); }}
-                  className="relative z-10 mt-2"
-                  data-testid="button-remove-promo"
-                >
-                  <XCircle className="w-4 h-4 mr-1" />
-                  Remove Code
-                </Button>
+              {(showText || isDefaultStyle) && (
+                <div className="relative z-10 w-full pb-3 sm:pb-4 px-4">
+                  <div className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold">
+                    <Gift className={`w-4 h-4 sm:w-5 sm:h-5 ${isDefaultStyle ? "text-green-600" : ""}`} />
+                    <span className={isDefaultStyle ? "text-green-700 dark:text-green-400" : ""}>
+                      {validatedPromo ? "Promo Applied!" : promo?.name}
+                    </span>
+                  </div>
+                  <div className={`text-base sm:text-lg md:text-xl font-bold ${isDefaultStyle ? "text-green-700 dark:text-green-400" : ""}`}>
+                    Save {promo?.discountPercent}% with code <code className="bg-white/20 px-2 py-0.5 rounded font-mono">{promo?.code}</code>
+                  </div>
+                  {validatedPromo && (
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => { setValidatedPromo(null); setPromoCodeInput(""); }}
+                      className="mt-2"
+                      data-testid="button-remove-promo"
+                    >
+                      <XCircle className="w-4 h-4 mr-1" />
+                      Remove Code
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
           );
