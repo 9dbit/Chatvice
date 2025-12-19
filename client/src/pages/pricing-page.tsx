@@ -255,15 +255,15 @@ export default function PricingPage() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent" />
             )}
             {showText && (
-              <div className="relative max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-12 pb-4 sm:pb-6 flex flex-col items-center justify-end gap-1 sm:gap-2 text-center">
-                <div className="flex items-center gap-2 text-base sm:text-lg md:text-xl font-bold">
-                  <Gift className="w-5 h-5 sm:w-6 sm:h-6" />
+              <div className="relative w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-12 pb-4 sm:pb-6 flex flex-col items-start justify-end gap-1 text-left">
+                <h2 className="flex items-center gap-2 text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold drop-shadow-lg">
+                  <Gift className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8" />
                   <span>{applicablePromo.name}</span>
-                </div>
-                <div className="text-lg sm:text-2xl md:text-3xl font-bold">
-                  Save {applicablePromo.discountPercent}% with code <code className="bg-white/20 px-2 sm:px-3 py-1 rounded font-mono">{applicablePromo.code}</code>
-                </div>
-                <div className="flex items-center gap-1 text-xs sm:text-sm opacity-90">
+                </h2>
+                <p className="text-sm sm:text-base md:text-lg font-medium opacity-95 max-w-xl break-words">
+                  Save {applicablePromo.discountPercent}% with code <code className="bg-white/20 px-2 py-0.5 rounded font-mono font-bold">{applicablePromo.code}</code>
+                </p>
+                <div className="flex items-center gap-1 text-xs sm:text-sm opacity-80 mt-1">
                   <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
                   <span>Ends in {getPromoRemainingDays(applicablePromo.endDate)} days</span>
                 </div>

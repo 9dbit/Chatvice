@@ -5153,13 +5153,11 @@ function PricingTab({ toast }: { toast: any }) {
                           />
                           {promoBannerMode === "overlay" && (
                             <div 
-                              className="absolute inset-0 bg-black/40 flex flex-col items-center justify-end pb-4"
+                              className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent flex flex-col items-start justify-end p-4"
                               style={{ color: promoTextColor }}
                             >
-                              <div className="text-center">
-                                <div className="font-bold text-lg">{promoName || "Promotion Name"}</div>
-                                <div>Save {promoDiscountPercent}% with code {promoCode || "CODE"}</div>
-                              </div>
+                              <h3 className="font-extrabold text-lg sm:text-xl drop-shadow-lg">{promoName || "Promotion Name"}</h3>
+                              <p className="text-sm opacity-95 max-w-xs break-words">Save {promoDiscountPercent}% with code <code className="bg-white/20 px-1.5 py-0.5 rounded font-mono font-bold">{promoCode || "CODE"}</code></p>
                             </div>
                           )}
                         </div>
@@ -5208,13 +5206,11 @@ function PricingTab({ toast }: { toast: any }) {
                           />
                           {promoBannerMode === "overlay" && (
                             <div 
-                              className="absolute inset-0 bg-black/40 flex flex-col items-center justify-end pb-2"
+                              className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent flex flex-col items-start justify-end p-2"
                               style={{ color: promoTextColor }}
                             >
-                              <div className="text-center text-xs">
-                                <div className="font-bold">{promoName || "Promo"}</div>
-                                <div>Save {promoDiscountPercent}%</div>
-                              </div>
+                              <h4 className="font-extrabold text-xs drop-shadow">{promoName || "Promo"}</h4>
+                              <p className="text-[10px] opacity-95 break-words">Save {promoDiscountPercent}%</p>
                             </div>
                           )}
                         </div>

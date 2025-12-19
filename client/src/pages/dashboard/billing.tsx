@@ -660,16 +660,14 @@ export default function BillingPage() {
                 <div className="absolute inset-0 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg" />
               )}
               {(showText || isDefaultStyle) && (
-                <div className="relative z-10 w-full pb-3 sm:pb-4 px-4">
-                  <div className="flex items-center justify-center gap-2 text-sm sm:text-base font-bold">
-                    <Gift className={`w-4 h-4 sm:w-5 sm:h-5 ${isDefaultStyle ? "text-green-600" : ""}`} />
-                    <span className={isDefaultStyle ? "text-green-700 dark:text-green-400" : ""}>
-                      {validatedPromo ? "Promo Applied!" : promo?.name}
-                    </span>
-                  </div>
-                  <div className={`text-base sm:text-lg md:text-xl font-bold ${isDefaultStyle ? "text-green-700 dark:text-green-400" : ""}`}>
-                    Save {promo?.discountPercent}% with code <code className="bg-white/20 px-2 py-0.5 rounded font-mono">{promo?.code}</code>
-                  </div>
+                <div className="relative z-10 w-full pb-3 sm:pb-4 px-4 flex flex-col items-start text-left">
+                  <h3 className={`flex items-center gap-2 text-lg sm:text-xl md:text-2xl font-extrabold ${isDefaultStyle ? "text-green-700 dark:text-green-400" : ""}`}>
+                    <Gift className={`w-5 h-5 sm:w-6 sm:h-6 ${isDefaultStyle ? "text-green-600" : ""}`} />
+                    <span>{validatedPromo ? "Promo Applied!" : promo?.name}</span>
+                  </h3>
+                  <p className={`text-sm sm:text-base font-medium opacity-95 max-w-md break-words ${isDefaultStyle ? "text-green-700 dark:text-green-400" : ""}`}>
+                    Save {promo?.discountPercent}% with code <code className="bg-white/20 dark:bg-white/10 px-2 py-0.5 rounded font-mono font-bold">{promo?.code}</code>
+                  </p>
                   {validatedPromo && (
                     <Button 
                       size="sm" 
