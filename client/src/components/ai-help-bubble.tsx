@@ -529,7 +529,7 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
           )}
           
           {/* Combined Promo Image + Welcome Bubble container with smooth toggle */}
-          {showWelcomeBubble && !isHovered && bubbleEnabled && (
+          {showWelcomeBubble && bubbleEnabled && (
             <div 
               className="absolute bottom-full right-0 mb-2 touch-pan-y"
               style={{
@@ -590,7 +590,7 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
           )}
           
           {/* Collapsed state indicator - tap to expand (mobile only) */}
-          {showWelcomeBubble && bubbleCollapsed && bubbleEnabled && !isHovered && (
+          {showWelcomeBubble && bubbleCollapsed && bubbleEnabled && (
             <button
               onClick={toggleBubbleCollapse}
               className="absolute bottom-full right-0 mb-2 w-56 py-2 bg-card/90 backdrop-blur-sm rounded-xl border border-border shadow-lg flex items-center justify-center gap-2 transition-all duration-300 md:hidden"
