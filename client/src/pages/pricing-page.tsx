@@ -216,7 +216,7 @@ export default function PricingPage() {
 
   return (
     <PublicPageLayout>
-      {/* Promotional Banner - Desktop: 1200x300px (4:1), Mobile: 600x200px (3:1) */}
+      {/* Promotional Banner - Desktop: 1200x300px (4:1), Mobile: 426x182px */}
       {applicablePromo && (() => {
         const bannerMode = applicablePromo.bannerMode || "color";
         const hasImage = applicablePromo.bannerImageUrl;
@@ -226,11 +226,8 @@ export default function PricingPage() {
         
         return (
           <div 
-            className="relative flex items-end justify-center w-full overflow-hidden" 
+            className="relative flex items-end justify-center w-full overflow-hidden aspect-[426/182] md:aspect-[4/1]" 
             style={{ 
-              aspectRatio: "4 / 1",
-              minHeight: "200px",
-              maxHeight: "400px",
               backgroundColor: showImage ? "transparent" : (applicablePromo.bgColor || "#16a34a"),
               color: applicablePromo.textColor || "#ffffff"
             }}

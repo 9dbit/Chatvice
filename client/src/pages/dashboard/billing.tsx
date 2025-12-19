@@ -607,7 +607,7 @@ export default function BillingPage() {
           </div>
         </div>
 
-        {/* Promo Banner - Desktop: 1200x300px (4:1), Mobile: 600x200px (3:1) */}
+        {/* Promo Banner - Desktop: 1200x300px (4:1), Mobile: 426x182px */}
         {(applicablePromo || validatedPromo) && (() => {
           const promo = applicablePromo || validatedPromo;
           const bannerMode = (promo as any)?.bannerMode || "color";
@@ -621,11 +621,8 @@ export default function BillingPage() {
           
           return (
             <div 
-              className="mb-4 rounded-lg flex flex-col items-end justify-end gap-2 relative overflow-hidden text-center w-full" 
+              className="mb-4 rounded-lg flex flex-col items-end justify-end gap-2 relative overflow-hidden text-center w-full aspect-[426/182] md:aspect-[4/1]" 
               style={{
-                aspectRatio: "4 / 1",
-                minHeight: "150px",
-                maxHeight: "300px",
                 ...(showImage ? {
                   color: textColor || "#ffffff"
                 } : hasCustomColor ? {
