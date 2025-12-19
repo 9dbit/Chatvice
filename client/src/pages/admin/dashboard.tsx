@@ -5123,7 +5123,7 @@ function PricingTab({ toast }: { toast: any }) {
                     <div className="p-3 bg-muted/50 rounded-md text-xs text-muted-foreground space-y-1">
                       <div className="font-medium">Recommended Image Sizes:</div>
                       <div>Desktop: 1200x300px (4:1 ratio)</div>
-                      <div>Mobile: 600x200px (3:1 ratio) - Optional, will use desktop image if not provided</div>
+                      <div>Mobile: 426x182px - Optional, will use desktop image if not provided</div>
                       <div>Formats: JPG, PNG, GIF, WebP (max 5MB)</div>
                     </div>
                     
@@ -5181,7 +5181,7 @@ function PricingTab({ toast }: { toast: any }) {
                     )}
                     
                     <div>
-                      <Label className="text-xs text-muted-foreground">Mobile Banner (600x200px) - Optional</Label>
+                      <Label className="text-xs text-muted-foreground">Mobile Banner (426x182px) - Optional</Label>
                       <div className="flex items-center gap-2 mt-1">
                         <Input 
                           type="file" 
