@@ -927,8 +927,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   return (
     <div
       className={`${
-        embedded ? "w-full h-full" : `${positionClass} bottom-5 right-5 w-[360px] h-[520px] z-50`
+        embedded 
+          ? "w-full h-full" 
+          : `${positionClass} bottom-5 right-5 w-[360px] h-[520px] z-50 animate-in slide-in-from-bottom-5 fade-in duration-300`
       } bg-card rounded-2xl shadow-xl overflow-hidden flex flex-col border border-card-border`}
+      style={{
+        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+      }}
       data-testid="widget-container"
     >
       <div

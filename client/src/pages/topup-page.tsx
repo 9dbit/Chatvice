@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Coins, QrCode, CreditCard, Wallet, Building2, ArrowLeft, CheckCircle2, XCircle, Clock, AlertTriangle } from "lucide-react";
+import { Loader2, Coins, QrCode, CreditCard, Wallet, Building2, ArrowLeft, CheckCircle2, XCircle, Clock, AlertTriangle, ExternalLink } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 interface Nominal {
@@ -362,6 +362,25 @@ export default function TopupPage() {
                 <span className="text-sm">
                   Berlaku hingga: {expiryTime.toLocaleString("id-ID")}
                 </span>
+              </div>
+
+              {/* Kompas Pay Deep Link for Mobile */}
+              <div className="space-y-3">
+                <Button
+                  variant="outline"
+                  className="w-full flex items-center justify-center gap-2"
+                  onClick={() => {
+                    const deepLink = `https://pay.kompas.id/pay?order_id=${orderId}&amount=${selectedNominal?.amount}`;
+                    window.open(deepLink, "_blank");
+                  }}
+                  data-testid="button-kompaspay-link"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Buka Kompas Pay
+                </Button>
+                <p className="text-xs text-center text-muted-foreground">
+                  Atau buka aplikasi Kompas Pay dan scan QR code di atas
+                </p>
               </div>
 
               {statusQuery.isRefetching && (
