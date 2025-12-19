@@ -43,8 +43,27 @@ Chatvice is a monorepo application structured with `/client`, `/server`, and `/s
 - **Blog System**: Blog at /blog with individual article pages (/blog/:slug). Articles stored in blog-data.ts with SEO meta descriptions and hero images.
 - **Promotional Discount System**: Complete promo code system with admin CRUD management, public/private visibility, plan targeting (all/starter/pro/enterprise/upgrade), billing cycle restrictions (both/monthly/annual), max usage limits, date validity, usage tracking per merchant. Dual-mode promotional banners support solid color backgrounds or custom image uploads (1200x300px, 4:1 aspect ratio, JPG/PNG/GIF/WebP). Frontend integration on pricing page and merchant billing page with defensive fallback to color mode when no image is provided. Promo codes passed to checkout for backend billing calculations.
 
+**Chatvice Top Up v2 (Multi-Tenant Payment System)**:
+- Multi-tenant coin top-up system for widget-embedded game/app monetization
+- Widget sites management with domain tracking (widget_sites, site_domains tables)
+- JWT-based SSO: Token generated on /api/start-topup, validated on /api/topup/verify
+- Token payload: merchant_id, site_id, site_code, current_domain, user_id, return_url (30 min expiry)
+- Order ID format: CVT-{siteCode}-{domTag}-{timestamp}-{rand} (e.g., CVT-MYGAM-EXAMP-1703001234567-A1B2)
+- Payment flow: Widget Init → Start TopUp → Verify Token → Select Nominal → Create Order → Payment → Webhook
+- API Endpoints:
+  - POST /api/widget/init: Initialize widget, track domain
+  - POST /api/start-topup: Generate JWT token and redirect URL
+  - GET /api/topup/verify: Validate token, return nominals and payment channels
+  - POST /api/payment/create-order: Create coin order with payment data
+  - GET /api/payment/status: Check order status (polling every 5s)
+  - POST /webhook/kompaspay: Kompas Pay callback (placeholder for production)
+- Default nominals: 25K (25 coins), 50K (50+5), 100K (100+15), 200K (200+40), 500K (500+125)
+- Payment channels: AUTO, QRIS, VA (Virtual Account), EWALLET, BANK
+- TopUp UI page at /topup with Indonesian language
+- Designed for pay.chatvice.com subdomain (currently same domain with PAYMENT_BASE_URL env var)
+
 **Data Model Highlights**:
-Core entities include Merchants, Supervisors, Sessions, Messages (with `clientMessageId` for optimistic UI reconciliation), Triggers, Knowledge Base content (with `agentId` scoping), Knowledge Chunks, Notifications, Subscription Plans, Merchant Subscriptions, Agents, and Sources. New tables support `supervisor_roles`, `shifts`, `shift_assignments`, `work_reports`, `product_cards`, `product_card_buttons`, `quick_replies`, `chat_buttons`, `welcome_bubbles`, and `notification_settings`.
+Core entities include Merchants, Supervisors, Sessions, Messages (with `clientMessageId` for optimistic UI reconciliation), Triggers, Knowledge Base content (with `agentId` scoping), Knowledge Chunks, Notifications, Subscription Plans, Merchant Subscriptions, Agents, and Sources. New tables support `supervisor_roles`, `shifts`, `shift_assignments`, `work_reports`, `product_cards`, `product_card_buttons`, `quick_replies`, `chat_buttons`, `welcome_bubbles`, `notification_settings`, `widget_sites`, `site_domains`, `coin_orders`, and `topup_nominals`.
 
 **Chat Widget Message Reconciliation**:
 - Widget uses optimistic updates with `pendingMessages` for immediate UI feedback

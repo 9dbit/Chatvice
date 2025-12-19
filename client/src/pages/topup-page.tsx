@@ -63,7 +63,7 @@ export default function TopupPage() {
   const [token, setToken] = useState<string>("");
   const [step, setStep] = useState<"loading" | "select" | "payment" | "status" | "error">("loading");
   const [selectedNominal, setSelectedNominal] = useState<Nominal | null>(null);
-  const [selectedChannel, setSelectedChannel] = useState<string>("AUTO");
+  const [selectedChannel, setSelectedChannel] = useState<string>("QRIS");
   const [orderId, setOrderId] = useState<string>("");
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>("");
@@ -270,12 +270,12 @@ export default function TopupPage() {
                 Metode Pembayaran
               </CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-3">
-              {["AUTO", "QRIS", "VA", "EWALLET"].map((channel) => (
+            <CardContent className="space-y-3">
+              {data.payment_channels.map((channel) => (
                 <div
                   key={channel}
                   onClick={() => setSelectedChannel(channel)}
-                  className={`p-3 rounded-lg border-2 cursor-pointer transition-all hover-elevate flex items-center gap-2 ${
+                  className={`p-4 rounded-lg border-2 cursor-pointer transition-all hover-elevate flex items-center gap-3 ${
                     selectedChannel === channel
                       ? "border-primary bg-primary/5"
                       : "border-border hover:border-primary/50"
@@ -283,9 +283,12 @@ export default function TopupPage() {
                   data-testid={`channel-${channel.toLowerCase()}`}
                 >
                   <PaymentChannelIcon channel={channel} />
-                  <span className="font-medium">
-                    {channel === "AUTO" ? "Otomatis" : channel}
-                  </span>
+                  <div>
+                    <span className="font-medium">{channel}</span>
+                    {channel === "QRIS" && (
+                      <p className="text-sm text-muted-foreground">Bayar dengan scan QR Code</p>
+                    )}
+                  </div>
                 </div>
               ))}
             </CardContent>
