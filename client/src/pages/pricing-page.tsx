@@ -13,7 +13,9 @@ import {
   HelpCircle,
   Gift,
   Clock,
+  Copy,
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import PublicPageLayout from "./public-layout";
 import {
   Tooltip,
@@ -39,6 +41,7 @@ interface ActivePromotion {
 
 export default function PricingPage() {
   const [isYearly, setIsYearly] = useState(false);
+  const { toast } = useToast();
   
   const { data: platformSettings } = useQuery({
     queryKey: ["/api/platform-settings"],
@@ -260,9 +263,25 @@ export default function PricingPage() {
                   <Gift className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8" />
                   <span>{applicablePromo.name}</span>
                 </h2>
-                <p className="text-sm sm:text-base md:text-lg font-medium opacity-95 max-w-xl break-words">
-                  Save {applicablePromo.discountPercent}% with code <code className="bg-white/20 px-2 py-0.5 rounded font-mono font-bold">{applicablePromo.code}</code>
+                <p className="text-sm sm:text-base md:text-lg font-medium opacity-95">
+                  Save {applicablePromo.discountPercent}% with code
                 </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <code className="bg-white/20 px-3 py-1 rounded font-mono font-bold text-sm sm:text-base">{applicablePromo.code}</code>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 bg-white/10 border-white/30 hover:bg-white/20 text-inherit"
+                    onClick={() => {
+                      navigator.clipboard.writeText(applicablePromo.code);
+                      toast({ title: "Code copied!", description: `${applicablePromo.code} copied to clipboard` });
+                    }}
+                    data-testid="button-copy-promo-code"
+                  >
+                    <Copy className="w-3 h-3 mr-1" />
+                    Copy
+                  </Button>
+                </div>
                 <div className="flex items-center gap-1 text-xs sm:text-sm opacity-80 mt-1">
                   <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
                   <span>Ends in {getPromoRemainingDays(applicablePromo.endDate)} days</span>

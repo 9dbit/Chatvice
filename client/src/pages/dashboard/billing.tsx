@@ -665,9 +665,25 @@ export default function BillingPage() {
                     <Gift className={`w-5 h-5 sm:w-6 sm:h-6 ${isDefaultStyle ? "text-green-600" : ""}`} />
                     <span>{validatedPromo ? "Promo Applied!" : promo?.name}</span>
                   </h3>
-                  <p className={`text-sm sm:text-base font-medium opacity-95 max-w-md break-words ${isDefaultStyle ? "text-green-700 dark:text-green-400" : ""}`}>
-                    Save {promo?.discountPercent}% with code <code className="bg-white/20 dark:bg-white/10 px-2 py-0.5 rounded font-mono font-bold">{promo?.code}</code>
+                  <p className={`text-sm sm:text-base font-medium opacity-95 ${isDefaultStyle ? "text-green-700 dark:text-green-400" : ""}`}>
+                    Save {promo?.discountPercent}% with code
                   </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <code className={`px-3 py-1 rounded font-mono font-bold text-sm ${isDefaultStyle ? "bg-green-100 dark:bg-green-900/30" : "bg-white/20 dark:bg-white/10"}`}>{promo?.code}</code>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className={`h-7 px-2 ${isDefaultStyle ? "" : "bg-white/10 border-white/30 hover:bg-white/20 text-inherit"}`}
+                      onClick={() => {
+                        navigator.clipboard.writeText(promo?.code || "");
+                        toast({ title: "Code copied!", description: `${promo?.code} copied to clipboard` });
+                      }}
+                      data-testid="button-copy-promo-code"
+                    >
+                      <Copy className="w-3 h-3 mr-1" />
+                      Copy
+                    </Button>
+                  </div>
                   {validatedPromo && (
                     <Button 
                       size="sm" 
