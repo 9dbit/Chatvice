@@ -43,6 +43,7 @@ import DocsPage from "@/pages/resources/docs";
 import DocArticlePage from "@/pages/resources/doc-article";
 import HelpCenterPage from "@/pages/resources/help";
 import TopupPage from "@/pages/topup-page";
+import DemoWidgetPage from "@/pages/demo-widget";
 import { DynamicHead } from "@/components/dynamic-head";
 import { AIHelpBubble } from "@/components/ai-help-bubble";
 
@@ -71,6 +72,7 @@ function GlobalHelpBubble() {
     '/reset-password',
     '/forgot-password',
     '/topup',
+    '/demo',
   ];
   
   const shouldShow = !excludedPaths.some(path => location.startsWith(path));
@@ -133,6 +135,7 @@ function Router() {
       <Route path="/help" component={HelpCenterPage} />
       
       <Route path="/topup" component={TopupPage} />
+      <Route path="/demo" component={DemoWidgetPage} />
 
       <Route component={NotFound} />
     </Switch>
