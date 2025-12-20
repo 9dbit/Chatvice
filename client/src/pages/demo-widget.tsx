@@ -21,7 +21,7 @@ import {
   ChevronDown,
   ChevronRight
 } from "lucide-react";
-import coinIconUrl from "@assets/378F49CE-F76C-415A-9F71-1B8B8883CFC5_1766241110668.png";
+import coinIconUrl from "@assets/378F49CE-F76C-415A-9F71-1B8B8883CFC5_1766242722508.png";
 import { SiBitcoin, SiEthereum, SiTether, SiSolana, SiBinance, SiDogecoin } from "react-icons/si";
 
 type PaymentMethod = "kompas" | "qris" | "bank" | "va" | "crypto";
