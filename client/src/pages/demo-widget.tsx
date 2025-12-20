@@ -19,7 +19,8 @@ import {
   Check,
   X,
   Minimize2,
-  ChevronDown
+  ChevronDown,
+  ChevronRight
 } from "lucide-react";
 import { SiBitcoin, SiEthereum, SiTether, SiSolana, SiBinance, SiDogecoin } from "react-icons/si";
 
@@ -105,10 +106,11 @@ interface Product {
 
 const products: Product[] = [
   { id: "1", name: "Rp 25.000", price: 25000, coins: 25 },
-  { id: "2", name: "Rp 50.000", price: 50000, coins: 55 },
-  { id: "3", name: "Rp 100.000", price: 100000, coins: 115 },
-  { id: "4", name: "Rp 200.000", price: 200000, coins: 240 },
-  { id: "5", name: "Rp 500.000", price: 500000, coins: 625 },
+  { id: "2", name: "Rp 50.000", price: 50000, coins: 50 },
+  { id: "3", name: "Rp 100.000", price: 100000, coins: 100 },
+  { id: "4", name: "Rp 200.000", price: 200000, coins: 200 },
+  { id: "5", name: "Rp 500.000", price: 500000, coins: 500 },
+  { id: "6", name: "Rp 1.000.000", price: 1000000, coins: 1000 },
 ];
 
 function formatRupiah(amount: number): string {
@@ -387,36 +389,57 @@ export default function DemoWidgetPage() {
   };
 
   const PackagesComponent = () => (
-    <div className="grid grid-cols-2 gap-3 mt-3">
-      {products.map((product) => (
-        <button
-          key={product.id}
-          onClick={() => handleSelectProduct(product)}
-          className="p-4 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-[0.98]"
-          style={{
-            background: 'linear-gradient(145deg, rgba(30, 30, 35, 0.95), rgba(20, 20, 25, 0.98))',
-            border: '1px solid rgba(107, 93, 252, 0.4)',
-            boxShadow: '0 4px 20px rgba(107, 93, 252, 0.15), 0 2px 8px rgba(0, 0, 0, 0.3)',
-          }}
-          data-testid={`package-${product.id}`}
-        >
-          <div className="flex items-center gap-3">
-            <div 
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ 
-                background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
-                boxShadow: '0 4px 12px rgba(249, 115, 22, 0.4)',
-              }}
-            >
-              <Coins className="w-5 h-5 text-white" />
+    <div className="flex flex-col gap-2 mt-3">
+      {products.map((product, index) => {
+        // Gradient colors for each card icon (like reference)
+        const iconColors = [
+          'linear-gradient(135deg, #CD7F32 0%, #B8860B 100%)', // Bronze/Gold
+          'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)', // Gold
+          'linear-gradient(135deg, #FF69B4 0%, #FF1493 100%)', // Pink
+          'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)', // Purple
+          'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)', // Blue
+          'linear-gradient(135deg, #10B981 0%, #059669 100%)', // Emerald
+        ];
+        
+        return (
+          <button
+            key={product.id}
+            onClick={() => handleSelectProduct(product)}
+            className="p-4 rounded-xl text-left transition-all hover:scale-[1.01] active:scale-[0.99]"
+            style={{
+              background: 'rgba(255, 255, 255, 0.08)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              boxShadow: '0 4px 24px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(255, 255, 255, 0.05) inset',
+            }}
+            data-testid={`package-${product.id}`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-xs text-zinc-400 mb-1">Top Up</p>
+                <p className="font-bold text-white text-xl tracking-tight">{product.name}</p>
+                <p className="text-sm text-zinc-400">{product.coins} Koin</p>
+              </div>
+              
+              {/* Icon Circle */}
+              <div 
+                className="w-14 h-14 rounded-full flex items-center justify-center mr-3"
+                style={{ 
+                  background: iconColors[index] || iconColors[0],
+                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+                }}
+              >
+                <Coins className="w-7 h-7 text-white" />
+              </div>
+              
+              {/* Arrow Indicator */}
+              <div className="text-zinc-400">
+                <ChevronRight className="w-5 h-5" />
+              </div>
             </div>
-            <div>
-              <p className="font-bold text-white text-sm">{product.name}</p>
-              <p className="text-xs text-zinc-400">{product.coins} koin</p>
-            </div>
-          </div>
-        </button>
-      ))}
+          </button>
+        );
+      })}
     </div>
   );
 
