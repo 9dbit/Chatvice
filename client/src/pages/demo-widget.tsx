@@ -138,7 +138,6 @@ export default function DemoWidgetPage() {
   const [selectedBank, setSelectedBank] = useState<string>("bca");
   const [selectedCrypto, setSelectedCrypto] = useState<CryptoOption>("btc");
   const [copied, setCopied] = useState(false);
-  const [paymentCardsExpanded, setPaymentCardsExpanded] = useState(false);
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [transactionCompleted, setTransactionCompleted] = useState(false);
@@ -147,12 +146,23 @@ export default function DemoWidgetPage() {
   const [loginAttempts, setLoginAttempts] = useState(0);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [paymentStage, setPaymentStage] = useState<"idle" | "confirming" | "success">("idle");
+  const [transactionKey, setTransactionKey] = useState(0);
   const [merchantInfo] = useState({ name: "DinnCafe", domain: "dinncafe.com" });
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    });
   }, [messages]);
+  
+  useEffect(() => {
+    if (paymentStage === "success") {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    }
+  }, [paymentStage]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -384,24 +394,26 @@ export default function DemoWidgetPage() {
         setIsProcessing(true);
         setPaymentStage("confirming");
         
-        // Stage 1: Wait for confirmation (2 seconds)
+        // Stage 1: Wait for confirmation (3 seconds loading)
         setTimeout(() => {
           // Stage 2: Payment success
           setPaymentStage("success");
           setIsProcessing(false);
           
+          const greeting = getRandomGreeting();
           addMessage({
             from: "bot",
-            content: "Pembayaran berhasil!",
+            content: `Pembayaran berhasil ${greeting}! Ada yang bisa saya bantu lagi?`,
             component: "success",
             componentData: {
               orderId,
               customerId,
               product: selectedProduct,
               merchantInfo,
+              greeting,
             },
           });
-        }, 2500);
+        }, 3000);
         break;
 
       case "new_transaction":
@@ -412,10 +424,19 @@ export default function DemoWidgetPage() {
         setAuthPassword("");
         setTransactionCompleted(false);
         setPaymentStage("idle");
+        setIsProcessing(false);
         setLastAction("");
         setActionRepeatCount(0);
-        setMessages([]);
-        startChat();
+        setSelectedPaymentMethod("qris");
+        setSelectedBank("bca");
+        setSelectedCrypto("btc");
+        setCopied(false);
+        setTransactionKey(prev => prev + 1);
+        addTypingThenMessage({
+          from: "bot",
+          content: "Baik kak! Silakan pilih nominal top up yang diinginkan:",
+          component: "packages",
+        });
         break;
 
       case "go_home":
@@ -440,39 +461,34 @@ export default function DemoWidgetPage() {
   };
 
   const PackagesComponent = () => (
-    <div className="flex flex-col gap-2 mt-3">
+    <div className="flex flex-col gap-1.5 mt-3">
       {products.map((product) => (
         <button
           key={product.id}
           onClick={() => handleSelectProduct(product)}
-          className="p-4 rounded-xl text-left transition-all hover:scale-[1.01] active:scale-[0.99]"
+          className="py-2.5 px-3 rounded-xl text-left transition-all hover:scale-[1.01] active:scale-[0.99]"
           style={{
             background: 'rgba(255, 255, 255, 0.08)',
             backdropFilter: 'blur(12px)',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.25)',
           }}
           data-testid={`package-${product.id}`}
         >
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 flex-1">
-              {/* Coin Icon Image */}
+            <div className="flex items-center gap-2.5 flex-1">
               <img 
                 src={coinIconUrl} 
                 alt="Coin" 
-                className="w-12 h-12 object-contain"
-                style={{ 
-                  filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3))',
-                }}
+                className="w-8 h-8 object-contain"
+                style={{ filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))' }}
               />
               <div>
-                <p className="text-xs text-zinc-400 mb-0.5">Top Up</p>
-                <p className="font-bold text-white text-xl tracking-tight">{product.name}</p>
+                <p className="font-bold text-white text-base tracking-tight">{product.name}</p>
+                <p className="text-[10px] text-zinc-400">{product.coins} Koin</p>
               </div>
             </div>
-            
-            {/* Arrow Indicator */}
             <div className="text-zinc-400">
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-4 h-4" />
             </div>
           </div>
         </button>
@@ -643,34 +659,35 @@ export default function DemoWidgetPage() {
   const PaymentComponent = () => {
     const [sliderProgress, setSliderProgress] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
-    const [paymentCompleted, setPaymentCompleted] = useState(false);
+    const [localPaymentCompleted, setLocalPaymentCompleted] = useState(false);
+    const [hasSelectedMethod, setHasSelectedMethod] = useState(false);
     const sliderRef = useRef<HTMLDivElement>(null);
     const progressRef = useRef(0);
     
+    const isPaymentDone = transactionCompleted || paymentStage === "success";
+    
     const CARD_HEIGHT = 52;
+    const COLLAPSED_HEIGHT = 18;
     const EXPANDED_GAP = 6;
+    const STACKED_GAP = 2;
 
     const handleCardClick = (methodId: PaymentMethod) => {
-      if (!paymentCardsExpanded) {
-        setPaymentCardsExpanded(true);
-      } else {
-        setSelectedPaymentMethod(methodId);
-        setTimeout(() => setPaymentCardsExpanded(false), 150);
-      }
+      setSelectedPaymentMethod(methodId);
+      setHasSelectedMethod(true);
     };
 
-    const containerHeight = paymentCardsExpanded 
-      ? paymentMethods.length * (CARD_HEIGHT + EXPANDED_GAP) - EXPANDED_GAP
-      : CARD_HEIGHT;
+    const containerHeight = hasSelectedMethod
+      ? CARD_HEIGHT + (paymentMethods.length - 1) * (COLLAPSED_HEIGHT + STACKED_GAP)
+      : paymentMethods.length * (CARD_HEIGHT + EXPANDED_GAP) - EXPANDED_GAP;
 
     // Swipe to pay handler - using ref for accurate progress check
     const handleSliderStart = () => {
-      if (isProcessing || paymentCompleted) return;
+      if (isProcessing || localPaymentCompleted) return;
       setIsDragging(true);
     };
 
     const handleSliderMove = (clientX: number) => {
-      if (!sliderRef.current || isProcessing || paymentCompleted) return;
+      if (!sliderRef.current || isProcessing || localPaymentCompleted) return;
       const rect = sliderRef.current.getBoundingClientRect();
       const progress = Math.max(0, Math.min(1, (clientX - rect.left - 24) / (rect.width - 48)));
       progressRef.current = progress;
@@ -678,14 +695,14 @@ export default function DemoWidgetPage() {
     };
 
     const handleSliderEnd = () => {
-      if (isProcessing || paymentCompleted) return;
+      if (isProcessing || localPaymentCompleted) return;
       setIsDragging(false);
       
       if (progressRef.current > 0.85) {
         // Lock slider at 100% permanently - prevent double transaction
         setSliderProgress(1);
         progressRef.current = 1;
-        setPaymentCompleted(true);
+        setLocalPaymentCompleted(true);
         setTransactionCompleted(true);
         handleAction("process_payment");
       } else {
@@ -781,69 +798,77 @@ export default function DemoWidgetPage() {
           animate={{ height: containerHeight }}
           transition={{
             type: "spring",
-            stiffness: 400,
-            damping: 30,
-            mass: 0.8,
+            stiffness: 200,
+            damping: 25,
+            mass: 1,
           }}
-          onClick={() => !paymentCardsExpanded && setPaymentCardsExpanded(true)}
           data-testid="payment-cards-container"
         >
-          <AnimatePresence>
-            {paymentMethods.map((method, index) => {
-              const IconComponent = method.icon;
-              const isSelected = selectedPaymentMethod === method.id;
-              const cardColors = stackingCardColors[method.id];
-              
-              const yPosition = paymentCardsExpanded 
-                ? index * (CARD_HEIGHT + EXPANDED_GAP) 
-                : 0;
-              const shouldShow = paymentCardsExpanded || isSelected;
-              
-              if (!shouldShow) return null;
-              
-              return (
-                <motion.button
-                  key={method.id}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCardClick(method.id);
-                  }}
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{
-                    y: yPosition,
-                    scale: 1,
-                    opacity: 1,
-                  }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{
-                    type: "spring",
-                    stiffness: 400,
-                    damping: 30,
-                    mass: 0.8,
-                  }}
-                  className={`
-                    absolute left-0 right-0 p-3 rounded-xl text-left
-                    ${cardColors.bg} 
-                    ${isSelected ? 'shadow-lg shadow-violet-500/20' : 'shadow-md'}
-                  `}
-                  style={{
-                    zIndex: isSelected ? 100 : paymentMethods.length - index,
-                    height: CARD_HEIGHT,
-                  }}
-                  data-testid={`payment-method-${method.id}`}
-                >
-                  <div className="flex items-center justify-between h-full">
-                    <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-lg bg-white/30 backdrop-blur-sm flex items-center justify-center">
-                        <IconComponent className="w-3.5 h-3.5 text-white" />
-                      </div>
+          {paymentMethods.map((method, index) => {
+            const IconComponent = method.icon;
+            const isSelected = selectedPaymentMethod === method.id;
+            const cardColors = stackingCardColors[method.id];
+            
+            let yPosition: number;
+            let cardHeight: number;
+            let zIndex: number;
+            
+            if (!hasSelectedMethod) {
+              yPosition = index * (CARD_HEIGHT + EXPANDED_GAP);
+              cardHeight = CARD_HEIGHT;
+              zIndex = paymentMethods.length - index;
+            } else {
+              if (isSelected) {
+                yPosition = 0;
+                cardHeight = CARD_HEIGHT;
+                zIndex = 100;
+              } else {
+                const selectedIndex = paymentMethods.findIndex(m => m.id === selectedPaymentMethod);
+                const nonSelectedIndex = index > selectedIndex ? index - 1 : index;
+                yPosition = CARD_HEIGHT + 4 + nonSelectedIndex * (COLLAPSED_HEIGHT + STACKED_GAP);
+                cardHeight = COLLAPSED_HEIGHT;
+                zIndex = paymentMethods.length - nonSelectedIndex;
+              }
+            }
+            
+            return (
+              <motion.button
+                key={method.id}
+                onClick={() => handleCardClick(method.id)}
+                animate={{
+                  y: yPosition,
+                  height: cardHeight,
+                  opacity: 1,
+                }}
+                transition={{
+                  type: "spring",
+                  stiffness: 200,
+                  damping: 25,
+                  mass: 1,
+                }}
+                className={`
+                  absolute left-0 right-0 px-3 rounded-xl text-left overflow-hidden
+                  ${cardColors.bg} 
+                  ${isSelected && hasSelectedMethod ? 'shadow-lg shadow-violet-500/20' : 'shadow-md'}
+                `}
+                style={{ zIndex }}
+                data-testid={`payment-method-${method.id}`}
+              >
+                <div className="flex items-center justify-between h-full py-2">
+                  <div className="flex items-center gap-3">
+                    <div className={`rounded-lg bg-white/30 backdrop-blur-sm flex items-center justify-center ${hasSelectedMethod && !isSelected ? 'w-4 h-4' : 'w-7 h-7'}`}>
+                      <IconComponent className={`text-white ${hasSelectedMethod && !isSelected ? 'w-2 h-2' : 'w-3.5 h-3.5'}`} />
+                    </div>
+                    {(!hasSelectedMethod || isSelected) && (
                       <div>
                         <p className="font-semibold text-sm text-white leading-tight">{method.name}</p>
                         <p className="text-[10px] text-white/80 leading-tight">{method.description}</p>
                       </div>
-                    </div>
+                    )}
+                  </div>
+                  {(!hasSelectedMethod || isSelected) && (
                     <div className="flex items-center gap-1.5">
-                      {isSelected && (
+                      {isSelected && hasSelectedMethod && (
                         <motion.div 
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
@@ -853,17 +878,17 @@ export default function DemoWidgetPage() {
                         </motion.div>
                       )}
                       <motion.div
-                        animate={{ rotate: paymentCardsExpanded ? 180 : 0 }}
+                        animate={{ rotate: hasSelectedMethod && isSelected ? 180 : 0 }}
                         className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"
                       >
                         <ChevronDown className="w-3 h-3 text-white" />
                       </motion.div>
                     </div>
-                  </div>
-                </motion.button>
-              );
-            })}
-          </AnimatePresence>
+                  )}
+                </div>
+              </motion.button>
+            );
+          })}
         </motion.div>
       </div>
 
@@ -953,64 +978,78 @@ export default function DemoWidgetPage() {
         )}
 
         {selectedPaymentMethod === "bank" && (
-          <div className="p-4 space-y-2">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
-                <Building2 className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <p className="font-semibold text-sm">Transfer Bank</p>
-                <p className="text-[10px] text-muted-foreground">Pilih bank tujuan</p>
-              </div>
-            </div>
+          <div className="p-4 space-y-3">
+            <p className="font-semibold text-sm">Pilih bank tujuan</p>
             
-            <div className="space-y-1.5">
+            <div className="grid grid-cols-2 gap-2">
               {bankOptions.map((bank) => (
                 <button
                   key={bank.id}
                   onClick={() => setSelectedBank(bank.id)}
-                  className={`w-full p-2.5 rounded-xl text-left transition-all ${
+                  className={`p-3 rounded-xl text-left transition-all ${
                     selectedBank === bank.id 
-                      ? 'bg-violet-500/15 ring-1 ring-violet-500/50' 
+                      ? 'bg-amber-500/20 ring-1 ring-amber-500/50' 
                       : 'bg-white/50 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10'
                   }`}
                   data-testid={`bank-option-${bank.id}`}
                 >
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-xs" style={{ background: bank.color }}>{bank.name}</div>
+                    <div className="text-center">
+                      <p className="font-mono text-xs font-medium">{bank.accountNumber}</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+            
+            {selectedBank && (() => {
+              const bank = bankOptions.find(b => b.id === selectedBank);
+              return bank && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-[10px]" style={{ background: bank.color }}>{bank.name}</div>
-                      <div>
-                        <p className="font-mono text-sm font-medium">{bank.accountNumber}</p>
-                        <p className="text-[10px] text-muted-foreground">{bank.accountName}</p>
-                      </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground">Nomor Rekening {bank.name}</p>
+                      <p className="font-mono text-base font-bold">{bank.accountNumber}</p>
+                      <p className="text-xs text-muted-foreground">{bank.accountName}</p>
                     </div>
                     <button 
-                      onClick={(e) => { e.stopPropagation(); copyToClipboard(bank.accountNumber); }} 
+                      onClick={() => copyToClipboard(bank.accountNumber)} 
                       className="p-2 rounded-lg hover:bg-violet-500/20 transition-colors" 
                       data-testid={`button-copy-bank-${bank.id}`}
                     >
                       {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
                     </button>
                   </div>
-                </button>
-              ))}
-            </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
         {selectedPaymentMethod === "va" && (
-          <div className="p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center">
-                <Smartphone className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <p className="font-semibold text-sm">Virtual Account</p>
-                <p className="text-[10px] text-muted-foreground">Nomor VA otomatis</p>
-              </div>
+          <div className="p-4 space-y-3">
+            <p className="font-semibold text-sm">Pilih bank Virtual Account</p>
+            
+            <div className="grid grid-cols-2 gap-2">
+              {bankOptions.map((bank) => (
+                <button
+                  key={bank.id}
+                  onClick={() => setSelectedBank(bank.id)}
+                  className={`p-3 rounded-xl text-center transition-all ${
+                    selectedBank === bank.id 
+                      ? 'bg-emerald-500/20 ring-1 ring-emerald-500/50' 
+                      : 'bg-white/50 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10'
+                  }`}
+                  data-testid={`va-option-${bank.id}`}
+                >
+                  <div className="w-10 h-10 mx-auto rounded-lg flex items-center justify-center text-white font-bold text-xs mb-1" style={{ background: bank.color }}>{bank.name}</div>
+                  <p className="text-xs font-medium">VA {bank.name}</p>
+                </button>
+              ))}
             </div>
             
-            <div className="p-3 rounded-xl bg-white/60 dark:bg-white/5 border border-white/20">
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
               <p className="text-[10px] text-muted-foreground mb-1">Nomor Virtual Account</p>
               <div className="flex items-center justify-between">
                 <span className="font-mono text-lg font-bold tracking-wide" data-testid="text-va-number">{getVANumber()}</span>
@@ -1028,15 +1067,7 @@ export default function DemoWidgetPage() {
 
         {selectedPaymentMethod === "crypto" && (
           <div className="p-4 space-y-3">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-400 to-rose-600 flex items-center justify-center">
-                <Bitcoin className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <p className="font-semibold text-sm">Cryptocurrency</p>
-                <p className="text-[10px] text-muted-foreground">Pilih coin</p>
-              </div>
-            </div>
+            <p className="font-semibold text-sm">Pilih cryptocurrency</p>
             
             <div className="grid grid-cols-3 gap-2">
               {cryptoCoins.map((coin) => {
@@ -1091,7 +1122,7 @@ export default function DemoWidgetPage() {
           ref={sliderRef}
           className="relative h-14 rounded-2xl overflow-hidden select-none touch-none"
           style={{ 
-            background: paymentCompleted 
+            background: localPaymentCompleted 
               ? '#10b981'
               : '#18181b',
             willChange: 'transform',
@@ -1118,7 +1149,7 @@ export default function DemoWidgetPage() {
           />
           
           {/* Stage 1: Confirming payment - locked at 100% */}
-          {paymentCompleted && paymentStage === "confirming" && (
+          {localPaymentCompleted && paymentStage === "confirming" && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="flex items-center gap-2 text-white font-medium">
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -1128,7 +1159,7 @@ export default function DemoWidgetPage() {
           )}
           
           {/* Stage 2: Payment success */}
-          {paymentCompleted && paymentStage === "success" && (
+          {localPaymentCompleted && paymentStage === "success" && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="flex items-center gap-2 text-white font-medium">
                 <Check className="w-5 h-5" />
@@ -1138,7 +1169,7 @@ export default function DemoWidgetPage() {
           )}
           
           {/* Slider thumb - hidden after payment confirmed */}
-          {!paymentCompleted && (
+          {!localPaymentCompleted && (
             <motion.div
               className="absolute top-1 bottom-1 left-1 w-12 rounded-xl bg-white shadow-lg flex items-center justify-center cursor-grab active:cursor-grabbing"
               animate={{ 
@@ -1160,7 +1191,7 @@ export default function DemoWidgetPage() {
         </div>
         
         {/* Text below slider */}
-        {!paymentCompleted && (
+        {!localPaymentCompleted && (
           <p className="text-center text-xs text-muted-foreground">
             {sliderProgress > 0.5 ? 'Lepas untuk konfirmasi' : 'Geser untuk selesaikan pembayaran'}
           </p>
@@ -1205,24 +1236,12 @@ export default function DemoWidgetPage() {
       </div>
       
       <p className="text-sm text-white/90 text-left mb-4">
-        Terima kasih! Koin akan segera ditambahkan ke akun Anda.
+        Terima kasih {data.greeting || 'kak'}! Koin akan segera ditambahkan ke akun Anda.
       </p>
       
-      <div className="flex gap-3">
+      <div className="flex flex-col gap-2">
         <Button
-          className="flex-1 h-11 text-white border-0 font-semibold"
-          variant="outline"
-          style={{
-            background: 'rgba(255, 255, 255, 0.15)',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
-          }}
-          onClick={() => handleAction("go_home")}
-          data-testid="button-go-home"
-        >
-          Kembali
-        </Button>
-        <Button
-          className="flex-1 h-11 text-violet-600 font-bold border-0"
+          className="w-full h-11 text-violet-600 font-bold border-0"
           style={{
             background: 'white',
             boxShadow: '0 4px 14px rgba(255, 255, 255, 0.3)',
@@ -1232,15 +1251,27 @@ export default function DemoWidgetPage() {
         >
           Transaksi Baru
         </Button>
+        <Button
+          className="w-full h-11 text-white border-0 font-semibold"
+          variant="outline"
+          style={{
+            background: 'rgba(255, 255, 255, 0.15)',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+          }}
+          onClick={() => handleAction("go_home")}
+          data-testid="button-go-home"
+        >
+          Kembali ke Beranda
+        </Button>
       </div>
     </div>
   );
 
   const renderComponent = (component: string, data?: any) => {
     switch (component) {
-      case "packages": return <PackagesComponent />;
-      case "auth": return <AuthComponent />;
-      case "payment": return <PaymentComponent />;
+      case "packages": return <PackagesComponent key={`packages-${transactionKey}`} />;
+      case "auth": return <AuthComponent key={`auth-${transactionKey}`} />;
+      case "payment": return <PaymentComponent key={`payment-${transactionKey}`} />;
       case "success": return <SuccessComponent data={data} />;
       default: return null;
     }

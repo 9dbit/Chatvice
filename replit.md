@@ -104,13 +104,20 @@ Core entities include Merchants, Supervisors, Sessions, Messages (with `clientMe
   - Real QRIS payment code display
   - Simplified transaction-focused AI responses (no Chatvice platform promotion)
 - UX Enhancements:
-  - Duplicate click prevention: Ignores repeated menu clicks with random greeting response
-  - Cancel flow clarification: Asks for reason before canceling, offers alternatives
+  - Compact coin selection: Reduced button heights with coin icons and coin count display
+  - Payment method stacking: All cards visible initially, collapse to 1/3 height stacked when one selected with smooth spring animation
+  - Simplified payment titles: "Pilih bank tujuan", "Pilih bank Virtual Account", "Pilih cryptocurrency" (no redundant headers)
+  - Grid layout for bank/VA selection with widened account detail frames
+  - Duplicate click prevention: Ignores repeated menu clicks with random greeting response ("bosku", "kak", "gan", etc.)
+  - Cancel flow clarification: Asks for reason before canceling, offers "Pilih Nominal Lain" and "Batalkan" options
   - Login detection: Checks if user already logged in, skips to next step if so
   - Auth options: Email/password, Google, GitHub login with forgot password after 3 failed attempts
-  - Payment slider lock: Slider stays at 100% after confirmation to prevent double transactions
-  - Payment stages: "Menunggu konfirmasi..." → "Transaksi berhasil"
-  - Success layout: Left-aligned text for better readability
+  - Payment slider lock: Slider stays at 100% after confirmation with 3-second loading state ("Menunggu konfirmasi...")
+  - Payment stages: "Menunggu konfirmasi..." → "Transaksi berhasil" with locked slider
+  - Success layout: Left-aligned text, random greeting in closing message ("Terima kasih kak/bosku!")
+  - Success buttons: "Transaksi Baru" (shows top-up list) and "Kembali ke Beranda"
+  - Transaction state reset: transactionKey counter forces fresh component state on new transactions
+  - Auto-scroll: Uses requestAnimationFrame to scroll to latest message after payment
 - Multi-tenant architecture considerations:
   - Widget requires merchant ID/credentials for domain identification
   - Each widget session tracks merchantInfo (name, domain)
