@@ -21,7 +21,7 @@ import {
   ChevronDown,
   ChevronRight
 } from "lucide-react";
-import coinIconUrl from "@assets/378F49CE-F76C-415A-9F71-1B8B8883CFC5_1766242722508.png";
+import coinIconUrl from "@assets/coin-icon-64.png";
 import bgImageUrl from "@assets/IMG_0743_1766246728943.jpeg";
 import { SiBitcoin, SiEthereum, SiTether, SiSolana, SiBinance, SiDogecoin } from "react-icons/si";
 
@@ -1098,17 +1098,27 @@ export default function DemoWidgetPage() {
           <div key={msg.id}>
             <div className={`flex gap-2 ${msg.from === "user" ? "justify-end" : "justify-start"}`}>
               {msg.from !== "user" && (
-                <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: `${PRIMARY_COLOR}20` }}>
-                  <Bot className="w-3.5 h-3.5" style={{ color: PRIMARY_COLOR }} />
+                <div 
+                  className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+                  style={{ 
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
+                  }}
+                >
+                  <Bot className="w-3.5 h-3.5 text-white" />
                 </div>
               )}
               <div
-                className={`max-w-[80%] p-3 text-sm ${
-                  msg.from === "user"
-                    ? "rounded-2xl rounded-br-sm text-white"
-                    : "bg-muted rounded-2xl rounded-bl-sm"
+                className={`max-w-[80%] p-3 text-sm rounded-2xl text-white ${
+                  msg.from === "user" ? "rounded-br-sm" : "rounded-bl-sm"
                 }`}
-                style={msg.from === "user" ? { backgroundColor: PRIMARY_COLOR } : undefined}
+                style={{
+                  background: msg.from === "user" ? PRIMARY_COLOR : 'rgba(255, 255, 255, 0.08)',
+                  backdropFilter: msg.from !== "user" ? 'blur(12px)' : undefined,
+                  WebkitBackdropFilter: msg.from !== "user" ? 'blur(12px)' : undefined,
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                }}
               >
                 {msg.isTyping ? (
                   <div className="flex gap-1">
@@ -1152,7 +1162,15 @@ export default function DemoWidgetPage() {
       </div>
 
       {/* Input */}
-      <div className="p-3 border-t">
+      <div 
+        className="p-3"
+        style={{
+          background: 'rgba(255, 255, 255, 0.08)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+        }}
+      >
         <div className="flex gap-2">
           <Input
             type="text"
@@ -1160,10 +1178,19 @@ export default function DemoWidgetPage() {
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
             placeholder="Ketik pesan..."
-            className="flex-1 h-10 text-sm"
+            className="flex-1 h-10 text-sm bg-white/10 border-white/20 text-white placeholder:text-white/50"
             data-testid="input-chat-message"
           />
-          <Button size="icon" className="h-10 w-10 text-white" style={{ backgroundColor: PRIMARY_COLOR }} onClick={handleSendMessage} data-testid="button-send-message">
+          <Button 
+            size="icon" 
+            className="h-10 w-10 text-white" 
+            style={{ 
+              backgroundColor: PRIMARY_COLOR,
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
+            }} 
+            onClick={handleSendMessage} 
+            data-testid="button-send-message"
+          >
             <Send className="w-4 h-4" />
           </Button>
         </div>
