@@ -432,35 +432,46 @@ export default function DemoWidgetPage() {
     </div>
   );
 
-  const AuthComponent = () => (
-    <div className="mt-3 space-y-3">
-      <Input
-        type="email"
-        placeholder="Email"
-        value={authEmail}
-        onChange={(e) => setAuthEmail(e.target.value)}
-        className="h-10 text-sm"
-        data-testid="input-auth-email"
-      />
-      <Input
-        type="password"
-        placeholder="Password"
-        value={authPassword}
-        onChange={(e) => setAuthPassword(e.target.value)}
-        className="h-10 text-sm"
-        data-testid="input-auth-password"
-      />
-      <Button
-        className="w-full h-10 text-white"
-        style={{ backgroundColor: PRIMARY_COLOR }}
-        onClick={() => handleAction("submit_auth")}
-        disabled={!authEmail || !authPassword || isProcessing}
-        data-testid="button-auth-submit"
-      >
-        {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Masuk / Daftar"}
-      </Button>
-    </div>
-  );
+  const AuthComponent = () => {
+    const [localEmail, setLocalEmail] = useState(authEmail);
+    const [localPassword, setLocalPassword] = useState(authPassword);
+    
+    const handleSubmit = () => {
+      setAuthEmail(localEmail);
+      setAuthPassword(localPassword);
+      setTimeout(() => handleAction("submit_auth"), 0);
+    };
+    
+    return (
+      <div className="mt-3 space-y-3">
+        <Input
+          type="email"
+          placeholder="Email"
+          value={localEmail}
+          onChange={(e) => setLocalEmail(e.target.value)}
+          className="h-10 text-sm"
+          data-testid="input-auth-email"
+        />
+        <Input
+          type="password"
+          placeholder="Password"
+          value={localPassword}
+          onChange={(e) => setLocalPassword(e.target.value)}
+          className="h-10 text-sm"
+          data-testid="input-auth-password"
+        />
+        <Button
+          className="w-full h-10 text-white"
+          style={{ backgroundColor: PRIMARY_COLOR }}
+          onClick={handleSubmit}
+          disabled={!localEmail || !localPassword || isProcessing}
+          data-testid="button-auth-submit"
+        >
+          {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Masuk / Daftar"}
+        </Button>
+      </div>
+    );
+  };
 
   const PaymentComponent = () => {
     const selectedIndex = paymentMethods.findIndex(m => m.id === selectedPaymentMethod);
