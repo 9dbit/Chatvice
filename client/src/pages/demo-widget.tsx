@@ -523,34 +523,75 @@ export default function DemoWidgetPage() {
       }
     };
 
-    // Dummy QRIS SVG pattern
+    // Static QRIS SVG pattern
     const QRCodeDummy = () => (
       <svg viewBox="0 0 120 120" className="w-full h-full">
         <rect fill="white" width="120" height="120" />
-        {/* Position patterns */}
+        {/* Position patterns - top left */}
         <rect fill="black" x="10" y="10" width="25" height="25" />
         <rect fill="white" x="15" y="15" width="15" height="15" />
         <rect fill="black" x="18" y="18" width="9" height="9" />
         
+        {/* Position patterns - top right */}
         <rect fill="black" x="85" y="10" width="25" height="25" />
         <rect fill="white" x="90" y="15" width="15" height="15" />
         <rect fill="black" x="93" y="18" width="9" height="9" />
         
+        {/* Position patterns - bottom left */}
         <rect fill="black" x="10" y="85" width="25" height="25" />
         <rect fill="white" x="15" y="90" width="15" height="15" />
         <rect fill="black" x="18" y="93" width="9" height="9" />
         
-        {/* Data patterns - random looking grid */}
-        {[40,45,50,55,60,65,70,75].map(x => 
-          [10,15,20,25,30,40,45,50,55,60,65,70,85,90,95,100,105].map(y => 
-            Math.random() > 0.5 && <rect key={`${x}-${y}`} fill="black" x={x} y={y} width="4" height="4" />
-          )
-        )}
-        {[10,15,20,25,30,85,90,95,100,105].map(x => 
-          [40,45,50,55,60,65,70,75].map(y => 
-            Math.random() > 0.5 && <rect key={`${x}-${y}-2`} fill="black" x={x} y={y} width="4" height="4" />
-          )
-        )}
+        {/* Static data pattern - top right area */}
+        <rect fill="black" x="40" y="10" width="4" height="4" />
+        <rect fill="black" x="50" y="10" width="4" height="4" />
+        <rect fill="black" x="60" y="10" width="4" height="4" />
+        <rect fill="black" x="75" y="10" width="4" height="4" />
+        <rect fill="black" x="45" y="15" width="4" height="4" />
+        <rect fill="black" x="55" y="15" width="4" height="4" />
+        <rect fill="black" x="70" y="15" width="4" height="4" />
+        <rect fill="black" x="40" y="20" width="4" height="4" />
+        <rect fill="black" x="50" y="20" width="4" height="4" />
+        <rect fill="black" x="65" y="20" width="4" height="4" />
+        <rect fill="black" x="75" y="20" width="4" height="4" />
+        <rect fill="black" x="45" y="25" width="4" height="4" />
+        <rect fill="black" x="60" y="25" width="4" height="4" />
+        <rect fill="black" x="70" y="25" width="4" height="4" />
+        <rect fill="black" x="40" y="30" width="4" height="4" />
+        <rect fill="black" x="55" y="30" width="4" height="4" />
+        <rect fill="black" x="65" y="30" width="4" height="4" />
+        
+        {/* Static data pattern - left side */}
+        <rect fill="black" x="10" y="40" width="4" height="4" />
+        <rect fill="black" x="20" y="40" width="4" height="4" />
+        <rect fill="black" x="30" y="40" width="4" height="4" />
+        <rect fill="black" x="15" y="50" width="4" height="4" />
+        <rect fill="black" x="25" y="50" width="4" height="4" />
+        <rect fill="black" x="10" y="60" width="4" height="4" />
+        <rect fill="black" x="25" y="60" width="4" height="4" />
+        <rect fill="black" x="15" y="70" width="4" height="4" />
+        <rect fill="black" x="30" y="70" width="4" height="4" />
+        <rect fill="black" x="20" y="75" width="4" height="4" />
+        
+        {/* Static data pattern - right side */}
+        <rect fill="black" x="85" y="40" width="4" height="4" />
+        <rect fill="black" x="95" y="40" width="4" height="4" />
+        <rect fill="black" x="105" y="45" width="4" height="4" />
+        <rect fill="black" x="90" y="50" width="4" height="4" />
+        <rect fill="black" x="100" y="55" width="4" height="4" />
+        <rect fill="black" x="85" y="60" width="4" height="4" />
+        <rect fill="black" x="95" y="65" width="4" height="4" />
+        <rect fill="black" x="105" y="70" width="4" height="4" />
+        <rect fill="black" x="90" y="75" width="4" height="4" />
+        
+        {/* Static data pattern - bottom right */}
+        <rect fill="black" x="85" y="85" width="4" height="4" />
+        <rect fill="black" x="95" y="90" width="4" height="4" />
+        <rect fill="black" x="105" y="85" width="4" height="4" />
+        <rect fill="black" x="90" y="100" width="4" height="4" />
+        <rect fill="black" x="100" y="105" width="4" height="4" />
+        <rect fill="black" x="85" y="105" width="4" height="4" />
+        
         {/* Center logo area */}
         <rect fill="white" x="45" y="45" width="30" height="30" rx="4" />
         <rect fill="#6b5dfc" x="50" y="50" width="20" height="20" rx="2" />
@@ -892,15 +933,15 @@ export default function DemoWidgetPage() {
           animate={{ width: `${sliderProgress * 100}%` }}
         />
         
-        {/* Text */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        {/* Text - positioned to the right of thumb */}
+        <div className="absolute inset-0 flex items-center pointer-events-none pl-16 pr-4">
           {isProcessing ? (
-            <div className="flex items-center gap-2 text-white font-medium">
+            <div className="flex items-center gap-2 text-white font-medium w-full justify-center">
               <Loader2 className="w-5 h-5 animate-spin" />
               <span>Memproses...</span>
             </div>
           ) : (
-            <span className="text-white/70 text-sm font-medium tracking-wide">
+            <span className="text-white/70 text-sm font-medium tracking-wide w-full text-center">
               {sliderProgress > 0.5 ? 'Lepas untuk bayar' : `Geser untuk bayar ${selectedProduct?.name}`}
             </span>
           )}
@@ -926,41 +967,48 @@ export default function DemoWidgetPage() {
   };
 
   const SuccessComponent = ({ data }: { data: any }) => (
-    <div className="mt-3 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800">
-      <div className="flex items-center gap-2 mb-3">
-        <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center">
-          <CheckCircle2 className="w-5 h-5 text-white" />
+    <div 
+      className="mt-3 p-5 rounded-2xl"
+      style={{ 
+        background: 'linear-gradient(135deg, #6b5dfc 0%, #8b5cf6 100%)'
+      }}
+    >
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+          <CheckCircle2 className="w-6 h-6 text-white" />
         </div>
         <div>
-          <p className="font-semibold text-emerald-700 dark:text-emerald-300">Transaksi Berhasil!</p>
-          <p className="text-xs text-emerald-600 dark:text-emerald-400">Top up {data.product?.name}</p>
+          <p className="font-bold text-lg text-white">Transaksi Berhasil!</p>
+          <p className="text-sm text-white/80">Top up {data.product?.name}</p>
         </div>
       </div>
-      <div className="space-y-1.5 text-sm">
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Order ID</span>
-          <span className="font-mono text-xs" data-testid="text-order-id">{data.orderId}</span>
+      
+      <div className="space-y-2 mb-4">
+        <div className="flex justify-between items-center py-2 border-b border-white/20">
+          <span className="text-white/70 text-sm">Order ID</span>
+          <span className="font-mono text-sm font-medium text-white" data-testid="text-order-id">{data.orderId}</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Customer ID</span>
-          <span className="font-mono text-xs" data-testid="text-customer-id">{data.customerId}</span>
+        <div className="flex justify-between items-center py-2 border-b border-white/20">
+          <span className="text-white/70 text-sm">Customer ID</span>
+          <span className="font-mono text-sm font-medium text-white" data-testid="text-customer-id">{data.customerId}</span>
         </div>
       </div>
-      <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-3 text-center">
+      
+      <p className="text-sm text-white/90 text-center mb-4">
         Terima kasih telah menggunakan layanan kami. Koin akan segera ditambahkan ke akun Anda.
       </p>
-      <div className="flex gap-2 mt-3">
+      
+      <div className="flex gap-3">
         <Button
-          className="flex-1 h-9"
+          className="flex-1 h-11 bg-white/20 hover:bg-white/30 text-white border-0"
           variant="outline"
           onClick={() => handleAction("go_home")}
           data-testid="button-go-home"
         >
-          Kembali ke Homepage
+          Kembali
         </Button>
         <Button
-          className="flex-1 h-9 text-white"
-          style={{ backgroundColor: PRIMARY_COLOR }}
+          className="flex-1 h-11 bg-white hover:bg-white/90 text-violet-600 font-semibold border-0"
           onClick={() => handleAction("new_transaction")}
           data-testid="button-new-transaction"
         >
