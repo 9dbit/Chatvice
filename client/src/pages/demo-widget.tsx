@@ -308,29 +308,6 @@ export default function DemoWidgetPage() {
         });
         break;
 
-      case "submit_auth":
-        if (authEmail && authPassword) {
-          setIsProcessing(true);
-          const newCustomerId = `CUS-${Date.now().toString(36).toUpperCase()}`;
-          const newOrderId = `CVT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
-          
-          setTimeout(() => {
-            setCustomerId(newCustomerId);
-            setOrderId(newOrderId);
-            setIsProcessing(false);
-            
-            addTypingThenMessage({
-              from: "bot",
-              content: `Login berhasil!\n\nCustomer ID: ${newCustomerId}\nOrder ID: ${newOrderId}\n\nJika setuju, akan saya proses ke pembayaran kak.`,
-              actions: [
-                { label: "Cancel", action: "cancel_auth", variant: "destructive" },
-                { label: "Setuju", action: "confirm_auth" },
-              ],
-            });
-          }, 1500);
-        }
-        break;
-
       case "cancel_auth":
         setCustomerId("");
         setOrderId("");
@@ -437,9 +414,31 @@ export default function DemoWidgetPage() {
     const [localPassword, setLocalPassword] = useState(authPassword);
     
     const handleSubmit = () => {
+      // Directly use local values for submit, update parent state
       setAuthEmail(localEmail);
       setAuthPassword(localPassword);
-      setTimeout(() => handleAction("submit_auth"), 0);
+      
+      // Process auth with local values directly
+      if (localEmail && localPassword) {
+        setIsProcessing(true);
+        const newCustomerId = `CUS-${Date.now().toString(36).toUpperCase()}`;
+        const newOrderId = `CVT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+        
+        setTimeout(() => {
+          setCustomerId(newCustomerId);
+          setOrderId(newOrderId);
+          setIsProcessing(false);
+          
+          addTypingThenMessage({
+            from: "bot",
+            content: `Login berhasil!\n\nCustomer ID: ${newCustomerId}\nOrder ID: ${newOrderId}\n\nJika setuju, akan saya proses ke pembayaran kak.`,
+            actions: [
+              { label: "Cancel", action: "cancel_auth", variant: "destructive" },
+              { label: "Setuju", action: "confirm_auth" },
+            ],
+          });
+        }, 1500);
+      }
     };
     
     return (
@@ -474,12 +473,15 @@ export default function DemoWidgetPage() {
   };
 
   const PaymentComponent = () => {
-    const selectedIndex = paymentMethods.findIndex(m => m.id === selectedPaymentMethod);
-    const CARD_HEIGHT = 56;
-    const COLLAPSED_OFFSET = 14;
-    const EXPANDED_GAP = 8;
+    const [sliderProgress, setSliderProgress] = useState(0);
+    const [isDragging, setIsDragging] = useState(false);
+    const sliderRef = useRef<HTMLDivElement>(null);
+    const progressRef = useRef(0);
+    
+    const CARD_HEIGHT = 52;
+    const EXPANDED_GAP = 6;
 
-    const handleCardClick = (methodId: PaymentMethod, index: number) => {
+    const handleCardClick = (methodId: PaymentMethod) => {
       if (!paymentCardsExpanded) {
         setPaymentCardsExpanded(true);
       } else {
@@ -488,238 +490,437 @@ export default function DemoWidgetPage() {
       }
     };
 
-    const getCardY = (index: number) => {
-      if (paymentCardsExpanded) {
-        return index * (CARD_HEIGHT + EXPANDED_GAP);
-      }
-      if (index <= selectedIndex) {
-        return index * COLLAPSED_OFFSET;
-      }
-      return selectedIndex * COLLAPSED_OFFSET + (index - selectedIndex) * COLLAPSED_OFFSET;
-    };
-
-    const getCardZIndex = (index: number) => {
-      if (paymentCardsExpanded) {
-        return paymentMethods.length - index;
-      }
-      if (index === selectedIndex) {
-        return paymentMethods.length + 1;
-      }
-      return paymentMethods.length - Math.abs(index - selectedIndex);
-    };
-
     const containerHeight = paymentCardsExpanded 
       ? paymentMethods.length * (CARD_HEIGHT + EXPANDED_GAP) - EXPANDED_GAP
-      : (paymentMethods.length - 1) * COLLAPSED_OFFSET + CARD_HEIGHT;
+      : CARD_HEIGHT;
+
+    // Swipe to pay handler - using ref for accurate progress check
+    const handleSliderStart = () => {
+      if (isProcessing) return;
+      setIsDragging(true);
+    };
+
+    const handleSliderMove = (clientX: number) => {
+      if (!sliderRef.current || isProcessing) return;
+      const rect = sliderRef.current.getBoundingClientRect();
+      const progress = Math.max(0, Math.min(1, (clientX - rect.left - 24) / (rect.width - 48)));
+      progressRef.current = progress;
+      setSliderProgress(progress);
+    };
+
+    const handleSliderEnd = () => {
+      if (isProcessing) return;
+      setIsDragging(false);
+      
+      if (progressRef.current > 0.85) {
+        // Lock slider at 100% and trigger payment
+        setSliderProgress(1);
+        handleAction("process_payment");
+      } else {
+        // Reset if not completed
+        progressRef.current = 0;
+        setSliderProgress(0);
+      }
+    };
+
+    // Dummy QRIS SVG pattern
+    const QRCodeDummy = () => (
+      <svg viewBox="0 0 120 120" className="w-full h-full">
+        <rect fill="white" width="120" height="120" />
+        {/* Position patterns */}
+        <rect fill="black" x="10" y="10" width="25" height="25" />
+        <rect fill="white" x="15" y="15" width="15" height="15" />
+        <rect fill="black" x="18" y="18" width="9" height="9" />
+        
+        <rect fill="black" x="85" y="10" width="25" height="25" />
+        <rect fill="white" x="90" y="15" width="15" height="15" />
+        <rect fill="black" x="93" y="18" width="9" height="9" />
+        
+        <rect fill="black" x="10" y="85" width="25" height="25" />
+        <rect fill="white" x="15" y="90" width="15" height="15" />
+        <rect fill="black" x="18" y="93" width="9" height="9" />
+        
+        {/* Data patterns - random looking grid */}
+        {[40,45,50,55,60,65,70,75].map(x => 
+          [10,15,20,25,30,40,45,50,55,60,65,70,85,90,95,100,105].map(y => 
+            Math.random() > 0.5 && <rect key={`${x}-${y}`} fill="black" x={x} y={y} width="4" height="4" />
+          )
+        )}
+        {[10,15,20,25,30,85,90,95,100,105].map(x => 
+          [40,45,50,55,60,65,70,75].map(y => 
+            Math.random() > 0.5 && <rect key={`${x}-${y}-2`} fill="black" x={x} y={y} width="4" height="4" />
+          )
+        )}
+        {/* Center logo area */}
+        <rect fill="white" x="45" y="45" width="30" height="30" rx="4" />
+        <rect fill="#6b5dfc" x="50" y="50" width="20" height="20" rx="2" />
+      </svg>
+    );
 
     return (
-    <div className="mt-3 space-y-3">
-      {/* Stacking Cards Payment Methods with Animation */}
-      <motion.div 
-        className="relative cursor-pointer" 
-        animate={{ height: containerHeight }}
-        transition={{
-          type: "spring",
-          stiffness: 400,
-          damping: 30,
-          mass: 0.8,
-        }}
-        onClick={() => !paymentCardsExpanded && setPaymentCardsExpanded(true)}
-        data-testid="payment-cards-container"
-      >
-        <AnimatePresence>
-          {paymentMethods.map((method, index) => {
-            const IconComponent = method.icon;
-            const isSelected = selectedPaymentMethod === method.id;
-            const cardColors = stackingCardColors[method.id];
-            
-            return (
-              <motion.button
-                key={method.id}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCardClick(method.id, index);
-                }}
-                initial={false}
-                animate={{
-                  y: getCardY(index),
-                  scale: isSelected && !paymentCardsExpanded ? 1.02 : 1,
-                  opacity: paymentCardsExpanded ? 1 : (isSelected ? 1 : 0.85 - index * 0.08),
-                }}
-                transition={{
-                  type: "spring",
-                  stiffness: 400,
-                  damping: 30,
-                  mass: 0.8,
-                }}
-                className={`
-                  absolute left-0 right-0 p-3 rounded-2xl text-left
-                  ${cardColors.bg} 
-                  ${isSelected ? 'ring-2 ring-white/80 shadow-lg' : 'shadow-md'}
-                `}
-                style={{
-                  zIndex: getCardZIndex(index),
-                  height: CARD_HEIGHT,
-                }}
-                data-testid={`payment-method-${method.id}`}
-              >
-                <div className="flex items-center justify-between h-full">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-white/25 backdrop-blur-sm flex items-center justify-center">
-                      <IconComponent className="w-4 h-4 text-white" />
+    <div className="mt-3 space-y-4">
+      {/* Payment Method Selector - Fintech style */}
+      <div className="relative">
+        <p className="text-[10px] text-muted-foreground mb-2 uppercase tracking-wider font-medium">Metode Pembayaran</p>
+        
+        <motion.div 
+          className="relative cursor-pointer overflow-visible" 
+          animate={{ height: containerHeight }}
+          transition={{
+            type: "spring",
+            stiffness: 400,
+            damping: 30,
+            mass: 0.8,
+          }}
+          onClick={() => !paymentCardsExpanded && setPaymentCardsExpanded(true)}
+          data-testid="payment-cards-container"
+        >
+          <AnimatePresence>
+            {paymentMethods.map((method, index) => {
+              const IconComponent = method.icon;
+              const isSelected = selectedPaymentMethod === method.id;
+              const cardColors = stackingCardColors[method.id];
+              
+              const yPosition = paymentCardsExpanded 
+                ? index * (CARD_HEIGHT + EXPANDED_GAP) 
+                : 0;
+              const shouldShow = paymentCardsExpanded || isSelected;
+              
+              if (!shouldShow) return null;
+              
+              return (
+                <motion.button
+                  key={method.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCardClick(method.id);
+                  }}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{
+                    y: yPosition,
+                    scale: 1,
+                    opacity: 1,
+                  }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 400,
+                    damping: 30,
+                    mass: 0.8,
+                  }}
+                  className={`
+                    absolute left-0 right-0 p-3 rounded-xl text-left
+                    ${cardColors.bg} 
+                    ${isSelected ? 'ring-2 ring-white shadow-lg shadow-violet-500/20' : 'shadow-md'}
+                  `}
+                  style={{
+                    zIndex: isSelected ? 100 : paymentMethods.length - index,
+                    height: CARD_HEIGHT,
+                  }}
+                  data-testid={`payment-method-${method.id}`}
+                >
+                  <div className="flex items-center justify-between h-full">
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-lg bg-white/30 backdrop-blur-sm flex items-center justify-center">
+                        <IconComponent className="w-3.5 h-3.5 text-white" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm text-white leading-tight">{method.name}</p>
+                        <p className="text-[10px] text-white/80 leading-tight">{method.description}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-sm text-white leading-tight">{method.name}</p>
-                      <p className="text-[10px] text-white/75 leading-tight">{method.description}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {isSelected && (
-                      <motion.div 
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="w-5 h-5 rounded-full bg-white flex items-center justify-center"
-                      >
-                        <Check className="w-3 h-3 text-emerald-600" />
-                      </motion.div>
-                    )}
-                    {!paymentCardsExpanded && isSelected && (
+                    <div className="flex items-center gap-1.5">
+                      {isSelected && (
+                        <motion.div 
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          className="w-5 h-5 rounded-full bg-white flex items-center justify-center"
+                        >
+                          <Check className="w-3 h-3 text-emerald-600" />
+                        </motion.div>
+                      )}
                       <motion.div
-                        animate={{ rotate: 0 }}
+                        animate={{ rotate: paymentCardsExpanded ? 180 : 0 }}
                         className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"
                       >
                         <ChevronDown className="w-3 h-3 text-white" />
                       </motion.div>
-                    )}
+                    </div>
+                  </div>
+                </motion.button>
+              );
+            })}
+          </AnimatePresence>
+        </motion.div>
+      </div>
+
+      {/* Payment Details - Fintech/Crypto style cards */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl overflow-hidden"
+        style={{ 
+          background: 'linear-gradient(135deg, rgba(107, 93, 252, 0.08) 0%, rgba(139, 92, 246, 0.04) 100%)',
+          border: '1px solid rgba(107, 93, 252, 0.15)'
+        }}
+      >
+        {selectedPaymentMethod === "kompas" && (
+          <div className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
+                <ExternalLink className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm">Payment Link</p>
+                <p className="text-[10px] text-muted-foreground">Bayar via browser</p>
+              </div>
+            </div>
+            <a 
+              href="https://pay.kompas.id/pay" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-medium text-sm text-white"
+              style={{ backgroundColor: PRIMARY_COLOR }}
+              data-testid="link-kompas-pay"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Buka Payment Link
+            </a>
+          </div>
+        )}
+
+        {selectedPaymentMethod === "qris" && (
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center">
+                  <QrCode className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">QRIS Payment</p>
+                  <p className="text-[10px] text-muted-foreground">Berlaku 15 menit</p>
+                </div>
+              </div>
+              <span className="px-2 py-1 rounded-full text-[10px] font-medium bg-emerald-500/20 text-emerald-600">Aktif</span>
+            </div>
+            
+            {/* QR Code with glow effect */}
+            <div className="relative mx-auto w-40 h-40 mb-3">
+              <div className="absolute inset-0 bg-gradient-to-r from-violet-500/30 to-purple-500/30 rounded-2xl blur-xl" />
+              <div className="relative w-full h-full p-3 rounded-2xl bg-white shadow-xl">
+                <QRCodeDummy />
+              </div>
+            </div>
+            
+            <p className="text-center text-xs text-muted-foreground mb-3">
+              Scan dengan GoPay, OVO, DANA, ShopeePay, dll
+            </p>
+            
+            {/* Save button */}
+            <Button
+              variant="outline"
+              className="w-full h-9 text-sm"
+              onClick={() => {
+                const toast = document.createElement('div');
+                toast.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 px-4 py-2 bg-zinc-900 text-white text-sm rounded-full z-50';
+                toast.textContent = 'QR Code tersimpan';
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 2000);
+              }}
+              data-testid="button-save-qr"
+            >
+              <Copy className="w-3.5 h-3.5 mr-2" />
+              Simpan QR Code
+            </Button>
+          </div>
+        )}
+
+        {selectedPaymentMethod === "bank" && (
+          <div className="p-4 space-y-2">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
+                <Building2 className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm">Transfer Bank</p>
+                <p className="text-[10px] text-muted-foreground">Pilih bank tujuan</p>
+              </div>
+            </div>
+            
+            <div className="space-y-1.5">
+              {bankOptions.map((bank) => (
+                <button
+                  key={bank.id}
+                  onClick={() => setSelectedBank(bank.id)}
+                  className={`w-full p-2.5 rounded-xl text-left transition-all ${
+                    selectedBank === bank.id 
+                      ? 'bg-violet-500/15 ring-1 ring-violet-500/50' 
+                      : 'bg-white/50 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10'
+                  }`}
+                  data-testid={`bank-option-${bank.id}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-[10px]" style={{ background: bank.color }}>{bank.name}</div>
+                      <div>
+                        <p className="font-mono text-sm font-medium">{bank.accountNumber}</p>
+                        <p className="text-[10px] text-muted-foreground">{bank.accountName}</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); copyToClipboard(bank.accountNumber); }} 
+                      className="p-2 rounded-lg hover:bg-violet-500/20 transition-colors" 
+                      data-testid={`button-copy-bank-${bank.id}`}
+                    >
+                      {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
+                    </button>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {selectedPaymentMethod === "va" && (
+          <div className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center">
+                <Smartphone className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm">Virtual Account</p>
+                <p className="text-[10px] text-muted-foreground">Nomor VA otomatis</p>
+              </div>
+            </div>
+            
+            <div className="p-3 rounded-xl bg-white/60 dark:bg-white/5 border border-white/20">
+              <p className="text-[10px] text-muted-foreground mb-1">Nomor Virtual Account</p>
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-lg font-bold tracking-wide" data-testid="text-va-number">{getVANumber()}</span>
+                <button 
+                  onClick={() => copyToClipboard(getVANumber())} 
+                  className="p-2 rounded-lg hover:bg-violet-500/20 transition-colors" 
+                  data-testid="button-copy-va"
+                >
+                  {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {selectedPaymentMethod === "crypto" && (
+          <div className="p-4 space-y-3">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-400 to-rose-600 flex items-center justify-center">
+                <Bitcoin className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm">Cryptocurrency</p>
+                <p className="text-[10px] text-muted-foreground">Pilih coin</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-2">
+              {cryptoCoins.map((coin) => {
+                const CoinIcon = coin.icon;
+                const isActive = selectedCrypto === coin.id;
+                return (
+                  <button 
+                    key={coin.id}
+                    onClick={() => setSelectedCrypto(coin.id)}
+                    className={`p-3 rounded-xl text-center transition-all ${
+                      isActive 
+                        ? 'bg-violet-500/15 ring-1 ring-violet-500/50 scale-[1.02]' 
+                        : 'bg-white/50 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10'
+                    }`}
+                    data-testid={`crypto-option-${coin.id}`}
+                  >
+                    <CoinIcon className="w-6 h-6 mx-auto" style={{ color: coin.color }} />
+                    <p className="text-xs font-bold mt-1">{coin.symbol}</p>
+                  </button>
+                );
+              })}
+            </div>
+            
+            {selectedCrypto && (() => {
+              const coin = cryptoCoins.find(c => c.id === selectedCrypto);
+              return (
+                <div className="p-3 rounded-xl bg-white/60 dark:bg-white/5 border border-white/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="font-semibold text-sm">{coin?.name}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-600 dark:text-violet-400 font-medium">{coin?.network}</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-2.5 bg-zinc-100 dark:bg-zinc-900 rounded-lg">
+                    <span className="font-mono text-[10px] break-all flex-1 text-muted-foreground" data-testid="text-crypto-address">{coin?.address}</span>
+                    <button 
+                      onClick={() => copyToClipboard(coin?.address || "")} 
+                      className="p-2 rounded-lg hover:bg-violet-500/20 transition-colors shrink-0" 
+                      data-testid="button-copy-crypto"
+                    >
+                      {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
+                    </button>
                   </div>
                 </div>
-              </motion.button>
-            );
-          })}
-        </AnimatePresence>
-        
-        {/* Collapse overlay hint when expanded */}
-        {paymentCardsExpanded && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute -top-1 right-0 text-[10px] text-muted-foreground"
-          >
-            Pilih metode pembayaran
-          </motion.div>
+              );
+            })()}
+          </div>
         )}
       </motion.div>
 
-      {selectedPaymentMethod === "kompas" && (
-        <div className="p-3 rounded-xl bg-muted/50">
-          <p className="text-xs text-muted-foreground mb-2">Klik tombol di bawah untuk membuka halaman pembayaran:</p>
-          <a href="https://pay.kompas.id/pay" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm font-medium" style={{ color: PRIMARY_COLOR }} data-testid="link-kompas-pay">
-            <ExternalLink className="w-3 h-3" />Buka Payment Link
-          </a>
-        </div>
-      )}
-
-      {selectedPaymentMethod === "qris" && (
-        <div className="p-3 rounded-xl bg-muted/50 text-center">
-          <div className="w-32 h-32 mx-auto rounded-xl bg-white flex items-center justify-center mb-2 border">
-            <QrCode className="w-20 h-20 text-gray-300" />
-          </div>
-          <p className="text-xs text-muted-foreground">Scan dengan e-wallet</p>
-        </div>
-      )}
-
-      {selectedPaymentMethod === "bank" && (
-        <div className="space-y-2">
-          {bankOptions.map((bank) => (
-            <button
-              key={bank.id}
-              onClick={() => setSelectedBank(bank.id)}
-              className={`w-full p-2.5 rounded-xl text-left ${selectedBank === bank.id ? 'ring-2 ring-violet-500' : ''}`}
-              style={{
-                background: selectedBank === bank.id ? 'rgba(107, 93, 252, 0.1)' : 'rgba(0,0,0,0.03)',
-              }}
-              data-testid={`bank-option-${bank.id}`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded flex items-center justify-center text-white font-bold text-[10px]" style={{ background: bank.color }}>{bank.name}</div>
-                  <div>
-                    <p className="font-mono text-sm">{bank.accountNumber}</p>
-                    <p className="text-[10px] text-muted-foreground">{bank.accountName}</p>
-                  </div>
-                </div>
-                <button onClick={(e) => { e.stopPropagation(); copyToClipboard(bank.accountNumber); }} className="p-1.5 rounded hover:bg-muted" data-testid={`button-copy-bank-${bank.id}`}>
-                  {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3 text-muted-foreground" />}
-                </button>
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {selectedPaymentMethod === "va" && (
-        <div className="p-3 rounded-xl bg-muted/50">
-          <p className="text-xs text-muted-foreground mb-1">Virtual Account Number:</p>
-          <div className="flex items-center justify-between">
-            <span className="font-mono font-semibold" data-testid="text-va-number">{getVANumber()}</span>
-            <button onClick={() => copyToClipboard(getVANumber())} className="p-1.5 rounded hover:bg-muted" data-testid="button-copy-va">
-              {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3 text-muted-foreground" />}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {selectedPaymentMethod === "crypto" && (
-        <div className="space-y-2">
-          <div className="grid grid-cols-3 gap-1.5">
-            {cryptoCoins.map((coin) => {
-              const CoinIcon = coin.icon;
-              return (
-                <button 
-                  key={coin.id}
-                  onClick={() => setSelectedCrypto(coin.id)}
-                  className={`p-2 rounded-lg text-center ${selectedCrypto === coin.id ? 'ring-2 ring-violet-500' : ''}`}
-                  style={{
-                    background: selectedCrypto === coin.id ? 'rgba(107, 93, 252, 0.1)' : 'rgba(0,0,0,0.03)',
-                  }}
-                  data-testid={`crypto-option-${coin.id}`}
-                >
-                  <CoinIcon className="w-5 h-5 mx-auto" style={{ color: coin.color }} />
-                  <p className="text-[10px] font-semibold mt-0.5">{coin.symbol}</p>
-                </button>
-              );
-            })}
-          </div>
-          {selectedCrypto && (() => {
-            const coin = cryptoCoins.find(c => c.id === selectedCrypto);
-            return (
-              <div className="p-3 rounded-xl bg-muted/50">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <span className="font-semibold text-sm">{coin?.name}</span>
-                  <span className="text-[10px] text-muted-foreground px-1.5 py-0.5 rounded bg-muted">{coin?.network}</span>
-                </div>
-                <div className="flex items-center gap-2 p-2 bg-background rounded-lg border">
-                  <span className="font-mono text-[10px] break-all flex-1" data-testid="text-crypto-address">{coin?.address}</span>
-                  <button onClick={() => copyToClipboard(coin?.address || "")} className="p-1 rounded hover:bg-muted shrink-0" data-testid="button-copy-crypto">
-                    {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3 text-muted-foreground" />}
-                  </button>
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-      )}
-
-      <Button
-        className="w-full h-10 text-white"
-        style={{ backgroundColor: '#10b981' }}
-        onClick={() => handleAction("process_payment")}
-        disabled={isProcessing}
-        data-testid="button-pay"
+      {/* Swipe to Pay Slider - Fintech style */}
+      <div 
+        ref={sliderRef}
+        className="relative h-14 rounded-2xl overflow-hidden select-none touch-none"
+        style={{ 
+          background: isProcessing 
+            ? 'linear-gradient(90deg, #10b981 0%, #34d399 100%)' 
+            : 'linear-gradient(90deg, #18181b 0%, #27272a 100%)'
+        }}
+        onMouseDown={handleSliderStart}
+        onMouseMove={(e) => handleSliderMove(e.clientX)}
+        onMouseUp={handleSliderEnd}
+        onMouseLeave={handleSliderEnd}
+        onTouchStart={handleSliderStart}
+        onTouchMove={(e) => handleSliderMove(e.touches[0].clientX)}
+        onTouchEnd={handleSliderEnd}
+        data-testid="slider-pay"
       >
-        {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : `Bayar ${selectedProduct?.name}`}
-      </Button>
+        {/* Progress fill */}
+        <motion.div 
+          className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500 to-emerald-400"
+          animate={{ width: `${sliderProgress * 100}%` }}
+        />
+        
+        {/* Text */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          {isProcessing ? (
+            <div className="flex items-center gap-2 text-white font-medium">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Memproses...</span>
+            </div>
+          ) : (
+            <span className="text-white/70 text-sm font-medium tracking-wide">
+              {sliderProgress > 0.5 ? 'Lepas untuk bayar' : `Geser untuk bayar ${selectedProduct?.name}`}
+            </span>
+          )}
+        </div>
+        
+        {/* Slider thumb */}
+        {!isProcessing && (
+          <motion.div
+            className="absolute top-1 bottom-1 left-1 w-12 rounded-xl bg-white shadow-lg flex items-center justify-center cursor-grab active:cursor-grabbing"
+            animate={{ x: sliderProgress * (sliderRef.current?.offsetWidth ? sliderRef.current.offsetWidth - 56 : 0) }}
+            style={{ touchAction: 'none' }}
+          >
+            <div className="flex gap-0.5">
+              <div className="w-0.5 h-4 rounded-full bg-zinc-300" />
+              <div className="w-0.5 h-4 rounded-full bg-zinc-300" />
+              <div className="w-0.5 h-4 rounded-full bg-zinc-300" />
+            </div>
+          </motion.div>
+        )}
+      </div>
     </div>
     );
   };
