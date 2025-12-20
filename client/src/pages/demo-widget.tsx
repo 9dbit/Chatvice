@@ -100,14 +100,15 @@ interface Product {
   id: string;
   name: string;
   price: number;
+  coins: number;
 }
 
 const products: Product[] = [
-  { id: "1", name: "Rp 25.000", price: 25000 },
-  { id: "2", name: "Rp 50.000", price: 50000 },
-  { id: "3", name: "Rp 100.000", price: 100000 },
-  { id: "4", name: "Rp 200.000", price: 200000 },
-  { id: "5", name: "Rp 500.000", price: 500000 },
+  { id: "1", name: "Rp 25.000", price: 25000, coins: 25 },
+  { id: "2", name: "Rp 50.000", price: 50000, coins: 55 },
+  { id: "3", name: "Rp 100.000", price: 100000, coins: 115 },
+  { id: "4", name: "Rp 200.000", price: 200000, coins: 240 },
+  { id: "5", name: "Rp 500.000", price: 500000, coins: 625 },
 ];
 
 function formatRupiah(amount: number): string {
@@ -386,23 +387,33 @@ export default function DemoWidgetPage() {
   };
 
   const PackagesComponent = () => (
-    <div className="grid grid-cols-2 gap-2 mt-3">
+    <div className="grid grid-cols-2 gap-3 mt-3">
       {products.map((product) => (
         <button
           key={product.id}
           onClick={() => handleSelectProduct(product)}
-          className="p-3 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-[0.98]"
+          className="p-4 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-[0.98]"
           style={{
-            background: 'rgba(107, 93, 252, 0.1)',
-            border: '1px solid rgba(107, 93, 252, 0.3)',
+            background: 'linear-gradient(145deg, rgba(30, 30, 35, 0.95), rgba(20, 20, 25, 0.98))',
+            border: '1px solid rgba(107, 93, 252, 0.4)',
+            boxShadow: '0 4px 20px rgba(107, 93, 252, 0.15), 0 2px 8px rgba(0, 0, 0, 0.3)',
           }}
           data-testid={`package-${product.id}`}
         >
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-              <Coins className="w-4 h-4 text-white" />
+          <div className="flex items-center gap-3">
+            <div 
+              className="w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{ 
+                background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                boxShadow: '0 4px 12px rgba(249, 115, 22, 0.4)',
+              }}
+            >
+              <Coins className="w-5 h-5 text-white" />
             </div>
-            <span className="font-semibold text-sm">{product.name}</span>
+            <div>
+              <p className="font-bold text-white text-sm">{product.name}</p>
+              <p className="text-xs text-zinc-400">{product.coins} koin</p>
+            </div>
           </div>
         </button>
       ))}
@@ -1017,15 +1028,23 @@ export default function DemoWidgetPage() {
       
       <div className="flex gap-3">
         <Button
-          className="flex-1 h-11 bg-white/20 hover:bg-white/30 text-white border-0"
+          className="flex-1 h-11 text-white border-0 font-semibold"
           variant="outline"
+          style={{
+            background: 'rgba(255, 255, 255, 0.15)',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+          }}
           onClick={() => handleAction("go_home")}
           data-testid="button-go-home"
         >
           Kembali
         </Button>
         <Button
-          className="flex-1 h-11 bg-white hover:bg-white/90 text-violet-600 font-semibold border-0"
+          className="flex-1 h-11 text-violet-600 font-bold border-0"
+          style={{
+            background: 'white',
+            boxShadow: '0 4px 14px rgba(255, 255, 255, 0.3)',
+          }}
           onClick={() => handleAction("new_transaction")}
           data-testid="button-new-transaction"
         >
@@ -1099,14 +1118,19 @@ export default function DemoWidgetPage() {
                   <>
                     <p className="whitespace-pre-wrap">{msg.content}</p>
                     {msg.actions && (
-                      <div className="flex flex-wrap gap-1.5 mt-2">
+                      <div className="flex flex-wrap gap-2 mt-3">
                         {msg.actions.map((action, idx) => (
                           <Button
                             key={idx}
                             size="sm"
                             variant={action.variant === "destructive" ? "outline" : "default"}
-                            className={`h-7 text-xs ${action.variant === "destructive" ? "border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground" : "text-white"}`}
-                            style={action.variant !== "destructive" ? { backgroundColor: PRIMARY_COLOR } : undefined}
+                            className={`h-8 text-xs font-semibold ${action.variant === "destructive" ? "border-zinc-600 text-zinc-300 hover:bg-zinc-800 hover:text-white" : "text-white"}`}
+                            style={action.variant !== "destructive" ? { 
+                              background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                              boxShadow: '0 4px 14px rgba(249, 115, 22, 0.4)',
+                            } : {
+                              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+                            }}
                             onClick={() => handleAction(action.action)}
                             data-testid={`action-${action.action}`}
                           >
