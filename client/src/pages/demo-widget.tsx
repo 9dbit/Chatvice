@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Coins, 
   CheckCircle2, 
@@ -17,7 +18,8 @@ import {
   Copy,
   Check,
   X,
-  Minimize2
+  Minimize2,
+  ChevronDown
 } from "lucide-react";
 import { SiBitcoin, SiEthereum, SiTether, SiSolana, SiBinance, SiDogecoin } from "react-icons/si";
 
@@ -131,6 +133,7 @@ export default function DemoWidgetPage() {
   const [selectedBank, setSelectedBank] = useState<string>("bca");
   const [selectedCrypto, setSelectedCrypto] = useState<CryptoOption>("btc");
   const [copied, setCopied] = useState(false);
+  const [paymentCardsExpanded, setPaymentCardsExpanded] = useState(false);
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -459,49 +462,143 @@ export default function DemoWidgetPage() {
     </div>
   );
 
-  const PaymentComponent = () => (
+  const PaymentComponent = () => {
+    const selectedIndex = paymentMethods.findIndex(m => m.id === selectedPaymentMethod);
+    const CARD_HEIGHT = 56;
+    const COLLAPSED_OFFSET = 14;
+    const EXPANDED_GAP = 8;
+
+    const handleCardClick = (methodId: PaymentMethod, index: number) => {
+      if (!paymentCardsExpanded) {
+        setPaymentCardsExpanded(true);
+      } else {
+        setSelectedPaymentMethod(methodId);
+        setTimeout(() => setPaymentCardsExpanded(false), 150);
+      }
+    };
+
+    const getCardY = (index: number) => {
+      if (paymentCardsExpanded) {
+        return index * (CARD_HEIGHT + EXPANDED_GAP);
+      }
+      if (index <= selectedIndex) {
+        return index * COLLAPSED_OFFSET;
+      }
+      return selectedIndex * COLLAPSED_OFFSET + (index - selectedIndex) * COLLAPSED_OFFSET;
+    };
+
+    const getCardZIndex = (index: number) => {
+      if (paymentCardsExpanded) {
+        return paymentMethods.length - index;
+      }
+      if (index === selectedIndex) {
+        return paymentMethods.length + 1;
+      }
+      return paymentMethods.length - Math.abs(index - selectedIndex);
+    };
+
+    const containerHeight = paymentCardsExpanded 
+      ? paymentMethods.length * (CARD_HEIGHT + EXPANDED_GAP) - EXPANDED_GAP
+      : (paymentMethods.length - 1) * COLLAPSED_OFFSET + CARD_HEIGHT;
+
+    return (
     <div className="mt-3 space-y-3">
-      {/* Stacking Cards Payment Methods */}
-      <div className="relative">
-        {paymentMethods.map((method, index) => {
-          const IconComponent = method.icon;
-          const isSelected = selectedPaymentMethod === method.id;
-          const cardColors = stackingCardColors[method.id];
-          return (
-            <button
-              key={method.id}
-              onClick={() => setSelectedPaymentMethod(method.id)}
-              className={`
-                w-full p-3 rounded-2xl text-left transition-all duration-200
-                ${cardColors.bg} ${isSelected ? 'ring-2 ring-white shadow-lg scale-[1.02]' : 'opacity-90'}
-                ${index > 0 ? '-mt-2' : ''}
-              `}
-              style={{
-                zIndex: isSelected ? 10 : paymentMethods.length - index,
-                position: 'relative',
-              }}
-              data-testid={`payment-method-${method.id}`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
-                    <IconComponent className="w-5 h-5 text-white" />
+      {/* Stacking Cards Payment Methods with Animation */}
+      <motion.div 
+        className="relative cursor-pointer" 
+        animate={{ height: containerHeight }}
+        transition={{
+          type: "spring",
+          stiffness: 400,
+          damping: 30,
+          mass: 0.8,
+        }}
+        onClick={() => !paymentCardsExpanded && setPaymentCardsExpanded(true)}
+        data-testid="payment-cards-container"
+      >
+        <AnimatePresence>
+          {paymentMethods.map((method, index) => {
+            const IconComponent = method.icon;
+            const isSelected = selectedPaymentMethod === method.id;
+            const cardColors = stackingCardColors[method.id];
+            
+            return (
+              <motion.button
+                key={method.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCardClick(method.id, index);
+                }}
+                initial={false}
+                animate={{
+                  y: getCardY(index),
+                  scale: isSelected && !paymentCardsExpanded ? 1.02 : 1,
+                  opacity: paymentCardsExpanded ? 1 : (isSelected ? 1 : 0.85 - index * 0.08),
+                }}
+                transition={{
+                  type: "spring",
+                  stiffness: 400,
+                  damping: 30,
+                  mass: 0.8,
+                }}
+                className={`
+                  absolute left-0 right-0 p-3 rounded-2xl text-left
+                  ${cardColors.bg} 
+                  ${isSelected ? 'ring-2 ring-white/80 shadow-lg' : 'shadow-md'}
+                `}
+                style={{
+                  zIndex: getCardZIndex(index),
+                  height: CARD_HEIGHT,
+                }}
+                data-testid={`payment-method-${method.id}`}
+              >
+                <div className="flex items-center justify-between h-full">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-white/25 backdrop-blur-sm flex items-center justify-center">
+                      <IconComponent className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm text-white leading-tight">{method.name}</p>
+                      <p className="text-[10px] text-white/75 leading-tight">{method.description}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-semibold text-sm text-white">{method.name}</p>
-                    <p className="text-[11px] text-white/70">{method.description}</p>
+                  <div className="flex items-center gap-2">
+                    {isSelected && (
+                      <motion.div 
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="w-5 h-5 rounded-full bg-white flex items-center justify-center"
+                      >
+                        <Check className="w-3 h-3 text-emerald-600" />
+                      </motion.div>
+                    )}
+                    {!paymentCardsExpanded && isSelected && (
+                      <motion.div
+                        animate={{ rotate: 0 }}
+                        className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center"
+                      >
+                        <ChevronDown className="w-3 h-3 text-white" />
+                      </motion.div>
+                    )}
                   </div>
                 </div>
-                {isSelected && (
-                  <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center">
-                    <Check className="w-3 h-3 text-emerald-600" />
-                  </div>
-                )}
-              </div>
-            </button>
-          );
-        })}
-      </div>
+              </motion.button>
+            );
+          })}
+        </AnimatePresence>
+        
+        {/* Collapse overlay hint when expanded */}
+        {paymentCardsExpanded && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute -top-1 right-0 text-[10px] text-muted-foreground"
+          >
+            Pilih metode pembayaran
+          </motion.div>
+        )}
+      </motion.div>
 
       {selectedPaymentMethod === "kompas" && (
         <div className="p-3 rounded-xl bg-muted/50">
@@ -613,7 +710,8 @@ export default function DemoWidgetPage() {
         {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : `Bayar ${selectedProduct?.name}`}
       </Button>
     </div>
-  );
+    );
+  };
 
   const SuccessComponent = ({ data }: { data: any }) => (
     <div className="mt-3 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800">
