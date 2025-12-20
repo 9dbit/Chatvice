@@ -475,6 +475,7 @@ export default function DemoWidgetPage() {
   const PaymentComponent = () => {
     const [sliderProgress, setSliderProgress] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
+    const [paymentCompleted, setPaymentCompleted] = useState(false);
     const sliderRef = useRef<HTMLDivElement>(null);
     const progressRef = useRef(0);
     
@@ -496,12 +497,12 @@ export default function DemoWidgetPage() {
 
     // Swipe to pay handler - using ref for accurate progress check
     const handleSliderStart = () => {
-      if (isProcessing) return;
+      if (isProcessing || paymentCompleted) return;
       setIsDragging(true);
     };
 
     const handleSliderMove = (clientX: number) => {
-      if (!sliderRef.current || isProcessing) return;
+      if (!sliderRef.current || isProcessing || paymentCompleted) return;
       const rect = sliderRef.current.getBoundingClientRect();
       const progress = Math.max(0, Math.min(1, (clientX - rect.left - 24) / (rect.width - 48)));
       progressRef.current = progress;
@@ -509,12 +510,14 @@ export default function DemoWidgetPage() {
     };
 
     const handleSliderEnd = () => {
-      if (isProcessing) return;
+      if (isProcessing || paymentCompleted) return;
       setIsDragging(false);
       
       if (progressRef.current > 0.85) {
-        // Lock slider at 100% and trigger payment
+        // Lock slider at 100% permanently - prevent double transaction
         setSliderProgress(1);
+        progressRef.current = 1;
+        setPaymentCompleted(true);
         handleAction("process_payment");
       } else {
         // Reset if not completed
@@ -910,56 +913,72 @@ export default function DemoWidgetPage() {
       </motion.div>
 
       {/* Swipe to Pay Slider - Fintech style */}
-      <div 
-        ref={sliderRef}
-        className="relative h-14 rounded-2xl overflow-hidden select-none touch-none"
-        style={{ 
-          background: isProcessing 
-            ? 'linear-gradient(90deg, #10b981 0%, #34d399 100%)' 
-            : 'linear-gradient(90deg, #18181b 0%, #27272a 100%)'
-        }}
-        onMouseDown={handleSliderStart}
-        onMouseMove={(e) => handleSliderMove(e.clientX)}
-        onMouseUp={handleSliderEnd}
-        onMouseLeave={handleSliderEnd}
-        onTouchStart={handleSliderStart}
-        onTouchMove={(e) => handleSliderMove(e.touches[0].clientX)}
-        onTouchEnd={handleSliderEnd}
-        data-testid="slider-pay"
-      >
-        {/* Progress fill */}
-        <motion.div 
-          className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500 to-emerald-400"
-          animate={{ width: `${sliderProgress * 100}%` }}
-        />
-        
-        {/* Text - positioned to the right of thumb */}
-        <div className="absolute inset-0 flex items-center pointer-events-none pl-16 pr-4">
-          {isProcessing ? (
-            <div className="flex items-center gap-2 text-white font-medium w-full justify-center">
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span>Memproses...</span>
+      <div className="space-y-2">
+        <div 
+          ref={sliderRef}
+          className="relative h-14 rounded-2xl overflow-hidden select-none touch-none"
+          style={{ 
+            background: isProcessing 
+              ? '#10b981'
+              : '#18181b'
+          }}
+          onMouseDown={handleSliderStart}
+          onMouseMove={(e) => handleSliderMove(e.clientX)}
+          onMouseUp={handleSliderEnd}
+          onMouseLeave={handleSliderEnd}
+          onTouchStart={handleSliderStart}
+          onTouchMove={(e) => handleSliderMove(e.touches[0].clientX)}
+          onTouchEnd={handleSliderEnd}
+          data-testid="slider-pay"
+        >
+          {/* Progress fill */}
+          <motion.div 
+            className="absolute inset-y-0 left-0"
+            style={{ backgroundColor: '#10b981' }}
+            animate={{ width: `${sliderProgress * 100}%` }}
+          />
+          
+          {/* Processing text inside slider */}
+          {isProcessing && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="flex items-center gap-2 text-white font-medium">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Memproses pembayaran...</span>
+              </div>
             </div>
-          ) : (
-            <span className="text-white/70 text-sm font-medium tracking-wide w-full text-center">
-              {sliderProgress > 0.5 ? 'Lepas untuk bayar' : `Geser untuk bayar ${selectedProduct?.name}`}
-            </span>
+          )}
+          
+          {/* Slider thumb */}
+          {!isProcessing && !paymentCompleted && (
+            <motion.div
+              className="absolute top-1 bottom-1 left-1 w-12 rounded-xl bg-white shadow-lg flex items-center justify-center cursor-grab active:cursor-grabbing"
+              animate={{ x: sliderProgress * (sliderRef.current?.offsetWidth ? sliderRef.current.offsetWidth - 56 : 0) }}
+              style={{ touchAction: 'none' }}
+            >
+              <div className="flex gap-0.5">
+                <div className="w-0.5 h-4 rounded-full bg-zinc-300" />
+                <div className="w-0.5 h-4 rounded-full bg-zinc-300" />
+                <div className="w-0.5 h-4 rounded-full bg-zinc-300" />
+              </div>
+            </motion.div>
+          )}
+          
+          {/* Completed checkmark */}
+          {paymentCompleted && !isProcessing && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="flex items-center gap-2 text-white font-medium">
+                <Check className="w-5 h-5" />
+                <span>Pembayaran dikonfirmasi</span>
+              </div>
+            </div>
           )}
         </div>
         
-        {/* Slider thumb */}
-        {!isProcessing && (
-          <motion.div
-            className="absolute top-1 bottom-1 left-1 w-12 rounded-xl bg-white shadow-lg flex items-center justify-center cursor-grab active:cursor-grabbing"
-            animate={{ x: sliderProgress * (sliderRef.current?.offsetWidth ? sliderRef.current.offsetWidth - 56 : 0) }}
-            style={{ touchAction: 'none' }}
-          >
-            <div className="flex gap-0.5">
-              <div className="w-0.5 h-4 rounded-full bg-zinc-300" />
-              <div className="w-0.5 h-4 rounded-full bg-zinc-300" />
-              <div className="w-0.5 h-4 rounded-full bg-zinc-300" />
-            </div>
-          </motion.div>
+        {/* Text below slider */}
+        {!isProcessing && !paymentCompleted && (
+          <p className="text-center text-xs text-muted-foreground">
+            {sliderProgress > 0.5 ? 'Lepas untuk konfirmasi' : 'Geser untuk selesaikan pembayaran'}
+          </p>
         )}
       </div>
     </div>
@@ -969,9 +988,7 @@ export default function DemoWidgetPage() {
   const SuccessComponent = ({ data }: { data: any }) => (
     <div 
       className="mt-3 p-5 rounded-2xl"
-      style={{ 
-        background: 'linear-gradient(135deg, #6b5dfc 0%, #8b5cf6 100%)'
-      }}
+      style={{ backgroundColor: '#6b5dfc' }}
     >
       <div className="flex items-center gap-3 mb-4">
         <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
