@@ -22,6 +22,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import coinIconUrl from "@assets/378F49CE-F76C-415A-9F71-1B8B8883CFC5_1766242722508.png";
+import bgImageUrl from "@assets/IMG_0743_1766246728943.jpeg";
 import { SiBitcoin, SiEthereum, SiTether, SiSolana, SiBinance, SiDogecoin } from "react-icons/si";
 
 type PaymentMethod = "kompas" | "qris" | "bank" | "va" | "crypto";
@@ -1059,7 +1060,14 @@ export default function DemoWidgetPage() {
   };
 
   const widgetContent = (
-    <div className="h-full w-full flex flex-col bg-background">
+    <div 
+      className="h-full w-full flex flex-col"
+      style={{
+        backgroundImage: `url(${bgImageUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
+    >
       {/* Header - Same as internal Chatvice */}
       <div className="p-4 flex items-center justify-between" style={{ backgroundColor: PRIMARY_COLOR }}>
         <div className="flex items-center gap-3">
