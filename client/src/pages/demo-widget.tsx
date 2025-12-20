@@ -54,9 +54,18 @@ const paymentMethods: PaymentMethodOption[] = [
   { id: "kompas", name: "Payment Link", description: "Bayar via link", icon: ExternalLink, gradient: "from-blue-500 to-purple-600" },
   { id: "qris", name: "QRIS", description: "Scan QR", icon: QrCode, gradient: "from-emerald-400 to-teal-600" },
   { id: "bank", name: "Transfer Bank", description: "BCA, Mandiri, BNI, BRI", icon: Building2, gradient: "from-slate-600 to-slate-800" },
-  { id: "va", name: "Virtual Account", description: "VA otomatis", icon: Smartphone, gradient: "from-green-500 to-emerald-600" },
+  { id: "va", name: "Virtual Account", description: "VA otomatis", icon: Smartphone, gradient: "from-purple-500 to-violet-600" },
   { id: "crypto", name: "Crypto", description: "BTC, ETH, USDT", icon: Bitcoin, gradient: "from-orange-400 to-amber-600" },
 ];
+
+// Stacking card colors for payment methods
+const stackingCardColors: Record<PaymentMethod, { bg: string; border: string }> = {
+  kompas: { bg: "bg-orange-400", border: "border-orange-500" },
+  qris: { bg: "bg-violet-500", border: "border-violet-600" },
+  bank: { bg: "bg-amber-500", border: "border-amber-600" },
+  va: { bg: "bg-emerald-500", border: "border-emerald-600" },
+  crypto: { bg: "bg-rose-500", border: "border-rose-600" },
+};
 
 const bankOptions: BankOption[] = [
   { id: "bca", name: "BCA", accountNumber: "1234567890", accountName: "PT Chatvice Indonesia", color: "#003D79" },
@@ -174,22 +183,76 @@ export default function DemoWidgetPage() {
     }, 300);
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
     
-    addMessage({ from: "user", content: inputMessage });
-    const msg = inputMessage.toLowerCase();
+    const userMsg = inputMessage;
+    addMessage({ from: "user", content: userMsg });
+    const msg = userMsg.toLowerCase();
     setInputMessage("");
 
+    // Check for top up intent first
     if (msg.includes("topup") || msg.includes("top up") || msg.includes("koin") || msg.includes("beli") || msg.includes("isi")) {
       handleAction("topup");
-    } else {
-      addTypingThenMessage({
+      return;
+    }
+
+    // For any other message, use AI with Chatvice Guide knowledge base
+    const typingId = addMessage({ from: "bot", content: "", isTyping: true });
+    
+    try {
+      // Build transaction context if available
+      let transactionContext = "";
+      if (selectedProduct) {
+        // Coin value is 1:1 with nominal (Rp 25.000 = 25.000 koin)
+        transactionContext = `\n\nKONTEKS TRANSAKSI SAAT INI:
+- Produk: ${selectedProduct.name}
+- Harga: ${formatRupiah(selectedProduct.price)}
+- Koin: ${selectedProduct.price.toLocaleString("id-ID")} koin (rasio 1:1 dengan nominal harga)`;
+      }
+      if (orderId) {
+        transactionContext += `\n- Order ID: ${orderId}`;
+      }
+      if (customerId) {
+        transactionContext += `\n- Customer ID: ${customerId}`;
+      }
+
+      // Build conversation history for context
+      const history = messages
+        .filter(m => !m.isTyping && m.content)
+        .slice(-10)
+        .map(m => ({ role: m.from === "user" ? "user" : "assistant", content: m.content }));
+
+      const response = await fetch("/api/help/public-ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: userMsg + transactionContext,
+          conversationHistory: history,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("API request failed");
+      }
+
+      const data = await response.json();
+      setMessages(prev => prev.filter(m => m.id !== typingId));
+      
+      addMessage({
         from: "bot",
-        content: "Maaf kak, saya belum mengerti. Apakah kakak ingin melakukan top up koin?",
+        content: data.answer || "Maaf, saya tidak bisa menjawab saat ini. Silakan coba lagi.",
+        actions: selectedProduct ? undefined : [
+          { label: "Top Up Koin", action: "topup" },
+        ],
+      });
+    } catch {
+      setMessages(prev => prev.filter(m => m.id !== typingId));
+      addMessage({
+        from: "bot",
+        content: "Maaf kak, terjadi kesalahan. Apakah kakak ingin melakukan top up koin?",
         actions: [
           { label: "Ya, Top Up", action: "topup" },
-          { label: "Tidak", action: "cancel_chat" },
         ],
       });
     }
@@ -320,6 +383,12 @@ export default function DemoWidgetPage() {
         setMessages([]);
         startChat();
         break;
+
+      case "go_home":
+        // Navigate to homepage (dummy for now - just close widget and show alert)
+        setIsOpen(false);
+        window.location.href = "/";
+        break;
     }
   };
 
@@ -392,25 +461,43 @@ export default function DemoWidgetPage() {
 
   const PaymentComponent = () => (
     <div className="mt-3 space-y-3">
-      <div className="grid grid-cols-2 gap-2">
-        {paymentMethods.map((method) => {
+      {/* Stacking Cards Payment Methods */}
+      <div className="relative">
+        {paymentMethods.map((method, index) => {
           const IconComponent = method.icon;
           const isSelected = selectedPaymentMethod === method.id;
+          const cardColors = stackingCardColors[method.id];
           return (
             <button
               key={method.id}
               onClick={() => setSelectedPaymentMethod(method.id)}
-              className={`p-2.5 rounded-xl text-left transition-all ${isSelected ? 'ring-2 ring-violet-500' : ''}`}
+              className={`
+                w-full p-3 rounded-2xl text-left transition-all duration-200
+                ${cardColors.bg} ${isSelected ? 'ring-2 ring-white shadow-lg scale-[1.02]' : 'opacity-90'}
+                ${index > 0 ? '-mt-2' : ''}
+              `}
               style={{
-                background: isSelected ? 'rgba(107, 93, 252, 0.15)' : 'rgba(0,0,0,0.03)',
+                zIndex: isSelected ? 10 : paymentMethods.length - index,
+                position: 'relative',
               }}
               data-testid={`payment-method-${method.id}`}
             >
-              <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${method.gradient} flex items-center justify-center mb-1.5`}>
-                <IconComponent className="w-4 h-4 text-white" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
+                    <IconComponent className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm text-white">{method.name}</p>
+                    <p className="text-[11px] text-white/70">{method.description}</p>
+                  </div>
+                </div>
+                {isSelected && (
+                  <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center">
+                    <Check className="w-3 h-3 text-emerald-600" />
+                  </div>
+                )}
               </div>
-              <p className="font-semibold text-xs">{method.name}</p>
-              <p className="text-[10px] text-muted-foreground">{method.description}</p>
             </button>
           );
         })}
@@ -549,14 +636,27 @@ export default function DemoWidgetPage() {
           <span className="font-mono text-xs" data-testid="text-customer-id">{data.customerId}</span>
         </div>
       </div>
-      <Button
-        className="w-full h-9 mt-3 text-white"
-        style={{ backgroundColor: PRIMARY_COLOR }}
-        onClick={() => handleAction("new_transaction")}
-        data-testid="button-new-transaction"
-      >
-        Transaksi Baru
-      </Button>
+      <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-3 text-center">
+        Terima kasih telah menggunakan layanan kami. Koin akan segera ditambahkan ke akun Anda.
+      </p>
+      <div className="flex gap-2 mt-3">
+        <Button
+          className="flex-1 h-9"
+          variant="outline"
+          onClick={() => handleAction("go_home")}
+          data-testid="button-go-home"
+        >
+          Kembali ke Homepage
+        </Button>
+        <Button
+          className="flex-1 h-9 text-white"
+          style={{ backgroundColor: PRIMARY_COLOR }}
+          onClick={() => handleAction("new_transaction")}
+          data-testid="button-new-transaction"
+        >
+          Transaksi Baru
+        </Button>
+      </div>
     </div>
   );
 
