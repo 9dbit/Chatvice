@@ -59,7 +59,7 @@ interface CryptoCoin {
 }
 
 const paymentMethods: PaymentMethodOption[] = [
-  { id: "kompas", name: "Kompas Pay", description: "Bayar via Kompas Pay", icon: Wallet },
+  { id: "kompas", name: "Payment Link", description: "Bayar via link pembayaran", icon: ExternalLink },
   { id: "qris", name: "QRIS", description: "Scan QR untuk bayar", icon: QrCode },
   { id: "bank", name: "Transfer Bank", description: "BCA, Mandiri, BNI, BRI", icon: Building2 },
   { id: "va", name: "Virtual Account", description: "Nomor VA otomatis", icon: Smartphone },
@@ -484,42 +484,56 @@ export default function DemoWidgetPage() {
                     </CardContent>
                   </Card>
 
-                  {/* Payment Method Selection */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Pilih Metode Pembayaran</Label>
-                    <div className="grid gap-2">
-                      {paymentMethods.map((method) => {
+                  {/* Payment Method Selection - Apple Style Floating Menu */}
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold text-gray-700">Pilih Metode Pembayaran</p>
+                    <div 
+                      className="rounded-2xl overflow-hidden"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.85) 100%)',
+                        backdropFilter: 'blur(20px)',
+                        WebkitBackdropFilter: 'blur(20px)',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.08), inset 0 0 0 1px rgba(255,255,255,0.5)',
+                      }}
+                    >
+                      {paymentMethods.map((method, index) => {
                         const IconComponent = method.icon;
+                        const isSelected = selectedPaymentMethod === method.id;
+                        const gradients: Record<PaymentMethod, string> = {
+                          kompas: 'from-blue-500 to-purple-600',
+                          qris: 'from-emerald-400 to-teal-600',
+                          bank: 'from-slate-700 to-slate-900',
+                          va: 'from-green-500 to-emerald-600',
+                          crypto: 'from-orange-400 to-amber-600',
+                        };
                         return (
-                          <Card 
+                          <div 
                             key={method.id}
-                            className={`cursor-pointer transition-all hover-elevate ${
-                              selectedPaymentMethod === method.id 
-                                ? "border-primary bg-primary/5" 
-                                : "hover:border-muted-foreground/30"
-                            }`}
+                            className={`cursor-pointer transition-all p-3 flex items-center justify-between ${
+                              isSelected ? "bg-blue-50/80" : "hover:bg-white/50"
+                            } ${index !== paymentMethods.length - 1 ? "border-b border-gray-100" : ""}`}
                             onClick={() => setSelectedPaymentMethod(method.id)}
                             data-testid={`payment-method-${method.id}`}
                           >
-                            <CardContent className="p-3 flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                                  selectedPaymentMethod === method.id ? "bg-primary/10" : "bg-muted"
-                                }`}>
-                                  <IconComponent className={`w-5 h-5 ${
-                                    selectedPaymentMethod === method.id ? "text-primary" : "text-muted-foreground"
-                                  }`} />
-                                </div>
-                                <div>
-                                  <p className="font-medium text-sm">{method.name}</p>
-                                  <p className="text-xs text-muted-foreground">{method.description}</p>
-                                </div>
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md bg-gradient-to-br ${gradients[method.id]}`}>
+                                <IconComponent className="w-5 h-5 text-white" />
                               </div>
-                              <ChevronRight className={`w-4 h-4 ${
-                                selectedPaymentMethod === method.id ? "text-primary" : "text-muted-foreground"
-                              }`} />
-                            </CardContent>
-                          </Card>
+                              <div>
+                                <p className={`font-medium text-sm ${isSelected ? "text-blue-700" : "text-gray-900"}`}>
+                                  {method.name}
+                                </p>
+                                <p className="text-xs text-gray-500">{method.description}</p>
+                              </div>
+                            </div>
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                              isSelected 
+                                ? "border-blue-500 bg-blue-500" 
+                                : "border-gray-300"
+                            }`}>
+                              {isSelected && <Check className="w-3 h-3 text-white" />}
+                            </div>
+                          </div>
                         );
                       })}
                     </div>
@@ -527,151 +541,252 @@ export default function DemoWidgetPage() {
 
                   {/* Payment Details Based on Selected Method */}
                   {selectedPaymentMethod === "kompas" && (
-                    <Card className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border-blue-500/30">
-                      <CardContent className="p-4 space-y-3">
-                        <div className="flex items-center gap-2">
-                          <Wallet className="w-5 h-5 text-blue-600" />
-                          <span className="font-semibold">Kompas Pay</span>
+                    <div 
+                      className="relative overflow-hidden rounded-2xl p-4 space-y-3"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)',
+                        backdropFilter: 'blur(20px)',
+                        WebkitBackdropFilter: 'blur(20px)',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.08), inset 0 0 0 1px rgba(255,255,255,0.5)',
+                      }}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/10 pointer-events-none" />
+                      <div className="relative flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                          <ExternalLink className="w-6 h-6 text-white" />
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          Anda akan diarahkan ke halaman pembayaran Kompas Pay untuk menyelesaikan transaksi.
-                        </p>
-                        <a 
-                          href="https://pay.kompas.id/pay" 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline"
-                          data-testid="link-kompas-pay"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                          Buka Kompas Pay
-                        </a>
-                      </CardContent>
-                    </Card>
+                        <div>
+                          <p className="font-semibold text-gray-900">Payment Link</p>
+                          <p className="text-xs text-gray-500">Pembayaran aman via link</p>
+                        </div>
+                      </div>
+                      <p className="relative text-sm text-gray-600">
+                        Klik tombol di bawah untuk melanjutkan ke halaman pembayaran yang aman.
+                      </p>
+                      <a 
+                        href="https://pay.kompas.id/pay" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="relative inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                        data-testid="link-kompas-pay"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Buka Halaman Pembayaran
+                      </a>
+                    </div>
                   )}
 
                   {selectedPaymentMethod === "qris" && (
-                    <Card className="bg-muted/50">
-                      <CardContent className="p-4 flex flex-col items-center gap-3">
-                        <div className="w-36 h-36 bg-white rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/30">
+                    <div 
+                      className="relative overflow-hidden rounded-2xl p-4 space-y-4"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
+                        backdropFilter: 'blur(20px)',
+                        WebkitBackdropFilter: 'blur(20px)',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.08), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-lg">
+                          <QrCode className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900">QRIS Payment</p>
+                          <p className="text-xs text-gray-500">Scan dengan e-wallet atau m-banking</p>
+                        </div>
+                      </div>
+                      <div className="flex justify-center">
+                        <div 
+                          className="w-40 h-40 rounded-2xl flex items-center justify-center"
+                          style={{
+                            background: 'white',
+                            boxShadow: '0 4px 20px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(0,0,0,0.05)',
+                          }}
+                        >
                           <div className="text-center">
-                            <QrCode className="w-20 h-20 text-muted-foreground mx-auto" />
-                            <p className="text-xs text-muted-foreground mt-1">QRIS Demo</p>
+                            <QrCode className="w-24 h-24 text-gray-400 mx-auto" />
+                            <p className="text-xs text-gray-400 mt-1 font-medium">QRIS Demo</p>
                           </div>
                         </div>
-                        <p className="text-sm text-muted-foreground text-center">
-                          Scan kode QR dengan aplikasi e-wallet atau mobile banking Anda
-                        </p>
-                      </CardContent>
-                    </Card>
+                      </div>
+                      <p className="text-sm text-gray-500 text-center">
+                        Scan kode QR di atas dengan aplikasi favorit Anda
+                      </p>
+                    </div>
                   )}
 
                   {selectedPaymentMethod === "bank" && (
-                    <div className="space-y-2">
-                      <Label className="text-sm">Pilih Bank Tujuan</Label>
+                    <div 
+                      className="relative overflow-hidden rounded-2xl p-4 space-y-4"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
+                        backdropFilter: 'blur(20px)',
+                        WebkitBackdropFilter: 'blur(20px)',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.08), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center shadow-lg">
+                          <Building2 className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900">Transfer Bank</p>
+                          <p className="text-xs text-gray-500">Pilih bank tujuan transfer</p>
+                        </div>
+                      </div>
                       <div className="grid grid-cols-2 gap-2">
                         {bankOptions.map((bank) => (
-                          <Card 
+                          <div 
                             key={bank.id}
-                            className={`cursor-pointer transition-all hover-elevate ${
+                            className={`cursor-pointer transition-all rounded-xl p-3 text-center ${
                               selectedBank === bank.id 
-                                ? "border-primary bg-primary/5" 
-                                : "hover:border-muted-foreground/30"
+                                ? "ring-2 ring-blue-500 bg-blue-50" 
+                                : "bg-white/60 hover:bg-white"
                             }`}
+                            style={{
+                              boxShadow: selectedBank === bank.id 
+                                ? '0 4px 12px rgba(59,130,246,0.15)' 
+                                : '0 2px 8px rgba(0,0,0,0.04)',
+                            }}
                             onClick={() => setSelectedBank(bank.id)}
                             data-testid={`bank-option-${bank.id}`}
                           >
-                            <CardContent className="p-3 text-center">
-                              <Building2 className={`w-6 h-6 mx-auto mb-1 ${
-                                selectedBank === bank.id ? "text-primary" : "text-muted-foreground"
-                              }`} />
-                              <p className="text-xs font-medium">{bank.name}</p>
-                            </CardContent>
-                          </Card>
+                            <Building2 className={`w-6 h-6 mx-auto mb-1 ${
+                              selectedBank === bank.id ? "text-blue-600" : "text-gray-400"
+                            }`} />
+                            <p className={`text-xs font-medium ${
+                              selectedBank === bank.id ? "text-blue-700" : "text-gray-600"
+                            }`}>{bank.name}</p>
+                          </div>
                         ))}
                       </div>
                       {selectedBank && (
-                        <Card className="mt-3">
-                          <CardContent className="p-3 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-muted-foreground">No. Rekening</span>
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono text-sm font-medium">
-                                  {bankOptions.find(b => b.id === selectedBank)?.accountNumber}
-                                </span>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-6 w-6"
-                                  onClick={() => copyToClipboard(bankOptions.find(b => b.id === selectedBank)?.accountNumber || "")}
-                                  data-testid="button-copy-bank"
-                                >
-                                  {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
-                                </Button>
-                              </div>
+                        <div 
+                          className="rounded-xl p-4 space-y-3"
+                          style={{
+                            background: 'white',
+                            boxShadow: '0 4px 16px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(0,0,0,0.05)',
+                          }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500">Nomor Rekening</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-sm font-bold text-gray-900">
+                                {bankOptions.find(b => b.id === selectedBank)?.accountNumber}
+                              </span>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-7 w-7 rounded-lg hover:bg-gray-100"
+                                onClick={() => copyToClipboard(bankOptions.find(b => b.id === selectedBank)?.accountNumber || "")}
+                                data-testid="button-copy-bank"
+                              >
+                                {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-gray-400" />}
+                              </Button>
                             </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-muted-foreground">Atas Nama</span>
-                              <span className="text-sm">{bankOptions.find(b => b.id === selectedBank)?.accountName}</span>
-                            </div>
-                          </CardContent>
-                        </Card>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500">Atas Nama</span>
+                            <span className="text-sm font-medium text-gray-700">{bankOptions.find(b => b.id === selectedBank)?.accountName}</span>
+                          </div>
+                        </div>
                       )}
                     </div>
                   )}
 
                   {selectedPaymentMethod === "va" && (
-                    <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/30">
-                      <CardContent className="p-4 space-y-3">
-                        <div className="flex items-center gap-2">
-                          <Smartphone className="w-5 h-5 text-green-600" />
-                          <span className="font-semibold">Virtual Account</span>
+                    <div 
+                      className="relative overflow-hidden rounded-2xl p-4 space-y-4"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
+                        backdropFilter: 'blur(20px)',
+                        WebkitBackdropFilter: 'blur(20px)',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.08), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                      }}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-emerald-500/10 pointer-events-none" />
+                      <div className="relative flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg">
+                          <Smartphone className="w-6 h-6 text-white" />
                         </div>
-                        <div className="bg-background rounded-lg p-3 border">
-                          <p className="text-xs text-muted-foreground mb-1">Nomor Virtual Account</p>
-                          <div className="flex items-center justify-between">
-                            <span className="font-mono text-lg font-bold tracking-wider" data-testid="text-va-number">
-                              {getVANumber()}
-                            </span>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => copyToClipboard(getVANumber())}
-                              data-testid="button-copy-va"
-                            >
-                              {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                            </Button>
-                          </div>
+                        <div>
+                          <p className="font-semibold text-gray-900">Virtual Account</p>
+                          <p className="text-xs text-gray-500">Transfer via nomor VA</p>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          Berlaku hingga 24 jam. Transfer sesuai nominal untuk verifikasi otomatis.
-                        </p>
-                      </CardContent>
-                    </Card>
+                      </div>
+                      <div 
+                        className="relative rounded-xl p-4"
+                        style={{
+                          background: 'white',
+                          boxShadow: '0 4px 16px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(0,0,0,0.05)',
+                        }}
+                      >
+                        <p className="text-xs text-gray-500 mb-2">Nomor Virtual Account</p>
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono text-xl font-bold tracking-wider text-gray-900" data-testid="text-va-number">
+                            {getVANumber()}
+                          </span>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            className="h-8 w-8 rounded-lg hover:bg-gray-100"
+                            onClick={() => copyToClipboard(getVANumber())}
+                            data-testid="button-copy-va"
+                          >
+                            {copied ? <Check className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5 text-gray-400" />}
+                          </Button>
+                        </div>
+                      </div>
+                      <p className="relative text-xs text-gray-500">
+                        Berlaku hingga 24 jam. Transfer sesuai nominal untuk verifikasi otomatis.
+                      </p>
+                    </div>
                   )}
 
                   {selectedPaymentMethod === "crypto" && (
-                    <div className="space-y-3">
-                      <Label className="text-sm">Pilih Cryptocurrency</Label>
-                      <div className="grid grid-cols-3 gap-2">
+                    <div 
+                      className="relative overflow-hidden rounded-2xl p-4 space-y-4"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
+                        backdropFilter: 'blur(20px)',
+                        WebkitBackdropFilter: 'blur(20px)',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.08), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                      }}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-yellow-500/10 pointer-events-none" />
+                      <div className="relative flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-400 to-amber-600 flex items-center justify-center shadow-lg">
+                          <Bitcoin className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900">Cryptocurrency</p>
+                          <p className="text-xs text-gray-500">Bayar dengan crypto</p>
+                        </div>
+                      </div>
+                      <div className="relative grid grid-cols-3 gap-2">
                         {cryptoCoins.map((coin) => {
                           const CoinIcon = coin.icon;
                           return (
-                            <Card 
+                            <div 
                               key={coin.id}
-                              className={`cursor-pointer transition-all hover-elevate ${
+                              className={`cursor-pointer transition-all rounded-xl p-3 text-center ${
                                 selectedCrypto === coin.id 
-                                  ? "border-primary bg-primary/5" 
-                                  : "hover:border-muted-foreground/30"
+                                  ? "ring-2 ring-amber-500 bg-amber-50" 
+                                  : "bg-white/60 hover:bg-white"
                               }`}
+                              style={{
+                                boxShadow: selectedCrypto === coin.id 
+                                  ? '0 4px 12px rgba(245,158,11,0.15)' 
+                                  : '0 2px 8px rgba(0,0,0,0.04)',
+                              }}
                               onClick={() => setSelectedCrypto(coin.id)}
                               data-testid={`crypto-option-${coin.id}`}
                             >
-                              <CardContent className="p-2 text-center">
-                                <CoinIcon className="w-6 h-6 mx-auto mb-1" style={{ color: coin.color }} />
-                                <p className="text-xs font-medium">{coin.symbol}</p>
-                              </CardContent>
-                            </Card>
+                              <CoinIcon className="w-7 h-7 mx-auto mb-1" style={{ color: coin.color }} />
+                              <p className={`text-xs font-bold ${
+                                selectedCrypto === coin.id ? "text-amber-700" : "text-gray-600"
+                              }`}>{coin.symbol}</p>
+                            </div>
                           );
                         })}
                       </div>
@@ -679,35 +794,44 @@ export default function DemoWidgetPage() {
                         const coin = cryptoCoins.find(c => c.id === selectedCrypto);
                         const CoinIcon = coin?.icon || SiBitcoin;
                         return (
-                          <Card className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border-yellow-500/30">
-                            <CardContent className="p-4 space-y-3">
-                              <div className="flex items-center gap-2">
-                                <CoinIcon className="w-5 h-5" style={{ color: coin?.color }} />
-                                <span className="font-semibold">{coin?.name}</span>
-                                <Badge variant="secondary" className="text-xs">{coin?.network}</Badge>
+                          <div 
+                            className="relative rounded-xl p-4 space-y-3"
+                            style={{
+                              background: 'white',
+                              boxShadow: '0 4px 16px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(0,0,0,0.05)',
+                            }}
+                          >
+                            <div className="flex items-center gap-2">
+                              <CoinIcon className="w-5 h-5" style={{ color: coin?.color }} />
+                              <span className="font-semibold text-gray-900">{coin?.name}</span>
+                              <span 
+                                className="text-xs font-medium px-2 py-0.5 rounded-full"
+                                style={{ background: `${coin?.color}15`, color: coin?.color }}
+                              >
+                                {coin?.network}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500 mb-1">Alamat Wallet</p>
+                              <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-2">
+                                <span className="font-mono text-xs break-all flex-1 text-gray-700" data-testid="text-crypto-address">
+                                  {coin?.address}
+                                </span>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  className="shrink-0 h-7 w-7 rounded-lg hover:bg-gray-200"
+                                  onClick={() => copyToClipboard(coin?.address || "")}
+                                  data-testid="button-copy-crypto"
+                                >
+                                  {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-gray-400" />}
+                                </Button>
                               </div>
-                              <div className="bg-background rounded-lg p-3 border">
-                                <p className="text-xs text-muted-foreground mb-1">Alamat Wallet</p>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-mono text-xs break-all flex-1" data-testid="text-crypto-address">
-                                    {coin?.address}
-                                  </span>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon"
-                                    className="shrink-0"
-                                    onClick={() => copyToClipboard(coin?.address || "")}
-                                    data-testid="button-copy-crypto"
-                                  >
-                                    {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                                  </Button>
-                                </div>
-                              </div>
-                              <p className="text-xs text-muted-foreground">
-                                Kirim hanya {coin?.symbol} ke alamat di atas. Pengiriman aset lain dapat menyebabkan kehilangan dana.
-                              </p>
-                            </CardContent>
-                          </Card>
+                            </div>
+                            <p className="text-xs text-gray-500">
+                              Kirim hanya {coin?.symbol} ke alamat di atas. Aset lain dapat hilang.
+                            </p>
+                          </div>
                         );
                       })()}
                     </div>
@@ -715,31 +839,52 @@ export default function DemoWidgetPage() {
 
                   {/* Processing State */}
                   {isProcessing && (
-                    <Card className="bg-primary/5 border-primary/30">
-                      <CardContent className="p-4 flex flex-col items-center gap-3">
-                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                        <div className="text-center">
-                          <p className="font-medium">Memproses Pembayaran...</p>
-                          <p className="text-sm text-muted-foreground">Mohon tunggu sebentar</p>
+                    <div 
+                      className="relative overflow-hidden rounded-2xl p-6"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
+                        backdropFilter: 'blur(20px)',
+                        WebkitBackdropFilter: 'blur(20px)',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.08), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                      }}
+                    >
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="relative">
+                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                            <Loader2 className="w-8 h-8 animate-spin text-white" />
+                          </div>
+                          <div className="absolute inset-0 rounded-full animate-ping opacity-20 bg-blue-500" />
                         </div>
-                      </CardContent>
-                    </Card>
+                        <div className="text-center">
+                          <p className="font-semibold text-gray-900">Memproses Pembayaran...</p>
+                          <p className="text-sm text-gray-500">Mohon tunggu sebentar</p>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               </ScrollArea>
-              <div className="p-4 border-t space-y-2">
+              <div 
+                className="p-4 space-y-2"
+                style={{
+                  background: 'linear-gradient(to top, rgba(255,255,255,0.95), rgba(255,255,255,0.8))',
+                  backdropFilter: 'blur(10px)',
+                  WebkitBackdropFilter: 'blur(10px)',
+                  borderTop: '1px solid rgba(0,0,0,0.05)',
+                }}
+              >
                 {selectedPaymentMethod === "kompas" && (
                   <Button 
-                    className="w-full bg-blue-600 hover:bg-blue-700" 
+                    className="w-full rounded-xl h-11 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-lg" 
                     onClick={() => window.open("https://pay.kompas.id/pay", "_blank")}
                     data-testid="button-open-kompas"
                   >
                     <ExternalLink className="w-4 h-4 mr-2" />
-                    Buka Kompas Pay
+                    Buka Payment Link
                   </Button>
                 )}
                 <Button 
-                  className="w-full" 
+                  className="w-full rounded-xl h-11 shadow-lg" 
                   onClick={handlePayment}
                   disabled={isProcessing}
                   data-testid="button-pay"
