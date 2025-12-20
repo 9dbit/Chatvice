@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { 
   Coins, 
   CheckCircle2, 
@@ -17,14 +19,19 @@ import {
   Bitcoin,
   Copy,
   Check,
-  Play
+  Play,
+  User,
+  Mail,
+  Lock,
+  LogIn
 } from "lucide-react";
 import { SiBitcoin, SiEthereum, SiTether, SiSolana, SiBinance, SiDogecoin } from "react-icons/si";
 import backgroundImage from "@assets/IMG_0743_1766214855038.jpeg";
 
-type Step = "welcome" | "chat" | "topup" | "payment" | "success";
+type Step = "welcome" | "chat" | "topup" | "auth" | "payment" | "success";
 type PaymentMethod = "kompas" | "qris" | "bank" | "va" | "crypto";
 type CryptoOption = "btc" | "eth" | "usdt" | "sol" | "bnb" | "doge";
+type AuthMode = "login" | "signup";
 
 interface PaymentMethodOption {
   id: PaymentMethod;
@@ -89,17 +96,15 @@ interface Product {
   name: string;
   price: number;
   coins: number;
-  bonus: number;
-  popular?: boolean;
   color: string;
 }
 
 const products: Product[] = [
-  { id: "1", name: "Hemat", price: 25000, coins: 25, bonus: 0, color: "from-slate-500 to-slate-700" },
-  { id: "2", name: "Populer", price: 50000, coins: 50, bonus: 5, popular: true, color: "from-violet-500 to-purple-700" },
-  { id: "3", name: "Super", price: 100000, coins: 100, bonus: 15, color: "from-blue-500 to-cyan-600" },
-  { id: "4", name: "Mega", price: 200000, coins: 200, bonus: 40, color: "from-emerald-500 to-teal-600" },
-  { id: "5", name: "Ultimate", price: 500000, coins: 500, bonus: 125, color: "from-amber-500 to-orange-600" },
+  { id: "1", name: "25 Koin", price: 25000, coins: 25, color: "from-slate-500 to-slate-700" },
+  { id: "2", name: "50 Koin", price: 50000, coins: 50, color: "from-violet-500 to-purple-700" },
+  { id: "3", name: "100 Koin", price: 100000, coins: 100, color: "from-blue-500 to-cyan-600" },
+  { id: "4", name: "200 Koin", price: 200000, coins: 200, color: "from-emerald-500 to-teal-600" },
+  { id: "5", name: "500 Koin", price: 500000, coins: 500, color: "from-amber-500 to-orange-600" },
 ];
 
 function formatRupiah(amount: number): string {
@@ -112,24 +117,33 @@ function formatRupiah(amount: number): string {
 
 const stepProgress: Record<Step, number> = {
   welcome: 0,
-  chat: 20,
-  topup: 40,
-  payment: 70,
+  chat: 15,
+  topup: 35,
+  auth: 55,
+  payment: 75,
   success: 100,
 };
 
 export default function DemoWidgetPage() {
+  const isMobile = useIsMobile();
   const [step, setStep] = useState<Step>("welcome");
-  const [userCoins, setUserCoins] = useState(52);
+  const [userCoins, setUserCoins] = useState(0);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderId, setOrderId] = useState("");
+  const [customerId, setCustomerId] = useState("");
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>("qris");
   const [selectedBank, setSelectedBank] = useState<string>("bca");
   const [selectedCrypto, setSelectedCrypto] = useState<CryptoOption>("btc");
   const [copied, setCopied] = useState(false);
+  
+  const [authMode, setAuthMode] = useState<AuthMode>("login");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authName, setAuthName] = useState("");
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -156,9 +170,8 @@ export default function DemoWidgetPage() {
   const startDemo = () => {
     setStep("chat");
     setTimeout(() => {
-      addMessage("bot", "Halo! Selamat datang di Chatvice Demo.\n\nSaya adalah asisten virtual yang siap membantu Anda. Apa yang bisa saya bantu?", [
+      addMessage("bot", "Halo! Selamat datang di Chatvice.\n\nSaya asisten virtual yang siap membantu. Apa yang bisa saya bantu?", [
         { label: "Top Up Koin", action: "topup" },
-        { label: "Lihat Produk", action: "products" },
         { label: "Bantuan", action: "help" },
       ]);
     }, 300);
@@ -172,59 +185,60 @@ export default function DemoWidgetPage() {
     setInputMessage("");
 
     setTimeout(() => {
-      if (msg.includes("topup") || msg.includes("top up") || msg.includes("koin") || msg.includes("coin") || msg.includes("beli")) {
-        addMessage("bot", "Tentu! Silakan pilih paket koin yang Anda inginkan:", [
-          { label: "Lihat Paket Koin", action: "topup" },
-        ]);
-      } else if (msg.includes("produk") || msg.includes("product")) {
-        addMessage("bot", "Untuk membeli produk, Anda membutuhkan koin.", [
-          { label: "Top Up Koin", action: "topup" },
+      if (msg.includes("topup") || msg.includes("top up") || msg.includes("koin") || msg.includes("beli")) {
+        addMessage("bot", "Tentu! Silakan pilih paket koin:", [
+          { label: "Lihat Paket", action: "topup" },
         ]);
       } else {
-        addMessage("bot", "Terima kasih! Ada yang bisa saya bantu lagi?", [
+        addMessage("bot", "Ada yang bisa saya bantu?", [
           { label: "Top Up Koin", action: "topup" },
-          { label: "Bantuan", action: "help" },
         ]);
       }
-    }, 600);
+    }, 500);
   };
 
   const handleAction = (action: string) => {
     if (action === "topup") {
-      addMessage("user", "Saya ingin top up koin");
+      addMessage("user", "Top up koin");
       setTimeout(() => {
-        addMessage("bot", "Baik! Mengarahkan ke halaman top up...");
+        addMessage("bot", "Mengarahkan ke halaman top up...");
         setTimeout(() => setStep("topup"), 400);
-      }, 400);
-    } else if (action === "products") {
-      addMessage("user", "Lihat produk");
-      setTimeout(() => {
-        addMessage("bot", `Saldo koin Anda: ${userCoins} koin. Top up dulu?`, [
-          { label: "Top Up Koin", action: "topup" },
-        ]);
-      }, 400);
+      }, 300);
     } else if (action === "help") {
       addMessage("user", "Bantuan");
       setTimeout(() => {
-        addMessage("bot", "Saya bisa membantu:\n\n- Top up koin\n- Info produk\n- Status transaksi", [
+        addMessage("bot", "Saya bisa membantu:\n- Top up koin\n- Info produk", [
           { label: "Top Up Koin", action: "topup" },
         ]);
-      }, 400);
+      }, 300);
     }
   };
 
   const handleSelectProduct = (product: Product) => {
     setSelectedProduct(product);
-    setStep("payment");
+    setStep("auth");
+  };
+
+  const handleAuth = () => {
+    if (!authEmail.trim() || !authPassword.trim()) return;
+    if (authMode === "signup" && !authName.trim()) return;
+
+    setIsAuthLoading(true);
+    setTimeout(() => {
+      const newCustomerId = `CUS-${Date.now().toString(36).toUpperCase()}`;
+      const newOrderId = `CVT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+      setCustomerId(newCustomerId);
+      setOrderId(newOrderId);
+      setIsAuthLoading(false);
+      setStep("payment");
+    }, 1500);
   };
 
   const handlePayment = () => {
     setIsProcessing(true);
     setTimeout(() => {
-      const newOrderId = `CVT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
-      setOrderId(newOrderId);
       if (selectedProduct) {
-        setUserCoins(prev => prev + selectedProduct.coins + selectedProduct.bonus);
+        setUserCoins(prev => prev + selectedProduct.coins);
       }
       setIsProcessing(false);
       setStep("success");
@@ -236,43 +250,51 @@ export default function DemoWidgetPage() {
     setMessages([]);
     setSelectedProduct(null);
     setOrderId("");
+    setCustomerId("");
+    setAuthEmail("");
+    setAuthPassword("");
+    setAuthName("");
+    setUserCoins(0);
   };
 
   const progress = stepProgress[step];
 
-  return (
-    <div 
-      className="min-h-screen w-full flex flex-col"
-      style={{
-        backgroundImage: `url(${backgroundImage})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed',
-      }}
-    >
+  const widgetContent = (
+    <div className="h-full w-full flex flex-col relative overflow-hidden">
+      {/* Background */}
+      <div 
+        className="absolute inset-0 z-0"
+        style={{
+          backgroundImage: `url(${backgroundImage})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      />
+
       {/* Progress Bar */}
       {step !== "welcome" && (
-        <div className="fixed top-0 left-0 right-0 z-50">
+        <div className="relative z-10">
           <div className="h-1 bg-white/10">
             <div 
-              className="h-full bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 transition-all duration-700 ease-out"
+              className="h-full bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 transition-all duration-500"
               style={{ width: `${progress}%` }}
             />
           </div>
-          <div className="flex justify-between px-4 py-2 text-xs font-light text-white/60">
-            <span>Chat</span>
-            <span>Pilih Paket</span>
-            <span>Pembayaran</span>
-            <span>Selesai</span>
+          <div className="flex justify-between px-3 py-1.5 text-[10px] font-light text-white/50">
+            <span className={step === "chat" ? "text-cyan-400" : ""}>Chat</span>
+            <span className={step === "topup" ? "text-cyan-400" : ""}>Paket</span>
+            <span className={step === "auth" ? "text-cyan-400" : ""}>Login</span>
+            <span className={step === "payment" ? "text-cyan-400" : ""}>Bayar</span>
+            <span className={step === "success" ? "text-cyan-400" : ""}>Selesai</span>
           </div>
         </div>
       )}
 
       {/* Welcome Screen */}
       {step === "welcome" && (
-        <div className="flex-1 flex flex-col items-center justify-center p-6">
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6">
           <div 
-            className="text-center space-y-8 p-8 rounded-3xl max-w-sm w-full"
+            className="text-center space-y-6 p-6 rounded-2xl w-full max-w-xs"
             style={{
               background: 'rgba(255,255,255,0.08)',
               backdropFilter: 'blur(40px)',
@@ -280,19 +302,19 @@ export default function DemoWidgetPage() {
               border: '1px solid rgba(255,255,255,0.1)',
             }}
           >
-            <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-2xl shadow-blue-500/30">
-              <Sparkles className="w-10 h-10 text-white" />
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-xl">
+              <Sparkles className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white mb-2">Chatvice Demo</h1>
-              <p className="text-white/60 font-light text-sm">Simulasi pengalaman top up koin</p>
+              <h1 className="text-2xl font-bold text-white mb-1">Chatvice Demo</h1>
+              <p className="text-white/50 font-light text-xs">Simulasi top up koin</p>
             </div>
             <Button 
-              className="w-full h-14 rounded-2xl text-lg font-semibold bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 border-0 shadow-xl shadow-blue-500/30"
+              className="w-full h-12 rounded-xl font-semibold bg-gradient-to-r from-cyan-500 to-blue-600"
               onClick={startDemo}
               data-testid="button-start-demo"
             >
-              <Play className="w-5 h-5 mr-2" />
+              <Play className="w-4 h-4 mr-2" />
               Mulai Demo
             </Button>
           </div>
@@ -301,39 +323,30 @@ export default function DemoWidgetPage() {
 
       {/* Chat Screen */}
       {step === "chat" && (
-        <div className="flex-1 flex flex-col pt-12">
-          {/* Header */}
+        <div className="relative z-10 flex-1 flex flex-col">
           <div 
-            className="px-4 py-3"
-            style={{
-              background: 'rgba(0,0,0,0.3)',
-              backdropFilter: 'blur(20px)',
-            }}
+            className="px-3 py-2 flex items-center gap-2"
+            style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(20px)' }}
           >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center">
-                <Bot className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <p className="font-semibold text-white text-sm">Chatvice Assistant</p>
-                <p className="text-xs text-white/50 font-light">Online</p>
-              </div>
-              <div className="ml-auto flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/20">
-                <Coins className="w-4 h-4 text-amber-400" />
-                <span className="text-amber-400 font-bold text-sm">{userCoins}</span>
-              </div>
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center">
+              <Bot className="w-4 h-4 text-white" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-white text-xs">Chatvice</p>
+              <p className="text-[10px] text-white/40">Online</p>
+            </div>
+            <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-amber-500/20">
+              <Coins className="w-3 h-3 text-amber-400" />
+              <span className="text-amber-400 font-bold text-xs">{userCoins}</span>
             </div>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-3 space-y-3">
             {messages.map((msg) => (
               <div key={msg.id} className={`flex ${msg.from === "user" ? "justify-end" : "justify-start"}`}>
                 <div 
-                  className={`max-w-[85%] rounded-2xl p-4 ${
-                    msg.from === "user" 
-                      ? "bg-gradient-to-r from-cyan-500 to-blue-600" 
-                      : ""
+                  className={`max-w-[85%] rounded-xl p-3 ${
+                    msg.from === "user" ? "bg-gradient-to-r from-cyan-500 to-blue-600" : ""
                   }`}
                   style={msg.from === "bot" ? {
                     background: 'rgba(255,255,255,0.1)',
@@ -341,13 +354,13 @@ export default function DemoWidgetPage() {
                     border: '1px solid rgba(255,255,255,0.1)',
                   } : undefined}
                 >
-                  <p className="text-white text-sm font-light whitespace-pre-line">{msg.content}</p>
+                  <p className="text-white text-xs font-light whitespace-pre-line">{msg.content}</p>
                   {msg.actions && (
-                    <div className="flex flex-wrap gap-2 mt-3">
+                    <div className="flex flex-wrap gap-1.5 mt-2">
                       {msg.actions.map((action, idx) => (
                         <button
                           key={idx}
-                          className="px-4 py-2 rounded-xl text-xs font-medium text-white bg-white/20 hover:bg-white/30 transition-all"
+                          className="px-3 py-1.5 rounded-lg text-[10px] font-medium text-white bg-white/20 hover:bg-white/30"
                           onClick={() => handleAction(action.action)}
                           data-testid={`action-${action.action}`}
                         >
@@ -361,14 +374,7 @@ export default function DemoWidgetPage() {
             ))}
           </div>
 
-          {/* Input */}
-          <div 
-            className="p-4"
-            style={{
-              background: 'rgba(0,0,0,0.3)',
-              backdropFilter: 'blur(20px)',
-            }}
-          >
+          <div className="p-3" style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(20px)' }}>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -376,150 +382,198 @@ export default function DemoWidgetPage() {
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
                 placeholder="Ketik pesan..."
-                className="flex-1 h-12 px-4 rounded-xl bg-white/10 border border-white/10 text-white placeholder:text-white/40 focus:outline-none focus:border-cyan-500/50 text-sm"
+                className="flex-1 h-10 px-3 rounded-lg bg-white/10 border border-white/10 text-white placeholder:text-white/30 focus:outline-none text-xs"
                 data-testid="input-chat-message"
               />
-              <Button 
-                size="icon"
-                className="h-12 w-12 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600"
-                onClick={handleSendMessage}
-                data-testid="button-send-message"
-              >
-                <Send className="w-5 h-5" />
+              <Button size="icon" className="h-10 w-10 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600" onClick={handleSendMessage} data-testid="button-send-message">
+                <Send className="w-4 h-4" />
               </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Top Up Selection - 3D Frosted Glass Cards */}
+      {/* Top Up Selection */}
       {step === "topup" && (
-        <div className="flex-1 flex flex-col pt-12">
-          <div 
-            className="px-4 py-3 flex items-center gap-3"
-            style={{
-              background: 'rgba(0,0,0,0.3)',
-              backdropFilter: 'blur(20px)',
-            }}
-          >
-            <button 
-              onClick={() => setStep("chat")}
-              className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center"
-              data-testid="button-back-to-chat"
-            >
-              <ArrowLeft className="w-5 h-5 text-white" />
+        <div className="relative z-10 flex-1 flex flex-col">
+          <div className="px-3 py-2 flex items-center gap-2" style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(20px)' }}>
+            <button onClick={() => setStep("chat")} className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center" data-testid="button-back-to-chat">
+              <ArrowLeft className="w-4 h-4 text-white" />
             </button>
             <div>
-              <p className="font-bold text-white text-lg">Pilih Paket</p>
-              <p className="text-xs text-white/50 font-light">Saldo: {userCoins} koin</p>
+              <p className="font-bold text-white text-sm">Pilih Paket</p>
+              <p className="text-[10px] text-white/40">1 Koin = Rp 1.000</p>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4">
-            <div className="space-y-3">
-              {products.map((product, index) => (
-                <div
-                  key={product.id}
-                  onClick={() => handleSelectProduct(product)}
-                  className="cursor-pointer transform transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {products.map((product, index) => (
+              <div
+                key={product.id}
+                onClick={() => handleSelectProduct(product)}
+                className="cursor-pointer transform transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                style={{ animation: `slideIn 0.3s ease-out ${index * 0.05}s both` }}
+                data-testid={`package-${product.id}`}
+              >
+                <div 
+                  className="rounded-xl p-3"
                   style={{
-                    perspective: '1000px',
-                    animation: `slideInUp 0.4s ease-out ${index * 0.08}s both`,
+                    background: 'rgba(255,255,255,0.08)',
+                    backdropFilter: 'blur(40px)',
+                    border: '1px solid rgba(255,255,255,0.1)',
                   }}
-                  data-testid={`package-${product.id}`}
                 >
-                  <div 
-                    className="relative rounded-2xl p-4 overflow-hidden"
-                    style={{
-                      background: 'rgba(255,255,255,0.08)',
-                      backdropFilter: 'blur(40px)',
-                      WebkitBackdropFilter: 'blur(40px)',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-                      transform: 'translateZ(0)',
-                    }}
-                  >
-                    {product.popular && (
-                      <div className="absolute top-0 right-0 px-3 py-1 rounded-bl-xl bg-gradient-to-r from-amber-400 to-orange-500 text-xs font-bold text-black">
-                        POPULER
-                      </div>
-                    )}
-                    <div className="flex items-center gap-4">
-                      <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${product.color} flex items-center justify-center shadow-lg`}>
-                        <Coins className="w-7 h-7 text-white" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-bold text-white text-lg">{product.name}</p>
-                        <p className="text-white/50 font-light text-sm">
-                          {product.coins} koin {product.bonus > 0 && <span className="text-emerald-400">+{product.bonus} bonus</span>}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-white text-lg">{formatRupiah(product.price)}</p>
-                        <ArrowRight className="w-5 h-5 text-white/40 ml-auto" />
-                      </div>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${product.color} flex items-center justify-center`}>
+                      <Coins className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-white text-sm">{product.name}</p>
+                      <p className="text-white/40 font-light text-[10px]">{product.coins} koin</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-white text-sm">{formatRupiah(product.price)}</p>
+                      <ArrowRight className="w-4 h-4 text-white/30 ml-auto" />
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Payment Screen - 3D Card Selection */}
-      {step === "payment" && selectedProduct && (
-        <div className="flex-1 flex flex-col pt-12">
-          <div 
-            className="px-4 py-3 flex items-center gap-3"
-            style={{
-              background: 'rgba(0,0,0,0.3)',
-              backdropFilter: 'blur(20px)',
-            }}
-          >
-            <button 
-              onClick={() => setStep("topup")}
-              className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center"
-              data-testid="button-back-to-topup"
-            >
-              <ArrowLeft className="w-5 h-5 text-white" />
+      {/* Auth Screen */}
+      {step === "auth" && selectedProduct && (
+        <div className="relative z-10 flex-1 flex flex-col">
+          <div className="px-3 py-2 flex items-center gap-2" style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(20px)' }}>
+            <button onClick={() => setStep("topup")} className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center" data-testid="button-back-to-topup">
+              <ArrowLeft className="w-4 h-4 text-white" />
             </button>
             <div>
-              <p className="font-bold text-white text-lg">Pembayaran</p>
-              <p className="text-xs text-white/50 font-light">{selectedProduct.name} - {formatRupiah(selectedProduct.price)}</p>
+              <p className="font-bold text-white text-sm">{authMode === "login" ? "Masuk" : "Daftar"}</p>
+              <p className="text-[10px] text-white/40">{selectedProduct.name} - {formatRupiah(selectedProduct.price)}</p>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {/* Order Summary */}
+          <div className="flex-1 overflow-y-auto p-4 flex items-center justify-center">
             <div 
-              className="rounded-2xl p-4"
+              className="w-full max-w-xs rounded-2xl p-5 space-y-4"
               style={{
                 background: 'rgba(255,255,255,0.08)',
                 backdropFilter: 'blur(40px)',
                 border: '1px solid rgba(255,255,255,0.1)',
               }}
             >
-              <div className="flex items-center gap-3 mb-3">
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${selectedProduct.color} flex items-center justify-center`}>
-                  <Coins className="w-6 h-6 text-white" />
+              <div className="text-center mb-4">
+                <div className="w-14 h-14 mx-auto rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center mb-3">
+                  <User className="w-7 h-7 text-white" />
+                </div>
+                <h2 className="text-lg font-bold text-white">{authMode === "login" ? "Masuk ke Akun" : "Buat Akun Baru"}</h2>
+                <p className="text-white/50 text-xs font-light">Untuk melanjutkan pembayaran</p>
+              </div>
+
+              <div className="space-y-3">
+                {authMode === "signup" && (
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                    <Input
+                      type="text"
+                      placeholder="Nama lengkap"
+                      value={authName}
+                      onChange={(e) => setAuthName(e.target.value)}
+                      className="h-10 pl-10 bg-white/10 border-white/10 text-white placeholder:text-white/30 text-xs rounded-lg"
+                      data-testid="input-auth-name"
+                    />
+                  </div>
+                )}
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                  <Input
+                    type="email"
+                    placeholder="Email"
+                    value={authEmail}
+                    onChange={(e) => setAuthEmail(e.target.value)}
+                    className="h-10 pl-10 bg-white/10 border-white/10 text-white placeholder:text-white/30 text-xs rounded-lg"
+                    data-testid="input-auth-email"
+                  />
+                </div>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                  <Input
+                    type="password"
+                    placeholder="Password"
+                    value={authPassword}
+                    onChange={(e) => setAuthPassword(e.target.value)}
+                    className="h-10 pl-10 bg-white/10 border-white/10 text-white placeholder:text-white/30 text-xs rounded-lg"
+                    data-testid="input-auth-password"
+                  />
+                </div>
+              </div>
+
+              <Button
+                className="w-full h-10 rounded-xl font-semibold bg-gradient-to-r from-cyan-500 to-blue-600"
+                onClick={handleAuth}
+                disabled={isAuthLoading}
+                data-testid="button-auth-submit"
+              >
+                {isAuthLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <LogIn className="w-4 h-4 mr-2" />
+                    {authMode === "login" ? "Masuk" : "Daftar"}
+                  </>
+                )}
+              </Button>
+
+              <div className="text-center">
+                <button
+                  onClick={() => setAuthMode(authMode === "login" ? "signup" : "login")}
+                  className="text-cyan-400 text-xs font-medium hover:underline"
+                  data-testid="button-toggle-auth-mode"
+                >
+                  {authMode === "login" ? "Belum punya akun? Daftar" : "Sudah punya akun? Masuk"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Screen */}
+      {step === "payment" && selectedProduct && (
+        <div className="relative z-10 flex-1 flex flex-col">
+          <div className="px-3 py-2 flex items-center gap-2" style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(20px)' }}>
+            <button onClick={() => setStep("auth")} className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center" data-testid="button-back-to-auth">
+              <ArrowLeft className="w-4 h-4 text-white" />
+            </button>
+            <div>
+              <p className="font-bold text-white text-sm">Pembayaran</p>
+              <p className="text-[10px] text-white/40">Order: {orderId}</p>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            {/* Order Summary */}
+            <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(40px)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <div className="flex items-center gap-2 mb-2">
+                <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${selectedProduct.color} flex items-center justify-center`}>
+                  <Coins className="w-5 h-5 text-white" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-bold text-white">{selectedProduct.name}</p>
-                  <p className="text-white/50 text-sm font-light">
-                    {selectedProduct.coins + selectedProduct.bonus} koin total
-                  </p>
+                  <p className="font-bold text-white text-sm">{selectedProduct.name}</p>
+                  <p className="text-white/40 text-[10px]">ID: {customerId}</p>
                 </div>
-                <p className="font-bold text-white text-xl">{formatRupiah(selectedProduct.price)}</p>
+                <p className="font-bold text-white">{formatRupiah(selectedProduct.price)}</p>
               </div>
             </div>
 
-            {/* Payment Method Title */}
-            <p className="text-white font-bold text-lg px-1">Metode Pembayaran</p>
+            <p className="text-white font-bold text-sm px-1">Metode Pembayaran</p>
 
-            {/* 3D Payment Method Cards */}
-            <div className="grid grid-cols-2 gap-3">
-              {paymentMethods.map((method, index) => {
+            {/* Payment Methods Grid */}
+            <div className="grid grid-cols-2 gap-2">
+              {paymentMethods.map((method) => {
                 const IconComponent = method.icon;
                 const isSelected = selectedPaymentMethod === method.id;
                 return (
@@ -527,40 +581,27 @@ export default function DemoWidgetPage() {
                     key={method.id}
                     onClick={() => setSelectedPaymentMethod(method.id)}
                     className="cursor-pointer"
-                    style={{
-                      perspective: '1000px',
-                      animation: `slideInUp 0.3s ease-out ${index * 0.05}s both`,
-                    }}
                     data-testid={`payment-method-${method.id}`}
                   >
                     <div 
-                      className={`relative rounded-2xl p-4 transform transition-all duration-300 ${
-                        isSelected ? 'scale-[1.02]' : 'hover:scale-[1.02]'
-                      }`}
+                      className={`rounded-xl p-3 transition-all duration-200 ${isSelected ? 'scale-[1.02]' : 'hover:scale-[1.01]'}`}
                       style={{
-                        background: isSelected 
-                          ? 'rgba(59,130,246,0.2)' 
-                          : 'rgba(255,255,255,0.08)',
+                        background: isSelected ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.06)',
                         backdropFilter: 'blur(40px)',
-                        border: isSelected 
-                          ? '2px solid rgba(59,130,246,0.5)' 
-                          : '1px solid rgba(255,255,255,0.1)',
-                        boxShadow: isSelected 
-                          ? '0 8px 32px rgba(59,130,246,0.3)' 
-                          : '0 4px 16px rgba(0,0,0,0.2)',
-                        transform: isSelected ? 'translateY(-4px)' : 'translateY(0)',
+                        border: isSelected ? '2px solid rgba(59,130,246,0.5)' : '1px solid rgba(255,255,255,0.1)',
+                        transform: isSelected ? 'translateY(-2px)' : 'none',
                       }}
                     >
                       {isSelected && (
-                        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
-                          <Check className="w-3 h-3 text-white" />
+                        <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
+                          <Check className="w-2.5 h-2.5 text-white" />
                         </div>
                       )}
-                      <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${method.gradient} flex items-center justify-center mb-3 shadow-lg`}>
-                        <IconComponent className="w-6 h-6 text-white" />
+                      <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${method.gradient} flex items-center justify-center mb-2`}>
+                        <IconComponent className="w-5 h-5 text-white" />
                       </div>
-                      <p className="font-bold text-white text-sm">{method.name}</p>
-                      <p className="text-white/50 text-xs font-light">{method.description}</p>
+                      <p className="font-bold text-white text-xs">{method.name}</p>
+                      <p className="text-white/40 text-[10px]">{method.description}</p>
                     </div>
                   </div>
                 );
@@ -569,85 +610,46 @@ export default function DemoWidgetPage() {
 
             {/* Payment Details */}
             {selectedPaymentMethod === "kompas" && (
-              <div 
-                className="rounded-2xl p-4"
-                style={{
-                  background: 'rgba(255,255,255,0.08)',
-                  backdropFilter: 'blur(40px)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                }}
-              >
-                <p className="text-white/60 text-sm font-light mb-3">
-                  Klik tombol di bawah untuk melanjutkan ke halaman pembayaran.
-                </p>
-                <a 
-                  href="https://pay.kompas.id/pay" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-cyan-400 text-sm font-medium"
-                  data-testid="link-kompas-pay"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  Buka Halaman Pembayaran
+              <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(40px)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <p className="text-white/50 text-xs font-light mb-2">Lanjutkan ke halaman pembayaran.</p>
+                <a href="https://pay.kompas.id/pay" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-cyan-400 text-xs font-medium" data-testid="link-kompas-pay">
+                  <ExternalLink className="w-3 h-3" />Buka Payment Link
                 </a>
               </div>
             )}
 
             {selectedPaymentMethod === "qris" && (
-              <div 
-                className="rounded-2xl p-4 text-center"
-                style={{
-                  background: 'rgba(255,255,255,0.08)',
-                  backdropFilter: 'blur(40px)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                }}
-              >
-                <div className="w-32 h-32 mx-auto rounded-2xl bg-white flex items-center justify-center mb-3">
-                  <QrCode className="w-20 h-20 text-gray-400" />
+              <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(40px)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <div className="w-24 h-24 mx-auto rounded-xl bg-white flex items-center justify-center mb-2">
+                  <QrCode className="w-16 h-16 text-gray-400" />
                 </div>
-                <p className="text-white/60 text-sm font-light">Scan dengan e-wallet atau m-banking</p>
+                <p className="text-white/50 text-[10px]">Scan dengan e-wallet</p>
               </div>
             )}
 
             {selectedPaymentMethod === "bank" && (
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {bankOptions.map((bank) => (
                   <div
                     key={bank.id}
                     onClick={() => setSelectedBank(bank.id)}
-                    className={`rounded-2xl p-4 cursor-pointer transition-all ${
-                      selectedBank === bank.id ? 'scale-[1.01]' : ''
-                    }`}
+                    className={`rounded-xl p-2.5 cursor-pointer ${selectedBank === bank.id ? 'scale-[1.01]' : ''}`}
                     style={{
-                      background: selectedBank === bank.id 
-                        ? 'rgba(59,130,246,0.15)' 
-                        : 'rgba(255,255,255,0.05)',
-                      backdropFilter: 'blur(20px)',
-                      border: selectedBank === bank.id 
-                        ? '1px solid rgba(59,130,246,0.3)' 
-                        : '1px solid rgba(255,255,255,0.1)',
+                      background: selectedBank === bank.id ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.05)',
+                      border: selectedBank === bank.id ? '1px solid rgba(59,130,246,0.3)' : '1px solid rgba(255,255,255,0.1)',
                     }}
                     data-testid={`bank-option-${bank.id}`}
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div 
-                          className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-xs"
-                          style={{ background: bank.color }}
-                        >
-                          {bank.name}
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded flex items-center justify-center text-white font-bold text-[10px]" style={{ background: bank.color }}>{bank.name}</div>
                         <div>
-                          <p className="font-mono text-white text-sm">{bank.accountNumber}</p>
-                          <p className="text-white/50 text-xs font-light">{bank.accountName}</p>
+                          <p className="font-mono text-white text-xs">{bank.accountNumber}</p>
+                          <p className="text-white/40 text-[10px]">{bank.accountName}</p>
                         </div>
                       </div>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); copyToClipboard(bank.accountNumber); }}
-                        className="p-2 rounded-lg bg-white/10"
-                        data-testid={`button-copy-bank-${bank.id}`}
-                      >
-                        {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-white/60" />}
+                      <button onClick={(e) => { e.stopPropagation(); copyToClipboard(bank.accountNumber); }} className="p-1.5 rounded bg-white/10" data-testid={`button-copy-bank-${bank.id}`}>
+                        {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-white/50" />}
                       </button>
                     </div>
                   </div>
@@ -656,55 +658,35 @@ export default function DemoWidgetPage() {
             )}
 
             {selectedPaymentMethod === "va" && (
-              <div 
-                className="rounded-2xl p-4"
-                style={{
-                  background: 'rgba(255,255,255,0.08)',
-                  backdropFilter: 'blur(40px)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                }}
-              >
-                <p className="text-white/50 text-xs font-light mb-2">Nomor Virtual Account</p>
+              <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(40px)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <p className="text-white/40 text-[10px] mb-1">Virtual Account</p>
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-white text-xl font-bold" data-testid="text-va-number">
-                    {getVANumber()}
-                  </span>
-                  <button 
-                    onClick={() => copyToClipboard(getVANumber())}
-                    className="p-2 rounded-lg bg-white/10"
-                    data-testid="button-copy-va"
-                  >
-                    {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-white/60" />}
+                  <span className="font-mono text-white font-bold" data-testid="text-va-number">{getVANumber()}</span>
+                  <button onClick={() => copyToClipboard(getVANumber())} className="p-1.5 rounded bg-white/10" data-testid="button-copy-va">
+                    {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-white/50" />}
                   </button>
                 </div>
-                <p className="text-white/40 text-xs font-light mt-2">Berlaku 24 jam</p>
               </div>
             )}
 
             {selectedPaymentMethod === "crypto" && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-3 gap-2">
+              <div className="space-y-2">
+                <div className="grid grid-cols-3 gap-1.5">
                   {cryptoCoins.map((coin) => {
                     const CoinIcon = coin.icon;
                     return (
                       <div 
                         key={coin.id}
                         onClick={() => setSelectedCrypto(coin.id)}
-                        className={`rounded-xl p-3 text-center cursor-pointer transition-all ${
-                          selectedCrypto === coin.id ? 'scale-[1.05]' : ''
-                        }`}
+                        className={`rounded-lg p-2 text-center cursor-pointer ${selectedCrypto === coin.id ? 'scale-105' : ''}`}
                         style={{
-                          background: selectedCrypto === coin.id 
-                            ? 'rgba(255,255,255,0.15)' 
-                            : 'rgba(255,255,255,0.05)',
-                          border: selectedCrypto === coin.id 
-                            ? `2px solid ${coin.color}` 
-                            : '1px solid rgba(255,255,255,0.1)',
+                          background: selectedCrypto === coin.id ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.05)',
+                          border: selectedCrypto === coin.id ? `1px solid ${coin.color}` : '1px solid rgba(255,255,255,0.1)',
                         }}
                         data-testid={`crypto-option-${coin.id}`}
                       >
-                        <CoinIcon className="w-7 h-7 mx-auto mb-1" style={{ color: coin.color }} />
-                        <p className="text-white text-xs font-bold">{coin.symbol}</p>
+                        <CoinIcon className="w-5 h-5 mx-auto mb-0.5" style={{ color: coin.color }} />
+                        <p className="text-white text-[10px] font-bold">{coin.symbol}</p>
                       </div>
                     );
                   })}
@@ -713,30 +695,16 @@ export default function DemoWidgetPage() {
                   const coin = cryptoCoins.find(c => c.id === selectedCrypto);
                   const CoinIcon = coin?.icon || SiBitcoin;
                   return (
-                    <div 
-                      className="rounded-2xl p-4"
-                      style={{
-                        background: 'rgba(255,255,255,0.08)',
-                        backdropFilter: 'blur(40px)',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                      }}
-                    >
-                      <div className="flex items-center gap-2 mb-3">
-                        <CoinIcon className="w-5 h-5" style={{ color: coin?.color }} />
-                        <span className="font-bold text-white">{coin?.name}</span>
-                        <span className="text-xs text-white/50 px-2 py-0.5 rounded-full bg-white/10">{coin?.network}</span>
+                    <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <CoinIcon className="w-4 h-4" style={{ color: coin?.color }} />
+                        <span className="font-bold text-white text-xs">{coin?.name}</span>
+                        <span className="text-[10px] text-white/40 px-1.5 py-0.5 rounded bg-white/10">{coin?.network}</span>
                       </div>
-                      <p className="text-white/50 text-xs font-light mb-1">Alamat Wallet</p>
-                      <div className="flex items-center gap-2 bg-black/30 rounded-lg p-2">
-                        <span className="font-mono text-xs text-white/80 break-all flex-1" data-testid="text-crypto-address">
-                          {coin?.address}
-                        </span>
-                        <button 
-                          onClick={() => copyToClipboard(coin?.address || "")}
-                          className="p-1.5 rounded-lg bg-white/10 shrink-0"
-                          data-testid="button-copy-crypto"
-                        >
-                          {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-white/60" />}
+                      <div className="flex items-center gap-1.5 bg-black/30 rounded-lg p-2">
+                        <span className="font-mono text-[10px] text-white/70 break-all flex-1" data-testid="text-crypto-address">{coin?.address}</span>
+                        <button onClick={() => copyToClipboard(coin?.address || "")} className="p-1 rounded bg-white/10 shrink-0" data-testid="button-copy-crypto">
+                          {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-white/50" />}
                         </button>
                       </div>
                     </div>
@@ -745,64 +713,31 @@ export default function DemoWidgetPage() {
               </div>
             )}
 
-            {/* Processing State */}
             {isProcessing && (
-              <div 
-                className="rounded-2xl p-6 text-center"
-                style={{
-                  background: 'rgba(255,255,255,0.1)',
-                  backdropFilter: 'blur(40px)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                }}
-              >
-                <div className="relative mx-auto w-16 h-16 mb-4">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center">
-                    <Loader2 className="w-8 h-8 animate-spin text-white" />
-                  </div>
-                  <div className="absolute inset-0 rounded-full animate-ping opacity-20 bg-cyan-400" />
-                </div>
-                <p className="font-bold text-white">Memproses Pembayaran...</p>
-                <p className="text-white/50 text-sm font-light">Mohon tunggu</p>
+              <div className="rounded-xl p-5 text-center" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <Loader2 className="w-10 h-10 animate-spin text-cyan-400 mx-auto mb-2" />
+                <p className="font-bold text-white text-sm">Memproses...</p>
               </div>
             )}
           </div>
 
-          {/* Footer Button */}
-          <div 
-            className="p-4"
-            style={{
-              background: 'rgba(0,0,0,0.3)',
-              backdropFilter: 'blur(20px)',
-            }}
-          >
+          {/* Footer */}
+          <div className="p-3" style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(20px)' }}>
             {selectedPaymentMethod === "kompas" && (
-              <Button 
-                asChild
-                className="w-full h-14 rounded-2xl text-base font-semibold bg-gradient-to-r from-cyan-500 to-blue-600 mb-2" 
-                data-testid="button-open-kompas"
-              >
+              <Button asChild className="w-full h-10 rounded-xl font-semibold bg-gradient-to-r from-cyan-500 to-blue-600 mb-2" data-testid="button-open-kompas">
                 <a href="https://pay.kompas.id/pay" target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="w-5 h-5 mr-2" />
-                  Buka Payment Link
+                  <ExternalLink className="w-4 h-4 mr-1" />Buka Payment Link
                 </a>
               </Button>
             )}
             <Button 
-              className="w-full h-14 rounded-2xl text-base font-semibold bg-gradient-to-r from-emerald-500 to-teal-600 shadow-xl shadow-emerald-500/20" 
+              className="w-full h-10 rounded-xl font-semibold bg-gradient-to-r from-emerald-500 to-teal-600" 
               onClick={handlePayment}
               disabled={isProcessing}
               data-testid="button-pay"
             >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Memproses...
-                </>
-              ) : (
-                <>
-                  <CreditCard className="w-5 h-5 mr-2" />
-                  Bayar {formatRupiah(selectedProduct.price)}
-                </>
+              {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                <><CreditCard className="w-4 h-4 mr-1" />Bayar {formatRupiah(selectedProduct.price)}</>
               )}
             </Button>
           </div>
@@ -811,69 +746,66 @@ export default function DemoWidgetPage() {
 
       {/* Success Screen */}
       {step === "success" && selectedProduct && (
-        <div className="flex-1 flex flex-col items-center justify-center p-6 pt-12">
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-4">
           <div 
-            className="text-center p-8 rounded-3xl max-w-sm w-full"
-            style={{
-              background: 'rgba(255,255,255,0.08)',
-              backdropFilter: 'blur(40px)',
-              border: '1px solid rgba(255,255,255,0.1)',
-            }}
+            className="text-center p-5 rounded-2xl w-full max-w-xs"
+            style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(40px)', border: '1px solid rgba(255,255,255,0.1)' }}
           >
-            <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center mb-6 shadow-2xl shadow-emerald-500/30">
-              <CheckCircle2 className="w-10 h-10 text-white" />
+            <div className="w-14 h-14 mx-auto rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center mb-4">
+              <CheckCircle2 className="w-7 h-7 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Pembayaran Berhasil!</h2>
-            <p className="text-white/50 font-light text-sm mb-6">Transaksi telah selesai</p>
+            <h2 className="text-xl font-bold text-white mb-1">Berhasil!</h2>
+            <p className="text-white/50 font-light text-xs mb-4">Transaksi selesai</p>
             
-            <div className="space-y-3 text-left mb-6">
-              <div className="flex justify-between">
-                <span className="text-white/50 font-light text-sm">Order ID</span>
-                <span className="font-mono text-white text-xs" data-testid="text-order-id">{orderId}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-white/50 font-light text-sm">Paket</span>
-                <span className="text-white font-medium" data-testid="text-order-package">{selectedProduct.name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-white/50 font-light text-sm">Koin Diterima</span>
-                <span className="text-emerald-400 font-bold" data-testid="text-coins-received">
-                  +{selectedProduct.coins + selectedProduct.bonus}
-                </span>
-              </div>
-              <div className="flex justify-between pt-3 border-t border-white/10">
-                <span className="text-white/50 font-light text-sm">Saldo Baru</span>
+            <div className="space-y-2 text-left text-xs mb-4">
+              <div className="flex justify-between"><span className="text-white/50">Order ID</span><span className="font-mono text-white text-[10px]" data-testid="text-order-id">{orderId}</span></div>
+              <div className="flex justify-between"><span className="text-white/50">Customer ID</span><span className="font-mono text-white text-[10px]" data-testid="text-customer-id">{customerId}</span></div>
+              <div className="flex justify-between"><span className="text-white/50">Paket</span><span className="text-white font-medium" data-testid="text-order-package">{selectedProduct.name}</span></div>
+              <div className="flex justify-between"><span className="text-white/50">Koin</span><span className="text-emerald-400 font-bold" data-testid="text-coins-received">+{selectedProduct.coins}</span></div>
+              <div className="flex justify-between pt-2 border-t border-white/10">
+                <span className="text-white/50">Saldo</span>
                 <div className="flex items-center gap-1">
-                  <Coins className="w-4 h-4 text-amber-400" />
+                  <Coins className="w-3 h-3 text-amber-400" />
                   <span className="text-amber-400 font-bold" data-testid="text-new-balance">{userCoins}</span>
                 </div>
               </div>
             </div>
 
-            <Button 
-              className="w-full h-12 rounded-2xl font-semibold bg-gradient-to-r from-cyan-500 to-blue-600"
-              onClick={resetDemo}
-              data-testid="button-new-transaction"
-            >
+            <Button className="w-full h-10 rounded-xl font-semibold bg-gradient-to-r from-cyan-500 to-blue-600" onClick={resetDemo} data-testid="button-new-transaction">
               Demo Baru
             </Button>
           </div>
         </div>
       )}
 
-      {/* CSS Animations */}
       <style>{`
-        @keyframes slideInUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
+    </div>
+  );
+
+  if (isMobile) {
+    return <div className="min-h-screen w-full">{widgetContent}</div>;
+  }
+
+  return (
+    <div 
+      className="min-h-screen w-full flex items-center justify-center p-4"
+      style={{
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
+      }}
+    >
+      <div 
+        className="w-[380px] h-[680px] rounded-3xl overflow-hidden shadow-2xl"
+        style={{
+          boxShadow: '0 25px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.1)',
+        }}
+      >
+        {widgetContent}
+      </div>
     </div>
   );
 }
