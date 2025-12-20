@@ -22,7 +22,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import coinIconUrl from "@assets/coin-icon-64.png";
-import bgImageUrl from "@assets/IMG_0743_1766246728943.jpeg";
+import bgImageUrl from "@assets/bg-widget-optimized.jpg";
 import qrisImageUrl from "@assets/qris-demo.png";
 import { SiBitcoin, SiEthereum, SiTether, SiSolana, SiBinance, SiDogecoin } from "react-icons/si";
 
@@ -1069,7 +1069,7 @@ export default function DemoWidgetPage() {
           <div className="p-4 space-y-3">
             <p className="font-semibold text-sm">Pilih cryptocurrency</p>
             
-            <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-2">
               {cryptoCoins.map((coin) => {
                 const CoinIcon = coin.icon;
                 const isActive = selectedCrypto === coin.id;
@@ -1077,15 +1077,21 @@ export default function DemoWidgetPage() {
                   <button 
                     key={coin.id}
                     onClick={() => setSelectedCrypto(coin.id)}
-                    className={`p-3 rounded-xl text-center transition-all ${
+                    className={`w-full p-3 rounded-xl flex items-center gap-3 transition-all ${
                       isActive 
-                        ? 'bg-violet-500/15 ring-1 ring-violet-500/50 scale-[1.02]' 
+                        ? 'bg-violet-500/15 ring-1 ring-violet-500/50' 
                         : 'bg-white/50 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10'
                     }`}
                     data-testid={`crypto-option-${coin.id}`}
                   >
-                    <CoinIcon className="w-6 h-6 mx-auto" style={{ color: coin.color }} />
-                    <p className="text-xs font-bold mt-1">{coin.symbol}</p>
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: `${coin.color}20` }}>
+                      <CoinIcon className="w-5 h-5" style={{ color: coin.color }} />
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="text-sm font-semibold">{coin.name}</p>
+                      <p className="text-xs text-muted-foreground">{coin.symbol} • {coin.network}</p>
+                    </div>
+                    {isActive && <Check className="w-5 h-5 text-violet-500" />}
                   </button>
                 );
               })}
@@ -1095,10 +1101,7 @@ export default function DemoWidgetPage() {
               const coin = cryptoCoins.find(c => c.id === selectedCrypto);
               return (
                 <div className="p-3 rounded-xl bg-white/60 dark:bg-white/5 border border-white/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="font-semibold text-sm">{coin?.name}</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-600 dark:text-violet-400 font-medium">{coin?.network}</span>
-                  </div>
+                  <p className="text-[10px] text-muted-foreground mb-2">Alamat {coin?.symbol}</p>
                   <div className="flex items-center gap-2 p-2.5 bg-zinc-100 dark:bg-zinc-900 rounded-lg">
                     <span className="font-mono text-[10px] break-all flex-1 text-muted-foreground" data-testid="text-crypto-address">{coin?.address}</span>
                     <button 
