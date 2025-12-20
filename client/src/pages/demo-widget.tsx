@@ -20,10 +20,67 @@ import {
   ExternalLink,
   ArrowLeft,
   Package,
-  Sparkles
+  Sparkles,
+  Building2,
+  Smartphone,
+  Bitcoin,
+  ChevronRight,
+  Copy,
+  Check
 } from "lucide-react";
+import { SiBitcoin, SiEthereum, SiTether, SiSolana, SiBinance, SiDogecoin } from "react-icons/si";
 
 type Step = "login" | "chat" | "topup" | "payment" | "success";
+type PaymentMethod = "kompas" | "qris" | "bank" | "va" | "crypto";
+type CryptoOption = "btc" | "eth" | "usdt" | "sol" | "bnb" | "doge";
+
+interface PaymentMethodOption {
+  id: PaymentMethod;
+  name: string;
+  description: string;
+  icon: typeof QrCode;
+}
+
+interface BankOption {
+  id: string;
+  name: string;
+  accountNumber: string;
+  accountName: string;
+}
+
+interface CryptoCoin {
+  id: CryptoOption;
+  name: string;
+  symbol: string;
+  network: string;
+  address: string;
+  icon: typeof SiBitcoin;
+  color: string;
+}
+
+const paymentMethods: PaymentMethodOption[] = [
+  { id: "kompas", name: "Kompas Pay", description: "Bayar via Kompas Pay", icon: Wallet },
+  { id: "qris", name: "QRIS", description: "Scan QR untuk bayar", icon: QrCode },
+  { id: "bank", name: "Transfer Bank", description: "BCA, Mandiri, BNI, BRI", icon: Building2 },
+  { id: "va", name: "Virtual Account", description: "Nomor VA otomatis", icon: Smartphone },
+  { id: "crypto", name: "Cryptocurrency", description: "BTC, ETH, USDT, SOL", icon: Bitcoin },
+];
+
+const bankOptions: BankOption[] = [
+  { id: "bca", name: "Bank BCA", accountNumber: "1234567890", accountName: "PT Chatvice Indonesia" },
+  { id: "mandiri", name: "Bank Mandiri", accountNumber: "0987654321", accountName: "PT Chatvice Indonesia" },
+  { id: "bni", name: "Bank BNI", accountNumber: "1122334455", accountName: "PT Chatvice Indonesia" },
+  { id: "bri", name: "Bank BRI", accountNumber: "5544332211", accountName: "PT Chatvice Indonesia" },
+];
+
+const cryptoCoins: CryptoCoin[] = [
+  { id: "btc", name: "Bitcoin", symbol: "BTC", network: "Bitcoin Network", address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh", icon: SiBitcoin, color: "#F7931A" },
+  { id: "eth", name: "Ethereum", symbol: "ETH", network: "ERC-20", address: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e", icon: SiEthereum, color: "#627EEA" },
+  { id: "usdt", name: "Tether", symbol: "USDT", network: "TRC-20", address: "TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9", icon: SiTether, color: "#26A17B" },
+  { id: "sol", name: "Solana", symbol: "SOL", network: "Solana Network", address: "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU", icon: SiSolana, color: "#9945FF" },
+  { id: "bnb", name: "BNB", symbol: "BNB", network: "BEP-20", address: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e", icon: SiBinance, color: "#F3BA2F" },
+  { id: "doge", name: "Dogecoin", symbol: "DOGE", network: "Dogecoin Network", address: "DFundmtrigzA6E25Swr2pRe4Eb79bGP8G1", icon: SiDogecoin, color: "#C2A633" },
+];
 
 interface Message {
   id: string;
@@ -68,6 +125,21 @@ export default function DemoWidgetPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderId, setOrderId] = useState("");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>("qris");
+  const [selectedBank, setSelectedBank] = useState<string>("bca");
+  const [selectedCrypto, setSelectedCrypto] = useState<CryptoOption>("btc");
+  const [copied, setCopied] = useState(false);
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const getVANumber = () => {
+    const bankCode = selectedBank.toUpperCase();
+    return `${bankCode}${Date.now().toString().slice(-10)}`;
+  };
 
   const addMessage = (from: "user" | "bot", content: string, actions?: { label: string; action: string }[]) => {
     const newMessage: Message = {
@@ -388,59 +460,284 @@ export default function DemoWidgetPage() {
                   </Button>
                   <div>
                     <h3 className="font-semibold">Pembayaran</h3>
-                    <p className="text-xs text-muted-foreground">{selectedProduct.name}</p>
+                    <p className="text-xs text-muted-foreground">{selectedProduct.name} - {formatRupiah(selectedProduct.price)}</p>
                   </div>
                 </div>
               </div>
-              <div className="flex-1 p-4 space-y-4">
-                <Card>
-                  <CardContent className="p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Paket</span>
-                      <span className="font-medium">{selectedProduct.name}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Koin</span>
-                      <span className="font-medium">{selectedProduct.coins} + {selectedProduct.bonus} bonus</span>
-                    </div>
-                    <div className="border-t pt-3 flex items-center justify-between">
-                      <span className="font-semibold">Total</span>
-                      <span className="font-bold text-lg text-primary">{formatRupiah(selectedProduct.price)}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <div className="space-y-2">
-                  <Label>Metode Pembayaran</Label>
-                  <Card className="border-primary bg-primary/5">
-                    <CardContent className="p-4 flex items-center gap-3">
-                      <QrCode className="w-8 h-8 text-primary" />
-                      <div>
-                        <p className="font-medium">QRIS</p>
-                        <p className="text-xs text-muted-foreground">Scan QR untuk bayar</p>
+              <ScrollArea className="flex-1">
+                <div className="p-4 space-y-4">
+                  {/* Order Summary */}
+                  <Card>
+                    <CardContent className="p-3 space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Paket</span>
+                        <span className="font-medium">{selectedProduct.name}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Koin</span>
+                        <span className="font-medium">{selectedProduct.coins} + {selectedProduct.bonus} bonus</span>
+                      </div>
+                      <div className="border-t pt-2 flex items-center justify-between">
+                        <span className="font-semibold">Total</span>
+                        <span className="font-bold text-primary">{formatRupiah(selectedProduct.price)}</span>
                       </div>
                     </CardContent>
                   </Card>
-                </div>
 
-                {isProcessing && (
-                  <Card className="bg-muted/50">
-                    <CardContent className="p-6 flex flex-col items-center gap-3">
-                      <div className="w-32 h-32 bg-white rounded-lg flex items-center justify-center border">
-                        <div className="text-center">
-                          <QrCode className="w-16 h-16 text-muted-foreground mx-auto mb-2" />
-                          <p className="text-xs text-muted-foreground">QR Code Demo</p>
+                  {/* Payment Method Selection */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Pilih Metode Pembayaran</Label>
+                    <div className="grid gap-2">
+                      {paymentMethods.map((method) => {
+                        const IconComponent = method.icon;
+                        return (
+                          <Card 
+                            key={method.id}
+                            className={`cursor-pointer transition-all hover-elevate ${
+                              selectedPaymentMethod === method.id 
+                                ? "border-primary bg-primary/5" 
+                                : "hover:border-muted-foreground/30"
+                            }`}
+                            onClick={() => setSelectedPaymentMethod(method.id)}
+                            data-testid={`payment-method-${method.id}`}
+                          >
+                            <CardContent className="p-3 flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                  selectedPaymentMethod === method.id ? "bg-primary/10" : "bg-muted"
+                                }`}>
+                                  <IconComponent className={`w-5 h-5 ${
+                                    selectedPaymentMethod === method.id ? "text-primary" : "text-muted-foreground"
+                                  }`} />
+                                </div>
+                                <div>
+                                  <p className="font-medium text-sm">{method.name}</p>
+                                  <p className="text-xs text-muted-foreground">{method.description}</p>
+                                </div>
+                              </div>
+                              <ChevronRight className={`w-4 h-4 ${
+                                selectedPaymentMethod === method.id ? "text-primary" : "text-muted-foreground"
+                              }`} />
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Payment Details Based on Selected Method */}
+                  {selectedPaymentMethod === "kompas" && (
+                    <Card className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border-blue-500/30">
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Wallet className="w-5 h-5 text-blue-600" />
+                          <span className="font-semibold">Kompas Pay</span>
                         </div>
+                        <p className="text-sm text-muted-foreground">
+                          Anda akan diarahkan ke halaman pembayaran Kompas Pay untuk menyelesaikan transaksi.
+                        </p>
+                        <a 
+                          href="https://pay.kompas.id/pay" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline"
+                          data-testid="link-kompas-pay"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                          Buka Kompas Pay
+                        </a>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {selectedPaymentMethod === "qris" && (
+                    <Card className="bg-muted/50">
+                      <CardContent className="p-4 flex flex-col items-center gap-3">
+                        <div className="w-36 h-36 bg-white rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/30">
+                          <div className="text-center">
+                            <QrCode className="w-20 h-20 text-muted-foreground mx-auto" />
+                            <p className="text-xs text-muted-foreground mt-1">QRIS Demo</p>
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground text-center">
+                          Scan kode QR dengan aplikasi e-wallet atau mobile banking Anda
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {selectedPaymentMethod === "bank" && (
+                    <div className="space-y-2">
+                      <Label className="text-sm">Pilih Bank Tujuan</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {bankOptions.map((bank) => (
+                          <Card 
+                            key={bank.id}
+                            className={`cursor-pointer transition-all hover-elevate ${
+                              selectedBank === bank.id 
+                                ? "border-primary bg-primary/5" 
+                                : "hover:border-muted-foreground/30"
+                            }`}
+                            onClick={() => setSelectedBank(bank.id)}
+                            data-testid={`bank-option-${bank.id}`}
+                          >
+                            <CardContent className="p-3 text-center">
+                              <Building2 className={`w-6 h-6 mx-auto mb-1 ${
+                                selectedBank === bank.id ? "text-primary" : "text-muted-foreground"
+                              }`} />
+                              <p className="text-xs font-medium">{bank.name}</p>
+                            </CardContent>
+                          </Card>
+                        ))}
                       </div>
-                      <div className="flex items-center gap-2 text-primary">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span className="text-sm">Menunggu pembayaran...</span>
+                      {selectedBank && (
+                        <Card className="mt-3">
+                          <CardContent className="p-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-muted-foreground">No. Rekening</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-sm font-medium">
+                                  {bankOptions.find(b => b.id === selectedBank)?.accountNumber}
+                                </span>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-6 w-6"
+                                  onClick={() => copyToClipboard(bankOptions.find(b => b.id === selectedBank)?.accountNumber || "")}
+                                  data-testid="button-copy-bank"
+                                >
+                                  {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-muted-foreground">Atas Nama</span>
+                              <span className="text-sm">{bankOptions.find(b => b.id === selectedBank)?.accountName}</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  )}
+
+                  {selectedPaymentMethod === "va" && (
+                    <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/30">
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Smartphone className="w-5 h-5 text-green-600" />
+                          <span className="font-semibold">Virtual Account</span>
+                        </div>
+                        <div className="bg-background rounded-lg p-3 border">
+                          <p className="text-xs text-muted-foreground mb-1">Nomor Virtual Account</p>
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono text-lg font-bold tracking-wider" data-testid="text-va-number">
+                              {getVANumber()}
+                            </span>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => copyToClipboard(getVANumber())}
+                              data-testid="button-copy-va"
+                            >
+                              {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                            </Button>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Berlaku hingga 24 jam. Transfer sesuai nominal untuk verifikasi otomatis.
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {selectedPaymentMethod === "crypto" && (
+                    <div className="space-y-3">
+                      <Label className="text-sm">Pilih Cryptocurrency</Label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {cryptoCoins.map((coin) => {
+                          const CoinIcon = coin.icon;
+                          return (
+                            <Card 
+                              key={coin.id}
+                              className={`cursor-pointer transition-all hover-elevate ${
+                                selectedCrypto === coin.id 
+                                  ? "border-primary bg-primary/5" 
+                                  : "hover:border-muted-foreground/30"
+                              }`}
+                              onClick={() => setSelectedCrypto(coin.id)}
+                              data-testid={`crypto-option-${coin.id}`}
+                            >
+                              <CardContent className="p-2 text-center">
+                                <CoinIcon className="w-6 h-6 mx-auto mb-1" style={{ color: coin.color }} />
+                                <p className="text-xs font-medium">{coin.symbol}</p>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
                       </div>
-                    </CardContent>
-                  </Card>
+                      {selectedCrypto && (() => {
+                        const coin = cryptoCoins.find(c => c.id === selectedCrypto);
+                        const CoinIcon = coin?.icon || SiBitcoin;
+                        return (
+                          <Card className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border-yellow-500/30">
+                            <CardContent className="p-4 space-y-3">
+                              <div className="flex items-center gap-2">
+                                <CoinIcon className="w-5 h-5" style={{ color: coin?.color }} />
+                                <span className="font-semibold">{coin?.name}</span>
+                                <Badge variant="secondary" className="text-xs">{coin?.network}</Badge>
+                              </div>
+                              <div className="bg-background rounded-lg p-3 border">
+                                <p className="text-xs text-muted-foreground mb-1">Alamat Wallet</p>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-xs break-all flex-1" data-testid="text-crypto-address">
+                                    {coin?.address}
+                                  </span>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon"
+                                    className="shrink-0"
+                                    onClick={() => copyToClipboard(coin?.address || "")}
+                                    data-testid="button-copy-crypto"
+                                  >
+                                    {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                                  </Button>
+                                </div>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                Kirim hanya {coin?.symbol} ke alamat di atas. Pengiriman aset lain dapat menyebabkan kehilangan dana.
+                              </p>
+                            </CardContent>
+                          </Card>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {/* Processing State */}
+                  {isProcessing && (
+                    <Card className="bg-primary/5 border-primary/30">
+                      <CardContent className="p-4 flex flex-col items-center gap-3">
+                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                        <div className="text-center">
+                          <p className="font-medium">Memproses Pembayaran...</p>
+                          <p className="text-sm text-muted-foreground">Mohon tunggu sebentar</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </ScrollArea>
+              <div className="p-4 border-t space-y-2">
+                {selectedPaymentMethod === "kompas" && (
+                  <Button 
+                    className="w-full bg-blue-600 hover:bg-blue-700" 
+                    onClick={() => window.open("https://pay.kompas.id/pay", "_blank")}
+                    data-testid="button-open-kompas"
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Buka Kompas Pay
+                  </Button>
                 )}
-              </div>
-              <div className="p-4 border-t">
                 <Button 
                   className="w-full" 
                   onClick={handlePayment}
@@ -455,7 +752,7 @@ export default function DemoWidgetPage() {
                   ) : (
                     <>
                       <CreditCard className="w-4 h-4 mr-2" />
-                      Bayar Sekarang
+                      {selectedPaymentMethod === "kompas" ? "Konfirmasi Pembayaran" : "Bayar Sekarang"}
                     </>
                   )}
                 </Button>
