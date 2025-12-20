@@ -875,12 +875,18 @@ export default function DemoWidgetPage() {
               >
                 {selectedPaymentMethod === "kompas" && (
                   <Button 
+                    asChild
                     className="w-full rounded-xl h-11 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-lg" 
-                    onClick={() => window.open("https://pay.kompas.id/pay", "_blank")}
                     data-testid="button-open-kompas"
                   >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Buka Payment Link
+                    <a 
+                      href="https://pay.kompas.id/pay" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Buka Payment Link
+                    </a>
                   </Button>
                 )}
                 <Button 
