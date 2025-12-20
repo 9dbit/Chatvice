@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import coinIconUrl from "@assets/coin-icon-64.png";
 import bgImageUrl from "@assets/IMG_0743_1766246728943.jpeg";
+import qrisImageUrl from "@assets/qris-demo.png";
 import { SiBitcoin, SiEthereum, SiTether, SiSolana, SiBinance, SiDogecoin } from "react-icons/si";
 
 type PaymentMethod = "kompas" | "qris" | "bank" | "va" | "crypto";
@@ -141,6 +142,12 @@ export default function DemoWidgetPage() {
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [transactionCompleted, setTransactionCompleted] = useState(false);
+  const [lastAction, setLastAction] = useState<string>("");
+  const [actionRepeatCount, setActionRepeatCount] = useState(0);
+  const [loginAttempts, setLoginAttempts] = useState(0);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [paymentStage, setPaymentStage] = useState<"idle" | "confirming" | "success">("idle");
+  const [merchantInfo] = useState({ name: "DinnCafe", domain: "dinncafe.com" });
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -249,7 +256,34 @@ export default function DemoWidgetPage() {
     addTypingThenMessage({ from: "bot", content: response, actions }, 500);
   };
 
+  const getRandomGreeting = () => {
+    const greetings = ["bosku", "kak", "kakak", "gan", "sis", "boss"];
+    return greetings[Math.floor(Math.random() * greetings.length)];
+  };
+
   const handleAction = (action: string) => {
+    // Duplicate click prevention - ignore same action clicked 2+ times
+    if (action === lastAction && action !== "process_payment" && action !== "new_transaction") {
+      const newCount = actionRepeatCount + 1;
+      setActionRepeatCount(newCount);
+      
+      if (newCount >= 2) {
+        const greeting = getRandomGreeting();
+        addTypingThenMessage({
+          from: "bot",
+          content: `Apa yang bisa kami bantu ${greeting}? Untuk memperlancar proses, tolong ikuti arahan dari saya ya ${greeting}.`,
+          actions: [
+            { label: "Top Up Koin", action: "topup" },
+            { label: "Beranda", action: "go_home" },
+          ],
+        }, 300);
+        return;
+      }
+    } else {
+      setActionRepeatCount(1);
+    }
+    setLastAction(action);
+
     switch (action) {
       case "topup":
         addTypingThenMessage({
@@ -280,20 +314,49 @@ export default function DemoWidgetPage() {
         break;
 
       case "cancel_package":
+        // Ask for clarification before canceling
+        addTypingThenMessage({
+          from: "bot",
+          content: "Sebelum dibatalkan, boleh tau alasannya kak?\n\nApakah kakak mau pilih nominal top up yang lain?",
+          actions: [
+            { label: "Pilih Nominal Lain", action: "topup" },
+            { label: "Batalkan", action: "confirm_cancel", variant: "destructive" },
+          ],
+        });
+        break;
+      
+      case "confirm_cancel":
         setSelectedProduct(null);
         addTypingThenMessage({
           from: "bot",
-          content: "Baik kak, pesanan dibatalkan.\n\nApakah kakak ingin memilih nominal lain?",
-          component: "packages",
+          content: "Baik kak, pesanan dibatalkan. Ada yang bisa saya bantu lagi?",
+          actions: [
+            { label: "Top Up Koin", action: "topup" },
+            { label: "Beranda", action: "go_home" },
+          ],
         });
         break;
 
       case "confirm_package":
-        addTypingThenMessage({
-          from: "bot",
-          content: "Untuk melanjutkan pembayaran, kakak perlu login atau daftar terlebih dahulu.\n\nSilakan masukkan email dan password:",
-          component: "auth",
-        });
+        // Check if user is already logged in
+        if (isLoggedIn) {
+          const newOrderId = `CVT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+          setOrderId(newOrderId);
+          addTypingThenMessage({
+            from: "bot",
+            content: `Kakak sudah login dari ${merchantInfo.domain}\n\nOrder ID: ${newOrderId}\n\nLanjut ke pembayaran?`,
+            actions: [
+              { label: "Cancel", action: "cancel_package", variant: "destructive" },
+              { label: "Lanjut Bayar", action: "confirm_auth" },
+            ],
+          });
+        } else {
+          addTypingThenMessage({
+            from: "bot",
+            content: "Untuk melanjutkan pembayaran, kakak perlu login atau daftar terlebih dahulu.\n\nSilakan masukkan email dan password:",
+            component: "auth",
+          });
+        }
         break;
 
       case "cancel_auth":
@@ -319,14 +382,12 @@ export default function DemoWidgetPage() {
 
       case "process_payment":
         setIsProcessing(true);
-        addMessage({
-          from: "bot",
-          content: "Memproses pembayaran...",
-          isTyping: true,
-        });
-
+        setPaymentStage("confirming");
+        
+        // Stage 1: Wait for confirmation (2 seconds)
         setTimeout(() => {
-          setMessages(prev => prev.filter(m => !m.isTyping));
+          // Stage 2: Payment success
+          setPaymentStage("success");
           setIsProcessing(false);
           
           addMessage({
@@ -337,9 +398,10 @@ export default function DemoWidgetPage() {
               orderId,
               customerId,
               product: selectedProduct,
+              merchantInfo,
             },
           });
-        }, 2000);
+        }, 2500);
         break;
 
       case "new_transaction":
@@ -348,6 +410,10 @@ export default function DemoWidgetPage() {
         setCustomerId("");
         setAuthEmail("");
         setAuthPassword("");
+        setTransactionCompleted(false);
+        setPaymentStage("idle");
+        setLastAction("");
+        setActionRepeatCount(0);
         setMessages([]);
         startChat();
         break;
@@ -417,33 +483,84 @@ export default function DemoWidgetPage() {
   const AuthComponent = () => {
     const [localEmail, setLocalEmail] = useState(authEmail);
     const [localPassword, setLocalPassword] = useState(authPassword);
+    const [showForgotPassword, setShowForgotPassword] = useState(loginAttempts >= 3);
     
-    const handleSubmit = () => {
-      // Directly use local values for submit, update parent state
+    const handleEmailLogin = () => {
       setAuthEmail(localEmail);
       setAuthPassword(localPassword);
       
-      // Process auth with local values directly
       if (localEmail && localPassword) {
         setIsProcessing(true);
-        const newCustomerId = `CUS-${Date.now().toString(36).toUpperCase()}`;
-        const newOrderId = `CVT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+        
+        // Simulate login - 80% success rate for demo
+        const success = Math.random() > 0.2;
         
         setTimeout(() => {
-          setCustomerId(newCustomerId);
-          setOrderId(newOrderId);
           setIsProcessing(false);
           
-          addTypingThenMessage({
-            from: "bot",
-            content: `Login berhasil!\n\nCustomer ID: ${newCustomerId}\nOrder ID: ${newOrderId}\n\nJika setuju, akan saya proses ke pembayaran kak.`,
-            actions: [
-              { label: "Cancel", action: "cancel_auth", variant: "destructive" },
-              { label: "Setuju", action: "confirm_auth" },
-            ],
-          });
+          if (success) {
+            const newCustomerId = `CUS-${Date.now().toString(36).toUpperCase()}`;
+            const newOrderId = `CVT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+            setCustomerId(newCustomerId);
+            setOrderId(newOrderId);
+            setIsLoggedIn(true);
+            setLoginAttempts(0);
+            
+            addTypingThenMessage({
+              from: "bot",
+              content: `Login berhasil!\n\nAsal: ${merchantInfo.domain}\nMerchant: ${merchantInfo.name}\n\nCustomer ID: ${newCustomerId}\nOrder ID: ${newOrderId}\n\nLanjut ke pembayaran?`,
+              actions: [
+                { label: "Cancel", action: "cancel_auth", variant: "destructive" },
+                { label: "Lanjut Bayar", action: "confirm_auth" },
+              ],
+            });
+          } else {
+            const attempts = loginAttempts + 1;
+            setLoginAttempts(attempts);
+            if (attempts >= 3) {
+              setShowForgotPassword(true);
+            }
+            addTypingThenMessage({
+              from: "bot",
+              content: `Email atau password salah. ${attempts >= 3 ? "Silakan gunakan Lupa Password atau coba login dengan Google/GitHub." : "Silakan coba lagi."}`,
+              component: "auth",
+            }, 300);
+          }
         }, 1500);
       }
+    };
+    
+    const handleSocialLogin = (provider: "google" | "github") => {
+      setIsProcessing(true);
+      setTimeout(() => {
+        const newCustomerId = `CUS-${Date.now().toString(36).toUpperCase()}`;
+        const newOrderId = `CVT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+        setCustomerId(newCustomerId);
+        setOrderId(newOrderId);
+        setIsLoggedIn(true);
+        setIsProcessing(false);
+        setLoginAttempts(0);
+        
+        addTypingThenMessage({
+          from: "bot",
+          content: `Login dengan ${provider === "google" ? "Google" : "GitHub"} berhasil!\n\nAsal: ${merchantInfo.domain}\nMerchant: ${merchantInfo.name}\n\nCustomer ID: ${newCustomerId}\nOrder ID: ${newOrderId}\n\nLanjut ke pembayaran?`,
+          actions: [
+            { label: "Cancel", action: "cancel_auth", variant: "destructive" },
+            { label: "Lanjut Bayar", action: "confirm_auth" },
+          ],
+        });
+      }, 1500);
+    };
+
+    const handleForgotPassword = () => {
+      addTypingThenMessage({
+        from: "bot",
+        content: `Untuk reset password, silakan kunjungi halaman login ${merchantInfo.name} di ${merchantInfo.domain}`,
+        actions: [
+          { label: "Coba Login Lagi", action: "confirm_package" },
+          { label: "Beranda", action: "go_home" },
+        ],
+      });
     };
     
     return (
@@ -453,7 +570,7 @@ export default function DemoWidgetPage() {
           placeholder="Email"
           value={localEmail}
           onChange={(e) => setLocalEmail(e.target.value)}
-          className="h-10 text-sm"
+          className="h-10 text-sm bg-white/10 border-white/20 text-white placeholder:text-white/50"
           data-testid="input-auth-email"
         />
         <Input
@@ -461,18 +578,64 @@ export default function DemoWidgetPage() {
           placeholder="Password"
           value={localPassword}
           onChange={(e) => setLocalPassword(e.target.value)}
-          className="h-10 text-sm"
+          className="h-10 text-sm bg-white/10 border-white/20 text-white placeholder:text-white/50"
           data-testid="input-auth-password"
         />
         <Button
           className="w-full h-10 text-white"
-          style={{ backgroundColor: PRIMARY_COLOR }}
-          onClick={handleSubmit}
+          style={{ backgroundColor: PRIMARY_COLOR, boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)' }}
+          onClick={handleEmailLogin}
           disabled={!localEmail || !localPassword || isProcessing}
           data-testid="button-auth-submit"
         >
           {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Masuk / Daftar"}
         </Button>
+        
+        <div className="flex items-center gap-2 text-xs text-zinc-400">
+          <div className="flex-1 h-px bg-zinc-600" />
+          <span>atau</span>
+          <div className="flex-1 h-px bg-zinc-600" />
+        </div>
+        
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="flex-1 h-10 text-white border-white/20 hover:bg-white/10"
+            onClick={() => handleSocialLogin("google")}
+            disabled={isProcessing}
+            data-testid="button-auth-google"
+          >
+            <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
+              <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            Google
+          </Button>
+          <Button
+            variant="outline"
+            className="flex-1 h-10 text-white border-white/20 hover:bg-white/10"
+            onClick={() => handleSocialLogin("github")}
+            disabled={isProcessing}
+            data-testid="button-auth-github"
+          >
+            <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+            </svg>
+            GitHub
+          </Button>
+        </div>
+        
+        {showForgotPassword && (
+          <button
+            onClick={handleForgotPassword}
+            className="w-full text-sm text-violet-400 hover:text-violet-300 underline"
+            data-testid="button-forgot-password"
+          >
+            Lupa Password?
+          </button>
+        )}
       </div>
     );
   };
@@ -661,7 +824,7 @@ export default function DemoWidgetPage() {
                   className={`
                     absolute left-0 right-0 p-3 rounded-xl text-left
                     ${cardColors.bg} 
-                    ${isSelected ? 'ring-2 ring-white shadow-lg shadow-violet-500/20' : 'shadow-md'}
+                    ${isSelected ? 'shadow-lg shadow-violet-500/20' : 'shadow-md'}
                   `}
                   style={{
                     zIndex: isSelected ? 100 : paymentMethods.length - index,
@@ -755,10 +918,14 @@ export default function DemoWidgetPage() {
             </div>
             
             {/* QR Code with glow effect */}
-            <div className="relative mx-auto w-40 h-40 mb-3">
+            <div className="relative mx-auto w-48 mb-3">
               <div className="absolute inset-0 bg-gradient-to-r from-violet-500/30 to-purple-500/30 rounded-2xl blur-xl" />
-              <div className="relative w-full h-full p-3 rounded-2xl bg-white shadow-xl">
-                <QRCodeDummy />
+              <div className="relative w-full rounded-2xl bg-white shadow-xl overflow-hidden">
+                <img 
+                  src={qrisImageUrl} 
+                  alt="QRIS Payment Code" 
+                  className="w-full h-auto"
+                />
               </div>
             </div>
             
@@ -924,14 +1091,16 @@ export default function DemoWidgetPage() {
           ref={sliderRef}
           className="relative h-14 rounded-2xl overflow-hidden select-none touch-none"
           style={{ 
-            background: isProcessing 
+            background: paymentCompleted 
               ? '#10b981'
-              : '#18181b'
+              : '#18181b',
+            willChange: 'transform',
+            transform: 'translateZ(0)',
           }}
           onMouseDown={handleSliderStart}
-          onMouseMove={(e) => handleSliderMove(e.clientX)}
+          onMouseMove={(e) => isDragging && handleSliderMove(e.clientX)}
           onMouseUp={handleSliderEnd}
-          onMouseLeave={handleSliderEnd}
+          onMouseLeave={() => isDragging && handleSliderEnd()}
           onTouchStart={handleSliderStart}
           onTouchMove={(e) => handleSliderMove(e.touches[0].clientX)}
           onTouchEnd={handleSliderEnd}
@@ -940,26 +1109,46 @@ export default function DemoWidgetPage() {
           {/* Progress fill */}
           <motion.div 
             className="absolute inset-y-0 left-0"
-            style={{ backgroundColor: '#10b981' }}
+            style={{ 
+              backgroundColor: '#10b981',
+              willChange: 'width',
+            }}
             animate={{ width: `${sliderProgress * 100}%` }}
+            transition={{ type: "tween", duration: 0 }}
           />
           
-          {/* Processing text inside slider */}
-          {isProcessing && (
+          {/* Stage 1: Confirming payment - locked at 100% */}
+          {paymentCompleted && paymentStage === "confirming" && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="flex items-center gap-2 text-white font-medium">
                 <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Memproses pembayaran...</span>
+                <span>Menunggu konfirmasi...</span>
               </div>
             </div>
           )}
           
-          {/* Slider thumb */}
-          {!isProcessing && !paymentCompleted && (
+          {/* Stage 2: Payment success */}
+          {paymentCompleted && paymentStage === "success" && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="flex items-center gap-2 text-white font-medium">
+                <Check className="w-5 h-5" />
+                <span>Transaksi berhasil</span>
+              </div>
+            </div>
+          )}
+          
+          {/* Slider thumb - hidden after payment confirmed */}
+          {!paymentCompleted && (
             <motion.div
               className="absolute top-1 bottom-1 left-1 w-12 rounded-xl bg-white shadow-lg flex items-center justify-center cursor-grab active:cursor-grabbing"
-              animate={{ x: sliderProgress * (sliderRef.current?.offsetWidth ? sliderRef.current.offsetWidth - 56 : 0) }}
-              style={{ touchAction: 'none' }}
+              animate={{ 
+                x: sliderProgress * (sliderRef.current?.offsetWidth ? sliderRef.current.offsetWidth - 56 : 0) 
+              }}
+              style={{ 
+                touchAction: 'none',
+                willChange: 'transform',
+              }}
+              transition={{ type: "tween", duration: 0 }}
             >
               <div className="flex gap-0.5">
                 <div className="w-0.5 h-4 rounded-full bg-zinc-300" />
@@ -968,20 +1157,10 @@ export default function DemoWidgetPage() {
               </div>
             </motion.div>
           )}
-          
-          {/* Completed checkmark */}
-          {paymentCompleted && !isProcessing && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="flex items-center gap-2 text-white font-medium">
-                <Check className="w-5 h-5" />
-                <span>Pembayaran dikonfirmasi</span>
-              </div>
-            </div>
-          )}
         </div>
         
         {/* Text below slider */}
-        {!isProcessing && !paymentCompleted && (
+        {!paymentCompleted && (
           <p className="text-center text-xs text-muted-foreground">
             {sliderProgress > 0.5 ? 'Lepas untuk konfirmasi' : 'Geser untuk selesaikan pembayaran'}
           </p>
@@ -996,29 +1175,37 @@ export default function DemoWidgetPage() {
       className="mt-3 p-5 rounded-2xl"
       style={{ backgroundColor: '#6b5dfc' }}
     >
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+      {/* Left-aligned layout */}
+      <div className="flex items-start gap-3 mb-4">
+        <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center shrink-0">
           <CheckCircle2 className="w-6 h-6 text-white" />
         </div>
-        <div>
+        <div className="text-left">
           <p className="font-bold text-lg text-white">Transaksi Berhasil!</p>
           <p className="text-sm text-white/80">Top up {data.product?.name}</p>
         </div>
       </div>
       
-      <div className="space-y-2 mb-4">
-        <div className="flex justify-between items-center py-2 border-b border-white/20">
-          <span className="text-white/70 text-sm">Order ID</span>
-          <span className="font-mono text-sm font-medium text-white" data-testid="text-order-id">{data.orderId}</span>
+      {/* Left-aligned details */}
+      <div className="space-y-2 mb-4 text-left">
+        <div className="py-2 border-b border-white/20">
+          <p className="text-white/70 text-xs">Order ID</p>
+          <p className="font-mono text-sm font-medium text-white" data-testid="text-order-id">{data.orderId}</p>
         </div>
-        <div className="flex justify-between items-center py-2 border-b border-white/20">
-          <span className="text-white/70 text-sm">Customer ID</span>
-          <span className="font-mono text-sm font-medium text-white" data-testid="text-customer-id">{data.customerId}</span>
+        <div className="py-2 border-b border-white/20">
+          <p className="text-white/70 text-xs">Customer ID</p>
+          <p className="font-mono text-sm font-medium text-white" data-testid="text-customer-id">{data.customerId}</p>
         </div>
+        {data.merchantInfo && (
+          <div className="py-2 border-b border-white/20">
+            <p className="text-white/70 text-xs">Merchant</p>
+            <p className="text-sm font-medium text-white">{data.merchantInfo.name} ({data.merchantInfo.domain})</p>
+          </div>
+        )}
       </div>
       
-      <p className="text-sm text-white/90 text-center mb-4">
-        Terima kasih telah menggunakan layanan kami. Koin akan segera ditambahkan ke akun Anda.
+      <p className="text-sm text-white/90 text-left mb-4">
+        Terima kasih! Koin akan segera ditambahkan ke akun Anda.
       </p>
       
       <div className="flex gap-3">

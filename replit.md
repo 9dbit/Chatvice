@@ -95,6 +95,29 @@ Core entities include Merchants, Supervisors, Sessions, Messages (with `clientMe
 - Links render inline with underline on hover and external link icon for external URLs
 - System prompts in askChatvice (merchant widget) and Chatvice Guide endpoints include INTERACTIVE FORMATTING instructions
 
+**Demo Widget (Coin Top-Up Showcase)**:
+- Located at /demo route - showcases complete coin top-up purchase flow
+- Features:
+  - Responsive design: Full screen on mobile, 380x680px widget on desktop/tablet
+  - Crypto/fintech style UI with frosted glass effects and drop shadows
+  - Swipe-to-pay slider interaction with GPU-optimized animations
+  - Real QRIS payment code display
+  - Simplified transaction-focused AI responses (no Chatvice platform promotion)
+- UX Enhancements:
+  - Duplicate click prevention: Ignores repeated menu clicks with random greeting response
+  - Cancel flow clarification: Asks for reason before canceling, offers alternatives
+  - Login detection: Checks if user already logged in, skips to next step if so
+  - Auth options: Email/password, Google, GitHub login with forgot password after 3 failed attempts
+  - Payment slider lock: Slider stays at 100% after confirmation to prevent double transactions
+  - Payment stages: "Menunggu konfirmasi..." → "Transaksi berhasil"
+  - Success layout: Left-aligned text for better readability
+- Multi-tenant architecture considerations:
+  - Widget requires merchant ID/credentials for domain identification
+  - Each widget session tracks merchantInfo (name, domain)
+  - Designed for pay.chatvice.app subdomain serving thousands of merchants
+  - Uses existing widget_sites and site_domains tables for domain tracking
+  - JWT-based SSO for user authentication across merchant sites
+
 ## External Dependencies
 
 -   **AI Services**: OpenAI API (GPT-4.1-mini, text-embedding-3-small) via Replit AI Integrations.
