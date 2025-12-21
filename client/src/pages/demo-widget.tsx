@@ -737,22 +737,24 @@ export default function DemoWidgetPage() {
   };
 
   const PaymentComponent = () => {
-    const [sliderProgress, setSliderProgress] = useState(0);
-    const [isDragging, setIsDragging] = useState(false);
-    const [localPaymentCompleted, setLocalPaymentCompleted] = useState(false);
-    const sliderRef = useRef<HTMLDivElement>(null);
-    const progressRef = useRef(0);
+    // Use parent state to determine if payment is done - prevents double confirmation across instances
+    const isPaymentDone = transactionCompleted || paymentStage === "success" || paymentStage === "confirming";
     
-    const isPaymentDone = transactionCompleted || paymentStage === "success";
+    // Initialize slider at 100% if payment already done
+    const [sliderProgress, setSliderProgress] = useState(isPaymentDone ? 1 : 0);
+    const [isDragging, setIsDragging] = useState(false);
+    const sliderRef = useRef<HTMLDivElement>(null);
+    const progressRef = useRef(isPaymentDone ? 1 : 0);
 
     // Swipe to pay handler - using ref for accurate progress check
     const handleSliderStart = () => {
-      if (isProcessing || localPaymentCompleted) return;
+      // Block if payment is already processing or done
+      if (isProcessing || isPaymentDone) return;
       setIsDragging(true);
     };
 
     const handleSliderMove = (clientX: number) => {
-      if (!sliderRef.current || isProcessing || localPaymentCompleted) return;
+      if (!sliderRef.current || isProcessing || isPaymentDone) return;
       const rect = sliderRef.current.getBoundingClientRect();
       const progress = Math.max(0, Math.min(1, (clientX - rect.left - 24) / (rect.width - 48)));
       progressRef.current = progress;
@@ -760,14 +762,13 @@ export default function DemoWidgetPage() {
     };
 
     const handleSliderEnd = () => {
-      if (isProcessing || localPaymentCompleted) return;
+      if (isProcessing || isPaymentDone) return;
       setIsDragging(false);
       
       if (progressRef.current > 0.85) {
         // Lock slider at 100% permanently - prevent double transaction
         setSliderProgress(1);
         progressRef.current = 1;
-        setLocalPaymentCompleted(true);
         setTransactionCompleted(true);
         handleAction("process_payment");
       } else {
@@ -1125,7 +1126,7 @@ export default function DemoWidgetPage() {
           ref={sliderRef}
           className="relative h-14 rounded-2xl overflow-hidden select-none touch-none"
           style={{ 
-            background: localPaymentCompleted 
+            background: isPaymentDone 
               ? '#10b981'
               : '#18181b',
             willChange: 'transform',
@@ -1152,7 +1153,7 @@ export default function DemoWidgetPage() {
           />
           
           {/* Stage 1: Confirming payment - locked at 100% */}
-          {localPaymentCompleted && paymentStage === "confirming" && (
+          {paymentStage === "confirming" && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="flex items-center gap-2 text-white font-medium">
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -1162,7 +1163,7 @@ export default function DemoWidgetPage() {
           )}
           
           {/* Stage 2: Payment success */}
-          {localPaymentCompleted && paymentStage === "success" && (
+          {paymentStage === "success" && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="flex items-center gap-2 text-white font-medium">
                 <Check className="w-5 h-5" />
@@ -1172,7 +1173,7 @@ export default function DemoWidgetPage() {
           )}
           
           {/* Slider thumb - hidden after payment confirmed */}
-          {!localPaymentCompleted && (
+          {!isPaymentDone && (
             <motion.div
               className="absolute top-1 bottom-1 left-1 w-12 rounded-xl bg-white shadow-lg flex items-center justify-center cursor-grab active:cursor-grabbing"
               animate={{ 
@@ -1194,7 +1195,7 @@ export default function DemoWidgetPage() {
         </div>
         
         {/* Text below slider */}
-        {!localPaymentCompleted && (
+        {!isPaymentDone && (
           <p className="text-center text-xs text-muted-foreground">
             {sliderProgress > 0.5 ? 'Lepas untuk konfirmasi' : 'Geser untuk selesaikan pembayaran'}
           </p>
