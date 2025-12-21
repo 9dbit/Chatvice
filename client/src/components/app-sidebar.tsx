@@ -90,7 +90,7 @@ interface MenuItemConfig {
   title: string;
   icon: string;
   enabled: boolean;
-  group?: "main" | "widgetSetting" | "management";
+  group?: "main" | "widgetSetting" | "messageSetting" | "management";
 }
 
 const iconMap: Record<string, any> = {
@@ -143,11 +143,8 @@ const menuItemsMap: Record<string, MenuItem> = {
 const defaultMainMenuItems: MenuItem[] = [
   menuItemsMap["overview"],
   menuItemsMap["agents"],
-  menuItemsMap["quick-replies"],
-  menuItemsMap["chat-buttons"],
   menuItemsMap["sources"],
   menuItemsMap["knowledge-base"],
-  menuItemsMap["triggers"],
   menuItemsMap["analytics"],
   menuItemsMap["chat-logs"],
   menuItemsMap["notifications"],
@@ -161,6 +158,12 @@ const defaultWidgetSettingItems: MenuItem[] = [
   menuItemsMap["product-cards"],
 ];
 
+const defaultMessageSettingItems: MenuItem[] = [
+  menuItemsMap["quick-replies"],
+  menuItemsMap["chat-buttons"],
+  menuItemsMap["triggers"],
+];
+
 const defaultManagementItems: MenuItem[] = [
   menuItemsMap["supervisors"],
   menuItemsMap["team-activity"],
@@ -170,14 +173,11 @@ const defaultManagementItems: MenuItem[] = [
   menuItemsMap["billing"],
 ];
 
-const defaultGroupForItem: Record<string, "main" | "widgetSetting" | "management"> = {
+const defaultGroupForItem: Record<string, "main" | "widgetSetting" | "messageSetting" | "management"> = {
   "overview": "main",
   "agents": "main",
-  "quick-replies": "main",
-  "chat-buttons": "main",
   "sources": "main",
   "knowledge-base": "main",
-  "triggers": "main",
   "analytics": "main",
   "chat-logs": "main",
   "notifications": "main",
@@ -186,6 +186,9 @@ const defaultGroupForItem: Record<string, "main" | "widgetSetting" | "management
   "widget": "widgetSetting",
   "welcome-bubble": "widgetSetting",
   "product-cards": "widgetSetting",
+  "quick-replies": "messageSetting",
+  "chat-buttons": "messageSetting",
+  "triggers": "messageSetting",
   "supervisors": "management",
   "team-activity": "management",
   "work-scheduler": "management",
@@ -211,6 +214,7 @@ export function AppSidebar() {
   const userType = localStorage.getItem("userType") || "merchant";
   const [online, setOnline] = useState(true);
   const [widgetSettingOpen, setWidgetSettingOpen] = useState(false);
+  const [messageSettingOpen, setMessageSettingOpen] = useState(false);
   const [managementOpen, setManagementOpen] = useState(false);
   const prevEscalatedCountRef = useRef<number>(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -239,17 +243,19 @@ export function AppSidebar() {
     return null;
   }, [platformSettings]);
 
-  const { mainItems, widgetItems, managementItems } = useMemo(() => {
+  const { mainItems, widgetItems, messageItems, managementItems } = useMemo(() => {
     if (!menuConfig) {
       return {
         mainItems: defaultMainMenuItems,
         widgetItems: defaultWidgetSettingItems,
+        messageItems: defaultMessageSettingItems,
         managementItems: defaultManagementItems,
       };
     }
 
     const enabledMainItems: MenuItem[] = [];
     const enabledWidgetItems: MenuItem[] = [];
+    const enabledMessageItems: MenuItem[] = [];
     const enabledManagementItems: MenuItem[] = [];
 
     for (const config of menuConfig) {
@@ -258,12 +264,14 @@ export function AppSidebar() {
       const menuItem = menuItemsMap[config.id];
       if (!menuItem) continue;
 
-      const group = config.group || defaultGroupForItem[config.id] || "main";
+      const group = defaultGroupForItem[config.id] || config.group || "main";
 
       if (group === "main") {
         enabledMainItems.push(menuItem);
       } else if (group === "widgetSetting") {
         enabledWidgetItems.push(menuItem);
+      } else if (group === "messageSetting") {
+        enabledMessageItems.push(menuItem);
       } else if (group === "management") {
         enabledManagementItems.push(menuItem);
       }
@@ -272,12 +280,14 @@ export function AppSidebar() {
     return {
       mainItems: enabledMainItems,
       widgetItems: enabledWidgetItems,
+      messageItems: enabledMessageItems,
       managementItems: enabledManagementItems,
     };
   }, [menuConfig]);
 
   const filteredMainItems = mainItems.filter(item => permissions[item.permission]);
   const filteredWidgetItems = widgetItems.filter(item => permissions[item.permission]);
+  const filteredMessageItems = messageItems.filter(item => permissions[item.permission]);
   const filteredManagementItems = managementItems.filter(item => permissions[item.permission]);
 
   const { data: merchant } = useQuery<{ online?: boolean; companyName?: string }>({
@@ -327,15 +337,19 @@ export function AppSidebar() {
 
   useEffect(() => {
     const widgetUrls = filteredWidgetItems.map(i => i.url);
+    const messageUrls = filteredMessageItems.map(i => i.url);
     const managementUrls = filteredManagementItems.map(i => i.url);
     
     if (widgetUrls.some(url => location === url || location.startsWith(url + "/"))) {
       setWidgetSettingOpen(true);
     }
+    if (messageUrls.some(url => location === url || location.startsWith(url + "/"))) {
+      setMessageSettingOpen(true);
+    }
     if (managementUrls.some(url => location === url || location.startsWith(url + "/"))) {
       setManagementOpen(true);
     }
-  }, [location, filteredWidgetItems, filteredManagementItems]);
+  }, [location, filteredWidgetItems, filteredMessageItems, filteredManagementItems]);
 
   const updateStatusMutation = useMutation({
     mutationFn: async (newOnline: boolean) => {
@@ -415,6 +429,40 @@ export function AppSidebar() {
                   </SidebarMenuItem>
                   <CollapsibleContent className="overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-top-1 data-[state=open]:slide-in-from-top-1 duration-200">
                     {filteredWidgetItems.map((item) => {
+                      const isActive = isItemActive(item.url);
+                      return (
+                        <SidebarMenuItem key={item.id || item.title} className="pl-4">
+                          <SidebarMenuButton
+                            asChild
+                            className={isActive ? "bg-sidebar-accent" : ""}
+                          >
+                            <Link href={item.url} data-testid={`link-sidebar-${item.title.toLowerCase().replace(/\s/g, '-')}`}>
+                              <item.icon className="w-4 h-4" />
+                              <span className="flex-1">{item.title}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      );
+                    })}
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+
+              {filteredMessageItems.length > 0 && (
+                <Collapsible open={messageSettingOpen} onOpenChange={setMessageSettingOpen}>
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton className="w-full justify-between" data-testid="button-sidebar-message-setting">
+                        <div className="flex items-center gap-2">
+                          <MessageSquare className="w-4 h-4" />
+                          <span>Message Setting</span>
+                        </div>
+                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${messageSettingOpen ? "rotate-180" : ""}`} />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                  </SidebarMenuItem>
+                  <CollapsibleContent className="overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-top-1 data-[state=open]:slide-in-from-top-1 duration-200">
+                    {filteredMessageItems.map((item) => {
                       const isActive = isItemActive(item.url);
                       return (
                         <SidebarMenuItem key={item.id || item.title} className="pl-4">

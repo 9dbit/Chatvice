@@ -23,7 +23,7 @@ Chatvice is a monorepo application structured with `/client`, `/server`, and `/s
 - **Merchant Dashboard**: Provides analytics, knowledge base management (with web crawler), trigger configuration, supervisor management, subscription management, quick replies, product cards, and notification settings. Includes a draggable/hideable Chatvice Guide AI assistant.
 - **Product Offer Messages**: Both supervisors and AI can recommend products to customers, displayed as rich cards.
 - **Supervisor Panel**: Real-time interface for handling escalated conversations and team activity monitoring, with restricted access to relevant features.
-- **Admin Menu Order Configuration**: Allows drag-and-drop reordering and enabling/disabling of merchant sidebar menu items, saved globally.
+- **Admin Menu Order Configuration**: Allows drag-and-drop reordering and enabling/disabling of merchant sidebar menu items, saved globally. Merchant sidebar organized into collapsible dropdowns: Widget Setting (widget, welcome bubble, product cards), Message Setting (quick replies, chat buttons, triggers), Management (supervisors, team activity, work scheduler, integrations, plans, billing). Static purple Chat Sessions button at bottom with escalation indicator.
 - **Authentication & Authorization**: Session-based authentication with bcrypt, supporting Merchant and Supervisor roles with role-based permissions.
 - **Real-time Communication**: WebSocket architecture for instant message delivery and updates.
 - **Per-Agent Knowledge Base & System Prompt**: Knowledge base content and customizable AI system prompts are scoped to individual AI agents.

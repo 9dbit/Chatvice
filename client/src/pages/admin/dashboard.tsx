@@ -6641,17 +6641,14 @@ interface MenuItemConfig {
   title: string;
   icon: string;
   enabled: boolean;
-  group?: "main" | "widgetSetting" | "management";
+  group?: "main" | "widgetSetting" | "messageSetting" | "management";
 }
 
 const defaultMenuConfig: MenuItemConfig[] = [
   { id: "overview", title: "Overview", icon: "LayoutDashboard", enabled: true, group: "main" },
   { id: "agents", title: "Agents", icon: "Bot", enabled: true, group: "main" },
-  { id: "quick-replies", title: "Quick Replies", icon: "Reply", enabled: true, group: "main" },
-  { id: "chat-buttons", title: "Chat Buttons", icon: "MousePointer2", enabled: true, group: "main" },
   { id: "sources", title: "Sources", icon: "FileText", enabled: true, group: "main" },
   { id: "knowledge-base", title: "Knowledge Base", icon: "Database", enabled: true, group: "main" },
-  { id: "triggers", title: "Triggers", icon: "Zap", enabled: true, group: "main" },
   { id: "analytics", title: "Analytics", icon: "BarChart3", enabled: true, group: "main" },
   { id: "chat-logs", title: "Chat Logs", icon: "FileText", enabled: true, group: "main" },
   { id: "notifications", title: "Notifications", icon: "Bell", enabled: true, group: "main" },
@@ -6660,6 +6657,9 @@ const defaultMenuConfig: MenuItemConfig[] = [
   { id: "widget", title: "Widget", icon: "Palette", enabled: true, group: "widgetSetting" },
   { id: "welcome-bubble", title: "Welcome Bubble", icon: "MessageCircle", enabled: true, group: "widgetSetting" },
   { id: "product-cards", title: "Product Cards", icon: "Package", enabled: true, group: "widgetSetting" },
+  { id: "quick-replies", title: "Quick Replies", icon: "Reply", enabled: true, group: "messageSetting" },
+  { id: "chat-buttons", title: "Chat Buttons", icon: "MousePointer2", enabled: true, group: "messageSetting" },
+  { id: "triggers", title: "Triggers", icon: "Zap", enabled: true, group: "messageSetting" },
   { id: "supervisors", title: "Supervisors", icon: "Users", enabled: true, group: "management" },
   { id: "team-activity", title: "Team Activity", icon: "Activity", enabled: true, group: "management" },
   { id: "work-scheduler", title: "Work Scheduler", icon: "Clock", enabled: true, group: "management" },
@@ -6667,6 +6667,21 @@ const defaultMenuConfig: MenuItemConfig[] = [
   { id: "plans", title: "Plans", icon: "CreditCard", enabled: true, group: "management" },
   { id: "billing", title: "Billing", icon: "Receipt", enabled: true, group: "management" },
 ];
+
+const defaultGroupForItemAdmin: Record<string, "main" | "widgetSetting" | "messageSetting" | "management"> = {
+  "widget": "widgetSetting",
+  "welcome-bubble": "widgetSetting",
+  "product-cards": "widgetSetting",
+  "quick-replies": "messageSetting",
+  "chat-buttons": "messageSetting",
+  "triggers": "messageSetting",
+  "supervisors": "management",
+  "team-activity": "management",
+  "work-scheduler": "management",
+  "integrations": "management",
+  "plans": "management",
+  "billing": "management",
+};
 
 function SortableMenuItem({ item, onToggle }: { item: MenuItemConfig; onToggle: (id: string) => void }) {
   const {
@@ -6688,6 +6703,8 @@ function SortableMenuItem({ item, onToggle }: { item: MenuItemConfig; onToggle: 
     switch (group) {
       case "widgetSetting":
         return <Badge className="bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 text-xs">Widget Setting</Badge>;
+      case "messageSetting":
+        return <Badge className="bg-green-500/20 text-green-700 dark:text-green-400 text-xs">Message Setting</Badge>;
       case "management":
         return <Badge className="bg-blue-500/20 text-blue-700 dark:text-blue-400 text-xs">Management</Badge>;
       default:
@@ -6751,7 +6768,11 @@ function MenuOrderTab({ toast }: { toast: any }) {
       try {
         const savedConfig = JSON.parse((platformSettings as any).merchant_menu_order);
         if (Array.isArray(savedConfig) && savedConfig.length > 0) {
-          setMenuItems(savedConfig);
+          const migratedConfig = savedConfig.map((item: MenuItemConfig) => ({
+            ...item,
+            group: defaultGroupForItemAdmin[item.id] || item.group || "main",
+          }));
+          setMenuItems(migratedConfig);
         }
       } catch (e) {
         console.error("Failed to parse menu config:", e);
@@ -6817,6 +6838,7 @@ function MenuOrderTab({ toast }: { toast: any }) {
 
   const mainItems = menuItems.filter((i) => i.group === "main");
   const widgetItems = menuItems.filter((i) => i.group === "widgetSetting");
+  const messageItems = menuItems.filter((i) => i.group === "messageSetting");
   const managementItems = menuItems.filter((i) => i.group === "management");
 
   if (isLoading) {
@@ -6860,7 +6882,7 @@ function MenuOrderTab({ toast }: { toast: any }) {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -6890,7 +6912,7 @@ function MenuOrderTab({ toast }: { toast: any }) {
             <CardTitle className="flex items-center gap-2 text-base">
               <Badge className="bg-yellow-500/20 text-yellow-700 dark:text-yellow-400">Widget Setting</Badge>
             </CardTitle>
-            <CardDescription>Widget configuration items (collapsible dropdown)</CardDescription>
+            <CardDescription>Widget appearance items</CardDescription>
           </CardHeader>
           <CardContent>
             <DndContext
@@ -6912,9 +6934,33 @@ function MenuOrderTab({ toast }: { toast: any }) {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
+              <Badge className="bg-green-500/20 text-green-700 dark:text-green-400">Message Setting</Badge>
+            </CardTitle>
+            <CardDescription>Message & reply configuration</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={messageItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-2">
+                  {messageItems.map((item) => (
+                    <SortableMenuItem key={item.id} item={item} onToggle={handleToggle} />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
               <Badge className="bg-blue-500/20 text-blue-700 dark:text-blue-400">Management</Badge>
             </CardTitle>
-            <CardDescription>Team & business management items (collapsible dropdown)</CardDescription>
+            <CardDescription>Team & business management</CardDescription>
           </CardHeader>
           <CardContent>
             <DndContext
