@@ -35,8 +35,15 @@ import {
   Volume2,
   VolumeX,
   ArrowLeft,
+  FileText,
+  X,
 } from "lucide-react";
-import type { Session, Message, Notification } from "@shared/schema";
+import type { Session, Message, Notification, ChatLog } from "@shared/schema";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { Calendar as CalendarIcon, Download } from "lucide-react";
 
 function playAlertSound() {
   try {
@@ -79,6 +86,8 @@ export default function SupervisorPanel() {
   const [sessionToTakeover, setSessionToTakeover] = useState<Session | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isAlertActive, setIsAlertActive] = useState(false);
+  const [currentPage, setCurrentPage] = useState<"chat-sessions" | "chat-logs">("chat-sessions");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const previousSessionsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
@@ -101,6 +110,12 @@ export default function SupervisorPanel() {
     queryKey: ["/api/messages", selectedSession],
     enabled: !!selectedSession,
     refetchInterval: 2000,
+  });
+
+  const [selectedLogDate, setSelectedLogDate] = useState<Date | undefined>(undefined);
+  const { data: chatLogs, isLoading: chatLogsLoading } = useQuery<ChatLog[]>({
+    queryKey: ["/api/chat-logs", selectedLogDate?.toISOString()],
+    enabled: currentPage === "chat-logs",
   });
 
   const sendMessageMutation = useMutation({
@@ -232,51 +247,139 @@ export default function SupervisorPanel() {
 
   const unseenNotifications = notifications?.filter((n) => !n.seen) || [];
   const selectedSessionData = escalatedSessions?.find((s) => s.id === selectedSession);
+  const escalatedCount = escalatedSessions?.filter((s) => s.mode === "HUMAN").length || 0;
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="flex items-center justify-between gap-4 px-6 py-4 border-b border-border">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-            <HeadphonesIcon className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <div>
-            <h1 className="font-semibold">Supervisor Panel</h1>
-            <p className="text-xs text-muted-foreground">Handle escalated conversations</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button 
-            variant={soundEnabled ? "ghost" : "outline"} 
-            size="icon" 
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            title={soundEnabled ? "Sound alerts on" : "Sound alerts off"}
-            data-testid="button-toggle-sound"
-          >
-            {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-          </Button>
-          <div className="relative">
-            <Button variant="ghost" size="icon" data-testid="button-notifications">
-              {isAlertActive ? (
-                <BellRing className="w-5 h-5 text-status-away animate-pulse" />
-              ) : (
-                <Bell className="w-5 h-5" />
-              )}
-              {unseenNotifications.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
-                  {unseenNotifications.length}
-                </span>
-              )}
+    <div className="min-h-screen bg-background flex">
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-sidebar-border transform transition-transform duration-200 ease-in-out lg:transform-none ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+        <div className="flex flex-col h-full">
+          {/* Sidebar Header */}
+          <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+                <HeadphonesIcon className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="font-semibold text-sidebar-foreground">Supervisor</h1>
+                <p className="text-xs text-sidebar-foreground/60">Panel</p>
+              </div>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="lg:hidden"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <X className="w-5 h-5" />
             </Button>
           </div>
-          <ThemeToggle />
-          <Button variant="ghost" size="icon" onClick={handleLogout} data-testid="button-logout">
-            <LogOut className="w-5 h-5" />
-          </Button>
-        </div>
-      </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 p-6 h-[calc(100vh-80px)]">
+          {/* Sidebar Menu */}
+          <div className="flex-1 p-4 space-y-2">
+            {/* Chat Sessions - Primary button with escalation indicator */}
+            <button
+              onClick={() => setCurrentPage("chat-sessions")}
+              className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-colors ${
+                currentPage === "chat-sessions"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-sidebar-accent/50 text-sidebar-foreground hover-elevate"
+              }`}
+              data-testid="button-supervisor-chat-sessions"
+            >
+              <div className="flex items-center gap-3">
+                <MessageSquare className="w-5 h-5" />
+                <span className="font-medium">Chat Sessions</span>
+              </div>
+              {escalatedCount > 0 && (
+                <span className={`min-w-[24px] h-6 px-2 rounded-full text-sm font-medium flex items-center justify-center ${
+                  currentPage === "chat-sessions" 
+                    ? "bg-white/20 text-white" 
+                    : "bg-destructive text-destructive-foreground"
+                }`}>
+                  {escalatedCount}
+                </span>
+              )}
+            </button>
+
+            {/* Chat Logs */}
+            <button
+              onClick={() => setCurrentPage("chat-logs")}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                currentPage === "chat-logs"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-sidebar-foreground hover-elevate"
+              }`}
+              data-testid="button-supervisor-chat-logs"
+            >
+              <FileText className="w-5 h-5" />
+              <span className="font-medium">Chat Logs</span>
+            </button>
+          </div>
+
+          {/* Sidebar Footer */}
+          <div className="p-4 border-t border-sidebar-border">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant={soundEnabled ? "ghost" : "outline"} 
+                  size="icon" 
+                  onClick={() => setSoundEnabled(!soundEnabled)}
+                  title={soundEnabled ? "Sound alerts on" : "Sound alerts off"}
+                  data-testid="button-toggle-sound"
+                >
+                  {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+                </Button>
+                <div className="relative">
+                  <Button variant="ghost" size="icon" data-testid="button-notifications">
+                    {isAlertActive ? (
+                      <BellRing className="w-5 h-5 text-status-away animate-pulse" />
+                    ) : (
+                      <Bell className="w-5 h-5" />
+                    )}
+                    {unseenNotifications.length > 0 && (
+                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
+                        {unseenNotifications.length}
+                      </span>
+                    )}
+                  </Button>
+                </div>
+                <ThemeToggle />
+              </div>
+              <Button variant="ghost" size="icon" onClick={handleLogout} data-testid="button-logout">
+                <LogOut className="w-5 h-5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-h-screen">
+        {/* Mobile Header */}
+        <header className="lg:hidden flex items-center justify-between gap-4 px-4 py-3 border-b border-border bg-background">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => setSidebarOpen(true)}
+            data-testid="button-open-sidebar"
+          >
+            <MessageSquare className="w-5 h-5" />
+          </Button>
+          <h1 className="font-semibold">{currentPage === "chat-sessions" ? "Chat Sessions" : "Chat Logs"}</h1>
+          <div className="w-9" /> {/* Spacer */}
+        </header>
+
+        {currentPage === "chat-sessions" ? (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 p-6 flex-1 h-[calc(100vh-80px)] lg:h-screen overflow-hidden">
         <Card className="lg:col-span-1 flex flex-col">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -483,6 +586,138 @@ export default function SupervisorPanel() {
             </CardContent>
           )}
         </Card>
+        </div>
+        ) : (
+        /* Chat Logs View */
+        <div className="flex-1 p-6 overflow-auto">
+          <div className="space-y-4 sm:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+                  <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
+                  Chat Logs
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  Archived conversation history
+                </p>
+              </div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "justify-start text-left font-normal",
+                      !selectedLogDate && "text-muted-foreground"
+                    )}
+                    data-testid="button-date-picker"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedLogDate ? format(selectedLogDate, "PPP") : "Filter by date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="single"
+                    selected={selectedLogDate}
+                    onSelect={setSelectedLogDate}
+                    initialFocus
+                  />
+                  {selectedLogDate && (
+                    <div className="p-2 border-t">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="w-full"
+                        onClick={() => setSelectedLogDate(undefined)}
+                        data-testid="button-clear-date"
+                      >
+                        Clear filter
+                      </Button>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Archived Conversations</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {chatLogsLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-24 w-full" />
+                    ))}
+                  </div>
+                ) : chatLogs && chatLogs.length > 0 ? (
+                  <ScrollArea className="h-[calc(100vh-300px)]">
+                    <div className="space-y-3 pr-4">
+                      {chatLogs.map((log) => (
+                        <div
+                          key={log.id}
+                          className="p-4 rounded-lg border bg-card"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <User className="w-4 h-4 text-muted-foreground" />
+                              <span className="font-medium">{log.customerName || "Customer"}</span>
+                            </div>
+                            <Badge variant="secondary">
+                              {log.messageCount || 0} messages
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
+                            <span className="flex items-center gap-1">
+                              <CalendarIcon className="w-3 h-3" />
+                              {log.clearedAt ? format(new Date(log.clearedAt), "MMM d, yyyy") : "N/A"}
+                            </span>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              try {
+                                const response = await fetch(`/api/chat-logs/${log.id}/download`, {
+                                  credentials: 'include',
+                                });
+                                if (!response.ok) throw new Error('Download failed');
+                                const blob = await response.blob();
+                                const url = window.URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `chat-log-${log.id}.txt`;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                window.URL.revokeObjectURL(url);
+                              } catch (error) {
+                                console.error('Download failed:', error);
+                              }
+                            }}
+                            data-testid={`button-download-log-${log.id}`}
+                          >
+                            <Download className="w-4 h-4 mr-1" />
+                            Download
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                ) : (
+                  <div className="text-center py-12">
+                    <FileText className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                    <p className="text-muted-foreground">No chat logs found</p>
+                    <p className="text-sm text-muted-foreground">
+                      Archived conversations will appear here
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+        )}
       </div>
 
       <AlertDialog open={takeoverDialogOpen} onOpenChange={setTakeoverDialogOpen}>

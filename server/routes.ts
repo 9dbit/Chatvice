@@ -118,6 +118,13 @@ function requireSupervisor(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+function requireMerchantOrSupervisor(req: Request, res: Response, next: NextFunction) {
+  if (!req.session?.userId || (req.session.userType !== "merchant" && req.session.userType !== "supervisor")) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  next();
+}
+
 function requireAdmin(req: Request, res: Response, next: NextFunction) {
   if (!req.session?.userId || req.session.userType !== "admin" || !req.session.isAdmin) {
     return res.status(401).json({ error: "Unauthorized - Admin access required" });
@@ -5649,7 +5656,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
   });
 
 // Chat Logs API
-  app.get("/api/chat-logs", requireMerchant, async (req, res) => {
+  app.get("/api/chat-logs", requireMerchantOrSupervisor, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
       const { date } = req.query;
@@ -5667,7 +5674,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
     }
   });
 
-  app.get("/api/chat-logs/:logId/download", requireMerchant, async (req, res) => {
+  app.get("/api/chat-logs/:logId/download", requireMerchantOrSupervisor, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
       const { logId } = req.params;
