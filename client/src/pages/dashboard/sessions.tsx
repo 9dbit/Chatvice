@@ -866,13 +866,15 @@ export default function SessionsPage() {
                         </>
                       ) : messages && messages.length > 0 ? (
                         <>
-                          {messages.map((msg, index) => (
+                          {messages.map((msg, index) => {
+                            const isCustomerMessage = msg.from === "customer" || msg.from === "user";
+                            return (
                             <div
                               key={msg.id || index}
-                              className={`flex gap-2.5 ${msg.from === "user" ? "justify-start" : "justify-end"} group`}
+                              className={`flex gap-2.5 ${isCustomerMessage ? "justify-start" : "justify-end"} group`}
                             >
                               {/* Customer avatar on left */}
-                              {msg.from === "user" && (
+                              {isCustomerMessage && (
                                 <Avatar className="h-7 w-7 flex-shrink-0">
                                   <AvatarFallback className="bg-muted text-xs">
                                     <User className="h-3.5 w-3.5" />
@@ -882,11 +884,11 @@ export default function SessionsPage() {
                               <div className="relative max-w-[75%]">
                                 <div
                                   className={`p-2.5 ${
-                                    msg.from === "user"
+                                    isCustomerMessage
                                       ? "rounded-2xl rounded-bl-sm border border-white/20"
                                       : "bg-primary text-primary-foreground rounded-2xl rounded-br-sm"
                                   }`}
-                                  style={msg.from === "user" ? {
+                                  style={isCustomerMessage ? {
                                     background: 'rgba(255, 255, 255, 0.08)',
                                     backdropFilter: 'blur(12px)',
                                     WebkitBackdropFilter: 'blur(12px)',
@@ -894,13 +896,13 @@ export default function SessionsPage() {
                                   } : undefined}
                                 >
                                   {/* Customer name on customer messages */}
-                                  {msg.from === "user" && (
+                                  {isCustomerMessage && (
                                     <p className="text-[10px] font-medium mb-1 text-foreground/70">
                                       {selectedSessionData?.customerName || "Customer"}
                                     </p>
                                   )}
                                   {/* AI/Supervisor name on their messages */}
-                                  {msg.from !== "user" && msg.from !== "system" && (
+                                  {!isCustomerMessage && msg.from !== "system" && (
                                     <p className="text-[10px] font-medium mb-1 text-primary-foreground/80">
                                       {msg.from === "chatvice" || msg.from === "bot" || msg.from === "ai"
                                         ? getAgentName(selectedSessionData?.agentId)
@@ -1069,7 +1071,7 @@ export default function SessionsPage() {
                                 )}
                               </div>
                               {/* Agent/Supervisor avatar on right */}
-                              {msg.from !== "user" && (
+                              {!isCustomerMessage && (
                                 <Avatar className="h-7 w-7 flex-shrink-0">
                                   {msg.from === "chatvice" || msg.from === "bot" || msg.from === "ai" ? (
                                     getAgentPhoto(selectedSessionData?.agentId) ? (
@@ -1090,7 +1092,7 @@ export default function SessionsPage() {
                                 </Avatar>
                               )}
                             </div>
-                          ))}
+                          );})}
                           <div ref={messagesEndRef} />
                         </>
                       ) : (
