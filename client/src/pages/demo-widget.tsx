@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -649,7 +649,7 @@ export default function DemoWidgetPage() {
     });
   };
 
-  const PackagesComponent = () => (
+  const PackagesComponent = useMemo(() => (
     <div className="flex flex-col gap-1.5 mt-3">
       {products.map((product) => (
         <button
@@ -682,7 +682,7 @@ export default function DemoWidgetPage() {
         </button>
       ))}
     </div>
-  );
+  ), [products, transactionKey]);
 
   const AuthComponent = () => {
     const [localEmail, setLocalEmail] = useState(authEmail);
@@ -1414,7 +1414,7 @@ export default function DemoWidgetPage() {
 
   const renderComponent = (component: string, data?: any) => {
     switch (component) {
-      case "packages": return <PackagesComponent key={`packages-${transactionKey}`} />;
+      case "packages": return PackagesComponent;
       case "auth": return <AuthComponent key={`auth-${transactionKey}`} />;
       case "payment": return <PaymentComponent key={`payment-${transactionKey}`} />;
       case "success": return <SuccessComponent data={data} />;
