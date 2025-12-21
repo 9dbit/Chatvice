@@ -883,10 +883,23 @@ export default function SessionsPage() {
                                 <div
                                   className={`p-2.5 ${
                                     msg.from === "user"
-                                      ? "bg-muted rounded-2xl rounded-bl-sm"
+                                      ? "rounded-2xl rounded-bl-sm border border-white/20"
                                       : "bg-primary text-primary-foreground rounded-2xl rounded-br-sm"
                                   }`}
+                                  style={msg.from === "user" ? {
+                                    background: 'rgba(255, 255, 255, 0.08)',
+                                    backdropFilter: 'blur(12px)',
+                                    WebkitBackdropFilter: 'blur(12px)',
+                                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                                  } : undefined}
                                 >
+                                  {/* Customer name on customer messages */}
+                                  {msg.from === "user" && (
+                                    <p className="text-[10px] font-medium mb-1 text-foreground/70">
+                                      {selectedSessionData?.customerName || "Customer"}
+                                    </p>
+                                  )}
+                                  {/* AI/Supervisor name on their messages */}
                                   {msg.from !== "user" && msg.from !== "system" && (
                                     <p className="text-[10px] font-medium mb-1 text-primary-foreground/80">
                                       {msg.from === "chatvice" || msg.from === "bot" || msg.from === "ai"
