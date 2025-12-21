@@ -477,7 +477,7 @@ export default function DemoWidgetPage() {
           const usedPaymentMethod = paymentMethods.find(m => m.id === selectedPaymentMethod);
           addMessage({
             from: "bot",
-            content: `Pembayaran berhasil ${greeting}! Ada yang bisa saya bantu lagi?`,
+            content: `Pembayaran berhasil ${greeting}!`,
             component: "success",
             componentData: {
               orderId,
@@ -488,7 +488,48 @@ export default function DemoWidgetPage() {
               paymentMethod: usedPaymentMethod?.name || "QRIS",
             },
           });
+          
+          // Follow-up message asking if user needs more help
+          setTimeout(() => {
+            addTypingThenMessage({
+              from: "bot",
+              content: `Apa ada yang bisa saya bantu lagi ${greeting}?`,
+              actions: [
+                { label: "Ya, Butuh Bantuan", action: "need_help" },
+                { label: "Tidak, Terima Kasih", action: "no_help" },
+              ],
+            });
+          }, 1500);
         }, 3000);
+        break;
+      
+      case "need_help":
+        addTypingThenMessage({
+          from: "bot",
+          content: "Baik kak! Apa yang bisa saya bantu? Apakah mau top up lagi?",
+          actions: [
+            { label: "Top Up Lagi", action: "new_transaction" },
+            { label: "Tanya Lainnya", action: "ask_other" },
+          ],
+        });
+        break;
+      
+      case "no_help":
+        const thankGreeting = getRandomGreeting();
+        addTypingThenMessage({
+          from: "bot",
+          content: `Terima kasih ${thankGreeting}! Senang bisa membantu. Sampai jumpa!`,
+          actions: [
+            { label: "Kembali ke Beranda", action: "go_home" },
+          ],
+        });
+        break;
+      
+      case "ask_other":
+        addTypingThenMessage({
+          from: "bot",
+          content: "Silakan ketik pertanyaan atau hal yang ingin kamu tanyakan di kolom chat bawah ya kak!",
+        });
         break;
 
       case "new_transaction":
@@ -1291,35 +1332,9 @@ export default function DemoWidgetPage() {
         )}
       </div>
       
-      <p className="text-sm text-white/90 text-left mb-4 relative z-10">
+      <p className="text-sm text-white/90 text-left relative z-10">
         Terima kasih {data.greeting || 'kak'}! Koin akan segera ditambahkan ke akun Anda.
       </p>
-      
-      <div className="flex flex-col gap-2 relative z-10">
-        <Button
-          className="w-full h-11 text-purple-600 font-bold border-0"
-          style={{
-            background: 'white',
-            boxShadow: '0 4px 14px rgba(255, 255, 255, 0.3)',
-          }}
-          onClick={() => handleAction("new_transaction")}
-          data-testid="button-new-transaction"
-        >
-          Transaksi Baru
-        </Button>
-        <Button
-          className="w-full h-11 text-white border-0 font-semibold"
-          variant="outline"
-          style={{
-            background: 'rgba(255, 255, 255, 0.15)',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
-          }}
-          onClick={() => handleAction("go_home")}
-          data-testid="button-go-home"
-        >
-          Kembali ke Beranda
-        </Button>
-      </div>
     </div>
     );
   };
