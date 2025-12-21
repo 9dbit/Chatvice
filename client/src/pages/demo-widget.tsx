@@ -56,10 +56,10 @@ interface CryptoCoin {
 }
 
 const paymentMethods: PaymentMethodOption[] = [
-  { id: "kompas", name: "Payment Link", description: "Bayar via link", icon: ExternalLink, gradient: "from-blue-500 to-indigo-500" },
+  { id: "kompas", name: "Payment Link", description: "Bayar via link", icon: ExternalLink, gradient: "from-blue-500 to-purple-500" },
   { id: "qris", name: "QRIS", description: "Scan QR", icon: QrCode, gradient: "from-emerald-400 to-teal-600" },
   { id: "bank", name: "Transfer Bank", description: "BCA, Mandiri, BNI, BRI", icon: Building2, gradient: "from-slate-600 to-slate-800" },
-  { id: "va", name: "Virtual Account", description: "VA otomatis", icon: Smartphone, gradient: "from-indigo-400 to-indigo-600" },
+  { id: "va", name: "Virtual Account", description: "VA otomatis", icon: Smartphone, gradient: "from-purple-400 to-purple-600" },
   { id: "crypto", name: "Crypto", description: "BTC, ETH, USDT", icon: Bitcoin, gradient: "from-orange-400 to-amber-600" },
 ];
 
@@ -120,7 +120,7 @@ function formatRupiah(amount: number): string {
   }).format(amount);
 }
 
-const PRIMARY_COLOR = "#6366F1";
+const PRIMARY_COLOR = "#6B5CF6";
 
 export default function DemoWidgetPage() {
   const isMobile = useIsMobile();
@@ -473,6 +473,8 @@ export default function DemoWidgetPage() {
           setIsProcessing(false);
           
           const greeting = getRandomGreeting();
+          // Get payment method name for success message
+          const usedPaymentMethod = paymentMethods.find(m => m.id === selectedPaymentMethod);
           addMessage({
             from: "bot",
             content: `Pembayaran berhasil ${greeting}! Ada yang bisa saya bantu lagi?`,
@@ -483,6 +485,7 @@ export default function DemoWidgetPage() {
               product: selectedProduct,
               merchantInfo,
               greeting,
+              paymentMethod: usedPaymentMethod?.name || "QRIS",
             },
           });
         }, 3000);
@@ -556,7 +559,6 @@ export default function DemoWidgetPage() {
               />
               <div>
                 <p className="font-bold text-white text-base tracking-tight">{product.name}</p>
-                <p className="text-[10px] text-zinc-400">{product.coins} Koin</p>
               </div>
             </div>
             <div className="text-zinc-400">
@@ -726,7 +728,7 @@ export default function DemoWidgetPage() {
         {showForgotPassword && (
           <button
             onClick={handleForgotPassword}
-            className="w-full text-sm text-indigo-400 hover:text-indigo-300 underline"
+            className="w-full text-sm text-purple-400 hover:text-purple-300 underline"
             data-testid="button-forgot-password"
           >
             Lupa Password?
@@ -740,6 +742,9 @@ export default function DemoWidgetPage() {
     // Use parent state to determine if payment is done - prevents double confirmation across instances
     const isPaymentDone = transactionCompleted || paymentStage === "success" || paymentStage === "confirming";
     
+    // Slider only works after selecting payment method
+    const isSliderEnabled = selectedPaymentMethod !== null && !isPaymentDone && !isProcessing;
+    
     // Initialize slider at 100% if payment already done
     const [sliderProgress, setSliderProgress] = useState(isPaymentDone ? 1 : 0);
     const [isDragging, setIsDragging] = useState(false);
@@ -748,13 +753,13 @@ export default function DemoWidgetPage() {
 
     // Swipe to pay handler - using ref for accurate progress check
     const handleSliderStart = () => {
-      // Block if payment is already processing or done
-      if (isProcessing || isPaymentDone) return;
+      // Block if payment method not selected, processing, or done
+      if (!isSliderEnabled) return;
       setIsDragging(true);
     };
 
     const handleSliderMove = (clientX: number) => {
-      if (!sliderRef.current || isProcessing || isPaymentDone) return;
+      if (!sliderRef.current || !isSliderEnabled) return;
       const rect = sliderRef.current.getBoundingClientRect();
       const progress = Math.max(0, Math.min(1, (clientX - rect.left - 24) / (rect.width - 48)));
       progressRef.current = progress;
@@ -762,7 +767,7 @@ export default function DemoWidgetPage() {
     };
 
     const handleSliderEnd = () => {
-      if (isProcessing || isPaymentDone) return;
+      if (!isSliderEnabled) return;
       setIsDragging(false);
       
       if (progressRef.current > 0.85) {
@@ -849,7 +854,7 @@ export default function DemoWidgetPage() {
         
         {/* Center logo area */}
         <rect fill="white" x="45" y="45" width="30" height="30" rx="4" />
-        <rect fill="#6366F1" x="50" y="50" width="20" height="20" rx="2" />
+        <rect fill="#6B5CF6" x="50" y="50" width="20" height="20" rx="2" />
       </svg>
     );
 
@@ -871,18 +876,18 @@ export default function DemoWidgetPage() {
                 className={`
                   w-full p-3 rounded-xl flex items-center gap-3 transition-all
                   ${frostedGlassStyle.bg} ${frostedGlassStyle.border}
-                  ${isSelected ? 'ring-2 ring-indigo-500/50 shadow-lg shadow-indigo-500/10' : 'shadow-md hover:shadow-lg'}
+                  ${isSelected ? 'ring-2 ring-purple-500/50 shadow-lg shadow-purple-500/10' : 'shadow-md hover:shadow-lg'}
                 `}
                 data-testid={`payment-method-${method.id}`}
               >
-                <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center">
-                  <IconComponent className="w-5 h-5 text-indigo-400" />
+                <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                  <IconComponent className="w-5 h-5 text-purple-400" />
                 </div>
                 <div className="flex-1 text-left">
                   <p className="font-semibold text-sm">{method.name}</p>
                   <p className="text-xs text-muted-foreground">{method.description}</p>
                 </div>
-                {isSelected && <Check className="w-5 h-5 text-indigo-500" />}
+                {isSelected && <Check className="w-5 h-5 text-purple-500" />}
               </button>
             );
           })}
@@ -928,7 +933,7 @@ export default function DemoWidgetPage() {
           <div className="p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center">
                   <QrCode className="w-4 h-4 text-white" />
                 </div>
                 <div>
@@ -941,7 +946,7 @@ export default function DemoWidgetPage() {
             
             {/* QR Code with glow effect */}
             <div className="relative mx-auto w-48 mb-3">
-              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/30 to-indigo-400/30 rounded-2xl blur-xl" />
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-500/30 to-purple-400/30 rounded-2xl blur-xl" />
               <div className="relative w-full rounded-2xl bg-white shadow-xl overflow-hidden">
                 <img 
                   src={qrisImageUrl} 
@@ -985,7 +990,7 @@ export default function DemoWidgetPage() {
                   onClick={() => setSelectedBank(bank.id)}
                   className={`w-full p-3 rounded-xl flex items-center gap-3 transition-all ${
                     selectedBank === bank.id 
-                      ? 'bg-indigo-500/15 ring-1 ring-indigo-500/50' 
+                      ? 'bg-purple-500/15 ring-1 ring-purple-500/50' 
                       : 'bg-white/50 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10'
                   }`}
                   data-testid={`bank-option-${bank.id}`}
@@ -995,7 +1000,7 @@ export default function DemoWidgetPage() {
                     <p className="text-sm font-semibold">{bank.name}</p>
                     <p className="font-mono text-xs text-muted-foreground">{bank.accountNumber}</p>
                   </div>
-                  {selectedBank === bank.id && <Check className="w-5 h-5 text-indigo-500" />}
+                  {selectedBank === bank.id && <Check className="w-5 h-5 text-purple-500" />}
                 </button>
               ))}
             </div>
@@ -1012,7 +1017,7 @@ export default function DemoWidgetPage() {
                     </div>
                     <button 
                       onClick={() => copyToClipboard(bank.accountNumber)} 
-                      className="p-2 rounded-lg hover:bg-indigo-500/20 transition-colors" 
+                      className="p-2 rounded-lg hover:bg-purple-500/20 transition-colors" 
                       data-testid={`button-copy-bank-${bank.id}`}
                     >
                       {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
@@ -1035,7 +1040,7 @@ export default function DemoWidgetPage() {
                   onClick={() => setSelectedBank(bank.id)}
                   className={`w-full p-3 rounded-xl flex items-center gap-3 transition-all ${
                     selectedBank === bank.id 
-                      ? 'bg-indigo-500/15 ring-1 ring-indigo-500/50' 
+                      ? 'bg-purple-500/15 ring-1 ring-purple-500/50' 
                       : 'bg-white/50 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10'
                   }`}
                   data-testid={`va-option-${bank.id}`}
@@ -1045,7 +1050,7 @@ export default function DemoWidgetPage() {
                     <p className="text-sm font-semibold">VA {bank.name}</p>
                     <p className="text-xs text-muted-foreground">Virtual Account</p>
                   </div>
-                  {selectedBank === bank.id && <Check className="w-5 h-5 text-indigo-500" />}
+                  {selectedBank === bank.id && <Check className="w-5 h-5 text-purple-500" />}
                 </button>
               ))}
             </div>
@@ -1056,7 +1061,7 @@ export default function DemoWidgetPage() {
                 <span className="font-mono text-lg font-bold tracking-wide" data-testid="text-va-number">{getVANumber()}</span>
                 <button 
                   onClick={() => copyToClipboard(getVANumber())} 
-                  className="p-2 rounded-lg hover:bg-indigo-500/20 transition-colors" 
+                  className="p-2 rounded-lg hover:bg-purple-500/20 transition-colors" 
                   data-testid="button-copy-va"
                 >
                   {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
@@ -1080,7 +1085,7 @@ export default function DemoWidgetPage() {
                     onClick={() => setSelectedCrypto(coin.id)}
                     className={`w-full p-3 rounded-xl flex items-center gap-3 transition-all ${
                       isActive 
-                        ? 'bg-indigo-500/15 ring-1 ring-indigo-500/50' 
+                        ? 'bg-purple-500/15 ring-1 ring-purple-500/50' 
                         : 'bg-white/50 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10'
                     }`}
                     data-testid={`crypto-option-${coin.id}`}
@@ -1092,7 +1097,7 @@ export default function DemoWidgetPage() {
                       <p className="text-sm font-semibold">{coin.name}</p>
                       <p className="text-xs text-muted-foreground">{coin.symbol} • {coin.network}</p>
                     </div>
-                    {isActive && <Check className="w-5 h-5 text-indigo-500" />}
+                    {isActive && <Check className="w-5 h-5 text-purple-500" />}
                   </button>
                 );
               })}
@@ -1107,7 +1112,7 @@ export default function DemoWidgetPage() {
                     <span className="font-mono text-[10px] break-all flex-1 text-muted-foreground" data-testid="text-crypto-address">{coin?.address}</span>
                     <button 
                       onClick={() => copyToClipboard(coin?.address || "")} 
-                      className="p-2 rounded-lg hover:bg-indigo-500/20 transition-colors shrink-0" 
+                      className="p-2 rounded-lg hover:bg-purple-500/20 transition-colors shrink-0" 
                       data-testid="button-copy-crypto"
                     >
                       {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
@@ -1124,7 +1129,7 @@ export default function DemoWidgetPage() {
       <div className="space-y-2">
         <div 
           ref={sliderRef}
-          className="relative h-14 rounded-2xl overflow-hidden select-none touch-none"
+          className={`relative h-14 rounded-2xl overflow-hidden select-none touch-none ${!isSliderEnabled && !isPaymentDone ? 'opacity-50 cursor-not-allowed' : ''}`}
           style={{ 
             background: isPaymentDone 
               ? '#10b981'
@@ -1175,7 +1180,7 @@ export default function DemoWidgetPage() {
           {/* Slider thumb - hidden after payment confirmed */}
           {!isPaymentDone && (
             <motion.div
-              className="absolute top-1 bottom-1 left-1 w-12 rounded-xl bg-white shadow-lg flex items-center justify-center cursor-grab active:cursor-grabbing"
+              className={`absolute top-1 bottom-1 left-1 w-12 rounded-xl bg-white shadow-lg flex items-center justify-center ${isSliderEnabled ? 'cursor-grab active:cursor-grabbing' : 'cursor-not-allowed'}`}
               animate={{ 
                 x: sliderProgress * (sliderRef.current?.offsetWidth ? sliderRef.current.offsetWidth - 56 : 0) 
               }}
@@ -1197,7 +1202,11 @@ export default function DemoWidgetPage() {
         {/* Text below slider */}
         {!isPaymentDone && (
           <p className="text-center text-xs text-muted-foreground">
-            {sliderProgress > 0.5 ? 'Lepas untuk konfirmasi' : 'Geser untuk selesaikan pembayaran'}
+            {!selectedPaymentMethod 
+              ? 'Pilih metode pembayaran terlebih dahulu'
+              : sliderProgress > 0.5 
+                ? 'Lepas untuk konfirmasi' 
+                : 'Geser untuk selesaikan pembayaran'}
           </p>
         )}
       </div>
@@ -1205,13 +1214,50 @@ export default function DemoWidgetPage() {
     );
   };
 
-  const SuccessComponent = ({ data }: { data: any }) => (
+  // Confetti particle component
+  const ConfettiParticle = ({ delay, x, rotate, color }: { delay: number; x: number; rotate: number; color: string }) => (
+    <motion.div
+      className="absolute w-2 h-3 rounded-sm"
+      style={{ backgroundColor: color, left: `${x}%`, top: 0 }}
+      initial={{ y: -20, opacity: 1, rotate: 0 }}
+      animate={{ 
+        y: 150, 
+        opacity: 0,
+        rotate: rotate,
+      }}
+      transition={{ 
+        duration: 2,
+        delay: delay,
+        ease: "easeOut",
+      }}
+    />
+  );
+
+  const SuccessComponent = ({ data }: { data: any }) => {
+    // Generate confetti particles
+    const confettiColors = ['#6B5CF6', '#22d3ee', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4'];
+    const confettiParticles = Array.from({ length: 30 }, (_, i) => ({
+      id: i,
+      delay: Math.random() * 0.5,
+      x: Math.random() * 100,
+      rotate: Math.random() * 720 - 360,
+      color: confettiColors[Math.floor(Math.random() * confettiColors.length)],
+    }));
+
+    return (
     <div 
-      className="mt-3 p-5 rounded-2xl"
-      style={{ backgroundColor: '#6366F1' }}
+      className="mt-3 p-5 rounded-2xl relative overflow-hidden"
+      style={{ backgroundColor: '#6B5CF6' }}
     >
+      {/* Confetti animation */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {confettiParticles.map((particle) => (
+          <ConfettiParticle key={particle.id} {...particle} />
+        ))}
+      </div>
+
       {/* Left-aligned layout */}
-      <div className="flex items-start gap-3 mb-4">
+      <div className="flex items-start gap-3 mb-4 relative z-10">
         <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center shrink-0">
           <CheckCircle2 className="w-6 h-6 text-white" />
         </div>
@@ -1222,7 +1268,7 @@ export default function DemoWidgetPage() {
       </div>
       
       {/* Left-aligned details */}
-      <div className="space-y-2 mb-4 text-left">
+      <div className="space-y-2 mb-4 text-left relative z-10">
         <div className="py-2 border-b border-white/20">
           <p className="text-white/70 text-xs">Order ID</p>
           <p className="font-mono text-sm font-medium text-white" data-testid="text-order-id">{data.orderId}</p>
@@ -1231,6 +1277,12 @@ export default function DemoWidgetPage() {
           <p className="text-white/70 text-xs">Customer ID</p>
           <p className="font-mono text-sm font-medium text-white" data-testid="text-customer-id">{data.customerId}</p>
         </div>
+        {data.paymentMethod && (
+          <div className="py-2 border-b border-white/20">
+            <p className="text-white/70 text-xs">Metode Pembayaran</p>
+            <p className="text-sm font-medium text-white" data-testid="text-payment-method">{data.paymentMethod}</p>
+          </div>
+        )}
         {data.merchantInfo && (
           <div className="py-2 border-b border-white/20">
             <p className="text-white/70 text-xs">Merchant</p>
@@ -1239,13 +1291,13 @@ export default function DemoWidgetPage() {
         )}
       </div>
       
-      <p className="text-sm text-white/90 text-left mb-4">
+      <p className="text-sm text-white/90 text-left mb-4 relative z-10">
         Terima kasih {data.greeting || 'kak'}! Koin akan segera ditambahkan ke akun Anda.
       </p>
       
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 relative z-10">
         <Button
-          className="w-full h-11 text-indigo-600 font-bold border-0"
+          className="w-full h-11 text-purple-600 font-bold border-0"
           style={{
             background: 'white',
             boxShadow: '0 4px 14px rgba(255, 255, 255, 0.3)',
@@ -1269,7 +1321,8 @@ export default function DemoWidgetPage() {
         </Button>
       </div>
     </div>
-  );
+    );
+  };
 
   const renderComponent = (component: string, data?: any) => {
     switch (component) {
@@ -1360,7 +1413,7 @@ export default function DemoWidgetPage() {
                             variant={action.variant === "destructive" ? "outline" : "default"}
                             className={`h-8 text-xs font-semibold ${action.variant === "destructive" ? "border-zinc-600 text-zinc-300 hover:bg-zinc-800 hover:text-white" : "text-white"}`}
                             style={action.variant !== "destructive" ? { 
-                              background: '#6366F1',
+                              background: '#6B5CF6',
                               boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
                             } : {
                               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
