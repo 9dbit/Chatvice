@@ -242,57 +242,101 @@ export default function DemoWidgetPage() {
     }, 300);
   };
 
+  // Parse ACTION tags from AI response
+  const parseAiAction = (response: string): { text: string; action: string | null; param: string | null } => {
+    const actionMatch = response.match(/\[ACTION:([^\]]+)\]/);
+    if (actionMatch) {
+      const actionParts = actionMatch[1].split(':');
+      const action = actionParts[0];
+      const param = actionParts[1] || null;
+      const text = response.replace(/\[ACTION:[^\]]+\]/g, '').trim();
+      return { text, action, param };
+    }
+    return { text: response, action: null, param: null };
+  };
+
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isAiTyping) return;
     
     const userMsg = inputMessage;
     addMessage({ from: "user", content: userMsg });
-    const msg = userMsg.toLowerCase();
     setInputMessage("");
 
-    // Quick actions for specific intents (keep these for immediate response)
-    if (msg.includes("topup") || msg.includes("top up") || msg.includes("isi ulang") || msg.includes("beli koin")) {
-      handleAction("topup");
-      return;
-    }
-
-    if (msg.includes("login") || msg.includes("masuk") || msg.includes("daftar") || msg.includes("register")) {
-      addTypingThenMessage({ from: "bot", content: "Untuk login atau daftar, silakan isi form berikut:", component: "auth" as const }, 500);
-      return;
-    }
-
-    // For all other messages, use AI for natural conversation
+    // For all messages, use AI for natural conversation with workflow guidance
     const typingId = addMessage({ from: "bot", content: "", isTyping: true });
     setIsAiTyping(true);
     
     try {
       const aiResponse = await askAI(userMsg);
-      
-      // Remove typing indicator
       setMessages(prev => prev.filter(m => m.id !== typingId));
       
-      // Parse AI response for potential actions
+      // Parse AI response for action tags
+      const { text, action, param } = parseAiAction(aiResponse);
+      
+      // Handle different actions with appropriate UI components
+      let component: "packages" | "auth" | "payment" | "success" | undefined;
       let actions: { label: string; action: string; variant?: "default" | "destructive" }[] | undefined;
       
-      // Add contextual buttons based on state
-      if (transactionCompleted) {
-        actions = [
-          { label: "Top Up Lagi", action: "new_transaction" },
-          { label: "Kembali ke Beranda", action: "go_home" },
-        ];
-      } else if (selectedProduct && !isLoggedIn) {
-        actions = [
-          { label: "Lanjut Bayar", action: "confirm_auth" },
-          { label: "Pilih Lain", action: "topup" },
-        ];
-      } else if (!selectedProduct) {
-        // Check if user seems to want to top up
-        if (msg.includes("koin") || msg.includes("nominal") || msg.includes("paket")) {
-          actions = [{ label: "Pilih Nominal", action: "topup" }];
-        }
+      switch (action) {
+        case "show_packages":
+          component = "packages";
+          break;
+          
+        case "show_auth":
+          component = "auth";
+          break;
+          
+        case "show_payment":
+          component = "payment";
+          break;
+          
+        case "set_payment":
+          // Set payment method and show payment component
+          if (param === "qris") {
+            setSelectedPaymentMethod("qris");
+          } else if (param === "bank") {
+            setSelectedPaymentMethod("bank");
+          } else if (param === "va") {
+            setSelectedPaymentMethod("va");
+          } else if (param === "crypto") {
+            setSelectedPaymentMethod("crypto");
+          }
+          component = "payment";
+          break;
+          
+        case "process_payment":
+          component = "payment";
+          break;
+          
+        case "complete":
+          actions = [
+            { label: "Top Up Lagi", action: "new_transaction" },
+            { label: "Kembali ke Beranda", action: "go_home" },
+          ];
+          break;
+          
+        default:
+          // No action - add contextual buttons based on current state
+          if (transactionCompleted) {
+            actions = [
+              { label: "Top Up Lagi", action: "new_transaction" },
+            ];
+          } else if (!selectedProduct) {
+            actions = [{ label: "Pilih Nominal", action: "topup" }];
+          } else if (!isLoggedIn) {
+            actions = [
+              { label: "Login Dulu", action: "show_auth" },
+              { label: "Pilih Lain", action: "topup" },
+            ];
+          } else if (!selectedPaymentMethod) {
+            actions = [
+              { label: "Pilih Metode Bayar", action: "show_payment" },
+            ];
+          }
+          break;
       }
       
-      addMessage({ from: "bot", content: aiResponse, actions });
+      addMessage({ from: "bot", content: text, component, actions });
     } catch (error) {
       setMessages(prev => prev.filter(m => m.id !== typingId));
       addMessage({ 
@@ -359,6 +403,22 @@ export default function DemoWidgetPage() {
           content: "Silakan login atau daftar dengan mengisi form berikut:",
           component: "auth",
         });
+        break;
+
+      case "show_payment":
+        if (selectedProduct) {
+          addTypingThenMessage({
+            from: "bot",
+            content: `Pilih metode pembayaran untuk ${selectedProduct.name}:`,
+            component: "payment",
+          });
+        } else {
+          addTypingThenMessage({
+            from: "bot",
+            content: "Pilih nominal top up dulu ya kak!",
+            component: "packages",
+          });
+        }
         break;
 
       case "cancel_chat":
