@@ -2427,7 +2427,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
-  app.get("/api/supervisors", requireMerchant, async (req, res) => {
+  app.get("/api/supervisors", requireMerchantOrSupervisor, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
       const supervisors = await storage.getSupervisorsByMerchant(merchantId);
@@ -6560,7 +6560,7 @@ ${log.extractedKnowledge}` : ''}
   });
 
   // Get team activity
-  app.get("/api/team/activity", requireMerchant, async (req, res) => {
+  app.get("/api/team/activity", requireMerchantOrSupervisor, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
       const supervisors = await storage.getSupervisorsByMerchant(merchantId);

@@ -397,7 +397,8 @@ export function AppSidebar() {
           <SidebarGroupLabel>Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {filteredMainItems.map((item) => {
+              {/* Render items before Widget/Message Settings (Overview, Agents) */}
+              {filteredMainItems.filter(item => item.id === "overview" || item.id === "agents").map((item) => {
                 const isActive = isItemActive(item.url);
                 return (
                   <SidebarMenuItem key={item.id || item.title}>
@@ -414,6 +415,7 @@ export function AppSidebar() {
                 );
               })}
 
+              {/* Widget Setting dropdown - positioned after Agents */}
               {filteredWidgetItems.length > 0 && (
                 <Collapsible open={widgetSettingOpen} onOpenChange={setWidgetSettingOpen}>
                   <SidebarMenuItem>
@@ -481,6 +483,24 @@ export function AppSidebar() {
                   </CollapsibleContent>
                 </Collapsible>
               )}
+
+              {/* Remaining main items after Widget/Message Settings */}
+              {filteredMainItems.filter(item => item.id !== "overview" && item.id !== "agents").map((item) => {
+                const isActive = isItemActive(item.url);
+                return (
+                  <SidebarMenuItem key={item.id || item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      className={isActive ? "bg-sidebar-accent" : ""}
+                    >
+                      <Link href={item.url} data-testid={`link-sidebar-${item.title.toLowerCase().replace(/\s/g, '-')}`}>
+                        <item.icon className="w-4 h-4" />
+                        <span className="flex-1">{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
 
               {filteredManagementItems.length > 0 && (
                 <Collapsible open={managementOpen} onOpenChange={setManagementOpen}>

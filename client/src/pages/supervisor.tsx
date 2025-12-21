@@ -1,14 +1,28 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation, Redirect } from "wouter";
+import { useLocation, Redirect, Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeToggle } from "@/components/theme-toggle";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarFooter,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +50,12 @@ import {
   VolumeX,
   ArrowLeft,
   FileText,
+  LayoutDashboard,
+  Reply,
+  MousePointer2,
+  Eye,
+  Users,
+  Activity,
   X,
 } from "lucide-react";
 import type { Session, Message, Notification, ChatLog } from "@shared/schema";
@@ -44,6 +64,32 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Calendar as CalendarIcon, Download } from "lucide-react";
+import { useTheme } from "@/components/theme-provider";
+import chatviceLogoLight from "@assets/Chatvice-03_1764703438384.png";
+import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
+
+type SupervisorPage = 
+  | "overview" 
+  | "chat-sessions" 
+  | "chat-logs" 
+  | "quick-replies" 
+  | "chat-buttons" 
+  | "live-preview" 
+  | "supervisors" 
+  | "team-activity" 
+  | "notifications";
+
+const supervisorMenuItems: { id: SupervisorPage; title: string; icon: any }[] = [
+  { id: "overview", title: "Overview", icon: LayoutDashboard },
+  { id: "chat-sessions", title: "Chat Sessions", icon: MessageSquare },
+  { id: "chat-logs", title: "Chat Logs", icon: FileText },
+  { id: "quick-replies", title: "Quick Replies", icon: Reply },
+  { id: "chat-buttons", title: "Chat Buttons", icon: MousePointer2 },
+  { id: "live-preview", title: "Live Preview", icon: Eye },
+  { id: "supervisors", title: "Supervisors", icon: Users },
+  { id: "team-activity", title: "Team Activity", icon: Activity },
+  { id: "notifications", title: "Notifications", icon: Bell },
+];
 
 function playAlertSound() {
   try {
@@ -75,6 +121,96 @@ function playAlertSound() {
   }
 }
 
+function SupervisorSidebar({
+  currentPage,
+  setCurrentPage,
+  escalatedCount,
+  soundEnabled,
+  setSoundEnabled,
+  isAlertActive,
+  unseenNotifications,
+  handleLogout,
+}: {
+  currentPage: SupervisorPage;
+  setCurrentPage: (page: SupervisorPage) => void;
+  escalatedCount: number;
+  soundEnabled: boolean;
+  setSoundEnabled: (enabled: boolean) => void;
+  isAlertActive: boolean;
+  unseenNotifications: Notification[];
+  handleLogout: () => void;
+}) {
+  const { resolvedTheme } = useTheme();
+  const chatviceLogo = resolvedTheme === "dark" ? chatviceLogoDark : chatviceLogoLight;
+
+  return (
+    <Sidebar>
+      <SidebarHeader className="p-4">
+        <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer" data-testid="link-supervisor-logo">
+          <img src={chatviceLogo} alt="Chatvice" className="h-8 w-auto" />
+          <div>
+            <p className="text-xs text-muted-foreground">Supervisor Panel</p>
+          </div>
+        </Link>
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Menu</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {supervisorMenuItems.map((item) => {
+                const isActive = currentPage === item.id;
+                const Icon = item.icon;
+                return (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      className={isActive ? "bg-sidebar-accent" : ""}
+                      onClick={() => setCurrentPage(item.id)}
+                      data-testid={`button-supervisor-${item.id}`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span className="flex-1">{item.title}</span>
+                      {item.id === "chat-sessions" && escalatedCount > 0 && (
+                        <Badge variant="destructive" className="ml-2">
+                          {escalatedCount}
+                        </Badge>
+                      )}
+                      {item.id === "notifications" && unseenNotifications.length > 0 && (
+                        <Badge variant="destructive" className="ml-2">
+                          {unseenNotifications.length}
+                        </Badge>
+                      )}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarFooter className="p-4 border-t border-sidebar-border">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Button 
+              variant={soundEnabled ? "ghost" : "outline"} 
+              size="icon" 
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              title={soundEnabled ? "Sound alerts on" : "Sound alerts off"}
+              data-testid="button-toggle-sound"
+            >
+              {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+            </Button>
+            <ThemeToggle />
+          </div>
+          <Button variant="ghost" size="icon" onClick={handleLogout} data-testid="button-logout">
+            <LogOut className="w-5 h-5" />
+          </Button>
+        </div>
+      </SidebarFooter>
+    </Sidebar>
+  );
+}
+
 export default function SupervisorPanel() {
   const [, setLocation] = useLocation();
   const merchantId = localStorage.getItem("merchantId") || "";
@@ -86,8 +222,7 @@ export default function SupervisorPanel() {
   const [sessionToTakeover, setSessionToTakeover] = useState<Session | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isAlertActive, setIsAlertActive] = useState(false);
-  const [currentPage, setCurrentPage] = useState<"chat-sessions" | "chat-logs">("chat-sessions");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState<SupervisorPage>("overview");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const previousSessionsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
@@ -116,6 +251,26 @@ export default function SupervisorPanel() {
   const { data: chatLogs, isLoading: chatLogsLoading } = useQuery<ChatLog[]>({
     queryKey: ["/api/chat-logs", selectedLogDate?.toISOString()],
     enabled: currentPage === "chat-logs",
+  });
+
+  const { data: quickReplies, isLoading: quickRepliesLoading } = useQuery<any[]>({
+    queryKey: ["/api/quick-replies"],
+    enabled: currentPage === "quick-replies",
+  });
+
+  const { data: chatButtons, isLoading: chatButtonsLoading } = useQuery<any[]>({
+    queryKey: ["/api/chat-buttons"],
+    enabled: currentPage === "chat-buttons",
+  });
+
+  const { data: supervisors, isLoading: supervisorsLoading } = useQuery<any[]>({
+    queryKey: ["/api/supervisors"],
+    enabled: currentPage === "supervisors",
+  });
+
+  const { data: teamActivity, isLoading: teamActivityLoading } = useQuery<any>({
+    queryKey: ["/api/team/activity"],
+    enabled: currentPage === "team-activity",
   });
 
   const sendMessageMutation = useMutation({
@@ -249,475 +404,704 @@ export default function SupervisorPanel() {
   const selectedSessionData = escalatedSessions?.find((s) => s.id === selectedSession);
   const escalatedCount = escalatedSessions?.filter((s) => s.mode === "HUMAN").length || 0;
 
-  return (
-    <div className="min-h-screen bg-background flex">
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+  const sidebarStyle = {
+    "--sidebar-width": "16rem",
+    "--sidebar-width-icon": "3rem",
+  };
 
-      {/* Sidebar */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-sidebar-border transform transition-transform duration-200 ease-in-out lg:transform-none ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
-        <div className="flex flex-col h-full">
-          {/* Sidebar Header */}
-          <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                <HeadphonesIcon className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="font-semibold text-sidebar-foreground">Supervisor</h1>
-                <p className="text-xs text-sidebar-foreground/60">Panel</p>
-              </div>
+  const renderContent = () => {
+    switch (currentPage) {
+      case "overview":
+        return (
+          <div className="p-6 space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <LayoutDashboard className="w-6 h-6" />
+                Overview
+              </h1>
+              <p className="text-muted-foreground">Welcome to the Supervisor Panel</p>
             </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="lg:hidden"
-              onClick={() => setSidebarOpen(false)}
-            >
-              <X className="w-5 h-5" />
-            </Button>
-          </div>
-
-          {/* Sidebar Menu */}
-          <div className="flex-1 p-4 space-y-2">
-            {/* Chat Sessions - Primary button with escalation indicator */}
-            <button
-              onClick={() => setCurrentPage("chat-sessions")}
-              className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-colors ${
-                currentPage === "chat-sessions"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-sidebar-accent/50 text-sidebar-foreground hover-elevate"
-              }`}
-              data-testid="button-supervisor-chat-sessions"
-            >
-              <div className="flex items-center gap-3">
-                <MessageSquare className="w-5 h-5" />
-                <span className="font-medium">Chat Sessions</span>
-              </div>
-              {escalatedCount > 0 && (
-                <span className={`min-w-[24px] h-6 px-2 rounded-full text-sm font-medium flex items-center justify-center ${
-                  currentPage === "chat-sessions" 
-                    ? "bg-white/20 text-white" 
-                    : "bg-destructive text-destructive-foreground"
-                }`}>
-                  {escalatedCount}
-                </span>
-              )}
-            </button>
-
-            {/* Chat Logs */}
-            <button
-              onClick={() => setCurrentPage("chat-logs")}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                currentPage === "chat-logs"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-sidebar-foreground hover-elevate"
-              }`}
-              data-testid="button-supervisor-chat-logs"
-            >
-              <FileText className="w-5 h-5" />
-              <span className="font-medium">Chat Logs</span>
-            </button>
-          </div>
-
-          {/* Sidebar Footer */}
-          <div className="p-4 border-t border-sidebar-border">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Button 
-                  variant={soundEnabled ? "ghost" : "outline"} 
-                  size="icon" 
-                  onClick={() => setSoundEnabled(!soundEnabled)}
-                  title={soundEnabled ? "Sound alerts on" : "Sound alerts off"}
-                  data-testid="button-toggle-sound"
-                >
-                  {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-                </Button>
-                <div className="relative">
-                  <Button variant="ghost" size="icon" data-testid="button-notifications">
-                    {isAlertActive ? (
-                      <BellRing className="w-5 h-5 text-status-away animate-pulse" />
-                    ) : (
-                      <Bell className="w-5 h-5" />
-                    )}
-                    {unseenNotifications.length > 0 && (
-                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
-                        {unseenNotifications.length}
-                      </span>
-                    )}
-                  </Button>
-                </div>
-                <ThemeToggle />
-              </div>
-              <Button variant="ghost" size="icon" onClick={handleLogout} data-testid="button-logout">
-                <LogOut className="w-5 h-5" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-screen">
-        {/* Mobile Header */}
-        <header className="lg:hidden flex items-center justify-between gap-4 px-4 py-3 border-b border-border bg-background">
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={() => setSidebarOpen(true)}
-            data-testid="button-open-sidebar"
-          >
-            <MessageSquare className="w-5 h-5" />
-          </Button>
-          <h1 className="font-semibold">{currentPage === "chat-sessions" ? "Chat Sessions" : "Chat Logs"}</h1>
-          <div className="w-9" /> {/* Spacer */}
-        </header>
-
-        {currentPage === "chat-sessions" ? (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 p-6 flex-1 h-[calc(100vh-80px)] lg:h-screen overflow-hidden">
-        <Card className="lg:col-span-1 flex flex-col">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <AlertTriangle className="w-5 h-5 text-status-away" />
-              Escalated Chats
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex-1 overflow-hidden p-0">
-            <ScrollArea className="h-full px-4 pb-4">
-              {sessionsLoading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-20 w-full" />
-                  ))}
-                </div>
-              ) : escalatedSessions && escalatedSessions.length > 0 ? (
-                <div className="space-y-3">
-                  {escalatedSessions
-                    .filter((s) => s.mode === "HUMAN")
-                    .map((session) => (
-                      <div
-                        key={session.id}
-                        className={`p-3 rounded-lg transition-colors ${
-                          selectedSession === session.id
-                            ? "bg-primary/10 border border-primary/20"
-                            : "bg-muted/50 hover-elevate"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-status-away/20 flex items-center justify-center">
-                              <User className="w-4 h-4 text-status-away" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium">{session.customerName || "Customer"}</p>
-                              <p className="text-xs text-muted-foreground font-mono">
-                                {session.id.slice(0, 12)}...
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant={selectedSession === session.id ? "secondary" : "default"}
-                            onClick={() => setSelectedSession(session.id)}
-                            className="flex-1"
-                            data-testid={`button-view-session-${session.id}`}
-                          >
-                            {selectedSession === session.id ? "Viewing" : "View Chat"}
-                          </Button>
-                          {!session.supervisorId && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleTakeoverClick(session)}
-                              disabled={takeOverMutation.isPending}
-                              data-testid={`button-takeover-${session.id}`}
-                            >
-                              <Hand className="w-3 h-3 mr-1" />
-                              Take Over
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <CheckCircle className="w-12 h-12 mx-auto text-status-online/50 mb-3" />
-                  <p className="text-muted-foreground">No escalated chats</p>
-                  <p className="text-sm text-muted-foreground">
-                    All conversations are being handled by AI
-                  </p>
-                </div>
-              )}
-            </ScrollArea>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-3 flex flex-col">
-          {selectedSession ? (
-            <>
-              <CardHeader className="border-b pb-3">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <User className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">
-                        {selectedSessionData?.customerName || "Customer"}
-                      </CardTitle>
-                      <p className="text-xs text-muted-foreground font-mono">
-                        Session: {selectedSession.slice(0, 20)}...
-                      </p>
-                    </div>
-                  </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="hover-elevate cursor-pointer" onClick={() => setCurrentPage("chat-sessions")} data-testid="card-escalations">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-primary" />
+                    Active Escalations
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold" data-testid="text-escalation-count">{escalatedCount}</div>
+                  <p className="text-sm text-muted-foreground">Chats needing attention</p>
+                </CardContent>
+              </Card>
+              <Card className="hover-elevate cursor-pointer" onClick={() => setCurrentPage("notifications")} data-testid="card-notifications">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Bell className="w-4 h-4 text-primary" />
+                    Unread Notifications
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold" data-testid="text-notification-count">{unseenNotifications.length}</div>
+                  <p className="text-sm text-muted-foreground">Pending alerts</p>
+                </CardContent>
+              </Card>
+              <Card data-testid="card-status">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-primary" />
+                    Status
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
                   <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => returnToBotMutation.mutate(selectedSession)}
-                      disabled={returnToBotMutation.isPending}
-                      data-testid="button-return-to-bot"
-                    >
-                      <ArrowLeft className="w-4 h-4 mr-1" />
-                      Return to Bot
-                    </Button>
-                    <Badge variant="default">
-                      <HeadphonesIcon className="w-3 h-3 mr-1" />
-                      You're handling this
-                    </Badge>
+                    <span className="relative flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500" />
+                    </span>
+                    <span className="text-lg font-medium" data-testid="text-status">Online</span>
                   </div>
-                </div>
+                  <p className="text-sm text-muted-foreground">Ready to assist</p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        );
+
+      case "chat-sessions":
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 p-6 flex-1 h-[calc(100vh-80px)] lg:h-screen overflow-hidden">
+            <Card className="lg:col-span-1 flex flex-col">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <AlertTriangle className="w-5 h-5 text-status-away" />
+                  Escalated Chats
+                </CardTitle>
               </CardHeader>
-              <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
-                <ScrollArea className="flex-1 p-4">
-                  {messagesLoading ? (
-                    <div className="space-y-4">
+              <CardContent className="flex-1 overflow-hidden p-0">
+                <ScrollArea className="h-full px-4 pb-4">
+                  {sessionsLoading ? (
+                    <div className="space-y-3">
                       {[1, 2, 3].map((i) => (
-                        <Skeleton key={i} className="h-16 w-3/4" />
+                        <Skeleton key={i} className="h-20 w-full" />
                       ))}
                     </div>
-                  ) : messages && messages.length > 0 ? (
-                    <div className="space-y-4">
-                      {messages.map((msg, index) => (
-                        <div
-                          key={msg.id || index}
-                          className={`flex gap-3 ${msg.from === "user" ? "justify-end" : "justify-start"}`}
-                        >
-                          {msg.from !== "user" && (
-                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                              {msg.from === "chatvice" ? (
-                                <Bot className="w-4 h-4 text-primary" />
-                              ) : (
-                                <HeadphonesIcon className="w-4 h-4 text-primary" />
-                              )}
-                            </div>
-                          )}
+                  ) : escalatedSessions && escalatedSessions.filter((s) => s.mode === "HUMAN").length > 0 ? (
+                    <div className="space-y-3">
+                      {escalatedSessions
+                        .filter((s) => s.mode === "HUMAN")
+                        .map((session) => (
                           <div
-                            className={`max-w-[70%] p-3 ${
-                              msg.from === "user"
-                                ? "bg-muted rounded-2xl rounded-br-sm"
-                                : msg.from === "supervisor"
-                                ? "bg-primary text-primary-foreground rounded-2xl rounded-bl-sm"
-                                : "bg-muted rounded-2xl rounded-bl-sm"
+                            key={session.id}
+                            className={`p-3 rounded-lg transition-colors ${
+                              selectedSession === session.id
+                                ? "bg-primary/10 border border-primary/20"
+                                : "bg-muted/50 hover-elevate"
                             }`}
                           >
-                            <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                            <p
-                              className={`text-xs mt-1 ${
-                                msg.from === "supervisor" ? "text-primary-foreground/70" : "text-muted-foreground"
-                              }`}
-                            >
-                              {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ""}
-                            </p>
-                          </div>
-                          {msg.from === "user" && (
-                            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                              <User className="w-4 h-4" />
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full bg-status-away/20 flex items-center justify-center">
+                                  <User className="w-4 h-4 text-status-away" />
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium">{session.customerName || "Customer"}</p>
+                                  <p className="text-xs text-muted-foreground font-mono">
+                                    {session.id.slice(0, 12)}...
+                                  </p>
+                                </div>
+                              </div>
                             </div>
-                          )}
-                        </div>
-                      ))}
-                      <div ref={messagesEndRef} />
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant={selectedSession === session.id ? "secondary" : "default"}
+                                onClick={() => setSelectedSession(session.id)}
+                                className="flex-1"
+                                data-testid={`button-view-session-${session.id}`}
+                              >
+                                {selectedSession === session.id ? "Viewing" : "View Chat"}
+                              </Button>
+                              {!session.supervisorId && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleTakeoverClick(session)}
+                                  disabled={takeOverMutation.isPending}
+                                  data-testid={`button-takeover-${session.id}`}
+                                >
+                                  <Hand className="w-3 h-3 mr-1" />
+                                  Take Over
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                     </div>
                   ) : (
                     <div className="text-center py-12">
-                      <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
-                      <p className="text-muted-foreground">No messages yet</p>
+                      <CheckCircle className="w-12 h-12 mx-auto text-status-online/50 mb-3" />
+                      <p className="text-muted-foreground">No escalated chats</p>
+                      <p className="text-sm text-muted-foreground">
+                        All conversations are being handled by AI
+                      </p>
                     </div>
                   )}
                 </ScrollArea>
-                <div className="p-4 border-t">
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Type your message..."
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyDown={handleKeyPress}
-                      data-testid="input-supervisor-message"
-                    />
-                    <Button
-                      onClick={handleSendMessage}
-                      disabled={sendMessageMutation.isPending || !newMessage.trim()}
-                      data-testid="button-send-supervisor-message"
-                    >
-                      <Send className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
               </CardContent>
-            </>
-          ) : (
-            <CardContent className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <HeadphonesIcon className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4" />
-                <p className="text-lg font-medium text-muted-foreground">Select a chat</p>
-                <p className="text-sm text-muted-foreground">
-                  Choose an escalated conversation to start helping
-                </p>
-              </div>
-            </CardContent>
-          )}
-        </Card>
-        </div>
-        ) : (
-        /* Chat Logs View */
-        <div className="flex-1 p-6 overflow-auto">
-          <div className="space-y-4 sm:space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
-                  <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
-                  Chat Logs
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  Archived conversation history
-                </p>
-              </div>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "justify-start text-left font-normal",
-                      !selectedLogDate && "text-muted-foreground"
+            </Card>
+
+            <Card className="lg:col-span-3 flex flex-col">
+              {selectedSession ? (
+                <>
+                  <CardHeader className="border-b pb-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                          <User className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">
+                            {selectedSessionData?.customerName || "Customer"}
+                          </CardTitle>
+                          <p className="text-xs text-muted-foreground font-mono">
+                            Session: {selectedSession.slice(0, 20)}...
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => returnToBotMutation.mutate(selectedSession)}
+                          disabled={returnToBotMutation.isPending}
+                          data-testid="button-return-to-bot"
+                        >
+                          <ArrowLeft className="w-4 h-4 mr-1" />
+                          Return to Bot
+                        </Button>
+                        <Badge variant="default">
+                          <HeadphonesIcon className="w-3 h-3 mr-1" />
+                          You're handling this
+                        </Badge>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
+                    <ScrollArea className="flex-1 p-4">
+                      {messagesLoading ? (
+                        <div className="space-y-4">
+                          {[1, 2, 3].map((i) => (
+                            <Skeleton key={i} className="h-16 w-3/4" />
+                          ))}
+                        </div>
+                      ) : messages && messages.length > 0 ? (
+                        <div className="space-y-4">
+                          {messages.map((msg, index) => (
+                            <div
+                              key={msg.id || index}
+                              className={`flex gap-3 ${msg.from === "user" ? "justify-end" : "justify-start"}`}
+                            >
+                              {msg.from !== "user" && (
+                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                  {msg.from === "chatvice" ? (
+                                    <Bot className="w-4 h-4 text-primary" />
+                                  ) : (
+                                    <HeadphonesIcon className="w-4 h-4 text-primary" />
+                                  )}
+                                </div>
+                              )}
+                              <div
+                                className={`max-w-[70%] p-3 ${
+                                  msg.from === "user"
+                                    ? "bg-muted rounded-2xl rounded-br-sm"
+                                    : msg.from === "supervisor"
+                                    ? "bg-primary text-primary-foreground rounded-2xl rounded-bl-sm"
+                                    : "bg-muted rounded-2xl rounded-bl-sm"
+                                }`}
+                              >
+                                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                <p
+                                  className={`text-xs mt-1 ${
+                                    msg.from === "supervisor" ? "text-primary-foreground/70" : "text-muted-foreground"
+                                  }`}
+                                >
+                                  {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ""}
+                                </p>
+                              </div>
+                              {msg.from === "user" && (
+                                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                                  <User className="w-4 h-4" />
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          <div ref={messagesEndRef} />
+                        </div>
+                      ) : (
+                        <div className="text-center py-12">
+                          <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                          <p className="text-muted-foreground">No messages yet</p>
+                        </div>
+                      )}
+                    </ScrollArea>
+                    <div className="p-4 border-t">
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Type your message..."
+                          value={newMessage}
+                          onChange={(e) => setNewMessage(e.target.value)}
+                          onKeyDown={handleKeyPress}
+                          data-testid="input-supervisor-message"
+                        />
+                        <Button
+                          onClick={handleSendMessage}
+                          disabled={sendMessageMutation.isPending || !newMessage.trim()}
+                          data-testid="button-send-supervisor-message"
+                        >
+                          <Send className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </>
+              ) : (
+                <CardContent className="flex-1 flex items-center justify-center">
+                  <div className="text-center">
+                    <HeadphonesIcon className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4" />
+                    <p className="text-lg font-medium text-muted-foreground">Select a chat</p>
+                    <p className="text-sm text-muted-foreground">
+                      Choose an escalated conversation to start helping
+                    </p>
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+          </div>
+        );
+
+      case "chat-logs":
+        return (
+          <div className="flex-1 p-6 overflow-auto">
+            <div className="space-y-4 sm:space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+                    <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
+                    Chat Logs
+                  </h1>
+                  <p className="text-sm text-muted-foreground">
+                    Archived conversation history
+                  </p>
+                </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "justify-start text-left font-normal",
+                        !selectedLogDate && "text-muted-foreground"
+                      )}
+                      data-testid="button-date-picker"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selectedLogDate ? format(selectedLogDate, "PPP") : "Filter by date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                      mode="single"
+                      selected={selectedLogDate}
+                      onSelect={setSelectedLogDate}
+                      initialFocus
+                    />
+                    {selectedLogDate && (
+                      <div className="p-2 border-t">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="w-full"
+                          onClick={() => setSelectedLogDate(undefined)}
+                          data-testid="button-clear-date"
+                        >
+                          Clear filter
+                        </Button>
+                      </div>
                     )}
-                    data-testid="button-date-picker"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedLogDate ? format(selectedLogDate, "PPP") : "Filter by date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                  <Calendar
-                    mode="single"
-                    selected={selectedLogDate}
-                    onSelect={setSelectedLogDate}
-                    initialFocus
-                  />
-                  {selectedLogDate && (
-                    <div className="p-2 border-t">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="w-full"
-                        onClick={() => setSelectedLogDate(undefined)}
-                        data-testid="button-clear-date"
-                      >
-                        Clear filter
-                      </Button>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Archived Conversations</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {chatLogsLoading ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <Skeleton key={i} className="h-24 w-full" />
+                      ))}
+                    </div>
+                  ) : chatLogs && chatLogs.length > 0 ? (
+                    <ScrollArea className="h-[calc(100vh-300px)]">
+                      <div className="space-y-3 pr-4">
+                        {chatLogs.map((log) => (
+                          <div
+                            key={log.id}
+                            className="p-4 rounded-lg border bg-card"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <User className="w-4 h-4 text-muted-foreground" />
+                                <span className="font-medium">{log.customerName || "Customer"}</span>
+                              </div>
+                              <Badge variant="secondary">
+                                {log.messageCount || 0} messages
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
+                              <span className="flex items-center gap-1">
+                                <CalendarIcon className="w-3 h-3" />
+                                {log.clearedAt ? format(new Date(log.clearedAt), "MMM d, yyyy") : "N/A"}
+                              </span>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={async () => {
+                                try {
+                                  const response = await fetch(`/api/chat-logs/${log.id}/download`, {
+                                    credentials: 'include',
+                                  });
+                                  if (!response.ok) throw new Error('Download failed');
+                                  const blob = await response.blob();
+                                  const url = window.URL.createObjectURL(blob);
+                                  const a = document.createElement('a');
+                                  a.href = url;
+                                  a.download = `chat-log-${log.id}.txt`;
+                                  document.body.appendChild(a);
+                                  a.click();
+                                  document.body.removeChild(a);
+                                  window.URL.revokeObjectURL(url);
+                                } catch (error) {
+                                  console.error('Download failed:', error);
+                                }
+                              }}
+                              data-testid={`button-download-log-${log.id}`}
+                            >
+                              <Download className="w-4 h-4 mr-1" />
+                              Download
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  ) : (
+                    <div className="text-center py-12">
+                      <FileText className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                      <p className="text-muted-foreground">No chat logs found</p>
+                      <p className="text-sm text-muted-foreground">
+                        Archived conversations will appear here
+                      </p>
                     </div>
                   )}
-                </PopoverContent>
-              </Popover>
+                </CardContent>
+              </Card>
             </div>
+          </div>
+        );
 
+      case "quick-replies":
+        return (
+          <div className="p-6 space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <Reply className="w-6 h-6" />
+                Quick Replies
+              </h1>
+              <p className="text-muted-foreground">Pre-defined response templates (Read-only)</p>
+            </div>
             <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Archived Conversations</CardTitle>
+              <CardHeader>
+                <CardTitle>Available Quick Replies</CardTitle>
+                <CardDescription>Quick replies configured by your merchant</CardDescription>
               </CardHeader>
               <CardContent>
-                {chatLogsLoading ? (
+                {quickRepliesLoading ? (
                   <div className="space-y-3">
                     {[1, 2, 3].map((i) => (
-                      <Skeleton key={i} className="h-24 w-full" />
+                      <Skeleton key={i} className="h-16 w-full" />
                     ))}
                   </div>
-                ) : chatLogs && chatLogs.length > 0 ? (
+                ) : quickReplies && quickReplies.length > 0 ? (
+                  <div className="space-y-3">
+                    {quickReplies.map((reply: any) => (
+                      <div key={reply.id} className="p-4 rounded-lg border bg-card" data-testid={`card-quick-reply-${reply.id}`}>
+                        <p className="font-medium" data-testid={`text-quick-reply-title-${reply.id}`}>{reply.title || reply.label}</p>
+                        <p className="text-sm text-muted-foreground mt-1">{reply.content || reply.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Reply className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                    <p className="text-muted-foreground">No quick replies configured</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        );
+
+      case "chat-buttons":
+        return (
+          <div className="p-6 space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <MousePointer2 className="w-6 h-6" />
+                Chat Buttons
+              </h1>
+              <p className="text-muted-foreground">Interactive button options (Read-only)</p>
+            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Available Chat Buttons</CardTitle>
+                <CardDescription>Buttons configured for the chat widget</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {chatButtonsLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-16 w-full" />
+                    ))}
+                  </div>
+                ) : chatButtons && chatButtons.length > 0 ? (
+                  <div className="space-y-3">
+                    {chatButtons.map((button: any) => (
+                      <div key={button.id} className="p-4 rounded-lg border bg-card" data-testid={`card-chat-button-${button.id}`}>
+                        <p className="font-medium" data-testid={`text-chat-button-label-${button.id}`}>{button.label}</p>
+                        <p className="text-sm text-muted-foreground mt-1">{button.action || button.url || "No action defined"}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <MousePointer2 className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                    <p className="text-muted-foreground">No chat buttons configured</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        );
+
+      case "live-preview":
+        return (
+          <div className="p-6 space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <Eye className="w-6 h-6" />
+                Live Preview
+              </h1>
+              <p className="text-muted-foreground">View the chat widget as customers see it</p>
+            </div>
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center py-12">
+                  <Eye className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4" />
+                  <p className="text-lg font-medium text-muted-foreground">Widget Preview</p>
+                  <p className="text-sm text-muted-foreground">
+                    Open your merchant's website to see the live widget
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+
+      case "supervisors":
+        return (
+          <div className="p-6 space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <Users className="w-6 h-6" />
+                Supervisors
+              </h1>
+              <p className="text-muted-foreground">Team member list (Read-only)</p>
+            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Team Members</CardTitle>
+                <CardDescription>Other supervisors in your organization</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {supervisorsLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-16 w-full" />
+                    ))}
+                  </div>
+                ) : supervisors && supervisors.length > 0 ? (
+                  <div className="space-y-3">
+                    {supervisors.map((supervisor: any) => (
+                      <div key={supervisor.id} className="p-4 rounded-lg border bg-card flex items-center gap-4" data-testid={`card-supervisor-${supervisor.id}`}>
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                          <User className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium" data-testid={`text-supervisor-name-${supervisor.id}`}>{supervisor.name || supervisor.email}</p>
+                          <p className="text-sm text-muted-foreground">{supervisor.role || "Supervisor"}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Users className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                    <p className="text-muted-foreground">No other supervisors found</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        );
+
+      case "team-activity":
+        return (
+          <div className="p-6 space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <Activity className="w-6 h-6" />
+                Team Activity
+              </h1>
+              <p className="text-muted-foreground">Recent team activity and performance</p>
+            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Activity Log</CardTitle>
+                <CardDescription>Recent actions by team members</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {teamActivityLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-16 w-full" />
+                    ))}
+                  </div>
+                ) : teamActivity && teamActivity.length > 0 ? (
+                  <div className="space-y-3">
+                    {(Array.isArray(teamActivity) ? teamActivity : []).map((activity: any, index: number) => (
+                      <div key={activity.id || index} className="p-4 rounded-lg border bg-card">
+                        <p className="font-medium">{activity.action || activity.description}</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {activity.timestamp ? format(new Date(activity.timestamp), "PPp") : ""}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Activity className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                    <p className="text-muted-foreground">No recent activity</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        );
+
+      case "notifications":
+        return (
+          <div className="p-6 space-y-6">
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <Bell className="w-6 h-6" />
+                Notifications
+              </h1>
+              <p className="text-muted-foreground">Your alerts and notifications</p>
+            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>All Notifications</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {notificationsLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-16 w-full" />
+                    ))}
+                  </div>
+                ) : notifications && notifications.length > 0 ? (
                   <ScrollArea className="h-[calc(100vh-300px)]">
                     <div className="space-y-3 pr-4">
-                      {chatLogs.map((log) => (
+                      {notifications.map((notification) => (
                         <div
-                          key={log.id}
-                          className="p-4 rounded-lg border bg-card"
+                          key={notification.id}
+                          className={`p-4 rounded-lg border ${!notification.seen ? "bg-primary/5 border-primary/20" : "bg-card"}`}
                         >
                           <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <User className="w-4 h-4 text-muted-foreground" />
-                              <span className="font-medium">{log.customerName || "Customer"}</span>
-                            </div>
-                            <Badge variant="secondary">
-                              {log.messageCount || 0} messages
-                            </Badge>
+                            <p className="font-medium">Notification</p>
+                            {!notification.seen && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => markSeenMutation.mutate(notification.id.toString())}
+                                data-testid={`button-mark-seen-${notification.id}`}
+                              >
+                                Mark as read
+                              </Button>
+                            )}
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
-                            <span className="flex items-center gap-1">
-                              <CalendarIcon className="w-3 h-3" />
-                              {log.clearedAt ? format(new Date(log.clearedAt), "MMM d, yyyy") : "N/A"}
-                            </span>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={async () => {
-                              try {
-                                const response = await fetch(`/api/chat-logs/${log.id}/download`, {
-                                  credentials: 'include',
-                                });
-                                if (!response.ok) throw new Error('Download failed');
-                                const blob = await response.blob();
-                                const url = window.URL.createObjectURL(blob);
-                                const a = document.createElement('a');
-                                a.href = url;
-                                a.download = `chat-log-${log.id}.txt`;
-                                document.body.appendChild(a);
-                                a.click();
-                                document.body.removeChild(a);
-                                window.URL.revokeObjectURL(url);
-                              } catch (error) {
-                                console.error('Download failed:', error);
-                              }
-                            }}
-                            data-testid={`button-download-log-${log.id}`}
-                          >
-                            <Download className="w-4 h-4 mr-1" />
-                            Download
-                          </Button>
+                          <p className="text-sm text-muted-foreground">{notification.message}</p>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            {notification.timestamp ? format(new Date(notification.timestamp), "PPp") : ""}
+                          </p>
                         </div>
                       ))}
                     </div>
                   </ScrollArea>
                 ) : (
                   <div className="text-center py-12">
-                    <FileText className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
-                    <p className="text-muted-foreground">No chat logs found</p>
-                    <p className="text-sm text-muted-foreground">
-                      Archived conversations will appear here
-                    </p>
+                    <Bell className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                    <p className="text-muted-foreground">No notifications</p>
                   </div>
                 )}
               </CardContent>
             </Card>
           </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <SidebarProvider style={sidebarStyle as React.CSSProperties}>
+      <div className="flex h-screen w-full">
+        <SupervisorSidebar
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage}
+          escalatedCount={escalatedCount}
+          soundEnabled={soundEnabled}
+          setSoundEnabled={setSoundEnabled}
+          isAlertActive={isAlertActive}
+          unseenNotifications={unseenNotifications}
+          handleLogout={handleLogout}
+        />
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <header className="flex items-center justify-between gap-2 px-4 py-2 border-b border-border bg-background">
+            <SidebarTrigger data-testid="button-supervisor-sidebar-toggle" />
+            <h1 className="text-lg font-semibold">
+              {supervisorMenuItems.find(item => item.id === currentPage)?.title || "Supervisor"}
+            </h1>
+            <div className="w-9" />
+          </header>
+          <main className="flex-1 overflow-auto">
+            {renderContent()}
+          </main>
         </div>
-        )}
       </div>
 
       <AlertDialog open={takeoverDialogOpen} onOpenChange={setTakeoverDialogOpen}>
@@ -759,6 +1143,6 @@ export default function SupervisorPanel() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </SidebarProvider>
   );
 }
