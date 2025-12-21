@@ -417,6 +417,43 @@ export default function DemoWidgetPage() {
         });
         break;
 
+      case "forgot_password":
+        addTypingThenMessage({
+          from: "bot",
+          content: "Untuk reset password, silakan cek email Anda. Link reset sudah dikirim ke alamat email yang terdaftar.\n\nAtau kakak bisa login dengan Google/GitHub.",
+          actions: [
+            { label: "Login dengan Google", action: "login_google" },
+            { label: "Login dengan GitHub", action: "login_github" },
+            { label: "Coba Login Lagi", action: "show_auth" },
+          ],
+        });
+        break;
+
+      case "login_google":
+      case "login_github":
+        // Simulate social login success
+        const socialProvider = action === "login_google" ? "Google" : "GitHub";
+        setIsProcessing(true);
+        setTimeout(() => {
+          setIsProcessing(false);
+          const newCustomerId = `CUS-${Date.now().toString(36).toUpperCase()}`;
+          const newOrderId = `CVT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+          setCustomerId(newCustomerId);
+          setOrderId(newOrderId);
+          setIsLoggedIn(true);
+          setLoginAttempts(0);
+          
+          addTypingThenMessage({
+            from: "bot",
+            content: `Login dengan ${socialProvider} berhasil!\n\nAsal: ${merchantInfo.domain}\nMerchant: ${merchantInfo.name}\n\nCustomer ID: ${newCustomerId}\nOrder ID: ${newOrderId}\n\nLanjut ke pembayaran?`,
+            actions: [
+              { label: "Cancel", action: "cancel_auth", variant: "destructive" },
+              { label: "Lanjut Bayar", action: "confirm_auth" },
+            ],
+          });
+        }, 1500);
+        break;
+
       case "confirm_auth":
         addTypingThenMessage({
           from: "bot",
@@ -571,10 +608,18 @@ export default function DemoWidgetPage() {
             if (attempts >= 3) {
               setShowForgotPassword(true);
             }
+            // Show error message without creating new auth form
             addTypingThenMessage({
               from: "bot",
               content: `Email atau password salah. ${attempts >= 3 ? "Silakan gunakan Lupa Password atau coba login dengan Google/GitHub." : "Silakan coba lagi."}`,
-              component: "auth",
+              actions: attempts >= 3 
+                ? [
+                    { label: "Lupa Password", action: "forgot_password" },
+                    { label: "Coba Lagi", action: "show_auth" },
+                  ]
+                : [
+                    { label: "Coba Lagi", action: "show_auth" },
+                  ],
             }, 300);
           }
         }, 1500);
