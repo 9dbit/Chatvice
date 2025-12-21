@@ -56,10 +56,10 @@ interface CryptoCoin {
 }
 
 const paymentMethods: PaymentMethodOption[] = [
-  { id: "kompas", name: "Payment Link", description: "Bayar via link", icon: ExternalLink, gradient: "from-blue-500 to-purple-600" },
+  { id: "kompas", name: "Payment Link", description: "Bayar via link", icon: ExternalLink, gradient: "from-blue-500 to-indigo-500" },
   { id: "qris", name: "QRIS", description: "Scan QR", icon: QrCode, gradient: "from-emerald-400 to-teal-600" },
   { id: "bank", name: "Transfer Bank", description: "BCA, Mandiri, BNI, BRI", icon: Building2, gradient: "from-slate-600 to-slate-800" },
-  { id: "va", name: "Virtual Account", description: "VA otomatis", icon: Smartphone, gradient: "from-purple-500 to-violet-600" },
+  { id: "va", name: "Virtual Account", description: "VA otomatis", icon: Smartphone, gradient: "from-indigo-400 to-indigo-600" },
   { id: "crypto", name: "Crypto", description: "BTC, ETH, USDT", icon: Bitcoin, gradient: "from-orange-400 to-amber-600" },
 ];
 
@@ -120,7 +120,7 @@ function formatRupiah(amount: number): string {
   }).format(amount);
 }
 
-const PRIMARY_COLOR = "#6b5dfc";
+const PRIMARY_COLOR = "#6366F1";
 
 export default function DemoWidgetPage() {
   const isMobile = useIsMobile();
@@ -726,7 +726,7 @@ export default function DemoWidgetPage() {
         {showForgotPassword && (
           <button
             onClick={handleForgotPassword}
-            className="w-full text-sm text-violet-400 hover:text-violet-300 underline"
+            className="w-full text-sm text-indigo-400 hover:text-indigo-300 underline"
             data-testid="button-forgot-password"
           >
             Lupa Password?
@@ -848,7 +848,7 @@ export default function DemoWidgetPage() {
         
         {/* Center logo area */}
         <rect fill="white" x="45" y="45" width="30" height="30" rx="4" />
-        <rect fill="#6b5dfc" x="50" y="50" width="20" height="20" rx="2" />
+        <rect fill="#6366F1" x="50" y="50" width="20" height="20" rx="2" />
       </svg>
     );
 
@@ -870,18 +870,18 @@ export default function DemoWidgetPage() {
                 className={`
                   w-full p-3 rounded-xl flex items-center gap-3 transition-all
                   ${frostedGlassStyle.bg} ${frostedGlassStyle.border}
-                  ${isSelected ? 'ring-2 ring-violet-500/50 shadow-lg shadow-violet-500/10' : 'shadow-md hover:shadow-lg'}
+                  ${isSelected ? 'ring-2 ring-indigo-500/50 shadow-lg shadow-indigo-500/10' : 'shadow-md hover:shadow-lg'}
                 `}
                 data-testid={`payment-method-${method.id}`}
               >
-                <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center">
-                  <IconComponent className="w-5 h-5 text-violet-400" />
+                <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                  <IconComponent className="w-5 h-5 text-indigo-400" />
                 </div>
                 <div className="flex-1 text-left">
                   <p className="font-semibold text-sm">{method.name}</p>
                   <p className="text-xs text-muted-foreground">{method.description}</p>
                 </div>
-                {isSelected && <Check className="w-5 h-5 text-violet-500" />}
+                {isSelected && <Check className="w-5 h-5 text-indigo-500" />}
               </button>
             );
           })}
@@ -927,7 +927,7 @@ export default function DemoWidgetPage() {
           <div className="p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center">
                   <QrCode className="w-4 h-4 text-white" />
                 </div>
                 <div>
@@ -940,7 +940,7 @@ export default function DemoWidgetPage() {
             
             {/* QR Code with glow effect */}
             <div className="relative mx-auto w-48 mb-3">
-              <div className="absolute inset-0 bg-gradient-to-r from-violet-500/30 to-purple-500/30 rounded-2xl blur-xl" />
+              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/30 to-indigo-400/30 rounded-2xl blur-xl" />
               <div className="relative w-full rounded-2xl bg-white shadow-xl overflow-hidden">
                 <img 
                   src={qrisImageUrl} 
@@ -984,7 +984,7 @@ export default function DemoWidgetPage() {
                   onClick={() => setSelectedBank(bank.id)}
                   className={`w-full p-3 rounded-xl flex items-center gap-3 transition-all ${
                     selectedBank === bank.id 
-                      ? 'bg-violet-500/15 ring-1 ring-violet-500/50' 
+                      ? 'bg-indigo-500/15 ring-1 ring-indigo-500/50' 
                       : 'bg-white/50 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10'
                   }`}
                   data-testid={`bank-option-${bank.id}`}
@@ -994,7 +994,7 @@ export default function DemoWidgetPage() {
                     <p className="text-sm font-semibold">{bank.name}</p>
                     <p className="font-mono text-xs text-muted-foreground">{bank.accountNumber}</p>
                   </div>
-                  {selectedBank === bank.id && <Check className="w-5 h-5 text-violet-500" />}
+                  {selectedBank === bank.id && <Check className="w-5 h-5 text-indigo-500" />}
                 </button>
               ))}
             </div>
@@ -1011,7 +1011,7 @@ export default function DemoWidgetPage() {
                     </div>
                     <button 
                       onClick={() => copyToClipboard(bank.accountNumber)} 
-                      className="p-2 rounded-lg hover:bg-violet-500/20 transition-colors" 
+                      className="p-2 rounded-lg hover:bg-indigo-500/20 transition-colors" 
                       data-testid={`button-copy-bank-${bank.id}`}
                     >
                       {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
@@ -1034,7 +1034,7 @@ export default function DemoWidgetPage() {
                   onClick={() => setSelectedBank(bank.id)}
                   className={`w-full p-3 rounded-xl flex items-center gap-3 transition-all ${
                     selectedBank === bank.id 
-                      ? 'bg-violet-500/15 ring-1 ring-violet-500/50' 
+                      ? 'bg-indigo-500/15 ring-1 ring-indigo-500/50' 
                       : 'bg-white/50 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10'
                   }`}
                   data-testid={`va-option-${bank.id}`}
@@ -1044,7 +1044,7 @@ export default function DemoWidgetPage() {
                     <p className="text-sm font-semibold">VA {bank.name}</p>
                     <p className="text-xs text-muted-foreground">Virtual Account</p>
                   </div>
-                  {selectedBank === bank.id && <Check className="w-5 h-5 text-violet-500" />}
+                  {selectedBank === bank.id && <Check className="w-5 h-5 text-indigo-500" />}
                 </button>
               ))}
             </div>
@@ -1055,7 +1055,7 @@ export default function DemoWidgetPage() {
                 <span className="font-mono text-lg font-bold tracking-wide" data-testid="text-va-number">{getVANumber()}</span>
                 <button 
                   onClick={() => copyToClipboard(getVANumber())} 
-                  className="p-2 rounded-lg hover:bg-violet-500/20 transition-colors" 
+                  className="p-2 rounded-lg hover:bg-indigo-500/20 transition-colors" 
                   data-testid="button-copy-va"
                 >
                   {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
@@ -1079,7 +1079,7 @@ export default function DemoWidgetPage() {
                     onClick={() => setSelectedCrypto(coin.id)}
                     className={`w-full p-3 rounded-xl flex items-center gap-3 transition-all ${
                       isActive 
-                        ? 'bg-violet-500/15 ring-1 ring-violet-500/50' 
+                        ? 'bg-indigo-500/15 ring-1 ring-indigo-500/50' 
                         : 'bg-white/50 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10'
                     }`}
                     data-testid={`crypto-option-${coin.id}`}
@@ -1091,7 +1091,7 @@ export default function DemoWidgetPage() {
                       <p className="text-sm font-semibold">{coin.name}</p>
                       <p className="text-xs text-muted-foreground">{coin.symbol} • {coin.network}</p>
                     </div>
-                    {isActive && <Check className="w-5 h-5 text-violet-500" />}
+                    {isActive && <Check className="w-5 h-5 text-indigo-500" />}
                   </button>
                 );
               })}
@@ -1106,7 +1106,7 @@ export default function DemoWidgetPage() {
                     <span className="font-mono text-[10px] break-all flex-1 text-muted-foreground" data-testid="text-crypto-address">{coin?.address}</span>
                     <button 
                       onClick={() => copyToClipboard(coin?.address || "")} 
-                      className="p-2 rounded-lg hover:bg-violet-500/20 transition-colors shrink-0" 
+                      className="p-2 rounded-lg hover:bg-indigo-500/20 transition-colors shrink-0" 
                       data-testid="button-copy-crypto"
                     >
                       {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
@@ -1207,7 +1207,7 @@ export default function DemoWidgetPage() {
   const SuccessComponent = ({ data }: { data: any }) => (
     <div 
       className="mt-3 p-5 rounded-2xl"
-      style={{ backgroundColor: '#6b5dfc' }}
+      style={{ backgroundColor: '#6366F1' }}
     >
       {/* Left-aligned layout */}
       <div className="flex items-start gap-3 mb-4">
@@ -1244,7 +1244,7 @@ export default function DemoWidgetPage() {
       
       <div className="flex flex-col gap-2">
         <Button
-          className="w-full h-11 text-violet-600 font-bold border-0"
+          className="w-full h-11 text-indigo-600 font-bold border-0"
           style={{
             background: 'white',
             boxShadow: '0 4px 14px rgba(255, 255, 255, 0.3)',
@@ -1359,7 +1359,7 @@ export default function DemoWidgetPage() {
                             variant={action.variant === "destructive" ? "outline" : "default"}
                             className={`h-8 text-xs font-semibold ${action.variant === "destructive" ? "border-zinc-600 text-zinc-300 hover:bg-zinc-800 hover:text-white" : "text-white"}`}
                             style={action.variant !== "destructive" ? { 
-                              background: '#6b5dfc',
+                              background: '#6366F1',
                               boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
                             } : {
                               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
