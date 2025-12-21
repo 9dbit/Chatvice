@@ -147,7 +147,12 @@ export default function DemoWidgetPage() {
   const [merchantInfo] = useState({ name: "DinnCafe", domain: "dinncafe.com" });
   const [chatSessionId] = useState(() => `demo-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
   const [isAiTyping, setIsAiTyping] = useState(false);
+  const [showWelcomeBubble, setShowWelcomeBubble] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  const dismissWelcomeBubble = () => {
+    setShowWelcomeBubble(false);
+  };
 
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
@@ -1568,20 +1573,96 @@ export default function DemoWidgetPage() {
   );
 
   const FloatingButton = () => (
-    <button
-      onClick={startChat}
-      className="shadow-lg flex items-center justify-center transition-transform hover:scale-105"
-      style={{
-        width: 60,
-        height: 60,
-        backgroundColor: PRIMARY_COLOR,
-        borderRadius: '50%',
-      }}
-      data-testid="button-open-widget"
-    >
-      <Sparkles className="w-7 h-7 text-white" />
-      <span className="absolute bottom-1 right-1 w-3 h-3 rounded-full border-2 border-white bg-emerald-400" />
-    </button>
+    <div className="flex flex-col items-end gap-3">
+      {/* Welcome Bubble with Promo Image */}
+      {showWelcomeBubble && !isOpen && (
+        <div 
+          className="bg-card rounded-2xl shadow-xl overflow-hidden w-72 border border-border animate-in slide-in-from-bottom-5 fade-in duration-300"
+          data-testid="welcome-bubble-container"
+        >
+          {/* Promo Image */}
+          <div className="w-full h-32 bg-gradient-to-br from-purple-600 to-indigo-700 relative overflow-hidden">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center text-white">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <img src={coinIconUrl} alt="Coin" className="w-10 h-10" />
+                  <span className="text-3xl font-bold">+25%</span>
+                </div>
+                <p className="text-sm opacity-90">Bonus Koin Hari Ini!</p>
+              </div>
+            </div>
+            {/* Decorative elements */}
+            <div className="absolute top-2 right-2 w-8 h-8 bg-white/10 rounded-full" />
+            <div className="absolute bottom-4 left-4 w-12 h-12 bg-white/5 rounded-full" />
+          </div>
+          
+          {/* Content */}
+          <div className="p-4 relative">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                dismissWelcomeBubble();
+              }}
+              className="absolute top-2 right-2 p-1 hover:bg-muted rounded-full transition-colors"
+              data-testid="button-dismiss-welcome"
+            >
+              <X className="w-4 h-4 text-muted-foreground" />
+            </button>
+            <div className="mb-3">
+              <p className="font-semibold text-base" data-testid="text-welcome-headline">
+                Top Up Koin Sekarang!
+              </p>
+              <p className="text-sm text-muted-foreground mt-1" data-testid="text-welcome-message">
+                Dapatkan bonus hingga 25% untuk semua pembelian koin hari ini
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                className="flex-1 text-white"
+                style={{ backgroundColor: PRIMARY_COLOR }}
+                onClick={() => {
+                  dismissWelcomeBubble();
+                  startChat();
+                }}
+                data-testid="button-welcome-primary"
+              >
+                Top Up Sekarang
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1"
+                onClick={dismissWelcomeBubble}
+                data-testid="button-welcome-secondary"
+              >
+                Nanti Saja
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Floating Button - Same style as merchant widget */}
+      <button
+        onClick={() => {
+          dismissWelcomeBubble();
+          startChat();
+        }}
+        className="shadow-lg flex items-center justify-center transition-transform hover:scale-105 relative"
+        style={{
+          width: 60,
+          height: 60,
+          backgroundColor: PRIMARY_COLOR,
+          borderRadius: '50%',
+          boxShadow: `0 4px 20px rgba(107, 92, 246, 0.4)`,
+        }}
+        data-testid="button-open-widget"
+      >
+        <Bot className="w-7 h-7 text-white" />
+        <span className="absolute bottom-1 right-1 w-3 h-3 rounded-full border-2 border-white bg-emerald-400" />
+      </button>
+    </div>
   );
 
   if (isMobile) {
