@@ -111,6 +111,8 @@ import {
   ImageIcon,
   EyeOff,
   Trash2,
+  GripVertical,
+  Layers,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -288,6 +290,7 @@ export default function AdminDashboard() {
     { id: "usage", label: "Data Usage", icon: Database },
     { id: "billing", label: "Billing", icon: CreditCard },
     { id: "transactions", label: "Transactions", icon: FileText },
+    { id: "menuorder", label: "Menu Order", icon: Layers },
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
@@ -438,6 +441,8 @@ export default function AdminDashboard() {
             {activeTab === "transactions" && <TransactionsTab toast={toast} />}
             
             {activeTab === "settings" && <SettingsTab toast={toast} />}
+            
+            {activeTab === "menuorder" && <MenuOrderTab toast={toast} />}
           </div>
         </div>
       </main>
@@ -6609,6 +6614,351 @@ function SettingsTab({ toast }: { toast: any }) {
           </Button>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+interface MenuItemConfig {
+  id: string;
+  title: string;
+  icon: string;
+  enabled: boolean;
+  group?: "main" | "widgetSetting" | "management";
+}
+
+const defaultMenuConfig: MenuItemConfig[] = [
+  { id: "overview", title: "Overview", icon: "LayoutDashboard", enabled: true, group: "main" },
+  { id: "agents", title: "Agents", icon: "Bot", enabled: true, group: "main" },
+  { id: "quick-replies", title: "Quick Replies", icon: "Reply", enabled: true, group: "main" },
+  { id: "chat-buttons", title: "Chat Buttons", icon: "MousePointer2", enabled: true, group: "main" },
+  { id: "sources", title: "Sources", icon: "FileText", enabled: true, group: "main" },
+  { id: "knowledge-base", title: "Knowledge Base", icon: "Database", enabled: true, group: "main" },
+  { id: "triggers", title: "Triggers", icon: "Zap", enabled: true, group: "main" },
+  { id: "analytics", title: "Analytics", icon: "BarChart3", enabled: true, group: "main" },
+  { id: "chat-logs", title: "Chat Logs", icon: "FileText", enabled: true, group: "main" },
+  { id: "notifications", title: "Notifications", icon: "Bell", enabled: true, group: "main" },
+  { id: "live-preview", title: "Live Preview", icon: "Eye", enabled: true, group: "main" },
+  { id: "settings", title: "Settings", icon: "Settings", enabled: true, group: "main" },
+  { id: "widget", title: "Widget", icon: "Palette", enabled: true, group: "widgetSetting" },
+  { id: "welcome-bubble", title: "Welcome Bubble", icon: "MessageCircle", enabled: true, group: "widgetSetting" },
+  { id: "product-cards", title: "Product Cards", icon: "Package", enabled: true, group: "widgetSetting" },
+  { id: "supervisors", title: "Supervisors", icon: "Users", enabled: true, group: "management" },
+  { id: "team-activity", title: "Team Activity", icon: "Activity", enabled: true, group: "management" },
+  { id: "work-scheduler", title: "Work Scheduler", icon: "Clock", enabled: true, group: "management" },
+  { id: "integrations", title: "Integrations", icon: "Plug2", enabled: true, group: "management" },
+  { id: "plans", title: "Plans", icon: "CreditCard", enabled: true, group: "management" },
+  { id: "billing", title: "Billing", icon: "Receipt", enabled: true, group: "management" },
+];
+
+function SortableMenuItem({ item, onToggle }: { item: MenuItemConfig; onToggle: (id: string) => void }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+  };
+
+  const getGroupBadge = (group?: string) => {
+    switch (group) {
+      case "widgetSetting":
+        return <Badge className="bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 text-xs">Widget Setting</Badge>;
+      case "management":
+        return <Badge className="bg-blue-500/20 text-blue-700 dark:text-blue-400 text-xs">Management</Badge>;
+      default:
+        return <Badge variant="outline" className="text-xs">Main Menu</Badge>;
+    }
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-3 p-3 rounded-lg border bg-card transition-all ${
+        isDragging ? "shadow-lg opacity-90 scale-[1.02]" : "hover:shadow-md"
+      } ${!item.enabled ? "opacity-50" : ""}`}
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted"
+        data-testid={`drag-handle-${item.id}`}
+      >
+        <GripVertical className="w-4 h-4 text-muted-foreground" />
+      </button>
+      <div className="flex-1">
+        <div className="flex items-center gap-2">
+          <span className="font-medium">{item.title}</span>
+          {getGroupBadge(item.group)}
+        </div>
+        <span className="text-xs text-muted-foreground">{item.icon}</span>
+      </div>
+      <Switch
+        checked={item.enabled}
+        onCheckedChange={() => onToggle(item.id)}
+        data-testid={`toggle-menu-${item.id}`}
+      />
+    </div>
+  );
+}
+
+function MenuOrderTab({ toast }: { toast: any }) {
+  const [menuItems, setMenuItems] = useState<MenuItemConfig[]>(defaultMenuConfig);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const { data: platformSettings, isLoading } = useQuery({
+    queryKey: ["/api/admin/platform-settings"],
+  });
+
+  useEffect(() => {
+    if (platformSettings && (platformSettings as any).merchant_menu_order) {
+      try {
+        const savedConfig = JSON.parse((platformSettings as any).merchant_menu_order);
+        if (Array.isArray(savedConfig) && savedConfig.length > 0) {
+          setMenuItems(savedConfig);
+        }
+      } catch (e) {
+        console.error("Failed to parse menu config:", e);
+      }
+    }
+  }, [platformSettings]);
+
+  const saveMutation = useMutation({
+    mutationFn: async (config: MenuItemConfig[]) => {
+      return apiRequest("PUT", "/api/admin/platform-settings", {
+        key: "merchant_menu_order",
+        value: JSON.stringify(config),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Menu Order Saved",
+        description: "Merchant sidebar menu order has been updated.",
+      });
+      setHasChanges(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/platform-settings"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save menu order.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setMenuItems((items) => {
+        const oldIndex = items.findIndex((i) => i.id === active.id);
+        const newIndex = items.findIndex((i) => i.id === over.id);
+        const newItems = arrayMove(items, oldIndex, newIndex);
+        setHasChanges(true);
+        return newItems;
+      });
+    }
+  };
+
+  const handleToggle = (id: string) => {
+    setMenuItems((items) =>
+      items.map((item) =>
+        item.id === id ? { ...item, enabled: !item.enabled } : item
+      )
+    );
+    setHasChanges(true);
+  };
+
+  const handleSave = () => {
+    saveMutation.mutate(menuItems);
+  };
+
+  const handleReset = () => {
+    setMenuItems(defaultMenuConfig);
+    setHasChanges(true);
+  };
+
+  const mainItems = menuItems.filter((i) => i.group === "main");
+  const widgetItems = menuItems.filter((i) => i.group === "widgetSetting");
+  const managementItems = menuItems.filter((i) => i.group === "management");
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <Layers className="w-6 h-6" />
+            Merchant Menu Order
+          </h2>
+          <p className="text-muted-foreground">
+            Drag and drop to reorder menu items in the merchant dashboard sidebar
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleReset} data-testid="button-reset-menu">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Reset to Default
+          </Button>
+          <Button 
+            onClick={handleSave} 
+            disabled={!hasChanges || saveMutation.isPending}
+            data-testid="button-save-menu-order"
+          >
+            {saveMutation.isPending ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            Save Changes
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Badge variant="outline">Main Menu</Badge>
+            </CardTitle>
+            <CardDescription>Primary navigation items</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={mainItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-2">
+                  {mainItems.map((item) => (
+                    <SortableMenuItem key={item.id} item={item} onToggle={handleToggle} />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Badge className="bg-yellow-500/20 text-yellow-700 dark:text-yellow-400">Widget Setting</Badge>
+            </CardTitle>
+            <CardDescription>Widget configuration items (collapsible dropdown)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={widgetItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-2">
+                  {widgetItems.map((item) => (
+                    <SortableMenuItem key={item.id} item={item} onToggle={handleToggle} />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Badge className="bg-blue-500/20 text-blue-700 dark:text-blue-400">Management</Badge>
+            </CardTitle>
+            <CardDescription>Team & business management items (collapsible dropdown)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={managementItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-2">
+                  {managementItems.map((item) => (
+                    <SortableMenuItem key={item.id} item={item} onToggle={handleToggle} />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="w-5 h-5 text-primary" />
+            Chat Sessions (Static)
+          </CardTitle>
+          <CardDescription>
+            This menu item is always visible at the bottom of the sidebar with purple background, white text, and drop shadow. It cannot be reordered.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="p-4 rounded-lg bg-primary text-white flex items-center gap-3" style={{ boxShadow: "0 4px 12px rgba(107, 92, 246, 0.3)" }}>
+            <MessageSquare className="w-5 h-5" />
+            <span className="font-medium">Chat Sessions</span>
+            <Badge className="bg-white/20 text-white ml-auto">Always visible</Badge>
+          </div>
+        </CardContent>
+      </Card>
+
+      {hasChanges && (
+        <div className="fixed bottom-4 right-4 bg-primary text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 animate-in slide-in-from-bottom-2">
+          <Info className="w-4 h-4" />
+          <span>You have unsaved changes</span>
+        </div>
+      )}
     </div>
   );
 }

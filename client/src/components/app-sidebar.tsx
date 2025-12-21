@@ -12,6 +12,11 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   LayoutDashboard,
   MessageSquare,
   Database,
@@ -23,7 +28,6 @@ import {
   Users,
   CreditCard,
   Coins,
-  Calendar,
   BarChart3,
   FileText,
   Plug2,
@@ -35,17 +39,18 @@ import {
   Activity,
   MousePointer2,
   Eye,
+  ChevronDown,
+  Receipt,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useTheme } from "@/components/theme-provider";
 import chatviceLogoLight from "@assets/Chatvice-03_1764703438384.png";
 import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
 
-import { Receipt } from "lucide-react";
 import { rolePermissions } from "@shared/schema";
 
 interface Session {
@@ -66,30 +71,128 @@ function BlinkingDot() {
 
 type PermissionKey = keyof typeof rolePermissions.administrator;
 
-const menuItems: Array<{ title: string; url: string; icon: any; permission: PermissionKey }> = [
-  { title: "Overview", url: "/dashboard", icon: LayoutDashboard, permission: "overview" },
-  { title: "Agents", url: "/dashboard/agents", icon: Bot, permission: "agents" },
-  { title: "Sources", url: "/dashboard/sources", icon: FileText, permission: "sources" },
-  { title: "Analytics", url: "/dashboard/analytics", icon: BarChart3, permission: "analytics" },
-  { title: "Chat Sessions", url: "/dashboard/sessions", icon: MessageSquare, permission: "sessions" },
-  { title: "Chat Logs", url: "/dashboard/chat-logs", icon: FileText, permission: "chatLogs" },
-  { title: "Knowledge Base", url: "/dashboard/knowledge", icon: Database, permission: "knowledgeBase" },
-  { title: "Triggers", url: "/dashboard/triggers", icon: Zap, permission: "settings" },
-  { title: "Widget", url: "/dashboard/widget", icon: Palette, permission: "widgetSettings" },
-  { title: "Welcome Bubble", url: "/dashboard/welcome-bubble", icon: MessageCircle, permission: "widgetSettings" },
-  { title: "Product Cards", url: "/dashboard/product-cards", icon: Package, permission: "productCards" },
-  { title: "Quick Replies", url: "/dashboard/quick-replies", icon: Reply, permission: "quickReplies" },
-  { title: "Chat Buttons", url: "/dashboard/chat-buttons", icon: MousePointer2, permission: "widgetSettings" },
-  { title: "Live Preview", url: "/dashboard/live-preview", icon: Eye, permission: "livePreview" },
-  { title: "Supervisors", url: "/dashboard/supervisors", icon: Users, permission: "supervisors" },
-  { title: "Team Activity", url: "/dashboard/team-activity", icon: Activity, permission: "teamActivity" },
-  { title: "Work Scheduler", url: "/dashboard/work-scheduler", icon: Clock, permission: "workScheduler" },
-  { title: "Notifications", url: "/dashboard/notification-settings", icon: Bell, permission: "notifications" },
-  { title: "Integrations", url: "/dashboard/integrations", icon: Plug2, permission: "settings" },
-  { title: "Plans", url: "/dashboard/plans", icon: CreditCard, permission: "billing" },
-  { title: "Billing", url: "/dashboard/billing", icon: Receipt, permission: "billing" },
-  { title: "Settings", url: "/dashboard/settings", icon: Settings, permission: "settings" },
+interface MenuItem {
+  title: string;
+  url: string;
+  icon: any;
+  permission: PermissionKey;
+  id?: string;
+}
+
+interface MenuGroup {
+  title: string;
+  icon: any;
+  items: MenuItem[];
+}
+
+interface MenuItemConfig {
+  id: string;
+  title: string;
+  icon: string;
+  enabled: boolean;
+  group?: "main" | "widgetSetting" | "management";
+}
+
+const iconMap: Record<string, any> = {
+  LayoutDashboard,
+  Bot,
+  Reply,
+  MousePointer2,
+  FileText,
+  Database,
+  Zap,
+  BarChart3,
+  Bell,
+  Eye,
+  Settings,
+  Palette,
+  MessageCircle,
+  Package,
+  Users,
+  Activity,
+  Clock,
+  Plug2,
+  CreditCard,
+  Receipt,
+};
+
+const menuItemsMap: Record<string, MenuItem> = {
+  "overview": { id: "overview", title: "Overview", url: "/dashboard", icon: LayoutDashboard, permission: "overview" },
+  "agents": { id: "agents", title: "Agents", url: "/dashboard/agents", icon: Bot, permission: "agents" },
+  "quick-replies": { id: "quick-replies", title: "Quick Replies", url: "/dashboard/quick-replies", icon: Reply, permission: "quickReplies" },
+  "chat-buttons": { id: "chat-buttons", title: "Chat Buttons", url: "/dashboard/chat-buttons", icon: MousePointer2, permission: "widgetSettings" },
+  "sources": { id: "sources", title: "Sources", url: "/dashboard/sources", icon: FileText, permission: "sources" },
+  "knowledge-base": { id: "knowledge-base", title: "Knowledge Base", url: "/dashboard/knowledge", icon: Database, permission: "knowledgeBase" },
+  "triggers": { id: "triggers", title: "Triggers", url: "/dashboard/triggers", icon: Zap, permission: "settings" },
+  "analytics": { id: "analytics", title: "Analytics", url: "/dashboard/analytics", icon: BarChart3, permission: "analytics" },
+  "chat-logs": { id: "chat-logs", title: "Chat Logs", url: "/dashboard/chat-logs", icon: FileText, permission: "chatLogs" },
+  "notifications": { id: "notifications", title: "Notifications", url: "/dashboard/notification-settings", icon: Bell, permission: "notifications" },
+  "live-preview": { id: "live-preview", title: "Live Preview", url: "/dashboard/live-preview", icon: Eye, permission: "livePreview" },
+  "settings": { id: "settings", title: "Settings", url: "/dashboard/settings", icon: Settings, permission: "settings" },
+  "widget": { id: "widget", title: "Widget", url: "/dashboard/widget", icon: Palette, permission: "widgetSettings" },
+  "welcome-bubble": { id: "welcome-bubble", title: "Welcome Bubble", url: "/dashboard/welcome-bubble", icon: MessageCircle, permission: "widgetSettings" },
+  "product-cards": { id: "product-cards", title: "Product Cards", url: "/dashboard/product-cards", icon: Package, permission: "productCards" },
+  "supervisors": { id: "supervisors", title: "Supervisors", url: "/dashboard/supervisors", icon: Users, permission: "supervisors" },
+  "team-activity": { id: "team-activity", title: "Team Activity", url: "/dashboard/team-activity", icon: Activity, permission: "teamActivity" },
+  "work-scheduler": { id: "work-scheduler", title: "Work Scheduler", url: "/dashboard/work-scheduler", icon: Clock, permission: "workScheduler" },
+  "integrations": { id: "integrations", title: "Integrations", url: "/dashboard/integrations", icon: Plug2, permission: "settings" },
+  "plans": { id: "plans", title: "Plans", url: "/dashboard/plans", icon: CreditCard, permission: "billing" },
+  "billing": { id: "billing", title: "Billing", url: "/dashboard/billing", icon: Receipt, permission: "billing" },
+};
+
+const defaultMainMenuItems: MenuItem[] = [
+  menuItemsMap["overview"],
+  menuItemsMap["agents"],
+  menuItemsMap["quick-replies"],
+  menuItemsMap["chat-buttons"],
+  menuItemsMap["sources"],
+  menuItemsMap["knowledge-base"],
+  menuItemsMap["triggers"],
+  menuItemsMap["analytics"],
+  menuItemsMap["chat-logs"],
+  menuItemsMap["notifications"],
+  menuItemsMap["live-preview"],
+  menuItemsMap["settings"],
 ];
+
+const defaultWidgetSettingItems: MenuItem[] = [
+  menuItemsMap["widget"],
+  menuItemsMap["welcome-bubble"],
+  menuItemsMap["product-cards"],
+];
+
+const defaultManagementItems: MenuItem[] = [
+  menuItemsMap["supervisors"],
+  menuItemsMap["team-activity"],
+  menuItemsMap["work-scheduler"],
+  menuItemsMap["integrations"],
+  menuItemsMap["plans"],
+  menuItemsMap["billing"],
+];
+
+const defaultGroupForItem: Record<string, "main" | "widgetSetting" | "management"> = {
+  "overview": "main",
+  "agents": "main",
+  "quick-replies": "main",
+  "chat-buttons": "main",
+  "sources": "main",
+  "knowledge-base": "main",
+  "triggers": "main",
+  "analytics": "main",
+  "chat-logs": "main",
+  "notifications": "main",
+  "live-preview": "main",
+  "settings": "main",
+  "widget": "widgetSetting",
+  "welcome-bubble": "widgetSetting",
+  "product-cards": "widgetSetting",
+  "supervisors": "management",
+  "team-activity": "management",
+  "work-scheduler": "management",
+  "integrations": "management",
+  "plans": "management",
+  "billing": "management",
+};
 
 interface BillingStatus {
   status: string;
@@ -107,6 +210,8 @@ export function AppSidebar() {
   const merchantId = localStorage.getItem("merchantId") || "";
   const userType = localStorage.getItem("userType") || "merchant";
   const [online, setOnline] = useState(true);
+  const [widgetSettingOpen, setWidgetSettingOpen] = useState(false);
+  const [managementOpen, setManagementOpen] = useState(false);
   const prevEscalatedCountRef = useRef<number>(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hasPlayedInitialRef = useRef(false);
@@ -115,8 +220,65 @@ export function AppSidebar() {
 
   const isAdmin = userType === "merchant";
   const permissions = isAdmin ? rolePermissions.administrator : rolePermissions.supervisor;
-  
-  const filteredMenuItems = menuItems.filter(item => permissions[item.permission]);
+
+  const { data: platformSettings } = useQuery<Record<string, string>>({
+    queryKey: ["/api/platform-settings"],
+  });
+
+  const menuConfig = useMemo(() => {
+    if (platformSettings?.merchant_menu_order) {
+      try {
+        const savedConfig: MenuItemConfig[] = JSON.parse(platformSettings.merchant_menu_order);
+        if (Array.isArray(savedConfig) && savedConfig.length > 0) {
+          return savedConfig;
+        }
+      } catch (e) {
+        console.error("Failed to parse menu config:", e);
+      }
+    }
+    return null;
+  }, [platformSettings]);
+
+  const { mainItems, widgetItems, managementItems } = useMemo(() => {
+    if (!menuConfig) {
+      return {
+        mainItems: defaultMainMenuItems,
+        widgetItems: defaultWidgetSettingItems,
+        managementItems: defaultManagementItems,
+      };
+    }
+
+    const enabledMainItems: MenuItem[] = [];
+    const enabledWidgetItems: MenuItem[] = [];
+    const enabledManagementItems: MenuItem[] = [];
+
+    for (const config of menuConfig) {
+      if (!config.enabled) continue;
+      
+      const menuItem = menuItemsMap[config.id];
+      if (!menuItem) continue;
+
+      const group = config.group || defaultGroupForItem[config.id] || "main";
+
+      if (group === "main") {
+        enabledMainItems.push(menuItem);
+      } else if (group === "widgetSetting") {
+        enabledWidgetItems.push(menuItem);
+      } else if (group === "management") {
+        enabledManagementItems.push(menuItem);
+      }
+    }
+
+    return {
+      mainItems: enabledMainItems,
+      widgetItems: enabledWidgetItems,
+      managementItems: enabledManagementItems,
+    };
+  }, [menuConfig]);
+
+  const filteredMainItems = mainItems.filter(item => permissions[item.permission]);
+  const filteredWidgetItems = widgetItems.filter(item => permissions[item.permission]);
+  const filteredManagementItems = managementItems.filter(item => permissions[item.permission]);
 
   const { data: merchant } = useQuery<{ online?: boolean; companyName?: string }>({
     queryKey: ["/api/merchant", merchantId],
@@ -163,6 +325,18 @@ export function AppSidebar() {
     prevEscalatedCountRef.current = escalatedCount;
   }, [escalatedCount, sessions, playAlertSound]);
 
+  useEffect(() => {
+    const widgetUrls = filteredWidgetItems.map(i => i.url);
+    const managementUrls = filteredManagementItems.map(i => i.url);
+    
+    if (widgetUrls.some(url => location === url || location.startsWith(url + "/"))) {
+      setWidgetSettingOpen(true);
+    }
+    if (managementUrls.some(url => location === url || location.startsWith(url + "/"))) {
+      setManagementOpen(true);
+    }
+  }, [location, filteredWidgetItems, filteredManagementItems]);
+
   const updateStatusMutation = useMutation({
     mutationFn: async (newOnline: boolean) => {
       return apiRequest("POST", "/api/merchant/config", {
@@ -186,6 +360,12 @@ export function AppSidebar() {
     setLocation("/");
   };
 
+  const isItemActive = (url: string) => {
+    return location === url || (url !== "/dashboard" && location.startsWith(url));
+  };
+
+  const isChatSessionsActive = location === "/dashboard/sessions" || location.startsWith("/dashboard/sessions/");
+
   return (
     <Sidebar>
       <SidebarHeader className="p-4">
@@ -203,12 +383,10 @@ export function AppSidebar() {
           <SidebarGroupLabel>Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {filteredMenuItems.map((item) => {
-                const isActive = location === item.url || 
-                  (item.url !== "/dashboard" && location.startsWith(item.url));
-                const showNotification = item.title === "Chat Sessions" && escalatedCount > 0;
+              {filteredMainItems.map((item) => {
+                const isActive = isItemActive(item.url);
                 return (
-                  <SidebarMenuItem key={item.title}>
+                  <SidebarMenuItem key={item.id || item.title}>
                     <SidebarMenuButton
                       asChild
                       className={isActive ? "bg-sidebar-accent" : ""}
@@ -216,17 +394,104 @@ export function AppSidebar() {
                       <Link href={item.url} data-testid={`link-sidebar-${item.title.toLowerCase().replace(/\s/g, '-')}`}>
                         <item.icon className="w-4 h-4" />
                         <span className="flex-1">{item.title}</span>
-                        {showNotification && <BlinkingDot />}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
               })}
+
+              {filteredWidgetItems.length > 0 && (
+                <Collapsible open={widgetSettingOpen} onOpenChange={setWidgetSettingOpen}>
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton className="w-full justify-between" data-testid="button-sidebar-widget-setting">
+                        <div className="flex items-center gap-2">
+                          <Palette className="w-4 h-4" />
+                          <span>Widget Setting</span>
+                        </div>
+                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${widgetSettingOpen ? "rotate-180" : ""}`} />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                  </SidebarMenuItem>
+                  <CollapsibleContent className="overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-top-1 data-[state=open]:slide-in-from-top-1 duration-200">
+                    {filteredWidgetItems.map((item) => {
+                      const isActive = isItemActive(item.url);
+                      return (
+                        <SidebarMenuItem key={item.id || item.title} className="pl-4">
+                          <SidebarMenuButton
+                            asChild
+                            className={isActive ? "bg-sidebar-accent" : ""}
+                          >
+                            <Link href={item.url} data-testid={`link-sidebar-${item.title.toLowerCase().replace(/\s/g, '-')}`}>
+                              <item.icon className="w-4 h-4" />
+                              <span className="flex-1">{item.title}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      );
+                    })}
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+
+              {filteredManagementItems.length > 0 && (
+                <Collapsible open={managementOpen} onOpenChange={setManagementOpen}>
+                  <SidebarMenuItem>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton className="w-full justify-between" data-testid="button-sidebar-management">
+                        <div className="flex items-center gap-2">
+                          <Users className="w-4 h-4" />
+                          <span>Management</span>
+                        </div>
+                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${managementOpen ? "rotate-180" : ""}`} />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                  </SidebarMenuItem>
+                  <CollapsibleContent className="overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-top-1 data-[state=open]:slide-in-from-top-1 duration-200">
+                    {filteredManagementItems.map((item) => {
+                      const isActive = isItemActive(item.url);
+                      return (
+                        <SidebarMenuItem key={item.id || item.title} className="pl-4">
+                          <SidebarMenuButton
+                            asChild
+                            className={isActive ? "bg-sidebar-accent" : ""}
+                          >
+                            <Link href={item.url} data-testid={`link-sidebar-${item.title.toLowerCase().replace(/\s/g, '-')}`}>
+                              <item.icon className="w-4 h-4" />
+                              <span className="flex-1">{item.title}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      );
+                    })}
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="p-4 space-y-3">
+        {permissions.sessions && (
+          <Link 
+            href="/dashboard/sessions"
+            data-testid="link-sidebar-chat-sessions-static"
+          >
+            <div 
+              className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all duration-200 ${
+                isChatSessionsActive 
+                  ? "bg-primary text-white shadow-lg shadow-primary/30" 
+                  : "bg-primary/90 text-white hover:bg-primary shadow-md shadow-primary/20"
+              }`}
+              style={{ boxShadow: "0 4px 12px rgba(107, 92, 246, 0.3)" }}
+            >
+              <MessageSquare className="w-5 h-5" />
+              <span className="font-medium flex-1">Chat Sessions</span>
+              {escalatedCount > 0 && <BlinkingDot />}
+            </div>
+          </Link>
+        )}
+        
         {isAdmin && billingStatus && (
           <div className="p-3 rounded-lg bg-muted/50 space-y-2">
             <div className="flex items-center gap-2 text-xs font-medium">

@@ -4463,7 +4463,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         'guide_button_icon_width',
         'guide_button_icon_height',
         'guide_promo_image_enabled',
-        'guide_promo_image_url'
+        'guide_promo_image_url',
+        'merchant_menu_order'
       ];
       const publicSettings: Record<string, string> = {};
       for (const key of publicKeys) {
