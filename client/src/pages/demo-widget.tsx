@@ -994,8 +994,14 @@ export default function DemoWidgetPage() {
                 `}
                 data-testid={`payment-method-${method.id}`}
               >
-                <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                  <IconComponent className="w-5 h-5 text-purple-400" />
+                <div 
+                  className="w-10 h-10 rounded-lg flex items-center justify-center"
+                  style={{ 
+                    background: 'linear-gradient(135deg, #6B5CF6 0%, #8B5CF6 100%)',
+                    boxShadow: '0 4px 12px rgba(107, 92, 246, 0.4)'
+                  }}
+                >
+                  <IconComponent className="w-5 h-5 text-white" />
                 </div>
                 <div className="flex-1 text-left">
                   <p className="font-semibold text-sm">{method.name}</p>
