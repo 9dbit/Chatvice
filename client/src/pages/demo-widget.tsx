@@ -145,6 +145,8 @@ export default function DemoWidgetPage() {
   const [paymentStage, setPaymentStage] = useState<"idle" | "confirming" | "success">("idle");
   const [transactionKey, setTransactionKey] = useState(0);
   const [merchantInfo] = useState({ name: "DinnCafe", domain: "dinncafe.com" });
+  const [chatSessionId] = useState(() => `demo-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+  const [isAiTyping, setIsAiTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -193,6 +195,38 @@ export default function DemoWidgetPage() {
     }, delay);
   };
 
+  // AI-powered chat for dynamic responses
+  const askAI = async (userMessage: string): Promise<string> => {
+    try {
+      const context = {
+        selectedProduct,
+        isLoggedIn,
+        selectedPaymentMethod,
+        transactionCompleted,
+        orderId,
+        customerId,
+        merchantInfo,
+        paymentStage,
+      };
+      
+      const response = await fetch("/api/demo/topup-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: chatSessionId,
+          message: userMessage,
+          context,
+        }),
+      });
+      
+      const data = await response.json();
+      return data.answer || "Ada yang bisa saya bantu kak?";
+    } catch (error) {
+      console.error("AI chat error:", error);
+      return "Maaf kak, ada gangguan. Coba lagi ya!";
+    }
+  };
+
   const startChat = () => {
     setIsOpen(true);
     setMessages([]);
@@ -209,87 +243,66 @@ export default function DemoWidgetPage() {
   };
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
+    if (!inputMessage.trim() || isAiTyping) return;
     
     const userMsg = inputMessage;
     addMessage({ from: "user", content: userMsg });
     const msg = userMsg.toLowerCase();
     setInputMessage("");
 
-    // Check for top up intent
-    if (msg.includes("topup") || msg.includes("top up") || msg.includes("koin") || msg.includes("beli") || msg.includes("isi")) {
+    // Quick actions for specific intents (keep these for immediate response)
+    if (msg.includes("topup") || msg.includes("top up") || msg.includes("isi ulang") || msg.includes("beli koin")) {
       handleAction("topup");
       return;
     }
 
-    // Contextual responses based on user intent
-    let response = "";
-    let actions: { label: string; action: string; variant?: "default" | "destructive" }[] | undefined;
-
-    // Handle login/auth questions
-    if (msg.includes("login") || msg.includes("masuk") || msg.includes("daftar") || msg.includes("register") || msg.includes("akun")) {
-      response = "Untuk login atau daftar, silakan isi form berikut:";
-      addTypingThenMessage({ from: "bot", content: response, component: "auth" as const }, 500);
+    if (msg.includes("login") || msg.includes("masuk") || msg.includes("daftar") || msg.includes("register")) {
+      addTypingThenMessage({ from: "bot", content: "Untuk login atau daftar, silakan isi form berikut:", component: "auth" as const }, 500);
       return;
     }
 
-    // Handle payment/method questions
-    if (msg.includes("bayar") || msg.includes("pembayaran") || msg.includes("metode") || msg.includes("transfer") || msg.includes("qris")) {
-      response = "Untuk melakukan pembayaran, silakan pilih nominal top up terlebih dahulu:";
-      addTypingThenMessage({ from: "bot", content: response, component: "packages" as const }, 500);
-      return;
-    }
-
-    // Handle help questions
-    if (msg.includes("bantuan") || msg.includes("help") || msg.includes("cara")) {
-      response = "Saya bisa membantu kakak untuk:\n\n• Top up koin\n• Login / Daftar akun\n• Informasi pembayaran\n\nSilakan pilih:";
-      actions = [
-        { label: "Top Up Koin", action: "topup" },
-        { label: "Login / Daftar", action: "show_auth" },
-      ];
-      addTypingThenMessage({ from: "bot", content: response, actions }, 500);
-      return;
-    }
-
-    // If in transaction, focus on continuing
-    if (selectedProduct && !transactionCompleted) {
-      if (msg.includes("diskon") || msg.includes("promo") || msg.includes("potongan")) {
-        response = `Belum ada diskon untuk ${selectedProduct.name}. Lanjut bayar?`;
+    // For all other messages, use AI for natural conversation
+    const typingId = addMessage({ from: "bot", content: "", isTyping: true });
+    setIsAiTyping(true);
+    
+    try {
+      const aiResponse = await askAI(userMsg);
+      
+      // Remove typing indicator
+      setMessages(prev => prev.filter(m => m.id !== typingId));
+      
+      // Parse AI response for potential actions
+      let actions: { label: string; action: string; variant?: "default" | "destructive" }[] | undefined;
+      
+      // Add contextual buttons based on state
+      if (transactionCompleted) {
+        actions = [
+          { label: "Top Up Lagi", action: "new_transaction" },
+          { label: "Kembali ke Beranda", action: "go_home" },
+        ];
+      } else if (selectedProduct && !isLoggedIn) {
         actions = [
           { label: "Lanjut Bayar", action: "confirm_auth" },
           { label: "Pilih Lain", action: "topup" },
         ];
-      } else if (msg.includes("batal") || msg.includes("cancel")) {
-        response = "Batalkan pesanan ini?";
-        actions = [
-          { label: "Ya", action: "cancel_package", variant: "destructive" },
-          { label: "Tidak", action: "confirm_auth" },
-        ];
-      } else {
-        response = `Lanjut bayar ${selectedProduct.name}?`;
-        actions = [
-          { label: "Lanjut Bayar", action: "confirm_auth" },
-          { label: "Pilih Lain", action: "topup" },
-        ];
+      } else if (!selectedProduct) {
+        // Check if user seems to want to top up
+        if (msg.includes("koin") || msg.includes("nominal") || msg.includes("paket")) {
+          actions = [{ label: "Pilih Nominal", action: "topup" }];
+        }
       }
-    } else if (transactionCompleted) {
-      response = "Pembayaran selesai. Terima kasih!";
-    } else {
-      // No active transaction - provide helpful options
-      if (msg.includes("diskon") || msg.includes("promo")) {
-        response = "Pilih paket dulu ya.";
-        actions = [{ label: "Pilih Paket", action: "topup" }];
-      } else {
-        response = "Ada yang bisa saya bantu?";
-        actions = [
-          { label: "Top Up Koin", action: "topup" },
-          { label: "Login / Daftar", action: "show_auth" },
-          { label: "Bantuan", action: "help" },
-        ];
-      }
+      
+      addMessage({ from: "bot", content: aiResponse, actions });
+    } catch (error) {
+      setMessages(prev => prev.filter(m => m.id !== typingId));
+      addMessage({ 
+        from: "bot", 
+        content: "Maaf kak, ada gangguan. Coba lagi ya!",
+        actions: [{ label: "Top Up Koin", action: "topup" }]
+      });
+    } finally {
+      setIsAiTyping(false);
     }
-
-    addTypingThenMessage({ from: "bot", content: response, actions }, 500);
   };
 
   const getRandomGreeting = () => {

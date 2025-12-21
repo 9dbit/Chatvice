@@ -4602,6 +4602,121 @@ Be helpful, friendly, and concise. If asked about something not related to Chatv
     }
   });
 
+  // Demo Widget Top-Up Chat - AI-powered conversational assistant
+  const demoTopupSessions = new Map<string, { messages: Array<{ role: "user" | "assistant"; content: string }>; state: any }>();
+
+  app.post("/api/demo/topup-chat", async (req, res) => {
+    try {
+      const { sessionId, message, context } = req.body;
+      
+      if (!sessionId || !message) {
+        return res.status(400).json({ error: "sessionId and message are required" });
+      }
+      
+      // Get or create session
+      let session = demoTopupSessions.get(sessionId);
+      if (!session) {
+        session = { messages: [], state: {} };
+        demoTopupSessions.set(sessionId, session);
+      }
+      
+      // Update state from context if provided
+      if (context) {
+        session.state = { ...session.state, ...context };
+      }
+      
+      // Add user message to history
+      session.messages.push({ role: "user", content: message });
+      
+      // Build system prompt for top-up assistant
+      const systemPrompt = `Kamu adalah asisten top-up koin yang ramah dan helpful untuk platform game/aplikasi di Indonesia.
+Nama kamu: CoinBot
+Gaya bahasa: Santai, ramah, pakai "kak", "bosku", "sis", "gan" sesuai konteks
+
+KONTEKS SAAT INI:
+${context?.selectedProduct ? `- Nominal dipilih: ${context.selectedProduct.name} (${context.selectedProduct.price})` : '- Belum pilih nominal'}
+${context?.isLoggedIn ? `- Status: Sudah login` : '- Status: Belum login'}
+${context?.selectedPaymentMethod ? `- Metode bayar: ${context.selectedPaymentMethod}` : '- Metode bayar: Belum dipilih'}
+${context?.transactionCompleted ? '- Transaksi: BERHASIL' : '- Transaksi: Belum selesai'}
+${context?.orderId ? `- Order ID: ${context.orderId}` : ''}
+
+PAKET TOP-UP TERSEDIA:
+- Rp 25.000 (25 Koin)
+- Rp 50.000 (50 Koin + 5 Bonus)
+- Rp 100.000 (100 Koin + 15 Bonus)
+- Rp 200.000 (200 Koin + 40 Bonus)
+- Rp 500.000 (500 Koin + 125 Bonus)
+
+METODE PEMBAYARAN:
+- QRIS (Scan QR Code)
+- Transfer Bank (BCA, Mandiri, BNI, BRI)
+- Virtual Account
+- E-Wallet (GoPay, OVO, DANA, ShopeePay)
+- Crypto (Bitcoin, USDT, ETH)
+- Payment Link
+
+INSTRUKSI PENTING:
+1. Jawab SINGKAT dan LANGSUNG (max 2-3 kalimat)
+2. Gunakan bahasa Indonesia casual/gaul
+3. Jika user tanya hal di luar top-up, arahkan kembali dengan sopan
+4. Jika transaksi berhasil dan user bilang tidak butuh bantuan lagi, ucapkan terima kasih dengan sapaan random (kak/bosku/sis/gan)
+5. Jika user mau top-up lagi, tanyakan nominal yang diinginkan
+6. Selalu akhiri dengan pertanyaan follow-up atau tawaran bantuan
+
+CONTOH JAWABAN BAIK:
+- "Oke bosku! Untuk top up Rp 100.000 dapat 100 koin + 15 bonus lho. Mau lanjut?"
+- "Siap kak! Pembayaran bisa via QRIS, Transfer Bank, atau E-Wallet. Mana yang paling nyaman?"
+- "Terima kasih udah top up di sini kak! Ada yang bisa dibantu lagi?"`;
+
+      // Limit history to last 10 messages
+      const recentMessages = session.messages.slice(-10);
+      
+      const chatMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+        { role: "system", content: systemPrompt },
+        ...recentMessages
+      ];
+      
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: chatMessages,
+        max_tokens: 200,
+        temperature: 0.8,
+      });
+      
+      const aiResponse = completion.choices[0]?.message?.content || "Maaf kak, ada gangguan. Coba lagi ya!";
+      
+      // Add AI response to history
+      session.messages.push({ role: "assistant", content: aiResponse });
+      
+      // Keep session size manageable (max 50 messages)
+      if (session.messages.length > 50) {
+        session.messages = session.messages.slice(-30);
+      }
+      
+      // Clean up old sessions (older than 30 minutes)
+      const now = Date.now();
+      if (Math.random() < 0.1) { // 10% chance to run cleanup
+        demoTopupSessions.forEach((_, key) => {
+          const sessionTime = parseInt(key.split('-')[1] || '0');
+          if (now - sessionTime > 30 * 60 * 1000) {
+            demoTopupSessions.delete(key);
+          }
+        });
+      }
+      
+      res.json({ 
+        answer: aiResponse,
+        sessionId 
+      });
+    } catch (error) {
+      console.error("Demo topup chat error:", error);
+      res.json({ 
+        answer: "Waduh ada masalah teknis nih kak. Coba refresh halaman atau tunggu sebentar ya!",
+        sessionId: req.body.sessionId 
+      });
+    }
+  });
+
   const publicHelpRateLimit = new Map<string, { count: number; resetTime: number }>();
   const PUBLIC_HELP_LIMIT = 10;
   const PUBLIC_HELP_WINDOW = 60 * 1000;
