@@ -44,6 +44,34 @@ Core entities include Merchants, Supervisors, Sessions, Messages, Triggers, Know
 
 **Interactive AI Responses**: AI responses can include interactive buttons (`[BTN:Label:action text]`) and clickable links (`[LINK:Display Text:/path]`) which are parsed and rendered in both Chatvice Guide and the merchant embedded widget.
 
+## Scaling Guidelines
+
+**Current Setup:** Reserved VM (single instance) with in-memory rate limiting.
+
+**When to Upgrade to Redis + Autoscale:**
+
+| Indicator | Threshold | Action |
+|-----------|-----------|--------|
+| Concurrent WebSocket connections | > 5,000 | Consider Redis pub/sub for WS |
+| Messages per day | > 500,000 | Monitor rate limit store size |
+| Rate limit store size | > 50,000 entries | Upgrade to Redis rate limiting |
+| Response latency (P99) | > 2 seconds | Add Redis caching layer |
+| CPU usage | > 80% sustained | Upgrade VM size or Autoscale |
+| Memory usage | > 80% sustained | Upgrade VM size |
+
+**Migration Steps for Autoscale:**
+1. Add Redis (Upstash/Redis Cloud) for rate limiting stores
+2. Migrate session store to Redis (connect-redis)
+3. Implement Redis pub/sub for WebSocket message broadcasting
+4. Add sticky sessions or session affinity for WebSocket connections
+5. Test horizontal scaling with 2-3 instances before production
+
+**Files to Modify:**
+- `server/rateLimit.ts` - Replace Map with Redis client
+- `server/cache.ts` - Replace LRU cache with Redis
+- `server/index.ts` - Add Redis session store
+- `server/websocket.ts` - Add Redis pub/sub for cross-instance messaging
+
 ## External Dependencies
 -   **AI Services**: OpenAI API (GPT-4.1-mini, text-embedding-3-small).
 -   **Database**: PostgreSQL.
