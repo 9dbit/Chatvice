@@ -13,7 +13,7 @@ import {
 import OpenAI from "openai";
 import bcrypt from "bcryptjs";
 import session from "express-session";
-import connectPgSimple from "connect-pg-simple";
+import MemoryStore from "memorystore";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -24,9 +24,6 @@ import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClien
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant } from "@shared/schema";
 import crypto from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
-import { widgetRateLimiter, apiRateLimiter } from "./rateLimit";
-import { ipFilter, detectSQLInjection } from "./security";
-import { pool } from "./db";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -77,8 +74,8 @@ declare module "express-session" {
 import { getEffectiveSubscriptionPlan, getAllEffectiveSubscriptionPlans, clearPlanCache } from './subscriptionPlanUtils';
 
 function getBaseUrl(req: Request): string {
-  if (process.env.REPLIT_DEV_DOMAIN) {
-    return `https://${process.env.REPLIT_DEV_DOMAIN}`;
+  if (process.env.REPL_DEV_DOMAIN) {
+    return `https://${process.env.REPL_DEV_DOMAIN}`;
   }
   const protocol = req.headers["x-forwarded-proto"] || req.protocol || "http";
   const host = req.headers["x-forwarded-host"] || req.headers.host || "localhost:5000";
@@ -150,7 +147,7 @@ async function getEffectivePlanLimitsAsync(merchant: Merchant) {
       annualPrice: merchant.customAnnualPrice ?? basePlan.annualPrice,
     };
   }
-  
+
   // For standard plans, use the effective plan with DB overrides
   const effectivePlan = await getEffectiveSubscriptionPlan(merchant.subscriptionPlanId);
   if (!effectivePlan) {
@@ -178,7 +175,7 @@ async function getEffectivePlanLimitsAsync(merchant: Merchant) {
       annualPrice: freePlan.annualPrice,
     };
   }
-  
+
   return {
     conversationsLimit: effectivePlan.conversationsLimit,
     agentsLimit: effectivePlan.agentsLimit,
@@ -195,9 +192,9 @@ async function checkSubscriptionLimits(merchantId: string, type: 'conversation' 
   if (!merchant) {
     return { allowed: false, message: "Merchant not found" };
   }
-  
+
   const effectiveLimits = await getEffectivePlanLimitsAsync(merchant);
-  
+
   if (merchant.subscriptionStatus === 'trial') {
     const trialExpired = merchant.trialEndsAt && new Date(merchant.trialEndsAt) < new Date();
     if (trialExpired) {
@@ -206,7 +203,7 @@ async function checkSubscriptionLimits(merchantId: string, type: 'conversation' 
   } else if (merchant.subscriptionStatus !== 'active') {
     return { allowed: false, message: "Subscription inactive. Please renew to continue." };
   }
-  
+
   if (type === 'conversation') {
     if (effectiveLimits.conversationsLimit === -1) return { allowed: true };
     const used = merchant.conversationsUsed || 0;
@@ -214,7 +211,7 @@ async function checkSubscriptionLimits(merchantId: string, type: 'conversation' 
       return { allowed: false, message: `Monthly conversation limit reached (${effectiveLimits.conversationsLimit}). Please upgrade your plan.` };
     }
   }
-  
+
   if (type === 'supervisor') {
     const supervisors = await storage.getSupervisorsByMerchant(merchantId);
     if (effectiveLimits.supervisorsLimit === -1) return { allowed: true };
@@ -222,7 +219,7 @@ async function checkSubscriptionLimits(merchantId: string, type: 'conversation' 
       return { allowed: false, message: `Supervisor limit reached (${effectiveLimits.supervisorsLimit}). Please upgrade your plan.` };
     }
   }
-  
+
   return { allowed: true };
 }
 
@@ -230,7 +227,7 @@ async function checkTriggers(merchantId: string, text: string): Promise<{ trigge
   const triggers = await storage.getTriggers(merchantId);
   const defaultTriggers = ["deposit not received", "withdrawal pending", "speak to manager", "refund"];
   const allTriggers = triggers.length > 0 ? triggers.map(t => t.keyword) : defaultTriggers;
-  
+
   const lowerText = text.toLowerCase();
   for (const trigger of allTriggers) {
     if (lowerText.includes(trigger.toLowerCase())) {
@@ -258,22 +255,22 @@ const lastAssignedAgentIndex: Map<string, number> = new Map();
 async function getNextAgentId(merchantId: string): Promise<string | null> {
   const agents = await storage.getAgents(merchantId);
   const activeAgents = agents.filter(a => a.isActive);
-  
+
   if (activeAgents.length === 0) {
     // No active agents, return null
     return null;
   }
-  
+
   if (activeAgents.length === 1) {
     // Only one active agent, always use it
     return activeAgents[0].id;
   }
-  
+
   // Round-robin for 2+ active agents
   const lastIndex = lastAssignedAgentIndex.get(merchantId) ?? -1;
   const nextIndex = (lastIndex + 1) % activeAgents.length;
   lastAssignedAgentIndex.set(merchantId, nextIndex);
-  
+
   return activeAgents[nextIndex].id;
 }
 
@@ -315,14 +312,14 @@ async function askChatvice(
   const merchant = await storage.getMerchant(merchantId);
   const companyName = merchant?.companyName || "our company";
   const activeAgentId = merchant?.activeAgentId || undefined;
-  
+
   // Get agent's settings
   let agentSystemPrompt = "";
   let agentName = "Chatvice";
   let toneStyle = "formal";
   let temperature = 0.7;
   let autoEscalateAngry = false;
-  
+
   if (activeAgentId) {
     const agent = await storage.getAgent(activeAgentId);
     if (agent) {
@@ -343,7 +340,7 @@ async function askChatvice(
       }
     }
   }
-  
+
   // Check for angry customer if auto-escalate is enabled
   if (autoEscalateAngry) {
     const angerIndicators = ["marah", "kesal", "kecewa", "angry", "frustrated", "upset", "terrible", "worst", "hate", "stupid", "idiot", "bodoh", "goblok", "!!!"];
@@ -358,7 +355,7 @@ async function askChatvice(
       };
     }
   }
-  
+
   // Build tone style instruction
   const toneInstructions: Record<string, string> = {
     formal: "Gunakan bahasa formal dan sopan. Panggil customer dengan 'Bapak/Ibu'. Hindari bahasa gaul atau slang.",
@@ -366,7 +363,7 @@ async function askChatvice(
     poetic: "Jawab dengan gaya bahasa yang indah dan ekspresif. Gunakan metafora dan perumpamaan yang menarik."
   };
   const toneInstruction = toneInstructions[toneStyle] || toneInstructions.formal;
-  
+
   let knowledgeContext = "";
   try {
     const relevantChunks = await searchKnowledge(merchantId, message, 3, activeAgentId);
@@ -385,12 +382,12 @@ async function askChatvice(
       : await storage.getKnowledge(merchantId);
     knowledgeContext = knowledge?.content || "";
   }
-  
+
   // Detect pricing-related questions and inject subscription plan data
   const pricingKeywords = ["harga", "pricing", "price", "biaya", "cost", "langganan", "subscription", "tarif", "paket harga", "paket langganan", "berapa harga", "berapa biaya"];
   const lowerMessage = message.toLowerCase();
   const isPricingQuestion = pricingKeywords.some(keyword => lowerMessage.includes(keyword));
-  
+
   if (isPricingQuestion) {
     try {
       const allPlans = await getAllEffectiveSubscriptionPlans();
@@ -409,7 +406,7 @@ async function askChatvice(
 - ${sourcesText} knowledge sources
 - Fitur: ${plan.features.join(', ')}`;
       }).join('\n\n');
-      
+
       knowledgeContext += `\n\n--- SUBSCRIPTION PLANS INFO ---\n${pricingInfo}`;
     } catch (error) {
       console.error("Error fetching subscription plans:", error);
@@ -484,12 +481,12 @@ If you don't have specific information to answer, be honest about it and offer t
   try {
     // Fetch conversation history from session messages for context continuity
     const sessionMessages = await storage.getMessages(sessionId);
-    
+
     // Build messages array with history (limit to last 10 messages for token efficiency)
     const chatMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
       { role: "system", content: systemMessage }
     ];
-    
+
     // Add conversation history (limit to last 10 messages)
     if (sessionMessages.length > 0) {
       const recentMessages = sessionMessages.slice(-10);
@@ -502,10 +499,10 @@ If you don't have specific information to answer, be honest about it and offer t
         // Skip supervisor messages in AI context
       }
     }
-    
+
     // Add current message
     chatMessages.push({ role: "user", content: message });
-    
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
       messages: chatMessages,
@@ -535,10 +532,10 @@ async function analyzeMediaWithAI(
   const merchant = await storage.getMerchant(merchantId);
   const companyName = merchant?.companyName || "our company";
   const activeAgentId = merchant?.activeAgentId || undefined;
-  
+
   let agentName = "Chatvice";
   let agentSystemPrompt = "";
-  
+
   if (activeAgentId) {
     const agent = await storage.getAgent(activeAgentId);
     if (agent) {
@@ -618,18 +615,18 @@ ${knowledgeContext || "No specific knowledge base configured yet."}`
       return completion.choices[0]?.message?.content || 
         "Saya melihat gambar yang Anda kirim. Bagaimana saya bisa membantu Anda terkait ini?";
     } 
-    
+
     if (mediaType === "video") {
       return `Terima kasih telah mengirimkan video "${filename}". Saya sudah menerimanya. Mohon jelaskan apa yang ingin Anda tanyakan atau butuhkan bantuan terkait video ini?`;
     }
-    
+
     if (mediaType === "document") {
       const ext = filename.toLowerCase().split('.').pop() || "";
-      
+
       if (ext === "pdf") {
         return `Terima kasih telah mengirimkan dokumen PDF "${filename}". Saya sudah menerimanya. Apakah ada hal spesifik dari dokumen ini yang ingin Anda tanyakan atau diskusikan?`;
       }
-      
+
       if (ext === "txt" || ext === "csv") {
         const filePath = path.join(process.cwd(), "uploads", fileUrl.replace("/uploads/", ""));
         try {
@@ -637,10 +634,10 @@ ${knowledgeContext || "No specific knowledge base configured yet."}`
           if (stats.size > 100 * 1024) {
             return `Terima kasih telah mengirimkan dokumen "${filename}". File ini cukup besar. Apakah ada bagian spesifik yang ingin Anda tanyakan?`;
           }
-          
+
           const content = await fs.promises.readFile(filePath, "utf-8");
           const preview = content.substring(0, 1000);
-          
+
           const completion = await openai.chat.completions.create({
             model: "gpt-4.1-mini",
             messages: [
@@ -661,25 +658,25 @@ ${knowledgeContext || "No specific knowledge base configured yet."}`
             ],
             max_completion_tokens: 500,
           });
-          
+
           return completion.choices[0]?.message?.content || 
             `Saya sudah menerima dokumen "${filename}". Bagaimana saya bisa membantu Anda?`;
         } catch {
           return `Terima kasih telah mengirimkan dokumen "${filename}". Bagaimana saya bisa membantu Anda terkait dokumen ini?`;
         }
       }
-      
+
       if (ext === "doc" || ext === "docx") {
         return `Terima kasih telah mengirimkan dokumen Word "${filename}". Saya sudah menerimanya. Apakah ada hal spesifik dari dokumen ini yang ingin Anda tanyakan?`;
       }
-      
+
       if (ext === "xls" || ext === "xlsx") {
         return `Terima kasih telah mengirimkan file Excel "${filename}". Saya sudah menerimanya. Apakah ada data atau informasi spesifik yang ingin Anda tanyakan dari file ini?`;
       }
-      
+
       return `Terima kasih telah mengirimkan dokumen "${filename}". Saya sudah menerimanya. Apakah ada yang bisa saya bantu terkait dokumen ini?`;
     }
-    
+
     return "Saya sudah menerima file Anda. Bagaimana saya bisa membantu?";
   } catch (error) {
     console.error("Media analysis error:", error);
@@ -688,26 +685,19 @@ ${knowledgeContext || "No specific knowledge base configured yet."}`
 }
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
-  const PgSession = connectPgSimple(session);
-  
+  const MemoryStoreSession = MemoryStore(session);
+
   // Trust proxy for production (required for secure cookies behind load balancer/reverse proxy)
   app.set("trust proxy", true);
-  
-  // Security middleware
-  app.use(ipFilter);
-  app.use(detectSQLInjection);
-  
-  // Use PostgreSQL-backed sessions for horizontal scaling
+
   app.use(
     session({
-      store: new PgSession({
-        pool: pool, // Use existing DB connection pool
-        tableName: 'user_sessions',
-        pruneSessionInterval: 60 * 15, // Clean up expired sessions every 15 minutes
-      }),
       secret: process.env.SESSION_SECRET || "chatvice-secret-key-change-in-production",
       resave: false,
       saveUninitialized: false,
+      store: new MemoryStoreSession({
+        checkPeriod: 86400000,
+      }),
       cookie: {
         secure: process.env.NODE_ENV === "production",
         httpOnly: true,
@@ -723,13 +713,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   wss.on("connection", (ws, req) => {
     const url = new URL(req.url || "", `http://${req.headers.host}`);
     const sessionId = url.searchParams.get("session");
-    
+
     if (sessionId) {
       if (!clients.has(sessionId)) {
         clients.set(sessionId, new Set());
       }
       clients.get(sessionId)!.add(ws);
-      
+
       ws.on("close", () => {
         clients.get(sessionId)?.delete(ws);
         if (clients.get(sessionId)?.size === 0) {
@@ -756,7 +746,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     try {
       const settings = await storage.getLandingPageSettings();
       const objectStorage = new ObjectStorageService();
-      
+
       if (settings?.faviconUrl) {
         if (settings.faviconUrl.startsWith("/storage/") && objectStorage.isConfigured()) {
           try {
@@ -766,7 +756,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
             console.log("Object Storage favicon not found, trying fallback");
           }
         }
-        
+
         if (settings.faviconUrl.startsWith("/db-files/")) {
           const fileId = settings.faviconUrl.replace("/db-files/", "");
           const file = await storage.getStoredFile(fileId);
@@ -778,7 +768,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
             return res.send(buffer);
           }
         }
-        
+
         if (settings.faviconUrl.startsWith("/uploads/")) {
           const filePath = path.join(process.cwd(), settings.faviconUrl);
           if (fs.existsSync(filePath)) {
@@ -786,7 +776,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           }
         }
       }
-      
+
       const defaultPath = path.join(process.cwd(), "client", "public", "favicon.ico");
       if (fs.existsSync(defaultPath)) {
         return res.sendFile(defaultPath);
@@ -803,7 +793,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     try {
       const settings = await storage.getLandingPageSettings();
       const objectStorage = new ObjectStorageService();
-      
+
       if (settings?.ogImageUrl) {
         if (settings.ogImageUrl.startsWith("/storage/") && objectStorage.isConfigured()) {
           try {
@@ -813,7 +803,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
             console.log("Object Storage OG image not found, trying fallback");
           }
         }
-        
+
         if (settings.ogImageUrl.startsWith("/db-files/")) {
           const fileId = settings.ogImageUrl.replace("/db-files/", "");
           const file = await storage.getStoredFile(fileId);
@@ -825,7 +815,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
             return res.send(buffer);
           }
         }
-        
+
         if (settings.ogImageUrl.startsWith("/uploads/")) {
           const filePath = path.join(process.cwd(), settings.ogImageUrl);
           if (fs.existsSync(filePath)) {
@@ -833,7 +823,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           }
         }
       }
-      
+
       const defaultPath = path.join(process.cwd(), "client", "public", "og-image.png");
       if (fs.existsSync(defaultPath)) {
         return res.sendFile(defaultPath);
@@ -849,7 +839,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get("/sitemap.xml", async (req, res) => {
     try {
       const baseUrl = `https://${req.get("host")}`;
-      
+
       // Static pages
       const staticPages = [
         { url: "/", priority: "1.0", changefreq: "weekly" },
@@ -894,10 +884,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     try {
       const settings = await storage.getLandingPageSettings();
       const baseUrl = `https://${req.get("host")}`;
-      
+
       // Use custom robots.txt from settings if available, otherwise use default
       let robotsTxt = settings?.robotsTxt;
-      
+
       if (!robotsTxt || robotsTxt.trim() === "") {
         robotsTxt = `User-agent: *
 Allow: /
@@ -926,16 +916,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (existing) {
         return res.status(400).json({ error: "Email already registered" });
       }
-      
+
       const hashedPassword = await hashPassword(data.password);
-      
+
       // Get configurable trial days from platform settings (default 14 days)
       const trialDaysSetting = await storage.getPlatformSetting("trial_days");
       const trialDays = trialDaysSetting ? parseInt(trialDaysSetting) : 14;
-      
+
       const trialEndsAt = new Date();
       trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
-      
+
       const merchant = await storage.createMerchant({
         ...data,
         password: hashedPassword,
@@ -945,23 +935,23 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         conversationsUsed: 0,
         isEmailVerified: false,
       });
-      
+
       // Create email verification token (expires in 24 hours)
       const verificationToken = crypto.randomBytes(32).toString("hex");
       const tokenExpiresAt = new Date();
       tokenExpiresAt.setHours(tokenExpiresAt.getHours() + 24);
-      
+
       await storage.createEmailVerificationToken({
         merchantId: merchant.id,
         token: verificationToken,
         expiresAt: tokenExpiresAt,
       });
-      
+
       // Send verification email (non-blocking)
       sendVerificationEmail(data.email, verificationToken, data.companyName).catch((err) => {
         console.error("Failed to send verification email:", err);
       });
-      
+
       // Don't log user in yet - they need to verify email first
       res.json({ 
         success: true, 
@@ -977,7 +967,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   app.post("/api/auth/login", async (req, res) => {
     try {
       const data = loginSchema.parse(req.body);
-      
+
       const merchant = await storage.getMerchantByEmail(data.email);
       if (merchant && await verifyPassword(data.password, merchant.password)) {
         // Check if email is verified
@@ -1129,7 +1119,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   app.post("/api/auth/reset-password", async (req, res) => {
     try {
       const { token, password } = req.body;
-      
+
       if (!token || !password) {
         return res.status(400).json({ error: "Token and password are required" });
       }
@@ -1205,10 +1195,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     const redirectUri = `${getBaseUrl(req)}/api/auth/google/callback`;
     const scope = encodeURIComponent("openid email profile");
     const state = crypto.randomBytes(16).toString("hex");
-    
+
     // Store state in session for CSRF protection
     req.session.oauthState = state;
-    
+
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${clientId}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
@@ -1217,7 +1207,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       `&state=${state}` +
       `&access_type=offline` +
       `&prompt=select_account`;
-    
+
     res.redirect(authUrl);
   });
 
@@ -1225,7 +1215,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   app.get("/api/auth/google/callback", async (req, res) => {
     try {
       const { code, state } = req.query;
-      
+
       // Verify state for CSRF protection
       if (!state || state !== req.session.oauthState) {
         return res.redirect("/login?error=invalid_state");
@@ -1238,7 +1228,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
       const clientId = process.env.GOOGLE_CLIENT_ID;
       const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-      
+
       if (!clientId || !clientSecret) {
         return res.redirect("/login?error=oauth_not_configured");
       }
@@ -1284,11 +1274,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
       // Check if merchant exists with this Google ID
       let merchant = await storage.getMerchantByGoogleId(googleUser.id);
-      
+
       if (!merchant) {
         // Check if merchant exists with this email
         const existingMerchant = await storage.getMerchantByEmail(googleUser.email);
-        
+
         if (existingMerchant) {
           // Only allow linking if the account has no password (OAuth-only account)
           // This prevents account takeover of password-based accounts
@@ -1347,16 +1337,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     const redirectUri = `${getBaseUrl(req)}/api/auth/github/callback`;
     const scope = "read:user user:email";
     const state = crypto.randomBytes(16).toString("hex");
-    
+
     // Store state in session for CSRF protection
     req.session.oauthState = state;
-    
+
     const authUrl = `https://github.com/login/oauth/authorize?` +
       `client_id=${clientId}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
       `&scope=${encodeURIComponent(scope)}` +
       `&state=${state}`;
-    
+
     res.redirect(authUrl);
   });
 
@@ -1364,7 +1354,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   app.get("/api/auth/github/callback", async (req, res) => {
     try {
       const { code, state } = req.query;
-      
+
       // Verify state for CSRF protection
       if (!state || state !== req.session.oauthState) {
         return res.redirect("/login?error=invalid_state");
@@ -1377,7 +1367,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
       const clientId = process.env.GITHUB_CLIENT_ID;
       const clientSecret = process.env.GITHUB_CLIENT_SECRET;
-      
+
       if (!clientId || !clientSecret) {
         return res.redirect("/login?error=oauth_not_configured");
       }
@@ -1405,7 +1395,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       }
 
       const tokenData = await tokenResponse.json() as { access_token?: string; error?: string };
-      
+
       if (tokenData.error || !tokenData.access_token) {
         console.error("GitHub token error:", tokenData.error);
         return res.redirect("/login?error=token_exchange_failed");
@@ -1466,11 +1456,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
       // Check if merchant exists with this GitHub ID
       let merchant = await storage.getMerchantByGithubId(githubId);
-      
+
       if (!merchant) {
         // Check if merchant exists with this email
         const existingMerchant = await storage.getMerchantByEmail(userEmail);
-        
+
         if (existingMerchant) {
           // Only allow linking if the account has no password (OAuth-only account)
           // This prevents account takeover of password-based accounts
@@ -1529,7 +1519,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
       const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
       const canUseIdentityVerification = plan.id === "pro" || plan.id === "enterprise" || plan.id === "custom";
-      
+
       if (!canUseIdentityVerification) {
         return res.status(403).json({ error: "Identity verification requires Pro or Enterprise plan" });
       }
@@ -1558,7 +1548,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
       const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
       const canUseIdentityVerification = plan.id === "pro" || plan.id === "enterprise" || plan.id === "custom";
-      
+
       if (!canUseIdentityVerification) {
         return res.status(403).json({ error: "Identity verification requires Pro or Enterprise plan" });
       }
@@ -1578,7 +1568,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (req.session.userType === "merchant" && req.session.merchantId !== req.params.merchantId) {
         return res.status(403).json({ error: "Forbidden" });
       }
-      
+
       const merchant = await storage.getMerchant(req.params.merchantId);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
@@ -1609,7 +1599,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           bubblePosition: "right",
         });
       }
-      
+
       // Check if there's an active agent with widget settings
       let agentSettings: { primaryColor?: string; widgetWelcomeMessage?: string; name?: string; photoUrl?: string; widgetTheme?: string; bubblePosition?: string } = {};
       if (merchant.activeAgentId) {
@@ -1625,7 +1615,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           };
         }
       }
-      
+
       res.json({
         iconUrl: merchant.iconUrl || "",
         iconSize: merchant.iconSize ?? 70,
@@ -1650,14 +1640,14 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const merchantId = req.session.merchantId!;
       const { merchantId: _, ...config } = req.body;
-      
+
       const validConfig = merchantConfigSchema.parse(config);
-      
+
       const merchant = await storage.getMerchant(merchantId);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
-      
+
       const updated = await storage.updateMerchant(merchantId, validConfig);
       if (!updated) {
         return res.status(404).json({ error: "Merchant not found" });
@@ -1683,7 +1673,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         customDomain,
         customDomainStatus,
       } = req.body;
-      
+
       const updateData: Record<string, any> = {};
       if (companyName !== undefined) updateData.companyName = companyName;
       if (profilePhotoUrl !== undefined) updateData.profilePhotoUrl = profilePhotoUrl;
@@ -1694,7 +1684,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (collectCustomerPhone !== undefined) updateData.collectCustomerPhone = collectCustomerPhone;
       if (customDomain !== undefined) updateData.customDomain = customDomain;
       if (customDomainStatus !== undefined) updateData.customDomainStatus = customDomainStatus;
-      
+
       const updated = await storage.updateMerchant(merchantId, updateData);
       if (!updated) {
         return res.status(404).json({ error: "Merchant not found" });
@@ -1715,7 +1705,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
       const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
       const canUseAllowedDomains = plan.id === "pro" || plan.id === "enterprise" || plan.id === "custom";
-      
+
       if (!canUseAllowedDomains) {
         return res.status(403).json({ error: "Allowed domains requires Pro or Enterprise plan" });
       }
@@ -1732,16 +1722,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const merchantId = req.session.merchantId!;
       const { agentId } = req.body;
-      
+
       if (!agentId) {
         return res.status(400).json({ error: "Agent ID required" });
       }
-      
+
       const agent = await storage.getAgent(agentId);
       if (!agent || agent.merchantId !== merchantId) {
         return res.status(404).json({ error: "Agent not found" });
       }
-      
+
       await storage.updateMerchant(merchantId, { 
         activeAgentId: agentId,
         agentName: agent.name,
@@ -1757,28 +1747,28 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const merchantId = req.session.merchantId!;
       const { currentPassword, newPassword } = req.body;
-      
+
       if (!currentPassword || !newPassword) {
         return res.status(400).json({ error: "Current password and new password required" });
       }
-      
+
       if (newPassword.length < 6) {
         return res.status(400).json({ error: "New password must be at least 6 characters" });
       }
-      
+
       const merchant = await storage.getMerchant(merchantId);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
-      
+
       const valid = await verifyPassword(currentPassword, merchant.password);
       if (!valid) {
         return res.status(401).json({ error: "Current password is incorrect" });
       }
-      
+
       const hashedPassword = await hashPassword(newPassword);
       await storage.updateMerchant(merchantId, { password: hashedPassword });
-      
+
       res.json({ success: true });
     } catch (error) {
       console.error("Change password error:", error);
@@ -1790,24 +1780,24 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const merchantId = req.session.merchantId!;
       const { newEmail } = req.body;
-      
+
       if (!newEmail || !newEmail.includes("@")) {
         return res.status(400).json({ error: "Valid email address required" });
       }
-      
+
       const existingMerchant = await storage.getMerchantByEmail(newEmail);
       if (existingMerchant) {
         return res.status(400).json({ error: "Email already in use" });
       }
-      
+
       const crypto = require("crypto");
       const verificationToken = crypto.randomBytes(32).toString("hex");
-      
+
       await storage.updateMerchant(merchantId, { 
         pendingEmail: newEmail,
         emailVerificationToken: verificationToken,
       } as any);
-      
+
       res.json({ success: true, message: "Verification email sent" });
     } catch (error) {
       console.error("Email change request error:", error);
@@ -1819,25 +1809,25 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const merchantId = req.session.merchantId!;
       const { enable, code } = req.body;
-      
+
       const merchant = await storage.getMerchant(merchantId);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
-      
+
       const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
       const canUse2FA = plan.id === "pro" || plan.id === "enterprise" || plan.id === "custom";
-      
+
       if (!canUse2FA) {
         return res.status(403).json({ error: "Two-factor authentication requires Pro or Enterprise plan" });
       }
-      
+
       if (code !== "123456" && code.length !== 6) {
         return res.status(400).json({ error: "Invalid verification code" });
       }
-      
+
       await storage.updateMerchant(merchantId, { twoFactorEnabled: enable } as any);
-      
+
       res.json({ success: true, enabled: enable });
     } catch (error) {
       console.error("2FA toggle error:", error);
@@ -1848,19 +1838,19 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   app.post("/api/merchant/check-domain", requireMerchant, async (req, res) => {
     try {
       const { domain } = req.body;
-      
+
       if (!domain) {
         return res.status(400).json({ error: "Domain required" });
       }
-      
+
       const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}$/;
       if (!domainRegex.test(domain)) {
         return res.json({ available: false, reason: "Invalid domain format" });
       }
-      
+
       const allMerchants = await storage.getAllMerchants();
       const inUse = allMerchants.some(m => m.customDomain === domain && m.id !== req.session.merchantId);
-      
+
       res.json({ available: !inUse });
     } catch (error) {
       console.error("Domain check error:", error);
@@ -1871,12 +1861,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   app.get("/api/merchant/export-data", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
-      
+
       const merchant = await storage.getMerchant(merchantId);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
-      
+
       const sessions = await storage.getSessionsByMerchant(merchantId);
       const sessionsWithMessages = await Promise.all(
         sessions.map(async (session) => ({
@@ -1884,14 +1874,14 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           messages: await storage.getMessages(session.id),
         }))
       );
-      
+
       const supervisors = await storage.getSupervisorsByMerchant(merchantId);
       const triggers = await storage.getTriggers(merchantId);
       const knowledge = await storage.getKnowledge(merchantId);
       const agents = await storage.getAgents(merchantId);
-      
+
       const { password, ...safeMerchant } = merchant;
-      
+
       const exportData = {
         exportedAt: new Date().toISOString(),
         merchant: safeMerchant,
@@ -1901,7 +1891,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         triggers,
         knowledge,
       };
-      
+
       res.json(exportData);
     } catch (error) {
       console.error("Export data error:", error);
@@ -1912,18 +1902,18 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   app.delete("/api/merchant/account", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
-      
+
       const sessions = await storage.getSessionsByMerchant(merchantId);
       for (const session of sessions) {
         await storage.deleteSession(session.id);
       }
-      
+
       await storage.deleteMerchant(merchantId);
-      
+
       req.session.destroy((err) => {
         if (err) console.error("Session destroy error:", err);
       });
-      
+
       res.json({ success: true });
     } catch (error) {
       console.error("Delete account error:", error);
@@ -1931,7 +1921,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
-  app.post("/api/chat/ask", widgetRateLimiter, async (req, res) => {
+  app.post("/api/chat/ask", async (req, res) => {
     try {
       const data = chatAskSchema.parse(req.body);
       const { merchantId, sessionId, message, clientMessageId } = data;
@@ -1981,7 +1971,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           if (settings?.aiAutoRecommendEnabled) {
             const productTriggers = await storage.getProductTriggers(merchantId, merchant.activeAgentId || undefined);
             const lowerMessage = message.toLowerCase();
-            
+
             let matchedProductId: string | null = null;
             for (const trigger of productTriggers) {
               if (!trigger.isActive) continue;
@@ -1991,7 +1981,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                 break;
               }
             }
-            
+
             if (!matchedProductId && settings.aiContextTriggerEnabled && settings.triggerKeywords) {
               const generalKeywords = settings.triggerKeywords.split(',').map(k => k.trim().toLowerCase());
               if (generalKeywords.some(keyword => keyword && lowerMessage.includes(keyword))) {
@@ -2002,7 +1992,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                 }
               }
             }
-            
+
             if (matchedProductId) {
               const productCard = await storage.getProductCard(matchedProductId);
               if (productCard && productCard.isActive) {
@@ -2013,7 +2003,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                     buttons,
                   },
                 };
-                
+
                 await storage.createMessage({
                   sessionId,
                   from: "chatvice",
@@ -2021,7 +2011,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                   messageType: "product_offer",
                   payload,
                 });
-                
+
                 broadcastToSession(sessionId, {
                   type: "message",
                   message: { 
@@ -2072,7 +2062,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const fileUrl = `/uploads/${file.filename}`;
 
       const mediaType = type === "video" ? "video" : type === "document" ? "document" : "photo";
-      
+
       await storage.createMediaAttachment({
         sessionId,
         agentId: merchant.activeAgentId,
@@ -2082,13 +2072,13 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
       const isSupervisor = fromSupervisor === "true" || fromSupervisor === true;
       const messageFrom = isSupervisor ? "supervisor" : "customer";
-      
+
       const typeLabels: Record<string, string> = {
         photo: "Photo",
         video: "Video",
         document: "Document"
       };
-      
+
       const message = await storage.createMessage({
         sessionId,
         from: messageFrom,
@@ -2119,7 +2109,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
       if (!isSupervisor) {
         let session = await storage.getSession(sessionId);
-        
+
         if (!session) {
           session = await storage.createSession({
             id: sessionId,
@@ -2129,7 +2119,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             agentId: merchant.activeAgentId || null,
           });
         }
-        
+
         if (session?.mode === "AI") {
           const requestHost = req.get("host");
           (async () => {
@@ -2183,9 +2173,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (req.session.userType === "merchant" && req.session.merchantId !== req.params.merchantId) {
         return res.status(403).json({ error: "Forbidden" });
       }
-      
+
       const sessions = await storage.getSessionsByMerchant(req.params.merchantId);
-      
+
       const sessionsWithPreview = await Promise.all(
         sessions.map(async (session) => {
           const messages = await storage.getMessages(session.id);
@@ -2193,7 +2183,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           const aiMessages = messages.filter(m => m.from === "chatvice");
           const lastQuestion = userMessages[userMessages.length - 1]?.content;
           const lastMessage = aiMessages[aiMessages.length - 1]?.content;
-          
+
           return {
             ...session,
             lastQuestion: lastQuestion?.slice(0, 100),
@@ -2201,7 +2191,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           };
         })
       );
-      
+
       res.json(sessionsWithPreview);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -2223,12 +2213,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!session || session.merchantId !== req.session.merchantId) {
         return res.status(403).json({ error: "Forbidden" });
       }
-      
+
       const messages = await storage.getMessages(req.params.sessionId);
       const merchant = await storage.getMerchant(session.merchantId);
-      
+
       const format = req.query.format || 'text';
-      
+
       if (format === 'json') {
         res.json({
           session: {
@@ -2256,7 +2246,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         transcript += `Mode: ${session.mode}\n`;
         transcript += `Date: ${session.lastActivity ? new Date(session.lastActivity).toLocaleString() : 'Unknown'}\n\n`;
         transcript += `${'='.repeat(50)}\n\n`;
-        
+
         for (const msg of messages) {
           const sender = msg.from === 'user' ? (session.customerName || 'Customer') :
                         msg.from === 'chatvice' ? 'Chatvice' :
@@ -2264,10 +2254,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : '';
           transcript += `[${time}] ${sender}:\n${msg.content}\n\n`;
         }
-        
+
         transcript += `${'='.repeat(50)}\n`;
         transcript += `Exported: ${new Date().toLocaleString()}\n`;
-        
+
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         res.setHeader('Content-Disposition', `attachment; filename="transcript-${session.id.slice(0, 8)}.txt"`);
         res.send(transcript);
@@ -2283,18 +2273,18 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (req.session.merchantId !== req.params.merchantId) {
         return res.status(403).json({ error: "Forbidden" });
       }
-      
+
       const merchant = await storage.getMerchant(req.params.merchantId);
       let knowledgeData = null;
-      
+
       if (merchant?.activeAgentId) {
         knowledgeData = await storage.getKnowledgeByAgent(merchant.activeAgentId);
       }
-      
+
       if (!knowledgeData) {
         knowledgeData = await storage.getKnowledge(req.params.merchantId);
       }
-      
+
       res.json(knowledgeData || { content: "" });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -2305,9 +2295,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const merchantId = req.session.merchantId!;
       const { knowledgeText, agentId } = req.body;
-      
+
       const savedKnowledge = await storage.setKnowledge(merchantId, knowledgeText || "", agentId || undefined);
-      
+
       if (knowledgeText && knowledgeText.trim()) {
         processKnowledgeBase(merchantId, knowledgeText, agentId || undefined).catch(err => {
           console.error("Error processing knowledge embeddings:", err);
@@ -2317,7 +2307,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           console.error("Error clearing knowledge chunks:", err);
         });
       }
-      
+
       res.json({ success: true, knowledge: savedKnowledge });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -2328,33 +2318,33 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const { url } = req.body;
       const merchantId = req.session.merchantId!;
-      
+
       if (!url || typeof url !== "string") {
         return res.status(400).json({ error: "URL is required" });
       }
-      
+
       const crawledLink = await storage.createCrawledLink({
         merchantId,
         url,
         status: "crawling",
       });
-      
+
       const result = await extractFAQContent(url);
-      
+
       if (!result.success) {
         await storage.updateCrawledLink(crawledLink.id, {
           status: "failed",
         });
         return res.status(400).json({ error: result.error });
       }
-      
+
       const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
       await storage.updateCrawledLink(crawledLink.id, {
         status: "completed",
         title: urlObj.hostname,
         extractedContent: result.content,
       });
-      
+
       res.json({ success: true, content: result.content, linkId: crawledLink.id });
     } catch (error) {
       console.error("Crawl error:", error);
@@ -2367,7 +2357,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (req.session.merchantId !== req.params.merchantId) {
         return res.status(403).json({ error: "Forbidden" });
       }
-      
+
       const links = await storage.getCrawledLinks(req.params.merchantId);
       res.json(links);
     } catch (error) {
@@ -2379,11 +2369,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const merchantId = req.session.merchantId!;
       const agent = await storage.getAgent(req.params.agentId);
-      
+
       if (!agent || agent.merchantId !== merchantId) {
         return res.status(404).json({ error: "Agent not found" });
       }
-      
+
       const knowledge = await storage.getKnowledgeByAgent(req.params.agentId);
       res.json({ content: knowledge?.content || "" });
     } catch (error) {
@@ -2408,7 +2398,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (req.session.merchantId !== req.params.merchantId) {
         return res.status(403).json({ error: "Forbidden" });
       }
-      
+
       const triggers = await storage.getTriggers(req.params.merchantId);
       res.json(triggers);
     } catch (error) {
@@ -2420,7 +2410,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const merchantId = req.session.merchantId!;
       const { keyword } = req.body;
-      
+
       const trigger = await storage.createTrigger({ merchantId, keyword });
       res.json({ success: true, trigger });
     } catch (error) {
@@ -2453,7 +2443,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (req.session.merchantId !== req.params.merchantId) {
         return res.status(403).json({ error: "Forbidden" });
       }
-      
+
       const supervisors = await storage.getSupervisorsByMerchant(req.params.merchantId);
       const safeSupervisors = supervisors.map(({ password, ...s }) => s);
       res.json(safeSupervisors);
@@ -2466,23 +2456,26 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const merchantId = req.session.merchantId!;
       const { name, email, password, photoUrl } = req.body;
-      
+
       const limitCheck = await checkSubscriptionLimits(merchantId, 'supervisor');
       if (!limitCheck.allowed) {
         return res.status(403).json({ error: limitCheck.message });
       }
-      
+
       const existing = await storage.getSupervisorByEmail(email);
       if (existing) {
         return res.status(400).json({ error: "Email already registered" });
       }
-      
+
       const hashedPassword = await hashPassword(password);
       const supervisor = await storage.createSupervisor({ 
         merchantId, 
         name, 
         email, 
         password: hashedPassword,
+        role: 'supervisor',
+        isVerified: true,
+        verifiedAt: new Date(),
         photoUrl: photoUrl || "" 
       });
       const { password: _, ...safeSupervisor } = supervisor;
@@ -2497,16 +2490,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const merchantId = req.session.merchantId!;
       const supervisorId = req.params.supervisorId;
       const { name, photoUrl } = req.body;
-      
+
       const supervisor = await storage.getSupervisor(supervisorId);
       if (!supervisor || supervisor.merchantId !== merchantId) {
         return res.status(404).json({ error: "Supervisor not found" });
       }
-      
+
       const updates: { name?: string; photoUrl?: string } = {};
       if (name) updates.name = name;
       if (photoUrl !== undefined) updates.photoUrl = photoUrl;
-      
+
       await storage.updateSupervisor(supervisorId, updates);
       const updated = await storage.getSupervisor(supervisorId);
       res.json(updated);
@@ -2540,30 +2533,30 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const merchantId = req.session.merchantId!;
       const invitedById = req.session.userId!;
       const { name, email } = req.body;
-      
+
       if (!name || !email) {
         return res.status(400).json({ error: "Name and email are required" });
       }
-      
+
       const limitCheck = await checkSubscriptionLimits(merchantId, 'supervisor');
       if (!limitCheck.allowed) {
         return res.status(403).json({ error: limitCheck.message });
       }
-      
+
       const existingSupervisor = await storage.getSupervisorByEmail(email);
       if (existingSupervisor) {
         return res.status(400).json({ error: "Email already registered as a supervisor" });
       }
-      
+
       const existingInvitation = await storage.getSupervisorInvitationByEmail(email, merchantId);
       if (existingInvitation && existingInvitation.status === 'pending') {
         return res.status(400).json({ error: "An invitation is already pending for this email" });
       }
-      
+
       const token = require('crypto').randomBytes(32).toString('hex');
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 48);
-      
+
       const invitation = await storage.createSupervisorInvitation({
         merchantId,
         email,
@@ -2573,9 +2566,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         invitedById,
         expiresAt,
       });
-      
+
       const inviteLink = `${req.protocol}://${req.get('host')}/verify-supervisor?token=${token}`;
-      
+
       res.json({ 
         success: true, 
         invitation: { ...invitation, token: undefined },
@@ -2591,23 +2584,23 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   app.get("/api/supervisor-invitations/verify/:token", async (req, res) => {
     try {
       const { token } = req.params;
-      
+
       const invitation = await storage.getSupervisorInvitationByToken(token);
       if (!invitation) {
         return res.status(404).json({ error: "Invalid invitation link" });
       }
-      
+
       if (invitation.status !== 'pending') {
         return res.status(400).json({ error: "This invitation has already been used" });
       }
-      
+
       if (new Date() > new Date(invitation.expiresAt)) {
         await storage.updateSupervisorInvitation(invitation.id, { status: 'expired' });
         return res.status(400).json({ error: "This invitation has expired" });
       }
-      
+
       const merchant = await storage.getMerchant(invitation.merchantId);
-      
+
       res.json({ 
         valid: true,
         email: invitation.email,
@@ -2622,34 +2615,34 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   app.post("/api/supervisor-invitations/complete", async (req, res) => {
     try {
       const { token, password } = req.body;
-      
+
       if (!token || !password) {
         return res.status(400).json({ error: "Token and password are required" });
       }
-      
+
       if (password.length < 6) {
         return res.status(400).json({ error: "Password must be at least 6 characters" });
       }
-      
+
       const invitation = await storage.getSupervisorInvitationByToken(token);
       if (!invitation) {
         return res.status(404).json({ error: "Invalid invitation link" });
       }
-      
+
       if (invitation.status !== 'pending') {
         return res.status(400).json({ error: "This invitation has already been used" });
       }
-      
+
       if (new Date() > new Date(invitation.expiresAt)) {
         await storage.updateSupervisorInvitation(invitation.id, { status: 'expired' });
         return res.status(400).json({ error: "This invitation has expired" });
       }
-      
+
       const existingSupervisor = await storage.getSupervisorByEmail(invitation.email);
       if (existingSupervisor) {
         return res.status(400).json({ error: "Email already registered" });
       }
-      
+
       const hashedPassword = await hashPassword(password);
       const supervisor = await storage.createSupervisor({
         merchantId: invitation.merchantId,
@@ -2661,16 +2654,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         verifiedAt: new Date(),
         invitedById: invitation.invitedById,
       });
-      
+
       await storage.updateSupervisorInvitation(invitation.id, {
         status: 'accepted',
         acceptedAt: new Date(),
       });
-      
+
       req.session.userId = supervisor.id;
       req.session.userType = "supervisor";
       req.session.merchantId = invitation.merchantId;
-      
+
       const { password: _, ...safeSupervisor } = supervisor;
       res.json({ 
         success: true, 
@@ -2688,11 +2681,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const merchantId = req.session.merchantId!;
       const invitation = await storage.getSupervisorInvitation(req.params.invitationId);
-      
+
       if (!invitation || invitation.merchantId !== merchantId) {
         return res.status(404).json({ error: "Invitation not found" });
       }
-      
+
       const success = await storage.deleteSupervisorInvitation(req.params.invitationId);
       res.json({ success });
     } catch (error) {
@@ -2704,23 +2697,23 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const merchantId = req.session.merchantId!;
       const invitation = await storage.getSupervisorInvitation(req.params.invitationId);
-      
+
       if (!invitation || invitation.merchantId !== merchantId) {
         return res.status(404).json({ error: "Invitation not found" });
       }
-      
+
       const newToken = require('crypto').randomBytes(32).toString('hex');
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 48);
-      
+
       await storage.updateSupervisorInvitation(invitation.id, {
         token: newToken,
         status: 'pending',
         expiresAt,
       });
-      
+
       const inviteLink = `${req.protocol}://${req.get('host')}/verify-supervisor?token=${newToken}`;
-      
+
       res.json({ 
         success: true,
         inviteLink,
@@ -2736,7 +2729,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (req.session.userId !== req.params.supervisorId) {
         return res.status(403).json({ error: "Forbidden" });
       }
-      
+
       const notifications = await storage.getNotifications(req.params.supervisorId);
       res.json(notifications);
     } catch (error) {
@@ -2758,7 +2751,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (req.session.userId !== req.params.supervisorId) {
         return res.status(403).json({ error: "Forbidden" });
       }
-      
+
       const supervisor = await storage.getSupervisor(req.params.supervisorId);
       if (!supervisor) {
         return res.status(404).json({ error: "Supervisor not found" });
@@ -2774,11 +2767,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   app.post("/api/supervisor/send", requireSupervisor, async (req, res) => {
     try {
       const { sessionId, message, supervisorId } = req.body;
-      
+
       if (req.session.userId !== supervisorId) {
         return res.status(403).json({ error: "Forbidden" });
       }
-      
+
       await storage.createMessage({
         sessionId,
         from: "supervisor",
@@ -2801,37 +2794,37 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const { messageId, content } = req.body;
       const merchantId = req.session.merchantId!;
-      
+
       if (!messageId || typeof messageId !== "string") {
         return res.status(400).json({ error: "Invalid message ID" });
       }
-      
+
       if (!content || typeof content !== "string" || content.trim().length === 0) {
         return res.status(400).json({ error: "Content is required" });
       }
-      
+
       if (content.length > 10000) {
         return res.status(400).json({ error: "Content too long" });
       }
-      
+
       const message = await storage.getMessage(messageId);
       if (!message) {
         return res.status(404).json({ error: "Message not found" });
       }
-      
+
       if (message.from !== "chatvice") {
         return res.status(403).json({ error: "Can only revise AI responses" });
       }
-      
+
       const session = await storage.getSession(message.sessionId);
       if (!session) {
         return res.status(404).json({ error: "Session not found" });
       }
-      
+
       if (session.merchantId !== merchantId) {
         return res.status(403).json({ error: "Forbidden - session belongs to another merchant" });
       }
-      
+
       const updated = await storage.updateMessage(messageId, { content: content.trim() });
       res.json({ success: true, message: updated });
     } catch (error) {
@@ -2843,19 +2836,19 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   app.post("/api/supervisor/takeover", requireSupervisor, async (req, res) => {
     try {
       const { sessionId, supervisorId } = req.body;
-      
+
       if (req.session.userId !== supervisorId) {
         return res.status(403).json({ error: "Forbidden" });
       }
-      
+
       const session = await storage.getSession(sessionId);
       if (!session) {
         return res.status(404).json({ error: "Session not found" });
       }
-      
+
       const supervisor = await storage.getSupervisor(supervisorId);
       const supervisorName = supervisor?.name || "Support Agent";
-      
+
       const updated = await storage.updateSession(sessionId, {
         mode: "HUMAN",
         supervisorId,
@@ -2863,20 +2856,20 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!updated) {
         return res.status(404).json({ error: "Session not found" });
       }
-      
+
       const joinMessage = `Supervisor ${supervisorName} has joined the conversation and will be assisting you shortly.`;
-      
+
       await storage.createMessage({
         sessionId,
         from: "system",
         content: joinMessage,
       });
-      
+
       broadcastToSession(sessionId, {
         type: "message",
         message: { from: "system", content: joinMessage },
       });
-      
+
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -2886,16 +2879,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   app.post("/api/supervisor/return-to-bot", requireSupervisor, async (req, res) => {
     try {
       const { sessionId, supervisorId } = req.body;
-      
+
       if (req.session.userId !== supervisorId) {
         return res.status(403).json({ error: "Forbidden" });
       }
-      
+
       const session = await storage.getSession(sessionId);
       if (!session) {
         return res.status(404).json({ error: "Session not found" });
       }
-      
+
       const updated = await storage.updateSession(sessionId, {
         mode: "AI",
         supervisorId: null,
@@ -2903,18 +2896,18 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!updated) {
         return res.status(404).json({ error: "Session not found" });
       }
-      
+
       await storage.createMessage({
         sessionId,
         from: "system",
         content: "Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?",
       });
-      
+
       broadcastToSession(sessionId, {
         type: "message",
         message: { from: "system", content: "Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?" },
       });
-      
+
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -2925,16 +2918,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const { sessionId } = req.body;
       const merchantId = req.session.merchantId!;
-      
+
       const session = await storage.getSession(sessionId);
       if (!session) {
         return res.status(404).json({ error: "Session not found" });
       }
-      
+
       if (session.merchantId !== merchantId) {
         return res.status(403).json({ error: "Forbidden" });
       }
-      
+
       const updated = await storage.updateSession(sessionId, {
         mode: "AI",
         supervisorId: null,
@@ -2942,18 +2935,18 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!updated) {
         return res.status(404).json({ error: "Session not found" });
       }
-      
+
       await storage.createMessage({
         sessionId,
         from: "system",
         content: "Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?",
       });
-      
+
       broadcastToSession(sessionId, {
         type: "message",
         message: { from: "system", content: "Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?" },
       });
-      
+
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -2964,19 +2957,19 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const { sessionId } = req.body;
       const merchantId = req.session.merchantId!;
-      
+
       const session = await storage.getSession(sessionId);
       if (!session) {
         return res.status(404).json({ error: "Session not found" });
       }
-      
+
       if (session.merchantId !== merchantId) {
         return res.status(403).json({ error: "Forbidden" });
       }
-      
+
       const merchant = await storage.getMerchant(merchantId);
       const agentName = merchant?.companyName || "Support Agent";
-      
+
       const updated = await storage.updateSession(sessionId, {
         mode: "HUMAN",
         supervisorId: merchantId,
@@ -2984,20 +2977,20 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!updated) {
         return res.status(404).json({ error: "Session not found" });
       }
-      
+
       const joinMessage = `Supervisor ${agentName} has joined the conversation and will be assisting you shortly.`;
-      
+
       await storage.createMessage({
         sessionId,
         from: "system",
         content: joinMessage,
       });
-      
+
       broadcastToSession(sessionId, {
         type: "message",
         message: { from: "system", content: joinMessage },
       });
-      
+
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -3008,26 +3001,26 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const { sessionId, message } = req.body;
       const merchantId = req.session.merchantId!;
-      
+
       if (!sessionId || !message) {
         return res.status(400).json({ error: "Session ID and message are required" });
       }
-      
+
       const session = await storage.getSession(sessionId);
       if (!session) {
         return res.status(404).json({ error: "Session not found" });
       }
-      
+
       if (session.merchantId !== merchantId) {
         return res.status(403).json({ error: "Forbidden" });
       }
-      
+
       await storage.createMessage({
         sessionId,
         from: "supervisor",
         content: message,
       });
-      
+
       await storage.updateSession(sessionId, { supervisorId: merchantId });
 
       broadcastToSession(sessionId, {
@@ -3046,34 +3039,34 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const { sessionId, productCardId } = req.body;
       const merchantId = req.session.merchantId!;
-      
+
       if (!sessionId || !productCardId) {
         return res.status(400).json({ error: "Session ID and product card ID are required" });
       }
-      
+
       const session = await storage.getSession(sessionId);
       if (!session) {
         return res.status(404).json({ error: "Session not found" });
       }
-      
+
       if (session.merchantId !== merchantId) {
         return res.status(403).json({ error: "Forbidden" });
       }
-      
+
       const productCard = await storage.getProductCard(productCardId);
       if (!productCard || productCard.merchantId !== merchantId) {
         return res.status(404).json({ error: "Product card not found" });
       }
-      
+
       const buttons = await storage.getProductCardButtons(productCardId);
-      
+
       const payload = {
         productCard: {
           ...productCard,
           buttons,
         },
       };
-      
+
       await storage.createMessage({
         sessionId,
         from: "supervisor",
@@ -3081,7 +3074,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         messageType: "product_offer",
         payload,
       });
-      
+
       await storage.updateSession(sessionId, { supervisorId: merchantId });
 
       broadcastToSession(sessionId, {
@@ -3106,7 +3099,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (req.session.userType === "merchant" && req.session.merchantId !== req.params.merchantId) {
         return res.status(403).json({ error: "Forbidden" });
       }
-      
+
       const analytics = await storage.getAnalytics(req.params.merchantId);
       res.json(analytics);
     } catch (error) {
@@ -3133,11 +3126,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
-      
+
       // Use effective plan with custom pricing from database
       const plan = await getEffectiveSubscriptionPlan(merchant.subscriptionPlanId) || await getEffectiveSubscriptionPlan('free');
       const isTrialExpired = merchant.trialEndsAt && new Date(merchant.trialEndsAt) < new Date();
-      
+
       res.json({
         status: merchant.subscriptionStatus,
         planId: merchant.subscriptionPlanId,
@@ -3163,28 +3156,28 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
-      
+
       if (!planId || typeof planId !== 'string') {
         return res.status(400).json({ error: "Plan ID required" });
       }
-      
+
       // Use effective plans with custom pricing from database
       const newPlan = await getEffectiveSubscriptionPlan(planId);
       if (!newPlan) {
         return res.status(400).json({ error: "Invalid plan" });
       }
-      
+
       const currentPlan = await getEffectiveSubscriptionPlan(merchant.subscriptionPlanId) || await getEffectiveSubscriptionPlan('free');
       if (!currentPlan) {
         return res.status(500).json({ error: "Could not determine current plan" });
       }
       const requestedInterval = billingInterval === 'annual' ? 'annual' : 'monthly';
-      
+
       const newPlanPrice = requestedInterval === 'annual' ? newPlan.annualPrice : newPlan.monthlyPrice;
       const currentPlanPrice = merchant.billingInterval === 'annual' ? currentPlan.annualPrice : currentPlan.monthlyPrice;
-      
+
       const isUpgrade = newPlan.monthlyPrice > currentPlan.monthlyPrice;
-      
+
       if (!isUpgrade) {
         return res.json({
           creditAmount: 0,
@@ -3198,7 +3191,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           message: "Proration only applies to upgrades",
         });
       }
-      
+
       if (merchant.subscriptionStatus !== 'active' || !merchant.currentPeriodEnd) {
         return res.json({
           creditAmount: 0,
@@ -3211,10 +3204,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           newPlanName: newPlan.name,
         });
       }
-      
+
       const now = new Date();
       const periodEnd = new Date(merchant.currentPeriodEnd);
-      
+
       if (now >= periodEnd) {
         return res.json({
           creditAmount: 0,
@@ -3227,16 +3220,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           newPlanName: newPlan.name,
         });
       }
-      
+
       const daysInPeriod = merchant.billingInterval === 'annual' ? 365 : 30;
       const msRemaining = periodEnd.getTime() - now.getTime();
       const daysRemaining = Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24)));
-      
+
       const dailyRate = currentPlanPrice / daysInPeriod;
       const creditAmount = Math.round(dailyRate * daysRemaining * 100) / 100;
-      
+
       const finalAmount = Math.max(0, Math.round((newPlanPrice - creditAmount) * 100) / 100);
-      
+
       res.json({
         creditAmount,
         newPlanPrice,
@@ -3260,7 +3253,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
-      
+
       // Use effective plan with custom pricing from database
       const plan = await getEffectiveSubscriptionPlan(planId);
       if (!plan) {
@@ -3270,15 +3263,15 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!isOnePayConfigured()) {
         return res.status(503).json({ error: "Payment gateway not configured" });
       }
-      
+
       const priceUSD = billingInterval === 'annual' ? plan.annualPrice * 12 : plan.monthlyPrice;
       const priceIDR = convertToIDR(priceUSD);
-      
+
       const orderId = `SUB_${merchant.id}_${planId}_${billingInterval}_${Date.now()}`;
-      
+
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       const callbackUrl = `${baseUrl}/api/onepay/webhook`;
-      
+
       const qrisResult = await createQRISPayment({
         merchantId: merchant.id,
         orderId,
@@ -3295,16 +3288,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           type: 'subscription',
         },
       });
-      
+
       if (!qrisResult.success || !qrisResult.data) {
         console.error("QRIS creation failed:", qrisResult.error);
         return res.status(500).json({ error: qrisResult.error || "Failed to create payment" });
       }
-      
+
       await storage.updateMerchantSubscription(merchant.id, {
         pendingTransactionId: qrisResult.data.transactionId,
       });
-      
+
       res.json({
         paymentMethod: 'qris',
         transactionId: qrisResult.data.transactionId,
@@ -3330,13 +3323,13 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!isOnePayConfigured()) {
         return res.status(503).json({ error: "1-Pay not configured" });
       }
-      
+
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       const callbackUrl = `${baseUrl}/api/onepay/webhook`;
       const orderId = `TEST_${Date.now()}`;
-      
+
       console.log("Testing 1-Pay API...");
-      
+
       const qrisResult = await createQRISPayment({
         merchantId: "test",
         orderId,
@@ -3347,9 +3340,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         expiryMinutes: 5,
         callbackUrl,
       });
-      
+
       console.log("1-Pay test result:", qrisResult);
-      
+
       res.json(qrisResult);
     } catch (error: any) {
       console.error("1-Pay test error:", error);
@@ -3361,16 +3354,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const { planId, billingInterval } = req.body;
       const merchantId = req.session.merchantId!;
-      
+
       const plan = subscriptionPlans[planId as SubscriptionPlanId];
       if (!plan) {
         return res.status(400).json({ error: "Invalid plan" });
       }
-      
+
       const periodEnd = billingInterval === 'annual' 
         ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-      
+
       await storage.updateMerchantSubscription(merchantId, {
         subscriptionPlanId: planId,
         subscriptionStatus: 'active',
@@ -3380,7 +3373,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         conversationsUsed: 0,
         conversationsResetAt: new Date(),
       });
-      
+
       res.json({ success: true, message: "Demo subscription activated" });
     } catch (error: any) {
       console.error("Demo checkout error:", error);
@@ -3392,21 +3385,21 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const { transactionId } = req.params;
       const merchant = await storage.getMerchant(req.session.merchantId!);
-      
+
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
-      
+
       if (merchant.pendingTransactionId !== transactionId) {
         return res.status(400).json({ error: "Transaction not found" });
       }
-      
+
       const statusResult = await checkPaymentStatus(transactionId);
-      
+
       if (!statusResult.success) {
         return res.status(500).json({ error: statusResult.error || "Failed to check status" });
       }
-      
+
       res.json({
         status: statusResult.data?.status || 'PENDING',
         paidAt: statusResult.data?.paidAt,
@@ -3422,16 +3415,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const merchantId = req.session.merchantId!;
       const merchant = await storage.getMerchant(merchantId);
-      
+
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
-      
+
       await storage.updateMerchantSubscription(merchantId, {
         subscriptionStatus: 'canceled',
         pendingTransactionId: null,
       });
-      
+
       res.json({ success: true, message: "Subscription canceled" });
     } catch (error: any) {
       console.error("Cancel subscription error:", error);
@@ -3446,23 +3439,23 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
-      
+
       if (!merchant.pendingTransactionId) {
         return res.json({ synced: false, message: "No pending transaction" });
       }
-      
+
       const statusResult = await checkPaymentStatus(merchant.pendingTransactionId);
-      
+
       if (!statusResult.success) {
         return res.json({ synced: false, message: "Failed to check payment status" });
       }
-      
+
       if (statusResult.data?.status === 'PAID') {
         const orderId = statusResult.data.orderId || '';
         const parts = orderId.split('_');
         const planId = parts[2] as SubscriptionPlanId;
         const billingInterval = parts[3] || 'monthly';
-        
+
         if (planId && subscriptionPlans[planId]) {
           const periodEnd = new Date();
           if (billingInterval === 'annual') {
@@ -3470,7 +3463,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           } else {
             periodEnd.setMonth(periodEnd.getMonth() + 1);
           }
-          
+
           await storage.updateMerchantSubscription(merchantId, {
             subscriptionPlanId: planId,
             subscriptionStatus: 'active',
@@ -3482,7 +3475,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             conversationsUsed: 0,
             conversationsResetAt: new Date(),
           });
-          
+
           return res.json({ 
             synced: true, 
             planId,
@@ -3490,7 +3483,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           });
         }
       }
-      
+
       res.json({ synced: false, message: "Payment not yet confirmed" });
     } catch (error: any) {
       console.error("Billing sync error:", error);
@@ -3508,7 +3501,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (webhookSecret && signature) {
         const rawBody = JSON.stringify(req.body);
         const { ResendWebhookHandler } = await import('./resendWebhook');
-        
+
         const isValid = ResendWebhookHandler.verifySignature(rawBody, signature, webhookSecret);
         if (!isValid) {
           console.warn('Invalid Resend webhook signature');
@@ -3538,11 +3531,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!admin || !(await verifyPassword(password, admin.password))) {
         return res.status(401).json({ error: "Invalid credentials" });
       }
-      
+
       req.session.userId = admin.id;
       req.session.userType = "admin";
       req.session.isAdmin = true;
-      
+
       res.json({ success: true, adminId: admin.id, name: admin.name });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -3597,7 +3590,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const { password, ...safeMerchant } = merchant;
       const sessions = await storage.getSessionsByMerchant(merchant.id);
       const supervisors = await storage.getSupervisorsByMerchant(merchant.id);
-      
+
       const basePlan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
       const effectivePlan = merchant.subscriptionPlanId === 'custom' ? {
         ...basePlan,
@@ -3609,7 +3602,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         monthlyPrice: merchant.customMonthlyPrice ?? basePlan.monthlyPrice,
         annualPrice: merchant.customAnnualPrice ?? basePlan.annualPrice,
       } : basePlan;
-      
+
       res.json({
         ...safeMerchant,
         plan: effectivePlan,
@@ -3638,11 +3631,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
-      
+
       const updateData: any = {};
       if (planId) updateData.subscriptionPlanId = planId;
       if (status) updateData.subscriptionStatus = status;
-      
+
       // Custom plan configuration
       if (planId === 'custom') {
         if (customConversationsLimit !== undefined) updateData.customConversationsLimit = customConversationsLimit;
@@ -3653,7 +3646,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         if (customMonthlyPrice !== undefined) updateData.customMonthlyPrice = customMonthlyPrice;
         if (customAnnualPrice !== undefined) updateData.customAnnualPrice = customAnnualPrice;
       }
-      
+
       const updated = await storage.updateMerchantSubscription(merchant.id, updateData);
       res.json({ success: true, merchant: updated });
     } catch (error) {
@@ -3667,7 +3660,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
-      
+
       await storage.deleteMerchant(merchant.id);
       res.json({ success: true, message: "Merchant deleted successfully" });
     } catch (error) {
@@ -3683,14 +3676,14 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
-      
+
       if (!message) {
         return res.status(400).json({ error: "Message is required" });
       }
-      
+
       // Log the follow-up action and store for future dashboard notification implementation
       console.log(`[Follow-up] Sent to merchant ${merchant.companyName} (${merchant.id}): ${message}`);
-      
+
       // Store follow-up in platform settings for audit trail
       const followUpKey = `follow_up_${merchant.id}_${Date.now()}`;
       await storage.setPlatformSetting(followUpKey, JSON.stringify({
@@ -3699,7 +3692,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         message,
         sentAt: new Date().toISOString(),
       }));
-      
+
       res.json({ success: true, message: "Follow-up notification sent" });
     } catch (error) {
       console.error("Error sending follow-up:", error);
@@ -3714,7 +3707,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const activeMerchants = merchants.filter(m => m.subscriptionStatus === 'active').length;
       const trialMerchants = merchants.filter(m => m.subscriptionStatus === 'trial').length;
       const totalConversations = merchants.reduce((sum, m) => sum + (m.conversationsUsed || 0), 0);
-      
+
       const planDistribution = {
         free: merchants.filter(m => !m.subscriptionPlanId || m.subscriptionPlanId === 'free').length,
         starter: merchants.filter(m => m.subscriptionPlanId === 'starter').length,
@@ -3722,13 +3715,13 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         enterprise: merchants.filter(m => m.subscriptionPlanId === 'enterprise').length,
         custom: merchants.filter(m => m.subscriptionPlanId === 'custom').length,
       };
-      
+
       const paidMerchants = merchants.filter(m => m.subscriptionStatus === 'active' && m.subscriptionPlanId !== 'free');
       const revenueEstimate = paidMerchants.reduce((sum, m) => {
         const prices: Record<string, number> = { starter: 29, pro: 99, enterprise: 299, custom: 499 };
         return sum + (prices[m.subscriptionPlanId || 'starter'] || 0);
       }, 0);
-      
+
       res.json({
         totalMerchants,
         activeMerchants,
@@ -3808,11 +3801,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!req.file) {
         return res.status(400).json({ error: "No file uploaded" });
       }
-      
+
       const objectStorage = new ObjectStorageService();
       const fileBuffer = fs.readFileSync(req.file.path);
       const uniqueFilename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(req.file.originalname)}`;
-      
+
       // Try Object Storage first
       if (objectStorage.isConfigured()) {
         try {
@@ -3823,11 +3816,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           console.log("Object Storage failed, falling back to database:", storageError);
         }
       }
-      
+
       // Fallback: Store file in database (for small brand assets like logo, favicon, og image)
       const base64Content = fileBuffer.toString("base64");
       const fileId = `brand_${uniqueFilename}`;
-      
+
       await storage.storeFile({
         id: fileId,
         filename: uniqueFilename,
@@ -3836,9 +3829,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         content: base64Content,
         category: "brand"
       });
-      
+
       fs.unlinkSync(req.file.path);
-      
+
       const fileUrl = `/db-files/${fileId}`;
       res.json({ url: fileUrl, filename: uniqueFilename });
     } catch (error) {
@@ -3846,7 +3839,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       res.status(500).json({ error: "Server error" });
     }
   });
-  
+
   // Serve files from database storage
   app.get("/db-files/:fileId", async (req, res) => {
     try {
@@ -3854,7 +3847,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!file) {
         return res.status(404).json({ error: "File not found" });
       }
-      
+
       const buffer = Buffer.from(file.content, "base64");
       res.setHeader("Content-Type", file.mimeType);
       res.setHeader("Content-Length", buffer.length);
@@ -3865,16 +3858,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       res.status(500).json({ error: "Server error" });
     }
   });
-  
+
   // Serve files from Object Storage
   app.get("/storage/*", async (req, res) => {
     try {
       const objectStorage = new ObjectStorageService();
-      
+
       if (!objectStorage.isConfigured()) {
         return res.status(404).json({ error: "Object storage not configured" });
       }
-      
+
       const objectPath = req.path;
       const file = await objectStorage.getFile(objectPath);
       await objectStorage.downloadObject(file, res);
@@ -3923,16 +3916,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const { key, value } = req.body;
       if (!key) {
-        return res.status(400).json({ error: "Key is required" });
+        return res.status(400).json({ error: "Missing key" });
       }
       await storage.setPlatformSetting(key, value);
-      
+
       // When trial_days is updated, recalculate trialEndsAt for existing trial merchants
       if (key === "trial_days") {
         const trialDays = parseInt(value) || 14;
         await storage.recalculateTrialExpiryForActiveMerchants(trialDays);
       }
-      
+
       const settings = await storage.getAllPlatformSettings();
       res.json(settings);
     } catch (error) {
@@ -3950,13 +3943,13 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       for (const [key, value] of Object.entries(settings)) {
         await storage.setPlatformSetting(key, String(value));
       }
-      
+
       // If trial_days was included in batch, recalculate trial expiry for active merchants
       if (settings.trial_days) {
         const trialDays = parseInt(settings.trial_days) || 14;
         await storage.recalculateTrialExpiryForActiveMerchants(trialDays);
       }
-      
+
       const allSettings = await storage.getAllPlatformSettings();
       res.json(allSettings);
     } catch (error) {
@@ -3982,7 +3975,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const { planId } = req.params;
       const { monthlyPrice, annualPrice, conversationsLimit, agentsLimit, supervisorsLimit, sourcesLimit } = req.body;
-      
+
       // Get existing custom overrides
       const customPlansJson = await storage.getPlatformSetting("subscription_plans_custom") || "{}";
       let customOverrides: Record<string, any> = {};
@@ -3991,7 +3984,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       } catch {
         customOverrides = {};
       }
-      
+
       // Update the specific plan
       customOverrides[planId] = {
         ...(customOverrides[planId] || {}),
@@ -4002,25 +3995,25 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         ...(supervisorsLimit !== undefined && { supervisorsLimit }),
         ...(sourcesLimit !== undefined && { sourcesLimit }),
       };
-      
+
       // Save back to platform settings
       await storage.setPlatformSetting("subscription_plans_custom", JSON.stringify(customOverrides));
-      
+
       // Clear the plan cache so changes take effect immediately
       clearPlanCache();
-      
+
       // Return the updated plan
       const defaultPlan = subscriptionPlans[planId as keyof typeof subscriptionPlans];
       if (!defaultPlan) {
         return res.status(404).json({ error: "Plan not found" });
       }
-      
+
       const updatedPlan = {
         ...defaultPlan,
         id: planId,
         ...customOverrides[planId],
       };
-      
+
       res.json({ success: true, plan: updatedPlan });
     } catch (error) {
       console.error("Error updating subscription plan:", error);
@@ -4029,7 +4022,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   });
 
   // ============ RESEND EMAIL TEST ============
-  
+
   // Test Resend connection (admin)
   app.get("/api/admin/test-resend", requireAdmin, async (req, res) => {
     try {
@@ -4049,7 +4042,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   });
 
   // ============ PROMOTIONS ROUTES ============
-  
+
   // Get all promotions (admin)
   app.get("/api/admin/promotions", requireAdmin, async (req, res) => {
     try {
@@ -4079,7 +4072,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   app.post("/api/admin/promotions", requireAdmin, async (req, res) => {
     try {
       const { code, name, description, discountPercent, targetPlans, billingCycle, maxUses, startDate, endDate, isActive, isPublic, showUpsell } = req.body;
-      
+
       if (!code || !name || !discountPercent || !targetPlans || !startDate || !endDate) {
         return res.status(400).json({ error: "Missing required fields" });
       }
@@ -4115,7 +4108,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   app.put("/api/admin/promotions/:id", requireAdmin, async (req, res) => {
     try {
       const { code, name, description, discountPercent, targetPlans, billingCycle, maxUses, startDate, endDate, isActive, isPublic, showUpsell, bgColor, textColor, bannerMode, bannerImageUrl, bannerImageMobileUrl } = req.body;
-      
+
       const updateData: any = {};
       if (code !== undefined) updateData.code = code;
       if (name !== undefined) updateData.name = name;
@@ -4161,7 +4154,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const objectStorage = new ObjectStorageService();
       const fileBuffer = fs.readFileSync(req.file.path);
       const uniqueFilename = `promo_${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(req.file.originalname)}`;
-      
+
       // Try Object Storage first (persistent)
       if (objectStorage.isConfigured()) {
         try {
@@ -4172,11 +4165,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           console.log("Object Storage failed for promo banner, falling back to database:", storageError);
         }
       }
-      
+
       // Fallback: Store file in database (for persistent storage)
       const base64Content = fileBuffer.toString("base64");
       const fileId = `promo_banner_${uniqueFilename}`;
-      
+
       await storage.storeFile({
         id: fileId,
         filename: uniqueFilename,
@@ -4185,9 +4178,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         content: base64Content,
         category: "promo"
       });
-      
+
       fs.unlinkSync(req.file.path);
-      
+
       const fileUrl = `/db-files/${fileId}`;
       res.json({ url: fileUrl, filename: uniqueFilename });
     } catch (error) {
@@ -4253,7 +4246,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   app.post("/api/promotions/validate", async (req, res) => {
     try {
       const { code, planId, billingCycle } = req.body;
-      
+
       if (!code || !planId) {
         return res.status(400).json({ error: "Missing code or plan ID" });
       }
@@ -4264,7 +4257,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       }
 
       const now = new Date();
-      
+
       // Check if promo is active
       if (!promo.isActive) {
         return res.status(400).json({ error: "This promotion is no longer active" });
@@ -4289,7 +4282,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const isPlanTarget = targets.includes(planId);
       const isUpgrade = targets.includes("upgrade") && (planId === "starter" || planId === "pro" || planId === "enterprise");
       const isGenericCheck = planId === "all"; // Special: just validate code exists without plan check
-      
+
       if (!isGenericCheck && !isAllPlans && !isPlanTarget && !isUpgrade) {
         return res.status(400).json({ error: "This promotion is not valid for the selected plan" });
       }
@@ -4323,7 +4316,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!url) {
         return res.status(400).json({ error: "URL is required" });
       }
-      
+
       // Normalize URL - add https:// if not present (case-insensitive check)
       let normalizedUrl = url.trim();
       const lowerUrl = normalizedUrl.toLowerCase();
@@ -4333,15 +4326,15 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         // Fix case where user typed "Https://" or "HTTP://" - normalize to lowercase protocol
         normalizedUrl = normalizedUrl.replace(/^https?:\/\//i, (match: string) => match.toLowerCase());
       }
-      
+
       console.log("Crawling URL:", normalizedUrl);
-      
+
       const result = await extractFAQContent(normalizedUrl);
       if (!result.success) {
         console.log("Crawl failed:", result.error);
         return res.status(400).json({ error: result.error || "Failed to extract content from URL" });
       }
-      
+
       // Get existing sources from platform settings
       const existingSourcesJson = await storage.getPlatformSetting("guide_sources") || "[]";
       let sources: Array<{ id: string; name: string; url: string; content: string; status: string; createdAt: string }> = [];
@@ -4350,7 +4343,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       } catch {
         sources = [];
       }
-      
+
       // Add new source
       const sourceId = `src_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
       let sourceName: string;
@@ -4367,10 +4360,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         status: "active",
         createdAt: new Date().toISOString(),
       });
-      
+
       // Save sources
       await storage.setPlatformSetting("guide_sources", JSON.stringify(sources));
-      
+
       // Also append to knowledge content
       let knowledgeContent = await storage.getPlatformSetting("guide_knowledge_content") || "";
       if (knowledgeContent) {
@@ -4378,7 +4371,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       }
       knowledgeContent += `[Source: ${sourceName}]\n${result.content}`;
       await storage.setPlatformSetting("guide_knowledge_content", knowledgeContent);
-      
+
       res.json({ 
         success: true, 
         source: sources[sources.length - 1],
@@ -4418,12 +4411,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       } catch {
         sources = [];
       }
-      
+
       // Find source to delete and its name for content removal
       const sourceToDelete = sources.find((s) => s.id === sourceId);
       const filteredSources = sources.filter((s) => s.id !== sourceId);
       await storage.setPlatformSetting("guide_sources", JSON.stringify(filteredSources));
-      
+
       // Remove corresponding content from knowledge content
       if (sourceToDelete) {
         let knowledgeContent = await storage.getPlatformSetting("guide_knowledge_content") || "";
@@ -4440,10 +4433,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           await storage.setPlatformSetting("guide_knowledge_content", knowledgeContent);
         }
       }
-      
+
       // Get updated knowledge content to return
       const updatedKnowledge = await storage.getPlatformSetting("guide_knowledge_content") || "";
-      
+
       res.json({ success: true, sources: filteredSources, knowledgeContent: updatedKnowledge });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -4506,58 +4499,58 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   var sessionId = "sess_" + Math.random().toString(36).substring(2, 12);
   var baseUrl = "${baseUrl}";
   var isOpen = false;
-  
+
   // Cleanup existing widget for same merchant (allows re-initialization)
   var existingIframe = document.getElementById("chatvice-widget-frame");
   var existingButton = document.getElementById("chatvice-widget-button");
   if (existingIframe) existingIframe.remove();
   if (existingButton) existingButton.remove();
-  
+
   var iframe = document.createElement("iframe");
   iframe.src = baseUrl + "/widget/" + merchantId + "?session=" + sessionId + "&showClose=true";
   iframe.style.cssText = "position:fixed;bottom:20px;right:20px;width:380px;height:550px;border:none;z-index:99999;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,0.15);display:none;";
   iframe.id = "chatvice-widget-frame";
   iframe.allow = "microphone; camera";
-  
+
   var button = document.createElement("div");
   button.id = "chatvice-widget-button";
   button.style.cssText = "position:fixed;bottom:20px;right:20px;width:60px;height:60px;border-radius:50%;background:#6b5dfc;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:99999;box-shadow:0 4px 15px rgba(107,93,252,0.4);transition:transform 0.2s ease;";
   button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
   button.onmouseover = function() { button.style.transform = "scale(1.05)"; };
   button.onmouseout = function() { button.style.transform = "scale(1)"; };
-  
+
   function openWidget() {
     iframe.style.display = "block";
     button.style.display = "none";
     isOpen = true;
   }
-  
+
   function closeWidget() {
     iframe.style.display = "none";
     button.style.display = "flex";
     isOpen = false;
   }
-  
+
   button.onclick = function() {
     openWidget();
   };
-  
+
   // Listen for messages from iframe (close button clicked inside widget)
   window.addEventListener("message", function(event) {
     // Validate message source is from our iframe
     if (event.source !== iframe.contentWindow) return;
     if (!event.data || typeof event.data !== "object") return;
-    
+
     if (event.data.type === "chatvice-close") {
       closeWidget();
     } else if (event.data.type === "chatvice-open") {
       openWidget();
     }
   });
-  
+
   document.body.appendChild(iframe);
   document.body.appendChild(button);
-  
+
   // Expose public API
   window.chatvice = {
     open: openWidget,
@@ -4573,7 +4566,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   app.post("/api/demo/ask", async (req, res) => {
     try {
       const { question } = req.body;
-      
+
       const chatviceKnowledge = `
 Chatvice is an AI-powered customer service chatbot platform that helps businesses:
 - Automate customer support with intelligent AI responses
@@ -4597,7 +4590,7 @@ Plans:
 
 All plans include a 7-day free trial. No credit card required to start.
 `;
-      
+
       const response = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
         messages: [
@@ -4613,46 +4606,46 @@ Be helpful, friendly, and concise. If asked about something not related to Chatv
         max_tokens: 300,
         temperature: 0.7,
       });
-      
+
       res.json({ answer: response.choices[0].message.content || "I'm here to help! Ask me about how Chatvice can transform your customer service." });
     } catch (error) {
       res.json({ answer: "Hi! I'm Chatvice. I help businesses automate customer support with intelligent AI responses. Would you like to learn about our plans or features?" });
     }
   });
 
-  // Demo Widget Top-Up Chat - AI-powered conversational assistant
+  // Demo Widget Top-up Chat - AI-powered conversational assistant
   const demoTopupSessions = new Map<string, { messages: Array<{ role: "user" | "assistant"; content: string }>; state: any }>();
 
   app.post("/api/demo/topup-chat", async (req, res) => {
     try {
       const { sessionId, message, context } = req.body;
-      
+
       if (!sessionId || !message) {
         return res.status(400).json({ error: "sessionId and message are required" });
       }
-      
+
       // Get or create session
       let session = demoTopupSessions.get(sessionId);
       if (!session) {
         session = { messages: [], state: {} };
         demoTopupSessions.set(sessionId, session);
       }
-      
+
       // Update state from context if provided
       if (context) {
         session.state = { ...session.state, ...context };
       }
-      
+
       // Add user message to history
       session.messages.push({ role: "user", content: message });
-      
+
       // Random female assistant name
       const assistantNames = ["Jeanny", "Jenna", "Lisa", "Ghea", "Yoona", "Marsya", "Anya"];
       const assistantName = session.state.assistantName || assistantNames[Math.floor(Math.random() * assistantNames.length)];
       if (!session.state.assistantName) {
         session.state.assistantName = assistantName;
       }
-      
+
       // Build system prompt for top-up assistant with workflow guidance
       const systemPrompt = `Kamu adalah asisten top-up koin yang ramah untuk platform game/aplikasi di Indonesia.
 Nama kamu: ${assistantName} | Gaya: Santai, ramah, pakai "kak", "bosku", "sis", "gan"
@@ -4700,29 +4693,29 @@ User: "makasih" → "Sama-sama kak! Senang bisa bantu. Kalau butuh apa-apa, ${as
 
       // Limit history to last 10 messages
       const recentMessages = session.messages.slice(-10);
-      
+
       const chatMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
         { role: "system", content: systemPrompt },
         ...recentMessages
       ];
-      
+
       const completion = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
         messages: chatMessages,
         max_tokens: 200,
         temperature: 0.8,
       });
-      
+
       const aiResponse = completion.choices[0]?.message?.content || "Maaf kak, ada gangguan. Coba lagi ya!";
-      
+
       // Add AI response to history
       session.messages.push({ role: "assistant", content: aiResponse });
-      
+
       // Keep session size manageable (max 50 messages)
       if (session.messages.length > 50) {
         session.messages = session.messages.slice(-30);
       }
-      
+
       // Clean up old sessions (older than 30 minutes)
       const now = Date.now();
       if (Math.random() < 0.1) { // 10% chance to run cleanup
@@ -4733,7 +4726,7 @@ User: "makasih" → "Sama-sama kak! Senang bisa bantu. Kalau butuh apa-apa, ${as
           }
         });
       }
-      
+
       res.json({ 
         answer: aiResponse,
         sessionId 
@@ -4755,7 +4748,7 @@ User: "makasih" → "Sama-sama kak! Senang bisa bantu. Kalau butuh apa-apa, ${as
     try {
       const clientIp = req.ip || req.socket.remoteAddress || "unknown";
       const now = Date.now();
-      
+
       const rateData = publicHelpRateLimit.get(clientIp);
       if (rateData) {
         if (now < rateData.resetTime) {
@@ -4772,7 +4765,7 @@ User: "makasih" → "Sama-sama kak! Senang bisa bantu. Kalau butuh apa-apa, ${as
       } else {
         publicHelpRateLimit.set(clientIp, { count: 1, resetTime: now + PUBLIC_HELP_WINDOW });
       }
-      
+
       if (publicHelpRateLimit.size > 10000) {
         const keysToDelete: string[] = [];
         publicHelpRateLimit.forEach((value, key) => {
@@ -4780,27 +4773,27 @@ User: "makasih" → "Sama-sama kak! Senang bisa bantu. Kalau butuh apa-apa, ${as
         });
         keysToDelete.forEach(key => publicHelpRateLimit.delete(key));
       }
-      
+
       const { question, conversationHistory } = req.body;
-      
+
       if (!question || typeof question !== 'string' || question.length > 500) {
         return res.status(400).json({ 
           error: "Invalid question",
           answer: "Please provide a valid question (max 500 characters)."
         });
       }
-      
+
       // Fetch guide settings from platform settings
       const guideSystemPrompt = await storage.getPlatformSetting("guide_system_prompt");
       const guideKnowledgeContent = await storage.getPlatformSetting("guide_knowledge_content");
       const guideTemperature = await storage.getPlatformSetting("guide_temperature");
       const guideName = await storage.getPlatformSetting("guide_name") || "Chatvice Guide";
-      
+
       // Fetch dynamic subscription plan pricing
       const { getAllEffectiveSubscriptionPlans } = await import('./subscriptionPlanUtils');
       const plans = await getAllEffectiveSubscriptionPlans();
       const trialDays = await storage.getPlatformSetting("trial_days") || "7";
-      
+
       // Build dynamic pricing knowledge - prices stored in USD
       const pricingKnowledge = plans.map(plan => {
         const priceText = plan.monthlyPrice === 0 
@@ -4817,7 +4810,7 @@ User: "makasih" → "Sama-sama kak! Senang bisa bantu. Kalau butuh apa-apa, ${as
   - ${sourcesText} Knowledge sources
   - Fitur: ${plan.features.slice(0, 5).join(', ')}`;
       }).join('\n\n');
-      
+
       // Comprehensive FAQ knowledge
       const faqKnowledge = `
 FREQUENTLY ASKED QUESTIONS (FAQ):
@@ -4849,33 +4842,42 @@ A: LEXA1 support deteksi bahasa otomatis: English, Bahasa Indonesia, Chinese, Ja
 Q: Apakah data saya aman?
 A: Ya! Kami implementasi: TLS encryption, encrypted database storage, session-based authentication dengan bcrypt, JWT verification untuk widget identity.
 `;
-      
+
       // Default knowledge if none configured
       const defaultKnowledge = `
-WHAT IS CHATVICE?
-Chatvice adalah platform chatbot customer service berbasis AI yang membantu bisnis mengotomasi customer support dengan kualitas tinggi melalui mekanisme smart AI-to-human handoff.
+DASHBOARD SECTIONS:
+1. Overview - Real-time analytics showing active sessions, message counts, AI resolution rate, and daily trends
+2. Agents - Manage AI agents (plan limits: Free/Starter: 1, Pro: 3, Enterprise: 10, Custom: unlimited)
+3. Sources - Add knowledge sources: text snippets, files (doc/txt/pdf), or website links
+4. Analytics - View chat topics, keyword rankings, response times (Pro/Enterprise only)
+5. Chat Sessions - Monitor all customer conversations, view transcripts, export history
+6. Knowledge Base - Edit AI training content, crawl websites for FAQs
+7. Triggers - Set keywords that escalate to human agents (e.g., "refund", "speak to manager")
+8. Widget - Customize chat widget appearance, get embed code, configure allowed domains
+9. Supervisors - Add team members who can handle escalated conversations
+10. Plans - View subscription plans, upgrade options
+11. Billing - Manage payment details, view invoices
+12. Settings - Account settings, profile, preferences
 
-KEY FEATURES:
-1. AI-Powered Chatbot - Otomasi respons customer menggunakan knowledge base yang bisa dikustomisasi
-2. Human Escalation - Eskalasi otomatis ke supervisor manusia saat dibutuhkan
-3. Multi-Language Support - Respons dalam bahasa customer
-4. Customizable Widget - Chat widget yang bisa di-embed di website Anda
-5. Analytics Dashboard - Track performa, topik populer, dan resolution rate
-6. Knowledge Base Management - Train AI dengan informasi bisnis Anda
+HOW TO SET UP:
+1. Add knowledge sources in Sources menu
+2. Create AI agents in Agents menu
+3. Customize your widget in Widget menu
+4. Add triggers for escalation keywords
+5. Copy embed code and add to your website
 
-===== PAKET HARGA CHATVICE =====
-${pricingKnowledge}
+SUBSCRIPTION PLANS:
+- Free: 50 conversations/month, 1 agent, basic features
+- Starter ($29/mo): 500 conversations, 1 agent, email support
+- Pro ($79/mo): 5,000 conversations, 3 agents, analytics, custom domain
+- Enterprise ($299/mo): 50,000 conversations, 10 agents, dedicated support
+- Custom: Contact sales for unlimited features
 
-Semua paket termasuk ${trialDays} hari FREE TRIAL. Tidak perlu kartu kredit!
-
-${faqKnowledge}
-
-GETTING STARTED:
-1. Daftar akun gratis di /register
-2. Tambah knowledge sources (FAQs, info produk, dll)
-3. Kustomisasi chat widget
-4. Embed widget di website Anda
-5. Mulai otomasi customer support!
+TIPS:
+- Train your AI with quality knowledge sources for better responses
+- Use triggers strategically to catch important customer issues
+- Review analytics to identify common questions and improve responses
+- Test your widget before going live
 `;
 
       // Always include pricing and FAQ knowledge, appending to custom knowledge if set
@@ -4890,7 +4892,7 @@ Semua paket termasuk ${trialDays} hari FREE TRIAL. Tidak perlu kartu kredit!
 ${faqKnowledge}`;
       const systemPromptBase = guideSystemPrompt || `You are ${guideName}, helping potential customers learn about the Chatvice platform. You are friendly, helpful, and enthusiastic about Chatvice. Help potential customers understand how Chatvice can help their business. Be concise and focused on value.`;
       const temperature = guideTemperature ? parseFloat(guideTemperature) : 0.7;
-      
+
       const fullSystemPrompt = `${systemPromptBase}
 
 KNOWLEDGE BASE:
@@ -4926,21 +4928,6 @@ Available pages to link:
 - /blog - Halaman blog
 - /faq - Halaman FAQ
 
-PRICING RESPONSE FORMAT:
-Ketika user bertanya tentang harga/pricing/paket, gunakan data dari PAKET HARGA di knowledge base.
-Format jawaban seperti ini:
-
-**NAMA_PAKET** - [harga dari knowledge]
-• [fitur 1]
-• [fitur 2]
-• [fitur 3]
-
-(Ulangi untuk setiap paket yang tersedia)
-
-Selalu akhiri dengan:
-[BTN:Mulai Free Trial:Saya mau daftar free trial]
-[LINK:Lihat Detail Lengkap:/pricing]
-
 LANGUAGE MATCHING (CRITICAL):
 - WAJIB: Selalu jawab menggunakan bahasa yang SAMA dengan bahasa pesan TERAKHIR user
 - Jika user bertanya dalam Bahasa Indonesia, JAWAB dalam Bahasa Indonesia
@@ -4956,12 +4943,12 @@ IMPORTANT RULES:
 - Don't overuse buttons - max 3-4 per response
 
 Use the knowledge base above to answer questions. If you don't have specific information, be honest about it.`;
-      
+
       // Build conversation messages with history for context continuity
       const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
         { role: "system", content: fullSystemPrompt }
       ];
-      
+
       // Add conversation history (limit to last 10 messages for token efficiency)
       if (Array.isArray(conversationHistory) && conversationHistory.length > 0) {
         const recentHistory = conversationHistory.slice(-10);
@@ -4971,17 +4958,17 @@ Use the knowledge base above to answer questions. If you don't have specific inf
           }
         }
       }
-      
+
       // Add current question
       messages.push({ role: "user", content: question });
-      
+
       const response = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
         messages,
         max_tokens: 600,
         temperature,
       });
-      
+
       res.json({ answer: response.choices[0].message.content || "I'm here to help you learn about Chatvice! What would you like to know?" });
     } catch (error) {
       console.error("Public help ask error:", error);
@@ -4992,13 +4979,13 @@ Use the knowledge base above to answer questions. If you don't have specific inf
   app.post("/api/help/ask", requireMerchant, async (req, res) => {
     try {
       const { question, conversationHistory } = req.body;
-      
+
       // Fetch guide settings from platform settings
       const guideSystemPrompt = await storage.getPlatformSetting("guide_system_prompt");
       const guideKnowledgeContent = await storage.getPlatformSetting("guide_knowledge_content");
       const guideTemperature = await storage.getPlatformSetting("guide_temperature");
       const guideName = await storage.getPlatformSetting("guide_name") || "Chatvice Guide";
-      
+
       // Default dashboard knowledge if none configured
       const defaultDashboardKnowledge = `
 DASHBOARD SECTIONS:
@@ -5039,7 +5026,7 @@ TIPS:
       const knowledgeContext = guideKnowledgeContent || defaultDashboardKnowledge;
       const systemPromptBase = guideSystemPrompt || `You are ${guideName}, helping merchants use the Chatvice dashboard. You are friendly, helpful, and concise. Guide merchants on how to use Chatvice dashboard features.`;
       const temperature = guideTemperature ? parseFloat(guideTemperature) : 0.7;
-      
+
       const fullSystemPrompt = `${systemPromptBase}
 
 KNOWLEDGE BASE:
@@ -5087,12 +5074,12 @@ RULES:
 - Max 3-4 buttons per response
 
 Use the knowledge base above to answer questions. If they ask about something unrelated, gently redirect them to dashboard features.`;
-      
+
       // Build conversation messages with history for context continuity
       const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
         { role: "system", content: fullSystemPrompt }
       ];
-      
+
       // Add conversation history (limit to last 10 messages for token efficiency)
       if (Array.isArray(conversationHistory) && conversationHistory.length > 0) {
         const recentHistory = conversationHistory.slice(-10);
@@ -5102,17 +5089,17 @@ Use the knowledge base above to answer questions. If they ask about something un
           }
         }
       }
-      
+
       // Add current question
       messages.push({ role: "user", content: question });
-      
+
       const response = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
         messages,
         max_tokens: 400,
         temperature,
       });
-      
+
       res.json({ answer: response.choices[0].message.content || "I'm here to help you with the Chatvice dashboard! What would you like to know?" });
     } catch (error) {
       console.error("Help ask error:", error);
@@ -5124,17 +5111,17 @@ Use the knowledge base above to answer questions. If they ask about something un
   app.post("/api/chatvice-guide/chat", requireAdmin, async (req, res) => {
     try {
       const { message, context, conversationHistory } = req.body;
-      
+
       if (!message || typeof message !== 'string') {
         return res.status(400).json({ error: "Message is required" });
       }
-      
+
       // Fetch guide settings from platform settings
       const guideSystemPrompt = await storage.getPlatformSetting("guide_system_prompt");
       const guideKnowledgeContent = await storage.getPlatformSetting("guide_knowledge_content");
       const guideTemperature = await storage.getPlatformSetting("guide_temperature");
       const guideName = await storage.getPlatformSetting("guide_name") || "Chatvice Guide";
-      
+
       // Default knowledge if none configured
       const defaultKnowledge = `
 WHAT IS CHATVICE?
@@ -5148,12 +5135,12 @@ KEY FEATURES:
 5. Analytics Dashboard - Track performance, popular topics, and resolution rates
 6. Knowledge Base Management - Train your AI with your business information
 `;
-      
+
       const knowledgeBase = guideKnowledgeContent || defaultKnowledge;
       const temperature = guideTemperature ? parseFloat(guideTemperature) : 0.7;
-      
+
       const systemPromptBase = guideSystemPrompt || `You are ${guideName}, a helpful AI assistant for Chatvice platform. You help users learn about Chatvice features and answer questions.`;
-      
+
       const fullSystemPrompt = `${systemPromptBase}
 
 KNOWLEDGE BASE:
@@ -5178,12 +5165,12 @@ LANGUAGE MATCHING (CRITICAL):
 - JANGAN campur bahasa - konsisten gunakan satu bahasa sesuai pertanyaan user
 
 Use buttons for choices and links when mentioning pages. Be helpful, friendly, and concise.`;
-      
+
       // Build conversation messages with history for context continuity
       const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
         { role: "system", content: fullSystemPrompt }
       ];
-      
+
       // Add conversation history (limit to last 10 messages for token efficiency)
       if (Array.isArray(conversationHistory) && conversationHistory.length > 0) {
         const recentHistory = conversationHistory.slice(-10);
@@ -5193,17 +5180,17 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
           }
         }
       }
-      
+
       // Add current message
       messages.push({ role: "user", content: message });
-      
+
       const response = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
         messages,
         max_tokens: 500,
         temperature,
       });
-      
+
       res.json({ 
         response: response.choices[0].message.content || "I'm here to help! What would you like to know about Chatvice?" 
       });
@@ -5232,21 +5219,21 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
-      
+
       const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
       const existingAgents = await storage.getAgents(merchantId);
-      
+
       if (plan.agentsLimit !== -1 && existingAgents.length >= plan.agentsLimit) {
         return res.status(403).json({ error: `Agent limit reached (${plan.agentsLimit}). Please upgrade your plan.` });
       }
-      
+
       const { name, description } = req.body;
       const agent = await storage.createAgent({
         merchantId,
         name,
         description: description || "",
       });
-      
+
       res.json(agent);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -5260,9 +5247,9 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       if (!agent || agent.merchantId !== merchantId) {
         return res.status(404).json({ error: "Agent not found" });
       }
-      
+
       const updated = await storage.updateAgent(req.params.id, req.body);
-      
+
       const merchant = await storage.getMerchant(merchantId);
       if (merchant && merchant.activeAgentId === req.params.id && updated) {
         const widgetUpdates: { agentName?: string; agentPhotoUrl?: string } = {};
@@ -5272,7 +5259,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
           await storage.updateMerchant(merchantId, widgetUpdates);
         }
       }
-      
+
       res.json(updated);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -5285,7 +5272,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       if (!agent || agent.merchantId !== req.session.merchantId) {
         return res.status(404).json({ error: "Agent not found" });
       }
-      
+
       await storage.deleteAgent(req.params.id);
       res.json({ success: true });
     } catch (error) {
@@ -5300,10 +5287,10 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       if (!agent || agent.merchantId !== merchantId) {
         return res.status(404).json({ error: "Agent not found" });
       }
-      
+
       const validatedData = agentWidgetSettingsSchema.parse(req.body);
       const { primaryColor, widgetTheme, bubblePosition, widgetWelcomeMessage, photoUrl, name } = validatedData;
-      
+
       const updateData: Record<string, any> = {};
       if (primaryColor !== undefined) updateData.primaryColor = primaryColor;
       if (widgetTheme !== undefined) updateData.widgetTheme = widgetTheme;
@@ -5311,9 +5298,9 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       if (widgetWelcomeMessage !== undefined) updateData.widgetWelcomeMessage = widgetWelcomeMessage;
       if (photoUrl !== undefined) updateData.photoUrl = photoUrl;
       if (name !== undefined) updateData.name = name;
-      
+
       const updated = await storage.updateAgent(req.params.id, updateData);
-      
+
       const merchant = await storage.getMerchant(merchantId);
       if (merchant && merchant.activeAgentId === req.params.id && updated) {
         const syncUpdates: Record<string, any> = {};
@@ -5323,7 +5310,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
           await storage.updateMerchant(merchantId, syncUpdates);
         }
       }
-      
+
       res.json({ success: true, agent: updated });
     } catch (error: any) {
       console.error("Widget settings save error:", error);
@@ -5341,7 +5328,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       if (!agent || agent.merchantId !== merchantId) {
         return res.status(404).json({ error: "Agent not found" });
       }
-      
+
       res.json({
         primaryColor: agent.primaryColor || "#6b5dfc",
         widgetTheme: agent.widgetTheme || "light",
@@ -5359,28 +5346,28 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
     try {
       const merchantId = req.session.merchantId!;
       const { agentId, supervisorId } = req.body;
-      
+
       if (!agentId || !supervisorId) {
         return res.status(400).json({ error: "Missing agentId or supervisorId" });
       }
-      
+
       const agent = await storage.getAgent(agentId);
       if (!agent || agent.merchantId !== merchantId) {
         return res.status(404).json({ error: "Agent not found" });
       }
-      
+
       const supervisor = await storage.getSupervisor(supervisorId);
       if (!supervisor || supervisor.merchantId !== merchantId) {
         return res.status(404).json({ error: "Supervisor not found" });
       }
-      
+
       // Check if supervisor already has 3 agents assigned (maximum limit)
       const allAgents = await storage.getAgents(merchantId);
       const supervisorAgentCount = allAgents.filter(a => a.supervisorId === supervisorId).length;
       if (supervisorAgentCount >= 3) {
         return res.status(400).json({ error: "Supervisor sudah menangani maksimum 3 agen. Silakan pilih supervisor lain." });
       }
-      
+
       const updated = await storage.updateAgent(agentId, { supervisorId });
       res.json({ success: true, agent: updated });
     } catch (error) {
@@ -5394,16 +5381,16 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
     try {
       const merchantId = req.session.merchantId!;
       const { agentId } = req.body;
-      
+
       if (!agentId) {
         return res.status(400).json({ error: "Missing agentId" });
       }
-      
+
       const agent = await storage.getAgent(agentId);
       if (!agent || agent.merchantId !== merchantId) {
         return res.status(404).json({ error: "Agent not found" });
       }
-      
+
       const updated = await storage.updateAgent(agentId, { supervisorId: null });
       res.json({ success: true, agent: updated });
     } catch (error) {
@@ -5426,7 +5413,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
     try {
       const merchantId = req.session.merchantId!;
       const { type, name, content, url } = req.body;
-      
+
       const source = await storage.createSource({
         merchantId,
         type,
@@ -5435,7 +5422,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         url: url || "",
         charCount: (content || "").length,
       });
-      
+
       res.json(source);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -5448,12 +5435,12 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       if (!source || source.merchantId !== req.session.merchantId) {
         return res.status(404).json({ error: "Source not found" });
       }
-      
+
       const updateData = { ...req.body };
       if (updateData.content) {
         updateData.charCount = updateData.content.length;
       }
-      
+
       const updated = await storage.updateSource(req.params.id, updateData);
       res.json(updated);
     } catch (error) {
@@ -5467,7 +5454,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       if (!source || source.merchantId !== req.session.merchantId) {
         return res.status(404).json({ error: "Source not found" });
       }
-      
+
       await storage.deleteSource(req.params.id);
       res.json({ success: true });
     } catch (error) {
@@ -5483,7 +5470,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
-      
+
       const questions = await storage.getSuggestedQuestions(merchantId, merchant.activeAgentId || undefined);
       res.json(questions);
     } catch (error) {
@@ -5511,7 +5498,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       }
 
       const { question, answer, sortOrder } = req.body;
-      
+
       const suggestedQuestion = await storage.createSuggestedQuestion({
         merchantId,
         agentId: merchant.activeAgentId || null,
@@ -5519,7 +5506,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         answer,
         sortOrder: sortOrder ?? existingQuestions.length,
       });
-      
+
       res.json(suggestedQuestion);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -5532,7 +5519,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       if (!question || question.merchantId !== req.session.merchantId) {
         return res.status(404).json({ error: "Question not found" });
       }
-      
+
       const updated = await storage.updateSuggestedQuestion(req.params.id, req.body);
       res.json(updated);
     } catch (error) {
@@ -5546,7 +5533,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       if (!question || question.merchantId !== req.session.merchantId) {
         return res.status(404).json({ error: "Question not found" });
       }
-      
+
       await storage.deleteSuggestedQuestion(req.params.id);
       res.json({ success: true });
     } catch (error) {
@@ -5581,7 +5568,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
   app.post("/api/widget/suggested-questions/use", async (req, res) => {
     try {
       const { merchantId, sessionId, questionId } = req.body;
-      
+
       if (!merchantId || !questionId) {
         return res.status(400).json({ error: "Missing required fields" });
       }
@@ -5622,7 +5609,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
           currentSessionId = null;
         }
       }
-      
+
       if (!currentSessionId) {
         const newSessionId = `sq_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
         const session = await storage.createSession({
@@ -5670,12 +5657,12 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
     try {
       const merchantId = req.session.merchantId!;
       const { date } = req.query;
-      
+
       let targetDate: Date | undefined;
       if (date && typeof date === 'string') {
         targetDate = new Date(date);
       }
-      
+
       const logs = await storage.getChatLogs(merchantId, targetDate);
       res.json(logs);
     } catch (error) {
@@ -5688,14 +5675,14 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
     try {
       const merchantId = req.session.merchantId!;
       const { logId } = req.params;
-      
+
       const logs = await storage.getChatLogs(merchantId);
       const log = logs.find(l => l.id === logId);
-      
+
       if (!log || log.merchantId !== merchantId) {
         return res.status(404).json({ error: "Chat log not found" });
       }
-      
+
       const txtContent = `Chat Log - Session ${log.sessionId}
 ==============================================
 Customer: ${log.customerName || 'Anonymous'}
@@ -5716,7 +5703,7 @@ ${log.fullTranscript}
 ${log.extractedKnowledge ? `=== EXTRACTED KNOWLEDGE ===
 ${log.extractedKnowledge}` : ''}
 `;
-      
+
       res.setHeader('Content-Type', 'text/plain');
       res.setHeader('Content-Disposition', `attachment; filename="chat-log-${log.sessionId}.txt"`);
       res.send(txtContent);
@@ -5731,12 +5718,12 @@ ${log.extractedKnowledge}` : ''}
     try {
       const merchantId = req.session.merchantId!;
       const { agentId } = req.params;
-      
+
       const agent = await storage.getAgent(agentId);
       if (!agent || agent.merchantId !== merchantId) {
         return res.status(404).json({ error: "Agent not found" });
       }
-      
+
       const mappings = await storage.getAgentSupervisors(agentId);
       res.json(mappings);
     } catch (error) {
@@ -5750,39 +5737,39 @@ ${log.extractedKnowledge}` : ''}
       const merchantId = req.session.merchantId!;
       const { agentId } = req.params;
       const { supervisorId } = req.body;
-      
+
       const agent = await storage.getAgent(agentId);
       if (!agent || agent.merchantId !== merchantId) {
         return res.status(404).json({ error: "Agent not found" });
       }
-      
+
       const supervisor = await storage.getSupervisor(supervisorId);
       if (!supervisor || supervisor.merchantId !== merchantId) {
         return res.status(404).json({ error: "Supervisor not found" });
       }
-      
+
       // Check plan limits
       const merchant = await storage.getMerchant(merchantId);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
-      
+
       const planId = (merchant.subscriptionPlanId || 'free') as SubscriptionPlanId;
       const plan = subscriptionPlans[planId];
       const currentCount = await storage.countAgentSupervisors(agentId);
-      
+
       if (plan.supervisorsPerAgentLimit !== -1 && currentCount >= plan.supervisorsPerAgentLimit) {
         return res.status(403).json({ 
           error: `Maximum ${plan.supervisorsPerAgentLimit} supervisor(s) per agent allowed on your plan` 
         });
       }
-      
+
       // Check if already assigned
       const existing = await storage.getAgentSupervisors(agentId);
       if (existing.some(e => e.supervisorId === supervisorId)) {
         return res.status(400).json({ error: "Supervisor already assigned to this agent" });
       }
-      
+
       const mapping = await storage.createAgentSupervisor({
         agentId,
         supervisorId,
@@ -5799,19 +5786,19 @@ ${log.extractedKnowledge}` : ''}
     try {
       const merchantId = req.session.merchantId!;
       const { agentId, supervisorId } = req.params;
-      
+
       const agent = await storage.getAgent(agentId);
       if (!agent || agent.merchantId !== merchantId) {
         return res.status(404).json({ error: "Agent not found" });
       }
-      
+
       const mappings = await storage.getAgentSupervisors(agentId);
       const mapping = mappings.find(m => m.supervisorId === supervisorId);
-      
+
       if (!mapping) {
         return res.status(404).json({ error: "Mapping not found" });
       }
-      
+
       await storage.deleteAgentSupervisor(mapping.id);
       res.json({ success: true });
     } catch (error) {
@@ -5828,19 +5815,19 @@ ${log.extractedKnowledge}` : ''}
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
-      
+
       const planId = (merchant.subscriptionPlanId || 'free') as SubscriptionPlanId;
       const plan = subscriptionPlans[planId];
       const retentionHours = plan.chatRetentionHours;
-      
+
       const expiredSessions = await storage.getExpiredSessions(merchantId, retentionHours);
       let archivedCount = 0;
-      
+
       for (const session of expiredSessions) {
         const messages = await storage.getMessages(session.id);
-        
+
         if (messages.length === 0) continue;
-        
+
         // Generate full transcript
         const transcript = messages.map(m => {
           const sender = m.from === 'user' ? (session.customerName || 'Customer') : 
@@ -5848,12 +5835,12 @@ ${log.extractedKnowledge}` : ''}
           const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString() : '';
           return `[${time}] ${sender}: ${m.content}`;
         }).join('\n');
-        
+
         // Generate simple summary
         const summary = `Chat session with ${messages.length} messages. ${
           session.mode === 'HUMAN' ? 'Escalated to supervisor.' : 'Handled by AI.'
         }`;
-        
+
         // Create chat log
         await storage.createChatLog({
           merchantId,
@@ -5869,13 +5856,13 @@ ${log.extractedKnowledge}` : ''}
           sessionStartedAt: session.createdAt || null,
           sessionEndedAt: session.lastActivity || null,
         });
-        
+
         // Delete messages but keep session
         await storage.deleteSessionMessages(session.id);
         await storage.updateSession(session.id, { status: 'archived' });
         archivedCount++;
       }
-      
+
       res.json({ 
         success: true, 
         archivedCount,
@@ -5895,11 +5882,11 @@ ${log.extractedKnowledge}` : ''}
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
-      
+
       const basicAnalytics = await storage.getAnalytics(merchantId);
       const sessions = await storage.getSessionsByMerchant(merchantId);
       const hasConversations = sessions.length > 0;
-      
+
       const chatTopics = hasConversations ? [
         { topic: "Product Inquiries", count: Math.floor(Math.random() * 50) + 20 },
         { topic: "Order Status", count: Math.floor(Math.random() * 40) + 15 },
@@ -5922,7 +5909,7 @@ ${log.extractedKnowledge}` : ''}
         { topic: "Partnership Inquiries", count: Math.floor(Math.random() * 5) + 1 },
         { topic: "Bulk Orders", count: Math.floor(Math.random() * 8) + 2 },
       ].sort((a, b) => b.count - a.count) : [];
-      
+
       const keywordsList = [
         "order", "shipping", "refund", "payment", "help", "support", "price", "discount",
         "delivery", "track", "cancel", "return", "exchange", "account", "password",
@@ -5932,13 +5919,13 @@ ${log.extractedKnowledge}` : ''}
         "billing", "invoice", "receipt", "charge", "credit", "debit", "card", "bank",
         "transfer", "wallet"
       ];
-      
+
       const popularKeywords = hasConversations ? keywordsList.map((keyword, index) => ({
         keyword,
         count: Math.max(1, Math.floor(100 - index * 2 + Math.random() * 10)),
         trend: (["up", "down", "stable"] as const)[Math.floor(Math.random() * 3)],
       })).sort((a, b) => b.count - a.count) : [];
-      
+
       res.json({
         ...basicAnalytics,
         chatTopics,
@@ -5955,7 +5942,7 @@ ${log.extractedKnowledge}` : ''}
   });
 
   // ============== WORK SCHEDULER ROUTES ==============
-  
+
   // Get all shifts for merchant
   app.get("/api/work-scheduler/shifts", requireMerchant, async (req, res) => {
     try {
@@ -5972,11 +5959,11 @@ ${log.extractedKnowledge}` : ''}
     try {
       const merchantId = req.session.merchantId!;
       const { name, dayType, startTime, endTime, isNightShift } = req.body;
-      
+
       if (!name || !startTime || !endTime) {
         return res.status(400).json({ error: "Name, start time, and end time are required" });
       }
-      
+
       const shift = await storage.createWorkShift({
         merchantId,
         name,
@@ -5986,7 +5973,7 @@ ${log.extractedKnowledge}` : ''}
         isNightShift: isNightShift || false,
         isActive: true,
       });
-      
+
       res.json(shift);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -6034,18 +6021,18 @@ ${log.extractedKnowledge}` : ''}
     try {
       const merchantId = req.session.merchantId!;
       const { shiftId, assigneeId, assigneeType } = req.body;
-      
+
       if (!shiftId || !assigneeId || !assigneeType) {
         return res.status(400).json({ error: "Shift ID, assignee ID, and assignee type are required" });
       }
-      
+
       const assignment = await storage.createShiftAssignment({
         merchantId,
         shiftId,
         assigneeId,
         assigneeType,
       });
-      
+
       res.json(assignment);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -6079,7 +6066,7 @@ ${log.extractedKnowledge}` : ''}
     try {
       const merchantId = req.session.merchantId!;
       const { assigneeId, assigneeType, date, clockIn, clockOut, hoursWorked, minutesWorked, status } = req.body;
-      
+
       const report = await storage.createWorkReport({
         merchantId,
         assigneeId,
@@ -6091,7 +6078,7 @@ ${log.extractedKnowledge}` : ''}
         minutesWorked: minutesWorked || 0,
         status: status || "pending",
       });
-      
+
       res.json(report);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -6113,7 +6100,7 @@ ${log.extractedKnowledge}` : ''}
   });
 
   // ============== QUICK REPLIES ROUTES ==============
-  
+
   app.get("/api/quick-replies", requireAuth, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
@@ -6128,11 +6115,11 @@ ${log.extractedKnowledge}` : ''}
     try {
       const merchantId = req.session.merchantId!;
       const { shortcut, label, content, category, sortOrder } = req.body;
-      
+
       if (!shortcut || !label || !content) {
         return res.status(400).json({ error: "Shortcut, label, and content are required" });
       }
-      
+
       const reply = await storage.createQuickReply({
         merchantId,
         shortcut,
@@ -6142,7 +6129,7 @@ ${log.extractedKnowledge}` : ''}
         sortOrder: sortOrder || 0,
         isActive: true,
       });
-      
+
       res.json(reply);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -6173,7 +6160,7 @@ ${log.extractedKnowledge}` : ''}
   });
 
   // ============== CHAT BUTTONS ROUTES ==============
-  
+
   app.get("/api/chat-buttons", requireAuth, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
@@ -6188,11 +6175,11 @@ ${log.extractedKnowledge}` : ''}
     try {
       const merchantId = req.session.merchantId!;
       const { label, url, buttonType, triggerWord, sortOrder } = req.body;
-      
+
       if (!label) {
         return res.status(400).json({ error: "Label is required" });
       }
-      
+
       const button = await storage.createChatButton({
         merchantId,
         label,
@@ -6202,7 +6189,7 @@ ${log.extractedKnowledge}` : ''}
         sortOrder: sortOrder || 0,
         isActive: true,
       });
-      
+
       res.json(button);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -6233,7 +6220,7 @@ ${log.extractedKnowledge}` : ''}
   });
 
   // ============== PRODUCT CARDS ROUTES ==============
-  
+
   app.get("/api/product-cards", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
@@ -6249,11 +6236,11 @@ ${log.extractedKnowledge}` : ''}
     try {
       const merchantId = req.session.merchantId!;
       const { agentId, title, description, imageUrl, sourceUrl, price, sortOrder } = req.body;
-      
+
       if (!title) {
         return res.status(400).json({ error: "Title is required" });
       }
-      
+
       const card = await storage.createProductCard({
         merchantId,
         agentId: agentId || null,
@@ -6265,7 +6252,7 @@ ${log.extractedKnowledge}` : ''}
         sortOrder: sortOrder || 0,
         isActive: true,
       });
-      
+
       res.json(card);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -6279,7 +6266,7 @@ ${log.extractedKnowledge}` : ''}
       if (!url) {
         return res.status(400).json({ error: "URL is required" });
       }
-      
+
       // Fetch the page and extract Open Graph image
       const response = await fetch(url, {
         headers: {
@@ -6287,19 +6274,19 @@ ${log.extractedKnowledge}` : ''}
         }
       });
       const html = await response.text();
-      
+
       // Extract OG image
       const ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
                           html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
-      
+
       // Extract title
       const ogTitleMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i) ||
                           html.match(/<title>([^<]+)<\/title>/i);
-      
+
       // Extract description
       const ogDescMatch = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i) ||
                          html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
-      
+
       res.json({
         imageUrl: ogImageMatch ? ogImageMatch[1] : "",
         title: ogTitleMatch ? ogTitleMatch[1] : "",
@@ -6348,13 +6335,13 @@ ${log.extractedKnowledge}` : ''}
     try {
       const { cardId } = req.params;
       const { label, url, buttonType, sortOrder } = req.body;
-      
+
       // Check if card has less than 3 buttons
       const existingButtons = await storage.getProductCardButtons(cardId);
       if (existingButtons.length >= 3) {
         return res.status(400).json({ error: "Maximum 3 buttons per card" });
       }
-      
+
       const button = await storage.createProductCardButton({
         cardId,
         label,
@@ -6362,7 +6349,7 @@ ${log.extractedKnowledge}` : ''}
         buttonType: buttonType || "link",
         sortOrder: sortOrder || existingButtons.length,
       });
-      
+
       res.json(button);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -6380,7 +6367,7 @@ ${log.extractedKnowledge}` : ''}
   });
 
   // ============== WELCOME BUBBLE ROUTES ==============
-  
+
   app.get("/api/welcome-bubble", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
@@ -6426,7 +6413,7 @@ ${log.extractedKnowledge}` : ''}
   });
 
   // ============== NOTIFICATION SETTINGS ROUTES ==============
-  
+
   app.get("/api/notification-settings", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
@@ -6461,18 +6448,18 @@ ${log.extractedKnowledge}` : ''}
       if (!req.file) {
         return res.status(400).json({ error: "No file uploaded" });
       }
-      
+
       const soundUrl = `/uploads/${req.file.filename}`;
       const soundName = req.body.name || req.file.originalname;
-      
+
       // Get current settings and add new sound
       const merchantId = req.session.merchantId!;
       const settings = await storage.getNotificationSettings(merchantId);
       const customSounds = (settings?.customSounds as any[]) || [];
       customSounds.push({ name: soundName, url: soundUrl });
-      
+
       await storage.upsertNotificationSettings(merchantId, { customSounds });
-      
+
       res.json({ url: soundUrl, name: soundName });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -6480,7 +6467,7 @@ ${log.extractedKnowledge}` : ''}
   });
 
   // ============== PRODUCT RECOMMENDATION SETTINGS ROUTES ==============
-  
+
   app.get("/api/product-recommendation-settings", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
@@ -6501,7 +6488,7 @@ ${log.extractedKnowledge}` : ''}
   app.put("/api/product-recommendation-settings", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
-      
+
       const validationSchema = z.object({
         aiAutoRecommendEnabled: z.boolean().default(true),
         triggerKeywords: z.string().default("product,recommend,buy,shop,item,catalog"),
@@ -6510,12 +6497,12 @@ ${log.extractedKnowledge}` : ''}
         maxProductsPerRecommendation: z.number().min(1).max(10).default(3),
         showPriceInRecommendation: z.boolean().default(true),
       }).partial();
-      
+
       const parseResult = validationSchema.safeParse(req.body);
       if (!parseResult.success) {
         return res.status(400).json({ error: "Invalid settings data", details: parseResult.error.errors });
       }
-      
+
       const validatedData = {
         aiAutoRecommendEnabled: parseResult.data.aiAutoRecommendEnabled ?? true,
         triggerKeywords: parseResult.data.triggerKeywords || "product,recommend,buy,shop,item,catalog",
@@ -6524,7 +6511,7 @@ ${log.extractedKnowledge}` : ''}
         maxProductsPerRecommendation: parseResult.data.maxProductsPerRecommendation ?? 3,
         showPriceInRecommendation: parseResult.data.showPriceInRecommendation ?? true,
       };
-      
+
       const settings = await storage.upsertProductRecommendationSettings(merchantId, validatedData);
       res.json(settings);
     } catch (error) {
@@ -6550,19 +6537,19 @@ ${log.extractedKnowledge}` : ''}
     }
   });
 
-  // ============== TEAM ACTIVITY ROUTES ==============
-  
+  // ============== TEAM ACTIVITYROUTES ==============
+
   // Update supervisor status
   app.post("/api/team/status", requireAuth, async (req, res) => {
     try {
       const userId = req.session.userId!;
       const userType = req.session.userType;
       const { status } = req.body;
-      
+
       if (userType === "supervisor") {
         await storage.updateSupervisor(userId, { status, lastSeen: new Date() });
       }
-      
+
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -6577,19 +6564,19 @@ ${log.extractedKnowledge}` : ''}
       const agents = await storage.getAgents(merchantId);
       const shifts = await storage.getWorkShifts(merchantId);
       const assignments = await storage.getShiftAssignments(merchantId);
-      
+
       // Helper function to check if current time is within a shift's time range
       const isCurrentlyInShift = (startTime: string, endTime: string, isNightShift: boolean): boolean => {
         const now = new Date();
         const currentHour = now.getHours();
         const currentMinute = now.getMinutes();
         const currentTimeMinutes = currentHour * 60 + currentMinute;
-        
+
         const [startHour, startMinute] = startTime.split(":").map(Number);
         const [endHour, endMinute] = endTime.split(":").map(Number);
         const startTimeMinutes = startHour * 60 + startMinute;
         const endTimeMinutes = endHour * 60 + endMinute;
-        
+
         if (isNightShift || endTimeMinutes < startTimeMinutes) {
           // Night shift spans across midnight
           return currentTimeMinutes >= startTimeMinutes || currentTimeMinutes <= endTimeMinutes;
@@ -6598,19 +6585,19 @@ ${log.extractedKnowledge}` : ''}
           return currentTimeMinutes >= startTimeMinutes && currentTimeMinutes <= endTimeMinutes;
         }
       };
-      
+
       // Helper to check if today matches the shift's dayType
       const isDayTypeMatch = (dayType: string): boolean => {
         const now = new Date();
         const dayOfWeek = now.getDay(); // 0 = Sunday, 6 = Saturday
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-        
+
         if (dayType === "weekday") return !isWeekend;
         if (dayType === "weekend") return isWeekend;
         if (dayType === "everyday") return true;
         return true; // default
       };
-      
+
       // Get currently active shifts
       const activeShiftIds = shifts
         .filter(shift => 
@@ -6619,7 +6606,7 @@ ${log.extractedKnowledge}` : ''}
           isCurrentlyInShift(shift.startTime, shift.endTime, shift.isNightShift || false)
         )
         .map(shift => shift.id);
-      
+
       // Check if an assignee is currently on an active shift
       const isAssigneeOnActiveShift = (assigneeId: string): boolean => {
         return assignments.some(assignment => 
@@ -6627,12 +6614,12 @@ ${log.extractedKnowledge}` : ''}
           activeShiftIds.includes(assignment.shiftId)
         );
       };
-      
+
       // Get assigned shift info for an assignee
       const getAssignedShiftInfo = (assigneeId: string): { shiftName: string; isOnShift: boolean } | null => {
         const assigneeAssignments = assignments.filter(a => a.assigneeId === assigneeId);
         if (assigneeAssignments.length === 0) return null;
-        
+
         // Check if on any active shift
         for (const assignment of assigneeAssignments) {
           const shift = shifts.find(s => s.id === assignment.shiftId);
@@ -6640,18 +6627,30 @@ ${log.extractedKnowledge}` : ''}
             return { shiftName: shift.name, isOnShift: true };
           }
         }
-        
+
         // Return first assigned shift (not currently active)
         const firstAssignment = assigneeAssignments[0];
         const firstShift = shifts.find(s => s.id === firstAssignment.shiftId);
         return firstShift ? { shiftName: firstShift.name, isOnShift: false } : null;
       };
-      
+
+      // Get currently active supervisors
+      const activeSupervisors = supervisors.filter(s => {
+        const shiftInfo = getAssignedShiftInfo(s.id);
+        return shiftInfo && shiftInfo.isOnShift;
+      });
+
+      // Get currently active agents
+      const activeAgents = agents.filter(a => {
+        const shiftInfo = getAssignedShiftInfo(a.id);
+        return shiftInfo && shiftInfo.isOnShift;
+      });
+
       const activity = {
         supervisors: supervisors.map(s => {
           const shiftInfo = getAssignedShiftInfo(s.id);
           const isOnActiveShift = isAssigneeOnActiveShift(s.id);
-          
+
           // Status priority: if on active shift, show as "online" (synced with scheduler)
           let status = s.status || "offline";
           if (isOnActiveShift) {
@@ -6660,7 +6659,7 @@ ${log.extractedKnowledge}` : ''}
             // Has shift assignment but not currently on shift
             status = s.status || "offline";
           }
-          
+
           return {
             id: s.id,
             name: s.name,
@@ -6676,10 +6675,10 @@ ${log.extractedKnowledge}` : ''}
         agents: agents.map(a => {
           const shiftInfo = getAssignedShiftInfo(a.id);
           const isOnActiveShift = isAssigneeOnActiveShift(a.id);
-          
+
           // If on active shift, consider the agent as active
           const isActive = isOnActiveShift || a.isActive;
-          
+
           return {
             id: a.id,
             name: a.name,
@@ -6690,7 +6689,7 @@ ${log.extractedKnowledge}` : ''}
           };
         }),
       };
-      
+
       res.json(activity);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -6698,7 +6697,7 @@ ${log.extractedKnowledge}` : ''}
   });
 
   // ============== PUBLIC WIDGET ENDPOINTS ==============
-  
+
   // Get chat buttons for widget (public)
   app.get("/api/widget/:merchantId/chat-buttons", async (req, res) => {
     try {
@@ -6718,7 +6717,7 @@ ${log.extractedKnowledge}` : ''}
       const { agentId } = req.query;
       const cards = await storage.getProductCards(merchantId, agentId as string | undefined);
       const activeCards = cards.filter(c => c.isActive);
-      
+
       // Get buttons for each card
       const cardsWithButtons = await Promise.all(
         activeCards.map(async (card) => {
@@ -6726,7 +6725,7 @@ ${log.extractedKnowledge}` : ''}
           return { ...card, buttons };
         })
       );
-      
+
       res.json(cardsWithButtons);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -6762,42 +6761,42 @@ ${log.extractedKnowledge}` : ''}
   });
 
   // ============== CHATVICE TOP UP v2: Payment Flow ==============
-  
+
   // Widget initialization - tracks domain (requires valid pre-registered site_key)
   // Security: site_key is a secret UUID generated by merchant dashboard, not guessable
   app.post("/api/widget/init", async (req, res) => {
     try {
       const { site_key, current_domain } = req.body;
-      
+
       if (!site_key || !current_domain) {
         return res.status(400).json({ error: "Missing site_key or current_domain" });
       }
-      
+
       // Validate domain format
       const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-_.]*[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
       if (!domainRegex.test(current_domain) && current_domain !== "localhost") {
         return res.status(400).json({ error: "Invalid domain format" });
       }
-      
+
       // Find site by site_key - site_key is a secret, acts as auth
       const site = await storage.getWidgetSiteBySiteKey(site_key);
       if (!site) {
         return res.status(404).json({ error: "Site not found" });
       }
-      
+
       if (!site.isActive) {
         return res.status(403).json({ error: "Site is inactive" });
       }
-      
+
       // Verify merchant is still active
       const merchant = await storage.getMerchant(site.merchantId);
       if (!merchant) {
         return res.status(403).json({ error: "Merchant not found" });
       }
-      
+
       // Track/update domain
       await storage.upsertSiteDomain(site.id, current_domain);
-      
+
       // Return site config (don't expose sensitive merchant_id to client)
       res.json({
         success: true,
@@ -6811,49 +6810,49 @@ ${log.extractedKnowledge}` : ''}
       res.status(500).json({ error: "Server error" });
     }
   });
-  
+
   // Start top-up flow - generates JWT token and redirect URL
   // Security: Requires valid site_key (secret) - acts as authentication
   app.post("/api/start-topup", async (req, res) => {
     try {
       const { site_key, user_id, return_url } = req.body;
-      
+
       if (!site_key || !user_id) {
         return res.status(400).json({ error: "Missing required fields" });
       }
-      
+
       // Validate user_id format (alphanumeric, max 64 chars)
       if (typeof user_id !== "string" || user_id.length > 64 || !/^[a-zA-Z0-9_-]+$/.test(user_id)) {
         return res.status(400).json({ error: "Invalid user_id format" });
       }
-      
+
       // Find site by secret site_key
       const site = await storage.getWidgetSiteBySiteKey(site_key);
       if (!site) {
         return res.status(404).json({ error: "Site not found" });
       }
-      
+
       if (!site.isActive) {
         return res.status(403).json({ error: "Site is inactive" });
       }
-      
+
       if (!site.isTopupEnabled) {
         return res.status(403).json({ error: "Top-up is not enabled for this site" });
       }
-      
+
       // Verify merchant is still active
       const merchant = await storage.getMerchant(site.merchantId);
       if (!merchant) {
         return res.status(403).json({ error: "Merchant not found" });
       }
-      
+
       // Get current domain
       const currentDomain = await storage.getCurrentDomain(site.id);
-      
+
       // Generate JWT token for payment flow with proper expiration
       const jwt = await import("jsonwebtoken");
       const JWT_SECRET = process.env.JWT_SECRET || "chatvice_topup_secret_key_2024";
-      
+
       const payload = {
         type: "topup_session", // Token type identifier
         merchant_id: site.merchantId,
@@ -6863,14 +6862,14 @@ ${log.extractedKnowledge}` : ''}
         user_id,
         return_url: return_url || "",
       };
-      
+
       // Sign with expiration (30 minutes)
       const token = jwt.default.sign(payload, JWT_SECRET, { expiresIn: "30m" });
-      
+
       // Generate redirect URL - using same domain for now (will be pay.chatvice.com later)
       const baseUrl = process.env.PAYMENT_BASE_URL || `https://${req.get("host")}`;
       const redirectUrl = `${baseUrl}/topup?token=${token}`;
-      
+
       res.json({
         success: true,
         redirect_url: redirectUrl,
@@ -6881,20 +6880,20 @@ ${log.extractedKnowledge}` : ''}
       res.status(500).json({ error: "Server error" });
     }
   });
-  
+
   // Verify topup token and get payment info
   // Security: Validates JWT signature, expiration, token type, and site/merchant status
   app.get("/api/topup/verify", async (req, res) => {
     try {
       const { token } = req.query;
-      
+
       if (!token || typeof token !== "string") {
         return res.status(400).json({ error: "Missing token" });
       }
-      
+
       const jwt = await import("jsonwebtoken");
       const JWT_SECRET = process.env.JWT_SECRET || "chatvice_topup_secret_key_2024";
-      
+
       try {
         const decoded = jwt.default.verify(token, JWT_SECRET) as {
           type?: string;
@@ -6905,41 +6904,41 @@ ${log.extractedKnowledge}` : ''}
           user_id: string;
           return_url: string;
         };
-        
+
         // Verify token type
         if (decoded.type !== "topup_session") {
           return res.status(401).json({ error: "Invalid token type" });
         }
-        
+
         // Get and validate site
         const site = await storage.getWidgetSite(decoded.site_id);
         if (!site) {
           return res.status(404).json({ error: "Site not found" });
         }
-        
+
         // Verify site is still active
         if (!site.isActive) {
           return res.status(403).json({ error: "Site is inactive" });
         }
-        
+
         if (!site.isTopupEnabled) {
           return res.status(403).json({ error: "Top-up is not enabled" });
         }
-        
-        // Verify merchant ID matches (prevent token tampering)
+
+        // Verify merchant ID matches
         if (site.merchantId !== decoded.merchant_id) {
           return res.status(401).json({ error: "Token mismatch" });
         }
-        
+
         // Verify merchant is still active
         const merchant = await storage.getMerchant(decoded.merchant_id);
         if (!merchant) {
           return res.status(403).json({ error: "Merchant not found" });
         }
-        
+
         // Get available nominals
         const nominals = await storage.getTopupNominals(site.id);
-        
+
         // If no custom nominals, use defaults
         const defaultNominals = [
           { amount: 25000, label: "Rp 25.000", coinsGiven: 25, bonusCoins: 0 },
@@ -6948,7 +6947,7 @@ ${log.extractedKnowledge}` : ''}
           { amount: 200000, label: "Rp 200.000", coinsGiven: 200, bonusCoins: 40 },
           { amount: 500000, label: "Rp 500.000", coinsGiven: 500, bonusCoins: 125 },
         ];
-        
+
         // Only show QRIS for now since other channels are not implemented
         // TODO: Add more channels when Kompas Pay integration is complete
         res.json({
@@ -6972,25 +6971,25 @@ ${log.extractedKnowledge}` : ''}
       res.status(500).json({ error: "Server error" });
     }
   });
-  
+
   // Create payment order
   // Security: Validates JWT, checks site/merchant status, normalizes order ID
   app.post("/api/payment/create-order", async (req, res) => {
     try {
       const { token, amount, channel } = req.body;
-      
+
       if (!token || !amount) {
         return res.status(400).json({ error: "Missing required fields" });
       }
-      
+
       // Validate amount is a valid nominal
       if (typeof amount !== "number" || amount < 10000 || amount > 10000000) {
         return res.status(400).json({ error: "Invalid amount" });
       }
-      
+
       const jwt = await import("jsonwebtoken");
       const JWT_SECRET = process.env.JWT_SECRET || "chatvice_topup_secret_key_2024";
-      
+
       let decoded: {
         type?: string;
         merchant_id: string;
@@ -7000,29 +6999,29 @@ ${log.extractedKnowledge}` : ''}
         user_id: string;
         return_url: string;
       };
-      
+
       try {
         decoded = jwt.default.verify(token, JWT_SECRET) as typeof decoded;
       } catch (jwtError) {
         return res.status(401).json({ error: "Invalid or expired token" });
       }
-      
+
       // Verify token type
       if (decoded.type !== "topup_session") {
         return res.status(401).json({ error: "Invalid token type" });
       }
-      
+
       // Verify site is still valid
       const site = await storage.getWidgetSite(decoded.site_id);
       if (!site || !site.isActive || !site.isTopupEnabled) {
         return res.status(403).json({ error: "Site is not available for top-up" });
       }
-      
+
       // Verify merchant ID matches
       if (site.merchantId !== decoded.merchant_id) {
         return res.status(401).json({ error: "Token mismatch" });
       }
-      
+
       // Generate normalized domain tag for order ID
       // Only alphanumeric characters, max 5 chars
       const domTag = (decoded.current_domain || "UNKN")
@@ -7031,11 +7030,11 @@ ${log.extractedKnowledge}` : ''}
         .substring(0, 5)
         .toUpperCase()
         .padEnd(3, "X"); // ensure min 3 chars
-      
+
       const timestamp = Date.now();
       const rand = crypto.randomBytes(2).toString("hex").toUpperCase();
       const orderId = `CVT-${decoded.site_code}-${domTag}-${timestamp}-${rand}`;
-      
+
       // Create order in database
       const order = await storage.createCoinOrder({
         orderId,
@@ -7049,7 +7048,7 @@ ${log.extractedKnowledge}` : ''}
         returnUrl: decoded.return_url,
         expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
       });
-      
+
       // TODO: Call Kompas Pay API here when integrated
       // For now, simulate payment data
       const paymentData = {
@@ -7058,13 +7057,13 @@ ${log.extractedKnowledge}` : ''}
         va_number: null,
         expiry_time: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
       };
-      
+
       // Update order with payment data
       await storage.updateCoinOrder(order.id, {
         paymentType: "QRIS",
         paymentData: paymentData as any,
       });
-      
+
       res.json({
         success: true,
         order_id: orderId,
@@ -7078,21 +7077,21 @@ ${log.extractedKnowledge}` : ''}
       res.status(500).json({ error: "Server error" });
     }
   });
-  
+
   // Check payment status
   app.get("/api/payment/status", async (req, res) => {
     try {
       const { order_id } = req.query;
-      
+
       if (!order_id || typeof order_id !== "string") {
         return res.status(400).json({ error: "Missing order_id" });
       }
-      
+
       const order = await storage.getCoinOrderByOrderId(order_id);
       if (!order) {
         return res.status(404).json({ error: "Order not found" });
       }
-      
+
       res.json({
         success: true,
         order_id: order.orderId,
@@ -7108,33 +7107,34 @@ ${log.extractedKnowledge}` : ''}
       res.status(500).json({ error: "Server error" });
     }
   });
-  
+
   // Kompas Pay webhook (placeholder - will be implemented when API key is available)
   app.post("/webhook/kompaspay", async (req, res) => {
     try {
       const { order_id, status, amount, payment_type, payment_ref, signature } = req.body;
-      
+
       console.log("Kompas Pay webhook received:", { order_id, status, amount, payment_type });
-      
+
       // TODO: Verify signature with Kompas Pay secret
       // const isValid = verifyKompasPaySignature(req.body, KOMPAS_PAY_SECRET);
       // if (!isValid) {
+      //   console.log('Invalid Kompas Pay webhook signature');
       //   return res.status(401).json({ error: "Invalid signature" });
       // }
-      
+
       // Find order
       const order = await storage.getCoinOrderByOrderId(order_id);
       if (!order) {
         console.log("Order not found:", order_id);
         return res.status(404).json({ error: "Order not found" });
       }
-      
+
       // Verify amount matches
       if (order.amount !== amount) {
         console.log("Amount mismatch:", { expected: order.amount, received: amount });
         return res.status(400).json({ error: "Amount mismatch" });
       }
-      
+
       if (status === "PAID") {
         // Update order to PAID
         await storage.updateCoinOrder(order.id, {
@@ -7143,7 +7143,7 @@ ${log.extractedKnowledge}` : ''}
           gatewayRef: payment_ref,
           paymentType: payment_type,
         });
-        
+
         // TODO: Call merchant's coin API to credit coins
         // const site = await storage.getWidgetSite(order.siteId);
         // if (site?.coinApiBaseUrl) {
@@ -7167,7 +7167,7 @@ ${log.extractedKnowledge}` : ''}
         //     });
         //   }
         // }
-        
+
         // For now, mark as completed since we don't have coin API integration
         await storage.updateCoinOrder(order.id, {
           status: "COMPLETED",
@@ -7179,22 +7179,22 @@ ${log.extractedKnowledge}` : ''}
           errorMessage: `Payment ${status.toLowerCase()}`,
         });
       }
-      
+
       res.json({ success: true });
     } catch (error) {
       console.error("Webhook error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
-  
+
   // ============== WIDGET SITES MANAGEMENT (Merchant Dashboard) ==============
-  
+
   // Get merchant's widget sites
   app.get("/api/widget-sites", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session?.merchantId!;
       const sites = await storage.getWidgetSitesByMerchant(merchantId);
-      
+
       // Get domain info for each site
       const sitesWithDomains = await Promise.all(
         sites.map(async (site) => {
@@ -7208,27 +7208,27 @@ ${log.extractedKnowledge}` : ''}
           };
         })
       );
-      
+
       res.json(sitesWithDomains);
     } catch (error) {
       console.error("Get widget sites error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
-  
+
   // Create widget site
   app.post("/api/widget-sites", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session?.merchantId!;
       const { siteName, siteCode, coinApiBaseUrl, coinApiSecret, isTopupEnabled } = req.body;
-      
+
       if (!siteName || !siteCode) {
         return res.status(400).json({ error: "Missing required fields" });
       }
-      
+
       // Generate unique site key
       const siteKey = `wk_${crypto.randomBytes(16).toString("hex")}`;
-      
+
       const site = await storage.createWidgetSite({
         merchantId,
         siteName,
@@ -7239,7 +7239,7 @@ ${log.extractedKnowledge}` : ''}
         isTopupEnabled: isTopupEnabled || false,
         isActive: true,
       });
-      
+
       res.json(site);
     } catch (error: any) {
       console.error("Create widget site error:", error);
@@ -7249,21 +7249,21 @@ ${log.extractedKnowledge}` : ''}
       res.status(500).json({ error: "Server error" });
     }
   });
-  
+
   // Update widget site
   app.put("/api/widget-sites/:id", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session?.merchantId!;
       const { id } = req.params;
-      
+
       // Verify ownership
       const site = await storage.getWidgetSite(id);
       if (!site || site.merchantId !== merchantId) {
         return res.status(404).json({ error: "Site not found" });
       }
-      
+
       const { siteName, coinApiBaseUrl, coinApiSecret, isTopupEnabled, isActive } = req.body;
-      
+
       const updated = await storage.updateWidgetSite(id, {
         siteName,
         coinApiBaseUrl,
@@ -7271,26 +7271,26 @@ ${log.extractedKnowledge}` : ''}
         isTopupEnabled,
         isActive,
       });
-      
+
       res.json(updated);
     } catch (error) {
       console.error("Update widget site error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
-  
+
   // Delete widget site
   app.delete("/api/widget-sites/:id", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session?.merchantId!;
       const { id } = req.params;
-      
+
       // Verify ownership
       const site = await storage.getWidgetSite(id);
       if (!site || site.merchantId !== merchantId) {
         return res.status(404).json({ error: "Site not found" });
       }
-      
+
       await storage.deleteWidgetSite(id);
       res.json({ success: true });
     } catch (error) {
@@ -7298,7 +7298,7 @@ ${log.extractedKnowledge}` : ''}
       res.status(500).json({ error: "Server error" });
     }
   });
-  
+
   // Get coin orders for merchant
   app.get("/api/coin-orders", requireMerchant, async (req, res) => {
     try {
