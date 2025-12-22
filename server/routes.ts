@@ -26,6 +26,7 @@ import crypto from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { widgetRateLimiter, apiRateLimiter } from "./rateLimit";
 import { ipFilter, detectSQLInjection } from "./security";
+import { pool } from "./db";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
