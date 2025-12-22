@@ -47,9 +47,12 @@ const allowlist = [
 ];
 
 async function buildAll() {
-  // Skip rebuild if already built in production (prevents runtime rebuild from wiping assets)
-  if (process.env.NODE_ENV === "production" && await isAlreadyBuilt()) {
-    console.log("Production build already exists, skipping rebuild...");
+  // Skip rebuild if already built (prevents runtime rebuild from wiping assets in deployment)
+  // In development, we use `npm run dev` which doesn't call this script
+  // So it's safe to skip if build already exists
+  if (await isAlreadyBuilt()) {
+    console.log("Build already exists, skipping rebuild...");
+    console.log("To force rebuild, delete the dist folder first: rm -rf dist");
     return;
   }
 
