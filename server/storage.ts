@@ -39,10 +39,13 @@ import {
   type CoinOrder, type InsertCoinOrder,
   type TopupNominal, type InsertTopupNominal,
   type MerchantDomain, type InsertMerchantDomain,
+  type MerchantBroadcast, type InsertMerchantBroadcast,
+  type MerchantBroadcastRead, type InsertMerchantBroadcastRead,
   merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings, storedFiles,
   workShifts, shiftAssignments, workReports, quickReplies, chatButtons, productCards, productCardButtons, welcomeBubbles, notificationSettings, productRecommendationSettings, productTriggers, supervisorInvitations,
   emailVerificationTokens, passwordResetTokens, promotions, promotionUsage,
   widgetSites, siteDomains, coinOrders, topupNominals, merchantDomains,
+  merchantBroadcasts, merchantBroadcastReads,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -284,6 +287,15 @@ export interface IStorage {
   updateMerchantDomain(id: string, data: Partial<MerchantDomain>): Promise<MerchantDomain | undefined>;
   deleteMerchantDomain(id: string): Promise<boolean>;
   getMerchantDomainByDomain(merchantId: string, domain: string): Promise<MerchantDomain | undefined>;
+  
+  // Merchant Broadcast Notifications
+  getMerchantBroadcasts(): Promise<MerchantBroadcast[]>;
+  getMerchantBroadcast(id: string): Promise<MerchantBroadcast | undefined>;
+  createMerchantBroadcast(data: InsertMerchantBroadcast): Promise<MerchantBroadcast>;
+  deleteMerchantBroadcast(id: string): Promise<boolean>;
+  getMerchantBroadcastsForMerchant(merchantId: string): Promise<(MerchantBroadcast & { isRead: boolean })[]>;
+  markBroadcastAsRead(broadcastId: string, merchantId: string): Promise<MerchantBroadcastRead>;
+  getUnreadBroadcastCount(merchantId: string): Promise<number>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -1899,6 +1911,71 @@ export class DatabaseStorage implements IStorage {
   async deleteMerchantDomain(id: string): Promise<boolean> {
     const result = await db.delete(merchantDomains).where(eq(merchantDomains.id, id));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  // ============ Merchant Broadcast Notifications ============
+
+  async getMerchantBroadcasts(): Promise<MerchantBroadcast[]> {
+    return db.select().from(merchantBroadcasts).orderBy(desc(merchantBroadcasts.createdAt));
+  }
+
+  async getMerchantBroadcast(id: string): Promise<MerchantBroadcast | undefined> {
+    const result = await db.select().from(merchantBroadcasts).where(eq(merchantBroadcasts.id, id));
+    return result[0];
+  }
+
+  async createMerchantBroadcast(data: InsertMerchantBroadcast): Promise<MerchantBroadcast> {
+    const id = generateId("brd_");
+    const result = await db.insert(merchantBroadcasts).values({ ...data, id }).returning();
+    return result[0];
+  }
+
+  async deleteMerchantBroadcast(id: string): Promise<boolean> {
+    await db.delete(merchantBroadcastReads).where(eq(merchantBroadcastReads.broadcastId, id));
+    const result = await db.delete(merchantBroadcasts).where(eq(merchantBroadcasts.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async getMerchantBroadcastsForMerchant(merchantId: string): Promise<(MerchantBroadcast & { isRead: boolean })[]> {
+    const broadcasts = await db.select().from(merchantBroadcasts)
+      .orderBy(desc(merchantBroadcasts.createdAt));
+    
+    const readRecords = await db.select().from(merchantBroadcastReads)
+      .where(eq(merchantBroadcastReads.merchantId, merchantId));
+    
+    const readBroadcastIds = new Set(readRecords.map(r => r.broadcastId));
+    
+    return broadcasts
+      .filter(b => !b.expiresAt || new Date(b.expiresAt) > new Date())
+      .map(b => ({
+        ...b,
+        isRead: readBroadcastIds.has(b.id),
+      }));
+  }
+
+  async markBroadcastAsRead(broadcastId: string, merchantId: string): Promise<MerchantBroadcastRead> {
+    const existing = await db.select().from(merchantBroadcastReads)
+      .where(and(
+        eq(merchantBroadcastReads.broadcastId, broadcastId),
+        eq(merchantBroadcastReads.merchantId, merchantId)
+      ));
+    
+    if (existing.length > 0) {
+      return existing[0];
+    }
+    
+    const id = generateId("brr_");
+    const result = await db.insert(merchantBroadcastReads).values({
+      id,
+      broadcastId,
+      merchantId,
+    }).returning();
+    return result[0];
+  }
+
+  async getUnreadBroadcastCount(merchantId: string): Promise<number> {
+    const broadcasts = await this.getMerchantBroadcastsForMerchant(merchantId);
+    return broadcasts.filter(b => !b.isRead).length;
   }
 }
 
