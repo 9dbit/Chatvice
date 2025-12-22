@@ -688,6 +688,88 @@ ${knowledgeContext || "No specific knowledge base configured yet."}`
   }
 }
 
+// Domain verification helper - checks if widget script is present on the external website
+async function verifyDomainWidget(domain: string, merchantId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Handle wildcard domains
+    const testDomain = domain.startsWith("*.") ? domain.slice(2) : domain;
+    
+    // Try both http and https
+    const urls = [
+      `https://${testDomain}`,
+      `http://${testDomain}`,
+    ];
+
+    for (const url of urls) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+        const response = await fetch(url, {
+          signal: controller.signal,
+          headers: {
+            "User-Agent": "ChatviceBot/1.0 DomainVerification",
+          },
+        });
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          continue;
+        }
+
+        const html = await response.text();
+        
+        // Check for widget embed script with merchant ID
+        const scriptPatterns = [
+          `data-merchant-id="${merchantId}"`,
+          `data-merchant-id='${merchantId}'`,
+          `merchantId: "${merchantId}"`,
+          `merchantId: '${merchantId}'`,
+          `/widget/${merchantId}`,
+          `chatvice.*${merchantId}`,
+        ];
+
+        for (const pattern of scriptPatterns) {
+          const regex = new RegExp(pattern, "i");
+          if (regex.test(html)) {
+            return { success: true };
+          }
+        }
+
+        // Also check for generic Chatvice widget embed
+        if (html.includes("chatvice") && html.includes("widget")) {
+          // Found Chatvice widget, but need to verify merchant ID
+          return { 
+            success: false, 
+            error: "Widget script found but merchant ID not matching. Please ensure the widget is configured with your merchant ID." 
+          };
+        }
+
+        return { 
+          success: false, 
+          error: "Widget script not found on the page. Please embed the Chatvice widget script on your website." 
+        };
+
+      } catch (fetchError: unknown) {
+        // Try next URL
+        const errorMessage = fetchError instanceof Error ? fetchError.message : "Unknown error";
+        if (url === urls[urls.length - 1]) {
+          return { 
+            success: false, 
+            error: `Could not access website: ${errorMessage}` 
+          };
+        }
+        continue;
+      }
+    }
+
+    return { success: false, error: "Could not access the website" };
+  } catch (error) {
+    console.error("Domain verification error:", error);
+    return { success: false, error: "Verification failed due to server error" };
+  }
+}
+
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   const PgSession = connectPgSimple(session);
 
@@ -1742,6 +1824,119 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       await storage.updateMerchant(merchantId, { allowedDomains: allowedDomains || "" });
       res.json({ success: true });
     } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ============ Merchant Domain Management (with verification) ============
+  
+  app.get("/api/merchant/domains", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+      const canUseAllowedDomains = plan.id === "pro" || plan.id === "enterprise" || plan.id === "custom";
+
+      if (!canUseAllowedDomains) {
+        return res.status(403).json({ error: "Domain management requires Pro or Enterprise plan" });
+      }
+
+      const domains = await storage.getMerchantDomains(merchantId);
+      res.json(domains);
+    } catch (error) {
+      console.error("Error fetching merchant domains:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/merchant/domains", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+      const canUseAllowedDomains = plan.id === "pro" || plan.id === "enterprise" || plan.id === "custom";
+
+      if (!canUseAllowedDomains) {
+        return res.status(403).json({ error: "Domain management requires Pro or Enterprise plan" });
+      }
+
+      const { domain } = req.body;
+      if (!domain || typeof domain !== "string") {
+        return res.status(400).json({ error: "Domain is required" });
+      }
+
+      const normalizedDomain = domain.toLowerCase().trim();
+      
+      // Check for duplicate
+      const existing = await storage.getMerchantDomainByDomain(merchantId, normalizedDomain);
+      if (existing) {
+        return res.status(400).json({ error: "Domain already exists" });
+      }
+
+      const merchantDomain = await storage.createMerchantDomain({
+        merchantId,
+        domain: normalizedDomain,
+        createdBy: "merchant",
+      });
+
+      res.json(merchantDomain);
+    } catch (error) {
+      console.error("Error creating merchant domain:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.delete("/api/merchant/domains/:domainId", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const domainRecord = await storage.getMerchantDomain(req.params.domainId);
+      
+      if (!domainRecord || domainRecord.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Domain not found" });
+      }
+
+      const deleted = await storage.deleteMerchantDomain(req.params.domainId);
+      res.json({ success: deleted });
+    } catch (error) {
+      console.error("Error deleting merchant domain:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/merchant/domains/:domainId/verify", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const domainRecord = await storage.getMerchantDomain(req.params.domainId);
+      
+      if (!domainRecord || domainRecord.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Domain not found" });
+      }
+
+      // Verify by checking if widget script is present on the domain
+      const verificationResult = await verifyDomainWidget(domainRecord.domain, merchantId);
+      
+      const updated = await storage.updateMerchantDomain(domainRecord.id, {
+        isVerified: verificationResult.success,
+        verifiedAt: verificationResult.success ? new Date() : undefined,
+        lastVerifiedAt: new Date(),
+        verificationError: verificationResult.success ? null : verificationResult.error,
+      });
+
+      res.json({
+        success: verificationResult.success,
+        error: verificationResult.error,
+        domain: updated,
+      });
+    } catch (error) {
+      console.error("Error verifying domain:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
@@ -3731,6 +3926,120 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       res.json({ success: true, message: "Follow-up notification sent" });
     } catch (error) {
       console.error("Error sending follow-up:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ============ Admin Merchant Domain Management ============
+  
+  app.get("/api/admin/merchants/:merchantId/domains", requireAdmin, async (req, res) => {
+    try {
+      const domains = await storage.getMerchantDomains(req.params.merchantId);
+      res.json(domains);
+    } catch (error) {
+      console.error("Error fetching merchant domains:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/admin/merchants/:merchantId/domains", requireAdmin, async (req, res) => {
+    try {
+      const { domain, createdBy = "admin" } = req.body;
+      if (!domain || typeof domain !== "string") {
+        return res.status(400).json({ error: "Domain is required" });
+      }
+
+      const normalizedDomain = domain.toLowerCase().trim();
+      
+      // Check for duplicate
+      const existing = await storage.getMerchantDomainByDomain(req.params.merchantId, normalizedDomain);
+      if (existing) {
+        return res.status(400).json({ error: "Domain already exists for this merchant" });
+      }
+
+      const merchantDomain = await storage.createMerchantDomain({
+        merchantId: req.params.merchantId,
+        domain: normalizedDomain,
+        createdBy,
+      });
+
+      res.json(merchantDomain);
+    } catch (error) {
+      console.error("Error creating merchant domain:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.put("/api/admin/domains/:domainId", requireAdmin, async (req, res) => {
+    try {
+      const { domain, isVerified } = req.body;
+      const updateData: Record<string, unknown> = {};
+      
+      if (domain !== undefined) {
+        updateData.domain = domain.toLowerCase().trim();
+      }
+      if (isVerified !== undefined) {
+        updateData.isVerified = isVerified;
+        if (isVerified) {
+          updateData.verifiedAt = new Date();
+          updateData.lastVerifiedAt = new Date();
+        }
+      }
+
+      const updated = await storage.updateMerchantDomain(req.params.domainId, updateData);
+      if (!updated) {
+        return res.status(404).json({ error: "Domain not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating merchant domain:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.delete("/api/admin/domains/:domainId", requireAdmin, async (req, res) => {
+    try {
+      const deleted = await storage.deleteMerchantDomain(req.params.domainId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Domain not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting merchant domain:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Admin: Verify a domain by checking if widget script is present
+  app.post("/api/admin/domains/:domainId/verify", requireAdmin, async (req, res) => {
+    try {
+      const domainRecord = await storage.getMerchantDomain(req.params.domainId);
+      if (!domainRecord) {
+        return res.status(404).json({ error: "Domain not found" });
+      }
+
+      const merchant = await storage.getMerchant(domainRecord.merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      // Verify by checking if widget script is present on the domain
+      const verificationResult = await verifyDomainWidget(domainRecord.domain, merchant.id);
+      
+      const updated = await storage.updateMerchantDomain(domainRecord.id, {
+        isVerified: verificationResult.success,
+        verifiedAt: verificationResult.success ? new Date() : undefined,
+        lastVerifiedAt: new Date(),
+        verificationError: verificationResult.success ? null : verificationResult.error,
+      });
+
+      res.json({
+        success: verificationResult.success,
+        error: verificationResult.error,
+        domain: updated,
+      });
+    } catch (error) {
+      console.error("Error verifying domain:", error);
       res.status(500).json({ error: "Server error" });
     }
   });

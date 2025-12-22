@@ -18,7 +18,8 @@ import { Link } from "wouter";
 import { 
   Palette, Save, Copy, Check, Bot, Code, Moon, Sun, AlignLeft, AlignRight, 
   Loader2, Camera, RefreshCw, X, Send, Paperclip, Smile, ImageIcon, Video,
-  Globe, MessageSquare, Frame, Shield, Key, Eye, EyeOff, Crown, Lock, ArrowUpRight, ChevronDown
+  Globe, MessageSquare, Frame, Shield, Key, Eye, EyeOff, Crown, Lock, ArrowUpRight, ChevronDown,
+  Plus, Trash, CheckCircle, XCircle, Info
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Merchant, Agent } from "@shared/schema";
@@ -104,6 +105,62 @@ export default function WidgetPage() {
         description: "Please try again.",
         variant: "destructive",
       });
+    },
+  });
+
+  // Domain management with verification
+  const [newDomain, setNewDomain] = useState("");
+  const [verifyingDomainId, setVerifyingDomainId] = useState<string | null>(null);
+
+  const { data: verifiedDomains = [], refetch: refetchDomains } = useQuery<any[]>({
+    queryKey: ["/api/merchant/domains"],
+    enabled: canUseAdvancedFeatures,
+  });
+
+  const addDomainMutation = useMutation({
+    mutationFn: async (domain: string) => {
+      return apiRequest("POST", "/api/merchant/domains", { domain });
+    },
+    onSuccess: () => {
+      toast({ title: "Domain Added", description: "Domain has been added. Click verify to confirm widget installation." });
+      setNewDomain("");
+      refetchDomains();
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message || "Failed to add domain.", variant: "destructive" });
+    },
+  });
+
+  const deleteDomainMutation = useMutation({
+    mutationFn: async (domainId: string) => {
+      return apiRequest("DELETE", `/api/merchant/domains/${domainId}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Domain Deleted", description: "Domain has been removed." });
+      refetchDomains();
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete domain.", variant: "destructive" });
+    },
+  });
+
+  const verifyDomainMutation = useMutation({
+    mutationFn: async (domainId: string) => {
+      setVerifyingDomainId(domainId);
+      return apiRequest("POST", `/api/merchant/domains/${domainId}/verify`, {});
+    },
+    onSuccess: (data: any) => {
+      if (data.success) {
+        toast({ title: "Domain Verified", description: "Widget script detected on your website." });
+      } else {
+        toast({ title: "Verification Failed", description: data.error || "Widget script not found.", variant: "destructive" });
+      }
+      refetchDomains();
+      setVerifyingDomainId(null);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to verify domain.", variant: "destructive" });
+      setVerifyingDomainId(null);
     },
   });
 
@@ -943,35 +1000,146 @@ window.chatvice('identify', { token }); // identify the user with Chatvice`;
                 <CardTitle>Allowed Domains</CardTitle>
               </div>
               <CardDescription>
-                Only allow embedding the agent on specific domains. Enter each domain on a new line.
+                Manage domains where your widget can be embedded. Verify domains to confirm widget installation.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
               {canUseAdvancedFeatures ? (
                 <>
-                  <Textarea
-                    placeholder="www.example.com&#10;app.example.com&#10;*.example.com"
-                    value={config.allowedDomains}
-                    onChange={(e) => setConfig({ ...config, allowedDomains: e.target.value })}
-                    className="min-h-[100px] font-mono text-sm"
-                    data-testid="input-allowed-domains"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Leave empty to allow embedding on any domain. Use wildcards like *.example.com to allow all subdomains.
-                  </p>
-                  <Button
-                    onClick={() => saveAllowedDomainsMutation.mutate()}
-                    disabled={saveAllowedDomainsMutation.isPending}
-                    variant="outline"
-                    data-testid="button-save-domains"
-                  >
-                    {saveAllowedDomainsMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Save className="w-4 h-4 mr-2" />
-                    )}
-                    Save Domains
-                  </Button>
+                  {/* Domain management with verification */}
+                  <div className="space-y-4">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="example.com or *.example.com"
+                        value={newDomain}
+                        onChange={(e) => setNewDomain(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && newDomain.trim()) {
+                            addDomainMutation.mutate(newDomain.trim());
+                          }
+                        }}
+                        data-testid="input-new-domain"
+                      />
+                      <Button
+                        onClick={() => {
+                          if (newDomain.trim()) {
+                            addDomainMutation.mutate(newDomain.trim());
+                          }
+                        }}
+                        disabled={!newDomain.trim() || addDomainMutation.isPending}
+                        data-testid="button-add-domain"
+                      >
+                        {addDomainMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                      </Button>
+                    </div>
+
+                    {/* Domain list with verification status */}
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                      {verifiedDomains && verifiedDomains.length > 0 ? (
+                        verifiedDomains.map((domain: any) => (
+                          <div key={domain.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-mono text-sm truncate" title={domain.domain}>{domain.domain}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  {domain.isVerified ? (
+                                    <Badge className="bg-green-500/20 text-green-700 dark:text-green-400">
+                                      <CheckCircle className="w-3 h-3 mr-1" />
+                                      Verified
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="secondary">
+                                      <XCircle className="w-3 h-3 mr-1" />
+                                      Unverified
+                                    </Badge>
+                                  )}
+                                </div>
+                                {domain.verificationError && !domain.isVerified && (
+                                  <p className="text-xs text-destructive mt-1">{domain.verificationError}</p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex gap-1">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => verifyDomainMutation.mutate(domain.id)}
+                                disabled={verifyingDomainId === domain.id}
+                                title="Verify domain"
+                                data-testid={`button-verify-domain-${domain.id}`}
+                              >
+                                {verifyingDomainId === domain.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Check className="w-4 h-4" />
+                                )}
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => deleteDomainMutation.mutate(domain.id)}
+                                disabled={deleteDomainMutation.isPending}
+                                title="Delete domain"
+                                data-testid={`button-delete-domain-${domain.id}`}
+                              >
+                                <Trash className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-6 text-muted-foreground">
+                          <Globe className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">No domains configured</p>
+                          <p className="text-xs">Add domains to restrict where the widget can be embedded</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Info box */}
+                    <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                      <div className="flex items-start gap-2">
+                        <Info className="w-4 h-4 text-blue-500 mt-0.5" />
+                        <div className="text-xs text-muted-foreground">
+                          <p className="font-medium text-foreground">How to verify your domain</p>
+                          <p className="mt-1">1. Add your domain above</p>
+                          <p>2. Embed the widget script on your website (see Embed Code below)</p>
+                          <p>3. Click the verify button to confirm installation</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Legacy text-based domain entry */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Quick Domain List (Legacy)</Label>
+                    <Textarea
+                      placeholder="www.example.com&#10;app.example.com&#10;*.example.com"
+                      value={config.allowedDomains}
+                      onChange={(e) => setConfig({ ...config, allowedDomains: e.target.value })}
+                      className="min-h-[80px] font-mono text-sm"
+                      data-testid="input-allowed-domains"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Quick domain list without verification. Use the domain manager above for verification.
+                    </p>
+                    <Button
+                      onClick={() => saveAllowedDomainsMutation.mutate()}
+                      disabled={saveAllowedDomainsMutation.isPending}
+                      variant="outline"
+                      size="sm"
+                      data-testid="button-save-domains"
+                    >
+                      {saveAllowedDomainsMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4 mr-2" />
+                      )}
+                      Save Quick List
+                    </Button>
+                  </div>
                 </>
               ) : (
                 <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">

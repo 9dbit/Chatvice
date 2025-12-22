@@ -94,6 +94,26 @@ export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTo
 export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 
+// Merchant Domains - for domain whitelist with verification
+export const merchantDomains = pgTable("merchant_domains", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  domain: text("domain").notNull(), // e.g., "example.com", "*.example.com"
+  isVerified: boolean("is_verified").default(false),
+  verifiedAt: timestamp("verified_at"),
+  lastVerifiedAt: timestamp("last_verified_at"), // Last successful verification check
+  verificationToken: text("verification_token"), // Token for DNS/meta verification
+  verificationMethod: text("verification_method").default("script"), // "script" | "dns" | "meta"
+  verificationError: text("verification_error"), // Last error message if verification failed
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  createdBy: text("created_by").default("merchant"), // "merchant" | "admin"
+});
+
+export const insertMerchantDomainSchema = createInsertSchema(merchantDomains).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertMerchantDomain = z.infer<typeof insertMerchantDomainSchema>;
+export type MerchantDomain = typeof merchantDomains.$inferSelect;
+
 export const insertMerchantSchema = createInsertSchema(merchants).omit({ id: true });
 export type InsertMerchant = z.infer<typeof insertMerchantSchema>;
 export type Merchant = typeof merchants.$inferSelect;
