@@ -4639,6 +4639,111 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // ============ Merchant Broadcast Notifications (Admin) ============
+  
+  // Get all broadcasts (admin)
+  app.get("/api/admin/broadcasts", requireAdmin, async (req, res) => {
+    try {
+      const broadcasts = await storage.getMerchantBroadcasts();
+      res.json(broadcasts);
+    } catch (error) {
+      console.error("Error fetching broadcasts:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Create broadcast (admin)
+  app.post("/api/admin/broadcasts", requireAdmin, async (req, res) => {
+    try {
+      const { title, message, type, priority, expiresAt } = req.body;
+      
+      if (!title || !message) {
+        return res.status(400).json({ error: "Title and message are required" });
+      }
+      
+      const adminId = (req.session as any).adminId;
+      const admin = await storage.getAdmin(adminId);
+      
+      const broadcast = await storage.createMerchantBroadcast({
+        title,
+        message,
+        type: type || "announcement",
+        priority: priority || "normal",
+        createdBy: admin?.email || "admin",
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+      });
+      
+      res.json(broadcast);
+    } catch (error) {
+      console.error("Error creating broadcast:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Delete broadcast (admin)
+  app.delete("/api/admin/broadcasts/:id", requireAdmin, async (req, res) => {
+    try {
+      const deleted = await storage.deleteMerchantBroadcast(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Broadcast not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting broadcast:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ============ Merchant Notifications (Merchant) ============
+  
+  // Get merchant notifications
+  app.get("/api/merchant/notifications", requireAuth, async (req, res) => {
+    try {
+      const merchantId = (req.session as any).merchantId;
+      if (!merchantId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const notifications = await storage.getMerchantBroadcastsForMerchant(merchantId);
+      res.json(notifications);
+    } catch (error) {
+      console.error("Error fetching merchant notifications:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get unread notification count
+  app.get("/api/merchant/notifications/unread-count", requireAuth, async (req, res) => {
+    try {
+      const merchantId = (req.session as any).merchantId;
+      if (!merchantId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const count = await storage.getUnreadBroadcastCount(merchantId);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error fetching unread count:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Mark notification as read
+  app.post("/api/merchant/notifications/:id/read", requireAuth, async (req, res) => {
+    try {
+      const merchantId = (req.session as any).merchantId;
+      if (!merchantId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      await storage.markBroadcastAsRead(req.params.id, merchantId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // Admin endpoint for crawling guide knowledge source URLs
   app.post("/api/admin/guide/crawl", requireAdmin, async (req, res) => {
     try {
