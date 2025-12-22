@@ -1,6 +1,6 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
-import { rm, readFile } from "fs/promises";
+import { rm, readFile, writeFile } from "fs/promises";
 
 // server deps to bundle to reduce openat(2) syscalls
 // which helps cold start times
@@ -61,6 +61,14 @@ async function buildAll() {
     external: externals,
     logLevel: "info",
   });
+
+  // Create ESM wrapper for package.json "type": "module" compatibility
+  const esmWrapper = `import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+require('./index.cjs');
+`;
+  await writeFile("dist/index.js", esmWrapper);
+  console.log("Created ESM wrapper: dist/index.js");
 }
 
 buildAll().catch((err) => {
