@@ -164,6 +164,7 @@ interface MerchantWithPlan {
   country?: string;
   city?: string;
   region?: string;
+  allowedDomains?: string;
   plan: {
     name: string;
     conversationsLimit: number;
@@ -923,6 +924,7 @@ function MerchantsTab({
       { key: "subscriptionPlanId", label: "Plan" },
       { key: "subscriptionStatus", label: "Status" },
       { key: "conversationsUsed", label: "Conversations Used" },
+      { key: "allowedDomains", label: "Allowed Domains" },
       { key: "createdAt", label: "Created At" },
     ];
     const csv = generateCSV(merchants, columns);
@@ -1111,6 +1113,7 @@ function MerchantsTab({
                     <TableHead>Status</TableHead>
                     <TableHead className="hidden md:table-cell">Expiry</TableHead>
                     <TableHead className="hidden lg:table-cell">Conversations</TableHead>
+                    <TableHead className="hidden xl:table-cell">Domains</TableHead>
                     <TableHead className="hidden xl:table-cell">Joined</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -1173,6 +1176,20 @@ function MerchantsTab({
                         <TableCell className="hidden lg:table-cell">
                           {merchant.conversationsUsed || 0} / {merchant.plan.conversationsLimit === -1 ? '∞' : merchant.plan.conversationsLimit}
                         </TableCell>
+                        <TableCell className="hidden xl:table-cell">
+                          {merchant.allowedDomains ? (
+                            <div className="max-w-[150px]">
+                              <p className="text-xs font-mono truncate" title={merchant.allowedDomains}>
+                                {merchant.allowedDomains.split('\n').filter(Boolean).length} domain(s)
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {merchant.allowedDomains.split('\n')[0]}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">All domains</span>
+                          )}
+                        </TableCell>
                         <TableCell className="hidden xl:table-cell text-muted-foreground text-sm">
                           {merchant.createdAt ? format(new Date(merchant.createdAt), 'MMM d, yyyy') : '-'}
                         </TableCell>
@@ -1196,7 +1213,7 @@ function MerchantsTab({
                   })}
                   {(!merchants || merchants.length === 0) && (
                     <TableRow>
-                      <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={12} className="text-center text-muted-foreground py-8">
                         No merchants registered yet
                       </TableCell>
                     </TableRow>
