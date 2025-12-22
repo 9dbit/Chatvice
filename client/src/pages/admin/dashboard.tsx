@@ -785,6 +785,7 @@ function MerchantsTab({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [followUpDialogOpen, setFollowUpDialogOpen] = useState(false);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedMerchant, setSelectedMerchant] = useState<MerchantWithPlan | null>(null);
   const [editPlan, setEditPlan] = useState("");
   const [editCustomConfig, setEditCustomConfig] = useState({
@@ -878,6 +879,11 @@ function MerchantsTab({
   const handleManageDomains = (merchant: MerchantWithPlan) => {
     setDomainMerchant(merchant);
     setDomainDialogOpen(true);
+  };
+
+  const handleViewDetail = (merchant: MerchantWithPlan) => {
+    setSelectedMerchant(merchant);
+    setDetailDialogOpen(true);
   };
 
   const updatePlanMutation = useMutation({
@@ -1265,6 +1271,9 @@ function MerchantsTab({
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
+                            <Button size="icon" variant="ghost" onClick={() => handleViewDetail(merchant)} data-testid={`button-view-${merchant.id}`} title="View details">
+                              <Eye className="w-4 h-4" />
+                            </Button>
                             {expiryInfo?.isExpiringSoon && (
                               <Button size="icon" variant="ghost" onClick={() => handleFollowUp(merchant)} data-testid={`button-followup-${merchant.id}`} title="Send follow-up">
                                 <Bell className="w-4 h-4 text-amber-500" />
@@ -1595,6 +1604,160 @@ function MerchantsTab({
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDomainDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Merchant Detail Dialog */}
+      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" data-testid="dialog-merchant-detail">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="w-5 h-5" />
+              Merchant Details
+            </DialogTitle>
+            <DialogDescription>
+              Complete information for {selectedMerchant?.companyName || 'this merchant'}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedMerchant && (
+            <div className="space-y-4 py-4">
+              {/* Company Info Section */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Building2 className="w-4 h-4" />
+                  Company Information
+                </h4>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-muted-foreground text-xs">Merchant ID</p>
+                    <p className="font-mono text-xs mt-0.5">{selectedMerchant.id}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Company Name</p>
+                    <p className="font-medium mt-0.5">{selectedMerchant.companyName || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Registrant Name (PIC)</p>
+                    <p className="mt-0.5">{selectedMerchant.picName || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Email</p>
+                    <p className="mt-0.5">{selectedMerchant.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Phone</p>
+                    <p className="mt-0.5">{selectedMerchant.phone || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Website</p>
+                    {selectedMerchant.websiteUrl ? (
+                      <a href={selectedMerchant.websiteUrl.startsWith('http') ? selectedMerchant.websiteUrl : `https://${selectedMerchant.websiteUrl}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm mt-0.5 block truncate">
+                        {selectedMerchant.websiteUrl}
+                      </a>
+                    ) : (
+                      <p className="mt-0.5">-</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Address Section */}
+              <div className="space-y-3 border-t pt-3">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Globe className="w-4 h-4" />
+                  Address
+                </h4>
+                <div className="text-sm">
+                  <p className="text-muted-foreground text-xs">Full Address</p>
+                  <p className="mt-0.5">
+                    {[
+                      selectedMerchant.address,
+                      selectedMerchant.city,
+                      selectedMerchant.region,
+                      selectedMerchant.postalCode,
+                      selectedMerchant.country
+                    ].filter(Boolean).join(', ') || '-'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Subscription Section */}
+              <div className="space-y-3 border-t pt-3">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Crown className="w-4 h-4" />
+                  Subscription
+                </h4>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-muted-foreground text-xs">Current Plan</p>
+                    <div className="mt-0.5">{getPlanBadge(selectedMerchant.subscriptionPlanId)}</div>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Status</p>
+                    <div className="mt-0.5">{getStatusBadge(selectedMerchant.subscriptionStatus, selectedMerchant)}</div>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Conversations Used</p>
+                    <p className="mt-0.5">
+                      {selectedMerchant.conversationsUsed || 0} / {selectedMerchant.plan.conversationsLimit === -1 ? '∞' : selectedMerchant.plan.conversationsLimit}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Billing Cycle</p>
+                    <p className="mt-0.5 capitalize">{selectedMerchant.billingCycle || '-'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dates Section */}
+              <div className="space-y-3 border-t pt-3">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  Important Dates
+                </h4>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-muted-foreground text-xs">Registration Date</p>
+                    <p className="mt-0.5">{selectedMerchant.createdAt ? format(new Date(selectedMerchant.createdAt), 'dd MMM yyyy, HH:mm') : '-'}</p>
+                  </div>
+                  {selectedMerchant.subscriptionStatus === 'trial' && selectedMerchant.trialEndsAt && (
+                    <div>
+                      <p className="text-muted-foreground text-xs">Trial Ends</p>
+                      <p className="mt-0.5">{format(new Date(selectedMerchant.trialEndsAt), 'dd MMM yyyy, HH:mm')}</p>
+                    </div>
+                  )}
+                  {selectedMerchant.currentPeriodEnd && (
+                    <div>
+                      <p className="text-muted-foreground text-xs">Period Ends</p>
+                      <p className="mt-0.5">{format(new Date(selectedMerchant.currentPeriodEnd), 'dd MMM yyyy, HH:mm')}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Domains Section */}
+              {selectedMerchant.allowedDomains && (
+                <div className="space-y-3 border-t pt-3">
+                  <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Link2 className="w-4 h-4" />
+                    Allowed Domains
+                  </h4>
+                  <div className="text-sm bg-muted/50 rounded-lg p-2">
+                    {selectedMerchant.allowedDomains.split('\n').filter(Boolean).map((domain, idx) => (
+                      <div key={idx} className="font-mono text-xs py-0.5">{domain}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>Close</Button>
+            <Button onClick={() => { setDetailDialogOpen(false); if (selectedMerchant) handleEdit(selectedMerchant); }}>
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Merchant
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
