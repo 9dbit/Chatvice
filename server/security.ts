@@ -38,25 +38,16 @@ export function ipFilter(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-// Block suspicious patterns - focused on high-confidence SQL injection attempts
-// Note: Patterns are intentionally narrow to avoid false positives
+// Block suspicious patterns
 export function detectSQLInjection(req: Request, res: Response, next: NextFunction) {
-  // Only check POST/PUT/PATCH body for SQL injection, not GET queries
-  if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") {
-    return next();
-  }
-  
   const suspiciousPatterns = [
-    /\bunion\s+select\b/i,  // UNION SELECT attacks
-    /\bexec\s*\(/i,         // EXEC function calls
-    /\bxp_\w+/i,            // SQL Server extended stored procedures
-    /;\s*drop\s+table/i,    // Drop table attacks
-    /;\s*delete\s+from/i,   // Delete attacks
-    /;\s*insert\s+into/i,   // Insert attacks
-    /;\s*update\s+\w+\s+set/i, // Update attacks
+    /(\%27)|(\')|(\-\-)|(\%23)|(#)/i,
+    /((\%3D)|(=))[^\n]*((\%27)|(\')|(\-\-)|(\%3B)|(;))/i,
+    /\w*((\%27)|(\'))((\%6F)|o|(\%4F))((\%72)|r|(\%52))/i,
+    /((\%27)|(\'))union/i,
   ];
   
-  const checkString = JSON.stringify(req.body || {});
+  const checkString = JSON.stringify(req.body) + JSON.stringify(req.query);
   
   for (const pattern of suspiciousPatterns) {
     if (pattern.test(checkString)) {

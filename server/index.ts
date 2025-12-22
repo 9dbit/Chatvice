@@ -6,17 +6,8 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { OnePayWebhookHandler, type OnePayWebhookPayload } from './onepayWebhook';
 import { isOnePayConfigured } from './onepayClient';
-
-// Global error handlers for production stability
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error.message);
-  console.error(error.stack);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise);
-  console.error('Reason:', reason);
-});
+import cluster from "cluster";
+import os from "os";
 
 const app = express();
 
@@ -130,13 +121,8 @@ app.use((req, res, next) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
-    // Log error for debugging
-    console.error(`[Error ${status}] ${message}`, err.stack || '');
-
-    // Don't send response if already sent
-    if (!res.headersSent) {
-      res.status(status).json({ message });
-    }
+    res.status(status).json({ message });
+    throw err;
   });
 
   // importantly only setup vite in development and after

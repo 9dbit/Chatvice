@@ -694,29 +694,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // Trust proxy for production (required for secure cookies behind load balancer/reverse proxy)
   app.set("trust proxy", true);
 
-  // Health check endpoint - before all middleware for fast response
-  // Used by Replit deployment health checks
-  app.get("/api/health", async (req, res) => {
-    try {
-      // Quick database connectivity check
-      const result = await pool.query("SELECT 1");
-      res.json({ 
-        status: "healthy", 
-        timestamp: new Date().toISOString(),
-        database: "connected",
-        environment: process.env.NODE_ENV || "development"
-      });
-    } catch (error: any) {
-      console.error("Health check failed:", error.message);
-      res.status(503).json({ 
-        status: "unhealthy", 
-        timestamp: new Date().toISOString(),
-        database: "disconnected",
-        error: error.message
-      });
-    }
-  });
-
   // Security middleware - apply before all routes
   // Note: Body size is limited to 10MB by express.json() in index.ts
   app.use(ipFilter);
