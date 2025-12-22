@@ -4,7 +4,7 @@
 Chatvice is an AI-powered customer service chatbot platform designed to automate customer support for businesses. It provides intelligent responses, seamless escalation to human supervisors, and a customizable chat widget for merchant websites. The platform includes a merchant dashboard for configuration and monitoring, and a supervisor panel for managing escalated conversations. Its primary goal is to reduce support costs while maintaining high-quality customer service through smart AI-to-human handoff mechanisms, offering significant market potential for businesses seeking efficient customer engagement.
 
 ## User Preferences
-Preferred communication style: Simple, everyday language.
+Preferred communication style: Simple, everyday language. Formal tone without casual honorifics (no "kak/bosku/gan/sis").
 
 ## System Architecture
 Chatvice is a monorepo application structured with `/client`, `/server`, and `/shared` components, featuring a multi-panel design including a Landing Page, Merchant Dashboard, Supervisor Panel, embeddable Chat Widget, and an Admin Master Panel. The UI/UX leverages Shadcn/ui and Radix UI with Tailwind CSS, utilizing a custom "new-york" theme and dark mode.
