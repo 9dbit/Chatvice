@@ -1,6 +1,18 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
-import { rm, readFile, writeFile } from "fs/promises";
+import { rm, readFile, writeFile, access } from "fs/promises";
+import { constants } from "fs";
+
+// Check if dist is already built (for production runtime skip)
+async function isAlreadyBuilt(): Promise<boolean> {
+  try {
+    await access("dist/public/index.html", constants.F_OK);
+    await access("dist/index.cjs", constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 // server deps to bundle to reduce openat(2) syscalls
 // which helps cold start times
@@ -35,6 +47,12 @@ const allowlist = [
 ];
 
 async function buildAll() {
+  // Skip rebuild if already built in production (prevents runtime rebuild from wiping assets)
+  if (process.env.NODE_ENV === "production" && await isAlreadyBuilt()) {
+    console.log("Production build already exists, skipping rebuild...");
+    return;
+  }
+
   await rm("dist", { recursive: true, force: true });
 
   console.log("building client...");
