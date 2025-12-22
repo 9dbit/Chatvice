@@ -4744,6 +4744,28 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // Mark all notifications as read
+  app.post("/api/merchant/notifications/mark-all-read", requireAuth, async (req, res) => {
+    try {
+      const merchantId = (req.session as any).merchantId;
+      if (!merchantId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const broadcasts = await storage.getMerchantBroadcastsForMerchant(merchantId);
+      const unreadBroadcasts = broadcasts.filter(b => !b.isRead);
+      
+      for (const broadcast of unreadBroadcasts) {
+        await storage.markBroadcastAsRead(broadcast.id, merchantId);
+      }
+      
+      res.json({ success: true, count: unreadBroadcasts.length });
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // Admin endpoint for crawling guide knowledge source URLs
   app.post("/api/admin/guide/crawl", requireAdmin, async (req, res) => {
     try {

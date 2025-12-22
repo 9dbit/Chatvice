@@ -1,10 +1,17 @@
 import { Route, Switch, useLocation, Redirect, Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AIHelpBubble } from "@/components/ai-help-bubble";
-import { ChevronRight, Home, Loader2 } from "lucide-react";
+import { ChevronRight, Home, Loader2, Bell, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { format } from "date-fns";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import DashboardOverview from "./overview";
 import SessionsPage from "./sessions";
 import KnowledgePage from "./knowledge";
@@ -75,6 +82,134 @@ function Breadcrumb({ location }: { location: string }) {
   );
 }
 
+interface Broadcast {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  priority: string;
+  createdAt: string;
+  expiresAt: string | null;
+  isRead: boolean;
+}
+
+function NotificationBell() {
+  const [open, setOpen] = useState(false);
+  const merchantId = localStorage.getItem("merchantId");
+
+  const { data: broadcasts = [], isLoading, refetch } = useQuery<Broadcast[]>({
+    queryKey: ["/api/merchant/notifications", merchantId],
+    enabled: !!merchantId,
+    refetchInterval: 60000,
+  });
+
+  const unreadCount = broadcasts.filter((b) => !b.isRead).length;
+
+  const markReadMutation = useMutation({
+    mutationFn: async (broadcastId: string) => {
+      return apiRequest("POST", `/api/merchant/notifications/${broadcastId}/read`);
+    },
+    onSuccess: () => {
+      refetch();
+    },
+  });
+
+  const markAllReadMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/merchant/notifications/mark-all-read");
+    },
+    onSuccess: () => {
+      refetch();
+    },
+  });
+
+  const getTypeBadge = (type: string) => {
+    switch (type) {
+      case "announcement": return <Badge className="bg-blue-500/20 text-blue-700 dark:text-blue-400 text-xs">Announcement</Badge>;
+      case "marketing": return <Badge className="bg-green-500/20 text-green-700 dark:text-green-400 text-xs">Marketing</Badge>;
+      case "system": return <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-400 text-xs">System</Badge>;
+      case "update": return <Badge className="bg-purple-500/20 text-purple-700 dark:text-purple-400 text-xs">Update</Badge>;
+      default: return <Badge variant="outline" className="text-xs">{type}</Badge>;
+    }
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications">
+          <Bell className="w-4 h-4" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 p-0" align="end" data-testid="popover-notifications">
+        <div className="flex items-center justify-between px-4 py-3 border-b">
+          <h4 className="font-semibold text-sm">Notifications</h4>
+          {unreadCount > 0 && (
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => markAllReadMutation.mutate()}
+              disabled={markAllReadMutation.isPending}
+              data-testid="button-mark-all-read"
+            >
+              Mark all read
+            </Button>
+          )}
+        </div>
+        <ScrollArea className="h-[300px]">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : broadcasts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center px-4">
+              <Bell className="w-8 h-8 text-muted-foreground/50 mb-2" />
+              <p className="text-sm text-muted-foreground">No notifications yet</p>
+            </div>
+          ) : (
+            <div className="divide-y">
+              {broadcasts.map((broadcast) => (
+                <div 
+                  key={broadcast.id} 
+                  className={`p-3 hover-elevate cursor-pointer ${!broadcast.isRead ? 'bg-primary/5' : ''}`}
+                  onClick={() => {
+                    if (!broadcast.isRead) {
+                      markReadMutation.mutate(broadcast.id);
+                    }
+                  }}
+                  data-testid={`notification-${broadcast.id}`}
+                >
+                  <div className="flex items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        {!broadcast.isRead && (
+                          <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+                        )}
+                        <span className="font-medium text-sm truncate">{broadcast.title}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-2 mb-1.5">{broadcast.message}</p>
+                      <div className="flex items-center gap-2">
+                        {getTypeBadge(broadcast.type)}
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(broadcast.createdAt), 'dd MMM, HH:mm')}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export default function DashboardLayout() {
   const [location] = useLocation();
   const merchantId = localStorage.getItem("merchantId");
@@ -115,7 +250,10 @@ export default function DashboardLayout() {
               <SidebarTrigger data-testid="button-sidebar-toggle" />
               <Breadcrumb location={location} />
             </div>
-            <ThemeToggle />
+            <div className="flex items-center gap-1">
+              <NotificationBell />
+              <ThemeToggle />
+            </div>
           </header>
           <main className="flex-1 overflow-auto p-3 sm:p-6 bg-background">
             <Switch>
