@@ -13,7 +13,7 @@ import {
 import OpenAI from "openai";
 import bcrypt from "bcryptjs";
 import session from "express-session";
-import MemoryStore from "memorystore";
+import connectPgSimple from "connect-pg-simple";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -24,6 +24,8 @@ import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClien
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant } from "@shared/schema";
 import crypto from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import { widgetRateLimiter, apiRateLimiter } from "./rateLimit";
+import { ipFilter, detectSQLInjection } from "./security";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -685,19 +687,26 @@ ${knowledgeContext || "No specific knowledge base configured yet."}`
 }
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
-  const MemoryStoreSession = MemoryStore(session);
+  const PgSession = connectPgSimple(session);
   
   // Trust proxy for production (required for secure cookies behind load balancer/reverse proxy)
   app.set("trust proxy", true);
   
+  // Security middleware
+  app.use(ipFilter);
+  app.use(detectSQLInjection);
+  
+  // Use PostgreSQL-backed sessions for horizontal scaling
   app.use(
     session({
+      store: new PgSession({
+        pool: pool, // Use existing DB connection pool
+        tableName: 'user_sessions',
+        pruneSessionInterval: 60 * 15, // Clean up expired sessions every 15 minutes
+      }),
       secret: process.env.SESSION_SECRET || "chatvice-secret-key-change-in-production",
       resave: false,
       saveUninitialized: false,
-      store: new MemoryStoreSession({
-        checkPeriod: 86400000,
-      }),
       cookie: {
         secure: process.env.NODE_ENV === "production",
         httpOnly: true,
@@ -1921,7 +1930,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
-  app.post("/api/chat/ask", async (req, res) => {
+  app.post("/api/chat/ask", widgetRateLimiter, async (req, res) => {
     try {
       const data = chatAskSchema.parse(req.body);
       const { merchantId, sessionId, message, clientMessageId } = data;
