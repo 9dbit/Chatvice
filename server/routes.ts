@@ -13,7 +13,7 @@ import {
 import OpenAI from "openai";
 import bcrypt from "bcryptjs";
 import session from "express-session";
-import MemoryStore from "memorystore";
+import connectPgSimple from "connect-pg-simple";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -24,6 +24,10 @@ import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClien
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant } from "@shared/schema";
 import crypto from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import { pool } from "./db";
+import { widgetRateLimiter, apiRateLimiter } from "./rateLimit";
+import { ipFilter, detectSQLInjection, sanitizeInput } from "./security";
+import { merchantCache, agentCache, knowledgeCache } from "./cache";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -685,19 +689,31 @@ ${knowledgeContext || "No specific knowledge base configured yet."}`
 }
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
-  const MemoryStoreSession = MemoryStore(session);
+  const PgSession = connectPgSimple(session);
 
   // Trust proxy for production (required for secure cookies behind load balancer/reverse proxy)
   app.set("trust proxy", true);
 
+  // Security middleware - apply before all routes
+  // Note: Body size is limited to 10MB by express.json() in index.ts
+  app.use(ipFilter);
+  app.use(detectSQLInjection);
+
+  // API rate limiter - 100 requests per minute per IP
+  app.use("/api", apiRateLimiter);
+
+  // PostgreSQL-backed sessions for horizontal scaling
   app.use(
     session({
+      store: new PgSession({
+        pool: pool,
+        tableName: 'user_sessions',
+        createTableIfMissing: true, // Auto-create table if not exists
+        pruneSessionInterval: 60 * 15, // Clean up expired sessions every 15 minutes
+      }),
       secret: process.env.SESSION_SECRET || "chatvice-secret-key-change-in-production",
       resave: false,
       saveUninitialized: false,
-      store: new MemoryStoreSession({
-        checkPeriod: 86400000,
-      }),
       cookie: {
         secure: process.env.NODE_ENV === "production",
         httpOnly: true,
@@ -706,6 +722,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       },
     })
   );
+
+  // Security headers
+  app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    if (process.env.NODE_ENV === 'production') {
+      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+    next();
+  });
 
   const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
   const clients = new Map<string, Set<WebSocket>>();
@@ -1921,12 +1949,19 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
-  app.post("/api/chat/ask", async (req, res) => {
+  app.post("/api/chat/ask", widgetRateLimiter, async (req, res) => {
     try {
       const data = chatAskSchema.parse(req.body);
       const { merchantId, sessionId, message, clientMessageId } = data;
 
-      const merchant = await storage.getMerchant(merchantId);
+      // Use cache for merchant lookup (60s TTL)
+      let merchant = merchantCache.get(`merchant:${merchantId}`);
+      if (!merchant) {
+        merchant = await storage.getMerchant(merchantId);
+        if (merchant) {
+          merchantCache.set(`merchant:${merchantId}`, merchant, 60000);
+        }
+      }
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }

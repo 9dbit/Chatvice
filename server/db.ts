@@ -9,7 +9,7 @@ if (!process.env.DATABASE_URL) {
 }
 
 // Configure connection pool for high traffic
-const pool = new Pool({ 
+export const pool = new Pool({ 
   connectionString: process.env.DATABASE_URL,
   max: 20, // Maximum pool size
   min: 2, // Minimum pool size

@@ -1,30 +1,38 @@
 
 import { Request, Response, NextFunction } from "express";
-import { storage } from "./storage";
 
-// Simple in-memory rate limiter (upgrade to Redis for production)
-const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+// Separate rate limit stores for different purposes (prevents key eviction conflicts)
+const apiRateLimitStore = new Map<string, { count: number; resetTime: number }>();
+const widgetRateLimitStore = new Map<string, { count: number; resetTime: number }>();
+const MAX_STORE_SIZE = 100000; // Prevent unbounded growth
 
-export function createRateLimiter(options: {
-  windowMs: number;
-  max: number;
-  keyGenerator?: (req: Request) => string;
-  skipSuccessfulRequests?: boolean;
-}) {
+function createRateLimiterWithStore(
+  store: Map<string, { count: number; resetTime: number }>,
+  options: {
+    windowMs: number;
+    max: number;
+    keyGenerator?: (req: Request) => string;
+  }
+) {
   const {
-    windowMs = 60000, // 1 minute
+    windowMs = 60000,
     max = 100,
     keyGenerator = (req: Request) => req.ip || 'unknown',
-    skipSuccessfulRequests = false,
   } = options;
 
   return async (req: Request, res: Response, next: NextFunction) => {
     const key = keyGenerator(req);
     const now = Date.now();
-    const record = rateLimitStore.get(key);
+    const record = store.get(key);
+
+    // Prevent unbounded growth - evict oldest entries if at capacity
+    if (store.size >= MAX_STORE_SIZE) {
+      const firstKey = store.keys().next().value;
+      if (firstKey) store.delete(firstKey);
+    }
 
     if (!record || now > record.resetTime) {
-      rateLimitStore.set(key, { count: 1, resetTime: now + windowMs });
+      store.set(key, { count: 1, resetTime: now + windowMs });
       return next();
     }
 
@@ -40,23 +48,19 @@ export function createRateLimiter(options: {
   };
 }
 
-// Widget-specific rate limiter per merchant
-export function widgetRateLimiter(req: Request, res: Response, next: NextFunction) {
-  const merchantId = req.params.merchantId || req.body.merchantId;
-  const sessionId = req.body.sessionId || req.query.session;
-  
-  // Key: merchantId + sessionId (per user per widget)
-  const key = `widget:${merchantId}:${sessionId}`;
-  
-  return createRateLimiter({
-    windowMs: 60000, // 1 minute
-    max: 30, // 30 messages per minute per session
-    keyGenerator: () => key,
-  })(req, res, next);
-}
+// Widget-specific rate limiter per session (uses dedicated store)
+export const widgetRateLimiter = createRateLimiterWithStore(widgetRateLimitStore, {
+  windowMs: 60000, // 1 minute
+  max: 30, // 30 messages per minute per session
+  keyGenerator: (req) => {
+    const merchantId = req.params.merchantId || req.body?.merchantId || 'unknown';
+    const sessionId = req.body?.sessionId || req.query?.session || 'unknown';
+    return `${merchantId}:${sessionId}`;
+  },
+});
 
-// API rate limiter per IP
-export const apiRateLimiter = createRateLimiter({
+// API rate limiter per IP (uses dedicated store)
+export const apiRateLimiter = createRateLimiterWithStore(apiRateLimitStore, {
   windowMs: 60000,
   max: 100,
   keyGenerator: (req) => req.ip || 'unknown',
@@ -65,9 +69,16 @@ export const apiRateLimiter = createRateLimiter({
 // Clean up expired entries every 5 minutes
 setInterval(() => {
   const now = Date.now();
-  for (const [key, record] of rateLimitStore.entries()) {
+  
+  for (const [key, record] of apiRateLimitStore.entries()) {
     if (now > record.resetTime) {
-      rateLimitStore.delete(key);
+      apiRateLimitStore.delete(key);
+    }
+  }
+  
+  for (const [key, record] of widgetRateLimitStore.entries()) {
+    if (now > record.resetTime) {
+      widgetRateLimitStore.delete(key);
     }
   }
 }, 5 * 60 * 1000);
