@@ -1,8 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  "include": ["server/**/*", "shared/**/*"],
-  "exclude": ["node_modules", "dist", "client"],
-  "compilerOptions": {
-    "noEmit": true
-  }
-}
