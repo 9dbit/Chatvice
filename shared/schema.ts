@@ -1042,31 +1042,3 @@ export type PaymentChannel = typeof paymentChannels[number];
 // Order status types
 export const orderStatuses = ["PENDING", "PAID", "PAID_BUT_NOT_CREDITED", "COMPLETED", "FAILED", "EXPIRED"] as const;
 export type OrderStatus = typeof orderStatuses[number];
-
-// Merchant Broadcast Notifications - admin sends to all merchants
-export const merchantBroadcasts = pgTable("merchant_broadcasts", {
-  id: varchar("id", { length: 32 }).primaryKey(),
-  title: text("title").notNull(),
-  message: text("message").notNull(),
-  type: varchar("type", { length: 20 }).default("announcement"), // announcement, marketing, system, update
-  priority: varchar("priority", { length: 10 }).default("normal"), // low, normal, high
-  createdBy: text("created_by").notNull(), // admin email or ID
-  createdAt: timestamp("created_at").defaultNow(),
-  expiresAt: timestamp("expires_at"), // optional expiration for time-limited announcements
-});
-
-export const insertMerchantBroadcastSchema = createInsertSchema(merchantBroadcasts).omit({ id: true, createdAt: true });
-export type InsertMerchantBroadcast = z.infer<typeof insertMerchantBroadcastSchema>;
-export type MerchantBroadcast = typeof merchantBroadcasts.$inferSelect;
-
-// Merchant Broadcast Read Status - tracks which merchants have read which broadcasts
-export const merchantBroadcastReads = pgTable("merchant_broadcast_reads", {
-  id: varchar("id", { length: 32 }).primaryKey(),
-  broadcastId: varchar("broadcast_id", { length: 32 }).notNull(),
-  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
-  readAt: timestamp("read_at").defaultNow(),
-});
-
-export const insertMerchantBroadcastReadSchema = createInsertSchema(merchantBroadcastReads).omit({ id: true, readAt: true });
-export type InsertMerchantBroadcastRead = z.infer<typeof insertMerchantBroadcastReadSchema>;
-export type MerchantBroadcastRead = typeof merchantBroadcastReads.$inferSelect;

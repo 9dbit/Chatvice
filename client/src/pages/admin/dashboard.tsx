@@ -282,7 +282,6 @@ export default function AdminDashboard() {
     { id: "overview", label: "Overview", icon: BarChart3 },
     { id: "merchants", label: "All Merchants", icon: Building2 },
     { id: "subscribers", label: "Active Subscribers", icon: UserCheck },
-    { id: "broadcasts", label: "Broadcasts", icon: Bell },
     { id: "landing", label: "Landing Page", icon: Palette },
     { id: "content", label: "Content & Media", icon: Image },
     { id: "seo", label: "SEO & Branding", icon: Globe },
@@ -423,8 +422,6 @@ export default function AdminDashboard() {
                 refetchMerchants={refetchMerchants}
               />
             )}
-            
-            {activeTab === "broadcasts" && <BroadcastsTab toast={toast} />}
             
             {activeTab === "landing" && <LandingPageTab toast={toast} />}
             
@@ -788,7 +785,6 @@ function MerchantsTab({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [followUpDialogOpen, setFollowUpDialogOpen] = useState(false);
-  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedMerchant, setSelectedMerchant] = useState<MerchantWithPlan | null>(null);
   const [editPlan, setEditPlan] = useState("");
   const [editCustomConfig, setEditCustomConfig] = useState({
@@ -882,11 +878,6 @@ function MerchantsTab({
   const handleManageDomains = (merchant: MerchantWithPlan) => {
     setDomainMerchant(merchant);
     setDomainDialogOpen(true);
-  };
-
-  const handleViewDetail = (merchant: MerchantWithPlan) => {
-    setSelectedMerchant(merchant);
-    setDetailDialogOpen(true);
   };
 
   const updatePlanMutation = useMutation({
@@ -1274,9 +1265,6 @@ function MerchantsTab({
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button size="icon" variant="ghost" onClick={() => handleViewDetail(merchant)} data-testid={`button-view-${merchant.id}`} title="View details">
-                              <Eye className="w-4 h-4" />
-                            </Button>
                             {expiryInfo?.isExpiringSoon && (
                               <Button size="icon" variant="ghost" onClick={() => handleFollowUp(merchant)} data-testid={`button-followup-${merchant.id}`} title="Send follow-up">
                                 <Bell className="w-4 h-4 text-amber-500" />
@@ -1607,160 +1595,6 @@ function MerchantsTab({
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDomainDialogOpen(false)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Merchant Detail Dialog */}
-      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" data-testid="dialog-merchant-detail">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Building2 className="w-5 h-5" />
-              Merchant Details
-            </DialogTitle>
-            <DialogDescription>
-              Complete information for {selectedMerchant?.companyName || 'this merchant'}
-            </DialogDescription>
-          </DialogHeader>
-          {selectedMerchant && (
-            <div className="space-y-4 py-4">
-              {/* Company Info Section */}
-              <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Building2 className="w-4 h-4" />
-                  Company Information
-                </h4>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="text-muted-foreground text-xs">Merchant ID</p>
-                    <p className="font-mono text-xs mt-0.5">{selectedMerchant.id}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs">Company Name</p>
-                    <p className="font-medium mt-0.5">{selectedMerchant.companyName || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs">Registrant Name (PIC)</p>
-                    <p className="mt-0.5">{selectedMerchant.picName || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs">Email</p>
-                    <p className="mt-0.5">{selectedMerchant.email}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs">Phone</p>
-                    <p className="mt-0.5">{selectedMerchant.phone || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs">Website</p>
-                    {selectedMerchant.websiteUrl ? (
-                      <a href={selectedMerchant.websiteUrl.startsWith('http') ? selectedMerchant.websiteUrl : `https://${selectedMerchant.websiteUrl}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm mt-0.5 block truncate">
-                        {selectedMerchant.websiteUrl}
-                      </a>
-                    ) : (
-                      <p className="mt-0.5">-</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Address Section */}
-              <div className="space-y-3 border-t pt-3">
-                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Globe className="w-4 h-4" />
-                  Address
-                </h4>
-                <div className="text-sm">
-                  <p className="text-muted-foreground text-xs">Full Address</p>
-                  <p className="mt-0.5">
-                    {[
-                      selectedMerchant.address,
-                      selectedMerchant.city,
-                      selectedMerchant.region,
-                      selectedMerchant.postalCode,
-                      selectedMerchant.country
-                    ].filter(Boolean).join(', ') || '-'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Subscription Section */}
-              <div className="space-y-3 border-t pt-3">
-                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Crown className="w-4 h-4" />
-                  Subscription
-                </h4>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="text-muted-foreground text-xs">Current Plan</p>
-                    <div className="mt-0.5">{getPlanBadge(selectedMerchant.subscriptionPlanId)}</div>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs">Status</p>
-                    <div className="mt-0.5">{getStatusBadge(selectedMerchant.subscriptionStatus, selectedMerchant)}</div>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs">Conversations Used</p>
-                    <p className="mt-0.5">
-                      {selectedMerchant.conversationsUsed || 0} / {selectedMerchant.plan.conversationsLimit === -1 ? '∞' : selectedMerchant.plan.conversationsLimit}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs">Billing Cycle</p>
-                    <p className="mt-0.5 capitalize">{selectedMerchant.billingCycle || '-'}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Dates Section */}
-              <div className="space-y-3 border-t pt-3">
-                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  Important Dates
-                </h4>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="text-muted-foreground text-xs">Registration Date</p>
-                    <p className="mt-0.5">{selectedMerchant.createdAt ? format(new Date(selectedMerchant.createdAt), 'dd MMM yyyy, HH:mm') : '-'}</p>
-                  </div>
-                  {selectedMerchant.subscriptionStatus === 'trial' && selectedMerchant.trialEndsAt && (
-                    <div>
-                      <p className="text-muted-foreground text-xs">Trial Ends</p>
-                      <p className="mt-0.5">{format(new Date(selectedMerchant.trialEndsAt), 'dd MMM yyyy, HH:mm')}</p>
-                    </div>
-                  )}
-                  {selectedMerchant.currentPeriodEnd && (
-                    <div>
-                      <p className="text-muted-foreground text-xs">Period Ends</p>
-                      <p className="mt-0.5">{format(new Date(selectedMerchant.currentPeriodEnd), 'dd MMM yyyy, HH:mm')}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Domains Section */}
-              {selectedMerchant.allowedDomains && (
-                <div className="space-y-3 border-t pt-3">
-                  <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <Link2 className="w-4 h-4" />
-                    Allowed Domains
-                  </h4>
-                  <div className="text-sm bg-muted/50 rounded-lg p-2">
-                    {selectedMerchant.allowedDomains.split('\n').filter(Boolean).map((domain, idx) => (
-                      <div key={idx} className="font-mono text-xs py-0.5">{domain}</div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>Close</Button>
-            <Button onClick={() => { setDetailDialogOpen(false); if (selectedMerchant) handleEdit(selectedMerchant); }}>
-              <Edit className="w-4 h-4 mr-2" />
-              Edit Merchant
-            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -7154,266 +6988,6 @@ function SortableMenuItem({ item, onToggle }: { item: MenuItemConfig; onToggle: 
         data-testid={`toggle-menu-${item.id}`}
       />
     </div>
-  );
-}
-
-// ============ Broadcasts Tab ============
-interface MerchantBroadcast {
-  id: string;
-  title: string;
-  message: string;
-  type: string;
-  priority: string;
-  createdBy: string;
-  createdAt: string;
-  expiresAt: string | null;
-}
-
-function BroadcastsTab({ toast }: { toast: any }) {
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [newBroadcast, setNewBroadcast] = useState({
-    title: "",
-    message: "",
-    type: "announcement" as "announcement" | "marketing" | "system" | "update",
-    priority: "normal" as "low" | "normal" | "high",
-    expiresAt: "",
-  });
-
-  const { data: broadcasts, isLoading, refetch } = useQuery<MerchantBroadcast[]>({
-    queryKey: ["/api/admin/broadcasts"],
-  });
-
-  const createMutation = useMutation({
-    mutationFn: async (data: typeof newBroadcast) => {
-      return apiRequest("POST", "/api/admin/broadcasts", {
-        ...data,
-        expiresAt: data.expiresAt ? new Date(data.expiresAt).toISOString() : null,
-      });
-    },
-    onSuccess: () => {
-      toast({ title: "Broadcast Sent", description: "Notification has been sent to all merchants." });
-      setCreateDialogOpen(false);
-      setNewBroadcast({ title: "", message: "", type: "announcement", priority: "normal", expiresAt: "" });
-      refetch();
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to send broadcast.", variant: "destructive" });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return apiRequest("DELETE", `/api/admin/broadcasts/${id}`);
-    },
-    onSuccess: () => {
-      toast({ title: "Broadcast Deleted", description: "Notification has been removed." });
-      refetch();
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to delete broadcast.", variant: "destructive" });
-    },
-  });
-
-  const getTypeBadge = (type: string) => {
-    switch (type) {
-      case "announcement": return <Badge className="bg-blue-500/20 text-blue-700 dark:text-blue-400">Announcement</Badge>;
-      case "marketing": return <Badge className="bg-green-500/20 text-green-700 dark:text-green-400">Marketing</Badge>;
-      case "system": return <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-400">System</Badge>;
-      case "update": return <Badge className="bg-purple-500/20 text-purple-700 dark:text-purple-400">Update</Badge>;
-      default: return <Badge variant="outline">{type}</Badge>;
-    }
-  };
-
-  const getPriorityBadge = (priority: string) => {
-    switch (priority) {
-      case "high": return <Badge variant="destructive">High</Badge>;
-      case "normal": return <Badge variant="secondary">Normal</Badge>;
-      case "low": return <Badge variant="outline">Low</Badge>;
-      default: return <Badge variant="outline">{priority}</Badge>;
-    }
-  };
-
-  return (
-    <>
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="w-5 h-5" />
-                Merchant Broadcasts
-              </CardTitle>
-              <CardDescription>Send notifications to all merchants</CardDescription>
-            </div>
-            <Button onClick={() => setCreateDialogOpen(true)} data-testid="button-create-broadcast">
-              <Plus className="w-4 h-4 mr-2" />
-              New Broadcast
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <Skeleton className="h-48" />
-          ) : broadcasts?.length ? (
-            <div className="space-y-3">
-              {broadcasts.map((broadcast) => (
-                <div key={broadcast.id} className="p-4 rounded-lg border bg-card" data-testid={`broadcast-${broadcast.id}`}>
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                    <div className="flex-1 space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h4 className="font-semibold">{broadcast.title}</h4>
-                        {getTypeBadge(broadcast.type)}
-                        {getPriorityBadge(broadcast.priority)}
-                      </div>
-                      <p className="text-sm text-muted-foreground">{broadcast.message}</p>
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                        <span>By: {broadcast.createdBy}</span>
-                        <span>Created: {format(new Date(broadcast.createdAt), 'dd MMM yyyy HH:mm')}</span>
-                        {broadcast.expiresAt && (
-                          <span className="text-amber-600 dark:text-amber-400">
-                            Expires: {format(new Date(broadcast.expiresAt), 'dd MMM yyyy HH:mm')}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <Button 
-                      size="icon" 
-                      variant="ghost"
-                      onClick={() => deleteMutation.mutate(broadcast.id)}
-                      disabled={deleteMutation.isPending}
-                      data-testid={`button-delete-broadcast-${broadcast.id}`}
-                    >
-                      <Trash className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <Bell className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
-              <h3 className="text-lg font-medium mb-1">No Broadcasts Yet</h3>
-              <p className="text-muted-foreground text-sm mb-4">
-                Create your first broadcast to notify all merchants
-              </p>
-              <Button variant="outline" onClick={() => setCreateDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Broadcast
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-lg" data-testid="dialog-create-broadcast">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Bell className="w-5 h-5" />
-              Create Broadcast
-            </DialogTitle>
-            <DialogDescription>
-              Send a notification to all registered merchants
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <Label htmlFor="broadcast-title">Title</Label>
-              <Input
-                id="broadcast-title"
-                placeholder="e.g., New Feature Available"
-                value={newBroadcast.title}
-                onChange={(e) => setNewBroadcast(prev => ({ ...prev, title: e.target.value }))}
-                className="mt-1"
-                data-testid="input-broadcast-title"
-              />
-            </div>
-            <div>
-              <Label htmlFor="broadcast-message">Message</Label>
-              <Textarea
-                id="broadcast-message"
-                placeholder="Write your message to all merchants..."
-                value={newBroadcast.message}
-                onChange={(e) => setNewBroadcast(prev => ({ ...prev, message: e.target.value }))}
-                className="mt-1 min-h-[100px]"
-                data-testid="input-broadcast-message"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="broadcast-type">Type</Label>
-                <Select
-                  value={newBroadcast.type}
-                  onValueChange={(value: "announcement" | "marketing" | "system" | "update") => 
-                    setNewBroadcast(prev => ({ ...prev, type: value }))
-                  }
-                >
-                  <SelectTrigger className="mt-1" data-testid="select-broadcast-type">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="announcement">Announcement</SelectItem>
-                    <SelectItem value="marketing">Marketing</SelectItem>
-                    <SelectItem value="system">System</SelectItem>
-                    <SelectItem value="update">Update</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="broadcast-priority">Priority</Label>
-                <Select
-                  value={newBroadcast.priority}
-                  onValueChange={(value: "low" | "normal" | "high") => 
-                    setNewBroadcast(prev => ({ ...prev, priority: value }))
-                  }
-                >
-                  <SelectTrigger className="mt-1" data-testid="select-broadcast-priority">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="normal">Normal</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="broadcast-expires">Expires At (Optional)</Label>
-              <Input
-                id="broadcast-expires"
-                type="datetime-local"
-                value={newBroadcast.expiresAt}
-                onChange={(e) => setNewBroadcast(prev => ({ ...prev, expiresAt: e.target.value }))}
-                className="mt-1"
-                data-testid="input-broadcast-expires"
-              />
-              <p className="text-xs text-muted-foreground mt-1">Leave empty for no expiration</p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
-            <Button 
-              onClick={() => createMutation.mutate(newBroadcast)}
-              disabled={createMutation.isPending || !newBroadcast.title || !newBroadcast.message}
-              data-testid="button-send-broadcast"
-            >
-              {createMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4 mr-2" />
-                  Send Broadcast
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
   );
 }
 
