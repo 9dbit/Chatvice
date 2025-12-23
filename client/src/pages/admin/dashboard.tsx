@@ -132,10 +132,6 @@ import { subscriptionPlans } from "@shared/schema";
 import chatviceLogoLight from "@assets/Chatvice-02_1764703423166.png";
 import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
 
-import MerchantsTab from "./components/MerchantsTab";
-import ChatviceGuideTab from "./components/ChatviceGuideTab";
-import PricingTab from "./components/PricingTab";
-
 interface AdminStats {
   totalMerchants: number;
   activeMerchants: number;
@@ -769,6 +765,1182 @@ function downloadCSV(content: string, filename: string) {
   link.download = filename;
   link.click();
   URL.revokeObjectURL(link.href);
+}
+
+function MerchantsTab({ 
+  merchants, 
+  merchantsLoading,
+  getStatusBadge,
+  getPlanBadge,
+  getTimeRemaining,
+  toast,
+  refetchMerchants
+}: { 
+  merchants?: MerchantWithPlan[];
+  merchantsLoading: boolean;
+  getStatusBadge: (status: string, merchant?: MerchantWithPlan) => JSX.Element;
+  getPlanBadge: (planId: string) => JSX.Element;
+  getTimeRemaining: (endDate: string | null | undefined) => { expired: boolean; text: string; days?: number; isExpiringSoon?: boolean } | null;
+  toast: any;
+  refetchMerchants: () => void;
+}) {
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [followUpDialogOpen, setFollowUpDialogOpen] = useState(false);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [selectedMerchant, setSelectedMerchant] = useState<MerchantWithPlan | null>(null);
+  const [editPlan, setEditPlan] = useState("");
+  const [editCustomConfig, setEditCustomConfig] = useState({
+    customConversationsLimit: 1000,
+    customAgentsLimit: 3,
+    customSupervisorsLimit: 5,
+    customSourcesLimit: 10,
+    customSuggestedQuestionsLimit: 5,
+    customMonthlyPrice: 0,
+    customAnnualPrice: 0,
+  });
+  const [followUpMessage, setFollowUpMessage] = useState("");
+  
+  const [newMerchant, setNewMerchant] = useState({
+    companyName: "",
+    email: "",
+    plan: "free",
+    customConversations: 1000,
+    customAgents: 3,
+    customSupervisors: 5,
+    customPrice: 0,
+    customAnnualPrice: 0,
+  });
+  const [showCustomPlan, setShowCustomPlan] = useState(false);
+  
+  // Domain management state
+  const [domainDialogOpen, setDomainDialogOpen] = useState(false);
+  const [domainMerchant, setDomainMerchant] = useState<MerchantWithPlan | null>(null);
+  const [newDomain, setNewDomain] = useState("");
+  const [verifyingDomainId, setVerifyingDomainId] = useState<string | null>(null);
+
+  // Fetch domains for selected merchant
+  const { data: merchantDomains, refetch: refetchDomains } = useQuery<any[]>({
+    queryKey: ["/api/admin/merchants", domainMerchant?.id, "domains"],
+    queryFn: async () => {
+      if (!domainMerchant?.id) return [];
+      const res = await fetch(`/api/admin/merchants/${domainMerchant.id}/domains`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!domainMerchant?.id && domainDialogOpen,
+  });
+
+  const addDomainMutation = useMutation({
+    mutationFn: async ({ merchantId, domain }: { merchantId: string; domain: string }) => {
+      return apiRequest("POST", `/api/admin/merchants/${merchantId}/domains`, { domain, createdBy: "admin" });
+    },
+    onSuccess: () => {
+      toast({ title: "Domain Added", description: "Domain has been added successfully." });
+      setNewDomain("");
+      refetchDomains();
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message || "Failed to add domain.", variant: "destructive" });
+    },
+  });
+
+  const deleteDomainMutation = useMutation({
+    mutationFn: async (domainId: string) => {
+      return apiRequest("DELETE", `/api/admin/domains/${domainId}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Domain Deleted", description: "Domain has been removed." });
+      refetchDomains();
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete domain.", variant: "destructive" });
+    },
+  });
+
+  const verifyDomainMutation = useMutation({
+    mutationFn: async (domainId: string) => {
+      setVerifyingDomainId(domainId);
+      return apiRequest("POST", `/api/admin/domains/${domainId}/verify`, {});
+    },
+    onSuccess: (data: any) => {
+      if (data.success) {
+        toast({ title: "Domain Verified", description: "Widget script detected on the website." });
+      } else {
+        toast({ title: "Verification Failed", description: data.error || "Widget script not found.", variant: "destructive" });
+      }
+      refetchDomains();
+      setVerifyingDomainId(null);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to verify domain.", variant: "destructive" });
+      setVerifyingDomainId(null);
+    },
+  });
+
+  const handleManageDomains = (merchant: MerchantWithPlan) => {
+    setDomainMerchant(merchant);
+    setDomainDialogOpen(true);
+  };
+
+  const handleViewDetail = (merchant: MerchantWithPlan) => {
+    setSelectedMerchant(merchant);
+    setDetailDialogOpen(true);
+  };
+
+  const updatePlanMutation = useMutation({
+    mutationFn: async ({ merchantId, planId, customConfig }: { 
+      merchantId: string; 
+      planId: string; 
+      customConfig?: typeof editCustomConfig;
+    }) => {
+      const payload: any = { planId };
+      if (planId === 'custom' && customConfig) {
+        payload.customConversationsLimit = customConfig.customConversationsLimit;
+        payload.customAgentsLimit = customConfig.customAgentsLimit;
+        payload.customSupervisorsLimit = customConfig.customSupervisorsLimit;
+        payload.customSourcesLimit = customConfig.customSourcesLimit;
+        payload.customSuggestedQuestionsLimit = customConfig.customSuggestedQuestionsLimit;
+        payload.customMonthlyPrice = customConfig.customMonthlyPrice;
+        payload.customAnnualPrice = customConfig.customAnnualPrice;
+      }
+      return apiRequest("POST", `/api/admin/merchants/${merchantId}/subscription`, payload);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Plan Updated",
+        description: "Merchant subscription has been updated successfully.",
+      });
+      setEditDialogOpen(false);
+      refetchMerchants();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update merchant plan.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMerchantMutation = useMutation({
+    mutationFn: async (merchantId: string) => {
+      return apiRequest("DELETE", `/api/admin/merchants/${merchantId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Merchant Deleted",
+        description: `${selectedMerchant?.companyName || 'Merchant'} has been removed.`,
+      });
+      setDeleteDialogOpen(false);
+      setSelectedMerchant(null);
+      refetchMerchants();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete merchant.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleEdit = (merchant: MerchantWithPlan) => {
+    setSelectedMerchant(merchant);
+    setEditPlan(merchant.subscriptionPlanId);
+    // Load existing custom config if merchant has custom plan
+    setEditCustomConfig({
+      customConversationsLimit: (merchant as any).customConversationsLimit ?? 1000,
+      customAgentsLimit: (merchant as any).customAgentsLimit ?? 3,
+      customSupervisorsLimit: (merchant as any).customSupervisorsLimit ?? 5,
+      customSourcesLimit: (merchant as any).customSourcesLimit ?? 10,
+      customSuggestedQuestionsLimit: (merchant as any).customSuggestedQuestionsLimit ?? 5,
+      customMonthlyPrice: (merchant as any).customMonthlyPrice ?? 0,
+      customAnnualPrice: (merchant as any).customAnnualPrice ?? 0,
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleDelete = (merchant: MerchantWithPlan) => {
+    setSelectedMerchant(merchant);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmEdit = () => {
+    if (selectedMerchant && editPlan) {
+      updatePlanMutation.mutate({ 
+        merchantId: selectedMerchant.id, 
+        planId: editPlan,
+        customConfig: editPlan === 'custom' ? editCustomConfig : undefined
+      });
+    }
+  };
+
+  const confirmDelete = () => {
+    if (selectedMerchant) {
+      deleteMerchantMutation.mutate(selectedMerchant.id);
+    }
+  };
+
+  const handleExportMerchants = () => {
+    if (!merchants?.length) {
+      toast({ title: "No Data", description: "No merchants to export." });
+      return;
+    }
+    const columns = [
+      { key: "id", label: "Merchant ID" },
+      { key: "companyName", label: "Company Name" },
+      { key: "email", label: "Email" },
+      { key: "websiteUrl", label: "Website URL" },
+      { key: "picName", label: "PIC Name" },
+      { key: "phone", label: "Phone" },
+      { key: "country", label: "Country" },
+      { key: "city", label: "City" },
+      { key: "region", label: "Region" },
+      { key: "subscriptionPlanId", label: "Plan" },
+      { key: "subscriptionStatus", label: "Status" },
+      { key: "conversationsUsed", label: "Conversations Used" },
+      { key: "allowedDomains", label: "Allowed Domains" },
+      { key: "createdAt", label: "Created At" },
+    ];
+    const csv = generateCSV(merchants, columns);
+    downloadCSV(csv, `merchants_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    toast({ title: "Export Complete", description: "Merchant data has been downloaded." });
+  };
+
+  const sendFollowUpMutation = useMutation({
+    mutationFn: async ({ merchantId, message }: { merchantId: string; message: string }) => {
+      return apiRequest("POST", `/api/admin/merchants/${merchantId}/follow-up`, { message });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Follow-up Sent",
+        description: "Notification has been sent to the merchant.",
+      });
+      setFollowUpDialogOpen(false);
+      setFollowUpMessage("");
+      setSelectedMerchant(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to send follow-up notification.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleFollowUp = (merchant: MerchantWithPlan) => {
+    setSelectedMerchant(merchant);
+    const timeInfo = getTimeRemaining(merchant.trialEndsAt || merchant.currentPeriodEnd);
+    const defaultMsg = timeInfo?.isExpiringSoon 
+      ? `Your ${merchant.subscriptionStatus === 'trial' ? 'trial' : 'subscription'} expires in ${timeInfo.text}. Upgrade now to continue using Chatvice!`
+      : `Hi ${merchant.companyName}, we'd love to hear your feedback about Chatvice!`;
+    setFollowUpMessage(defaultMsg);
+    setFollowUpDialogOpen(true);
+  };
+
+  const confirmFollowUp = () => {
+    if (selectedMerchant && followUpMessage) {
+      sendFollowUpMutation.mutate({ merchantId: selectedMerchant.id, message: followUpMessage });
+    }
+  };
+
+  const handleAddMerchant = () => {
+    toast({ 
+      title: "Merchant Created", 
+      description: `${newMerchant.companyName} has been added with ${showCustomPlan ? 'custom' : newMerchant.plan} plan.` 
+    });
+    setAddDialogOpen(false);
+    setNewMerchant({
+      companyName: "",
+      email: "",
+      plan: "free",
+      customConversations: 1000,
+      customAgents: 3,
+      customSupervisors: 5,
+      customPrice: 0,
+      customAnnualPrice: 0,
+    });
+    setShowCustomPlan(false);
+  };
+
+  const getMerchantExpiryInfo = (merchant: MerchantWithPlan) => {
+    if (merchant.subscriptionStatus === 'trial' && merchant.trialEndsAt) {
+      return getTimeRemaining(merchant.trialEndsAt);
+    }
+    if (merchant.subscriptionStatus === 'active' && merchant.currentPeriodEnd) {
+      return getTimeRemaining(merchant.currentPeriodEnd);
+    }
+    return null;
+  };
+
+  const planCounts = {
+    free: merchants?.filter(m => m.subscriptionPlanId === 'free').length || 0,
+    starter: merchants?.filter(m => m.subscriptionPlanId === 'starter').length || 0,
+    pro: merchants?.filter(m => m.subscriptionPlanId === 'pro').length || 0,
+    enterprise: merchants?.filter(m => m.subscriptionPlanId === 'enterprise').length || 0,
+    custom: merchants?.filter(m => m.subscriptionPlanId === 'custom').length || 0,
+  };
+
+  const subscriptionTrendData = [
+    { label: "Daily", free: 2, starter: 1, pro: 1, enterprise: 0, custom: 0 },
+    { label: "Weekly", free: 8, starter: 5, pro: 3, enterprise: 1, custom: 0 },
+    { label: "Monthly", free: 25, starter: 18, pro: 12, enterprise: 4, custom: 2 },
+    { label: "Yearly", free: 120, starter: 85, pro: 52, enterprise: 18, custom: 8 },
+  ];
+
+  const subscriptionSeries = [
+    { key: "free", color: "hsl(var(--muted-foreground))", label: "Free" },
+    { key: "starter", color: "hsl(210, 100%, 50%)", label: "Starter" },
+    { key: "pro", color: "hsl(142, 76%, 36%)", label: "Pro" },
+    { key: "enterprise", color: "hsl(280, 70%, 50%)", label: "Enterprise" },
+    { key: "custom", color: "hsl(38, 92%, 50%)", label: "Custom" },
+  ];
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="w-5 h-5" />
+            Subscription Plan Distribution
+          </CardTitle>
+          <CardDescription>Breakdown of merchants by subscription plan</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div className="p-3 rounded-lg border bg-muted/30 text-center">
+              <MetricTooltip metricKey="freePlanMerchants">
+                <p className="text-xs text-muted-foreground mb-1">Free</p>
+              </MetricTooltip>
+              <p className="text-2xl font-bold">{planCounts.free}</p>
+            </div>
+            <div className="p-3 rounded-lg border bg-blue-500/10 text-center">
+              <MetricTooltip metricKey="starterPlanMerchants">
+                <p className="text-xs text-blue-600 dark:text-blue-400 mb-1">Starter</p>
+              </MetricTooltip>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{planCounts.starter}</p>
+            </div>
+            <div className="p-3 rounded-lg border bg-green-500/10 text-center">
+              <MetricTooltip metricKey="proPlanMerchants">
+                <p className="text-xs text-green-600 dark:text-green-400 mb-1">Pro</p>
+              </MetricTooltip>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">{planCounts.pro}</p>
+            </div>
+            <div className="p-3 rounded-lg border bg-purple-500/10 text-center">
+              <MetricTooltip metricKey="enterprisePlanMerchants">
+                <p className="text-xs text-purple-600 dark:text-purple-400 mb-1">Enterprise</p>
+              </MetricTooltip>
+              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{planCounts.enterprise}</p>
+            </div>
+            <div className="p-3 rounded-lg border bg-amber-500/10 text-center">
+              <MetricTooltip metricKey="customPlanMerchants">
+                <p className="text-xs text-amber-600 dark:text-amber-400 mb-1">Custom</p>
+              </MetricTooltip>
+              <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{planCounts.custom}</p>
+            </div>
+          </div>
+
+          <MultiSeriesBarChart
+            title="Subscription Trend (Daily / Weekly / Monthly / Yearly)"
+            data={subscriptionTrendData}
+            series={subscriptionSeries}
+            height={220}
+            xAxisLabel="Time Period"
+            yAxisLabel="Merchants"
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle>All Merchants</CardTitle>
+              <CardDescription>Manage all registered merchants ({merchants?.length || 0} total)</CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleExportMerchants} data-testid="button-export-merchants-list">
+                <Download className="w-4 h-4 mr-2" />
+                Export CSV
+              </Button>
+              <Button size="sm" onClick={() => setAddDialogOpen(true)} data-testid="button-add-merchant">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Merchant
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {merchantsLoading ? (
+            <Skeleton className="h-64" />
+          ) : (
+            <div className="overflow-x-auto -mx-4 md:mx-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[80px]">ID</TableHead>
+                    <TableHead className="min-w-[150px]">Company</TableHead>
+                    <TableHead className="hidden lg:table-cell">PIC</TableHead>
+                    <TableHead className="hidden xl:table-cell">Phone</TableHead>
+                    <TableHead className="hidden xl:table-cell">Location</TableHead>
+                    <TableHead>Plan</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="hidden md:table-cell">Expiry</TableHead>
+                    <TableHead className="hidden lg:table-cell">Conversations</TableHead>
+                    <TableHead className="hidden xl:table-cell">Domains</TableHead>
+                    <TableHead className="hidden xl:table-cell">Joined</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {merchants?.map((merchant) => {
+                    const expiryInfo = getMerchantExpiryInfo(merchant);
+                    return (
+                      <TableRow key={merchant.id} data-testid={`row-merchant-${merchant.id}`}>
+                        <TableCell>
+                          <p className="text-xs font-mono text-muted-foreground">{merchant.id.substring(0, 8)}...</p>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium text-sm">{merchant.companyName || 'Unnamed'}</p>
+                            <p className="text-xs text-muted-foreground truncate max-w-[120px] md:max-w-none">{merchant.email}</p>
+                            {merchant.websiteUrl && (
+                              <a href={merchant.websiteUrl.startsWith('http') ? merchant.websiteUrl : `https://${merchant.websiteUrl}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate block max-w-[120px] md:max-w-none">
+                                {merchant.websiteUrl}
+                              </a>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          <p className="text-sm">{merchant.picName || '-'}</p>
+                        </TableCell>
+                        <TableCell className="hidden xl:table-cell">
+                          <p className="text-sm">{merchant.phone || '-'}</p>
+                        </TableCell>
+                        <TableCell className="hidden xl:table-cell">
+                          <div className="text-sm">
+                            {merchant.city || merchant.region || merchant.country ? (
+                              <>
+                                <p>{[merchant.city, merchant.region].filter(Boolean).join(', ')}</p>
+                                <p className="text-xs text-muted-foreground">{merchant.country}</p>
+                              </>
+                            ) : '-'}
+                          </div>
+                        </TableCell>
+                        <TableCell>{getPlanBadge(merchant.subscriptionPlanId)}</TableCell>
+                        <TableCell>{getStatusBadge(merchant.subscriptionStatus, merchant)}</TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {expiryInfo ? (
+                            <div className="flex items-center gap-1">
+                              {expiryInfo.expired ? (
+                                <Badge variant="destructive">Expired</Badge>
+                              ) : expiryInfo.isExpiringSoon ? (
+                                <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-400">
+                                  <AlertTriangle className="w-3 h-3 mr-1" />
+                                  {expiryInfo.text}
+                                </Badge>
+                              ) : (
+                                <span className="text-sm text-muted-foreground">{expiryInfo.text}</span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          {merchant.conversationsUsed || 0} / {merchant.plan.conversationsLimit === -1 ? '∞' : merchant.plan.conversationsLimit}
+                        </TableCell>
+                        <TableCell className="hidden xl:table-cell">
+                          {merchant.allowedDomains ? (
+                            <div className="max-w-[150px]">
+                              <p className="text-xs font-mono truncate" title={merchant.allowedDomains}>
+                                {merchant.allowedDomains.split('\n').filter(Boolean).length} domain(s)
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {merchant.allowedDomains.split('\n')[0]}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">All domains</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="hidden xl:table-cell text-muted-foreground text-sm">
+                          {merchant.createdAt ? format(new Date(merchant.createdAt), 'MMM d, yyyy') : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button size="icon" variant="ghost" onClick={() => handleViewDetail(merchant)} data-testid={`button-view-${merchant.id}`} title="View details">
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            {expiryInfo?.isExpiringSoon && (
+                              <Button size="icon" variant="ghost" onClick={() => handleFollowUp(merchant)} data-testid={`button-followup-${merchant.id}`} title="Send follow-up">
+                                <Bell className="w-4 h-4 text-amber-500" />
+                              </Button>
+                            )}
+                            <Button size="icon" variant="ghost" onClick={() => handleManageDomains(merchant)} data-testid={`button-domains-${merchant.id}`} title="Manage domains">
+                              <Globe className="w-4 h-4" />
+                            </Button>
+                            <Button size="icon" variant="ghost" onClick={() => handleEdit(merchant)} data-testid={`button-edit-${merchant.id}`}>
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button size="icon" variant="ghost" onClick={() => handleDelete(merchant)} data-testid={`button-delete-${merchant.id}`}>
+                              <Trash className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {(!merchants || merchants.length === 0) && (
+                    <TableRow>
+                      <TableCell colSpan={12} className="text-center text-muted-foreground py-8">
+                        No merchants registered yet
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" data-testid="dialog-edit-merchant">
+          <DialogHeader>
+            <DialogTitle>Edit Merchant</DialogTitle>
+            <DialogDescription>
+              Update subscription for {selectedMerchant?.companyName || 'this merchant'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>Company</Label>
+              <p className="text-sm text-muted-foreground">{selectedMerchant?.companyName}</p>
+            </div>
+            <div>
+              <Label>Email</Label>
+              <p className="text-sm text-muted-foreground">{selectedMerchant?.email}</p>
+            </div>
+            <div>
+              <Label htmlFor="edit-plan">Subscription Plan</Label>
+              <Select value={editPlan} onValueChange={setEditPlan}>
+                <SelectTrigger className="mt-1" data-testid="select-edit-merchant-plan">
+                  <SelectValue placeholder="Select plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="free">Free</SelectItem>
+                  <SelectItem value="starter">Starter</SelectItem>
+                  <SelectItem value="pro">Pro</SelectItem>
+                  <SelectItem value="enterprise">Enterprise</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {editPlan === 'custom' && (
+              <div className="space-y-4 p-4 bg-muted/50 rounded-lg border">
+                <h4 className="font-medium text-sm">Custom Plan Configuration</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="edit-conversations">Conversations/month</Label>
+                    <Input
+                      id="edit-conversations"
+                      type="number"
+                      min="-1"
+                      className="mt-1"
+                      value={editCustomConfig.customConversationsLimit}
+                      onChange={(e) => setEditCustomConfig(prev => ({ 
+                        ...prev, 
+                        customConversationsLimit: parseInt(e.target.value) || 0 
+                      }))}
+                      data-testid="input-edit-custom-conversations"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">-1 = unlimited</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-agents">AI Agents</Label>
+                    <Input
+                      id="edit-agents"
+                      type="number"
+                      min="-1"
+                      className="mt-1"
+                      value={editCustomConfig.customAgentsLimit}
+                      onChange={(e) => setEditCustomConfig(prev => ({ 
+                        ...prev, 
+                        customAgentsLimit: parseInt(e.target.value) || 0 
+                      }))}
+                      data-testid="input-edit-custom-agents"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">-1 = unlimited</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-supervisors">Supervisors</Label>
+                    <Input
+                      id="edit-supervisors"
+                      type="number"
+                      min="-1"
+                      className="mt-1"
+                      value={editCustomConfig.customSupervisorsLimit}
+                      onChange={(e) => setEditCustomConfig(prev => ({ 
+                        ...prev, 
+                        customSupervisorsLimit: parseInt(e.target.value) || 0 
+                      }))}
+                      data-testid="input-edit-custom-supervisors"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">-1 = unlimited</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sources">Knowledge Sources</Label>
+                    <Input
+                      id="edit-sources"
+                      type="number"
+                      min="-1"
+                      className="mt-1"
+                      value={editCustomConfig.customSourcesLimit}
+                      onChange={(e) => setEditCustomConfig(prev => ({ 
+                        ...prev, 
+                        customSourcesLimit: parseInt(e.target.value) || 0 
+                      }))}
+                      data-testid="input-edit-custom-sources"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">-1 = unlimited</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-questions">Suggested Questions</Label>
+                    <Input
+                      id="edit-questions"
+                      type="number"
+                      min="-1"
+                      className="mt-1"
+                      value={editCustomConfig.customSuggestedQuestionsLimit}
+                      onChange={(e) => setEditCustomConfig(prev => ({ 
+                        ...prev, 
+                        customSuggestedQuestionsLimit: parseInt(e.target.value) || 0 
+                      }))}
+                      data-testid="input-edit-custom-questions"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">-1 = unlimited</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                  <div>
+                    <Label htmlFor="edit-monthly-price">Monthly Price ($)</Label>
+                    <Input
+                      id="edit-monthly-price"
+                      type="number"
+                      min="0"
+                      className="mt-1"
+                      value={editCustomConfig.customMonthlyPrice}
+                      onChange={(e) => setEditCustomConfig(prev => ({ 
+                        ...prev, 
+                        customMonthlyPrice: parseInt(e.target.value) || 0 
+                      }))}
+                      data-testid="input-edit-custom-monthly-price"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-annual-price">Annual Price ($)</Label>
+                    <Input
+                      id="edit-annual-price"
+                      type="number"
+                      min="0"
+                      className="mt-1"
+                      value={editCustomConfig.customAnnualPrice}
+                      onChange={(e) => setEditCustomConfig(prev => ({ 
+                        ...prev, 
+                        customAnnualPrice: parseInt(e.target.value) || 0 
+                      }))}
+                      data-testid="input-edit-custom-annual-price"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)} data-testid="button-cancel-edit-merchant">Cancel</Button>
+            <Button onClick={confirmEdit} disabled={updatePlanMutation.isPending} data-testid="button-confirm-edit-merchant">
+              {updatePlanMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent data-testid="dialog-delete-merchant">
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {selectedMerchant?.companyName}? This will remove all associated data.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} data-testid="button-cancel-delete-merchant">Cancel</Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleteMerchantMutation.isPending} data-testid="button-confirm-delete-merchant">
+              {deleteMerchantMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Domain Management Dialog */}
+      <Dialog open={domainDialogOpen} onOpenChange={setDomainDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" data-testid="dialog-manage-domains">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Globe className="w-5 h-5" />
+              Manage Domains
+            </DialogTitle>
+            <DialogDescription>
+              Configure allowed domains for {domainMerchant?.companyName}. Verify domains to ensure widget script is installed correctly.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* Add new domain */}
+            <div className="flex gap-2">
+              <Input
+                placeholder="example.com or *.example.com"
+                value={newDomain}
+                onChange={(e) => setNewDomain(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newDomain.trim() && domainMerchant) {
+                    addDomainMutation.mutate({ merchantId: domainMerchant.id, domain: newDomain.trim() });
+                  }
+                }}
+                data-testid="input-new-domain"
+              />
+              <Button
+                onClick={() => {
+                  if (newDomain.trim() && domainMerchant) {
+                    addDomainMutation.mutate({ merchantId: domainMerchant.id, domain: newDomain.trim() });
+                  }
+                }}
+                disabled={!newDomain.trim() || addDomainMutation.isPending}
+                data-testid="button-add-domain"
+              >
+                {addDomainMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              </Button>
+            </div>
+
+            {/* Domain list */}
+            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              {merchantDomains && merchantDomains.length > 0 ? (
+                merchantDomains.map((domain: any) => (
+                  <div key={domain.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-mono text-sm truncate" title={domain.domain}>{domain.domain}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          {domain.isVerified ? (
+                            <Badge className="bg-green-500/20 text-green-700 dark:text-green-400">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Verified
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary">
+                              <XCircle className="w-3 h-3 mr-1" />
+                              Unverified
+                            </Badge>
+                          )}
+                          <span className="text-xs text-muted-foreground">
+                            {domain.createdBy === "admin" ? "Added by admin" : "Added by merchant"}
+                          </span>
+                        </div>
+                        {domain.verificationError && !domain.isVerified && (
+                          <p className="text-xs text-destructive mt-1">{domain.verificationError}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => verifyDomainMutation.mutate(domain.id)}
+                        disabled={verifyingDomainId === domain.id}
+                        title="Verify domain"
+                        data-testid={`button-verify-domain-${domain.id}`}
+                      >
+                        {verifyingDomainId === domain.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Check className="w-4 h-4" />
+                        )}
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => deleteDomainMutation.mutate(domain.id)}
+                        disabled={deleteDomainMutation.isPending}
+                        title="Delete domain"
+                        data-testid={`button-delete-domain-${domain.id}`}
+                      >
+                        <Trash className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Globe className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No domains configured</p>
+                  <p className="text-xs">Add domains to restrict where the widget can be embedded</p>
+                </div>
+              )}
+            </div>
+
+            {/* Info box */}
+            <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+              <div className="flex items-start gap-2">
+                <Info className="w-4 h-4 text-blue-500 mt-0.5" />
+                <div className="text-xs text-muted-foreground">
+                  <p className="font-medium text-foreground">Domain Verification</p>
+                  <p className="mt-1">To verify a domain, ensure the Chatvice widget script is embedded on your website with the correct merchant ID. Click the verify button to check.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDomainDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Merchant Detail Dialog */}
+      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" data-testid="dialog-merchant-detail">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="w-5 h-5" />
+              Merchant Details
+            </DialogTitle>
+            <DialogDescription>
+              Complete information for {selectedMerchant?.companyName || 'this merchant'}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedMerchant && (
+            <div className="space-y-4 py-4">
+              {/* Company Info Section */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Building2 className="w-4 h-4" />
+                  Company Information
+                </h4>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-muted-foreground text-xs">Merchant ID</p>
+                    <p className="font-mono text-xs mt-0.5">{selectedMerchant.id}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Company Name</p>
+                    <p className="font-medium mt-0.5">{selectedMerchant.companyName || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Registrant Name (PIC)</p>
+                    <p className="mt-0.5">{selectedMerchant.picName || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Email</p>
+                    <p className="mt-0.5">{selectedMerchant.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Phone</p>
+                    <p className="mt-0.5">{selectedMerchant.phone || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Website</p>
+                    {selectedMerchant.websiteUrl ? (
+                      <a href={selectedMerchant.websiteUrl.startsWith('http') ? selectedMerchant.websiteUrl : `https://${selectedMerchant.websiteUrl}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm mt-0.5 block truncate">
+                        {selectedMerchant.websiteUrl}
+                      </a>
+                    ) : (
+                      <p className="mt-0.5">-</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Address Section */}
+              <div className="space-y-3 border-t pt-3">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Globe className="w-4 h-4" />
+                  Address
+                </h4>
+                <div className="text-sm">
+                  <p className="text-muted-foreground text-xs">Full Address</p>
+                  <p className="mt-0.5">
+                    {[
+                      selectedMerchant.address,
+                      selectedMerchant.city,
+                      selectedMerchant.region,
+                      selectedMerchant.postalCode,
+                      selectedMerchant.country
+                    ].filter(Boolean).join(', ') || '-'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Subscription Section */}
+              <div className="space-y-3 border-t pt-3">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Crown className="w-4 h-4" />
+                  Subscription
+                </h4>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-muted-foreground text-xs">Current Plan</p>
+                    <div className="mt-0.5">{getPlanBadge(selectedMerchant.subscriptionPlanId)}</div>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Status</p>
+                    <div className="mt-0.5">{getStatusBadge(selectedMerchant.subscriptionStatus, selectedMerchant)}</div>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Conversations Used</p>
+                    <p className="mt-0.5">
+                      {selectedMerchant.conversationsUsed || 0} / {selectedMerchant.plan.conversationsLimit === -1 ? '∞' : selectedMerchant.plan.conversationsLimit}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Billing Cycle</p>
+                    <p className="mt-0.5 capitalize">{selectedMerchant.billingCycle || '-'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dates Section */}
+              <div className="space-y-3 border-t pt-3">
+                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  Important Dates
+                </h4>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-muted-foreground text-xs">Registration Date</p>
+                    <p className="mt-0.5">{selectedMerchant.createdAt ? format(new Date(selectedMerchant.createdAt), 'dd MMM yyyy, HH:mm') : '-'}</p>
+                  </div>
+                  {selectedMerchant.subscriptionStatus === 'trial' && selectedMerchant.trialEndsAt && (
+                    <div>
+                      <p className="text-muted-foreground text-xs">Trial Ends</p>
+                      <p className="mt-0.5">{format(new Date(selectedMerchant.trialEndsAt), 'dd MMM yyyy, HH:mm')}</p>
+                    </div>
+                  )}
+                  {selectedMerchant.currentPeriodEnd && (
+                    <div>
+                      <p className="text-muted-foreground text-xs">Period Ends</p>
+                      <p className="mt-0.5">{format(new Date(selectedMerchant.currentPeriodEnd), 'dd MMM yyyy, HH:mm')}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Domains Section */}
+              {selectedMerchant.allowedDomains && (
+                <div className="space-y-3 border-t pt-3">
+                  <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Link2 className="w-4 h-4" />
+                    Allowed Domains
+                  </h4>
+                  <div className="text-sm bg-muted/50 rounded-lg p-2">
+                    {selectedMerchant.allowedDomains.split('\n').filter(Boolean).map((domain, idx) => (
+                      <div key={idx} className="font-mono text-xs py-0.5">{domain}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>Close</Button>
+            <Button onClick={() => { setDetailDialogOpen(false); if (selectedMerchant) handleEdit(selectedMerchant); }}>
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Merchant
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" data-testid="dialog-add-merchant">
+          <DialogHeader>
+            <DialogTitle>Add New Merchant</DialogTitle>
+            <DialogDescription>
+              Create a new merchant account with a subscription plan.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="company-name">Company Name</Label>
+              <Input 
+                id="company-name" 
+                placeholder="Enter company name" 
+                className="mt-1" 
+                value={newMerchant.companyName}
+                onChange={(e) => setNewMerchant(prev => ({ ...prev, companyName: e.target.value }))}
+                data-testid="input-new-merchant-company" 
+              />
+            </div>
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input 
+                id="email" 
+                type="email" 
+                placeholder="merchant@example.com" 
+                className="mt-1"
+                value={newMerchant.email}
+                onChange={(e) => setNewMerchant(prev => ({ ...prev, email: e.target.value }))}
+                data-testid="input-new-merchant-email" 
+              />
+            </div>
+            <div>
+              <Label htmlFor="plan">Subscription Plan</Label>
+              <Select 
+                value={showCustomPlan ? "custom" : newMerchant.plan}
+                onValueChange={(value) => {
+                  if (value === "custom") {
+                    setShowCustomPlan(true);
+                    setNewMerchant(prev => ({ ...prev, plan: "custom" }));
+                  } else {
+                    setShowCustomPlan(false);
+                    setNewMerchant(prev => ({ ...prev, plan: value }));
+                  }
+                }}
+              >
+                <SelectTrigger className="mt-1" data-testid="select-new-merchant-plan">
+                  <SelectValue placeholder="Select plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="free">Free</SelectItem>
+                  <SelectItem value="starter">Starter ($29/mo)</SelectItem>
+                  <SelectItem value="pro">Pro ($99/mo)</SelectItem>
+                  <SelectItem value="enterprise">Enterprise ($299/mo)</SelectItem>
+                  <SelectItem value="custom">Custom Plan</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {showCustomPlan && (
+              <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                <h4 className="font-medium text-sm flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  Custom Plan Configuration
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Conversations Limit</Label>
+                    <Input 
+                      type="number"
+                      value={newMerchant.customConversations}
+                      onChange={(e) => setNewMerchant(prev => ({ ...prev, customConversations: parseInt(e.target.value) || 0 }))}
+                      className="mt-1"
+                      data-testid="input-custom-conversations"
+                    />
+                  </div>
+                  <div>
+                    <Label>AI Agents Limit</Label>
+                    <Input 
+                      type="number"
+                      value={newMerchant.customAgents}
+                      onChange={(e) => setNewMerchant(prev => ({ ...prev, customAgents: parseInt(e.target.value) || 0 }))}
+                      className="mt-1"
+                      data-testid="input-custom-agents"
+                    />
+                  </div>
+                  <div>
+                    <Label>Supervisors Limit</Label>
+                    <Input 
+                      type="number"
+                      value={newMerchant.customSupervisors}
+                      onChange={(e) => setNewMerchant(prev => ({ ...prev, customSupervisors: parseInt(e.target.value) || 0 }))}
+                      className="mt-1"
+                      data-testid="input-custom-supervisors"
+                    />
+                  </div>
+                  <div>
+                    <Label>Monthly Price ($)</Label>
+                    <Input 
+                      type="number"
+                      value={newMerchant.customPrice}
+                      onChange={(e) => setNewMerchant(prev => ({ ...prev, customPrice: parseInt(e.target.value) || 0 }))}
+                      className="mt-1"
+                      data-testid="input-custom-price"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>Annual Price ($/month)</Label>
+                  <Input 
+                    type="number"
+                    value={newMerchant.customAnnualPrice}
+                    onChange={(e) => setNewMerchant(prev => ({ ...prev, customAnnualPrice: parseInt(e.target.value) || 0 }))}
+                    className="mt-1"
+                    placeholder="Discounted annual price per month"
+                    data-testid="input-custom-annual-price"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddDialogOpen(false)} data-testid="button-cancel-add-merchant">
+              Cancel
+            </Button>
+            <Button onClick={handleAddMerchant} data-testid="button-confirm-add-merchant">
+              Create Merchant
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={followUpDialogOpen} onOpenChange={setFollowUpDialogOpen}>
+        <DialogContent data-testid="dialog-follow-up">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bell className="w-5 h-5 text-amber-500" />
+              Send Follow-up Notification
+            </DialogTitle>
+            <DialogDescription>
+              Send a notification to {selectedMerchant?.companyName || 'this merchant'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="followup-message">Message</Label>
+              <Textarea 
+                id="followup-message"
+                placeholder="Enter your follow-up message..."
+                className="mt-1 min-h-[100px]"
+                value={followUpMessage}
+                onChange={(e) => setFollowUpMessage(e.target.value)}
+                data-testid="input-followup-message"
+              />
+            </div>
+            {selectedMerchant && getMerchantExpiryInfo(selectedMerchant)?.isExpiringSoon && (
+              <div className="flex items-center gap-2 p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                <p className="text-sm text-amber-700 dark:text-amber-400">
+                  {selectedMerchant.subscriptionStatus === 'trial' ? 'Trial' : 'Subscription'} expires in {getMerchantExpiryInfo(selectedMerchant)?.text}
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFollowUpDialogOpen(false)} data-testid="button-cancel-followup">
+              Cancel
+            </Button>
+            <Button onClick={confirmFollowUp} disabled={sendFollowUpMutation.isPending || !followUpMessage} data-testid="button-send-followup">
+              {sendFollowUpMutation.isPending ? "Sending..." : "Send Notification"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }
 
 function ActiveSubscribersTab({ 
@@ -1900,6 +3072,1154 @@ function SEOBrandingTab({ toast }: { toast: any }) {
   );
 }
 
+function ChatviceGuideTab({ toast }: { toast: any }) {
+  const [guideSettings, setGuideSettings] = useState({
+    enabled: true,
+    name: "Chatvice Guide",
+    description: "AI assistant to help users navigate the platform",
+    systemPrompt: "You are Chatvice Guide, a helpful AI assistant that helps users understand the Chatvice platform. Be friendly, concise, and helpful.",
+    welcomeMessage: "Hi! I'm Chatvice Guide. I can help you learn about our AI customer service platform.",
+    temperature: "0.7",
+    showOnLanding: true,
+    showOnDashboard: true,
+    widgetPosition: "bottom-right",
+    widgetColor: "#7c3aed",
+    bubbleEnabled: true,
+    bubbleText: "Need help?",
+    buttonIconUrl: "",
+    buttonIconWidth: 0,
+    buttonIconHeight: 0,
+  });
+
+  const [knowledgeContent, setKnowledgeContent] = useState("");
+  const [sources, setSources] = useState<{ id: string; name: string; url: string; status: string; content?: string }[]>([]);
+  const [promoImageUrl, setPromoImageUrl] = useState("");
+  const [promoImageEnabled, setPromoImageEnabled] = useState(false);
+  const [iconUploadProgress, setIconUploadProgress] = useState<number | null>(null);
+  const [promoUploadProgress, setPromoUploadProgress] = useState<number | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewMessages, setPreviewMessages] = useState<{ role: string; content: string }[]>([]);
+  const [previewInput, setPreviewInput] = useState("");
+  const [isPreviewTyping, setIsPreviewTyping] = useState(false);
+  const [showAddSourceDialog, setShowAddSourceDialog] = useState(false);
+  const [newSourceUrl, setNewSourceUrl] = useState("");
+  const [newSourceName, setNewSourceName] = useState("");
+  const [isCrawling, setIsCrawling] = useState(false);
+  const [hasLoadedInitialContent, setHasLoadedInitialContent] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+
+  const { data: platformSettings, refetch: refetchSettings } = useQuery({
+    queryKey: ["/api/admin/platform-settings"],
+  });
+
+  useEffect(() => {
+    if (platformSettings) {
+      const settings = platformSettings as any;
+      if (settings.guide_enabled !== undefined) {
+        setGuideSettings(prev => ({
+          ...prev,
+          enabled: settings.guide_enabled === "true",
+          name: settings.guide_name || prev.name,
+          description: settings.guide_description || prev.description,
+          systemPrompt: settings.guide_system_prompt || prev.systemPrompt,
+          welcomeMessage: settings.guide_welcome_message || prev.welcomeMessage,
+          temperature: settings.guide_temperature || prev.temperature,
+          showOnLanding: settings.guide_show_landing !== "false",
+          showOnDashboard: settings.guide_show_dashboard !== "false",
+          widgetPosition: settings.guide_widget_position || prev.widgetPosition,
+          widgetColor: settings.guide_widget_color || prev.widgetColor,
+          bubbleEnabled: settings.guide_bubble_enabled !== "false",
+          bubbleText: settings.guide_bubble_text || prev.bubbleText,
+          buttonIconUrl: settings.guide_button_icon_url || "",
+          buttonIconWidth: parseInt(settings.guide_button_icon_width || "0") || 0,
+          buttonIconHeight: parseInt(settings.guide_button_icon_height || "0") || 0,
+        }));
+      }
+      // Only load knowledge content on initial load to prevent overwriting user input
+      if (!hasLoadedInitialContent) {
+        if (settings.guide_knowledge_content !== undefined) {
+          setKnowledgeContent(settings.guide_knowledge_content);
+        }
+        if (settings.guide_promo_image_enabled !== undefined) {
+          setPromoImageEnabled(settings.guide_promo_image_enabled === "true");
+        }
+        if (settings.guide_promo_image_url) {
+          setPromoImageUrl(settings.guide_promo_image_url);
+        }
+        setHasLoadedInitialContent(true);
+      }
+      if (settings.guide_last_updated) {
+        setLastUpdated(settings.guide_last_updated);
+      }
+    }
+  }, [platformSettings, hasLoadedInitialContent]);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const now = new Date().toISOString();
+      const response = await apiRequest("POST", "/api/admin/platform-settings/batch", {
+        settings: {
+          guide_enabled: String(guideSettings.enabled),
+          guide_name: guideSettings.name,
+          guide_description: guideSettings.description,
+          guide_system_prompt: guideSettings.systemPrompt,
+          guide_welcome_message: guideSettings.welcomeMessage,
+          guide_temperature: guideSettings.temperature,
+          guide_show_landing: String(guideSettings.showOnLanding),
+          guide_show_dashboard: String(guideSettings.showOnDashboard),
+          guide_widget_position: guideSettings.widgetPosition,
+          guide_widget_color: guideSettings.widgetColor,
+          guide_bubble_enabled: String(guideSettings.bubbleEnabled),
+          guide_bubble_text: guideSettings.bubbleText,
+          guide_button_icon_url: guideSettings.buttonIconUrl,
+          guide_button_icon_width: String(guideSettings.buttonIconWidth),
+          guide_button_icon_height: String(guideSettings.buttonIconHeight),
+          guide_knowledge_content: knowledgeContent,
+          guide_promo_image_enabled: String(promoImageEnabled),
+          guide_promo_image_url: promoImageUrl,
+          guide_last_updated: now,
+        },
+      });
+      return response.json();
+    },
+    onSuccess: (data: any) => {
+      if (data?.guide_last_updated) {
+        setLastUpdated(data.guide_last_updated);
+      }
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+      toast({
+        title: "Settings Saved",
+        description: "Chatvice Guide settings have been updated.",
+      });
+      refetchSettings();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save settings.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSave = () => {
+    saveMutation.mutate();
+  };
+
+  // Auto-save after settings changes (debounced)
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  
+  useEffect(() => {
+    if (!hasLoadedInitialContent) return;
+    
+    // Clear existing timeout
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+    
+    // Set new timeout for auto-save (1.5 seconds after last change)
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      setAutoSaveStatus('saving');
+      saveMutation.mutate(undefined, {
+        onSuccess: () => {
+          setAutoSaveStatus('saved');
+          setTimeout(() => setAutoSaveStatus('idle'), 2000);
+        },
+        onError: () => {
+          setAutoSaveStatus('idle');
+        }
+      });
+    }, 1500);
+    
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [guideSettings, promoImageEnabled, promoImageUrl, hasLoadedInitialContent]);
+
+  // Fetch sources
+  const { data: sourcesData, refetch: refetchSources } = useQuery({
+    queryKey: ["/api/admin/guide/sources"],
+  });
+
+  useEffect(() => {
+    if (sourcesData) {
+      setSources(sourcesData as any);
+    }
+  }, [sourcesData]);
+
+  // Crawl URL mutation
+  const crawlMutation = useMutation({
+    mutationFn: async ({ url, name }: { url: string; name: string }) => {
+      setIsCrawling(true);
+      const res = await apiRequest("POST", "/api/admin/guide/crawl", { url, name });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to crawl URL");
+      }
+      return data;
+    },
+    onSuccess: (data) => {
+      setIsCrawling(false);
+      setSources(data.sources);
+      // Update local knowledge content with extracted content
+      if (data.extractedContent && data.source?.name) {
+        setKnowledgeContent(prev => {
+          if (prev && prev.trim()) {
+            return prev + "\n\n---\n\n" + `[Source: ${data.source.name}]\n${data.extractedContent}`;
+          }
+          return `[Source: ${data.source.name}]\n${data.extractedContent}`;
+        });
+      }
+      setShowAddSourceDialog(false);
+      setNewSourceUrl("");
+      setNewSourceName("");
+      toast({
+        title: "Source Added",
+        description: "URL has been crawled and content extracted successfully.",
+      });
+      refetchSources();
+    },
+    onError: async (error: any) => {
+      setIsCrawling(false);
+      let errorMessage = "Failed to extract content from URL.";
+      // Try to get error message from response
+      if (error?.response) {
+        try {
+          const data = await error.response.json();
+          errorMessage = data.error || errorMessage;
+        } catch {}
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      toast({
+        title: "Crawl Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete source mutation
+  const deleteSourceMutation = useMutation({
+    mutationFn: async (sourceId: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/guide/sources/${sourceId}`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setSources(data.sources);
+      // Update knowledge content to reflect the removal
+      if (data.knowledgeContent !== undefined) {
+        setKnowledgeContent(data.knowledgeContent);
+      }
+      toast({
+        title: "Source Deleted",
+        description: "Knowledge source and its content have been removed.",
+      });
+      refetchSources();
+      refetchSettings();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete source.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleAddSource = () => {
+    if (!newSourceUrl.trim()) {
+      toast({
+        title: "URL Required",
+        description: "Please enter a URL to crawl.",
+        variant: "destructive",
+      });
+      return;
+    }
+    // Auto-add https:// if no protocol specified
+    let urlToProcess = newSourceUrl.trim();
+    if (!urlToProcess.startsWith('http://') && !urlToProcess.startsWith('https://')) {
+      urlToProcess = 'https://' + urlToProcess;
+    }
+    crawlMutation.mutate({ url: urlToProcess, name: newSourceName.trim() });
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bot className="w-5 h-5" />
+            Chatvice Guide AI Agent
+          </CardTitle>
+          <CardDescription>Configure the AI assistant that helps users on landing page and merchant dashboard</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div>
+              <p className="font-medium">Enable Chatvice Guide</p>
+              <p className="text-sm text-muted-foreground">Show the AI help bubble across the platform</p>
+            </div>
+            <Checkbox 
+              checked={guideSettings.enabled} 
+              onCheckedChange={(checked) => setGuideSettings(prev => ({ ...prev, enabled: !!checked }))}
+              data-testid="checkbox-guide-enabled"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="guide-name">Agent Name</Label>
+              <Input 
+                id="guide-name"
+                value={guideSettings.name}
+                onChange={(e) => setGuideSettings(prev => ({ ...prev, name: e.target.value }))}
+                className="mt-1"
+                data-testid="input-guide-name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="guide-temp">Temperature</Label>
+              <Select 
+                value={guideSettings.temperature} 
+                onValueChange={(value) => setGuideSettings(prev => ({ ...prev, temperature: value }))}
+              >
+                <SelectTrigger className="mt-1" data-testid="select-guide-temperature">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0.3">0.3 - More Focused</SelectItem>
+                  <SelectItem value="0.5">0.5 - Balanced</SelectItem>
+                  <SelectItem value="0.7">0.7 - Creative</SelectItem>
+                  <SelectItem value="0.9">0.9 - Very Creative</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="guide-desc">Description</Label>
+            <Input 
+              id="guide-desc"
+              value={guideSettings.description}
+              onChange={(e) => setGuideSettings(prev => ({ ...prev, description: e.target.value }))}
+              className="mt-1"
+              data-testid="input-guide-description"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="guide-welcome">Welcome Message</Label>
+            <Textarea 
+              id="guide-welcome"
+              value={guideSettings.welcomeMessage}
+              onChange={(e) => setGuideSettings(prev => ({ ...prev, welcomeMessage: e.target.value }))}
+              className="mt-1"
+              rows={2}
+              data-testid="input-guide-welcome"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="guide-prompt">System Prompt</Label>
+            <Textarea 
+              id="guide-prompt"
+              value={guideSettings.systemPrompt}
+              onChange={(e) => setGuideSettings(prev => ({ ...prev, systemPrompt: e.target.value }))}
+              className="mt-1"
+              rows={4}
+              data-testid="input-guide-prompt"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Define the AI's personality and behavior</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5" />
+            Widget Settings
+          </CardTitle>
+          <CardDescription>Configure where and how the Chatvice Guide appears</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-center justify-between p-3 border rounded-lg">
+              <div>
+                <p className="font-medium text-sm">Show on Landing Page</p>
+                <p className="text-xs text-muted-foreground">Display on public website</p>
+              </div>
+              <Checkbox 
+                checked={guideSettings.showOnLanding} 
+                onCheckedChange={(checked) => setGuideSettings(prev => ({ ...prev, showOnLanding: !!checked }))}
+                data-testid="checkbox-guide-landing"
+              />
+            </div>
+            <div className="flex items-center justify-between p-3 border rounded-lg">
+              <div>
+                <p className="font-medium text-sm">Show on Merchant Dashboard</p>
+                <p className="text-xs text-muted-foreground">Help merchants navigate</p>
+              </div>
+              <Checkbox 
+                checked={guideSettings.showOnDashboard} 
+                onCheckedChange={(checked) => setGuideSettings(prev => ({ ...prev, showOnDashboard: !!checked }))}
+                data-testid="checkbox-guide-dashboard"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>Widget Position</Label>
+              <Select 
+                value={guideSettings.widgetPosition} 
+                onValueChange={(value) => setGuideSettings(prev => ({ ...prev, widgetPosition: value }))}
+              >
+                <SelectTrigger className="mt-1" data-testid="select-guide-position">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="bottom-right">Bottom Right</SelectItem>
+                  <SelectItem value="bottom-left">Bottom Left</SelectItem>
+                  <SelectItem value="top-right">Top Right</SelectItem>
+                  <SelectItem value="top-left">Top Left</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="guide-color">Widget Color</Label>
+              <div className="flex gap-2 mt-1">
+                <Input 
+                  id="guide-color"
+                  type="color"
+                  value={guideSettings.widgetColor}
+                  onChange={(e) => setGuideSettings(prev => ({ ...prev, widgetColor: e.target.value }))}
+                  className="w-12 h-9 p-1"
+                  data-testid="input-guide-color"
+                />
+                <Input 
+                  value={guideSettings.widgetColor}
+                  onChange={(e) => setGuideSettings(prev => ({ ...prev, widgetColor: e.target.value }))}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="p-3 border rounded-lg space-y-3">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                <p className="font-medium text-sm">Custom Button Icon</p>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">Upload a custom icon for the widget button. Button size will match the image dimensions (no masking/cropping).</p>
+              
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="button-icon-url" className="text-xs">Image URL or Upload</Label>
+                  <div className="flex gap-2 mt-1">
+                    <Input 
+                      id="button-icon-url"
+                      value={guideSettings.buttonIconUrl}
+                      onChange={(e) => {
+                        const url = e.target.value;
+                        setGuideSettings(prev => ({ ...prev, buttonIconUrl: url, buttonIconWidth: 0, buttonIconHeight: 0 }));
+                        if (url) {
+                          const img = new (window as any).Image();
+                          img.onload = () => {
+                            setGuideSettings(prev => ({ ...prev, buttonIconWidth: img.width, buttonIconHeight: img.height }));
+                          };
+                          img.src = url;
+                        }
+                      }}
+                      placeholder="https://example.com/icon.png or upload below"
+                      className="flex-1"
+                      data-testid="input-guide-button-icon-url"
+                    />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      id="button-icon-upload"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const formData = new FormData();
+                          formData.append("file", file);
+                          formData.append("type", "guide_icon");
+                          
+                          const xhr = new XMLHttpRequest();
+                          xhr.upload.addEventListener('progress', (event) => {
+                            if (event.lengthComputable) {
+                              const percent = Math.round((event.loaded / event.total) * 100);
+                              setIconUploadProgress(percent);
+                            }
+                          });
+                          xhr.addEventListener('load', () => {
+                            setIconUploadProgress(null);
+                            if (xhr.status === 200) {
+                              const data = JSON.parse(xhr.responseText);
+                              const url = data.url;
+                              const img = new (window as any).Image();
+                              img.onload = () => {
+                                setGuideSettings(prev => ({ 
+                                  ...prev, 
+                                  buttonIconUrl: url,
+                                  buttonIconWidth: img.width, 
+                                  buttonIconHeight: img.height 
+                                }));
+                              };
+                              img.src = url;
+                            } else {
+                              toast({
+                                title: "Upload Failed",
+                                description: "Failed to upload icon image",
+                                variant: "destructive",
+                              });
+                            }
+                          });
+                          xhr.addEventListener('error', () => {
+                            setIconUploadProgress(null);
+                            toast({
+                              title: "Upload Failed",
+                              description: "Failed to upload icon image",
+                              variant: "destructive",
+                            });
+                          });
+                          xhr.open('POST', '/api/admin/brand-upload');
+                          xhr.withCredentials = true;
+                          xhr.send(formData);
+                        }
+                        e.target.value = '';
+                      }}
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => document.getElementById('button-icon-upload')?.click()}
+                      disabled={iconUploadProgress !== null}
+                      data-testid="button-upload-icon"
+                    >
+                      <Upload className="w-4 h-4 mr-1" />
+                      {iconUploadProgress !== null ? `${iconUploadProgress}%` : 'Upload'}
+                    </Button>
+                  </div>
+                  {iconUploadProgress !== null && (
+                    <div className="mt-2">
+                      <Progress value={iconUploadProgress} className="h-2" />
+                    </div>
+                  )}
+                </div>
+
+                {guideSettings.buttonIconUrl && (
+                  <div className="flex items-start gap-4 p-3 bg-muted/30 rounded-lg">
+                    <div className="flex-shrink-0">
+                      <p className="text-xs text-muted-foreground mb-2">Preview:</p>
+                      <img 
+                        src={guideSettings.buttonIconUrl} 
+                        alt="Button icon preview" 
+                        className="max-w-[100px] max-h-[100px] object-contain rounded"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <div className="text-xs text-muted-foreground">
+                        Detected size: {guideSettings.buttonIconWidth} x {guideSettings.buttonIconHeight}px
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setGuideSettings(prev => ({ ...prev, buttonIconUrl: "", buttonIconWidth: 0, buttonIconHeight: 0 }))}
+                        className="text-destructive hover:text-destructive"
+                        data-testid="button-remove-icon"
+                      >
+                        <Trash className="w-3 h-3 mr-1" />
+                        Remove Icon
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-3 border rounded-lg">
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <p className="font-medium text-sm">Welcome Bubble</p>
+                <Checkbox 
+                  checked={guideSettings.bubbleEnabled} 
+                  onCheckedChange={(checked) => setGuideSettings(prev => ({ ...prev, bubbleEnabled: !!checked }))}
+                  data-testid="checkbox-guide-bubble"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">Show a tooltip bubble to attract attention</p>
+            </div>
+            <Input 
+              value={guideSettings.bubbleText}
+              onChange={(e) => setGuideSettings(prev => ({ ...prev, bubbleText: e.target.value }))}
+              className="w-48"
+              placeholder="Need help?"
+              disabled={!guideSettings.bubbleEnabled}
+              data-testid="input-guide-bubble-text"
+            />
+          </div>
+
+          <div className="p-3 border rounded-lg space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                  <p className="font-medium text-sm">Promo Image</p>
+                  <Checkbox 
+                    checked={promoImageEnabled} 
+                    onCheckedChange={(checked) => setPromoImageEnabled(!!checked)}
+                    data-testid="checkbox-guide-promo-image"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Display a promotional image near the chat bubble</p>
+              </div>
+            </div>
+            {promoImageEnabled && (
+              <div className="space-y-3">
+                <div className="p-3 bg-muted/30 rounded-lg border border-dashed">
+                  <p className="text-xs font-medium mb-2">Upload Promo Image</p>
+                  <p className="text-xs text-muted-foreground mb-3">Suggested dimensions: 200x100px. Supports JPG, PNG, GIF formats.</p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif"
+                      className="hidden"
+                      id="promo-image-upload"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const validTypes = ['image/jpeg', 'image/png', 'image/gif'];
+                          if (!validTypes.includes(file.type)) {
+                            toast({
+                              title: "Invalid Format",
+                              description: "Please upload JPG, PNG, or GIF image only.",
+                              variant: "destructive",
+                            });
+                            e.target.value = '';
+                            return;
+                          }
+                          const formData = new FormData();
+                          formData.append("file", file);
+                          formData.append("type", "promo_image");
+                          
+                          const xhr = new XMLHttpRequest();
+                          xhr.upload.addEventListener('progress', (event) => {
+                            if (event.lengthComputable) {
+                              const percent = Math.round((event.loaded / event.total) * 100);
+                              setPromoUploadProgress(percent);
+                            }
+                          });
+                          xhr.addEventListener('load', () => {
+                            setPromoUploadProgress(null);
+                            if (xhr.status === 200) {
+                              const data = JSON.parse(xhr.responseText);
+                              setPromoImageUrl(data.url);
+                              toast({
+                                title: "Uploaded",
+                                description: "Promo image uploaded successfully.",
+                              });
+                            } else {
+                              toast({
+                                title: "Upload Failed",
+                                description: "Failed to upload promo image",
+                                variant: "destructive",
+                              });
+                            }
+                          });
+                          xhr.addEventListener('error', () => {
+                            setPromoUploadProgress(null);
+                            toast({
+                              title: "Upload Error",
+                              description: "Failed to upload image. Please try again.",
+                              variant: "destructive",
+                            });
+                          });
+                          xhr.open('POST', '/api/admin/brand-upload');
+                          xhr.withCredentials = true;
+                          xhr.send(formData);
+                        }
+                        e.target.value = '';
+                      }}
+                      data-testid="input-promo-image-file"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => document.getElementById('promo-image-upload')?.click()}
+                      disabled={promoUploadProgress !== null}
+                      data-testid="button-upload-promo-image"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      {promoUploadProgress !== null ? `${promoUploadProgress}%` : 'Upload Image'}
+                    </Button>
+                    {promoImageUrl && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPromoImageUrl("")}
+                        data-testid="button-remove-promo-image"
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                  {promoUploadProgress !== null && (
+                    <div className="mt-2">
+                      <Progress value={promoUploadProgress} className="h-2" />
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="promo-image-url">Or Enter Image URL</Label>
+                  <Input 
+                    id="promo-image-url"
+                    value={promoImageUrl}
+                    onChange={(e) => setPromoImageUrl(e.target.value)}
+                    placeholder="https://example.com/promo-image.png"
+                    data-testid="input-guide-promo-image-url"
+                  />
+                </div>
+                {promoImageUrl && (
+                  <div className="mt-2 p-3 border rounded-lg bg-muted/30">
+                    <p className="text-xs text-muted-foreground mb-2">Preview:</p>
+                    <img 
+                      src={promoImageUrl} 
+                      alt="Promo preview" 
+                      className="max-w-[200px] max-h-[100px] object-contain rounded"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground mt-2 break-all">{promoImageUrl}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="w-5 h-5" />
+            Knowledge Base
+          </CardTitle>
+          <CardDescription>Train the Chatvice Guide with platform information</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="guide-knowledge">Knowledge Content</Label>
+            <Textarea 
+              id="guide-knowledge"
+              value={knowledgeContent}
+              onChange={(e) => setKnowledgeContent(e.target.value)}
+              className="mt-1 font-mono text-sm"
+              rows={8}
+              placeholder="Add information about Chatvice features, pricing, FAQs, etc..."
+              data-testid="input-guide-knowledge"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              This content will be used to train the AI to answer questions about your platform
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Link2 className="w-5 h-5" />
+            Knowledge Sources
+          </CardTitle>
+          <CardDescription>Web pages and documents to crawl for knowledge</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {sources.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No sources added yet. Add a URL to crawl for knowledge content.
+              </p>
+            ) : (
+              sources.map((source) => (
+                <div key={source.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex-1 min-w-0 mr-2">
+                    <p className="font-medium text-sm truncate">{source.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{source.url}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={source.status === "active" ? "default" : "secondary"}>
+                      {source.status}
+                    </Badge>
+                    <Button 
+                      size="icon" 
+                      variant="ghost"
+                      onClick={() => deleteSourceMutation.mutate(source.id)}
+                      disabled={deleteSourceMutation.isPending}
+                      data-testid={`button-delete-source-${source.id}`}
+                    >
+                      <Trash className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={() => setShowAddSourceDialog(true)}
+              data-testid="button-add-guide-source"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Source URL
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={showAddSourceDialog} onOpenChange={setShowAddSourceDialog}>
+        <DialogContent data-testid="dialog-add-source">
+          <DialogHeader>
+            <DialogTitle>Add Knowledge Source</DialogTitle>
+            <DialogDescription>
+              Enter a URL to crawl and extract content for the Chatvice Guide knowledge base.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="source-url">URL to Crawl</Label>
+              <Input
+                id="source-url"
+                value={newSourceUrl}
+                onChange={(e) => setNewSourceUrl(e.target.value)}
+                placeholder="https://example.com/faq"
+                className="mt-1"
+                data-testid="input-source-url"
+              />
+            </div>
+            <div>
+              <Label htmlFor="source-name">Source Name (optional)</Label>
+              <Input
+                id="source-name"
+                value={newSourceName}
+                onChange={(e) => setNewSourceName(e.target.value)}
+                placeholder="e.g., FAQ Page, Product Info"
+                className="mt-1"
+                data-testid="input-source-name"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Leave empty to use the domain name automatically
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowAddSourceDialog(false);
+                setNewSourceUrl("");
+                setNewSourceName("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddSource}
+              disabled={isCrawling || !newSourceUrl.trim()}
+              data-testid="button-crawl-source"
+            >
+              {isCrawling ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Crawling...
+                </>
+              ) : (
+                <>
+                  <Globe className="w-4 h-4 mr-2" />
+                  Crawl URL
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Eye className="w-5 h-5" />
+                Live Preview
+              </CardTitle>
+              <CardDescription>Test the Chatvice Guide with current settings</CardDescription>
+            </div>
+            <Button
+              variant={showPreview ? "default" : "outline"}
+              onClick={() => {
+                setShowPreview(!showPreview);
+                if (!showPreview) {
+                  setPreviewMessages([{ role: "assistant", content: guideSettings.welcomeMessage }]);
+                }
+              }}
+              data-testid="button-toggle-preview"
+            >
+              {showPreview ? (
+                <>
+                  <X className="w-4 h-4 mr-2" />
+                  Close Preview
+                </>
+              ) : (
+                <>
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Open Preview
+                </>
+              )}
+            </Button>
+          </div>
+        </CardHeader>
+        {showPreview && (
+          <CardContent>
+            <div className="border rounded-lg overflow-hidden" style={{ maxWidth: "400px" }}>
+              <div 
+                className="p-3 text-white flex items-center gap-2"
+                style={{ backgroundColor: guideSettings.widgetColor }}
+              >
+                <Bot className="w-5 h-5" />
+                <span className="font-medium">{guideSettings.name}</span>
+              </div>
+              <ScrollArea className="h-[300px] p-4 bg-background">
+                <div className="space-y-3">
+                  {previewMessages.map((msg, idx) => (
+                    <div 
+                      key={idx}
+                      className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                    >
+                      <div 
+                        className={`max-w-[80%] rounded-lg p-3 text-sm ${
+                          msg.role === "user" 
+                            ? "bg-primary text-primary-foreground" 
+                            : "bg-muted"
+                        }`}
+                      >
+                        {msg.content}
+                      </div>
+                    </div>
+                  ))}
+                  {isPreviewTyping && (
+                    <div className="flex justify-start">
+                      <div className="bg-muted rounded-lg p-3 text-sm">
+                        <span className="flex gap-1">
+                          <span className="animate-bounce">.</span>
+                          <span className="animate-bounce" style={{ animationDelay: "0.1s" }}>.</span>
+                          <span className="animate-bounce" style={{ animationDelay: "0.2s" }}>.</span>
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+              <div className="p-3 border-t flex gap-2">
+                <Input 
+                  value={previewInput}
+                  onChange={(e) => setPreviewInput(e.target.value)}
+                  placeholder="Type a test message..."
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && previewInput.trim() && !isPreviewTyping) {
+                      const userMessage = previewInput.trim();
+                      setPreviewMessages(prev => [...prev, { role: "user", content: userMessage }]);
+                      setPreviewInput("");
+                      setIsPreviewTyping(true);
+                      
+                      fetch("/api/chatvice-guide/chat", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ 
+                          message: userMessage,
+                          context: "admin_preview"
+                        }),
+                      })
+                        .then(res => res.json())
+                        .then(data => {
+                          setIsPreviewTyping(false);
+                          setPreviewMessages(prev => [...prev, { 
+                            role: "assistant", 
+                            content: data.response || "I'm here to help with any questions about Chatvice."
+                          }]);
+                        })
+                        .catch(() => {
+                          setIsPreviewTyping(false);
+                          setPreviewMessages(prev => [...prev, { 
+                            role: "assistant", 
+                            content: "Preview mode: AI response will appear here in production."
+                          }]);
+                        });
+                    }
+                  }}
+                  data-testid="input-preview-message"
+                />
+                <Button 
+                  size="icon" 
+                  disabled={!previewInput.trim() || isPreviewTyping}
+                  onClick={() => {
+                    if (previewInput.trim() && !isPreviewTyping) {
+                      const userMessage = previewInput.trim();
+                      setPreviewMessages(prev => [...prev, { role: "user", content: userMessage }]);
+                      setPreviewInput("");
+                      setIsPreviewTyping(true);
+                      
+                      fetch("/api/chatvice-guide/chat", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ 
+                          message: userMessage,
+                          context: "admin_preview"
+                        }),
+                      })
+                        .then(res => res.json())
+                        .then(data => {
+                          setIsPreviewTyping(false);
+                          setPreviewMessages(prev => [...prev, { 
+                            role: "assistant", 
+                            content: data.response || "I'm here to help with any questions about Chatvice."
+                          }]);
+                        })
+                        .catch(() => {
+                          setIsPreviewTyping(false);
+                          setPreviewMessages(prev => [...prev, { 
+                            role: "assistant", 
+                            content: "Preview mode: AI response will appear here in production."
+                          }]);
+                        });
+                    }
+                  }}
+                  data-testid="button-send-preview"
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
+              {promoImageEnabled && promoImageUrl && (
+                <div className="p-3 border-t bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-2">Promo image preview:</p>
+                  <img 
+                    src={promoImageUrl} 
+                    alt="Promo" 
+                    className="max-w-full max-h-[80px] object-contain rounded"
+                  />
+                </div>
+              )}
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  setPreviewMessages([{ role: "assistant", content: guideSettings.welcomeMessage }]);
+                }}
+                data-testid="button-reset-preview"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Reset Preview
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Test messages are processed using current knowledge base settings
+              </p>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-4 border-t">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          {lastUpdated && (
+            <>
+              <Clock className="w-4 h-4" />
+              <span>
+                Last updated: {new Date(lastUpdated).toLocaleDateString("id-ID", { 
+                  day: "numeric", 
+                  month: "long", 
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit"
+                })}
+              </span>
+            </>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          {(autoSaveStatus === 'saving' || saveMutation.isPending) && (
+            <span className="text-sm text-muted-foreground flex items-center gap-1">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Saving...
+            </span>
+          )}
+          {(autoSaveStatus === 'saved' || saveSuccess) && !saveMutation.isPending && (
+            <span className="text-sm text-green-600 dark:text-green-400 flex items-center gap-1">
+              <CheckCircle className="w-4 h-4" />
+              Saved successfully
+            </span>
+          )}
+          <Button 
+            onClick={handleSave} 
+            disabled={saveMutation.isPending} 
+            data-testid="button-save-guide"
+          >
+            {saveMutation.isPending ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                Save Chatvice Guide Settings
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface LandingPageSettings {
+  id: string;
+  heroBackgroundUrl: string | null;
+  heroBackgroundOffsetX: number;
+  heroBackgroundOffsetY: number;
+  heroBackgroundMobileOffsetX: number;
+  heroBackgroundMobileOffsetY: number;
+  heroContentPaddingTop: number;
+  heroContentMobilePaddingTop: number;
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  runningTextEnabled: boolean;
+  runningTextContent: string;
+  runningTextSpeed: number;
+  runningTextBgColor: string;
+  runningTextColor: string;
+  featuresLayout: string;
+  extras: Record<string, any> | null;
+}
+
 function LandingPageTab({ toast }: { toast: any }) {
   const [settings, setSettings] = useState<LandingPageSettings>({
     id: "default",
@@ -2369,6 +4689,1081 @@ function LandingPageTab({ toast }: { toast: any }) {
     </div>
   );
 }
+
+interface Promotion {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  discountPercent: number;
+  targetPlans: string[];
+  billingCycle: string;
+  maxUses?: number | null;
+  usedCount: number;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  isPublic: boolean;
+  showUpsell: boolean;
+  bgColor?: string | null;
+  textColor?: string | null;
+  bannerMode?: string | null;
+  bannerImageUrl?: string | null;
+  createdAt: string;
+}
+
+function PricingTab({ toast }: { toast: any }) {
+  const [editPlanOpen, setEditPlanOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<any>(null);
+  const [trialDays, setTrialDays] = useState(14);
+  const [editMonthlyPrice, setEditMonthlyPrice] = useState(0);
+  const [editAnnualPrice, setEditAnnualPrice] = useState(0);
+  const [editConversationsLimit, setEditConversationsLimit] = useState(0);
+  const [editAgentsLimit, setEditAgentsLimit] = useState(0);
+  
+  // Promotions state
+  const [promoDialogOpen, setPromoDialogOpen] = useState(false);
+  const [editingPromo, setEditingPromo] = useState<Promotion | null>(null);
+  const [promoCode, setPromoCode] = useState("");
+  const [promoName, setPromoName] = useState("");
+  const [promoDescription, setPromoDescription] = useState("");
+  const [promoDiscountPercent, setPromoDiscountPercent] = useState(20);
+  const [promoTargetPlans, setPromoTargetPlans] = useState("all");
+  const [promoBillingCycle, setPromoBillingCycle] = useState("both");
+  const [promoMaxUses, setPromoMaxUses] = useState("");
+  const [promoStartDate, setPromoStartDate] = useState("");
+  const [promoEndDate, setPromoEndDate] = useState("");
+  const [promoIsPublic, setPromoIsPublic] = useState(false);
+  const [promoShowUpsell, setPromoShowUpsell] = useState(true);
+  const [promoBgColor, setPromoBgColor] = useState("#16a34a");
+  const [promoTextColor, setPromoTextColor] = useState("#ffffff");
+  const [promoBannerMode, setPromoBannerMode] = useState<"color" | "image" | "overlay">("color");
+  const [promoBannerImageUrl, setPromoBannerImageUrl] = useState("");
+  const [promoBannerImageMobileUrl, setPromoBannerImageMobileUrl] = useState("");
+  const [uploadingBannerImage, setUploadingBannerImage] = useState(false);
+  const [uploadingMobileBannerImage, setUploadingMobileBannerImage] = useState(false);
+  
+  // Fetch subscription plans from database
+  const { data: plans = [], isLoading: plansLoading } = useQuery<any[]>({
+    queryKey: ["/api/subscription-plans"],
+  });
+  
+  // Fetch promotions
+  const { data: promotions = [], isLoading: promosLoading } = useQuery<Promotion[]>({
+    queryKey: ["/api/admin/promotions"],
+  });
+  
+  // Fetch platform settings including trial days
+  const { data: platformSettings } = useQuery({
+    queryKey: ["/api/admin/platform-settings"],
+  });
+
+  // Sync trial days from platform settings
+  useEffect(() => {
+    if (platformSettings && (platformSettings as any).trial_days) {
+      setTrialDays(parseInt((platformSettings as any).trial_days));
+    }
+  }, [platformSettings]);
+
+  const saveTrialDaysMutation = useMutation({
+    mutationFn: async (days: number) => {
+      return apiRequest("PUT", "/api/admin/platform-settings", {
+        key: "trial_days",
+        value: String(days),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Settings Saved",
+        description: `Trial period set to ${trialDays} days. Existing trial merchants have been updated.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/platform-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/merchants"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save trial settings.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const updatePlanMutation = useMutation({
+    mutationFn: async ({ planId, monthlyPrice, annualPrice, conversationsLimit, agentsLimit }: { 
+      planId: string; 
+      monthlyPrice: number; 
+      annualPrice: number;
+      conversationsLimit: number;
+      agentsLimit: number;
+    }) => {
+      return apiRequest("PUT", `/api/admin/subscription-plans/${planId}`, {
+        monthlyPrice,
+        annualPrice,
+        conversationsLimit,
+        agentsLimit,
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Plan Updated",
+        description: "Subscription plan has been modified and synced across the platform.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/subscription-plans"] });
+      setEditPlanOpen(false);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update subscription plan.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const handleEditPlan = (plan: any) => {
+    setSelectedPlan(plan);
+    setEditMonthlyPrice(plan.monthlyPrice);
+    setEditAnnualPrice(plan.annualPrice);
+    setEditConversationsLimit(plan.conversationsLimit);
+    setEditAgentsLimit(plan.agentsLimit);
+    setEditPlanOpen(true);
+  };
+  
+  const handleSavePlan = () => {
+    if (selectedPlan) {
+      updatePlanMutation.mutate({
+        planId: selectedPlan.id,
+        monthlyPrice: editMonthlyPrice,
+        annualPrice: editAnnualPrice,
+        conversationsLimit: editConversationsLimit,
+        agentsLimit: editAgentsLimit,
+      });
+    }
+  };
+
+  // Promotion mutations
+  const createPromoMutation = useMutation({
+    mutationFn: async (data: any) => apiRequest("POST", "/api/admin/promotions", data),
+    onSuccess: () => {
+      toast({ title: "Promotion Created", description: "Discount code has been created and synced to pricing pages." });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/promotions"] });
+      setPromoDialogOpen(false);
+      resetPromoForm();
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message || "Failed to create promotion.", variant: "destructive" }),
+  });
+
+  const updatePromoMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => apiRequest("PUT", `/api/admin/promotions/${id}`, data),
+    onSuccess: () => {
+      toast({ title: "Promotion Updated", description: "Discount code has been updated." });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/promotions"] });
+      setPromoDialogOpen(false);
+      setEditingPromo(null);
+      resetPromoForm();
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message || "Failed to update promotion.", variant: "destructive" }),
+  });
+
+  const deletePromoMutation = useMutation({
+    mutationFn: async (id: string) => apiRequest("DELETE", `/api/admin/promotions/${id}`),
+    onSuccess: () => {
+      toast({ title: "Promotion Deleted", description: "Discount code has been removed." });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/promotions"] });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to delete promotion.", variant: "destructive" }),
+  });
+
+  const togglePromoMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => 
+      apiRequest("PUT", `/api/admin/promotions/${id}`, { isActive }),
+    onSuccess: () => {
+      toast({ title: "Status Updated", description: "Promotion status has been changed." });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/promotions"] });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to update promotion status.", variant: "destructive" }),
+  });
+
+  const resetPromoForm = () => {
+    setPromoCode("");
+    setPromoName("");
+    setPromoDescription("");
+    setPromoDiscountPercent(20);
+    setPromoTargetPlans("all");
+    setPromoBillingCycle("both");
+    setPromoMaxUses("");
+    setPromoStartDate("");
+    setPromoEndDate("");
+    setPromoIsPublic(false);
+    setPromoShowUpsell(true);
+    setPromoBgColor("#16a34a");
+    setPromoTextColor("#ffffff");
+    setPromoBannerMode("color");
+    setPromoBannerImageUrl("");
+    setPromoBannerImageMobileUrl("");
+  };
+
+  const openCreatePromo = () => {
+    resetPromoForm();
+    setEditingPromo(null);
+    const today = new Date().toISOString().split('T')[0];
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 30);
+    setPromoStartDate(today);
+    setPromoEndDate(endDate.toISOString().split('T')[0]);
+    setPromoDialogOpen(true);
+  };
+
+  const openEditPromo = (promo: Promotion) => {
+    setEditingPromo(promo);
+    setPromoCode(promo.code);
+    setPromoName(promo.name);
+    setPromoDescription(promo.description || "");
+    setPromoDiscountPercent(promo.discountPercent);
+    setPromoTargetPlans(promo.targetPlans.includes("all") ? "all" : promo.targetPlans[0] || "all");
+    setPromoBillingCycle(promo.billingCycle);
+    setPromoMaxUses(promo.maxUses?.toString() || "");
+    setPromoStartDate(new Date(promo.startDate).toISOString().split('T')[0]);
+    setPromoEndDate(new Date(promo.endDate).toISOString().split('T')[0]);
+    setPromoIsPublic(promo.isPublic);
+    setPromoShowUpsell(promo.showUpsell);
+    setPromoBgColor(promo.bgColor || "#16a34a");
+    setPromoTextColor(promo.textColor || "#ffffff");
+    setPromoBannerMode((promo.bannerMode as "color" | "image" | "overlay") || "color");
+    setPromoBannerImageUrl(promo.bannerImageUrl || "");
+    setPromoBannerImageMobileUrl((promo as any).bannerImageMobileUrl || "");
+    setPromoDialogOpen(true);
+  };
+
+  const handleSavePromo = () => {
+    // If image/overlay mode is selected but no image uploaded, fall back to color mode
+    const needsImage = promoBannerMode === "image" || promoBannerMode === "overlay";
+    const effectiveBannerMode = needsImage && !promoBannerImageUrl ? "color" : promoBannerMode;
+    
+    const data = {
+      code: promoCode.toUpperCase(),
+      name: promoName,
+      description: promoDescription || null,
+      discountPercent: promoDiscountPercent,
+      targetPlans: promoTargetPlans === "all" ? ["all"] : 
+                   promoTargetPlans === "upgrade" ? ["upgrade"] : [promoTargetPlans],
+      billingCycle: promoBillingCycle,
+      maxUses: promoMaxUses ? parseInt(promoMaxUses) : null,
+      startDate: promoStartDate,
+      endDate: promoEndDate,
+      isActive: true,
+      isPublic: promoIsPublic,
+      showUpsell: promoShowUpsell,
+      bgColor: promoBgColor,
+      textColor: promoTextColor,
+      bannerMode: effectiveBannerMode,
+      bannerImageUrl: promoBannerImageUrl || null,
+      bannerImageMobileUrl: promoBannerImageMobileUrl || null,
+    };
+    if (editingPromo) {
+      updatePromoMutation.mutate({ id: editingPromo.id, data });
+    } else {
+      createPromoMutation.mutate(data);
+    }
+  };
+
+  const handleBannerImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({ title: "Error", description: "Please upload an image file", variant: "destructive" });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Error", description: "Image must be less than 5MB", variant: "destructive" });
+      return;
+    }
+
+    setUploadingBannerImage(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/admin/upload-promo-banner', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+      
+      const result = await response.json();
+      setPromoBannerImageUrl(result.url);
+      toast({ title: "Success", description: "Banner image uploaded" });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to upload image", variant: "destructive" });
+    } finally {
+      setUploadingBannerImage(false);
+    }
+  };
+
+  const handleMobileBannerImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({ title: "Error", description: "Please upload an image file", variant: "destructive" });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Error", description: "Image must be less than 5MB", variant: "destructive" });
+      return;
+    }
+
+    setUploadingMobileBannerImage(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/admin/upload-promo-banner', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+      
+      const result = await response.json();
+      setPromoBannerImageMobileUrl(result.url);
+      toast({ title: "Success", description: "Mobile banner image uploaded" });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to upload image", variant: "destructive" });
+    } finally {
+      setUploadingMobileBannerImage(false);
+    }
+  };
+
+  const getPromoStatus = (promo: Promotion) => {
+    const now = new Date();
+    const start = new Date(promo.startDate);
+    const end = new Date(promo.endDate);
+    if (!promo.isActive) return { text: "Inactive", color: "secondary" as const };
+    if (now < start) return { text: "Scheduled", color: "outline" as const };
+    if (now > end) return { text: "Expired", color: "destructive" as const };
+    return { text: "Active", color: "default" as const };
+  };
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Gift className="w-5 h-5" />
+            Free Plan Trial Settings
+          </CardTitle>
+          <CardDescription>Configure trial period for AI agent on Free plan</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
+            <div className="flex-1">
+              <Label htmlFor="trial-days">AI Agent Trial Period (days)</Label>
+              <p className="text-xs text-muted-foreground mt-1 mb-2">
+                Number of days the AI agent will be active for free plan merchants before requiring upgrade
+              </p>
+              <Input 
+                id="trial-days"
+                type="number" 
+                value={trialDays}
+                onChange={(e) => setTrialDays(parseInt(e.target.value) || 0)}
+                min={1}
+                max={90}
+                className="max-w-[200px]"
+                data-testid="input-trial-days"
+              />
+            </div>
+            <Button onClick={() => saveTrialDaysMutation.mutate(trialDays)} disabled={saveTrialDaysMutation.isPending} data-testid="button-save-trial">
+              {saveTrialDaysMutation.isPending ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              {saveTrialDaysMutation.isPending ? "Saving..." : "Save Trial Settings"}
+            </Button>
+          </div>
+          <div className="p-3 bg-muted/50 rounded-lg text-sm">
+            <p className="flex items-center gap-2">
+              <Info className="w-4 h-4 text-muted-foreground" />
+              Free plan merchants will have full AI agent access for <strong>{trialDays} days</strong> before the trial expires.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle>Subscription Plans</CardTitle>
+              <CardDescription>Configure pricing and features for each plan</CardDescription>
+            </div>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button data-testid="button-add-plan">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Plan
+                </Button>
+              </DialogTrigger>
+              <DialogContent data-testid="dialog-add-plan">
+                <DialogHeader>
+                  <DialogTitle>Add New Plan</DialogTitle>
+                  <DialogDescription>Create a custom subscription plan</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div>
+                    <Label>Plan Name</Label>
+                    <Input placeholder="e.g., Business" className="mt-1" data-testid="input-new-plan-name" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Monthly Price ($)</Label>
+                      <Input type="number" placeholder="49" className="mt-1" data-testid="input-new-plan-monthly" />
+                    </div>
+                    <div>
+                      <Label>Annual Price ($)</Label>
+                      <Input type="number" placeholder="39" className="mt-1" data-testid="input-new-plan-annual" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Conversations Limit</Label>
+                      <Input type="number" placeholder="5000" className="mt-1" data-testid="input-new-plan-conversations" />
+                    </div>
+                    <div>
+                      <Label>Agents Limit</Label>
+                      <Input type="number" placeholder="5" className="mt-1" data-testid="input-new-plan-agents" />
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline" data-testid="button-cancel-add-plan">Cancel</Button>
+                  </DialogClose>
+                  <Button onClick={() => toast({ title: "Plan Created", description: "New subscription plan has been added." })} data-testid="button-confirm-add-plan">
+                    Create Plan
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto -mx-4 md:mx-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Plan</TableHead>
+                  <TableHead>Monthly</TableHead>
+                  <TableHead className="hidden md:table-cell">Annual</TableHead>
+                  <TableHead>Conversations</TableHead>
+                  <TableHead className="hidden sm:table-cell">Agents</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {plans.map((plan) => (
+                  <TableRow key={plan.id}>
+                    <TableCell className="font-medium">{plan.name}</TableCell>
+                    <TableCell>${plan.monthlyPrice}/mo</TableCell>
+                    <TableCell className="hidden md:table-cell">${plan.annualPrice}/mo</TableCell>
+                    <TableCell>{plan.conversationsLimit === -1 ? 'Unlimited' : plan.conversationsLimit.toLocaleString()}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{plan.agentsLimit === -1 ? 'Unlimited' : plan.agentsLimit}</TableCell>
+                    <TableCell>
+                      <Button size="sm" variant="ghost" onClick={() => handleEditPlan(plan)} data-testid={`button-edit-plan-${plan.id}`}>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Gift className="w-5 h-5" />
+              Promotional Discounts
+            </CardTitle>
+            <CardDescription>Active discount codes and promotions - synced with landing page and merchant dashboard</CardDescription>
+          </div>
+          <Button onClick={openCreatePromo} data-testid="button-create-discount">
+            <Plus className="w-4 h-4 mr-2" />
+            Create Discount
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="p-3 bg-muted/50 rounded-lg text-sm mb-4">
+            <p className="flex items-center gap-2">
+              <Info className="w-4 h-4 text-muted-foreground" />
+              Discounts created here will automatically apply to the landing page pricing and merchant upgrade flows.
+            </p>
+          </div>
+          
+          {promosLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : promotions.length === 0 ? (
+            <p className="text-muted-foreground text-sm text-center py-4">No promotions yet. Create your first discount code.</p>
+          ) : (
+            <div className="overflow-x-auto -mx-4 md:mx-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Code</TableHead>
+                    <TableHead>Discount</TableHead>
+                    <TableHead className="hidden sm:table-cell">Target</TableHead>
+                    <TableHead className="hidden md:table-cell">Period</TableHead>
+                    <TableHead>Usage</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {promotions.map((promo) => {
+                    const status = getPromoStatus(promo);
+                    return (
+                      <TableRow key={promo.id}>
+                        <TableCell className="font-mono font-bold">{promo.code}</TableCell>
+                        <TableCell className="text-green-600 font-semibold">{promo.discountPercent}%</TableCell>
+                        <TableCell className="hidden sm:table-cell capitalize">
+                          {promo.targetPlans.includes("all") ? "All Plans" : promo.targetPlans.join(", ")}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell text-sm">
+                          {formatDate(promo.startDate)} - {formatDate(promo.endDate)}
+                        </TableCell>
+                        <TableCell>
+                          {promo.usedCount}{promo.maxUses ? `/${promo.maxUses}` : ""}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={status.color}>{status.text}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button size="icon" variant="ghost" onClick={() => openEditPromo(promo)} data-testid={`button-edit-promo-${promo.id}`}>
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              onClick={() => togglePromoMutation.mutate({ id: promo.id, isActive: !promo.isActive })}
+                              data-testid={`button-toggle-promo-${promo.id}`}
+                            >
+                              {promo.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="icon" variant="ghost" data-testid={`button-delete-promo-${promo.id}`}>
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Promotion?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This will permanently delete the "{promo.code}" discount code. This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => deletePromoMutation.mutate(promo.id)}>Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Create/Edit Promotion Dialog */}
+      <Dialog open={promoDialogOpen} onOpenChange={(open) => { setPromoDialogOpen(open); if (!open) { setEditingPromo(null); resetPromoForm(); } }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" data-testid="dialog-create-discount">
+          <DialogHeader>
+            <DialogTitle>{editingPromo ? "Edit Discount Code" : "Create Discount Code"}</DialogTitle>
+            <DialogDescription>Configure promotional discount with target plan, billing cycle, and validity period</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Discount Code</Label>
+                <Input 
+                  placeholder="e.g., SAVE20" 
+                  value={promoCode} 
+                  onChange={(e) => setPromoCode(e.target.value.toUpperCase())} 
+                  className="mt-1 uppercase" 
+                  data-testid="input-discount-code" 
+                />
+              </div>
+              <div>
+                <Label>Promotion Name</Label>
+                <Input 
+                  placeholder="e.g., New Year Sale" 
+                  value={promoName} 
+                  onChange={(e) => setPromoName(e.target.value)} 
+                  className="mt-1" 
+                  data-testid="input-discount-name" 
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Description (optional)</Label>
+              <Input 
+                placeholder="e.g., Special discount for early adopters" 
+                value={promoDescription} 
+                onChange={(e) => setPromoDescription(e.target.value)} 
+                className="mt-1" 
+                data-testid="input-discount-description" 
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Target Plan</Label>
+                <Select value={promoTargetPlans} onValueChange={setPromoTargetPlans}>
+                  <SelectTrigger className="mt-1" data-testid="select-discount-target-plan">
+                    <SelectValue placeholder="Select target plan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Plans</SelectItem>
+                    <SelectItem value="starter">Starter Only</SelectItem>
+                    <SelectItem value="pro">Pro Only</SelectItem>
+                    <SelectItem value="enterprise">Enterprise Only</SelectItem>
+                    <SelectItem value="upgrade">Upgrade Only (Starter & Pro)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Billing Cycle</Label>
+                <Select value={promoBillingCycle} onValueChange={setPromoBillingCycle}>
+                  <SelectTrigger className="mt-1" data-testid="select-discount-billing">
+                    <SelectValue placeholder="Select billing" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="both">Monthly & Annual</SelectItem>
+                    <SelectItem value="monthly">Monthly Only</SelectItem>
+                    <SelectItem value="annual">Annual Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Discount (%)</Label>
+                <Input 
+                  type="number" 
+                  placeholder="20" 
+                  value={promoDiscountPercent} 
+                  onChange={(e) => setPromoDiscountPercent(parseInt(e.target.value) || 0)} 
+                  min={1} 
+                  max={100} 
+                  className="mt-1" 
+                  data-testid="input-discount-percent" 
+                />
+              </div>
+              <div>
+                <Label>Max Uses (optional)</Label>
+                <Input 
+                  type="number" 
+                  placeholder="Unlimited" 
+                  value={promoMaxUses} 
+                  onChange={(e) => setPromoMaxUses(e.target.value)} 
+                  className="mt-1" 
+                  data-testid="input-discount-max-uses" 
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Start Date</Label>
+                <Input 
+                  type="date" 
+                  value={promoStartDate} 
+                  onChange={(e) => setPromoStartDate(e.target.value)} 
+                  className="mt-1" 
+                  data-testid="input-discount-start" 
+                />
+              </div>
+              <div>
+                <Label>End Date</Label>
+                <Input 
+                  type="date" 
+                  value={promoEndDate} 
+                  onChange={(e) => setPromoEndDate(e.target.value)} 
+                  className="mt-1" 
+                  data-testid="input-discount-expiry" 
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-4 pt-2">
+              <div className="flex items-center space-x-2">
+                <Switch 
+                  id="promo-public" 
+                  checked={promoIsPublic} 
+                  onCheckedChange={setPromoIsPublic}
+                  data-testid="switch-promo-public"
+                />
+                <Label htmlFor="promo-public" className="text-sm">Show publicly on pricing page</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch 
+                  id="promo-upsell" 
+                  checked={promoShowUpsell} 
+                  onCheckedChange={setPromoShowUpsell}
+                  data-testid="switch-promo-upsell"
+                />
+                <Label htmlFor="promo-upsell" className="text-sm">Show upsell info</Label>
+              </div>
+            </div>
+            {promoIsPublic && (
+              <div className="space-y-4 pt-2 border-t">
+                <Label className="text-sm font-medium">Banner Display Mode</Label>
+                
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="radio" 
+                      id="banner-color" 
+                      name="bannerMode" 
+                      checked={promoBannerMode === "color"} 
+                      onChange={() => setPromoBannerMode("color")}
+                      data-testid="radio-banner-color"
+                    />
+                    <Label htmlFor="banner-color" className="text-sm cursor-pointer">Color + Text</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="radio" 
+                      id="banner-image" 
+                      name="bannerMode" 
+                      checked={promoBannerMode === "image"} 
+                      onChange={() => setPromoBannerMode("image")}
+                      data-testid="radio-banner-image"
+                    />
+                    <Label htmlFor="banner-image" className="text-sm cursor-pointer">Image Only</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="radio" 
+                      id="banner-overlay" 
+                      name="bannerMode" 
+                      checked={promoBannerMode === "overlay"} 
+                      onChange={() => setPromoBannerMode("overlay")}
+                      data-testid="radio-banner-overlay"
+                    />
+                    <Label htmlFor="banner-overlay" className="text-sm cursor-pointer">Image + Text Overlay</Label>
+                  </div>
+                </div>
+
+                {promoBannerMode === "color" && (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Background Color</Label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <input 
+                            type="color" 
+                            value={promoBgColor} 
+                            onChange={(e) => setPromoBgColor(e.target.value)}
+                            className="w-10 h-9 rounded border cursor-pointer"
+                            data-testid="input-promo-bgcolor"
+                          />
+                          <Input 
+                            value={promoBgColor} 
+                            onChange={(e) => setPromoBgColor(e.target.value)}
+                            placeholder="#16a34a"
+                            className="flex-1"
+                            data-testid="input-promo-bgcolor-text"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Text Color</Label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <input 
+                            type="color" 
+                            value={promoTextColor} 
+                            onChange={(e) => setPromoTextColor(e.target.value)}
+                            className="w-10 h-9 rounded border cursor-pointer"
+                            data-testid="input-promo-textcolor"
+                          />
+                          <Input 
+                            value={promoTextColor} 
+                            onChange={(e) => setPromoTextColor(e.target.value)}
+                            placeholder="#ffffff"
+                            className="flex-1"
+                            data-testid="input-promo-textcolor-text"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div 
+                      className="p-4 rounded-md flex flex-col items-center justify-end text-sm font-medium" 
+                      style={{ backgroundColor: promoBgColor, color: promoTextColor, aspectRatio: "4/1" }}
+                      data-testid="promo-color-preview"
+                    >
+                      <div className="text-center">
+                        <div className="font-bold">{promoName || "Promotion Name"}</div>
+                        <div>Save {promoDiscountPercent}% with code {promoCode || "CODE"}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {(promoBannerMode === "image" || promoBannerMode === "overlay") && (
+                  <div className="space-y-4">
+                    <div className="p-3 bg-muted/50 rounded-md text-xs text-muted-foreground space-y-1">
+                      <div className="font-medium">Recommended Image Sizes:</div>
+                      <div>Desktop: 1200x300px (4:1 ratio)</div>
+                      <div>Mobile: 426x182px - Optional, will use desktop image if not provided</div>
+                      <div>Formats: JPG, PNG, GIF, WebP (max 5MB)</div>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Desktop Banner (1200x300px)</Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Input 
+                          type="file" 
+                          accept="image/*" 
+                          onChange={handleBannerImageUpload}
+                          disabled={uploadingBannerImage}
+                          className="flex-1"
+                          data-testid="input-promo-banner-upload"
+                        />
+                        {uploadingBannerImage && <RefreshCw className="w-4 h-4 animate-spin" />}
+                      </div>
+                    </div>
+                    {promoBannerImageUrl && (
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Desktop Preview:</Label>
+                        <div className="relative rounded-md overflow-hidden" style={{ aspectRatio: "4/1" }}>
+                          <img 
+                            src={promoBannerImageUrl} 
+                            alt="Desktop banner preview" 
+                            className="w-full h-full object-cover"
+                            data-testid="promo-banner-preview"
+                          />
+                          {promoBannerMode === "overlay" && (
+                            <div 
+                              className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent flex flex-col items-start justify-end p-4"
+                              style={{ color: promoTextColor }}
+                            >
+                              <h3 className="font-extrabold text-lg sm:text-xl drop-shadow-lg">{promoName || "Promotion Name"}</h3>
+                              <p className="text-sm opacity-95 max-w-xs break-words">Save {promoDiscountPercent}% with code <code className="bg-white/20 px-1.5 py-0.5 rounded font-mono font-bold">{promoCode || "CODE"}</code></p>
+                            </div>
+                          )}
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => setPromoBannerImageUrl("")}
+                          data-testid="button-remove-banner"
+                        >
+                          <X className="w-3 h-3 mr-1" /> Remove Desktop Image
+                        </Button>
+                      </div>
+                    )}
+                    {!promoBannerImageUrl && (
+                      <div 
+                        className="border-2 border-dashed rounded-md flex items-center justify-center text-muted-foreground text-sm" 
+                        style={{ aspectRatio: "4/1" }}
+                      >
+                        Upload desktop image to preview
+                      </div>
+                    )}
+                    
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Mobile Banner (426x182px) - Optional</Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Input 
+                          type="file" 
+                          accept="image/*" 
+                          onChange={handleMobileBannerImageUpload}
+                          disabled={uploadingMobileBannerImage}
+                          className="flex-1"
+                          data-testid="input-promo-mobile-banner-upload"
+                        />
+                        {uploadingMobileBannerImage && <RefreshCw className="w-4 h-4 animate-spin" />}
+                      </div>
+                    </div>
+                    {promoBannerImageMobileUrl && (
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Mobile Preview:</Label>
+                        <div className="relative rounded-md overflow-hidden max-w-[300px]" style={{ aspectRatio: "3/1" }}>
+                          <img 
+                            src={promoBannerImageMobileUrl} 
+                            alt="Mobile banner preview" 
+                            className="w-full h-full object-cover"
+                            data-testid="promo-mobile-banner-preview"
+                          />
+                          {promoBannerMode === "overlay" && (
+                            <div 
+                              className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent flex flex-col items-start justify-end p-2"
+                              style={{ color: promoTextColor }}
+                            >
+                              <h4 className="font-extrabold text-xs drop-shadow">{promoName || "Promo"}</h4>
+                              <p className="text-[10px] opacity-95 break-words">Save {promoDiscountPercent}%</p>
+                            </div>
+                          )}
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => setPromoBannerImageMobileUrl("")}
+                          data-testid="button-remove-mobile-banner"
+                        >
+                          <X className="w-3 h-3 mr-1" /> Remove Mobile Image
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {promoBannerMode === "overlay" && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Text Color (overlay)</Label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <input 
+                              type="color" 
+                              value={promoTextColor} 
+                              onChange={(e) => setPromoTextColor(e.target.value)}
+                              className="w-10 h-9 rounded border cursor-pointer"
+                            />
+                            <Input 
+                              value={promoTextColor} 
+                              onChange={(e) => setPromoTextColor(e.target.value)}
+                              placeholder="#ffffff"
+                              className="flex-1"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPromoDialogOpen(false)} data-testid="button-cancel-discount">Cancel</Button>
+            <Button 
+              onClick={handleSavePromo} 
+              disabled={!promoCode || !promoName || !promoStartDate || !promoEndDate || createPromoMutation.isPending || updatePromoMutation.isPending}
+              data-testid="button-confirm-discount"
+            >
+              {(createPromoMutation.isPending || updatePromoMutation.isPending) && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+              {editingPromo ? "Update Code" : "Create Code"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editPlanOpen} onOpenChange={setEditPlanOpen}>
+        <DialogContent data-testid="dialog-edit-plan">
+          <DialogHeader>
+            <DialogTitle>Edit Plan: {selectedPlan?.name}</DialogTitle>
+            <DialogDescription>Modify subscription plan details. Changes will sync to landing page, dashboard, and payment system.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>Plan Name</Label>
+              <Input value={selectedPlan?.name || ""} disabled className="mt-1 bg-muted" data-testid="input-edit-plan-name" />
+              <p className="text-xs text-muted-foreground mt-1">Plan names cannot be changed</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Monthly Price ($)</Label>
+                <Input 
+                  type="number" 
+                  value={editMonthlyPrice} 
+                  onChange={(e) => setEditMonthlyPrice(parseInt(e.target.value) || 0)}
+                  className="mt-1" 
+                  data-testid="input-edit-plan-monthly" 
+                />
+              </div>
+              <div>
+                <Label>Annual Price ($)</Label>
+                <Input 
+                  type="number" 
+                  value={editAnnualPrice} 
+                  onChange={(e) => setEditAnnualPrice(parseInt(e.target.value) || 0)}
+                  className="mt-1" 
+                  data-testid="input-edit-plan-annual" 
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Conversations Limit</Label>
+                <Input 
+                  type="number" 
+                  min="-1"
+                  value={editConversationsLimit} 
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '' || val === '-') return;
+                    setEditConversationsLimit(parseInt(val));
+                  }}
+                  className="mt-1" 
+                  data-testid="input-edit-plan-conversations" 
+                />
+                <p className="text-xs text-muted-foreground mt-1">Use -1 for unlimited</p>
+              </div>
+              <div>
+                <Label>Agents Limit</Label>
+                <Input 
+                  type="number" 
+                  min="-1"
+                  value={editAgentsLimit} 
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '' || val === '-') return;
+                    setEditAgentsLimit(parseInt(val));
+                  }}
+                  className="mt-1" 
+                  data-testid="input-edit-plan-agents" 
+                />
+                <p className="text-xs text-muted-foreground mt-1">Use -1 for unlimited</p>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditPlanOpen(false)} data-testid="button-cancel-edit-plan">Cancel</Button>
+            <Button onClick={handleSavePlan} disabled={updatePlanMutation.isPending} data-testid="button-confirm-edit-plan">
+              {updatePlanMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 function ReportsTab({ stats, toast }: { stats?: AdminStats; toast: any }) {
   const [dateFilter, setDateFilter] = useState<"daily" | "weekly" | "monthly" | "yearly">("monthly");
   

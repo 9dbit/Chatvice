@@ -140,24 +140,6 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
-  
-  // Graceful shutdown handler
-  const gracefulShutdown = (signal: string) => {
-    log(`Received ${signal}, shutting down gracefully...`);
-    httpServer.close(() => {
-      log('HTTP server closed');
-      process.exit(0);
-    });
-    // Force shutdown after 10 seconds if graceful shutdown fails
-    setTimeout(() => {
-      log('Forcing shutdown after timeout');
-      process.exit(1);
-    }, 10000);
-  };
-
-  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-  
   httpServer.listen(
     {
       port,
