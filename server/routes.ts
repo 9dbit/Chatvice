@@ -149,7 +149,7 @@ async function getEffectivePlanLimitsAsync(merchant: Merchant) {
   }
   
   // For standard plans, use the effective plan with DB overrides
-  const effectivePlan = await getEffectiveSubscriptionPlan(merchant.subscriptionPlanId);
+  const effectivePlan = await getEffectiveSubscriptionPlan(merchant.subscriptionPlanId || 'free');
   if (!effectivePlan) {
     // Fallback to free plan if effective plan cannot be retrieved
     const freePlan = await getEffectiveSubscriptionPlan('free');
@@ -3125,19 +3125,19 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       }
       
       // Use effective plan with custom pricing from database
-      const plan = await getEffectiveSubscriptionPlan(merchant.subscriptionPlanId) || await getEffectiveSubscriptionPlan('free');
+      const plan = await getEffectiveSubscriptionPlan(merchant.subscriptionPlanId || 'free') || await getEffectiveSubscriptionPlan('free');
       const isTrialExpired = merchant.trialEndsAt && new Date(merchant.trialEndsAt) < new Date();
       
       res.json({
         status: merchant.subscriptionStatus,
         planId: merchant.subscriptionPlanId,
-        planName: plan.name,
+        planName: plan?.name || 'Free',
         billingInterval: merchant.billingInterval,
         trialEndsAt: merchant.trialEndsAt,
         currentPeriodEnd: merchant.currentPeriodEnd,
         conversationsUsed: merchant.conversationsUsed || 0,
-        conversationsLimit: plan.conversationsLimit,
-        supervisorsLimit: plan.supervisorsLimit,
+        conversationsLimit: plan?.conversationsLimit || 20,
+        supervisorsLimit: plan?.supervisorsLimit || 1,
         isTrialExpired,
         hasActiveSubscription: merchant.subscriptionStatus === 'active',
       });
@@ -3164,7 +3164,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(400).json({ error: "Invalid plan" });
       }
       
-      const currentPlan = await getEffectiveSubscriptionPlan(merchant.subscriptionPlanId) || await getEffectiveSubscriptionPlan('free');
+      const currentPlan = await getEffectiveSubscriptionPlan(merchant.subscriptionPlanId || 'free') || await getEffectiveSubscriptionPlan('free');
       if (!currentPlan) {
         return res.status(500).json({ error: "Could not determine current plan" });
       }
@@ -3880,8 +3880,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   // Platform DNS Settings API
   app.get("/api/admin/dns-settings", requireAdmin, async (req, res) => {
     try {
-      const settings = await storage.getPlatformDnsSettings();
-      res.json(settings);
+      const primaryDomain = await storage.getPlatformSetting('primary_domain');
+      const cnameTarget = await storage.getPlatformSetting('cname_target');
+      res.json({
+        primaryDomain: primaryDomain || 'chatvice.app',
+        cnameTarget: cnameTarget || 'chatvice.app',
+      });
     } catch (error) {
       console.error("Error getting DNS settings:", error);
       res.status(500).json({ error: "Server error" });
@@ -3890,8 +3894,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
   app.put("/api/admin/dns-settings", requireAdmin, async (req, res) => {
     try {
-      const settings = await storage.updatePlatformDnsSettings(req.body);
-      res.json(settings);
+      const { primaryDomain, cnameTarget } = req.body;
+      if (primaryDomain) await storage.setPlatformSetting('primary_domain', primaryDomain);
+      if (cnameTarget) await storage.setPlatformSetting('cname_target', cnameTarget);
+      res.json({ primaryDomain, cnameTarget });
     } catch (error) {
       console.error("Error updating DNS settings:", error);
       res.status(500).json({ error: "Server error" });
