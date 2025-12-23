@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["server/**/*", "shared/**/*"],
+  "exclude": ["node_modules", "dist", "client"],
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "target": "ES2022",
+    "outDir": "./dist",
+    "noEmit": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "resolveJsonModule": true,
+    "declaration": false,
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["./shared/*"]
+    }
+  }
+}
