@@ -114,7 +114,7 @@ export default function WidgetPage() {
 
   const { data: verifiedDomains = [], refetch: refetchDomains } = useQuery<any[]>({
     queryKey: ["/api/merchant/domains"],
-    enabled: !!merchantId,
+    enabled: canUseAdvancedFeatures,
   });
 
   const addDomainMutation = useMutation({
@@ -1004,35 +1004,37 @@ window.chatvice('identify', { token }); // identify the user with Chatvice`;
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Domain management with verification - available for all plans */}
-              <div className="space-y-4">
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="example.com or *.example.com"
-                    value={newDomain}
-                    onChange={(e) => setNewDomain(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && newDomain.trim()) {
-                        addDomainMutation.mutate(newDomain.trim());
-                      }
-                    }}
-                    data-testid="input-new-domain"
-                  />
-                  <Button
-                    onClick={() => {
-                      if (newDomain.trim()) {
-                        addDomainMutation.mutate(newDomain.trim());
-                      }
-                    }}
-                    disabled={!newDomain.trim() || addDomainMutation.isPending}
-                    data-testid="button-add-domain"
-                  >
-                    {addDomainMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                  </Button>
-                </div>
+              {canUseAdvancedFeatures ? (
+                <>
+                  {/* Domain management with verification */}
+                  <div className="space-y-4">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="example.com or *.example.com"
+                        value={newDomain}
+                        onChange={(e) => setNewDomain(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && newDomain.trim()) {
+                            addDomainMutation.mutate(newDomain.trim());
+                          }
+                        }}
+                        data-testid="input-new-domain"
+                      />
+                      <Button
+                        onClick={() => {
+                          if (newDomain.trim()) {
+                            addDomainMutation.mutate(newDomain.trim());
+                          }
+                        }}
+                        disabled={!newDomain.trim() || addDomainMutation.isPending}
+                        data-testid="button-add-domain"
+                      >
+                        {addDomainMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                      </Button>
+                    </div>
 
-                {/* Domain list with verification status */}
-                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                    {/* Domain list with verification status */}
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto">
                       {verifiedDomains && verifiedDomains.length > 0 ? (
                         verifiedDomains.map((domain: any) => (
                           <div key={domain.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
@@ -1106,7 +1108,55 @@ window.chatvice('identify', { token }); // identify the user with Chatvice`;
                         </div>
                       </div>
                     </div>
-              </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Legacy text-based domain entry */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Quick Domain List (Legacy)</Label>
+                    <Textarea
+                      placeholder="www.example.com&#10;app.example.com&#10;*.example.com"
+                      value={config.allowedDomains}
+                      onChange={(e) => setConfig({ ...config, allowedDomains: e.target.value })}
+                      className="min-h-[80px] font-mono text-sm"
+                      data-testid="input-allowed-domains"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Quick domain list without verification. Use the domain manager above for verification.
+                    </p>
+                    <Button
+                      onClick={() => saveAllowedDomainsMutation.mutate()}
+                      disabled={saveAllowedDomainsMutation.isPending}
+                      variant="outline"
+                      size="sm"
+                      data-testid="button-save-domains"
+                    >
+                      {saveAllowedDomainsMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4 mr-2" />
+                      )}
+                      Save Quick List
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+                  <Lock className="w-8 h-8 text-muted-foreground" />
+                  <div className="flex-1">
+                    <p className="font-medium">Upgrade to control allowed domains</p>
+                    <p className="text-sm text-muted-foreground">
+                      Domain restrictions are available on Pro and Enterprise plans.
+                    </p>
+                  </div>
+                  <Link href="/dashboard/plans">
+                    <Button size="sm" data-testid="button-upgrade-domains">
+                      Upgrade
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </CardContent>
           </Card>
 

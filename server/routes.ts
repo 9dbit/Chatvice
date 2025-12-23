@@ -1838,6 +1838,13 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(404).json({ error: "Merchant not found" });
       }
 
+      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+      const canUseAllowedDomains = plan.id === "pro" || plan.id === "enterprise" || plan.id === "custom";
+
+      if (!canUseAllowedDomains) {
+        return res.status(403).json({ error: "Domain management requires Pro or Enterprise plan" });
+      }
+
       const domains = await storage.getMerchantDomains(merchantId);
       res.json(domains);
     } catch (error) {
@@ -1852,6 +1859,13 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const merchant = await storage.getMerchant(merchantId);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+      const canUseAllowedDomains = plan.id === "pro" || plan.id === "enterprise" || plan.id === "custom";
+
+      if (!canUseAllowedDomains) {
+        return res.status(403).json({ error: "Domain management requires Pro or Enterprise plan" });
       }
 
       const { domain } = req.body;
