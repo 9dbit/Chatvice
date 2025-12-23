@@ -7,13 +7,9 @@ channel = "stable-24_05"
 packages = ["imagemagick"]
 
 [deployment]
-deploymentTarget = "autoscale"
+deploymentTarget = "gce"
 build = ["npm", "run", "build"]
-run = ["sh", "-c", "npm run build && npm start"]
-
-[deployment.scaling]
-minInstances = 2
-maxInstances = 10
+run = ["npm", "run", "start"]
 
 [[ports]]
 localPort = 5000

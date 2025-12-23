@@ -4,7 +4,7 @@
 Chatvice is an AI-powered customer service chatbot platform designed to automate customer support for businesses. It provides intelligent responses, seamless escalation to human supervisors, and a customizable chat widget for merchant websites. The platform includes a merchant dashboard for configuration and monitoring, and a supervisor panel for managing escalated conversations. Its primary goal is to reduce support costs while maintaining high-quality customer service through smart AI-to-human handoff mechanisms, offering significant market potential for businesses seeking efficient customer engagement.
 
 ## User Preferences
-Preferred communication style: Simple, everyday language. Formal tone without casual honorifics (no "kak/bosku/gan/sis").
+Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 Chatvice is a monorepo application structured with `/client`, `/server`, and `/shared` components, featuring a multi-panel design including a Landing Page, Merchant Dashboard, Supervisor Panel, embeddable Chat Widget, and an Admin Master Panel. The UI/UX leverages Shadcn/ui and Radix UI with Tailwind CSS, utilizing a custom "new-york" theme and dark mode.
@@ -43,34 +43,6 @@ Core entities include Merchants, Supervisors, Sessions, Messages, Triggers, Know
 **AI Conversation Memory Optimization**: AI agents maintain conversation context by fetching the last 10 session messages from the database and using system prompts with CONVERSATION CONTEXT instructions.
 
 **Interactive AI Responses**: AI responses can include interactive buttons (`[BTN:Label:action text]`) and clickable links (`[LINK:Display Text:/path]`) which are parsed and rendered in both Chatvice Guide and the merchant embedded widget.
-
-## Scaling Guidelines
-
-**Current Setup:** Reserved VM (single instance) with in-memory rate limiting.
-
-**When to Upgrade to Redis + Autoscale:**
-
-| Indicator | Threshold | Action |
-|-----------|-----------|--------|
-| Concurrent WebSocket connections | > 5,000 | Consider Redis pub/sub for WS |
-| Messages per day | > 500,000 | Monitor rate limit store size |
-| Rate limit store size | > 50,000 entries | Upgrade to Redis rate limiting |
-| Response latency (P99) | > 2 seconds | Add Redis caching layer |
-| CPU usage | > 80% sustained | Upgrade VM size or Autoscale |
-| Memory usage | > 80% sustained | Upgrade VM size |
-
-**Migration Steps for Autoscale:**
-1. Add Redis (Upstash/Redis Cloud) for rate limiting stores
-2. Migrate session store to Redis (connect-redis)
-3. Implement Redis pub/sub for WebSocket message broadcasting
-4. Add sticky sessions or session affinity for WebSocket connections
-5. Test horizontal scaling with 2-3 instances before production
-
-**Files to Modify:**
-- `server/rateLimit.ts` - Replace Map with Redis client
-- `server/cache.ts` - Replace LRU cache with Redis
-- `server/index.ts` - Add Redis session store
-- `server/websocket.ts` - Add Redis pub/sub for cross-instance messaging
 
 ## External Dependencies
 -   **AI Services**: OpenAI API (GPT-4.1-mini, text-embedding-3-small).

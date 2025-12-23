@@ -6,13 +6,8 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { OnePayWebhookHandler, type OnePayWebhookPayload } from './onepayWebhook';
 import { isOnePayConfigured } from './onepayClient';
-import cluster from "cluster";
-import os from "os";
 
 const app = express();
-
-// Enable trust proxy for Replit deployment
-app.set('trust proxy', true);
 
 const uploadsPath = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsPath)) {
