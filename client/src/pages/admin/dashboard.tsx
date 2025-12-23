@@ -164,7 +164,6 @@ interface MerchantWithPlan {
   country?: string;
   city?: string;
   region?: string;
-  allowedDomains?: string;
   plan: {
     name: string;
     conversationsLimit: number;
@@ -809,76 +808,6 @@ function MerchantsTab({
     customAnnualPrice: 0,
   });
   const [showCustomPlan, setShowCustomPlan] = useState(false);
-  
-  // Domain management state
-  const [domainDialogOpen, setDomainDialogOpen] = useState(false);
-  const [domainMerchant, setDomainMerchant] = useState<MerchantWithPlan | null>(null);
-  const [newDomain, setNewDomain] = useState("");
-  const [verifyingDomainId, setVerifyingDomainId] = useState<string | null>(null);
-
-  // Fetch domains for selected merchant
-  const { data: merchantDomains, refetch: refetchDomains } = useQuery<any[]>({
-    queryKey: ["/api/admin/merchants", domainMerchant?.id, "domains"],
-    queryFn: async () => {
-      if (!domainMerchant?.id) return [];
-      const res = await fetch(`/api/admin/merchants/${domainMerchant.id}/domains`, { credentials: "include" });
-      if (!res.ok) return [];
-      return res.json();
-    },
-    enabled: !!domainMerchant?.id && domainDialogOpen,
-  });
-
-  const addDomainMutation = useMutation({
-    mutationFn: async ({ merchantId, domain }: { merchantId: string; domain: string }) => {
-      return apiRequest("POST", `/api/admin/merchants/${merchantId}/domains`, { domain, createdBy: "admin" });
-    },
-    onSuccess: () => {
-      toast({ title: "Domain Added", description: "Domain has been added successfully." });
-      setNewDomain("");
-      refetchDomains();
-    },
-    onError: (err: any) => {
-      toast({ title: "Error", description: err.message || "Failed to add domain.", variant: "destructive" });
-    },
-  });
-
-  const deleteDomainMutation = useMutation({
-    mutationFn: async (domainId: string) => {
-      return apiRequest("DELETE", `/api/admin/domains/${domainId}`);
-    },
-    onSuccess: () => {
-      toast({ title: "Domain Deleted", description: "Domain has been removed." });
-      refetchDomains();
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to delete domain.", variant: "destructive" });
-    },
-  });
-
-  const verifyDomainMutation = useMutation({
-    mutationFn: async (domainId: string) => {
-      setVerifyingDomainId(domainId);
-      return apiRequest("POST", `/api/admin/domains/${domainId}/verify`, {});
-    },
-    onSuccess: (data: any) => {
-      if (data.success) {
-        toast({ title: "Domain Verified", description: "Widget script detected on the website." });
-      } else {
-        toast({ title: "Verification Failed", description: data.error || "Widget script not found.", variant: "destructive" });
-      }
-      refetchDomains();
-      setVerifyingDomainId(null);
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to verify domain.", variant: "destructive" });
-      setVerifyingDomainId(null);
-    },
-  });
-
-  const handleManageDomains = (merchant: MerchantWithPlan) => {
-    setDomainMerchant(merchant);
-    setDomainDialogOpen(true);
-  };
 
   const updatePlanMutation = useMutation({
     mutationFn: async ({ merchantId, planId, customConfig }: { 
@@ -994,7 +923,6 @@ function MerchantsTab({
       { key: "subscriptionPlanId", label: "Plan" },
       { key: "subscriptionStatus", label: "Status" },
       { key: "conversationsUsed", label: "Conversations Used" },
-      { key: "allowedDomains", label: "Allowed Domains" },
       { key: "createdAt", label: "Created At" },
     ];
     const csv = generateCSV(merchants, columns);
@@ -1183,7 +1111,6 @@ function MerchantsTab({
                     <TableHead>Status</TableHead>
                     <TableHead className="hidden md:table-cell">Expiry</TableHead>
                     <TableHead className="hidden lg:table-cell">Conversations</TableHead>
-                    <TableHead className="hidden xl:table-cell">Domains</TableHead>
                     <TableHead className="hidden xl:table-cell">Joined</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -1246,20 +1173,6 @@ function MerchantsTab({
                         <TableCell className="hidden lg:table-cell">
                           {merchant.conversationsUsed || 0} / {merchant.plan.conversationsLimit === -1 ? '∞' : merchant.plan.conversationsLimit}
                         </TableCell>
-                        <TableCell className="hidden xl:table-cell">
-                          {merchant.allowedDomains ? (
-                            <div className="max-w-[150px]">
-                              <p className="text-xs font-mono truncate" title={merchant.allowedDomains}>
-                                {merchant.allowedDomains.split('\n').filter(Boolean).length} domain(s)
-                              </p>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {merchant.allowedDomains.split('\n')[0]}
-                              </p>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">All domains</span>
-                          )}
-                        </TableCell>
                         <TableCell className="hidden xl:table-cell text-muted-foreground text-sm">
                           {merchant.createdAt ? format(new Date(merchant.createdAt), 'MMM d, yyyy') : '-'}
                         </TableCell>
@@ -1270,9 +1183,6 @@ function MerchantsTab({
                                 <Bell className="w-4 h-4 text-amber-500" />
                               </Button>
                             )}
-                            <Button size="icon" variant="ghost" onClick={() => handleManageDomains(merchant)} data-testid={`button-domains-${merchant.id}`} title="Manage domains">
-                              <Globe className="w-4 h-4" />
-                            </Button>
                             <Button size="icon" variant="ghost" onClick={() => handleEdit(merchant)} data-testid={`button-edit-${merchant.id}`}>
                               <Edit className="w-4 h-4" />
                             </Button>
@@ -1286,7 +1196,7 @@ function MerchantsTab({
                   })}
                   {(!merchants || merchants.length === 0) && (
                     <TableRow>
-                      <TableCell colSpan={12} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
                         No merchants registered yet
                       </TableCell>
                     </TableRow>
@@ -1473,128 +1383,6 @@ function MerchantsTab({
             <Button variant="destructive" onClick={confirmDelete} disabled={deleteMerchantMutation.isPending} data-testid="button-confirm-delete-merchant">
               {deleteMerchantMutation.isPending ? "Deleting..." : "Delete"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Domain Management Dialog */}
-      <Dialog open={domainDialogOpen} onOpenChange={setDomainDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" data-testid="dialog-manage-domains">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Globe className="w-5 h-5" />
-              Manage Domains
-            </DialogTitle>
-            <DialogDescription>
-              Configure allowed domains for {domainMerchant?.companyName}. Verify domains to ensure widget script is installed correctly.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            {/* Add new domain */}
-            <div className="flex gap-2">
-              <Input
-                placeholder="example.com or *.example.com"
-                value={newDomain}
-                onChange={(e) => setNewDomain(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && newDomain.trim() && domainMerchant) {
-                    addDomainMutation.mutate({ merchantId: domainMerchant.id, domain: newDomain.trim() });
-                  }
-                }}
-                data-testid="input-new-domain"
-              />
-              <Button
-                onClick={() => {
-                  if (newDomain.trim() && domainMerchant) {
-                    addDomainMutation.mutate({ merchantId: domainMerchant.id, domain: newDomain.trim() });
-                  }
-                }}
-                disabled={!newDomain.trim() || addDomainMutation.isPending}
-                data-testid="button-add-domain"
-              >
-                {addDomainMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-              </Button>
-            </div>
-
-            {/* Domain list */}
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
-              {merchantDomains && merchantDomains.length > 0 ? (
-                merchantDomains.map((domain: any) => (
-                  <div key={domain.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-mono text-sm truncate" title={domain.domain}>{domain.domain}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          {domain.isVerified ? (
-                            <Badge className="bg-green-500/20 text-green-700 dark:text-green-400">
-                              <CheckCircle className="w-3 h-3 mr-1" />
-                              Verified
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary">
-                              <XCircle className="w-3 h-3 mr-1" />
-                              Unverified
-                            </Badge>
-                          )}
-                          <span className="text-xs text-muted-foreground">
-                            {domain.createdBy === "admin" ? "Added by admin" : "Added by merchant"}
-                          </span>
-                        </div>
-                        {domain.verificationError && !domain.isVerified && (
-                          <p className="text-xs text-destructive mt-1">{domain.verificationError}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => verifyDomainMutation.mutate(domain.id)}
-                        disabled={verifyingDomainId === domain.id}
-                        title="Verify domain"
-                        data-testid={`button-verify-domain-${domain.id}`}
-                      >
-                        {verifyingDomainId === domain.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Check className="w-4 h-4" />
-                        )}
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => deleteDomainMutation.mutate(domain.id)}
-                        disabled={deleteDomainMutation.isPending}
-                        title="Delete domain"
-                        data-testid={`button-delete-domain-${domain.id}`}
-                      >
-                        <Trash className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Globe className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No domains configured</p>
-                  <p className="text-xs">Add domains to restrict where the widget can be embedded</p>
-                </div>
-              )}
-            </div>
-
-            {/* Info box */}
-            <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-              <div className="flex items-start gap-2">
-                <Info className="w-4 h-4 text-blue-500 mt-0.5" />
-                <div className="text-xs text-muted-foreground">
-                  <p className="font-medium text-foreground">Domain Verification</p>
-                  <p className="mt-1">To verify a domain, ensure the Chatvice widget script is embedded on your website with the correct merchant ID. Click the verify button to check.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDomainDialogOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

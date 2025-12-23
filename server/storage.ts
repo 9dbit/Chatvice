@@ -38,11 +38,10 @@ import {
   type SiteDomain, type InsertSiteDomain,
   type CoinOrder, type InsertCoinOrder,
   type TopupNominal, type InsertTopupNominal,
-  type MerchantDomain, type InsertMerchantDomain,
   merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings, storedFiles,
   workShifts, shiftAssignments, workReports, quickReplies, chatButtons, productCards, productCardButtons, welcomeBubbles, notificationSettings, productRecommendationSettings, productTriggers, supervisorInvitations,
   emailVerificationTokens, passwordResetTokens, promotions, promotionUsage,
-  widgetSites, siteDomains, coinOrders, topupNominals, merchantDomains,
+  widgetSites, siteDomains, coinOrders, topupNominals,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -276,14 +275,6 @@ export interface IStorage {
   createTopupNominal(data: InsertTopupNominal): Promise<TopupNominal>;
   updateTopupNominal(id: string, data: Partial<TopupNominal>): Promise<TopupNominal | undefined>;
   deleteTopupNominal(id: string): Promise<boolean>;
-  
-  // Merchant Domains (whitelist with verification)
-  getMerchantDomains(merchantId: string): Promise<MerchantDomain[]>;
-  getMerchantDomain(id: string): Promise<MerchantDomain | undefined>;
-  createMerchantDomain(data: InsertMerchantDomain): Promise<MerchantDomain>;
-  updateMerchantDomain(id: string, data: Partial<MerchantDomain>): Promise<MerchantDomain | undefined>;
-  deleteMerchantDomain(id: string): Promise<boolean>;
-  getMerchantDomainByDomain(merchantId: string, domain: string): Promise<MerchantDomain | undefined>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -1852,52 +1843,6 @@ export class DatabaseStorage implements IStorage {
 
   async deleteTopupNominal(id: string): Promise<boolean> {
     const result = await db.delete(topupNominals).where(eq(topupNominals.id, id));
-    return (result.rowCount ?? 0) > 0;
-  }
-
-  // ============ Merchant Domains (Whitelist with Verification) ============
-
-  async getMerchantDomains(merchantId: string): Promise<MerchantDomain[]> {
-    return db.select().from(merchantDomains)
-      .where(eq(merchantDomains.merchantId, merchantId))
-      .orderBy(desc(merchantDomains.createdAt));
-  }
-
-  async getMerchantDomain(id: string): Promise<MerchantDomain | undefined> {
-    const result = await db.select().from(merchantDomains).where(eq(merchantDomains.id, id));
-    return result[0];
-  }
-
-  async getMerchantDomainByDomain(merchantId: string, domain: string): Promise<MerchantDomain | undefined> {
-    const result = await db.select().from(merchantDomains)
-      .where(and(
-        eq(merchantDomains.merchantId, merchantId),
-        eq(merchantDomains.domain, domain)
-      ));
-    return result[0];
-  }
-
-  async createMerchantDomain(data: InsertMerchantDomain): Promise<MerchantDomain> {
-    const id = generateId("md_");
-    const verificationToken = randomBytes(16).toString("hex");
-    const result = await db.insert(merchantDomains).values({
-      ...data,
-      id,
-      verificationToken,
-    }).returning();
-    return result[0];
-  }
-
-  async updateMerchantDomain(id: string, data: Partial<MerchantDomain>): Promise<MerchantDomain | undefined> {
-    const result = await db.update(merchantDomains)
-      .set({ ...data, updatedAt: new Date() })
-      .where(eq(merchantDomains.id, id))
-      .returning();
-    return result[0];
-  }
-
-  async deleteMerchantDomain(id: string): Promise<boolean> {
-    const result = await db.delete(merchantDomains).where(eq(merchantDomains.id, id));
     return (result.rowCount ?? 0) > 0;
   }
 }
