@@ -2940,8 +2940,6 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
   const [newSourceName, setNewSourceName] = useState("");
   const [isCrawling, setIsCrawling] = useState(false);
   const [hasLoadedInitialContent, setHasLoadedInitialContent] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   const { data: platformSettings, refetch: refetchSettings } = useQuery({
     queryKey: ["/api/admin/platform-settings"],
@@ -2983,16 +2981,12 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
         }
         setHasLoadedInitialContent(true);
       }
-      if (settings.guide_last_updated) {
-        setLastUpdated(settings.guide_last_updated);
-      }
     }
   }, [platformSettings, hasLoadedInitialContent]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const now = new Date().toISOString();
-      const response = await apiRequest("POST", "/api/admin/platform-settings/batch", {
+      return apiRequest("POST", "/api/admin/platform-settings/batch", {
         settings: {
           guide_enabled: String(guideSettings.enabled),
           guide_name: guideSettings.name,
@@ -3012,17 +3006,10 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
           guide_knowledge_content: knowledgeContent,
           guide_promo_image_enabled: String(promoImageEnabled),
           guide_promo_image_url: promoImageUrl,
-          guide_last_updated: now,
         },
       });
-      return response.json();
     },
-    onSuccess: (data: any) => {
-      if (data?.guide_last_updated) {
-        setLastUpdated(data.guide_last_updated);
-      }
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
+    onSuccess: () => {
       toast({
         title: "Settings Saved",
         description: "Chatvice Guide settings have been updated.",
@@ -3980,54 +3967,32 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
         )}
       </Card>
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-4 border-t">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          {lastUpdated && (
+      <div className="flex justify-end items-center gap-3">
+        {autoSaveStatus === 'saving' && (
+          <span className="text-sm text-muted-foreground flex items-center gap-1">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            Auto-saving...
+          </span>
+        )}
+        {autoSaveStatus === 'saved' && (
+          <span className="text-sm text-green-600 flex items-center gap-1">
+            <Check className="w-3 h-3" />
+            Saved
+          </span>
+        )}
+        <Button onClick={handleSave} disabled={saveMutation.isPending} data-testid="button-save-guide">
+          {saveMutation.isPending ? (
             <>
-              <Clock className="w-4 h-4" />
-              <span>
-                Last updated: {new Date(lastUpdated).toLocaleDateString("id-ID", { 
-                  day: "numeric", 
-                  month: "long", 
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit"
-                })}
-              </span>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4 mr-2" />
+              Save Chatvice Guide Settings
             </>
           )}
-        </div>
-        <div className="flex items-center gap-3">
-          {(autoSaveStatus === 'saving' || saveMutation.isPending) && (
-            <span className="text-sm text-muted-foreground flex items-center gap-1">
-              <Loader2 className="w-3 h-3 animate-spin" />
-              Saving...
-            </span>
-          )}
-          {(autoSaveStatus === 'saved' || saveSuccess) && !saveMutation.isPending && (
-            <span className="text-sm text-green-600 dark:text-green-400 flex items-center gap-1">
-              <CheckCircle className="w-4 h-4" />
-              Saved successfully
-            </span>
-          )}
-          <Button 
-            onClick={handleSave} 
-            disabled={saveMutation.isPending} 
-            data-testid="button-save-guide"
-          >
-            {saveMutation.isPending ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4 mr-2" />
-                Save Chatvice Guide Settings
-              </>
-            )}
-          </Button>
-        </div>
+        </Button>
       </div>
     </div>
   );
