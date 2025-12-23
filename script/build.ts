@@ -60,9 +60,10 @@ async function buildAll() {
   });
 
   // Create wrapper file for package.json start script compatibility
+  // Use dynamic import since package.json has "type": "module"
   console.log("creating start script wrapper...");
   await mkdir("dist/server", { recursive: true });
-  await writeFile("dist/server/index.js", 'require("../index.cjs");');
+  await writeFile("dist/server/index.js", 'import("../index.cjs");');
 }
 
 buildAll().catch((err) => {
