@@ -6301,54 +6301,75 @@ function PaymentIntegrationTab({ toast }: { toast: any }) {
           {gateways?.map((gateway) => (
             <Card key={gateway.id} className={gateway.isDefault ? "ring-2 ring-primary" : ""}>
               <CardContent className="py-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
-                    <div className="p-3 rounded-lg bg-muted">
-                      <CreditCard className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-medium truncate">{gateway.name}</h3>
-                        {gateway.isDefault && (
-                          <Badge variant="default" className="shrink-0" data-testid={`badge-default-${gateway.id}`}>Default</Badge>
-                        )}
-                        <Badge variant={gateway.isActive ? "outline" : "secondary"} className="shrink-0" data-testid={`badge-status-${gateway.id}`}>
-                          {gateway.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                        <Badge variant="outline" className="shrink-0" data-testid={`badge-env-${gateway.id}`}>
-                          {gateway.environment}
-                        </Badge>
+                <div className="flex flex-col gap-3">
+                  {/* Header: Icon, Name, and Action Buttons */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <div className="p-2 sm:p-3 rounded-lg bg-muted shrink-0">
+                        <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
                       </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {gateway.currency}
-                        {gateway.feePercentage > 0 && ` • ${gateway.feePercentage / 100}% fee`}
-                      </p>
-                      {gateway.dashboardUrl && (
-                        <a 
-                          href={gateway.dashboardUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-sm text-primary hover:underline inline-flex items-center gap-1 mt-1"
-                          data-testid={`link-dashboard-${gateway.id}`}
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          Dashboard
-                        </a>
-                      )}
-                      {gateway.supportedMethods && gateway.supportedMethods.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {gateway.supportedMethods.map((method, i) => (
-                            <Badge key={i} variant="outline" className="text-xs">{method}</Badge>
-                          ))}
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-medium text-sm sm:text-base">{gateway.name}</h3>
+                        {/* Status Badges - always below name */}
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {gateway.isDefault && (
+                            <Badge variant="default" className="text-xs" data-testid={`badge-default-${gateway.id}`}>Default</Badge>
+                          )}
+                          <Badge variant={gateway.isActive ? "outline" : "secondary"} className="text-xs" data-testid={`badge-status-${gateway.id}`}>
+                            {gateway.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs" data-testid={`badge-env-${gateway.id}`}>
+                            {gateway.environment}
+                          </Badge>
                         </div>
+                      </div>
+                    </div>
+                    {/* Action Buttons - top right */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => { setEditingGateway(gateway); setIsDialogOpen(true); }}
+                        data-testid={`button-edit-gateway-${gateway.id}`}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      {!gateway.isDefault && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteConfirmId(gateway.id)}
+                          data-testid={`button-delete-gateway-${gateway.id}`}
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  
+                  {/* Details Row */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 pl-9 sm:pl-14">
+                    <p className="text-sm text-muted-foreground">
+                      {gateway.currency}
+                      {gateway.feePercentage > 0 && ` • ${gateway.feePercentage / 100}% fee`}
+                    </p>
+                    {gateway.dashboardUrl && (
+                      <a 
+                        href={gateway.dashboardUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary hover:underline inline-flex items-center gap-1"
+                        data-testid={`link-dashboard-${gateway.id}`}
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        Dashboard
+                      </a>
+                    )}
                     {!gateway.isDefault && gateway.isActive && (
                       <Button
                         variant="outline"
                         size="sm"
+                        className="w-fit"
                         onClick={() => setDefaultMutation.mutate(gateway.id)}
                         disabled={setDefaultMutation.isPending}
                         data-testid={`button-set-default-${gateway.id}`}
@@ -6356,25 +6377,16 @@ function PaymentIntegrationTab({ toast }: { toast: any }) {
                         Set Default
                       </Button>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => { setEditingGateway(gateway); setIsDialogOpen(true); }}
-                      data-testid={`button-edit-gateway-${gateway.id}`}
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    {!gateway.isDefault && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setDeleteConfirmId(gateway.id)}
-                        data-testid={`button-delete-gateway-${gateway.id}`}
-                      >
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </Button>
-                    )}
                   </div>
+                  
+                  {/* Supported Methods */}
+                  {gateway.supportedMethods && gateway.supportedMethods.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pl-9 sm:pl-14">
+                      {gateway.supportedMethods.map((method, i) => (
+                        <Badge key={i} variant="outline" className="text-xs">{method}</Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
