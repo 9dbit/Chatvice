@@ -247,19 +247,19 @@ export async function createQRISPayment(request: CreateQRISRequest): Promise<Cre
       };
     }
     
-    // Handle response format
+    // Handle Kompas Pay response format
     const responseData = data.data || data;
     
     return {
       success: true,
       gatewayName,
       data: {
-        transactionId: responseData.transaction_id || responseData.id || request.orderId,
+        transactionId: responseData.identifier_id || request.orderId,
         orderId: request.orderId,
-        qrisString: responseData.qris_string || responseData.qr_string || '',
-        qrisImageUrl: responseData.qris_image_url || responseData.qr_url || responseData.qr_image || '',
+        qrisString: responseData.qris_text || responseData.qris_string || responseData.qr_string || '',
+        qrisImageUrl: responseData.imageqris || responseData.qris_image_url || responseData.qr_url || responseData.qr_image || '',
         amount: request.amount,
-        expiryTime: responseData.expiry_time || responseData.expired || expiredStr,
+        expiryTime: responseData.expired || responseData.expiry_time || expiredStr,
         status: 'PENDING',
       },
     };
@@ -320,16 +320,19 @@ export async function createVAPayment(request: CreateVARequest): Promise<CreateV
       };
     }
     
+    // Handle Kompas Pay VA response format
+    const responseData = data.data || data;
+    
     return {
       success: true,
       gatewayName,
       data: {
-        transactionId: data.transaction_id || data.data?.transaction_id,
+        transactionId: responseData.identifier_id || request.orderId,
         orderId: request.orderId,
-        vaNumber: data.va_number || data.data?.va_number,
+        vaNumber: responseData.virtual_account || responseData.va_number,
         bankCode: request.bankCode,
         amount: request.amount,
-        expiryTime: data.expiry_time || data.data?.expiry_time,
+        expiryTime: responseData.expired || responseData.expiry_time,
         status: 'PENDING',
       },
     };
