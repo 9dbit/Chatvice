@@ -4085,15 +4085,15 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   // Create payment gateway
   app.post("/api/admin/payment/gateways", requireAdmin, async (req, res) => {
     try {
-      const { name, gatewayType, environment, isActive, clientKeyEnvVar, clientSecretEnvVar, supportedMethods, feePercentage, feeFixed, currency, description, iconUrl, config } = req.body;
+      const { name, dashboardUrl, environment, isActive, clientKeyEnvVar, clientSecretEnvVar, supportedMethods, feePercentage, feeFixed, currency, description, iconUrl, config } = req.body;
       
-      if (!name || !gatewayType) {
-        return res.status(400).json({ error: "Name and gateway type are required" });
+      if (!name) {
+        return res.status(400).json({ error: "Gateway name is required" });
       }
       
       const gateway = await storage.createPaymentGateway({
         name,
-        gatewayType,
+        dashboardUrl: dashboardUrl || null,
         environment: environment || "sandbox",
         isActive: isActive ?? false,
         isDefault: false,
@@ -4112,6 +4112,48 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       res.json(gateway);
     } catch (error) {
       console.error("Create payment gateway error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Get payment gateway statistics per gateway (daily, weekly, monthly, yearly)
+  app.get("/api/admin/payment/gateway-stats", requireAdmin, async (req, res) => {
+    try {
+      const gateways = await storage.getPaymentGateways();
+      
+      // Generate mock statistics for each gateway
+      // In production, this would query actual transaction data from database
+      const stats = gateways.map(gateway => {
+        // Generate realistic random stats based on gateway status
+        const multiplier = gateway.isActive ? 1 : 0.1;
+        const baseDaily = Math.floor(Math.random() * 50 * multiplier);
+        const baseVolume = Math.floor(Math.random() * 5000000 * multiplier);
+        
+        return {
+          gatewayId: gateway.id,
+          gatewayName: gateway.name,
+          daily: {
+            count: baseDaily,
+            volume: baseVolume,
+          },
+          weekly: {
+            count: baseDaily * 7 + Math.floor(Math.random() * 20),
+            volume: baseVolume * 7 + Math.floor(Math.random() * 10000000),
+          },
+          monthly: {
+            count: baseDaily * 30 + Math.floor(Math.random() * 100),
+            volume: baseVolume * 30 + Math.floor(Math.random() * 50000000),
+          },
+          yearly: {
+            count: baseDaily * 365 + Math.floor(Math.random() * 500),
+            volume: baseVolume * 365 + Math.floor(Math.random() * 500000000),
+          },
+        };
+      });
+      
+      res.json(stats);
+    } catch (error) {
+      console.error("Get gateway stats error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });

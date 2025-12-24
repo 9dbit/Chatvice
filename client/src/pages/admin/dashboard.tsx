@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -6075,10 +6076,10 @@ interface PaymentStats {
 interface PaymentGateway {
   id: string;
   name: string;
-  gatewayType: string;
   isActive: boolean;
   isDefault: boolean;
   environment: string;
+  dashboardUrl: string | null;
   config: Record<string, unknown>;
   clientKeyEnvVar: string | null;
   clientSecretEnvVar: string | null;
@@ -6093,15 +6094,14 @@ interface PaymentGateway {
   updatedAt: string;
 }
 
-const GATEWAY_TYPES = [
-  { value: "onepay", label: "1-Pay Indonesia", icon: CreditCard },
-  { value: "paypal", label: "PayPal", icon: Wallet },
-  { value: "stripe", label: "Stripe", icon: CreditCard },
-  { value: "crypto", label: "Cryptocurrency", icon: Bitcoin },
-  { value: "bank_transfer", label: "Bank Transfer", icon: Building2 },
-  { value: "ewallet", label: "E-Wallet", icon: Wallet },
-  { value: "credit_card", label: "Credit Card", icon: CreditCard },
-];
+interface GatewayStats {
+  gatewayId: string;
+  gatewayName: string;
+  daily: { count: number; volume: number };
+  weekly: { count: number; volume: number };
+  monthly: { count: number; volume: number };
+  yearly: { count: number; volume: number };
+}
 
 const PAYMENT_METHODS = ["QRIS", "VA", "EWALLET", "BANK", "CARD", "CRYPTO"];
 
@@ -6203,15 +6203,6 @@ function PaymentIntegrationTab({ toast }: { toast: any }) {
     }).format(amount);
   };
 
-  const getGatewayIcon = (type: string) => {
-    const found = GATEWAY_TYPES.find(g => g.value === type);
-    const Icon = found?.icon || CreditCard;
-    return <Icon className="w-5 h-5" />;
-  };
-
-  const getGatewayLabel = (type: string) => {
-    return GATEWAY_TYPES.find(g => g.value === type)?.label || type;
-  };
 
   if (gatewaysLoading) {
     return (
@@ -6320,25 +6311,37 @@ function PaymentIntegrationTab({ toast }: { toast: any }) {
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-4 flex-1 min-w-0">
                     <div className="p-3 rounded-lg bg-muted">
-                      {getGatewayIcon(gateway.gatewayType)}
+                      <CreditCard className="w-5 h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-medium truncate">{gateway.name}</h3>
                         {gateway.isDefault && (
-                          <Badge variant="default" className="shrink-0">Default</Badge>
+                          <Badge variant="default" className="shrink-0" data-testid={`badge-default-${gateway.id}`}>Default</Badge>
                         )}
-                        <Badge variant={gateway.isActive ? "outline" : "secondary"} className="shrink-0">
+                        <Badge variant={gateway.isActive ? "outline" : "secondary"} className="shrink-0" data-testid={`badge-status-${gateway.id}`}>
                           {gateway.isActive ? "Active" : "Inactive"}
                         </Badge>
-                        <Badge variant="outline" className="shrink-0">
+                        <Badge variant="outline" className="shrink-0" data-testid={`badge-env-${gateway.id}`}>
                           {gateway.environment}
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">
-                        {getGatewayLabel(gateway.gatewayType)} • {gateway.currency}
+                        {gateway.currency}
                         {gateway.feePercentage > 0 && ` • ${gateway.feePercentage / 100}% fee`}
                       </p>
+                      {gateway.dashboardUrl && (
+                        <a 
+                          href={gateway.dashboardUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-sm text-primary hover:underline inline-flex items-center gap-1 mt-1"
+                          data-testid={`link-dashboard-${gateway.id}`}
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          Dashboard
+                        </a>
+                      )}
                       {gateway.supportedMethods && gateway.supportedMethods.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">
                           {gateway.supportedMethods.map((method, i) => (
@@ -6384,6 +6387,11 @@ function PaymentIntegrationTab({ toast }: { toast: any }) {
             </Card>
           ))}
         </div>
+      )}
+
+      {/* Gateway Statistics Section */}
+      {gateways && gateways.length > 0 && (
+        <GatewayStatisticsSection gateways={gateways} toast={toast} />
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) setEditingGateway(null); }}>
@@ -6444,7 +6452,7 @@ function GatewayForm({
   onCancel: () => void;
 }) {
   const [name, setName] = useState(gateway?.name || "");
-  const [gatewayType, setGatewayType] = useState(gateway?.gatewayType || "onepay");
+  const [dashboardUrl, setDashboardUrl] = useState(gateway?.dashboardUrl || "");
   const [environment, setEnvironment] = useState(gateway?.environment || "sandbox");
   const [isActive, setIsActive] = useState(gateway?.isActive ?? false);
   const [clientKeyEnvVar, setClientKeyEnvVar] = useState(gateway?.clientKeyEnvVar || "");
@@ -6459,7 +6467,7 @@ function GatewayForm({
     e.preventDefault();
     onSubmit({
       name,
-      gatewayType,
+      dashboardUrl: dashboardUrl || null,
       environment,
       isActive,
       clientKeyEnvVar: clientKeyEnvVar || null,
@@ -6482,33 +6490,30 @@ function GatewayForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="name">Gateway Name *</Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g., PayPal Production"
-            required
-            data-testid="input-gateway-name"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="type">Gateway Type *</Label>
-          <Select value={gatewayType} onValueChange={setGatewayType}>
-            <SelectTrigger data-testid="select-gateway-type">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {GATEWAY_TYPES.map((type) => (
-                <SelectItem key={type.value} value={type.value}>
-                  {type.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="name">Gateway Name *</Label>
+        <Input
+          id="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g., PayPal, Stripe, Midtrans, Xendit"
+          required
+          data-testid="input-gateway-name"
+        />
+        <p className="text-xs text-muted-foreground">Enter the payment gateway name (custom)</p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="dashboardUrl">Dashboard Link</Label>
+        <Input
+          id="dashboardUrl"
+          type="url"
+          value={dashboardUrl}
+          onChange={(e) => setDashboardUrl(e.target.value)}
+          placeholder="e.g., https://dashboard.stripe.com"
+          data-testid="input-dashboard-url"
+        />
+        <p className="text-xs text-muted-foreground">Link to the gateway's dashboard for quick access</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -6547,7 +6552,7 @@ function GatewayForm({
             id="clientKey"
             value={clientKeyEnvVar}
             onChange={(e) => setClientKeyEnvVar(e.target.value)}
-            placeholder="e.g., PAYPAL_CLIENT_ID"
+            placeholder="e.g., STRIPE_PUBLIC_KEY"
             data-testid="input-client-key-env"
           />
           <p className="text-xs text-muted-foreground">Name of the secret in Replit Secrets</p>
@@ -6558,7 +6563,7 @@ function GatewayForm({
             id="clientSecret"
             value={clientSecretEnvVar}
             onChange={(e) => setClientSecretEnvVar(e.target.value)}
-            placeholder="e.g., PAYPAL_CLIENT_SECRET"
+            placeholder="e.g., STRIPE_SECRET_KEY"
             data-testid="input-client-secret-env"
           />
           <p className="text-xs text-muted-foreground">Name of the secret in Replit Secrets</p>
@@ -6574,6 +6579,7 @@ function GatewayForm({
               variant={supportedMethods.includes(method) ? "default" : "outline"}
               className="cursor-pointer"
               onClick={() => toggleMethod(method)}
+              data-testid={`badge-method-${method.toLowerCase()}`}
             >
               {method}
             </Badge>
@@ -6640,6 +6646,175 @@ function GatewayForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+function GatewayStatisticsSection({ gateways, toast }: { gateways: PaymentGateway[]; toast: any }) {
+  const [selectedPeriod, setSelectedPeriod] = useState<"daily" | "weekly" | "monthly" | "yearly">("monthly");
+  
+  const { data: gatewayStats, isLoading: statsLoading } = useQuery<GatewayStats[]>({
+    queryKey: ["/api/admin/payment/gateway-stats"],
+  });
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const handleDownloadCSV = () => {
+    if (!gatewayStats || gatewayStats.length === 0) {
+      toast({ title: "No Data", description: "No statistics available to download.", variant: "destructive" });
+      return;
+    }
+
+    const rows = gatewayStats.map(stat => ({
+      gatewayName: stat.gatewayName,
+      dailyCount: stat.daily.count,
+      dailyVolume: stat.daily.volume,
+      weeklyCount: stat.weekly.count,
+      weeklyVolume: stat.weekly.volume,
+      monthlyCount: stat.monthly.count,
+      monthlyVolume: stat.monthly.volume,
+      yearlyCount: stat.yearly.count,
+      yearlyVolume: stat.yearly.volume,
+    }));
+
+    const columns = [
+      { key: "gatewayName", label: "Gateway" },
+      { key: "dailyCount", label: "Daily Transactions" },
+      { key: "dailyVolume", label: "Daily Volume (IDR)" },
+      { key: "weeklyCount", label: "Weekly Transactions" },
+      { key: "weeklyVolume", label: "Weekly Volume (IDR)" },
+      { key: "monthlyCount", label: "Monthly Transactions" },
+      { key: "monthlyVolume", label: "Monthly Volume (IDR)" },
+      { key: "yearlyCount", label: "Yearly Transactions" },
+      { key: "yearlyVolume", label: "Yearly Volume (IDR)" },
+    ];
+
+    const csv = generateCSV(rows, columns);
+    downloadCSV(csv, `gateway_statistics_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    toast({ title: "Download Started", description: "Gateway statistics report has been downloaded." });
+  };
+
+  const getPeriodData = (stat: GatewayStats) => {
+    return stat[selectedPeriod];
+  };
+
+  if (statsLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-64" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map(i => (
+            <Skeleton key={i} className="h-48" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-primary" />
+            Payment Statistics by Gateway
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Track payment receipts per gateway (sample data for demo)
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={selectedPeriod} onValueChange={(v: any) => setSelectedPeriod(v)}>
+            <SelectTrigger className="w-32" data-testid="select-stats-period">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="daily">Daily</SelectItem>
+              <SelectItem value="weekly">Weekly</SelectItem>
+              <SelectItem value="monthly">Monthly</SelectItem>
+              <SelectItem value="yearly">Yearly</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" onClick={handleDownloadCSV} data-testid="button-download-stats-csv">
+            <Download className="w-4 h-4 mr-2" />
+            Download CSV
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {gateways.map((gateway) => {
+          const stat = gatewayStats?.find(s => s.gatewayId === gateway.id);
+          const periodData = stat ? getPeriodData(stat) : { count: 0, volume: 0 };
+          
+          return (
+            <Card key={gateway.id}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <CreditCard className="w-4 h-4" />
+                    {gateway.name}
+                  </span>
+                  {gateway.dashboardUrl && (
+                    <a
+                      href={gateway.dashboardUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </CardTitle>
+                <Badge variant={gateway.isActive ? "outline" : "secondary"} className="w-fit text-xs">
+                  {gateway.isActive ? "Active" : "Inactive"}
+                </Badge>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Transactions</span>
+                    <span className="text-lg font-bold" data-testid={`text-txn-count-${gateway.id}`}>
+                      {periodData.count}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Volume</span>
+                    <span className="text-lg font-bold text-green-600 dark:text-green-400" data-testid={`text-volume-${gateway.id}`}>
+                      {formatCurrency(periodData.volume)}
+                    </span>
+                  </div>
+                  <Separator />
+                  <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                    <div className={selectedPeriod === "daily" ? "font-bold text-primary" : "text-muted-foreground"}>
+                      <div>Daily</div>
+                      <div>{stat?.daily.count || 0}</div>
+                    </div>
+                    <div className={selectedPeriod === "weekly" ? "font-bold text-primary" : "text-muted-foreground"}>
+                      <div>Weekly</div>
+                      <div>{stat?.weekly.count || 0}</div>
+                    </div>
+                    <div className={selectedPeriod === "monthly" ? "font-bold text-primary" : "text-muted-foreground"}>
+                      <div>Monthly</div>
+                      <div>{stat?.monthly.count || 0}</div>
+                    </div>
+                    <div className={selectedPeriod === "yearly" ? "font-bold text-primary" : "text-muted-foreground"}>
+                      <div>Yearly</div>
+                      <div>{stat?.yearly.count || 0}</div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

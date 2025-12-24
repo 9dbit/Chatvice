@@ -1052,18 +1052,14 @@ export type OrderStatus = typeof orderStatuses[number];
 
 // ============ Payment Gateways Configuration ============
 
-// Gateway types supported
-export const gatewayTypes = ["onepay", "paypal", "stripe", "crypto", "bank_transfer", "ewallet", "credit_card"] as const;
-export type GatewayType = typeof gatewayTypes[number];
-
 // Payment Gateways - stores multiple payment gateway configurations
 export const paymentGateways = pgTable("payment_gateways", {
   id: varchar("id", { length: 32 }).primaryKey(),
-  name: text("name").notNull(), // Display name like "PayPal Sandbox", "Stripe Production"
-  gatewayType: varchar("gateway_type", { length: 30 }).notNull(), // onepay, paypal, stripe, crypto, etc.
+  name: text("name").notNull(), // Custom name like "PayPal", "Stripe", "Midtrans"
   isActive: boolean("is_active").default(false),
   isDefault: boolean("is_default").default(false), // Only one gateway can be default
   environment: varchar("environment", { length: 20 }).default("sandbox"), // sandbox or production
+  dashboardUrl: text("dashboard_url"), // Link to gateway's dashboard
   // Configuration stored as JSON (secrets should still be in env vars, this stores non-sensitive config)
   config: jsonb("config").default({}), // { webhookUrl, merchantId, etc. }
   // Secret key names (references to env vars, not actual values)
