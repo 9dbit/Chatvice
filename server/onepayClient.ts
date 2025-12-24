@@ -75,17 +75,30 @@ export function clearGatewayCache() {
   cacheTime = 0;
 }
 
-function generateSignatureWithCredentials(payload: string, timestamp: string, clientKey: string, clientSecret: string): string {
-  // Format per payment gateway documentation: clientKey:timestamp:requestBody
-  // Algorithm: HMAC-SHA256, Output: Base64 (common for Indonesian payment gateways)
-  const stringToSign = `${clientKey}:${timestamp}:${payload}`;
-  const signature = crypto.createHmac('sha256', clientSecret).update(stringToSign).digest('base64');
+function generateSignatureWithCredentials(payload: string, timestamp: string, clientKey: string, clientSecret: string, requestTarget: string): string {
+  // Kompas Pay signature format:
+  // 1. Create digest of body using SHA256, output as Base64
+  // 2. Concatenate components with newline
+  // 3. HMAC-SHA256 the concatenated string, output as Hex
   
-  console.log('Signature generation:', {
-    stringToSignFormat: 'clientKey:timestamp:payload',
-    stringToSignPreview: stringToSign.substring(0, 150) + '...',
+  const bodyDigest = crypto.createHash('sha256').update(payload).digest('base64');
+  
+  const rawStringData = [
+    `Client-Key:${clientKey}`,
+    `Request-Timestamp:${timestamp}`,
+    `Request-Target:${requestTarget}`,
+    `Digest:${bodyDigest}`
+  ];
+  
+  const stringToSign = rawStringData.join('\n');
+  const signature = crypto.createHmac('sha256', clientSecret).update(stringToSign).digest('hex');
+  
+  console.log('Signature generation (Kompas Pay format):', {
+    clientKeyPrefix: clientKey.substring(0, 15) + '...',
+    timestamp,
+    requestTarget,
+    digestPreview: bodyDigest.substring(0, 20) + '...',
     signaturePreview: signature.substring(0, 20) + '...',
-    timestampFormat: timestamp,
   });
   return signature;
 }
@@ -196,11 +209,12 @@ export async function createQRISPayment(request: CreateQRISRequest): Promise<Cre
     };
 
     const payload = JSON.stringify(body);
-    const signature = generateSignatureWithCredentials(payload, timestamp, clientKey, clientSecret);
+    const requestTarget = '/partner/create/qris';
+    const signature = generateSignatureWithCredentials(payload, timestamp, clientKey, clientSecret, requestTarget);
 
     console.log('Creating QRIS payment:', {
       gatewayName,
-      url: `${apiBaseUrl}/partner/create/qris`,
+      url: `${apiBaseUrl}${requestTarget}`,
       hasClientKey: !!clientKey,
       clientKeyLength: clientKey?.length,
       timestamp,
@@ -208,13 +222,13 @@ export async function createQRISPayment(request: CreateQRISRequest): Promise<Cre
       body: body,
     });
 
-    const response = await fetch(`${apiBaseUrl}/partner/create/qris`, {
+    const response = await fetch(`${apiBaseUrl}${requestTarget}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'client-key': clientKey,
-        'request-timestamp': timestamp,
-        'signature': signature,
+        'Client-key': clientKey,
+        'Request-Timestamp': timestamp,
+        'Signature': signature,
       },
       body: payload,
     });
@@ -263,30 +277,34 @@ export async function createVAPayment(request: CreateVARequest): Promise<CreateV
     const { clientKey, clientSecret, gatewayName, apiBaseUrl } = await getGatewayCredentials();
     const timestamp = generateTimestamp();
     
+    // Kompas Pay VA request body format
+    const expiryMinutes = request.expiryMinutes || 1440;
+    const expiryDate = new Date(Date.now() + expiryMinutes * 60 * 1000);
+    const expiredStr = expiryDate.toISOString().replace('T', ' ').split('.')[0];
+    
     const body = {
-      partner_id: clientKey,
-      merchant_id: request.merchantId,
-      external_id: request.orderId,
+      expired: expiredStr,
       amount: request.amount,
+      customer_phone: '081200000000',
+      customer_email: request.customerEmail || 'customer@example.com',
       bank_code: request.bankCode,
       customer_name: request.customerName || 'Customer',
-      customer_email: request.customerEmail || '',
-      description: request.description || 'Subscription Payment',
-      expiry_minutes: request.expiryMinutes || 1440,
-      callback_url: request.callbackUrl,
-      metadata: request.metadata,
+      remark: request.description || 'Subscription Payment',
+      url_callback: request.callbackUrl || '',
+      identifier_id: request.orderId,
     };
 
     const payload = JSON.stringify(body);
-    const signature = generateSignatureWithCredentials(payload, timestamp, clientKey, clientSecret);
+    const requestTarget = '/partner/create/va';
+    const signature = generateSignatureWithCredentials(payload, timestamp, clientKey, clientSecret, requestTarget);
 
-    const response = await fetch(`${apiBaseUrl}/partner/create/va`, {
+    const response = await fetch(`${apiBaseUrl}${requestTarget}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'client-key': clientKey,
-        'request-timestamp': timestamp,
-        'signature': signature,
+        'Client-key': clientKey,
+        'Request-Timestamp': timestamp,
+        'Signature': signature,
       },
       body: payload,
     });
@@ -328,12 +346,13 @@ export async function checkPaymentStatus(transactionId: string): Promise<Payment
   try {
     const { clientKey, clientSecret, gatewayName, apiBaseUrl } = await getGatewayCredentials();
     const timestamp = generateTimestamp();
-    const signature = generateSignatureWithCredentials(transactionId, timestamp, clientKey, clientSecret);
+    const requestTarget = `/partner/transaction/status/${transactionId}`;
+    const signature = generateSignatureWithCredentials('', timestamp, clientKey, clientSecret, requestTarget);
 
-    const response = await fetch(`${apiBaseUrl}/partner/transaction/status/${transactionId}`, {
+    const response = await fetch(`${apiBaseUrl}${requestTarget}`, {
       method: 'GET',
       headers: {
-        'Client-Key': clientKey,
+        'Client-key': clientKey,
         'Request-Timestamp': timestamp,
         'Signature': signature,
       },
@@ -372,15 +391,16 @@ export async function getBalance(): Promise<BalanceResponse> {
   try {
     const { clientKey, clientSecret, apiBaseUrl } = await getGatewayCredentials();
     const timestamp = generateTimestamp();
-    const signature = generateSignatureWithCredentials('', timestamp, clientKey, clientSecret);
+    const requestTarget = '/partner/balance';
+    const signature = generateSignatureWithCredentials('', timestamp, clientKey, clientSecret, requestTarget);
 
-    const response = await fetch(`${apiBaseUrl}/partner/balance`, {
+    const response = await fetch(`${apiBaseUrl}${requestTarget}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'client-key': clientKey,
-        'request-timestamp': timestamp,
-        'signature': signature,
+        'Client-key': clientKey,
+        'Request-Timestamp': timestamp,
+        'Signature': signature,
       },
     });
 
@@ -416,8 +436,10 @@ export function verifyWebhookSignature(
   const { clientKey, clientSecret } = cachedGateway 
     ? extractCredentials(cachedGateway)
     : { clientKey: process.env.ONEPAY_CLIENT_KEY || '', clientSecret: process.env.ONEPAY_CLIENT_SECRET || '' };
-    
-  const expectedSignature = generateSignatureWithCredentials(payload, timestamp, clientKey, clientSecret);
+  
+  // Webhook callback doesn't have a request target, use empty string
+  const webhookTarget = '/webhook/callback';
+  const expectedSignature = generateSignatureWithCredentials(payload, timestamp, clientKey, clientSecret, webhookTarget);
   
   try {
     return crypto.timingSafeEqual(
