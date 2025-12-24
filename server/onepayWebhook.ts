@@ -92,6 +92,37 @@ export class OnePayWebhookHandler {
       return { success: false, message: 'Missing required metadata' };
     }
     
+    // Check for existing transaction to ensure idempotency
+    const existingTransaction = await storage.getPaymentTransactionByExternalId(external_id);
+    if (existingTransaction) {
+      console.log(`Transaction already processed: ${existingTransaction.invoiceNumber}`);
+      
+      // If receipt wasn't sent, try again
+      if (!existingTransaction.receiptSentAt) {
+        const merchant = await storage.getMerchant(merchantId);
+        if (merchant) {
+          try {
+            await sendPaymentReceiptEmail({
+              merchantEmail: merchant.email,
+              merchantName: merchant.companyName || merchant.email.split('@')[0],
+              invoiceNumber: existingTransaction.invoiceNumber || existingTransaction.id,
+              planName: existingTransaction.planName || '',
+              subscriptionMonths: existingTransaction.subscriptionMonths || 1,
+              amount: existingTransaction.amount,
+              paymentMethod: existingTransaction.paymentMethod || 'QRIS',
+              paidAt: existingTransaction.paidAt || new Date(),
+              expiresAt: existingTransaction.expiresAt || undefined,
+            });
+            await storage.updatePaymentTransaction(existingTransaction.id, { receiptSentAt: new Date() });
+          } catch (e) {
+            console.error('Retry receipt email failed:', e);
+          }
+        }
+      }
+      
+      return { success: true, message: 'Transaction already processed' };
+    }
+    
     // Get merchant and plan info for transaction record
     const merchant = await storage.getMerchant(merchantId);
     if (!merchant) {
