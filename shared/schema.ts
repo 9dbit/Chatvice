@@ -435,6 +435,7 @@ export const subscriptionPlans = {
     sourcesLimit: 1,
     suggestedQuestionsLimit: 0,
     supervisorsPerAgentLimit: 1,
+    domainsLimit: 1,
     chatRetentionHours: 1,
     features: [
       "20 AI conversations/month",
@@ -442,6 +443,7 @@ export const subscriptionPlans = {
       "1 Supervisor",
       "1 hour chat history",
       "400,000 characters/agent",
+      "1 allowed domain",
       "Basic widget customization",
       "Community support",
     ] as const,
@@ -459,6 +461,7 @@ export const subscriptionPlans = {
     sourcesLimit: 5,
     suggestedQuestionsLimit: 5,
     supervisorsPerAgentLimit: 1,
+    domainsLimit: 1,
     chatRetentionHours: 12,
     features: [
       "2,000 AI conversations/month",
@@ -468,6 +471,7 @@ export const subscriptionPlans = {
       "5 Knowledge sources",
       "5 Suggested questions",
       "11M characters/agent",
+      "1 allowed domain",
       "Widget customization",
       "Email support",
       "Basic analytics",
@@ -487,6 +491,7 @@ export const subscriptionPlans = {
     sourcesLimit: 20,
     suggestedQuestionsLimit: 5,
     supervisorsPerAgentLimit: 3,
+    domainsLimit: 2,
     chatRetentionHours: 24,
     features: [
       "10,000 AI conversations/month",
@@ -496,6 +501,7 @@ export const subscriptionPlans = {
       "20 Knowledge sources",
       "5 Suggested questions",
       "11M characters/agent",
+      "2 allowed domains",
       "Advanced analytics & Chat topics",
       "Priority email support",
       "Custom triggers",
@@ -518,6 +524,7 @@ export const subscriptionPlans = {
     sourcesLimit: -1,
     suggestedQuestionsLimit: 5,
     supervisorsPerAgentLimit: 5,
+    domainsLimit: 3,
     chatRetentionHours: 24,
     features: [
       "50,000 AI conversations/month",
@@ -527,6 +534,7 @@ export const subscriptionPlans = {
       "Unlimited knowledge sources",
       "5 Suggested questions",
       "11M characters/agent",
+      "3 allowed domains",
       "Advanced analytics & Chat topics",
       "Dedicated support manager",
       "Custom integrations",
@@ -551,6 +559,7 @@ export const subscriptionPlans = {
     sourcesLimit: -1,
     suggestedQuestionsLimit: -1,
     supervisorsPerAgentLimit: -1,
+    domainsLimit: 5,
     chatRetentionHours: 24,
     features: [
       "Unlimited conversations",
@@ -561,6 +570,7 @@ export const subscriptionPlans = {
       "Unlimited knowledge sources",
       "Unlimited suggested questions",
       "Custom character limits",
+      "5 allowed domains",
       "Dedicated infrastructure",
       "24/7 premium support",
       "Custom SLA",
@@ -935,6 +945,23 @@ export const promotionUsage = pgTable("promotion_usage", {
 export const insertPromotionUsageSchema = createInsertSchema(promotionUsage).omit({ id: true, usedAt: true });
 export type InsertPromotionUsage = z.infer<typeof insertPromotionUsageSchema>;
 export type PromotionUsage = typeof promotionUsage.$inferSelect;
+
+// ============ Merchant Allowed Domains ============
+
+// Allowed domains for widget embedding with validation
+export const merchantDomains = pgTable("merchant_domains", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  domain: text("domain").notNull(), // e.g., "example.com" or "subdomain.example.com"
+  isValidated: boolean("is_validated").default(false), // true when embed link detected on domain
+  validatedAt: timestamp("validated_at"), // when validation was confirmed
+  lastCheckedAt: timestamp("last_checked_at"), // last time we checked for embed
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMerchantDomainSchema = createInsertSchema(merchantDomains).omit({ id: true, createdAt: true, validatedAt: true, lastCheckedAt: true });
+export type InsertMerchantDomain = z.infer<typeof insertMerchantDomainSchema>;
+export type MerchantDomain = typeof merchantDomains.$inferSelect;
 
 // ============ CHATVICE TOP UP v2: Multi-tenant + Domain Tracking ============
 

@@ -18,8 +18,10 @@ import { Link } from "wouter";
 import { 
   Palette, Save, Copy, Check, Bot, Code, Moon, Sun, AlignLeft, AlignRight, 
   Loader2, Camera, RefreshCw, X, Send, Paperclip, Smile, ImageIcon, Video,
-  Globe, MessageSquare, Frame, Shield, Key, Eye, EyeOff, Crown, Lock, ArrowUpRight, ChevronDown
+  Globe, MessageSquare, Frame, Shield, Key, Eye, EyeOff, Crown, Lock, ArrowUpRight, ChevronDown,
+  Plus, Trash2, CheckCircle, AlertCircle, ExternalLink
 } from "lucide-react";
+import type { MerchantDomain } from "@shared/schema";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Merchant, Agent } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
@@ -88,19 +90,89 @@ export default function WidgetPage() {
     },
   });
 
-  const saveAllowedDomainsMutation = useMutation({
-    mutationFn: async () => {
-      return apiRequest("POST", "/api/merchant/allowed-domains", { allowedDomains: config.allowedDomains });
+  // Allowed Domains management
+  const [newDomain, setNewDomain] = useState("");
+  const [validatingDomainId, setValidatingDomainId] = useState<string | null>(null);
+  
+  interface DomainsResponse {
+    domains: MerchantDomain[];
+    limit: number;
+    used: number;
+    planId: string;
+  }
+  
+  const { data: domainsData, refetch: refetchDomains } = useQuery<DomainsResponse>({
+    queryKey: ["/api/merchant/domains"],
+    enabled: !!merchantId,
+  });
+  
+  const addDomainMutation = useMutation({
+    mutationFn: async (domain: string) => {
+      return apiRequest("POST", "/api/merchant/domains", { domain });
     },
     onSuccess: () => {
       toast({
-        title: "Allowed domains saved",
-        description: "Your domain restrictions have been updated.",
+        title: "Domain added",
+        description: "Please validate the domain to confirm widget installation.",
       });
+      setNewDomain("");
+      refetchDomains();
+    },
+    onError: (error: any) => {
+      if (error?.requiresUpgrade) {
+        toast({
+          title: "Domain limit reached",
+          description: "Upgrade your plan to add more domains.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Failed to add domain",
+          description: error?.message || "Please try again.",
+          variant: "destructive",
+        });
+      }
+    },
+  });
+  
+  const deleteDomainMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/merchant/domains/${id}`, {});
+    },
+    onSuccess: () => {
+      toast({
+        title: "Domain removed",
+        description: "The domain has been removed from your allowed list.",
+      });
+      refetchDomains();
     },
     onError: () => {
       toast({
-        title: "Failed to save",
+        title: "Failed to remove domain",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const validateDomainMutation = useMutation({
+    mutationFn: async (id: string) => {
+      setValidatingDomainId(id);
+      return apiRequest("POST", `/api/merchant/domains/${id}/validate`, {});
+    },
+    onSuccess: (data: any) => {
+      setValidatingDomainId(null);
+      toast({
+        title: data.isValidated ? "Domain validated" : "Validation pending",
+        description: data.message,
+        variant: data.isValidated ? "default" : "destructive",
+      });
+      refetchDomains();
+    },
+    onError: () => {
+      setValidatingDomainId(null);
+      toast({
+        title: "Validation failed",
         description: "Please try again.",
         variant: "destructive",
       });
@@ -938,52 +1010,156 @@ window.chatvice('identify', { token }); // identify the user with Chatvice`;
         <TabsContent value="embed" className="mt-6 space-y-6">
           <Card>
             <CardHeader>
-              <div className="flex items-center gap-2">
-                <Globe className="w-5 h-5 text-primary" />
-                <CardTitle>Allowed Domains</CardTitle>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Globe className="w-5 h-5 text-primary" />
+                  <CardTitle>Allowed Domains</CardTitle>
+                </div>
+                {domainsData && (
+                  <Badge variant="secondary" data-testid="badge-domain-count">
+                    {domainsData.used} / {domainsData.limit} domains
+                  </Badge>
+                )}
               </div>
               <CardDescription>
-                Only allow embedding the agent on specific domains. Enter each domain on a new line.
+                Register domains where your widget can be embedded. Each domain requires validation to ensure the widget is properly installed.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {canUseAdvancedFeatures ? (
-                <>
-                  <Textarea
-                    placeholder="www.example.com&#10;app.example.com&#10;*.example.com"
-                    value={config.allowedDomains}
-                    onChange={(e) => setConfig({ ...config, allowedDomains: e.target.value })}
-                    className="min-h-[100px] font-mono text-sm"
-                    data-testid="input-allowed-domains"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Leave empty to allow embedding on any domain. Use wildcards like *.example.com to allow all subdomains.
-                  </p>
+              {/* Add new domain */}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="example.com or sub.example.com"
+                  value={newDomain}
+                  onChange={(e) => setNewDomain(e.target.value)}
+                  className="flex-1"
+                  data-testid="input-new-domain"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newDomain.trim()) {
+                      addDomainMutation.mutate(newDomain.trim());
+                    }
+                  }}
+                />
+                {domainsData && domainsData.used >= domainsData.limit ? (
+                  <Link href="/dashboard/plans">
+                    <Button data-testid="button-upgrade-domain-limit">
+                      <Crown className="w-4 h-4 mr-2" />
+                      Upgrade Plan
+                    </Button>
+                  </Link>
+                ) : (
                   <Button
-                    onClick={() => saveAllowedDomainsMutation.mutate()}
-                    disabled={saveAllowedDomainsMutation.isPending}
-                    variant="outline"
-                    data-testid="button-save-domains"
+                    onClick={() => newDomain.trim() && addDomainMutation.mutate(newDomain.trim())}
+                    disabled={!newDomain.trim() || addDomainMutation.isPending}
+                    data-testid="button-add-domain"
                   >
-                    {saveAllowedDomainsMutation.isPending ? (
+                    {addDomainMutation.isPending ? (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     ) : (
-                      <Save className="w-4 h-4 mr-2" />
+                      <Plus className="w-4 h-4 mr-2" />
                     )}
-                    Save Domains
+                    Add Domain
                   </Button>
-                </>
+                )}
+              </div>
+
+              {/* Domain list */}
+              {domainsData?.domains && domainsData.domains.length > 0 ? (
+                <div className="space-y-2">
+                  {domainsData.domains.map((domain) => (
+                    <div 
+                      key={domain.id} 
+                      className="flex items-center justify-between p-3 border rounded-lg bg-muted/30"
+                      data-testid={`domain-item-${domain.id}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {domain.isValidated ? (
+                          <CheckCircle className="w-5 h-5 text-green-500" />
+                        ) : (
+                          <AlertCircle className="w-5 h-5 text-amber-500" />
+                        )}
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium font-mono text-sm">{domain.domain}</span>
+                            <a 
+                              href={`https://${domain.domain}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-muted-foreground hover:text-primary"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            {domain.isValidated ? (
+                              <span className="text-green-600">Validated</span>
+                            ) : (
+                              <span className="text-amber-600">Pending validation</span>
+                            )}
+                            {domain.lastCheckedAt && (
+                              <span>• Last checked: {new Date(domain.lastCheckedAt).toLocaleDateString()}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => validateDomainMutation.mutate(domain.id)}
+                          disabled={validatingDomainId === domain.id}
+                          data-testid={`button-validate-domain-${domain.id}`}
+                        >
+                          {validatingDomainId === domain.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="w-4 h-4" />
+                          )}
+                          <span className="ml-1.5 hidden sm:inline">Validate</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => deleteDomainMutation.mutate(domain.id)}
+                          disabled={deleteDomainMutation.isPending}
+                          className="text-destructive hover:text-destructive"
+                          data-testid={`button-delete-domain-${domain.id}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : (
-                <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
-                  <Lock className="w-8 h-8 text-muted-foreground" />
+                <div className="text-center py-8 text-muted-foreground">
+                  <Globe className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p className="font-medium">No domains registered</p>
+                  <p className="text-sm">Add a domain to restrict where your widget can be embedded.</p>
+                </div>
+              )}
+
+              {/* Info box */}
+              <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded-lg">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  <strong>Validation:</strong> After adding a domain, install the widget embed code on your website, 
+                  then click "Validate" to confirm. Only validated domains will be allowed to use the widget.
+                </p>
+              </div>
+
+              {/* Plan upgrade prompt for limit reached */}
+              {domainsData && domainsData.used >= domainsData.limit && domainsData.planId !== "custom" && (
+                <div className="flex items-center gap-4 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                  <Crown className="w-8 h-8 text-primary" />
                   <div className="flex-1">
-                    <p className="font-medium">Upgrade to control allowed domains</p>
+                    <p className="font-medium">Need more domains?</p>
                     <p className="text-sm text-muted-foreground">
-                      Domain restrictions are available on Pro and Enterprise plans.
+                      Upgrade your plan to add more allowed domains for your widget.
                     </p>
                   </div>
                   <Link href="/dashboard/plans">
-                    <Button size="sm" data-testid="button-upgrade-domains">
+                    <Button size="sm" data-testid="button-upgrade-for-more-domains">
+                      <ArrowUpRight className="w-4 h-4 mr-1" />
                       Upgrade
                     </Button>
                   </Link>

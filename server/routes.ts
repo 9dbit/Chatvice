@@ -1563,6 +1563,195 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // ============ Merchant Allowed Domains CRUD ============
+  // NOTE: These routes must be registered BEFORE /api/merchant/:merchantId to avoid route conflicts
+  
+  // Get all domains for a merchant
+  app.get("/api/merchant/domains", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+      const domains = await storage.getMerchantDomains(merchantId);
+      const domainsLimit = plan.domainsLimit;
+      
+      res.json({ 
+        domains, 
+        limit: domainsLimit,
+        used: domains.length,
+        planId: plan.id
+      });
+    } catch (error) {
+      console.error("Get domains error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Add a new domain
+  app.post("/api/merchant/domains", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { domain } = req.body;
+      
+      if (!domain) {
+        return res.status(400).json({ error: "Domain required" });
+      }
+
+      // Normalize domain (lowercase, remove protocol and trailing slashes)
+      const normalizedDomain = domain.toLowerCase()
+        .replace(/^https?:\/\//, '')
+        .replace(/\/+$/, '')
+        .trim();
+      
+      // Validate domain format
+      const domainRegex = /^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+      if (!domainRegex.test(normalizedDomain)) {
+        return res.status(400).json({ error: "Invalid domain format. Example: example.com or sub.example.com" });
+      }
+
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+      const domainsLimit = plan.domainsLimit;
+      const currentCount = await storage.countMerchantDomains(merchantId);
+      
+      if (currentCount >= domainsLimit) {
+        return res.status(403).json({ 
+          error: "Domain limit reached",
+          limit: domainsLimit,
+          planId: plan.id,
+          requiresUpgrade: true
+        });
+      }
+
+      // Check if domain already exists for this merchant
+      const existing = await storage.getMerchantDomainByDomain(merchantId, normalizedDomain);
+      if (existing) {
+        return res.status(400).json({ error: "Domain already added" });
+      }
+
+      const newDomain = await storage.createMerchantDomain({
+        merchantId,
+        domain: normalizedDomain,
+        isValidated: false,
+      });
+
+      res.json({ success: true, domain: newDomain });
+    } catch (error) {
+      console.error("Add domain error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Delete a domain
+  app.delete("/api/merchant/domains/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { id } = req.params;
+      
+      const domain = await storage.getMerchantDomain(id);
+      if (!domain || domain.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Domain not found" });
+      }
+
+      await storage.deleteMerchantDomain(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete domain error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Validate a domain (check if widget embed is present)
+  app.post("/api/merchant/domains/:id/validate", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { id } = req.params;
+      
+      const domain = await storage.getMerchantDomain(id);
+      if (!domain || domain.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Domain not found" });
+      }
+
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      // Try to fetch the domain and check for widget embed
+      try {
+        const https = require("https");
+        const http = require("http");
+        
+        const checkUrl = async (url: string): Promise<boolean> => {
+          return new Promise((resolve) => {
+            const protocol = url.startsWith("https") ? https : http;
+            const request = protocol.get(url, { timeout: 10000 }, (response: any) => {
+              let data = "";
+              response.on("data", (chunk: string) => { data += chunk; });
+              response.on("end", () => {
+                // Check if the page contains the widget embed with this merchant's ID
+                const hasWidget = data.includes(`chatvice.app/widget.js`) || 
+                                  data.includes(`data-merchant-id="${merchantId}"`) ||
+                                  data.includes(`merchantId: "${merchantId}"`) ||
+                                  data.includes(`merchantId:"${merchantId}"`);
+                resolve(hasWidget);
+              });
+            });
+            request.on("error", () => resolve(false));
+            request.on("timeout", () => { request.destroy(); resolve(false); });
+          });
+        };
+
+        // Try HTTPS first, then HTTP
+        let isValid = await checkUrl(`https://${domain.domain}`);
+        if (!isValid) {
+          isValid = await checkUrl(`http://${domain.domain}`);
+        }
+
+        await storage.updateMerchantDomain(id, {
+          isValidated: isValid,
+          validatedAt: isValid ? new Date() : null,
+          lastCheckedAt: new Date(),
+        });
+
+        const updatedDomain = await storage.getMerchantDomain(id);
+        
+        res.json({ 
+          success: true, 
+          isValidated: isValid,
+          domain: updatedDomain,
+          message: isValid 
+            ? "Widget embed detected. Domain validated successfully." 
+            : "Widget embed not detected on this domain. Please ensure the Chatvice widget code is installed on your website."
+        });
+      } catch (fetchError) {
+        console.error("Domain validation fetch error:", fetchError);
+        
+        await storage.updateMerchantDomain(id, {
+          isValidated: false,
+          lastCheckedAt: new Date(),
+        });
+        
+        res.json({ 
+          success: false, 
+          isValidated: false,
+          message: "Could not reach the domain. Please ensure the website is accessible."
+        });
+      }
+    } catch (error) {
+      console.error("Validate domain error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/merchant/:merchantId", requireAuth, async (req, res) => {
     try {
       if (req.session.userType === "merchant" && req.session.merchantId !== req.params.merchantId) {
@@ -1695,19 +1884,13 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // Legacy route for backward compatibility (deprecated)
   app.post("/api/merchant/allowed-domains", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
       const merchant = await storage.getMerchant(merchantId);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
-      }
-
-      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
-      const canUseAllowedDomains = plan.id === "pro" || plan.id === "enterprise" || plan.id === "custom";
-      
-      if (!canUseAllowedDomains) {
-        return res.status(403).json({ error: "Allowed domains requires Pro or Enterprise plan" });
       }
 
       const { allowedDomains } = req.body;
