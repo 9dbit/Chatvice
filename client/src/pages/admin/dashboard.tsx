@@ -6110,7 +6110,7 @@ function PaymentIntegrationTab({ toast }: { toast: any }) {
   const [editingGateway, setEditingGateway] = useState<PaymentGateway | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   
-  const { data: gateways, isLoading: gatewaysLoading, refetch: refetchGateways } = useQuery<PaymentGateway[]>({
+  const { data: gateways, isLoading: gatewaysLoading } = useQuery<PaymentGateway[]>({
     queryKey: ["/api/admin/payment/gateways"],
   });
 
@@ -6129,7 +6129,7 @@ function PaymentIntegrationTab({ toast }: { toast: any }) {
     },
     onSuccess: () => {
       toast({ title: "Success", description: "Payment gateway created successfully." });
-      refetchGateways();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/payment/gateways"] });
       setIsDialogOpen(false);
       setEditingGateway(null);
     },
@@ -6149,7 +6149,7 @@ function PaymentIntegrationTab({ toast }: { toast: any }) {
     },
     onSuccess: () => {
       toast({ title: "Success", description: "Payment gateway updated successfully." });
-      refetchGateways();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/payment/gateways"] });
       setIsDialogOpen(false);
       setEditingGateway(null);
     },
@@ -6169,7 +6169,7 @@ function PaymentIntegrationTab({ toast }: { toast: any }) {
     },
     onSuccess: () => {
       toast({ title: "Success", description: "Payment gateway deleted successfully." });
-      refetchGateways();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/payment/gateways"] });
       setDeleteConfirmId(null);
     },
     onError: (error: any) => {
@@ -6188,7 +6188,7 @@ function PaymentIntegrationTab({ toast }: { toast: any }) {
     },
     onSuccess: () => {
       toast({ title: "Success", description: "Default gateway updated." });
-      refetchGateways();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/payment/gateways"] });
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
