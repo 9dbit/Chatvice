@@ -4,8 +4,8 @@ import fs from "fs";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
-import { OnePayWebhookHandler, type OnePayWebhookPayload } from './onepayWebhook';
-import { isOnePayConfigured } from './onepayClient';
+import { PaymentWebhookHandler, type PaymentWebhookPayload } from './onepayWebhook';
+import { isPaymentGatewayConfigured, getActiveGatewayName } from './onepayClient';
 
 const app = express();
 
@@ -22,32 +22,36 @@ declare module "http" {
   }
 }
 
-function initPayment() {
-  if (isOnePayConfigured()) {
-    console.log('1-Pay payment gateway configured');
+async function initPayment() {
+  const isConfigured = await isPaymentGatewayConfigured();
+  if (isConfigured) {
+    const gatewayName = await getActiveGatewayName();
+    console.log(`${gatewayName} payment gateway configured`);
   } else {
-    console.log('1-Pay credentials not found, payment features will be limited');
+    console.log('Payment gateway not configured, payment features will be limited');
   }
 }
 
 initPayment();
 
+// Universal payment webhook endpoint
 app.post(
-  '/api/onepay/webhook',
+  '/api/payment/webhook',
   express.json(),
   async (req, res) => {
     const signature = req.headers['x-signature'] as string || '';
     const timestamp = req.headers['x-timestamp'] as string || '';
 
     try {
-      const payload: OnePayWebhookPayload = req.body;
+      const payload: PaymentWebhookPayload = req.body;
+      const gatewayName = await getActiveGatewayName();
       
-      console.log('Received 1-Pay webhook:', {
+      console.log(`Received ${gatewayName} webhook:`, {
         transactionId: payload.transaction_id,
         status: payload.status,
       });
 
-      const result = await OnePayWebhookHandler.processWebhook(payload, signature, timestamp);
+      const result = await PaymentWebhookHandler.processWebhook(payload, signature, timestamp);
       
       if (result.success) {
         res.status(200).json({ success: true, message: result.message });
@@ -55,11 +59,31 @@ app.post(
         res.status(400).json({ success: false, message: result.message });
       }
     } catch (error: any) {
-      console.error('1-Pay webhook error:', error.message);
+      console.error('Payment webhook error:', error.message);
       res.status(500).json({ success: false, message: 'Webhook processing error' });
     }
   }
 );
+
+// Legacy 1-Pay webhook endpoint (redirect to new endpoint)
+app.post('/api/onepay/webhook', express.json(), async (req, res) => {
+  const signature = req.headers['x-signature'] as string || '';
+  const timestamp = req.headers['x-timestamp'] as string || '';
+  
+  try {
+    const payload: PaymentWebhookPayload = req.body;
+    const result = await PaymentWebhookHandler.processWebhook(payload, signature, timestamp);
+    
+    if (result.success) {
+      res.status(200).json({ success: true, message: result.message });
+    } else {
+      res.status(400).json({ success: false, message: result.message });
+    }
+  } catch (error: any) {
+    console.error('Payment webhook error:', error.message);
+    res.status(500).json({ success: false, message: 'Webhook processing error' });
+  }
+});
 
 app.use(
   express.json({

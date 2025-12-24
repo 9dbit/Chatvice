@@ -1,10 +1,10 @@
-import { verifyWebhookSignature } from './onepayClient';
+import { verifyWebhookSignature, getActiveGatewayName } from './onepayClient';
 import { storage } from './storage';
 import { subscriptionPlans, type SubscriptionPlanId } from '@shared/schema';
 import { getEffectiveSubscriptionPlan } from './subscriptionPlanUtils';
 import { sendPaymentReceiptEmail, sendAdminPaymentNotificationEmail } from './resendClient';
 
-export interface OnePayWebhookPayload {
+export interface PaymentWebhookPayload {
   transaction_id: string;
   external_id: string;
   status: 'PENDING' | 'PAID' | 'EXPIRED' | 'CANCELLED' | 'FAILED';
@@ -19,21 +19,25 @@ export interface OnePayWebhookPayload {
   };
 }
 
-export class OnePayWebhookHandler {
+// Legacy alias for backward compatibility
+export type OnePayWebhookPayload = PaymentWebhookPayload;
+
+export class PaymentWebhookHandler {
   static async processWebhook(
-    payload: OnePayWebhookPayload,
+    payload: PaymentWebhookPayload,
     signature: string,
     timestamp: string
   ): Promise<{ success: boolean; message: string }> {
+    const gatewayName = await getActiveGatewayName();
     const payloadString = JSON.stringify(payload);
     const isValid = verifyWebhookSignature(payloadString, timestamp, signature);
     
     if (!isValid) {
-      console.warn('Invalid 1-Pay webhook signature - rejecting request');
+      console.warn(`Invalid ${gatewayName} webhook signature - rejecting request`);
       return { success: false, message: 'Invalid signature' };
     }
 
-    console.log('Processing 1-Pay webhook:', {
+    console.log(`Processing ${gatewayName} webhook:`, {
       transactionId: payload.transaction_id,
       status: payload.status,
       amount: payload.amount,
@@ -146,7 +150,7 @@ export class OnePayWebhookHandler {
     // Create payment transaction record
     const transaction = await storage.createPaymentTransaction({
       merchantId,
-      gatewayName: '1-Pay',
+      gatewayName: await getActiveGatewayName(),
       externalId: external_id,
       amount,
       currency: 'IDR',
