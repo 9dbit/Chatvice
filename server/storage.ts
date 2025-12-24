@@ -40,10 +40,13 @@ import {
   type TopupNominal, type InsertTopupNominal,
   type MerchantDomain, type InsertMerchantDomain,
   type PaymentGateway, type InsertPaymentGateway,
+  type PaymentTransaction, type InsertPaymentTransaction,
+  type AdminNotification, type InsertAdminNotification,
   merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings, storedFiles,
   workShifts, shiftAssignments, workReports, quickReplies, chatButtons, productCards, productCardButtons, welcomeBubbles, notificationSettings, productRecommendationSettings, productTriggers, supervisorInvitations,
   emailVerificationTokens, passwordResetTokens, promotions, promotionUsage,
   widgetSites, siteDomains, coinOrders, topupNominals, merchantDomains, paymentGateways,
+  paymentTransactions, adminNotifications,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -296,6 +299,22 @@ export interface IStorage {
   updatePaymentGateway(id: string, data: Partial<PaymentGateway>): Promise<PaymentGateway | undefined>;
   deletePaymentGateway(id: string): Promise<boolean>;
   setDefaultPaymentGateway(id: string): Promise<boolean>;
+  
+  // Payment Transactions
+  getPaymentTransaction(id: string): Promise<PaymentTransaction | undefined>;
+  getPaymentTransactionByExternalId(externalId: string): Promise<PaymentTransaction | undefined>;
+  getPaymentTransactionsByMerchant(merchantId: string): Promise<PaymentTransaction[]>;
+  getAllPaymentTransactions(limit?: number): Promise<PaymentTransaction[]>;
+  createPaymentTransaction(data: InsertPaymentTransaction): Promise<PaymentTransaction>;
+  updatePaymentTransaction(id: string, data: Partial<PaymentTransaction>): Promise<PaymentTransaction | undefined>;
+  generateInvoiceNumber(): Promise<string>;
+  
+  // Admin Notifications
+  getAdminNotifications(limit?: number): Promise<AdminNotification[]>;
+  getUnreadAdminNotifications(): Promise<AdminNotification[]>;
+  createAdminNotification(data: InsertAdminNotification): Promise<AdminNotification>;
+  markAdminNotificationRead(id: string): Promise<boolean>;
+  markAllAdminNotificationsRead(): Promise<boolean>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -1973,6 +1992,98 @@ export class DatabaseStorage implements IStorage {
       .set({ isDefault: true, updatedAt: new Date() })
       .where(eq(paymentGateways.id, id));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  // Payment Transactions
+  async getPaymentTransaction(id: string): Promise<PaymentTransaction | undefined> {
+    const result = await db.select().from(paymentTransactions).where(eq(paymentTransactions.id, id));
+    return result[0];
+  }
+
+  async getPaymentTransactionByExternalId(externalId: string): Promise<PaymentTransaction | undefined> {
+    const result = await db.select().from(paymentTransactions).where(eq(paymentTransactions.externalId, externalId));
+    return result[0];
+  }
+
+  async getPaymentTransactionsByMerchant(merchantId: string): Promise<PaymentTransaction[]> {
+    return db.select().from(paymentTransactions)
+      .where(eq(paymentTransactions.merchantId, merchantId))
+      .orderBy(desc(paymentTransactions.createdAt));
+  }
+
+  async getAllPaymentTransactions(limit: number = 100): Promise<PaymentTransaction[]> {
+    return db.select().from(paymentTransactions)
+      .orderBy(desc(paymentTransactions.createdAt))
+      .limit(limit);
+  }
+
+  async createPaymentTransaction(data: InsertPaymentTransaction): Promise<PaymentTransaction> {
+    const id = generateId("txn_");
+    const invoiceNumber = await this.generateInvoiceNumber();
+    const result = await db.insert(paymentTransactions).values({
+      ...data,
+      id,
+      invoiceNumber,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+
+  async updatePaymentTransaction(id: string, data: Partial<PaymentTransaction>): Promise<PaymentTransaction | undefined> {
+    const result = await db.update(paymentTransactions)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(paymentTransactions.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async generateInvoiceNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const month = String(new Date().getMonth() + 1).padStart(2, '0');
+    // Get count of transactions this month
+    const startOfMonth = new Date(year, new Date().getMonth(), 1);
+    const result = await db.select({ count: count() })
+      .from(paymentTransactions)
+      .where(gte(paymentTransactions.createdAt, startOfMonth));
+    const countNum = result[0]?.count || 0;
+    const sequence = String(countNum + 1).padStart(5, '0');
+    return `INV-${year}${month}-${sequence}`;
+  }
+
+  // Admin Notifications
+  async getAdminNotifications(limit: number = 50): Promise<AdminNotification[]> {
+    return db.select().from(adminNotifications)
+      .orderBy(desc(adminNotifications.createdAt))
+      .limit(limit);
+  }
+
+  async getUnreadAdminNotifications(): Promise<AdminNotification[]> {
+    return db.select().from(adminNotifications)
+      .where(eq(adminNotifications.isRead, false))
+      .orderBy(desc(adminNotifications.createdAt));
+  }
+
+  async createAdminNotification(data: InsertAdminNotification): Promise<AdminNotification> {
+    const id = generateId("notif_");
+    const result = await db.insert(adminNotifications).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+
+  async markAdminNotificationRead(id: string): Promise<boolean> {
+    const result = await db.update(adminNotifications)
+      .set({ isRead: true })
+      .where(eq(adminNotifications.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async markAllAdminNotificationsRead(): Promise<boolean> {
+    await db.update(adminNotifications).set({ isRead: true });
+    return true;
   }
 }
 
