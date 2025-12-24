@@ -1098,3 +1098,54 @@ export interface GatewayStats {
   monthly: GatewayPeriodStats;
   yearly: GatewayPeriodStats;
 }
+
+// Payment Transactions - tracks all payment activities
+export const paymentTransactions = pgTable("payment_transactions", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  gatewayId: varchar("gateway_id", { length: 32 }), // Reference to payment gateway used
+  gatewayName: text("gateway_name"), // Snapshot of gateway name at time of payment
+  // Transaction details
+  externalId: text("external_id"), // External reference from gateway (e.g., QRIS invoice ID)
+  amount: integer("amount").notNull(), // Amount in smallest currency unit (IDR)
+  currency: varchar("currency", { length: 10 }).default("IDR"),
+  status: varchar("status", { length: 20 }).default("pending"), // pending, completed, failed, expired, refunded
+  paymentMethod: text("payment_method"), // QRIS, VA, EWALLET, CARD, etc.
+  // Subscription/Plan info
+  planId: varchar("plan_id", { length: 32 }),
+  planName: text("plan_name"),
+  subscriptionMonths: integer("subscription_months").default(1),
+  // Merchant info snapshot
+  merchantEmail: text("merchant_email"),
+  merchantCompanyName: text("merchant_company_name"),
+  // Gateway response data
+  gatewayResponse: jsonb("gateway_response").default({}),
+  qrisUrl: text("qris_url"), // For QRIS payments
+  // Timestamps
+  paidAt: timestamp("paid_at"),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  // Receipt info
+  receiptSentAt: timestamp("receipt_sent_at"),
+  invoiceNumber: text("invoice_number"), // e.g., INV-2024-00001
+});
+
+export const insertPaymentTransactionSchema = createInsertSchema(paymentTransactions).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertPaymentTransaction = z.infer<typeof insertPaymentTransactionSchema>;
+export type PaymentTransaction = typeof paymentTransactions.$inferSelect;
+
+// Admin Notifications - for alerting admin of important events
+export const adminNotifications = pgTable("admin_notifications", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  type: varchar("type", { length: 50 }).notNull(), // payment_received, merchant_signup, error, etc.
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  data: jsonb("data").default({}), // Additional context data
+  isRead: boolean("is_read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertAdminNotificationSchema = createInsertSchema(adminNotifications).omit({ id: true, createdAt: true });
+export type InsertAdminNotification = z.infer<typeof insertAdminNotificationSchema>;
+export type AdminNotification = typeof adminNotifications.$inferSelect;
