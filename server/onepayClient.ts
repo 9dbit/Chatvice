@@ -30,9 +30,9 @@ function generateSignature(payload: string, timestamp: string): string {
   const { clientKey, clientSecret } = getCredentials();
   
   // Format per 1-Pay documentation: clientKey:timestamp:requestBody
-  // Algorithm: HMAC-SHA256, Output: Hex
+  // Algorithm: HMAC-SHA256, Output: Base64 (common for Indonesian payment gateways)
   const stringToSign = `${clientKey}:${timestamp}:${payload}`;
-  const signature = crypto.createHmac('sha256', clientSecret).update(stringToSign).digest('hex');
+  const signature = crypto.createHmac('sha256', clientSecret).update(stringToSign).digest('base64');
   
   console.log('Signature generation:', {
     stringToSignFormat: 'clientKey:timestamp:payload',
