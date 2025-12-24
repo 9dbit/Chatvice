@@ -3938,6 +3938,123 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // ============ Payment Gateway Configuration (Admin) ============
+  
+  // Get payment gateway configuration status (never expose actual keys)
+  app.get("/api/admin/payment/config", requireAdmin, async (req, res) => {
+    try {
+      const hasClientKey = !!process.env.ONEPAY_CLIENT_KEY;
+      const hasClientSecret = !!process.env.ONEPAY_CLIENT_SECRET;
+      const isConfigured = hasClientKey && hasClientSecret;
+      
+      // Get masked key preview (first 4 and last 4 chars only)
+      const maskKey = (key: string | undefined) => {
+        if (!key || key.length < 12) return null;
+        return `${key.substring(0, 4)}${"*".repeat(Math.min(key.length - 8, 20))}${key.substring(key.length - 4)}`;
+      };
+      
+      // Get payment settings from platform settings
+      const gatewayName = await storage.getPlatformSetting("payment_gateway_name") || "1-Pay Indonesia";
+      const webhookUrl = `${process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://chatvice.app"}/api/onepay/webhook`;
+      const apiBaseUrl = process.env.NODE_ENV === 'production' ? 'https://api.1-pay.id' : 'https://api.1-pay.id';
+      
+      res.json({
+        isConfigured,
+        hasClientKey,
+        hasClientSecret,
+        clientKeyPreview: maskKey(process.env.ONEPAY_CLIENT_KEY),
+        gatewayName,
+        webhookUrl,
+        apiBaseUrl,
+        supportedMethods: ["QRIS", "Virtual Account (BCA, BNI, BRI, Mandiri, Permata)"],
+        lastUpdated: await storage.getPlatformSetting("payment_config_updated"),
+      });
+    } catch (error) {
+      console.error("Get payment config error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Test payment gateway connection
+  app.post("/api/admin/payment/test", requireAdmin, async (req, res) => {
+    try {
+      const { isOnePayConfigured, getBalance } = await import("./onepayClient");
+      
+      if (!isOnePayConfigured()) {
+        return res.status(400).json({ 
+          success: false, 
+          error: "Payment gateway not configured. Please add ONEPAY_CLIENT_KEY and ONEPAY_CLIENT_SECRET in Secrets." 
+        });
+      }
+      
+      // Test connection by checking balance or making a simple API call
+      const testResult = await getBalance();
+      
+      // Update last tested timestamp
+      await storage.setPlatformSetting("payment_last_tested", new Date().toISOString());
+      
+      if (testResult.success) {
+        res.json({ 
+          success: true, 
+          message: "Connection successful! Gateway is operational.",
+          balance: testResult.data?.balance,
+          currency: testResult.data?.currency || "IDR"
+        });
+      } else {
+        res.json({ 
+          success: false, 
+          error: testResult.error || "Connection test failed. Please verify your credentials." 
+        });
+      }
+    } catch (error: any) {
+      console.error("Payment test error:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error.message || "Connection test failed" 
+      });
+    }
+  });
+
+  // Get payment transaction statistics
+  app.get("/api/admin/payment/stats", requireAdmin, async (req, res) => {
+    try {
+      // Return empty stats - actual data would come from real payment transactions
+      // This avoids O(n²) queries across all merchants for the MVP
+      const stats = {
+        totalTransactions: 0,
+        recentTransactions: 0,
+        successfulPayments: 0,
+        pendingPayments: 0,
+        failedPayments: 0,
+        totalVolume: 0,
+        recentVolume: 0,
+      };
+      
+      res.json(stats);
+    } catch (error) {
+      console.error("Payment stats error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Save payment gateway settings (non-secret settings only)
+  app.post("/api/admin/payment/settings", requireAdmin, async (req, res) => {
+    try {
+      const { gatewayName } = req.body;
+      
+      if (gatewayName) {
+        await storage.setPlatformSetting("payment_gateway_name", gatewayName);
+      }
+      
+      await storage.setPlatformSetting("payment_config_updated", new Date().toISOString());
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Save payment settings error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/platform/settings/:key", async (req, res) => {
     try {
       const value = await storage.getPlatformSetting(req.params.key);

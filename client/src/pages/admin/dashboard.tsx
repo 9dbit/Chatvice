@@ -290,6 +290,7 @@ export default function AdminDashboard() {
     { id: "usage", label: "Data Usage", icon: Database },
     { id: "billing", label: "Billing", icon: CreditCard },
     { id: "transactions", label: "Transactions", icon: FileText },
+    { id: "payment", label: "Payment Integration", icon: Zap },
     { id: "menuorder", label: "Menu Order", icon: Layers },
     { id: "settings", label: "Settings", icon: Settings },
   ];
@@ -439,6 +440,8 @@ export default function AdminDashboard() {
             {activeTab === "billing" && <BillingTab />}
             
             {activeTab === "transactions" && <TransactionsTab toast={toast} />}
+            
+            {activeTab === "payment" && <PaymentIntegrationTab toast={toast} />}
             
             {activeTab === "settings" && <SettingsTab toast={toast} />}
             
@@ -6040,6 +6043,400 @@ function BillingTab() {
           height={150}
         />
       </div>
+    </div>
+  );
+}
+
+interface PaymentConfig {
+  isConfigured: boolean;
+  hasClientKey: boolean;
+  hasClientSecret: boolean;
+  clientKeyPreview: string | null;
+  gatewayName: string;
+  webhookUrl: string;
+  apiBaseUrl: string;
+  supportedMethods: string[];
+  lastUpdated: string | null;
+}
+
+interface PaymentStats {
+  totalTransactions: number;
+  recentTransactions: number;
+  successfulPayments: number;
+  pendingPayments: number;
+  failedPayments: number;
+  totalVolume: number;
+  recentVolume: number;
+}
+
+function PaymentIntegrationTab({ toast }: { toast: any }) {
+  const [isTesting, setIsTesting] = useState(false);
+  
+  const { data: config, isLoading: configLoading, refetch: refetchConfig } = useQuery<PaymentConfig>({
+    queryKey: ["/api/admin/payment/config"],
+  });
+  
+  const { data: stats, isLoading: statsLoading } = useQuery<PaymentStats>({
+    queryKey: ["/api/admin/payment/stats"],
+  });
+
+  const testConnectionMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/admin/payment/test");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Connection test failed" }));
+        throw new Error(errorData.error || "Connection test failed");
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast({
+          title: "Connection Successful",
+          description: data.message || "Payment gateway is operational.",
+        });
+      } else {
+        toast({
+          title: "Connection Failed",
+          description: data.error || "Could not connect to payment gateway.",
+          variant: "destructive",
+        });
+      }
+      refetchConfig();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Test Failed",
+        description: error.message || "Connection test failed.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleTestConnection = async () => {
+    setIsTesting(true);
+    try {
+      await testConnectionMutation.mutateAsync();
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  if (configLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-64" />
+        <div className="grid gap-6 md:grid-cols-2">
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <Zap className="w-6 h-6 text-primary" />
+            Payment Integration
+          </h2>
+          <p className="text-muted-foreground">
+            Configure and monitor payment gateway connections
+          </p>
+        </div>
+        <Button
+          onClick={handleTestConnection}
+          disabled={isTesting || !config?.isConfigured}
+          data-testid="button-test-payment"
+        >
+          {isTesting ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <RefreshCw className="w-4 h-4 mr-2" />
+          )}
+          Test Connection
+        </Button>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              Gateway Configuration
+            </CardTitle>
+            <CardDescription>
+              Payment gateway credentials and endpoints
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex items-center justify-between p-4 rounded-lg border">
+              <div className="flex items-center gap-3">
+                {config?.isConfigured ? (
+                  <CheckCircle className="w-6 h-6 text-green-500" />
+                ) : (
+                  <XCircle className="w-6 h-6 text-destructive" />
+                )}
+                <div>
+                  <p className="font-medium">Connection Status</p>
+                  <p className="text-sm text-muted-foreground">
+                    {config?.isConfigured ? "Configured and ready" : "Not configured"}
+                  </p>
+                </div>
+              </div>
+              <Badge variant={config?.isConfigured ? "default" : "destructive"}>
+                {config?.isConfigured ? "Active" : "Inactive"}
+              </Badge>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <Label className="text-muted-foreground">Gateway Provider</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <CreditCard className="w-4 h-4" />
+                  <span className="font-medium">{config?.gatewayName || "1-Pay Indonesia"}</span>
+                </div>
+              </div>
+              
+              <div>
+                <Label className="text-muted-foreground">API Endpoint</Label>
+                <code className="block mt-1 p-2 rounded bg-muted text-sm font-mono">
+                  {config?.apiBaseUrl || "https://api.1-pay.id"}
+                </code>
+              </div>
+
+              <div>
+                <Label className="text-muted-foreground">Client Key</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  {config?.hasClientKey ? (
+                    <>
+                      <CheckCircle className="w-4 h-4 text-green-500" />
+                      <code className="p-2 rounded bg-muted text-sm font-mono">
+                        {config.clientKeyPreview || "****"}
+                      </code>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="w-4 h-4 text-destructive" />
+                      <span className="text-destructive text-sm">Not configured</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-muted-foreground">Client Secret</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  {config?.hasClientSecret ? (
+                    <>
+                      <CheckCircle className="w-4 h-4 text-green-500" />
+                      <code className="p-2 rounded bg-muted text-sm font-mono">
+                        ****************************
+                      </code>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="w-4 h-4 text-destructive" />
+                      <span className="text-destructive text-sm">Not configured</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-muted-foreground">Webhook URL</Label>
+                <code className="block mt-1 p-2 rounded bg-muted text-sm font-mono break-all">
+                  {config?.webhookUrl}
+                </code>
+              </div>
+
+              <div>
+                <Label className="text-muted-foreground">Supported Payment Methods</Label>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {config?.supportedMethods?.map((method, i) => (
+                    <Badge key={i} variant="outline">{method}</Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {!config?.isConfigured && (
+              <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-amber-700 dark:text-amber-400">Configuration Required</p>
+                    <p className="text-sm text-amber-600 dark:text-amber-500 mt-1">
+                      Add the following secrets in Replit Secrets panel:
+                    </p>
+                    <ul className="text-sm text-amber-600 dark:text-amber-500 mt-2 space-y-1">
+                      <li className="font-mono">ONEPAY_CLIENT_KEY</li>
+                      <li className="font-mono">ONEPAY_CLIENT_SECRET</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5" />
+              Transaction Statistics
+            </CardTitle>
+            <CardDescription>
+              Payment gateway performance metrics
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {statsLoading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-16" />
+                <Skeleton className="h-16" />
+                <Skeleton className="h-16" />
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 rounded-lg bg-muted/50">
+                    <p className="text-sm text-muted-foreground">Total Transactions</p>
+                    <p className="text-2xl font-bold">{stats?.totalTransactions || 0}</p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50">
+                    <p className="text-sm text-muted-foreground">Last 30 Days</p>
+                    <p className="text-2xl font-bold">{stats?.recentTransactions || 0}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-500" />
+                      <span>Successful</span>
+                    </div>
+                    <span className="font-medium text-green-600">{stats?.successfulPayments || 0}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-amber-500" />
+                      <span>Pending</span>
+                    </div>
+                    <span className="font-medium text-amber-600">{stats?.pendingPayments || 0}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <XCircle className="w-4 h-4 text-destructive" />
+                      <span>Failed/Expired</span>
+                    </div>
+                    <span className="font-medium text-destructive">{stats?.failedPayments || 0}</span>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-muted-foreground">Total Volume</span>
+                    <span className="text-lg font-bold">{formatCurrency(stats?.totalVolume || 0)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Last 30 Days</span>
+                    <span className="font-medium">{formatCurrency(stats?.recentVolume || 0)}</span>
+                  </div>
+                </div>
+
+                {stats && stats.totalTransactions > 0 && (
+                  <div className="pt-4 border-t">
+                    <p className="text-sm text-muted-foreground mb-2">Success Rate</p>
+                    <div className="flex items-center gap-3">
+                      <Progress 
+                        value={(stats.successfulPayments / stats.totalTransactions) * 100} 
+                        className="flex-1"
+                      />
+                      <span className="font-medium">
+                        {((stats.successfulPayments / stats.totalTransactions) * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="w-5 h-5" />
+            Integration Guide
+          </CardTitle>
+          <CardDescription>
+            How to configure 1-Pay payment gateway
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-sm font-medium">1</div>
+              <div>
+                <p className="font-medium">Get API Credentials</p>
+                <p className="text-sm text-muted-foreground">
+                  Log in to your 1-Pay merchant dashboard at{" "}
+                  <a href="https://dashboard.1-pay.id" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                    dashboard.1-pay.id
+                  </a>{" "}
+                  and navigate to API Settings to get your Client Key and Client Secret.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-sm font-medium">2</div>
+              <div>
+                <p className="font-medium">Add Secrets to Replit</p>
+                <p className="text-sm text-muted-foreground">
+                  Open the Secrets tab in Replit (Tools → Secrets) and add:
+                </p>
+                <ul className="text-sm text-muted-foreground mt-1 space-y-1">
+                  <li><code className="px-1 py-0.5 bg-muted rounded">ONEPAY_CLIENT_KEY</code> - Your Client Key</li>
+                  <li><code className="px-1 py-0.5 bg-muted rounded">ONEPAY_CLIENT_SECRET</code> - Your Client Secret</li>
+                </ul>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-sm font-medium">3</div>
+              <div>
+                <p className="font-medium">Configure Webhook</p>
+                <p className="text-sm text-muted-foreground">
+                  In your 1-Pay dashboard, set the webhook URL to:
+                </p>
+                <code className="block mt-1 p-2 rounded bg-muted text-sm font-mono">
+                  {config?.webhookUrl}
+                </code>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-sm font-medium">4</div>
+              <div>
+                <p className="font-medium">Test Connection</p>
+                <p className="text-sm text-muted-foreground">
+                  Click the "Test Connection" button above to verify your configuration is working correctly.
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
