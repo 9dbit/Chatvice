@@ -544,19 +544,25 @@ export function AppSidebar() {
           <Link 
             href="/dashboard/sessions"
             data-testid="link-sidebar-chat-sessions-static"
+            className="block w-full"
           >
-            <div 
-              className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all duration-200 ${
+            <button 
+              type="button"
+              className={`flex items-center gap-3 p-3 w-full rounded-lg transition-all duration-200 ${
                 isChatSessionsActive 
-                  ? "bg-primary text-white shadow-lg shadow-primary/30" 
-                  : "bg-primary/90 text-white hover:bg-primary shadow-md shadow-primary/20"
+                  ? "bg-primary text-white" 
+                  : "bg-primary/90 text-white hover:bg-primary hover:scale-[1.02] active:scale-[0.98]"
               }`}
-              style={{ boxShadow: "0 4px 12px rgba(107, 92, 246, 0.3)" }}
+              style={{ 
+                boxShadow: isChatSessionsActive 
+                  ? "inset 0 2px 8px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(107, 92, 246, 0.4)" 
+                  : "0 4px 12px rgba(107, 92, 246, 0.3)"
+              }}
             >
               <MessageSquare className="w-5 h-5" />
-              <span className="font-medium flex-1">Chat Sessions</span>
+              <span className="font-medium flex-1 text-left">Chat Sessions</span>
               {escalatedCount > 0 && <BlinkingDot />}
-            </div>
+            </button>
           </Link>
         )}
         
