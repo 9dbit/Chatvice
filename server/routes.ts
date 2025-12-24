@@ -3449,8 +3449,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       
       const orderId = `SUB_${merchant.id}_${planId}_${billingInterval}_${Date.now()}`;
       
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      const callbackUrl = `${baseUrl}/api/onepay/webhook`;
+      // Use public URL for callback - prioritize forwarded headers, fallback to production
+      const forwardedHost = req.get('x-forwarded-host') || req.get('host');
+      const isLocalhost = !forwardedHost || forwardedHost.includes('localhost');
+      const callbackUrl = isLocalhost 
+        ? 'https://chatvice.app/api/onepay/webhook'
+        : `https://${forwardedHost}/api/onepay/webhook`;
       
       const qrisResult = await createQRISPayment({
         merchantId: merchant.id,
@@ -3504,8 +3508,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(503).json({ error: "1-Pay not configured" });
       }
       
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      const callbackUrl = `${baseUrl}/api/onepay/webhook`;
+      // Use production URL for callback (Kompas Pay requires public URL)
+      const callbackUrl = `https://chatvice.app/api/onepay/webhook`;
       const orderId = `TEST_${Date.now()}`;
       
       console.log("Testing 1-Pay API...");
