@@ -4218,6 +4218,77 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // Payment Transactions - Admin view all transactions
+  app.get("/api/admin/payment/transactions", requireAdmin, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const transactions = await storage.getAllPaymentTransactions(limit);
+      res.json(transactions);
+    } catch (error) {
+      console.error("Get transactions error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get single transaction
+  app.get("/api/admin/payment/transactions/:id", requireAdmin, async (req, res) => {
+    try {
+      const transaction = await storage.getPaymentTransaction(req.params.id);
+      if (!transaction) {
+        return res.status(404).json({ error: "Transaction not found" });
+      }
+      res.json(transaction);
+    } catch (error) {
+      console.error("Get transaction error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Admin Notifications - Get all notifications
+  app.get("/api/admin/notifications", requireAdmin, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const notifications = await storage.getAdminNotifications(limit);
+      res.json(notifications);
+    } catch (error) {
+      console.error("Get admin notifications error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get unread notifications count
+  app.get("/api/admin/notifications/unread", requireAdmin, async (req, res) => {
+    try {
+      const notifications = await storage.getUnreadAdminNotifications();
+      res.json({ count: notifications.length, notifications });
+    } catch (error) {
+      console.error("Get unread notifications error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Mark notification as read
+  app.post("/api/admin/notifications/:id/read", requireAdmin, async (req, res) => {
+    try {
+      const success = await storage.markAdminNotificationRead(req.params.id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Mark notification read error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Mark all notifications as read
+  app.post("/api/admin/notifications/read-all", requireAdmin, async (req, res) => {
+    try {
+      const success = await storage.markAllAdminNotificationsRead();
+      res.json({ success });
+    } catch (error) {
+      console.error("Mark all notifications read error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/platform/settings/:key", async (req, res) => {
     try {
       const value = await storage.getPlatformSetting(req.params.key);

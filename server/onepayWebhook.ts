@@ -2,6 +2,7 @@ import { verifyWebhookSignature } from './onepayClient';
 import { storage } from './storage';
 import { subscriptionPlans, type SubscriptionPlanId } from '@shared/schema';
 import { getEffectiveSubscriptionPlan } from './subscriptionPlanUtils';
+import { sendPaymentReceiptEmail, sendAdminPaymentNotificationEmail } from './resendClient';
 
 export interface OnePayWebhookPayload {
   transaction_id: string;
@@ -57,11 +58,15 @@ export class OnePayWebhookHandler {
   }
 
   private static async handlePaymentSuccess(payload: OnePayWebhookPayload): Promise<{ success: boolean; message: string }> {
-    const { external_id, metadata, transaction_id } = payload;
+    const { external_id, metadata, transaction_id, amount, payment_method, paid_at } = payload;
+    
+    let merchantId: string | undefined;
+    let planId: SubscriptionPlanId | undefined;
+    let billingInterval = 'monthly';
     
     if (!metadata?.merchantId) {
       const parts = external_id.split('_');
-      const merchantId = parts[1];
+      merchantId = parts[1];
       if (!merchantId) {
         console.error('Cannot determine merchantId from webhook:', external_id);
         return { success: false, message: 'Missing merchantId' };
@@ -73,25 +78,126 @@ export class OnePayWebhookHandler {
       }
       
       if (merchant.pendingTransactionId === transaction_id) {
-        const planId = parts[2] as SubscriptionPlanId;
-        const billingInterval = parts[3] || 'monthly';
-        
-        await this.activateSubscription(merchantId, planId, billingInterval, transaction_id);
-        return { success: true, message: 'Subscription activated from order ID' };
+        planId = parts[2] as SubscriptionPlanId;
+        billingInterval = parts[3] || 'monthly';
       }
+    } else {
+      merchantId = metadata.merchantId;
+      planId = metadata.planId as SubscriptionPlanId;
+      billingInterval = metadata.billingInterval || 'monthly';
     }
-    
-    const merchantId = metadata?.merchantId;
-    const planId = metadata?.planId as SubscriptionPlanId;
-    const billingInterval = metadata?.billingInterval || 'monthly';
     
     if (!merchantId || !planId) {
       console.error('Missing required metadata:', metadata);
       return { success: false, message: 'Missing required metadata' };
     }
     
+    // Get merchant and plan info for transaction record
+    const merchant = await storage.getMerchant(merchantId);
+    if (!merchant) {
+      return { success: false, message: 'Merchant not found' };
+    }
+    
+    const plan = await getEffectiveSubscriptionPlan(planId);
+    const planName = plan?.name || subscriptionPlans[planId]?.name || planId;
+    const subscriptionMonths = billingInterval === 'annual' ? 12 : 1;
+    const paidAtDate = paid_at ? new Date(paid_at) : new Date();
+    const merchantName = merchant.companyName || merchant.email.split('@')[0];
+    
+    // Calculate subscription end date
+    const periodEnd = new Date(paidAtDate);
+    if (billingInterval === 'annual') {
+      periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+    } else {
+      periodEnd.setMonth(periodEnd.getMonth() + 1);
+    }
+    
+    // Create payment transaction record
+    const transaction = await storage.createPaymentTransaction({
+      merchantId,
+      gatewayName: '1-Pay',
+      externalId: external_id,
+      amount,
+      currency: 'IDR',
+      status: 'paid',
+      paymentMethod: payment_method || 'QRIS',
+      planId,
+      planName,
+      subscriptionMonths,
+      merchantEmail: merchant.email,
+      merchantCompanyName: merchantName,
+      gatewayResponse: payload,
+      paidAt: paidAtDate,
+      expiresAt: periodEnd,
+    });
+    
+    console.log(`Payment transaction recorded: ${transaction.invoiceNumber}`);
+    
+    // Activate subscription
     await this.activateSubscription(merchantId, planId, billingInterval, transaction_id);
-    return { success: true, message: 'Subscription activated' };
+    
+    // Send receipt email to merchant
+    try {
+      await sendPaymentReceiptEmail({
+        merchantEmail: merchant.email,
+        merchantName,
+        invoiceNumber: transaction.invoiceNumber || transaction.id,
+        planName,
+        subscriptionMonths,
+        amount,
+        paymentMethod: payment_method || 'QRIS',
+        paidAt: paidAtDate,
+        expiresAt: periodEnd,
+      });
+      
+      // Update receipt sent timestamp
+      await storage.updatePaymentTransaction(transaction.id, {
+        receiptSentAt: new Date(),
+      });
+    } catch (emailError) {
+      console.error('Failed to send receipt email:', emailError);
+    }
+    
+    // Create admin notification
+    const adminNotification = await storage.createAdminNotification({
+      type: 'payment_received',
+      title: 'New Payment Received',
+      message: `${merchantName} paid ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount)} for ${planName} plan`,
+      data: {
+        transactionId: transaction.id,
+        invoiceNumber: transaction.invoiceNumber,
+        merchantId,
+        merchantName,
+        merchantEmail: merchant.email,
+        planName,
+        amount,
+        paymentMethod: payment_method || 'QRIS',
+      },
+    });
+    
+    console.log(`Admin notification created: ${adminNotification.id}`);
+    
+    // Send admin notification email
+    try {
+      // Get all admins to notify
+      const adminEmails = ['admin@chatvice.app', 'master@chatvice.app'];
+      for (const adminEmail of adminEmails) {
+        await sendAdminPaymentNotificationEmail({
+          adminEmail,
+          merchantName,
+          merchantEmail: merchant.email,
+          invoiceNumber: transaction.invoiceNumber || transaction.id,
+          planName,
+          amount,
+          paymentMethod: payment_method || 'QRIS',
+          paidAt: paidAtDate,
+        });
+      }
+    } catch (emailError) {
+      console.error('Failed to send admin notification email:', emailError);
+    }
+    
+    return { success: true, message: 'Subscription activated with receipt' };
   }
 
   private static async activateSubscription(
