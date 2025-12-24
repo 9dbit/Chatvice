@@ -4055,6 +4055,123 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // ============ Payment Gateways CRUD ============
+  
+  // Get all payment gateways
+  app.get("/api/admin/payment/gateways", requireAdmin, async (req, res) => {
+    try {
+      const gateways = await storage.getPaymentGateways();
+      res.json(gateways);
+    } catch (error) {
+      console.error("Get payment gateways error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get single payment gateway
+  app.get("/api/admin/payment/gateways/:id", requireAdmin, async (req, res) => {
+    try {
+      const gateway = await storage.getPaymentGateway(req.params.id);
+      if (!gateway) {
+        return res.status(404).json({ error: "Gateway not found" });
+      }
+      res.json(gateway);
+    } catch (error) {
+      console.error("Get payment gateway error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Create payment gateway
+  app.post("/api/admin/payment/gateways", requireAdmin, async (req, res) => {
+    try {
+      const { name, gatewayType, environment, isActive, clientKeyEnvVar, clientSecretEnvVar, supportedMethods, feePercentage, feeFixed, currency, description, iconUrl, config } = req.body;
+      
+      if (!name || !gatewayType) {
+        return res.status(400).json({ error: "Name and gateway type are required" });
+      }
+      
+      const gateway = await storage.createPaymentGateway({
+        name,
+        gatewayType,
+        environment: environment || "sandbox",
+        isActive: isActive ?? false,
+        isDefault: false,
+        clientKeyEnvVar: clientKeyEnvVar || null,
+        clientSecretEnvVar: clientSecretEnvVar || null,
+        supportedMethods: supportedMethods || [],
+        feePercentage: feePercentage || 0,
+        feeFixed: feeFixed || 0,
+        currency: currency || "IDR",
+        description: description || null,
+        iconUrl: iconUrl || null,
+        config: config || {},
+        sortOrder: 0,
+      });
+      
+      res.json(gateway);
+    } catch (error) {
+      console.error("Create payment gateway error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Update payment gateway
+  app.patch("/api/admin/payment/gateways/:id", requireAdmin, async (req, res) => {
+    try {
+      const gateway = await storage.getPaymentGateway(req.params.id);
+      if (!gateway) {
+        return res.status(404).json({ error: "Gateway not found" });
+      }
+      
+      const updated = await storage.updatePaymentGateway(req.params.id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Update payment gateway error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Delete payment gateway
+  app.delete("/api/admin/payment/gateways/:id", requireAdmin, async (req, res) => {
+    try {
+      const gateway = await storage.getPaymentGateway(req.params.id);
+      if (!gateway) {
+        return res.status(404).json({ error: "Gateway not found" });
+      }
+      
+      if (gateway.isDefault) {
+        return res.status(400).json({ error: "Cannot delete default gateway" });
+      }
+      
+      const deleted = await storage.deletePaymentGateway(req.params.id);
+      res.json({ success: deleted });
+    } catch (error) {
+      console.error("Delete payment gateway error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Set default payment gateway
+  app.post("/api/admin/payment/gateways/:id/set-default", requireAdmin, async (req, res) => {
+    try {
+      const gateway = await storage.getPaymentGateway(req.params.id);
+      if (!gateway) {
+        return res.status(404).json({ error: "Gateway not found" });
+      }
+      
+      if (!gateway.isActive) {
+        return res.status(400).json({ error: "Cannot set inactive gateway as default" });
+      }
+      
+      const success = await storage.setDefaultPaymentGateway(req.params.id);
+      res.json({ success });
+    } catch (error) {
+      console.error("Set default gateway error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/platform/settings/:key", async (req, res) => {
     try {
       const value = await storage.getPlatformSetting(req.params.key);

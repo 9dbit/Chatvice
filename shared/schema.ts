@@ -1049,3 +1049,41 @@ export type PaymentChannel = typeof paymentChannels[number];
 // Order status types
 export const orderStatuses = ["PENDING", "PAID", "PAID_BUT_NOT_CREDITED", "COMPLETED", "FAILED", "EXPIRED"] as const;
 export type OrderStatus = typeof orderStatuses[number];
+
+// ============ Payment Gateways Configuration ============
+
+// Gateway types supported
+export const gatewayTypes = ["onepay", "paypal", "stripe", "crypto", "bank_transfer", "ewallet", "credit_card"] as const;
+export type GatewayType = typeof gatewayTypes[number];
+
+// Payment Gateways - stores multiple payment gateway configurations
+export const paymentGateways = pgTable("payment_gateways", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  name: text("name").notNull(), // Display name like "PayPal Sandbox", "Stripe Production"
+  gatewayType: varchar("gateway_type", { length: 30 }).notNull(), // onepay, paypal, stripe, crypto, etc.
+  isActive: boolean("is_active").default(false),
+  isDefault: boolean("is_default").default(false), // Only one gateway can be default
+  environment: varchar("environment", { length: 20 }).default("sandbox"), // sandbox or production
+  // Configuration stored as JSON (secrets should still be in env vars, this stores non-sensitive config)
+  config: jsonb("config").default({}), // { webhookUrl, merchantId, etc. }
+  // Secret key names (references to env vars, not actual values)
+  clientKeyEnvVar: text("client_key_env_var"), // e.g., "PAYPAL_CLIENT_ID"
+  clientSecretEnvVar: text("client_secret_env_var"), // e.g., "PAYPAL_CLIENT_SECRET"
+  // Supported payment methods for this gateway
+  supportedMethods: text("supported_methods").array(), // ["QRIS", "VA", "EWALLET", "CARD"]
+  // Fee configuration
+  feePercentage: integer("fee_percentage").default(0), // in basis points (100 = 1%)
+  feeFixed: integer("fee_fixed").default(0), // fixed fee in IDR
+  // Currency
+  currency: varchar("currency", { length: 10 }).default("IDR"),
+  // Metadata
+  description: text("description"),
+  iconUrl: text("icon_url"),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertPaymentGatewaySchema = createInsertSchema(paymentGateways).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertPaymentGateway = z.infer<typeof insertPaymentGatewaySchema>;
+export type PaymentGateway = typeof paymentGateways.$inferSelect;

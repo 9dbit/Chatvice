@@ -39,10 +39,11 @@ import {
   type CoinOrder, type InsertCoinOrder,
   type TopupNominal, type InsertTopupNominal,
   type MerchantDomain, type InsertMerchantDomain,
+  type PaymentGateway, type InsertPaymentGateway,
   merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings, storedFiles,
   workShifts, shiftAssignments, workReports, quickReplies, chatButtons, productCards, productCardButtons, welcomeBubbles, notificationSettings, productRecommendationSettings, productTriggers, supervisorInvitations,
   emailVerificationTokens, passwordResetTokens, promotions, promotionUsage,
-  widgetSites, siteDomains, coinOrders, topupNominals, merchantDomains,
+  widgetSites, siteDomains, coinOrders, topupNominals, merchantDomains, paymentGateways,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -285,6 +286,16 @@ export interface IStorage {
   updateMerchantDomain(id: string, data: Partial<MerchantDomain>): Promise<MerchantDomain | undefined>;
   deleteMerchantDomain(id: string): Promise<boolean>;
   countMerchantDomains(merchantId: string): Promise<number>;
+  
+  // Payment Gateways
+  getPaymentGateways(): Promise<PaymentGateway[]>;
+  getPaymentGateway(id: string): Promise<PaymentGateway | undefined>;
+  getDefaultPaymentGateway(): Promise<PaymentGateway | undefined>;
+  getActivePaymentGateways(): Promise<PaymentGateway[]>;
+  createPaymentGateway(data: InsertPaymentGateway): Promise<PaymentGateway>;
+  updatePaymentGateway(id: string, data: Partial<PaymentGateway>): Promise<PaymentGateway | undefined>;
+  deletePaymentGateway(id: string): Promise<boolean>;
+  setDefaultPaymentGateway(id: string): Promise<boolean>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -1905,6 +1916,63 @@ export class DatabaseStorage implements IStorage {
     const result = await db.select({ count: count() }).from(merchantDomains)
       .where(eq(merchantDomains.merchantId, merchantId));
     return result[0]?.count ?? 0;
+  }
+
+  // ============ Payment Gateways ============
+  
+  async getPaymentGateways(): Promise<PaymentGateway[]> {
+    return db.select().from(paymentGateways).orderBy(paymentGateways.sortOrder);
+  }
+
+  async getPaymentGateway(id: string): Promise<PaymentGateway | undefined> {
+    const result = await db.select().from(paymentGateways).where(eq(paymentGateways.id, id));
+    return result[0];
+  }
+
+  async getDefaultPaymentGateway(): Promise<PaymentGateway | undefined> {
+    const result = await db.select().from(paymentGateways)
+      .where(and(eq(paymentGateways.isDefault, true), eq(paymentGateways.isActive, true)));
+    return result[0];
+  }
+
+  async getActivePaymentGateways(): Promise<PaymentGateway[]> {
+    return db.select().from(paymentGateways)
+      .where(eq(paymentGateways.isActive, true))
+      .orderBy(paymentGateways.sortOrder);
+  }
+
+  async createPaymentGateway(data: InsertPaymentGateway): Promise<PaymentGateway> {
+    const id = generateId("pg_");
+    const result = await db.insert(paymentGateways).values({ 
+      ...data, 
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+
+  async updatePaymentGateway(id: string, data: Partial<PaymentGateway>): Promise<PaymentGateway | undefined> {
+    const result = await db.update(paymentGateways)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(paymentGateways.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deletePaymentGateway(id: string): Promise<boolean> {
+    const result = await db.delete(paymentGateways).where(eq(paymentGateways.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async setDefaultPaymentGateway(id: string): Promise<boolean> {
+    // First, unset all defaults
+    await db.update(paymentGateways).set({ isDefault: false });
+    // Then set the new default
+    const result = await db.update(paymentGateways)
+      .set({ isDefault: true, updatedAt: new Date() })
+      .where(eq(paymentGateways.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 }
 

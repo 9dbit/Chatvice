@@ -113,6 +113,9 @@ import {
   Trash2,
   GripVertical,
   Layers,
+  Wallet,
+  Pencil,
+  Bitcoin,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -6069,58 +6072,128 @@ interface PaymentStats {
   recentVolume: number;
 }
 
+interface PaymentGateway {
+  id: string;
+  name: string;
+  gatewayType: string;
+  isActive: boolean;
+  isDefault: boolean;
+  environment: string;
+  config: Record<string, unknown>;
+  clientKeyEnvVar: string | null;
+  clientSecretEnvVar: string | null;
+  supportedMethods: string[] | null;
+  feePercentage: number;
+  feeFixed: number;
+  currency: string;
+  description: string | null;
+  iconUrl: string | null;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const GATEWAY_TYPES = [
+  { value: "onepay", label: "1-Pay Indonesia", icon: CreditCard },
+  { value: "paypal", label: "PayPal", icon: Wallet },
+  { value: "stripe", label: "Stripe", icon: CreditCard },
+  { value: "crypto", label: "Cryptocurrency", icon: Bitcoin },
+  { value: "bank_transfer", label: "Bank Transfer", icon: Building2 },
+  { value: "ewallet", label: "E-Wallet", icon: Wallet },
+  { value: "credit_card", label: "Credit Card", icon: CreditCard },
+];
+
+const PAYMENT_METHODS = ["QRIS", "VA", "EWALLET", "BANK", "CARD", "CRYPTO"];
+
 function PaymentIntegrationTab({ toast }: { toast: any }) {
-  const [isTesting, setIsTesting] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingGateway, setEditingGateway] = useState<PaymentGateway | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   
-  const { data: config, isLoading: configLoading, refetch: refetchConfig } = useQuery<PaymentConfig>({
-    queryKey: ["/api/admin/payment/config"],
+  const { data: gateways, isLoading: gatewaysLoading, refetch: refetchGateways } = useQuery<PaymentGateway[]>({
+    queryKey: ["/api/admin/payment/gateways"],
   });
-  
-  const { data: stats, isLoading: statsLoading } = useQuery<PaymentStats>({
+
+  const { data: stats } = useQuery<PaymentStats>({
     queryKey: ["/api/admin/payment/stats"],
   });
 
-  const testConnectionMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/admin/payment/test");
+  const createMutation = useMutation({
+    mutationFn: async (data: Partial<PaymentGateway>) => {
+      const response = await apiRequest("POST", "/api/admin/payment/gateways", data);
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Connection test failed" }));
-        throw new Error(errorData.error || "Connection test failed");
+        const error = await response.json().catch(() => ({ error: "Failed to create gateway" }));
+        throw new Error(error.error);
       }
       return response.json();
     },
-    onSuccess: (data) => {
-      if (data.success) {
-        toast({
-          title: "Connection Successful",
-          description: data.message || "Payment gateway is operational.",
-        });
-      } else {
-        toast({
-          title: "Connection Failed",
-          description: data.error || "Could not connect to payment gateway.",
-          variant: "destructive",
-        });
-      }
-      refetchConfig();
+    onSuccess: () => {
+      toast({ title: "Success", description: "Payment gateway created successfully." });
+      refetchGateways();
+      setIsDialogOpen(false);
+      setEditingGateway(null);
     },
     onError: (error: any) => {
-      toast({
-        title: "Test Failed",
-        description: error.message || "Connection test failed.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
-  const handleTestConnection = async () => {
-    setIsTesting(true);
-    try {
-      await testConnectionMutation.mutateAsync();
-    } finally {
-      setIsTesting(false);
-    }
-  };
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<PaymentGateway> }) => {
+      const response = await apiRequest("PATCH", `/api/admin/payment/gateways/${id}`, data);
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to update gateway" }));
+        throw new Error(error.error);
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Payment gateway updated successfully." });
+      refetchGateways();
+      setIsDialogOpen(false);
+      setEditingGateway(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/admin/payment/gateways/${id}`);
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to delete gateway" }));
+        throw new Error(error.error);
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Payment gateway deleted successfully." });
+      refetchGateways();
+      setDeleteConfirmId(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const setDefaultMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("POST", `/api/admin/payment/gateways/${id}/set-default`);
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Failed to set default" }));
+        throw new Error(error.error);
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Default gateway updated." });
+      refetchGateways();
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -6130,13 +6203,23 @@ function PaymentIntegrationTab({ toast }: { toast: any }) {
     }).format(amount);
   };
 
-  if (configLoading) {
+  const getGatewayIcon = (type: string) => {
+    const found = GATEWAY_TYPES.find(g => g.value === type);
+    const Icon = found?.icon || CreditCard;
+    return <Icon className="w-5 h-5" />;
+  };
+
+  const getGatewayLabel = (type: string) => {
+    return GATEWAY_TYPES.find(g => g.value === type)?.label || type;
+  };
+
+  if (gatewaysLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-64" />
-        <div className="grid gap-6 md:grid-cols-2">
-          <Skeleton className="h-64" />
-          <Skeleton className="h-64" />
+        <div className="grid gap-4">
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
         </div>
       </div>
     );
@@ -6148,296 +6231,415 @@ function PaymentIntegrationTab({ toast }: { toast: any }) {
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Zap className="w-6 h-6 text-primary" />
-            Payment Integration
+            Payment Gateways
           </h2>
           <p className="text-muted-foreground">
-            Configure and monitor payment gateway connections
+            Manage multiple payment gateway integrations
           </p>
         </div>
-        <Button
-          onClick={handleTestConnection}
-          disabled={isTesting || !config?.isConfigured}
-          data-testid="button-test-payment"
-        >
-          {isTesting ? (
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          ) : (
-            <RefreshCw className="w-4 h-4 mr-2" />
-          )}
-          Test Connection
+        <Button onClick={() => { setEditingGateway(null); setIsDialogOpen(true); }} data-testid="button-add-gateway">
+          <Plus className="w-4 h-4 mr-2" />
+          Add Gateway
         </Button>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="w-5 h-5" />
-              Gateway Configuration
-            </CardTitle>
-            <CardDescription>
-              Payment gateway credentials and endpoints
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center justify-between p-4 rounded-lg border">
-              <div className="flex items-center gap-3">
-                {config?.isConfigured ? (
-                  <CheckCircle className="w-6 h-6 text-green-500" />
-                ) : (
-                  <XCircle className="w-6 h-6 text-destructive" />
-                )}
-                <div>
-                  <p className="font-medium">Connection Status</p>
-                  <p className="text-sm text-muted-foreground">
-                    {config?.isConfigured ? "Configured and ready" : "Not configured"}
-                  </p>
-                </div>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <CreditCard className="w-5 h-5 text-primary" />
               </div>
-              <Badge variant={config?.isConfigured ? "default" : "destructive"}>
-                {config?.isConfigured ? "Active" : "Inactive"}
-              </Badge>
-            </div>
-
-            <div className="space-y-4">
               <div>
-                <Label className="text-muted-foreground">Gateway Provider</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <CreditCard className="w-4 h-4" />
-                  <span className="font-medium">{config?.gatewayName || "1-Pay Indonesia"}</span>
-                </div>
-              </div>
-              
-              <div>
-                <Label className="text-muted-foreground">API Endpoint</Label>
-                <code className="block mt-1 p-2 rounded bg-muted text-sm font-mono">
-                  {config?.apiBaseUrl || "https://api.1-pay.id"}
-                </code>
-              </div>
-
-              <div>
-                <Label className="text-muted-foreground">Client Key</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  {config?.hasClientKey ? (
-                    <>
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                      <code className="p-2 rounded bg-muted text-sm font-mono">
-                        {config.clientKeyPreview || "****"}
-                      </code>
-                    </>
-                  ) : (
-                    <>
-                      <XCircle className="w-4 h-4 text-destructive" />
-                      <span className="text-destructive text-sm">Not configured</span>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-muted-foreground">Client Secret</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  {config?.hasClientSecret ? (
-                    <>
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                      <code className="p-2 rounded bg-muted text-sm font-mono">
-                        ****************************
-                      </code>
-                    </>
-                  ) : (
-                    <>
-                      <XCircle className="w-4 h-4 text-destructive" />
-                      <span className="text-destructive text-sm">Not configured</span>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-muted-foreground">Webhook URL</Label>
-                <code className="block mt-1 p-2 rounded bg-muted text-sm font-mono break-all">
-                  {config?.webhookUrl}
-                </code>
-              </div>
-
-              <div>
-                <Label className="text-muted-foreground">Supported Payment Methods</Label>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {config?.supportedMethods?.map((method, i) => (
-                    <Badge key={i} variant="outline">{method}</Badge>
-                  ))}
-                </div>
+                <p className="text-sm text-muted-foreground">Total Gateways</p>
+                <p className="text-2xl font-bold">{gateways?.length || 0}</p>
               </div>
             </div>
-
-            {!config?.isConfigured && (
-              <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-amber-700 dark:text-amber-400">Configuration Required</p>
-                    <p className="text-sm text-amber-600 dark:text-amber-500 mt-1">
-                      Add the following secrets in Replit Secrets panel:
-                    </p>
-                    <ul className="text-sm text-amber-600 dark:text-amber-500 mt-2 space-y-1">
-                      <li className="font-mono">ONEPAY_CLIENT_KEY</li>
-                      <li className="font-mono">ONEPAY_CLIENT_SECRET</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
-
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5" />
-              Transaction Statistics
-            </CardTitle>
-            <CardDescription>
-              Payment gateway performance metrics
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {statsLoading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-16" />
-                <Skeleton className="h-16" />
-                <Skeleton className="h-16" />
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-green-500/10">
+                <CheckCircle className="w-5 h-5 text-green-500" />
               </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-lg bg-muted/50">
-                    <p className="text-sm text-muted-foreground">Total Transactions</p>
-                    <p className="text-2xl font-bold">{stats?.totalTransactions || 0}</p>
-                  </div>
-                  <div className="p-4 rounded-lg bg-muted/50">
-                    <p className="text-sm text-muted-foreground">Last 30 Days</p>
-                    <p className="text-2xl font-bold">{stats?.recentTransactions || 0}</p>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                      <span>Successful</span>
-                    </div>
-                    <span className="font-medium text-green-600">{stats?.successfulPayments || 0}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-amber-500" />
-                      <span>Pending</span>
-                    </div>
-                    <span className="font-medium text-amber-600">{stats?.pendingPayments || 0}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <XCircle className="w-4 h-4 text-destructive" />
-                      <span>Failed/Expired</span>
-                    </div>
-                    <span className="font-medium text-destructive">{stats?.failedPayments || 0}</span>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-muted-foreground">Total Volume</span>
-                    <span className="text-lg font-bold">{formatCurrency(stats?.totalVolume || 0)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Last 30 Days</span>
-                    <span className="font-medium">{formatCurrency(stats?.recentVolume || 0)}</span>
-                  </div>
-                </div>
-
-                {stats && stats.totalTransactions > 0 && (
-                  <div className="pt-4 border-t">
-                    <p className="text-sm text-muted-foreground mb-2">Success Rate</p>
-                    <div className="flex items-center gap-3">
-                      <Progress 
-                        value={(stats.successfulPayments / stats.totalTransactions) * 100} 
-                        className="flex-1"
-                      />
-                      <span className="font-medium">
-                        {((stats.successfulPayments / stats.totalTransactions) * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
+              <div>
+                <p className="text-sm text-muted-foreground">Active</p>
+                <p className="text-2xl font-bold">{gateways?.filter(g => g.isActive).length || 0}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-500/10">
+                <BarChart3 className="w-5 h-5 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Transactions</p>
+                <p className="text-2xl font-bold">{stats?.totalTransactions || 0}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-amber-500/10">
+                <Wallet className="w-5 h-5 text-amber-500" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Volume</p>
+                <p className="text-lg font-bold">{formatCurrency(stats?.totalVolume || 0)}</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="w-5 h-5" />
-            Integration Guide
-          </CardTitle>
-          <CardDescription>
-            How to configure 1-Pay payment gateway
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-sm font-medium">1</div>
-              <div>
-                <p className="font-medium">Get API Credentials</p>
-                <p className="text-sm text-muted-foreground">
-                  Log in to your 1-Pay merchant dashboard at{" "}
-                  <a href="https://dashboard.1-pay.id" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                    dashboard.1-pay.id
-                  </a>{" "}
-                  and navigate to API Settings to get your Client Key and Client Secret.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-sm font-medium">2</div>
-              <div>
-                <p className="font-medium">Add Secrets to Replit</p>
-                <p className="text-sm text-muted-foreground">
-                  Open the Secrets tab in Replit (Tools → Secrets) and add:
-                </p>
-                <ul className="text-sm text-muted-foreground mt-1 space-y-1">
-                  <li><code className="px-1 py-0.5 bg-muted rounded">ONEPAY_CLIENT_KEY</code> - Your Client Key</li>
-                  <li><code className="px-1 py-0.5 bg-muted rounded">ONEPAY_CLIENT_SECRET</code> - Your Client Secret</li>
-                </ul>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-sm font-medium">3</div>
-              <div>
-                <p className="font-medium">Configure Webhook</p>
-                <p className="text-sm text-muted-foreground">
-                  In your 1-Pay dashboard, set the webhook URL to:
-                </p>
-                <code className="block mt-1 p-2 rounded bg-muted text-sm font-mono">
-                  {config?.webhookUrl}
-                </code>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-sm font-medium">4</div>
-              <div>
-                <p className="font-medium">Test Connection</p>
-                <p className="text-sm text-muted-foreground">
-                  Click the "Test Connection" button above to verify your configuration is working correctly.
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {gateways && gateways.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <CreditCard className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">No Payment Gateways</h3>
+            <p className="text-muted-foreground mb-4">
+              Add your first payment gateway to start accepting payments.
+            </p>
+            <Button onClick={() => setIsDialogOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Gateway
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {gateways?.map((gateway) => (
+            <Card key={gateway.id} className={gateway.isDefault ? "ring-2 ring-primary" : ""}>
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className="p-3 rounded-lg bg-muted">
+                      {getGatewayIcon(gateway.gatewayType)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-medium truncate">{gateway.name}</h3>
+                        {gateway.isDefault && (
+                          <Badge variant="default" className="shrink-0">Default</Badge>
+                        )}
+                        <Badge variant={gateway.isActive ? "outline" : "secondary"} className="shrink-0">
+                          {gateway.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                        <Badge variant="outline" className="shrink-0">
+                          {gateway.environment}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {getGatewayLabel(gateway.gatewayType)} • {gateway.currency}
+                        {gateway.feePercentage > 0 && ` • ${gateway.feePercentage / 100}% fee`}
+                      </p>
+                      {gateway.supportedMethods && gateway.supportedMethods.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {gateway.supportedMethods.map((method, i) => (
+                            <Badge key={i} variant="outline" className="text-xs">{method}</Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {!gateway.isDefault && gateway.isActive && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDefaultMutation.mutate(gateway.id)}
+                        disabled={setDefaultMutation.isPending}
+                        data-testid={`button-set-default-${gateway.id}`}
+                      >
+                        Set Default
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => { setEditingGateway(gateway); setIsDialogOpen(true); }}
+                      data-testid={`button-edit-gateway-${gateway.id}`}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    {!gateway.isDefault && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setDeleteConfirmId(gateway.id)}
+                        data-testid={`button-delete-gateway-${gateway.id}`}
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) setEditingGateway(null); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingGateway ? "Edit Gateway" : "Add Payment Gateway"}</DialogTitle>
+            <DialogDescription>
+              Configure payment gateway settings and credentials
+            </DialogDescription>
+          </DialogHeader>
+          <GatewayForm
+            gateway={editingGateway}
+            onSubmit={(data) => {
+              if (editingGateway) {
+                updateMutation.mutate({ id: editingGateway.id, data });
+              } else {
+                createMutation.mutate(data);
+              }
+            }}
+            isLoading={createMutation.isPending || updateMutation.isPending}
+            onCancel={() => { setIsDialogOpen(false); setEditingGateway(null); }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Payment Gateway?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The gateway will be permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteConfirmId && deleteMutation.mutate(deleteConfirmId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+  );
+}
+
+function GatewayForm({ 
+  gateway, 
+  onSubmit, 
+  isLoading, 
+  onCancel 
+}: { 
+  gateway: PaymentGateway | null; 
+  onSubmit: (data: Partial<PaymentGateway>) => void; 
+  isLoading: boolean;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(gateway?.name || "");
+  const [gatewayType, setGatewayType] = useState(gateway?.gatewayType || "onepay");
+  const [environment, setEnvironment] = useState(gateway?.environment || "sandbox");
+  const [isActive, setIsActive] = useState(gateway?.isActive ?? false);
+  const [clientKeyEnvVar, setClientKeyEnvVar] = useState(gateway?.clientKeyEnvVar || "");
+  const [clientSecretEnvVar, setClientSecretEnvVar] = useState(gateway?.clientSecretEnvVar || "");
+  const [supportedMethods, setSupportedMethods] = useState<string[]>(gateway?.supportedMethods || []);
+  const [feePercentage, setFeePercentage] = useState((gateway?.feePercentage || 0) / 100);
+  const [feeFixed, setFeeFixed] = useState(gateway?.feeFixed || 0);
+  const [currency, setCurrency] = useState(gateway?.currency || "IDR");
+  const [description, setDescription] = useState(gateway?.description || "");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit({
+      name,
+      gatewayType,
+      environment,
+      isActive,
+      clientKeyEnvVar: clientKeyEnvVar || null,
+      clientSecretEnvVar: clientSecretEnvVar || null,
+      supportedMethods,
+      feePercentage: Math.round(feePercentage * 100),
+      feeFixed,
+      currency,
+      description: description || null,
+    });
+  };
+
+  const toggleMethod = (method: string) => {
+    if (supportedMethods.includes(method)) {
+      setSupportedMethods(supportedMethods.filter(m => m !== method));
+    } else {
+      setSupportedMethods([...supportedMethods, method]);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="name">Gateway Name *</Label>
+          <Input
+            id="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g., PayPal Production"
+            required
+            data-testid="input-gateway-name"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="type">Gateway Type *</Label>
+          <Select value={gatewayType} onValueChange={setGatewayType}>
+            <SelectTrigger data-testid="select-gateway-type">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {GATEWAY_TYPES.map((type) => (
+                <SelectItem key={type.value} value={type.value}>
+                  {type.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="environment">Environment</Label>
+          <Select value={environment} onValueChange={setEnvironment}>
+            <SelectTrigger data-testid="select-environment">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="sandbox">Sandbox</SelectItem>
+              <SelectItem value="production">Production</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="currency">Currency</Label>
+          <Select value={currency} onValueChange={setCurrency}>
+            <SelectTrigger data-testid="select-currency">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="IDR">IDR - Indonesian Rupiah</SelectItem>
+              <SelectItem value="USD">USD - US Dollar</SelectItem>
+              <SelectItem value="EUR">EUR - Euro</SelectItem>
+              <SelectItem value="SGD">SGD - Singapore Dollar</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="clientKey">Client Key Environment Variable</Label>
+          <Input
+            id="clientKey"
+            value={clientKeyEnvVar}
+            onChange={(e) => setClientKeyEnvVar(e.target.value)}
+            placeholder="e.g., PAYPAL_CLIENT_ID"
+            data-testid="input-client-key-env"
+          />
+          <p className="text-xs text-muted-foreground">Name of the secret in Replit Secrets</p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="clientSecret">Client Secret Environment Variable</Label>
+          <Input
+            id="clientSecret"
+            value={clientSecretEnvVar}
+            onChange={(e) => setClientSecretEnvVar(e.target.value)}
+            placeholder="e.g., PAYPAL_CLIENT_SECRET"
+            data-testid="input-client-secret-env"
+          />
+          <p className="text-xs text-muted-foreground">Name of the secret in Replit Secrets</p>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Supported Payment Methods</Label>
+        <div className="flex flex-wrap gap-2">
+          {PAYMENT_METHODS.map((method) => (
+            <Badge
+              key={method}
+              variant={supportedMethods.includes(method) ? "default" : "outline"}
+              className="cursor-pointer"
+              onClick={() => toggleMethod(method)}
+            >
+              {method}
+            </Badge>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="feePercentage">Fee Percentage (%)</Label>
+          <Input
+            id="feePercentage"
+            type="number"
+            step="0.01"
+            min="0"
+            max="100"
+            value={feePercentage}
+            onChange={(e) => setFeePercentage(parseFloat(e.target.value) || 0)}
+            data-testid="input-fee-percentage"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="feeFixed">Fixed Fee ({currency})</Label>
+          <Input
+            id="feeFixed"
+            type="number"
+            min="0"
+            value={feeFixed}
+            onChange={(e) => setFeeFixed(parseInt(e.target.value) || 0)}
+            data-testid="input-fee-fixed"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="description">Description</Label>
+        <Textarea
+          id="description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Optional description for this gateway"
+          rows={2}
+          data-testid="input-gateway-description"
+        />
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Switch
+          id="isActive"
+          checked={isActive}
+          onCheckedChange={setIsActive}
+          data-testid="switch-gateway-active"
+        />
+        <Label htmlFor="isActive">Gateway Active</Label>
+      </div>
+
+      <div className="flex justify-end gap-3 pt-4 border-t">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isLoading || !name} data-testid="button-save-gateway">
+          {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+          {gateway ? "Update Gateway" : "Create Gateway"}
+        </Button>
+      </div>
+    </form>
   );
 }
 
