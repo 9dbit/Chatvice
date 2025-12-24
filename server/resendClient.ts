@@ -167,3 +167,223 @@ export async function sendPasswordResetEmail(toEmail: string, resetToken: string
     return false;
   }
 }
+
+interface PaymentReceiptData {
+  merchantEmail: string;
+  merchantName: string;
+  invoiceNumber: string;
+  planName: string;
+  subscriptionMonths: number;
+  amount: number;
+  paymentMethod: string;
+  paidAt: Date;
+  expiresAt?: Date;
+}
+
+export async function sendPaymentReceiptEmail(data: PaymentReceiptData): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getUncachableResendClient();
+    
+    const formatCurrency = (amount: number) => {
+      return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+    };
+    
+    const formatDate = (date: Date) => {
+      return new Intl.DateTimeFormat('id-ID', { 
+        year: 'numeric', month: 'long', day: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      }).format(new Date(date));
+    };
+    
+    console.log('Sending payment receipt email:', { to: data.merchantEmail, invoice: data.invoiceNumber });
+    
+    const { error } = await client.emails.send({
+      from: fromEmail,
+      to: data.merchantEmail,
+      subject: `Payment Receipt - ${data.invoiceNumber} | Chatvice`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f5;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+            <div style="background-color: #18181b; border-radius: 12px; padding: 40px;">
+              <div style="text-align: center; margin-bottom: 32px;">
+                <h1 style="color: #ffffff; margin: 0 0 8px 0; font-size: 24px;">Payment Successful</h1>
+                <p style="color: #22c55e; margin: 0; font-size: 16px; font-weight: 600;">Thank you for your payment!</p>
+              </div>
+              
+              <div style="background-color: #27272a; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Invoice Number</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right; font-weight: 600;">${data.invoiceNumber}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Customer</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${data.merchantName}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Plan</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${data.planName}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Duration</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${data.subscriptionMonths} month(s)</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Payment Method</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${data.paymentMethod}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Payment Date</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${formatDate(data.paidAt)}</td>
+                  </tr>
+                  ${data.expiresAt ? `
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Subscription Expires</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${formatDate(data.expiresAt)}</td>
+                  </tr>
+                  ` : ''}
+                </table>
+              </div>
+              
+              <div style="background-color: #6b5dfc; border-radius: 8px; padding: 20px; text-align: center;">
+                <p style="color: #ffffff; margin: 0 0 4px 0; font-size: 14px;">Total Amount Paid</p>
+                <p style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700;">${formatCurrency(data.amount)}</p>
+              </div>
+              
+              <p style="color: #71717a; margin: 24px 0 0 0; font-size: 14px; text-align: center; line-height: 1.5;">
+                This is an official receipt for your subscription payment.<br>
+                If you have any questions, please contact our support team.
+              </p>
+            </div>
+            <p style="text-align: center; color: #71717a; margin: 24px 0 0 0; font-size: 12px;">
+              &copy; ${new Date().getFullYear()} Chatvice. All rights reserved.
+            </p>
+          </div>
+        </body>
+        </html>
+      `
+    });
+
+    if (error) {
+      console.error('Resend receipt email error:', error);
+      return false;
+    }
+    console.log('Payment receipt email sent successfully to:', data.merchantEmail);
+    return true;
+  } catch (error) {
+    console.error('Failed to send payment receipt email:', error);
+    return false;
+  }
+}
+
+interface AdminPaymentNotificationData {
+  adminEmail: string;
+  merchantName: string;
+  merchantEmail: string;
+  invoiceNumber: string;
+  planName: string;
+  amount: number;
+  paymentMethod: string;
+  paidAt: Date;
+}
+
+export async function sendAdminPaymentNotificationEmail(data: AdminPaymentNotificationData): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getUncachableResendClient();
+    
+    const formatCurrency = (amount: number) => {
+      return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+    };
+    
+    const formatDate = (date: Date) => {
+      return new Intl.DateTimeFormat('id-ID', { 
+        year: 'numeric', month: 'long', day: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      }).format(new Date(date));
+    };
+    
+    console.log('Sending admin payment notification email:', { to: data.adminEmail, invoice: data.invoiceNumber });
+    
+    const { error } = await client.emails.send({
+      from: fromEmail,
+      to: data.adminEmail,
+      subject: `New Payment Received - ${formatCurrency(data.amount)} | ${data.merchantName}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f5;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+            <div style="background-color: #18181b; border-radius: 12px; padding: 40px;">
+              <div style="text-align: center; margin-bottom: 32px;">
+                <h1 style="color: #22c55e; margin: 0 0 8px 0; font-size: 24px;">New Payment Received!</h1>
+                <p style="color: #a1a1aa; margin: 0; font-size: 16px;">A new subscription payment has been processed</p>
+              </div>
+              
+              <div style="background-color: #27272a; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Invoice Number</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right; font-weight: 600;">${data.invoiceNumber}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Customer</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${data.merchantName}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Email</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${data.merchantEmail}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Plan</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${data.planName}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Payment Method</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${data.paymentMethod}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Payment Date</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${formatDate(data.paidAt)}</td>
+                  </tr>
+                </table>
+              </div>
+              
+              <div style="background-color: #22c55e; border-radius: 8px; padding: 20px; text-align: center;">
+                <p style="color: #ffffff; margin: 0 0 4px 0; font-size: 14px;">Amount Received</p>
+                <p style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700;">${formatCurrency(data.amount)}</p>
+              </div>
+              
+              <p style="color: #71717a; margin: 24px 0 0 0; font-size: 14px; text-align: center;">
+                Log in to the admin panel for more details.
+              </p>
+            </div>
+            <p style="text-align: center; color: #71717a; margin: 24px 0 0 0; font-size: 12px;">
+              &copy; ${new Date().getFullYear()} Chatvice Admin Notification
+            </p>
+          </div>
+        </body>
+        </html>
+      `
+    });
+
+    if (error) {
+      console.error('Resend admin notification email error:', error);
+      return false;
+    }
+    console.log('Admin payment notification email sent successfully to:', data.adminEmail);
+    return true;
+  } catch (error) {
+    console.error('Failed to send admin payment notification email:', error);
+    return false;
+  }
+}
