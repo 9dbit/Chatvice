@@ -6094,14 +6094,7 @@ interface PaymentGateway {
   updatedAt: string;
 }
 
-interface GatewayStats {
-  gatewayId: string;
-  gatewayName: string;
-  daily: { count: number; volume: number };
-  weekly: { count: number; volume: number };
-  monthly: { count: number; volume: number };
-  yearly: { count: number; volume: number };
-}
+import type { GatewayStats } from "@shared/schema";
 
 const PAYMENT_METHODS = ["QRIS", "VA", "EWALLET", "BANK", "CARD", "CRYPTO"];
 
@@ -6672,13 +6665,13 @@ function GatewayStatisticsSection({ gateways, toast }: { gateways: PaymentGatewa
 
     const rows = gatewayStats.map(stat => ({
       gatewayName: stat.gatewayName,
-      dailyCount: stat.daily.count,
+      dailyCount: stat.daily.transactions,
       dailyVolume: stat.daily.volume,
-      weeklyCount: stat.weekly.count,
+      weeklyCount: stat.weekly.transactions,
       weeklyVolume: stat.weekly.volume,
-      monthlyCount: stat.monthly.count,
+      monthlyCount: stat.monthly.transactions,
       monthlyVolume: stat.monthly.volume,
-      yearlyCount: stat.yearly.count,
+      yearlyCount: stat.yearly.transactions,
       yearlyVolume: stat.yearly.volume,
     }));
 
@@ -6750,7 +6743,7 @@ function GatewayStatisticsSection({ gateways, toast }: { gateways: PaymentGatewa
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {gateways.map((gateway) => {
           const stat = gatewayStats?.find(s => s.gatewayId === gateway.id);
-          const periodData = stat ? getPeriodData(stat) : { count: 0, volume: 0 };
+          const periodData = stat ? getPeriodData(stat) : { transactions: 0, volume: 0 };
           
           return (
             <Card key={gateway.id}>
@@ -6780,7 +6773,7 @@ function GatewayStatisticsSection({ gateways, toast }: { gateways: PaymentGatewa
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Transactions</span>
                     <span className="text-lg font-bold" data-testid={`text-txn-count-${gateway.id}`}>
-                      {periodData.count}
+                      {periodData.transactions}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
@@ -6793,19 +6786,19 @@ function GatewayStatisticsSection({ gateways, toast }: { gateways: PaymentGatewa
                   <div className="grid grid-cols-4 gap-2 text-center text-xs">
                     <div className={selectedPeriod === "daily" ? "font-bold text-primary" : "text-muted-foreground"}>
                       <div>Daily</div>
-                      <div>{stat?.daily.count || 0}</div>
+                      <div>{stat?.daily.transactions || 0}</div>
                     </div>
                     <div className={selectedPeriod === "weekly" ? "font-bold text-primary" : "text-muted-foreground"}>
                       <div>Weekly</div>
-                      <div>{stat?.weekly.count || 0}</div>
+                      <div>{stat?.weekly.transactions || 0}</div>
                     </div>
                     <div className={selectedPeriod === "monthly" ? "font-bold text-primary" : "text-muted-foreground"}>
                       <div>Monthly</div>
-                      <div>{stat?.monthly.count || 0}</div>
+                      <div>{stat?.monthly.transactions || 0}</div>
                     </div>
                     <div className={selectedPeriod === "yearly" ? "font-bold text-primary" : "text-muted-foreground"}>
                       <div>Yearly</div>
-                      <div>{stat?.yearly.count || 0}</div>
+                      <div>{stat?.yearly.transactions || 0}</div>
                     </div>
                   </div>
                 </div>

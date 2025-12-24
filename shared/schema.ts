@@ -1083,3 +1083,18 @@ export const paymentGateways = pgTable("payment_gateways", {
 export const insertPaymentGatewaySchema = createInsertSchema(paymentGateways).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertPaymentGateway = z.infer<typeof insertPaymentGatewaySchema>;
 export type PaymentGateway = typeof paymentGateways.$inferSelect;
+
+// Gateway Statistics Types (for demo/reporting purposes)
+export interface GatewayPeriodStats {
+  transactions: number;
+  volume: number;
+}
+
+export interface GatewayStats {
+  gatewayId: string;
+  gatewayName: string;
+  daily: GatewayPeriodStats;
+  weekly: GatewayPeriodStats;
+  monthly: GatewayPeriodStats;
+  yearly: GatewayPeriodStats;
+}

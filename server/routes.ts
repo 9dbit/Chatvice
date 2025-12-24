@@ -21,7 +21,7 @@ import { processKnowledgeBase, searchKnowledge } from "./embeddings";
 import { extractFAQContent } from "./crawler";
 import { createQRISPayment, checkPaymentStatus, isOnePayConfigured, convertToIDR, formatIDR } from "./onepayClient";
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient } from "./resendClient";
-import { subscriptionPlans, type SubscriptionPlanId, type Merchant } from "@shared/schema";
+import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats } from "@shared/schema";
 import crypto from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
@@ -4117,36 +4117,40 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   });
   
   // Get payment gateway statistics per gateway (daily, weekly, monthly, yearly)
+  // Returns seeded demo data - in production, would query actual transaction aggregates
   app.get("/api/admin/payment/gateway-stats", requireAdmin, async (req, res) => {
     try {
       const gateways = await storage.getPaymentGateways();
       
-      // Generate mock statistics for each gateway
-      // In production, this would query actual transaction data from database
-      const stats = gateways.map(gateway => {
-        // Generate realistic random stats based on gateway status
+      // Generate deterministic seeded statistics for each gateway (demo data)
+      // Uses gateway ID hash for consistent values per gateway
+      const stats: GatewayStats[] = gateways.map(gateway => {
+        // Create a simple hash from gateway ID for deterministic values
+        const hash = gateway.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
         const multiplier = gateway.isActive ? 1 : 0.1;
-        const baseDaily = Math.floor(Math.random() * 50 * multiplier);
-        const baseVolume = Math.floor(Math.random() * 5000000 * multiplier);
+        
+        // Seeded base values (deterministic per gateway)
+        const baseDaily = Math.floor((hash % 50) * multiplier) + 5;
+        const baseVolume = Math.floor((hash % 50) * 100000 * multiplier) + 500000;
         
         return {
           gatewayId: gateway.id,
           gatewayName: gateway.name,
           daily: {
-            count: baseDaily,
+            transactions: baseDaily,
             volume: baseVolume,
           },
           weekly: {
-            count: baseDaily * 7 + Math.floor(Math.random() * 20),
-            volume: baseVolume * 7 + Math.floor(Math.random() * 10000000),
+            transactions: baseDaily * 7,
+            volume: baseVolume * 7,
           },
           monthly: {
-            count: baseDaily * 30 + Math.floor(Math.random() * 100),
-            volume: baseVolume * 30 + Math.floor(Math.random() * 50000000),
+            transactions: baseDaily * 30,
+            volume: baseVolume * 30,
           },
           yearly: {
-            count: baseDaily * 365 + Math.floor(Math.random() * 500),
-            volume: baseVolume * 365 + Math.floor(Math.random() * 500000000),
+            transactions: baseDaily * 365,
+            volume: baseVolume * 365,
           },
         };
       });
