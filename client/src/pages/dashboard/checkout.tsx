@@ -549,11 +549,11 @@ export default function CheckoutPage() {
         <Card>
           <CardContent className="py-10 text-center space-y-3">
             <AlertTriangle className="w-10 h-10 mx-auto text-amber-500" />
-            <h2 className="text-base font-semibold">Tidak Ada Transaksi</h2>
-            <p className="text-[11px] text-muted-foreground">Silakan pilih paket dari halaman billing untuk melakukan upgrade.</p>
-            <Button size="sm" onClick={() => navigate('/dashboard/billing')} data-testid="button-back-to-billing">
+            <h2 className="text-base font-semibold">No Pending Transaction</h2>
+            <p className="text-[11px] text-muted-foreground">Please select a plan from the Plans page to upgrade or downgrade.</p>
+            <Button size="sm" onClick={() => navigate('/dashboard/plans')} data-testid="button-back-to-plans">
               <ArrowLeft className="w-3 h-3 mr-1" />
-              Kembali ke Billing
+              Back to Plans
             </Button>
           </CardContent>
         </Card>
