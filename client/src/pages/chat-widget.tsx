@@ -726,7 +726,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             <div className="absolute -left-12 top-1/2 -translate-y-1/2 flex flex-col gap-1 animate-in fade-in slide-in-from-right-2 duration-150">
               <button
                 onClick={toggleWidgetHidden}
-                className="p-2 bg-muted/90 hover:bg-muted rounded-full shadow-md transition-colors"
+                className="w-8 h-8 bg-muted/90 hover:bg-muted rounded-full shadow-md transition-colors flex items-center justify-center"
                 title="Hide widget"
                 data-testid="button-hide-widget"
               >
@@ -735,7 +735,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               <button
                 onMouseDown={handleDragStart}
                 onTouchStart={handleDragStart}
-                className="p-2 bg-muted/90 hover:bg-muted rounded-full shadow-md cursor-grab active:cursor-grabbing transition-colors"
+                className="w-8 h-8 bg-muted/90 hover:bg-muted rounded-full shadow-md cursor-grab active:cursor-grabbing transition-colors flex items-center justify-center"
                 title="Drag to reposition"
                 data-testid="button-drag-widget"
               >
