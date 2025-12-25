@@ -553,7 +553,7 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                 <img 
                   src={promoImageUrl} 
                   alt="Promotion" 
-                  className="w-56 h-auto object-cover rounded-t-xl"
+                  className="w-52 h-auto object-cover rounded-t-xl"
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';
                   }}
@@ -561,10 +561,10 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                 />
               )}
               {/* Welcome bubble - compact style */}
-              <div className={`bg-card shadow-xl p-3 w-56 border border-border relative ${promoImageEnabled && promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}>
+              <div className={`bg-card shadow-xl p-3 w-52 border border-border relative ${promoImageEnabled && promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}>
                 <button
                   onClick={dismissWelcomeBubble}
-                  className="absolute top-1.5 right-1.5 p-0.5 rounded-full hover:bg-muted transition-colors"
+                  className="absolute top-2 right-3 p-0.5 rounded-full hover:bg-muted transition-colors"
                   data-testid="button-dismiss-welcome"
                 >
                   <X className="w-3 h-3 text-muted-foreground" />
@@ -593,7 +593,7 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
           {showWelcomeBubble && bubbleCollapsed && bubbleEnabled && (
             <button
               onClick={toggleBubbleCollapse}
-              className="absolute bottom-full right-0 mb-2 w-56 py-2 bg-card/90 backdrop-blur-sm rounded-xl border border-border shadow-lg flex items-center justify-center gap-2 transition-all duration-300 md:hidden"
+              className="absolute bottom-full right-0 mb-2 w-52 py-2 bg-card/90 backdrop-blur-sm rounded-xl border border-border shadow-lg flex items-center justify-center gap-2 transition-all duration-300 md:hidden"
               data-testid="button-expand-bubble"
             >
               <ChevronUp className="w-4 h-4 text-muted-foreground" />
