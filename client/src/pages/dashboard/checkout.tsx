@@ -583,7 +583,7 @@ export default function CheckoutPage() {
   const displayBillingInterval = isResumeMode && qrisData ? qrisData.billingInterval : (isAnnual ? 'annual' : 'monthly');
 
   return (
-    <div className="max-w-lg mx-auto py-6 px-4 md:py-8 space-y-4">
+    <div className="max-w-4xl mx-auto py-6 px-4 md:py-8 space-y-4">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigate('/dashboard/billing')} data-testid="button-back">
           <ArrowLeft className="w-4 h-4" />
@@ -598,162 +598,217 @@ export default function CheckoutPage() {
 
       {/* In resume mode, skip checkout form and go straight to payment display */}
       {!isResumeMode && (paymentStep === 'select_method' || paymentStep === 'bank_form') && (
-        <div className="space-y-3">
-          <Card className="overflow-hidden">
-            <div className="p-3 flex items-start gap-2.5">
-              <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-                <Crown className="w-4 h-4 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h2 className="text-xs font-semibold">{selectedPlan.name}</h2>
-                <p className="text-[10px] text-muted-foreground">Chatvice Subscription</p>
-              </div>
-            </div>
-            
-            <div className="mx-3 mb-3 rounded-md bg-primary/5 border border-primary/10 overflow-hidden">
-              <div className="p-2.5 flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] text-muted-foreground">Starting today</p>
-                  <p className="text-xs font-semibold">Rp {finalPrice.toLocaleString('id-ID')}/{isAnnual ? 'year' : 'month'}</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Left Column - Order Summary */}
+          <div className="space-y-3">
+            <Card className="overflow-hidden">
+              <div className="p-4 flex items-start gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <Crown className="w-5 h-5 text-primary" />
                 </div>
-                <Badge variant="secondary" className="text-[9px] h-4 px-1.5">
-                  {isAnnual ? 'Annual' : 'Monthly'}
-                </Badge>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-sm font-semibold">{selectedPlan.name}</h2>
+                  <p className="text-xs text-muted-foreground">Chatvice Subscription</p>
+                </div>
               </div>
               
-              {(discountPercent > 0 || creditAmountIDR > 0) && (
-                <div className="px-2.5 pb-2.5 space-y-0.5">
-                  <div className="flex justify-between text-[10px]">
-                    <span className="text-muted-foreground">Normal price</span>
-                    <span>Rp {priceIDR.toLocaleString('id-ID')}</span>
+              <div className="mx-4 mb-4 rounded-lg bg-primary/5 border border-primary/10 overflow-hidden">
+                <div className="p-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Starting today</p>
+                    <p className="text-sm font-bold">Rp {finalPrice.toLocaleString('id-ID')}/{isAnnual ? 'year' : 'month'}</p>
                   </div>
-                  {discountPercent > 0 && (
-                    <div className="flex justify-between text-[10px] text-green-600">
-                      <span>Promo discount ({discountPercent}%)</span>
-                      <span>- Rp {discountAmount.toLocaleString('id-ID')}</span>
-                    </div>
-                  )}
-                  {creditAmountIDR > 0 && (
-                    <div className="flex justify-between text-[10px] text-blue-600">
-                      <span>Credit from previous plan</span>
-                      <span>- Rp {creditAmountIDR.toLocaleString('id-ID')}</span>
-                    </div>
-                  )}
+                  <Badge variant="secondary" className="text-[10px] h-5 px-2">
+                    {isAnnual ? 'Annual' : 'Monthly'}
+                  </Badge>
                 </div>
-              )}
-            </div>
-          </Card>
-
-          <Card>
-            <div className="p-3">
-              <h3 className="text-[11px] font-medium mb-2">Payment Method</h3>
-              <div className="space-y-1.5">
-                {PAYMENT_METHODS.filter(m => m.available).map((method) => (
-                  <div
-                    key={method.id}
-                    className={`p-2 rounded-md border cursor-pointer transition-all ${
-                      selectedPaymentMethod === method.id
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                    onClick={() => setSelectedPaymentMethod(method.id)}
-                    data-testid={`payment-method-${method.id}`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <method.icon className={`w-4 h-4 ${selectedPaymentMethod === method.id ? 'text-primary' : 'text-muted-foreground'}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-medium">{method.name}</p>
-                        <p className="text-[9px] text-muted-foreground">{method.description}</p>
-                      </div>
-                      <span className="text-[9px] text-muted-foreground">{method.provider}</span>
-                    </div>
-                  </div>
-                ))}
                 
-                <div className="pt-2 mt-2 border-t border-border/50">
-                  <p className="text-[9px] text-muted-foreground mb-1.5">Coming Soon</p>
-                  {PAYMENT_METHODS.filter(m => !m.available).map((method) => (
+                {(discountPercent > 0 || creditAmountIDR > 0) && (
+                  <div className="px-3 pb-3 space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Normal price</span>
+                      <span>Rp {priceIDR.toLocaleString('id-ID')}</span>
+                    </div>
+                    {discountPercent > 0 && (
+                      <div className="flex justify-between text-xs text-green-600">
+                        <span>Promo discount ({discountPercent}%)</span>
+                        <span>- Rp {discountAmount.toLocaleString('id-ID')}</span>
+                      </div>
+                    )}
+                    {creditAmountIDR > 0 && (
+                      <div className="flex justify-between text-xs text-blue-600">
+                        <span>Credit from previous plan</span>
+                        <span>- Rp {creditAmountIDR.toLocaleString('id-ID')}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            {/* Terms and Submit - Desktop */}
+            <div className="hidden md:block space-y-3">
+              <div className="text-[10px] text-muted-foreground px-1 space-y-1">
+                <p>
+                  By subscribing, you agree that your subscription automatically renews until canceled. 
+                  We'll notify you if price changes, as described in the{' '}
+                  <a href="/terms" className="text-primary hover:underline">Terms of Service</a>.{' '}
+                  <a href="/terms#cancel" className="text-primary hover:underline">Learn how to cancel</a>.
+                </p>
+                <p>
+                  Currency fluctuations and bank fees may affect the final amount charged to you.
+                </p>
+                <div className="flex items-center gap-1 text-muted-foreground/80 pt-0.5">
+                  <Info className="w-2.5 h-2.5" />
+                  <span>Rate: Rp {exchangeRate.toLocaleString('id-ID')}/USD • {exchangeSource}</span>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2 px-1 py-1.5">
+                <Checkbox 
+                  id="terms-desktop" 
+                  checked={termsAccepted}
+                  onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+                  className="mt-0.5"
+                  data-testid="checkbox-terms"
+                />
+                <label htmlFor="terms-desktop" className="text-[10px] text-muted-foreground cursor-pointer">
+                  I agree to the Terms of Service and understand that payment will be processed upon confirmation
+                </label>
+              </div>
+
+              <Button 
+                className="w-full h-11 min-h-[44px]"
+                onClick={handleProceedToPayment}
+                disabled={!termsAccepted || checkoutMutation.isPending || (needsBankSelection && !selectedBank)}
+                data-testid="button-proceed-payment"
+              >
+                {checkoutMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <ArrowRight className="w-4 h-4 mr-2" />
+                )}
+                <span className="text-sm">Subscribe • Rp {finalPrice.toLocaleString('id-ID')}</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* Right Column - Payment Methods */}
+          <div className="space-y-3">
+            <Card>
+              <div className="p-4">
+                <h3 className="text-sm font-medium mb-3">Payment Method</h3>
+                <div className="space-y-2">
+                  {PAYMENT_METHODS.filter(m => m.available).map((method) => (
                     <div
                       key={method.id}
-                      className="p-2 rounded-md border border-border/30 bg-muted/30 opacity-50 cursor-not-allowed"
+                      className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                        selectedPaymentMethod === method.id
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                      onClick={() => setSelectedPaymentMethod(method.id)}
+                      data-testid={`payment-method-${method.id}`}
                     >
-                      <div className="flex items-center gap-2">
-                        <method.icon className="w-4 h-4 text-muted-foreground/50" />
+                      <div className="flex items-center gap-3">
+                        <method.icon className={`w-5 h-5 ${selectedPaymentMethod === method.id ? 'text-primary' : 'text-muted-foreground'}`} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-medium text-muted-foreground/70">{method.name}</p>
-                          <p className="text-[9px] text-muted-foreground/50">{method.description}</p>
+                          <p className="text-sm font-medium">{method.name}</p>
+                          <p className="text-[10px] text-muted-foreground">{method.description}</p>
                         </div>
-                        <Badge variant="secondary" className="text-[8px] h-4 px-1.5 opacity-60">Soon</Badge>
+                        <span className="text-[10px] text-muted-foreground">{method.provider}</span>
                       </div>
                     </div>
                   ))}
+                  
+                  <div className="pt-2 mt-2 border-t border-border/50">
+                    <p className="text-[10px] text-muted-foreground mb-2">Coming Soon</p>
+                    {PAYMENT_METHODS.filter(m => !m.available).map((method) => (
+                      <div
+                        key={method.id}
+                        className="p-2.5 rounded-lg border border-border/30 bg-muted/30 opacity-50 cursor-not-allowed mb-1.5"
+                      >
+                        <div className="flex items-center gap-2">
+                          <method.icon className="w-4 h-4 text-muted-foreground/50" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-muted-foreground/70">{method.name}</p>
+                            <p className="text-[9px] text-muted-foreground/50">{method.description}</p>
+                          </div>
+                          <Badge variant="secondary" className="text-[8px] h-4 px-1.5 opacity-60">Soon</Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          </Card>
-
-          {needsBankSelection && (
-            <Card>
-              <div className="p-3 space-y-2.5">
-                <h3 className="text-[11px] font-medium">Select Bank</h3>
-                <Select value={selectedBank} onValueChange={setSelectedBank}>
-                  <SelectTrigger className="h-8 text-xs" data-testid="select-bank">
-                    <SelectValue placeholder="Select bank for Virtual Account" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BANKS.map((bank) => (
-                      <SelectItem key={bank.code} value={bank.code} className="text-xs">
-                        {bank.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
             </Card>
-          )}
 
-          <div className="text-[9px] text-muted-foreground px-1 space-y-1">
-            <p>
-              By subscribing, you agree that your subscription automatically renews until canceled. 
-              We'll notify you if price changes, as described in the{' '}
-              <a href="/terms" className="text-primary hover:underline">Terms of Service</a>.{' '}
-              <a href="/terms#cancel" className="text-primary hover:underline">Learn how to cancel</a>.
-            </p>
-            <p>
-              Currency fluctuations and bank fees may affect the final amount charged to you.
-            </p>
-            <div className="flex items-center gap-1 text-muted-foreground/80 pt-0.5">
-              <Info className="w-2.5 h-2.5" />
-              <span>Rate: Rp {exchangeRate.toLocaleString('id-ID')}/USD • {exchangeSource}</span>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-2 px-1 py-1.5">
-            <Checkbox 
-              id="terms" 
-              checked={termsAccepted}
-              onCheckedChange={(checked) => setTermsAccepted(checked === true)}
-              className="mt-0.5"
-              data-testid="checkbox-terms"
-            />
-            <label htmlFor="terms" className="text-[10px] text-muted-foreground cursor-pointer">
-              I agree to the Terms of Service and understand that payment will be processed upon confirmation
-            </label>
-          </div>
-
-          <Button 
-            className="w-full h-10"
-            onClick={handleProceedToPayment}
-            disabled={!termsAccepted || checkoutMutation.isPending || (needsBankSelection && !selectedBank)}
-            data-testid="button-proceed-payment"
-          >
-            {checkoutMutation.isPending ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <ArrowRight className="w-4 h-4 mr-2" />
+            {needsBankSelection && (
+              <Card>
+                <div className="p-4 space-y-3">
+                  <h3 className="text-sm font-medium">Select Bank</h3>
+                  <Select value={selectedBank} onValueChange={setSelectedBank}>
+                    <SelectTrigger className="h-10 text-sm" data-testid="select-bank">
+                      <SelectValue placeholder="Select bank for Virtual Account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {BANKS.map((bank) => (
+                        <SelectItem key={bank.code} value={bank.code} className="text-sm">
+                          {bank.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </Card>
             )}
-            <span className="text-xs">Subscribe • Rp {finalPrice.toLocaleString('id-ID')}</span>
-          </Button>
+          </div>
+
+          {/* Terms and Submit - Mobile */}
+          <div className="md:hidden space-y-3 col-span-1">
+            <div className="text-[10px] text-muted-foreground px-1 space-y-1">
+              <p>
+                By subscribing, you agree that your subscription automatically renews until canceled. 
+                We'll notify you if price changes, as described in the{' '}
+                <a href="/terms" className="text-primary hover:underline">Terms of Service</a>.{' '}
+                <a href="/terms#cancel" className="text-primary hover:underline">Learn how to cancel</a>.
+              </p>
+              <p>
+                Currency fluctuations and bank fees may affect the final amount charged to you.
+              </p>
+              <div className="flex items-center gap-1 text-muted-foreground/80 pt-0.5">
+                <Info className="w-2.5 h-2.5" />
+                <span>Rate: Rp {exchangeRate.toLocaleString('id-ID')}/USD • {exchangeSource}</span>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2 px-1 py-1.5">
+              <Checkbox 
+                id="terms-mobile" 
+                checked={termsAccepted}
+                onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+                className="mt-0.5"
+                data-testid="checkbox-terms-mobile"
+              />
+              <label htmlFor="terms-mobile" className="text-[10px] text-muted-foreground cursor-pointer">
+                I agree to the Terms of Service and understand that payment will be processed upon confirmation
+              </label>
+            </div>
+
+            <Button 
+              className="w-full h-11 min-h-[44px]"
+              onClick={handleProceedToPayment}
+              disabled={!termsAccepted || checkoutMutation.isPending || (needsBankSelection && !selectedBank)}
+              data-testid="button-proceed-payment-mobile"
+            >
+              {checkoutMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <ArrowRight className="w-4 h-4 mr-2" />
+              )}
+              <span className="text-sm">Subscribe • Rp {finalPrice.toLocaleString('id-ID')}</span>
+            </Button>
+          </div>
         </div>
       )}
 
@@ -771,167 +826,135 @@ export default function CheckoutPage() {
 
       {paymentStep === 'qris' && qrisData && (
         <div className="space-y-4">
-          {/* Receipt Ticket Container */}
-          <div className="relative" id="qris-receipt">
-            {/* Top zigzag edge with shadow */}
-            <div className="relative">
-              <svg className="w-full h-4" viewBox="0 0 400 16" preserveAspectRatio="none">
-                <defs>
-                  <filter id="zigzag-shadow-top" x="-20%" y="-20%" width="140%" height="160%">
-                    <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.08"/>
-                  </filter>
-                </defs>
-                <path 
-                  d="M0,16 L8,4 L16,16 L24,4 L32,16 L40,4 L48,16 L56,4 L64,16 L72,4 L80,16 L88,4 L96,16 L104,4 L112,16 L120,4 L128,16 L136,4 L144,16 L152,4 L160,16 L168,4 L176,16 L184,4 L192,16 L200,4 L208,16 L216,4 L224,16 L232,4 L240,16 L248,4 L256,16 L264,4 L272,16 L280,4 L288,16 L296,4 L304,16 L312,4 L320,16 L328,4 L336,16 L344,4 L352,16 L360,4 L368,16 L376,4 L384,16 L392,4 L400,16" 
-                  className="fill-card"
-                  filter="url(#zigzag-shadow-top)"
-                />
-              </svg>
-            </div>
-            
-            {/* Main Receipt Body */}
-            <div className="bg-card border-x border-border shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3)]">
-              <div className="px-5 py-5 space-y-4">
-                {/* Header */}
-                <div className="text-center space-y-1">
-                  <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/20">
-                    <QrCode className="w-6 h-6 text-primary" />
-                  </div>
-                  <h3 className="text-base font-bold tracking-tight">PEMBAYARAN QRIS</h3>
-                  <p className="text-[10px] text-muted-foreground">Scan dengan e-wallet atau mobile banking</p>
-                </div>
-                
-                {/* Dotted Divider with circles */}
-                <div className="relative flex items-center py-2">
-                  <div className="absolute -left-5 w-4 h-4 bg-background rounded-full border-r border-border"></div>
-                  <div className="flex-1 border-t-2 border-dashed border-muted-foreground/20"></div>
-                  <div className="absolute -right-5 w-4 h-4 bg-background rounded-full border-l border-border"></div>
-                </div>
-
-                {/* Order Details */}
-                <div className="space-y-2 px-1">
-                  <div className="flex justify-between text-[11px]">
-                    <span className="text-muted-foreground">Produk</span>
-                    <span className="font-semibold">{qrisData.planName} Plan</span>
-                  </div>
-                  <div className="flex justify-between text-[11px]">
-                    <span className="text-muted-foreground">Periode</span>
-                    <span className="font-medium">{qrisData.billingInterval === 'annual' ? 'Tahunan' : 'Bulanan'}</span>
-                  </div>
-                  <div className="flex justify-between text-[11px]">
-                    <span className="text-muted-foreground">Order ID</span>
-                    <span className="font-mono text-[10px] text-muted-foreground">{qrisData.orderId}</span>
-                  </div>
-                </div>
-
-                {/* QR Code Section */}
-                <div className="relative py-3">
-                  <div className="flex justify-center">
-                    <div className="relative p-4 bg-white rounded-xl shadow-[0_2px_12px_-2px_rgba(0,0,0,0.08)] border border-gray-100">
-                      {/* Corner decorations */}
-                      <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-primary/30 rounded-tl"></div>
-                      <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-primary/30 rounded-tr"></div>
-                      <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-primary/30 rounded-bl"></div>
-                      <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-primary/30 rounded-br"></div>
-                      
-                      <img 
-                        src={qrisData.qrisImage} 
-                        alt="QRIS Payment Code" 
-                        className="w-44 h-44 object-contain"
-                        data-testid="img-qris-code"
-                      />
+          {/* QRIS Payment - Landscape Layout for Desktop/Tablet */}
+          <Card className="overflow-hidden" id="qris-receipt">
+            <div className="p-4 md:p-6">
+              {/* Desktop/Tablet: Two Column Layout */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Left Column - QR Code */}
+                <div className="flex flex-col items-center justify-center space-y-4">
+                  {/* Header - Mobile only */}
+                  <div className="md:hidden text-center space-y-1 w-full">
+                    <div className="w-10 h-10 mx-auto rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/20">
+                      <QrCode className="w-5 h-5 text-primary" />
                     </div>
+                    <h3 className="text-sm font-bold tracking-tight">PEMBAYARAN QRIS</h3>
+                    <p className="text-[10px] text-muted-foreground">Scan dengan e-wallet atau mobile banking</p>
                   </div>
-                </div>
-
-                {/* Dotted Divider with circles */}
-                <div className="relative flex items-center py-2">
-                  <div className="absolute -left-5 w-4 h-4 bg-background rounded-full border-r border-border"></div>
-                  <div className="flex-1 border-t-2 border-dashed border-muted-foreground/20"></div>
-                  <div className="absolute -right-5 w-4 h-4 bg-background rounded-full border-l border-border"></div>
-                </div>
-
-                {/* Total Amount */}
-                <div className="text-center py-2">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Total Pembayaran</p>
-                  <div className="text-2xl font-bold text-primary" data-testid="text-qris-amount">
-                    Rp {(qrisData.amount || 0).toLocaleString('id-ID')}
+                  
+                  {/* QR Code */}
+                  <div className="relative p-4 bg-white rounded-xl shadow-[0_4px_16px_-4px_rgba(0,0,0,0.1)] border border-gray-100">
+                    {/* Corner decorations */}
+                    <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-primary/30 rounded-tl"></div>
+                    <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-primary/30 rounded-tr"></div>
+                    <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-primary/30 rounded-bl"></div>
+                    <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-primary/30 rounded-br"></div>
+                    
+                    <img 
+                      src={qrisData.qrisImage} 
+                      alt="QRIS Payment Code" 
+                      className="w-48 h-48 md:w-56 md:h-56 object-contain"
+                      data-testid="img-qris-code"
+                    />
                   </div>
-                  {qrisData.amountUSD && (
-                    <p className="text-[10px] text-muted-foreground mt-0.5">≈ ${qrisData.amountUSD?.toFixed(2)} USD</p>
-                  )}
-                </div>
-
-                {/* Timer */}
-                <div className="flex items-center justify-center gap-2 py-2.5 px-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 rounded-lg border border-amber-200/50 dark:border-amber-800/50">
-                  <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                  <span className="font-mono text-base font-bold text-amber-700 dark:text-amber-300" data-testid="text-qris-countdown">
-                    {formatTime(timeRemaining)}
-                  </span>
-                  <span className="text-[10px] text-amber-600 dark:text-amber-400">tersisa</span>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-2 pt-1">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="flex-1 h-10 min-h-[44px]" 
-                    onClick={handleSaveQRIS}
-                    data-testid="button-save-qris"
-                  >
-                    <Download className="w-4 h-4 mr-1.5" />
-                    Simpan QRIS
-                  </Button>
-                  {import.meta.env.DEV && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="flex-1 h-10 min-h-[44px]" 
-                      onClick={handleDemoPayment}
-                      data-testid="button-demo-payment"
-                    >
-                      Demo Pay
-                    </Button>
-                  )}
-                </div>
-
-                {/* Supported Apps */}
-                <div className="text-center pt-1">
-                  <p className="text-[9px] text-muted-foreground">
+                  
+                  {/* Supported Apps */}
+                  <p className="text-[10px] text-muted-foreground text-center">
                     GoPay • OVO • DANA • ShopeePay • BCA • Mandiri • BRI
                   </p>
                 </div>
+                
+                {/* Right Column - Details */}
+                <div className="flex flex-col justify-center space-y-4">
+                  {/* Header - Desktop only */}
+                  <div className="hidden md:block space-y-1">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/20">
+                        <QrCode className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-bold tracking-tight">PEMBAYARAN QRIS</h3>
+                        <p className="text-xs text-muted-foreground">Scan dengan e-wallet atau mobile banking</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Divider - Desktop */}
+                  <div className="hidden md:block border-t border-dashed border-muted-foreground/20"></div>
+                  
+                  {/* Order Details */}
+                  <div className="space-y-2.5 bg-muted/30 rounded-lg p-3">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Produk</span>
+                      <span className="font-semibold">{qrisData.planName} Plan</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Periode</span>
+                      <span className="font-medium">{qrisData.billingInterval === 'annual' ? 'Tahunan' : 'Bulanan'}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Order ID</span>
+                      <span className="font-mono text-[10px] text-muted-foreground">{qrisData.orderId}</span>
+                    </div>
+                  </div>
+
+                  {/* Total Amount */}
+                  <div className="text-center md:text-left py-2 bg-primary/5 rounded-lg px-4">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Total Pembayaran</p>
+                    <div className="text-2xl md:text-3xl font-bold text-primary" data-testid="text-qris-amount">
+                      Rp {(qrisData.amount || 0).toLocaleString('id-ID')}
+                    </div>
+                    {qrisData.amountUSD && (
+                      <p className="text-[10px] text-muted-foreground mt-0.5">≈ ${qrisData.amountUSD?.toFixed(2)} USD</p>
+                    )}
+                  </div>
+
+                  {/* Timer */}
+                  <div className="flex items-center justify-center md:justify-start gap-2 py-2.5 px-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 rounded-lg border border-amber-200/50 dark:border-amber-800/50">
+                    <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    <span className="font-mono text-lg font-bold text-amber-700 dark:text-amber-300" data-testid="text-qris-countdown">
+                      {formatTime(timeRemaining)}
+                    </span>
+                    <span className="text-xs text-amber-600 dark:text-amber-400">tersisa</span>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      className="flex-1 h-11 min-h-[44px]" 
+                      onClick={handleSaveQRIS}
+                      data-testid="button-save-qris"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Simpan QRIS
+                    </Button>
+                    {import.meta.env.DEV && (
+                      <Button 
+                        variant="outline" 
+                        className="flex-1 h-11 min-h-[44px]" 
+                        onClick={handleDemoPayment}
+                        data-testid="button-demo-payment"
+                      >
+                        Demo Pay
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
-            
-            {/* Bottom zigzag edge with shadow */}
-            <div className="relative">
-              <svg className="w-full h-4" viewBox="0 0 400 16" preserveAspectRatio="none">
-                <defs>
-                  <filter id="zigzag-shadow-bottom" x="-20%" y="-60%" width="140%" height="160%">
-                    <feDropShadow dx="0" dy="-2" stdDeviation="3" floodOpacity="0.08"/>
-                  </filter>
-                </defs>
-                <path 
-                  d="M0,0 L8,12 L16,0 L24,12 L32,0 L40,12 L48,0 L56,12 L64,0 L72,12 L80,0 L88,12 L96,0 L104,12 L112,0 L120,12 L128,0 L136,12 L144,0 L152,12 L160,0 L168,12 L176,0 L184,12 L192,0 L200,12 L208,0 L216,12 L224,0 L232,12 L240,0 L248,12 L256,0 L264,12 L272,0 L280,12 L288,0 L296,12 L304,0 L312,12 L320,0 L328,12 L336,0 L344,12 L352,0 L360,12 L368,0 L376,12 L384,0 L392,12 L400,0" 
-                  className="fill-card"
-                  filter="url(#zigzag-shadow-bottom)"
-                />
-              </svg>
-            </div>
-          </div>
+          </Card>
 
           {/* Status indicator */}
           <div className="flex items-center justify-center gap-2 py-2">
             <div className="relative flex items-center gap-1.5">
               <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-              <span className="text-[11px] text-muted-foreground">Menunggu pembayaran...</span>
+              <span className="text-xs text-muted-foreground">Menunggu pembayaran...</span>
             </div>
           </div>
 
           {/* Powered by */}
-          <p className="text-center text-[9px] text-muted-foreground">
+          <p className="text-center text-[10px] text-muted-foreground">
             Powered by Kompas Pay
           </p>
         </div>

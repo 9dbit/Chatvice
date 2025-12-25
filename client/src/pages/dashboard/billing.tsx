@@ -723,25 +723,35 @@ export default function BillingPage() {
       )}
 
       <div>
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h2 className="text-xl font-semibold">Subscription Plans</h2>
             <p className="text-sm text-muted-foreground">
               Choose the plan that best fits your needs
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <Label htmlFor="annual-toggle" className="text-sm">Monthly</Label>
-            <Switch 
-              id="annual-toggle" 
-              checked={isAnnual} 
-              onCheckedChange={setIsAnnual}
-              data-testid="switch-billing-interval"
-            />
-            <Label htmlFor="annual-toggle" className="text-sm flex items-center gap-1">
-              Annual
-              <Badge variant="secondary" className="ml-1">Save 16%</Badge>
-            </Label>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-3">
+              <Label htmlFor="annual-toggle" className="text-sm">Monthly</Label>
+              <Switch 
+                id="annual-toggle" 
+                checked={isAnnual} 
+                onCheckedChange={setIsAnnual}
+                data-testid="switch-billing-interval"
+              />
+              <Label htmlFor="annual-toggle" className="text-sm flex items-center gap-1">
+                Annual
+                <Badge variant="secondary" className="ml-1">Save 16%</Badge>
+              </Label>
+            </div>
+            <Button 
+              onClick={() => window.location.href = `/dashboard/checkout?plan=pro&interval=${isAnnual ? 'annual' : 'monthly'}`}
+              className="min-h-[44px]"
+              data-testid="button-checkout"
+            >
+              <Zap className="w-4 h-4 mr-2" />
+              Checkout
+            </Button>
           </div>
         </div>
 
