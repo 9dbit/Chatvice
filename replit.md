@@ -44,9 +44,13 @@ Core entities include Merchants, Supervisors, Sessions, Messages, Triggers, Know
 
 **Interactive AI Responses**: AI responses can include interactive buttons (`[BTN:Label:action text]`) and clickable links (`[LINK:Display Text:/path]`) which are parsed and rendered in both Chatvice Guide and the merchant embedded widget.
 
+## Test Credentials
+- **Merchant Login**: internal@marketplayid.com
+- **Master Admin**: master@chatvice.app
+
 ## External Dependencies
 -   **AI Services**: OpenAI API (GPT-4.1-mini, text-embedding-3-small).
 -   **Database**: PostgreSQL.
 -   **UI Component Libraries**: Radix UI, Shadcn/ui.
--   **Payment Gateway**: 1-Pay Indonesian payment gateway for subscription billing.
+-   **Payment Gateway**: Kompas Pay Indonesian payment gateway for subscription billing.
 -   **Development Environment**: Replit Platform.
