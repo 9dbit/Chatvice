@@ -127,8 +127,10 @@ export default function CheckoutPage() {
   const planId = urlParams.get('plan');
   const billingInterval = urlParams.get('interval') || 'monthly';
   const promoCode = urlParams.get('promo') || '';
+  const resumeTransactionId = urlParams.get('resume');
   
   const isAnnual = billingInterval === 'annual';
+  const isResumeMode = Boolean(resumeTransactionId);
   
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('qris');
   const [selectedBank, setSelectedBank] = useState<string>('');
@@ -159,7 +161,27 @@ export default function CheckoutPage() {
     queryKey: ["/api/promotions/active"],
   });
   
-  const isInitialLoading = billingLoading || exchangeLoading || plansLoading;
+  // Resume pending transaction if resumeTransactionId is provided
+  const { data: resumeData, isLoading: resumeLoading } = useQuery<{
+    transactionId: string;
+    orderId: string;
+    status: string;
+    amount: number;
+    paymentMethod: string;
+    qrisImage?: string;
+    qrisString?: string;
+    vaNumber?: string;
+    bankCode?: string;
+    expiryTime?: string;
+    planId?: string;
+    planName?: string;
+    billingInterval?: string;
+  }>({
+    queryKey: ["/api/billing/payment-status", resumeTransactionId],
+    enabled: Boolean(resumeTransactionId),
+  });
+  
+  const isInitialLoading = billingLoading || exchangeLoading || plansLoading || (isResumeMode && resumeLoading);
 
   const selectedPlan = dbPlans.find((p: any) => p.id === planId);
   
@@ -180,6 +202,55 @@ export default function CheckoutPage() {
     return null;
   };
 
+  // Handle resume mode - set payment data from pending transaction
+  useEffect(() => {
+    if (isResumeMode && resumeData && resumeData.status === 'PENDING') {
+      if (resumeData.paymentMethod === 'qris' && resumeData.qrisImage) {
+        setQrisData({
+          paymentMethod: 'qris',
+          transactionId: resumeData.transactionId,
+          orderId: resumeData.orderId,
+          qrisString: resumeData.qrisString || '',
+          qrisImage: resumeData.qrisImage,
+          amount: resumeData.amount,
+          expiryTime: resumeData.expiryTime || '',
+          planId: resumeData.planId || '',
+          planName: resumeData.planName || '',
+          billingInterval: resumeData.billingInterval || 'monthly',
+        });
+        setPaymentStep('qris');
+        if (resumeData.expiryTime) {
+          startPaymentPolling(resumeData.transactionId, resumeData.expiryTime);
+        }
+      } else if (resumeData.paymentMethod === 'virtual_account' && resumeData.vaNumber) {
+        setVaData({
+          paymentMethod: 'virtual_account',
+          transactionId: resumeData.transactionId,
+          orderId: resumeData.orderId,
+          vaNumber: resumeData.vaNumber,
+          bankCode: resumeData.bankCode || '',
+          amount: resumeData.amount,
+          expiryTime: resumeData.expiryTime || '',
+          planName: resumeData.planName || '',
+          billingInterval: resumeData.billingInterval || 'monthly',
+        });
+        setPaymentStep('va');
+        if (resumeData.expiryTime) {
+          startPaymentPolling(resumeData.transactionId, resumeData.expiryTime);
+        }
+      }
+    } else if (isResumeMode && resumeData && (resumeData.status === 'PAID' || resumeData.status === 'EXPIRED' || resumeData.status === 'FAILED')) {
+      // Transaction already completed or expired
+      if (resumeData.status === 'PAID') {
+        setPaymentStep('success');
+      } else if (resumeData.status === 'EXPIRED') {
+        setPaymentStep('expired');
+      } else {
+        setPaymentStep('failed');
+      }
+    }
+  }, [isResumeMode, resumeData]);
+  
   useEffect(() => {
     if (planId && billingStatus?.status === 'active') {
       const fetchProration = async () => {
@@ -440,7 +511,8 @@ export default function CheckoutPage() {
     );
   }
 
-  if (!planId || !selectedPlan) {
+  // In resume mode, we don't need planId - show payment directly
+  if (!isResumeMode && (!planId || !selectedPlan)) {
     return (
       <div className="max-w-md mx-auto py-8 px-4">
         <Card>
@@ -460,9 +532,9 @@ export default function CheckoutPage() {
 
   const exchangeRate = exchangeRateData?.rate || 16500;
   const exchangeSource = exchangeRateData?.source || "Default";
-  const priceUSD = isAnnual ? (selectedPlan.annualPrice || 0) : (selectedPlan.monthlyPrice || 0);
+  const priceUSD = selectedPlan ? (isAnnual ? (selectedPlan.annualPrice || 0) : (selectedPlan.monthlyPrice || 0)) : 0;
   const priceIDR = Math.round(priceUSD * exchangeRate);
-  const promo = getPromoForPlan(selectedPlan.id);
+  const promo = selectedPlan ? getPromoForPlan(selectedPlan.id) : null;
   const discountPercent = promo?.discountPercent || 0;
   const discountAmount = Math.round(priceIDR * discountPercent / 100);
   
@@ -473,14 +545,24 @@ export default function CheckoutPage() {
   const finalPrice = Math.max(0, priceIDR - discountAmount - creditAmountIDR);
 
   const needsBankSelection = selectedPaymentMethod === 'virtual_account';
+  
+  // For resume mode, use resume data values
+  const displayAmount = isResumeMode && qrisData ? qrisData.amount : finalPrice;
+  const displayPlanName = isResumeMode && qrisData ? qrisData.planName : selectedPlan?.name || '';
+  const displayBillingInterval = isResumeMode && qrisData ? qrisData.billingInterval : (isAnnual ? 'annual' : 'monthly');
 
   return (
-    <div className="max-w-md mx-auto py-4 px-4 space-y-3">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/dashboard/plans')} data-testid="button-back">
+    <div className="max-w-lg mx-auto py-6 px-4 md:py-8 space-y-4">
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigate('/dashboard/billing')} data-testid="button-back">
           <ArrowLeft className="w-4 h-4" />
         </Button>
-        <h1 className="text-sm font-semibold">Checkout</h1>
+        <div>
+          <h1 className="text-base font-semibold">{isResumeMode ? 'Lanjutkan Pembayaran' : 'Checkout'}</h1>
+          {isResumeMode && resumeData && (
+            <p className="text-[10px] text-muted-foreground">Order: {resumeData.orderId}</p>
+          )}
+        </div>
       </div>
 
       {(paymentStep === 'select_method' || paymentStep === 'bank_form') && (
@@ -656,87 +738,113 @@ export default function CheckoutPage() {
       )}
 
       {paymentStep === 'qris' && qrisData && (
-        <div className="space-y-3 bg-card">
-          <div className="relative bg-card" id="qris-receipt">
-            <svg className="absolute -top-3 left-0 w-full h-3" viewBox="0 0 400 12" preserveAspectRatio="none">
-              <path d="M0,12 L10,0 L20,12 L30,0 L40,12 L50,0 L60,12 L70,0 L80,12 L90,0 L100,12 L110,0 L120,12 L130,0 L140,12 L150,0 L160,12 L170,0 L180,12 L190,0 L200,12 L210,0 L220,12 L230,0 L240,12 L250,0 L260,12 L270,0 L280,12 L290,0 L300,12 L310,0 L320,12 L330,0 L340,12 L350,0 L360,12 L370,0 L380,12 L390,0 L400,12" 
-                    className="fill-card drop-shadow-sm" />
-            </svg>
+        <div className="space-y-4">
+          {/* Receipt Ticket Container */}
+          <div className="relative" id="qris-receipt">
+            {/* Top zigzag edge with shadow */}
+            <div className="relative">
+              <svg className="w-full h-4" viewBox="0 0 400 16" preserveAspectRatio="none">
+                <defs>
+                  <filter id="zigzag-shadow-top" x="-20%" y="-20%" width="140%" height="160%">
+                    <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.08"/>
+                  </filter>
+                </defs>
+                <path 
+                  d="M0,16 L8,4 L16,16 L24,4 L32,16 L40,4 L48,16 L56,4 L64,16 L72,4 L80,16 L88,4 L96,16 L104,4 L112,16 L120,4 L128,16 L136,4 L144,16 L152,4 L160,16 L168,4 L176,16 L184,4 L192,16 L200,4 L208,16 L216,4 L224,16 L232,4 L240,16 L248,4 L256,16 L264,4 L272,16 L280,4 L288,16 L296,4 L304,16 L312,4 L320,16 L328,4 L336,16 L344,4 L352,16 L360,4 L368,16 L376,4 L384,16 L392,4 L400,16" 
+                  className="fill-card"
+                  filter="url(#zigzag-shadow-top)"
+                />
+              </svg>
+            </div>
             
-            <Card className="rounded-t-none border-t-0 shadow-lg">
-              <CardContent className="pt-4 pb-4 text-center space-y-3">
-                <div className="text-center">
-                  <div className="w-8 h-8 mx-auto mb-2 rounded-full bg-primary/10 flex items-center justify-center">
-                    <QrCode className="w-4 h-4 text-primary" />
+            {/* Main Receipt Body */}
+            <div className="bg-card border-x border-border shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3)]">
+              <div className="px-5 py-5 space-y-4">
+                {/* Header */}
+                <div className="text-center space-y-1">
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/20">
+                    <QrCode className="w-6 h-6 text-primary" />
                   </div>
-                  <h3 className="text-sm font-bold tracking-tight">PEMBAYARAN QRIS</h3>
-                  <p className="text-[9px] text-muted-foreground">Scan dengan e-wallet atau mobile banking</p>
+                  <h3 className="text-base font-bold tracking-tight">PEMBAYARAN QRIS</h3>
+                  <p className="text-[10px] text-muted-foreground">Scan dengan e-wallet atau mobile banking</p>
                 </div>
                 
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-px border-t-2 border-dashed border-muted-foreground/30"></div>
-                  <span className="text-[8px] text-muted-foreground uppercase tracking-wider">Detail</span>
-                  <div className="flex-1 h-px border-t-2 border-dashed border-muted-foreground/30"></div>
+                {/* Dotted Divider with circles */}
+                <div className="relative flex items-center py-2">
+                  <div className="absolute -left-5 w-4 h-4 bg-background rounded-full border-r border-border"></div>
+                  <div className="flex-1 border-t-2 border-dashed border-muted-foreground/20"></div>
+                  <div className="absolute -right-5 w-4 h-4 bg-background rounded-full border-l border-border"></div>
                 </div>
 
-                <div className="space-y-1.5 text-left px-2">
-                  <div className="flex justify-between text-[10px]">
+                {/* Order Details */}
+                <div className="space-y-2 px-1">
+                  <div className="flex justify-between text-[11px]">
                     <span className="text-muted-foreground">Produk</span>
-                    <span className="font-medium">{qrisData.planName} Plan</span>
+                    <span className="font-semibold">{qrisData.planName} Plan</span>
                   </div>
-                  <div className="flex justify-between text-[10px]">
+                  <div className="flex justify-between text-[11px]">
                     <span className="text-muted-foreground">Periode</span>
                     <span className="font-medium">{qrisData.billingInterval === 'annual' ? 'Tahunan' : 'Bulanan'}</span>
                   </div>
-                  <div className="flex justify-between text-[10px]">
+                  <div className="flex justify-between text-[11px]">
                     <span className="text-muted-foreground">Order ID</span>
-                    <span className="font-mono text-[9px]">{qrisData.orderId}</span>
+                    <span className="font-mono text-[10px] text-muted-foreground">{qrisData.orderId}</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-px border-t-2 border-dashed border-muted-foreground/30"></div>
-                  <span className="text-[8px] text-muted-foreground uppercase tracking-wider">Scan QR</span>
-                  <div className="flex-1 h-px border-t-2 border-dashed border-muted-foreground/30"></div>
+                {/* QR Code Section */}
+                <div className="relative py-3">
+                  <div className="flex justify-center">
+                    <div className="relative p-4 bg-white rounded-xl shadow-[0_2px_12px_-2px_rgba(0,0,0,0.08)] border border-gray-100">
+                      {/* Corner decorations */}
+                      <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-primary/30 rounded-tl"></div>
+                      <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-primary/30 rounded-tr"></div>
+                      <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-primary/30 rounded-bl"></div>
+                      <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-primary/30 rounded-br"></div>
+                      
+                      <img 
+                        src={qrisData.qrisImage} 
+                        alt="QRIS Payment Code" 
+                        className="w-44 h-44 object-contain"
+                        data-testid="img-qris-code"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex justify-center p-3 bg-white rounded-lg border-2 border-dashed border-muted-foreground/20">
-                  <img 
-                    src={qrisData.qrisImage} 
-                    alt="QRIS Payment Code" 
-                    className="w-40 h-40 object-contain"
-                    data-testid="img-qris-code"
-                  />
+                {/* Dotted Divider with circles */}
+                <div className="relative flex items-center py-2">
+                  <div className="absolute -left-5 w-4 h-4 bg-background rounded-full border-r border-border"></div>
+                  <div className="flex-1 border-t-2 border-dashed border-muted-foreground/20"></div>
+                  <div className="absolute -right-5 w-4 h-4 bg-background rounded-full border-l border-border"></div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-px border-t-2 border-dashed border-muted-foreground/30"></div>
-                  <span className="text-[8px] text-muted-foreground uppercase tracking-wider">Total</span>
-                  <div className="flex-1 h-px border-t-2 border-dashed border-muted-foreground/30"></div>
-                </div>
-
-                <div className="bg-primary/5 rounded-lg p-3 border border-primary/10">
-                  <div className="text-xl font-bold text-primary" data-testid="text-qris-amount">
+                {/* Total Amount */}
+                <div className="text-center py-2">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Total Pembayaran</p>
+                  <div className="text-2xl font-bold text-primary" data-testid="text-qris-amount">
                     Rp {(qrisData.amount || 0).toLocaleString('id-ID')}
                   </div>
                   {qrisData.amountUSD && (
-                    <p className="text-[9px] text-muted-foreground">≈ ${qrisData.amountUSD?.toFixed(2)} USD</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">≈ ${qrisData.amountUSD?.toFixed(2)} USD</p>
                   )}
                 </div>
 
-                <div className="flex items-center justify-center gap-2 py-2 px-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
-                  <Clock className="w-4 h-4 text-amber-600" />
-                  <span className="font-mono text-sm font-bold text-amber-700 dark:text-amber-400" data-testid="text-qris-countdown">
+                {/* Timer */}
+                <div className="flex items-center justify-center gap-2 py-2.5 px-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 rounded-lg border border-amber-200/50 dark:border-amber-800/50">
+                  <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  <span className="font-mono text-base font-bold text-amber-700 dark:text-amber-300" data-testid="text-qris-countdown">
                     {formatTime(timeRemaining)}
                   </span>
-                  <span className="text-[9px] text-amber-600 dark:text-amber-400">tersisa</span>
+                  <span className="text-[10px] text-amber-600 dark:text-amber-400">tersisa</span>
                 </div>
 
+                {/* Action Buttons */}
                 <div className="flex gap-2 pt-1">
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="flex-1 h-9" 
+                    className="flex-1 h-10 min-h-[44px]" 
                     onClick={handleSaveQRIS}
                     data-testid="button-save-qris"
                   >
@@ -747,7 +855,7 @@ export default function CheckoutPage() {
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="flex-1 h-9" 
+                      className="flex-1 h-10 min-h-[44px]" 
                       onClick={handleDemoPayment}
                       data-testid="button-demo-payment"
                     >
@@ -756,20 +864,43 @@ export default function CheckoutPage() {
                   )}
                 </div>
 
-                <p className="text-[8px] text-muted-foreground italic">
-                  Powered by Kompas Pay
-                </p>
-              </CardContent>
-            </Card>
+                {/* Supported Apps */}
+                <div className="text-center pt-1">
+                  <p className="text-[9px] text-muted-foreground">
+                    GoPay • OVO • DANA • ShopeePay • BCA • Mandiri • BRI
+                  </p>
+                </div>
+              </div>
+            </div>
             
-            <svg className="absolute -bottom-3 left-0 w-full h-3" viewBox="0 0 400 12" preserveAspectRatio="none">
-              <path d="M0,0 L10,12 L20,0 L30,12 L40,0 L50,12 L60,0 L70,12 L80,0 L90,12 L100,0 L110,12 L120,0 L130,12 L140,0 L150,12 L160,0 L170,12 L180,0 L190,12 L200,0 L210,12 L220,0 L230,12 L240,0 L250,12 L260,0 L270,12 L280,0 L290,12 L300,0 L310,12 L320,0 L330,12 L340,0 L350,12 L360,0 L370,12 L380,0 L390,12 L400,0" 
-                    className="fill-card drop-shadow-sm" />
-            </svg>
+            {/* Bottom zigzag edge with shadow */}
+            <div className="relative">
+              <svg className="w-full h-4" viewBox="0 0 400 16" preserveAspectRatio="none">
+                <defs>
+                  <filter id="zigzag-shadow-bottom" x="-20%" y="-60%" width="140%" height="160%">
+                    <feDropShadow dx="0" dy="-2" stdDeviation="3" floodOpacity="0.08"/>
+                  </filter>
+                </defs>
+                <path 
+                  d="M0,0 L8,12 L16,0 L24,12 L32,0 L40,12 L48,0 L56,12 L64,0 L72,12 L80,0 L88,12 L96,0 L104,12 L112,0 L120,12 L128,0 L136,12 L144,0 L152,12 L160,0 L168,12 L176,0 L184,12 L192,0 L200,12 L208,0 L216,12 L224,0 L232,12 L240,0 L248,12 L256,0 L264,12 L272,0 L280,12 L288,0 L296,12 L304,0 L312,12 L320,0 L328,12 L336,0 L344,12 L352,0 L360,12 L368,0 L376,12 L384,0 L392,12 L400,0" 
+                  className="fill-card"
+                  filter="url(#zigzag-shadow-bottom)"
+                />
+              </svg>
+            </div>
           </div>
 
-          <p className="text-center text-[9px] text-muted-foreground pt-2">
-            Menunggu pembayaran... Status diperbarui otomatis
+          {/* Status indicator */}
+          <div className="flex items-center justify-center gap-2 py-2">
+            <div className="relative flex items-center gap-1.5">
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+              <span className="text-[11px] text-muted-foreground">Menunggu pembayaran...</span>
+            </div>
+          </div>
+
+          {/* Powered by */}
+          <p className="text-center text-[9px] text-muted-foreground">
+            Powered by Kompas Pay
           </p>
         </div>
       )}
