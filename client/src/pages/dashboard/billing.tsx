@@ -1084,12 +1084,19 @@ export default function BillingPage() {
                   <div className="space-y-2 pt-2 border-t border-primary/10">
                     {(() => {
                       const exchangeRate = (platformSettings?.exchange_rate ? parseInt((platformSettings as any).exchange_rate) : 16000);
-                      const priceUSD = isAnnual ? (selectedPlan.annualPrice || 0) * 12 : (selectedPlan.monthlyPrice || 0);
+                      // Fix: Don't multiply annual by 12 - annualPrice is already the annual total
+                      const priceUSD = isAnnual ? (selectedPlan.annualPrice || 0) : (selectedPlan.monthlyPrice || 0);
                       const priceIDR = Math.round(priceUSD * exchangeRate); // USD to IDR conversion
                       const promo = getPromoForPlan(selectedPlan.id);
                       const discountPercent = promo?.discountPercent || 0;
                       const discountAmount = Math.round(priceIDR * discountPercent / 100);
                       const finalPrice = priceIDR - discountAmount;
+                      
+                      // Fix: Convert proration finalAmount from USD to IDR
+                      let finalPaymentIDR = finalPrice;
+                      if (prorationInfo?.prorationApplied && prorationInfo?.finalAmount) {
+                        finalPaymentIDR = Math.round(prorationInfo.finalAmount * exchangeRate) - discountAmount;
+                      }
                       
                       return (
                         <>
@@ -1103,16 +1110,16 @@ export default function BillingPage() {
                               <span>- Rp {discountAmount.toLocaleString('id-ID')}</span>
                             </div>
                           )}
-                          {prorationInfo?.prorationApplied && (
+                          {prorationInfo?.prorationApplied && prorationInfo?.creditAmount && (
                             <div className="flex justify-between text-sm text-blue-600">
                               <span>Kredit dari plan sebelumnya</span>
-                              <span>- Rp {prorationInfo.creditAmount.toLocaleString('id-ID')}</span>
+                              <span>- Rp {Math.round(prorationInfo.creditAmount * exchangeRate).toLocaleString('id-ID')}</span>
                             </div>
                           )}
                           <div className="flex justify-between pt-2 border-t border-primary/10">
                             <span className="font-semibold">Total Pembayaran</span>
                             <span className="text-2xl font-bold text-primary">
-                              Rp {(prorationInfo?.finalAmount || finalPrice).toLocaleString('id-ID')}
+                              Rp {finalPaymentIDR.toLocaleString('id-ID')}
                             </span>
                           </div>
                           <p className="text-xs text-muted-foreground text-right">
