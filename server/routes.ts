@@ -5009,7 +5009,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         'guide_button_icon_height',
         'guide_promo_image_enabled',
         'guide_promo_image_url',
-        'merchant_menu_order'
+        'merchant_menu_order',
+        'exchange_rate'
       ];
       const publicSettings: Record<string, string> = {};
       for (const key of publicKeys) {

@@ -107,6 +107,8 @@ export default function BillingPage() {
   const [validatedPromo, setValidatedPromo] = useState<ValidatedPromo | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [isValidatingPromo, setIsValidatingPromo] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -283,6 +285,50 @@ export default function BillingPage() {
       if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
     };
   }, []);
+
+  const cancelSubscriptionMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/billing/cancel", {});
+    },
+    onSuccess: () => {
+      setShowCancelDialog(false);
+      toast({
+        title: "Subscription Canceled",
+        description: "Your subscription has been canceled. You can resubscribe anytime.",
+      });
+      refetch();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to cancel subscription. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("DELETE", "/api/merchant/account", {});
+    },
+    onSuccess: () => {
+      setShowDeleteDialog(false);
+      toast({
+        title: "Account Deleted",
+        description: "Your account has been permanently deleted. Redirecting...",
+      });
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 2000);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete account. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const checkoutMutation = useMutation({
     mutationFn: async ({ planId, billingInterval, promoCode }: { planId: string; billingInterval: string; promoCode?: string }) => {
@@ -926,19 +972,24 @@ export default function BillingPage() {
                     >
                       Get Started
                     </Button>
-                  ) : (
-                    <Button 
-                      className="w-full" 
-                      variant={isPopular ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => handleUpgrade(plan.id)}
-                      disabled={checkoutMutation.isPending}
-                      data-testid={`button-upgrade-${plan.id}`}
-                    >
-                      {checkoutMutation.isPending ? 'Processing...' : 
-                       billingStatus?.status === 'trial' ? 'Start Plan' : 'Upgrade'}
-                    </Button>
-                  )}
+                  ) : (() => {
+                    const currentPlanIndex = dbPlans.findIndex((p: any) => p.id === billingStatus?.planId);
+                    const selectedPlanIndex = dbPlans.findIndex((p: any) => p.id === plan.id);
+                    const isDowngrade = selectedPlanIndex < currentPlanIndex;
+                    return (
+                      <Button 
+                        className="w-full" 
+                        variant={isPopular ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => handleUpgrade(plan.id)}
+                        disabled={checkoutMutation.isPending}
+                        data-testid={`button-${isDowngrade ? 'downgrade' : 'upgrade'}-${plan.id}`}
+                      >
+                        {checkoutMutation.isPending ? 'Processing...' : 
+                         billingStatus?.status === 'trial' ? 'Start Plan' : (isDowngrade ? 'Downgrade' : 'Upgrade')}
+                      </Button>
+                    );
+                  })()}
                 </CardFooter>
               </Card>
             );
@@ -946,20 +997,57 @@ export default function BillingPage() {
         </div>
       </div>
 
-      <Card className="bg-muted/50">
-        <CardContent className="pt-6">
-          <div className="flex items-start gap-4">
-            <QrCode className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
-            <div>
-              <p className="font-medium">Secure Payment with QRIS</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                We accept payments via QRIS - scan the QR code with any Indonesian e-wallet or mobile banking app (GoPay, OVO, DANA, ShopeePay, BCA Mobile, Mandiri Livin, etc.).
-                All plans include a {trialDays}-day free trial. Start with the Starter plan and upgrade anytime as your business grows.
-              </p>
+      <div className="grid md:grid-cols-2 gap-4">
+        <Card className="bg-muted/50">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-4">
+              <QrCode className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium">Secure Payment with QRIS</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  We accept payments via QRIS - scan the QR code with any Indonesian e-wallet or mobile banking app (GoPay, OVO, DANA, ShopeePay, BCA Mobile, Mandiri Livin, etc.).
+                  All plans include a {trialDays}-day free trial. Start with the Starter plan and upgrade anytime as your business grows.
+                </p>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        {billingStatus?.hasActiveSubscription && (
+          <Card className="bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800">
+            <CardContent className="pt-6">
+              <div className="space-y-3">
+                <div>
+                  <p className="font-medium text-red-900 dark:text-red-200">Manage Subscription</p>
+                  <p className="text-sm text-red-800 dark:text-red-300 mt-1">
+                    Cancel or delete your account
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                    onClick={() => setShowCancelDialog(true)}
+                    data-testid="button-cancel-subscription"
+                  >
+                    Cancel Subscription
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                    onClick={() => setShowDeleteDialog(true)}
+                    data-testid="button-delete-account"
+                  >
+                    Delete Account
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       <Dialog open={qrisPaymentOpen} onOpenChange={handleClosePayment}>
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-hidden flex flex-col">
@@ -995,8 +1083,9 @@ export default function BillingPage() {
                   {/* Price Breakdown */}
                   <div className="space-y-2 pt-2 border-t border-primary/10">
                     {(() => {
+                      const exchangeRate = (platformSettings?.exchange_rate ? parseInt((platformSettings as any).exchange_rate) : 16000);
                       const priceUSD = isAnnual ? (selectedPlan.annualPrice || 0) * 12 : (selectedPlan.monthlyPrice || 0);
-                      const priceIDR = Math.round(priceUSD * 16000); // USD to IDR conversion
+                      const priceIDR = Math.round(priceUSD * exchangeRate); // USD to IDR conversion
                       const promo = getPromoForPlan(selectedPlan.id);
                       const discountPercent = promo?.discountPercent || 0;
                       const discountAmount = Math.round(priceIDR * discountPercent / 100);
@@ -1281,6 +1370,63 @@ export default function BillingPage() {
               </Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Subscription Dialog */}
+      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Subscription?</DialogTitle>
+            <DialogDescription>
+              Anda yakin ingin membatalkan langganan? Anda masih dapat mengakses layanan hingga akhir periode.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3">
+            <Button variant="outline" className="flex-1" onClick={() => setShowCancelDialog(false)}>
+              Keep Subscription
+            </Button>
+            <Button 
+              variant="destructive" 
+              className="flex-1"
+              onClick={() => cancelSubscriptionMutation.mutate()}
+              disabled={cancelSubscriptionMutation.isPending}
+              data-testid="button-confirm-cancel"
+            >
+              {cancelSubscriptionMutation.isPending ? "Canceling..." : "Cancel"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Account Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Account?</DialogTitle>
+            <DialogDescription>
+              Tindakan ini tidak dapat dibatalkan. Semua data Anda akan dihapus secara permanen.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="bg-red-50 dark:bg-red-950/20 p-3 rounded-lg border border-red-200 dark:border-red-800">
+            <p className="text-sm text-red-700 dark:text-red-300">
+              Anda akan kehilangan: semua chat sessions, supervisors, knowledge base, dan pengaturan.
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Button variant="outline" className="flex-1" onClick={() => setShowDeleteDialog(false)}>
+              Keep Account
+            </Button>
+            <Button 
+              variant="destructive" 
+              className="flex-1"
+              onClick={() => deleteAccountMutation.mutate()}
+              disabled={deleteAccountMutation.isPending}
+              data-testid="button-confirm-delete"
+            >
+              {deleteAccountMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
