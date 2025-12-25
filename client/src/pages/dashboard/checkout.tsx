@@ -208,7 +208,8 @@ export default function CheckoutPage() {
 
   const checkoutMutation = useMutation({
     mutationFn: async (params: { planId: string; billingInterval: string; paymentMethod: PaymentMethod; bankCode?: string; senderName?: string; senderBank?: string; promoCode?: string }) => {
-      return apiRequest("POST", "/api/billing/checkout-v2", params) as unknown as Promise<any>;
+      const response = await apiRequest("POST", "/api/billing/checkout-v2", params);
+      return response.json();
     },
     onSuccess: (data) => {
       if (data.paymentMethod === 'qris') {
