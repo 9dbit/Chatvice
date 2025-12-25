@@ -54,6 +54,16 @@ interface ValidatedPromo {
   validatedBillingCycle: string;
 }
 
+interface PendingTransaction {
+  transactionId: string;
+  status: string;
+  amount: number;
+  amountFormatted: string;
+  expiryTime?: string;
+  paymentMethod: string;
+  orderId?: string;
+}
+
 interface BillingStatus {
   status: string;
   planId: string;
@@ -66,6 +76,7 @@ interface BillingStatus {
   supervisorsLimit: number;
   isTrialExpired: boolean;
   hasActiveSubscription: boolean;
+  pendingTransaction?: PendingTransaction | null;
 }
 
 interface QRISPaymentResponse {
@@ -332,7 +343,8 @@ export default function BillingPage() {
 
   const checkoutMutation = useMutation({
     mutationFn: async ({ planId, billingInterval, promoCode }: { planId: string; billingInterval: string; promoCode?: string }) => {
-      return apiRequest("POST", "/api/billing/checkout", { planId, billingInterval, promoCode }) as Promise<QRISPaymentResponse>;
+      const response = await apiRequest("POST", "/api/billing/checkout", { planId, billingInterval, promoCode });
+      return response.json() as Promise<QRISPaymentResponse>;
     },
     onSuccess: (data) => {
       setQrisData(data);
@@ -652,6 +664,59 @@ export default function BillingPage() {
           </CardContent>
         </Card>
       </div>
+
+      {billingStatus?.pendingTransaction && (
+        <Card className="border-amber-500/50 bg-amber-500/5" data-testid="card-pending-transaction">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Timer className="w-4 h-4 text-amber-500" />
+                <CardTitle className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                  Pembayaran Pending
+                </CardTitle>
+              </div>
+              <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400">
+                {billingStatus.pendingTransaction.paymentMethod.toUpperCase()}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Nominal</span>
+                <span className="text-lg font-bold text-amber-700 dark:text-amber-400">
+                  {billingStatus.pendingTransaction.amountFormatted}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Order ID</span>
+                <span className="text-xs font-mono">
+                  {billingStatus.pendingTransaction.orderId || billingStatus.pendingTransaction.transactionId}
+                </span>
+              </div>
+              {billingStatus.pendingTransaction.expiryTime && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Batas Waktu</span>
+                  <span className="text-sm">
+                    {format(new Date(billingStatus.pendingTransaction.expiryTime.replace(' ', 'T') + 'Z'), 'dd MMM yyyy HH:mm')}
+                  </span>
+                </div>
+              )}
+              <div className="pt-2">
+                <Button 
+                  size="sm" 
+                  className="w-full"
+                  onClick={() => window.location.href = `/dashboard/checkout?resume=${billingStatus.pendingTransaction?.transactionId}`}
+                  data-testid="button-continue-payment"
+                >
+                  <ArrowRight className="w-4 h-4 mr-2" />
+                  Lanjutkan Pembayaran
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div>
         <div className="flex items-center justify-between mb-6">

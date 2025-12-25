@@ -3311,6 +3311,42 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const plan = await getEffectiveSubscriptionPlan(merchant.subscriptionPlanId) || await getEffectiveSubscriptionPlan('free');
       const isTrialExpired = merchant.trialEndsAt && new Date(merchant.trialEndsAt) < new Date();
       
+      // Check for pending transaction - only fetch external API when refresh=true query param is set
+      // Otherwise just show basic cached info (transactionId exists)
+      let pendingTransaction = null;
+      const shouldRefresh = req.query.refresh === 'true';
+      
+      if (merchant.pendingTransactionId) {
+        if (shouldRefresh) {
+          try {
+            const statusResult = await checkPaymentStatus(merchant.pendingTransactionId);
+            if (statusResult.success && statusResult.data) {
+              const pd = statusResult.data;
+              pendingTransaction = {
+                transactionId: merchant.pendingTransactionId,
+                status: pd.status || 'PENDING',
+                amount: pd.amount || 0,
+                amountFormatted: `Rp ${(pd.amount || 0).toLocaleString('id-ID')}`,
+                expiryTime: pd.expiryTime,
+                paymentMethod: pd.paymentMethod || 'qris',
+                orderId: pd.orderId,
+              };
+            }
+          } catch (err) {
+            console.error("Error checking pending transaction:", err);
+            pendingTransaction = {
+              transactionId: merchant.pendingTransactionId,
+              status: 'PENDING',
+            };
+          }
+        } else {
+          pendingTransaction = {
+            transactionId: merchant.pendingTransactionId,
+            status: 'PENDING',
+          };
+        }
+      }
+      
       res.json({
         status: merchant.subscriptionStatus,
         planId: merchant.subscriptionPlanId,
@@ -3323,6 +3359,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         supervisorsLimit: plan.supervisorsLimit,
         isTrialExpired,
         hasActiveSubscription: merchant.subscriptionStatus === 'active',
+        pendingTransaction,
       });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -5872,6 +5909,47 @@ Use the knowledge base above to answer questions. If you don't have specific inf
   app.post("/api/help/ask", requireMerchant, async (req, res) => {
     try {
       const { question, conversationHistory } = req.body;
+      const merchantId = (req as any).merchant?.id;
+      
+      // Fetch merchant billing information for contextual responses
+      let billingContext = "";
+      if (merchantId) {
+        const merchant = await storage.getMerchant(merchantId);
+        if (merchant) {
+          const exchangeRateStr = await storage.getPlatformSetting("exchange_rate");
+          const exchangeRate = parseFloat(exchangeRateStr || "16500");
+          
+          // Get current plan details
+          const planId = merchant.subscriptionPlanId || "free";
+          const status = merchant.subscriptionStatus || "trial";
+          const billingInterval = merchant.billingInterval || "monthly";
+          const currentPeriodEnd = merchant.currentPeriodEnd;
+          const pendingTransactionId = merchant.pendingTransactionId;
+          
+          // Get plan pricing
+          let planName = "Free";
+          let planPriceUSD = 0;
+          if (planId in subscriptionPlans) {
+            const plan = subscriptionPlans[planId as keyof typeof subscriptionPlans];
+            planName = plan.name;
+            planPriceUSD = billingInterval === 'annual' ? (plan.annualPrice || 0) : (plan.monthlyPrice || 0);
+          }
+          const planPriceIDR = Math.round(planPriceUSD * exchangeRate);
+          
+          billingContext = `
+===== MERCHANT BILLING DATA (REAL-TIME) =====
+Status Langganan: ${status === 'active' ? 'Aktif' : status === 'trial' ? 'Trial' : status}
+Paket Saat Ini: ${planName}
+Billing Interval: ${billingInterval === 'annual' ? 'Tahunan' : 'Bulanan'}
+Harga Paket: $${planPriceUSD} USD (Rp ${planPriceIDR.toLocaleString('id-ID')})
+${currentPeriodEnd ? `Tanggal Perpanjangan: ${new Date(currentPeriodEnd).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}
+${merchant.trialEndsAt && status === 'trial' ? `Trial Berakhir: ${new Date(merchant.trialEndsAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}
+${pendingTransactionId ? `PEMBAYARAN PENDING: Ada transaksi yang belum selesai (ID: ${pendingTransactionId}). Customer bisa cek di halaman Billing.` : 'Tidak ada pembayaran pending.'}
+Percakapan Digunakan: ${merchant.conversationsUsed || 0}
+========================================
+`;
+        }
+      }
       
       // Fetch guide settings from platform settings
       const guideSystemPrompt = await storage.getPlatformSetting("guide_system_prompt");
@@ -5922,6 +6000,8 @@ TIPS:
       
       const fullSystemPrompt = `${systemPromptBase}
 
+${billingContext}
+
 KNOWLEDGE BASE:
 ${knowledgeContext}
 
@@ -5953,7 +6033,15 @@ Dashboard pages to link:
 - /supervisors - Supervisor management
 - /plans - Subscription plans
 - /billing - Billing info
+- /checkout - Halaman checkout pembayaran
 - /settings - Account settings
+
+BILLING GUIDANCE (IMPORTANT):
+- Ketika merchant bertanya tentang billing, tagihan, atau pembayaran, GUNAKAN data dari MERCHANT BILLING DATA di atas
+- Jika ada PEMBAYARAN PENDING, beritahu merchant untuk menyelesaikan pembayaran di halaman Billing atau Checkout
+- Jika merchant bertanya "berapa yang harus saya bayar" atau "berapa tagihan saya", beri tahu nominal berdasarkan data billing
+- Arahkan merchant ke [LINK:halaman Billing:/billing] untuk detail tagihan dan pembayaran
+- Untuk pembayaran baru, arahkan ke [LINK:halaman Checkout:/checkout]
 
 LANGUAGE MATCHING (CRITICAL):
 - WAJIB: Selalu jawab menggunakan bahasa yang SAMA dengan bahasa pesan TERAKHIR user

@@ -311,14 +311,64 @@ export default function CheckoutPage() {
     setTimeRemaining(0);
   };
 
-  const handleSaveQRIS = () => {
+  const handleSaveQRIS = async () => {
     if (!qrisData?.qrisImage) return;
-    const link = document.createElement('a');
-    link.href = qrisData.qrisImage;
-    link.download = `qris-${qrisData.orderId}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    
+    try {
+      const response = await fetch(qrisData.qrisImage);
+      const blob = await response.blob();
+      
+      const canvas = document.createElement('canvas');
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+          }
+          resolve();
+        };
+        img.onerror = reject;
+        img.src = URL.createObjectURL(blob);
+      });
+      
+      canvas.toBlob((jpegBlob) => {
+        if (jpegBlob) {
+          const url = URL.createObjectURL(jpegBlob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `qris-chatvice-${qrisData.orderId}.jpg`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          
+          toast({
+            title: "QRIS Tersimpan!",
+            description: "Gambar QRIS berhasil disimpan ke perangkat Anda",
+          });
+        }
+      }, 'image/jpeg', 0.95);
+    } catch (err) {
+      const link = document.createElement('a');
+      link.href = qrisData.qrisImage;
+      link.download = `qris-chatvice-${qrisData.orderId}.png`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "QRIS",
+        description: "Gambar QRIS dibuka di tab baru",
+      });
+    }
   };
 
   const copyToClipboard = (text: string) => {
@@ -606,61 +656,120 @@ export default function CheckoutPage() {
       )}
 
       {paymentStep === 'qris' && qrisData && (
-        <div className="space-y-3">
-          <Card>
-            <CardContent className="pt-3 pb-3 text-center space-y-2.5">
-              <div className="w-9 h-9 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
-                <Smartphone className="w-4 h-4 text-primary" />
-              </div>
-              <div>
-                <h3 className="text-xs font-semibold">Scan & Pay</h3>
-                <p className="text-[10px] text-muted-foreground">
-                  Scan QR code with your e-wallet or mobile banking
-                </p>
-              </div>
-              
-              <div className="p-2 rounded-md bg-primary/5 border border-primary/10">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] font-medium">{qrisData.planName}</span>
-                  <Badge variant="secondary" className="text-[9px] h-4 px-1.5">
-                    {qrisData.billingInterval === 'annual' ? 'Annual' : 'Monthly'}
-                  </Badge>
+        <div className="space-y-3 bg-card">
+          <div className="relative bg-card" id="qris-receipt">
+            <svg className="absolute -top-3 left-0 w-full h-3" viewBox="0 0 400 12" preserveAspectRatio="none">
+              <path d="M0,12 L10,0 L20,12 L30,0 L40,12 L50,0 L60,12 L70,0 L80,12 L90,0 L100,12 L110,0 L120,12 L130,0 L140,12 L150,0 L160,12 L170,0 L180,12 L190,0 L200,12 L210,0 L220,12 L230,0 L240,12 L250,0 L260,12 L270,0 L280,12 L290,0 L300,12 L310,0 L320,12 L330,0 L340,12 L350,0 L360,12 L370,0 L380,12 L390,0 L400,12" 
+                    className="fill-card drop-shadow-sm" />
+            </svg>
+            
+            <Card className="rounded-t-none border-t-0 shadow-lg">
+              <CardContent className="pt-4 pb-4 text-center space-y-3">
+                <div className="text-center">
+                  <div className="w-8 h-8 mx-auto mb-2 rounded-full bg-primary/10 flex items-center justify-center">
+                    <QrCode className="w-4 h-4 text-primary" />
+                  </div>
+                  <h3 className="text-sm font-bold tracking-tight">PEMBAYARAN QRIS</h3>
+                  <p className="text-[9px] text-muted-foreground">Scan dengan e-wallet atau mobile banking</p>
                 </div>
-                <div className="text-sm font-bold">Rp {(qrisData.amount || 0).toLocaleString('id-ID')}</div>
-                {qrisData.amountUSD && (
-                  <p className="text-[9px] text-muted-foreground">≈ ${qrisData.amountUSD?.toFixed(2)} USD</p>
-                )}
-              </div>
+                
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-px border-t-2 border-dashed border-muted-foreground/30"></div>
+                  <span className="text-[8px] text-muted-foreground uppercase tracking-wider">Detail</span>
+                  <div className="flex-1 h-px border-t-2 border-dashed border-muted-foreground/30"></div>
+                </div>
 
-              <div className="flex justify-center p-2 bg-white rounded-md">
-                <img 
-                  src={qrisData.qrisImage} 
-                  alt="QRIS Payment Code" 
-                  className="w-36 h-36 object-contain"
-                />
-              </div>
+                <div className="space-y-1.5 text-left px-2">
+                  <div className="flex justify-between text-[10px]">
+                    <span className="text-muted-foreground">Produk</span>
+                    <span className="font-medium">{qrisData.planName} Plan</span>
+                  </div>
+                  <div className="flex justify-between text-[10px]">
+                    <span className="text-muted-foreground">Periode</span>
+                    <span className="font-medium">{qrisData.billingInterval === 'annual' ? 'Tahunan' : 'Bulanan'}</span>
+                  </div>
+                  <div className="flex justify-between text-[10px]">
+                    <span className="text-muted-foreground">Order ID</span>
+                    <span className="font-mono text-[9px]">{qrisData.orderId}</span>
+                  </div>
+                </div>
 
-              <div className="flex items-center justify-center gap-1.5 text-amber-600 dark:text-amber-400">
-                <Clock className="w-3 h-3" />
-                <span className="font-mono text-xs font-medium">{formatTime(timeRemaining)}</span>
-              </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-px border-t-2 border-dashed border-muted-foreground/30"></div>
+                  <span className="text-[8px] text-muted-foreground uppercase tracking-wider">Scan QR</span>
+                  <div className="flex-1 h-px border-t-2 border-dashed border-muted-foreground/30"></div>
+                </div>
 
-              <div className="flex gap-1.5">
-                <Button variant="outline" size="sm" className="flex-1 h-7 text-[10px]" onClick={handleSaveQRIS}>
-                  <Download className="w-3 h-3 mr-1" />
-                  Save QR
-                </Button>
-                {import.meta.env.DEV && (
-                  <Button variant="outline" size="sm" className="flex-1 h-7 text-[10px]" onClick={handleDemoPayment}>
-                    Demo Pay
+                <div className="flex justify-center p-3 bg-white rounded-lg border-2 border-dashed border-muted-foreground/20">
+                  <img 
+                    src={qrisData.qrisImage} 
+                    alt="QRIS Payment Code" 
+                    className="w-40 h-40 object-contain"
+                    data-testid="img-qris-code"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-px border-t-2 border-dashed border-muted-foreground/30"></div>
+                  <span className="text-[8px] text-muted-foreground uppercase tracking-wider">Total</span>
+                  <div className="flex-1 h-px border-t-2 border-dashed border-muted-foreground/30"></div>
+                </div>
+
+                <div className="bg-primary/5 rounded-lg p-3 border border-primary/10">
+                  <div className="text-xl font-bold text-primary" data-testid="text-qris-amount">
+                    Rp {(qrisData.amount || 0).toLocaleString('id-ID')}
+                  </div>
+                  {qrisData.amountUSD && (
+                    <p className="text-[9px] text-muted-foreground">≈ ${qrisData.amountUSD?.toFixed(2)} USD</p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-center gap-2 py-2 px-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <Clock className="w-4 h-4 text-amber-600" />
+                  <span className="font-mono text-sm font-bold text-amber-700 dark:text-amber-400" data-testid="text-qris-countdown">
+                    {formatTime(timeRemaining)}
+                  </span>
+                  <span className="text-[9px] text-amber-600 dark:text-amber-400">tersisa</span>
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1 h-9" 
+                    onClick={handleSaveQRIS}
+                    data-testid="button-save-qris"
+                  >
+                    <Download className="w-4 h-4 mr-1.5" />
+                    Simpan QRIS
                   </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  {import.meta.env.DEV && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1 h-9" 
+                      onClick={handleDemoPayment}
+                      data-testid="button-demo-payment"
+                    >
+                      Demo Pay
+                    </Button>
+                  )}
+                </div>
 
-          <p className="text-center text-[9px] text-muted-foreground">
-            Waiting for payment... Status updates automatically
+                <p className="text-[8px] text-muted-foreground italic">
+                  Powered by Kompas Pay
+                </p>
+              </CardContent>
+            </Card>
+            
+            <svg className="absolute -bottom-3 left-0 w-full h-3" viewBox="0 0 400 12" preserveAspectRatio="none">
+              <path d="M0,0 L10,12 L20,0 L30,12 L40,0 L50,12 L60,0 L70,12 L80,0 L90,12 L100,0 L110,12 L120,0 L130,12 L140,0 L150,12 L160,0 L170,12 L180,0 L190,12 L200,0 L210,12 L220,0 L230,12 L240,0 L250,12 L260,0 L270,12 L280,0 L290,12 L300,0 L310,12 L320,0 L330,12 L340,0 L350,12 L360,0 L370,12 L380,0 L390,12 L400,0" 
+                    className="fill-card drop-shadow-sm" />
+            </svg>
+          </div>
+
+          <p className="text-center text-[9px] text-muted-foreground pt-2">
+            Menunggu pembayaran... Status diperbarui otomatis
           </p>
         </div>
       )}
