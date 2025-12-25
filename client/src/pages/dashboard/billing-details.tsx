@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { Receipt, Mail, Building2, CreditCard, History, FileText, Calendar } from "lucide-react";
+import { Receipt, Mail, Building2, CreditCard, History, FileText, Calendar, Zap, ArrowRight } from "lucide-react";
 import type { Merchant } from "@shared/schema";
 
 const billingDetailsSchema = z.object({
@@ -114,6 +115,46 @@ export default function BillingDetailsPage() {
           Manage your billing information and payment methods.
         </p>
       </div>
+
+      {/* Checkout Action Button */}
+      <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-primary/20">
+        <CardContent className="py-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Zap className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium">
+                  {billingStatus?.status === 'trial' 
+                    ? 'Upgrade sebelum trial berakhir!' 
+                    : billingStatus?.status === 'active'
+                      ? 'Upgrade ke plan yang lebih tinggi' 
+                      : 'Mulai berlangganan sekarang'}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {billingStatus?.status === 'trial' 
+                    ? 'Dapatkan akses penuh ke semua fitur premium'
+                    : billingStatus?.status === 'active'
+                      ? 'Tingkatkan limit percakapan dan fitur lainnya'
+                      : 'Pilih plan yang sesuai dengan kebutuhan bisnis Anda'}
+                </p>
+              </div>
+            </div>
+            <Button 
+              size="default"
+              className="shrink-0 min-w-[140px]"
+              asChild
+              data-testid="button-checkout"
+            >
+              <Link href="/dashboard/plans">
+                <ArrowRight className="w-4 h-4 mr-2" />
+                Checkout
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
