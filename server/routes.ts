@@ -3781,6 +3781,67 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // Demo Payment - Simulate successful payment for testing
+  app.post("/api/billing/demo-payment", requireMerchant, async (req, res) => {
+    try {
+      const { transactionId } = req.body;
+      const merchantId = req.session.merchantId!;
+      
+      console.log("Demo payment triggered:", { merchantId, transactionId });
+      
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      // Extract plan info from transaction ID format: SUB_{merchantId}_{planId}_{interval}_{timestamp}
+      const parts = transactionId.split('_');
+      const planId = parts[2] as SubscriptionPlanId;
+      const billingInterval = parts[3] || 'monthly';
+      
+      console.log("Demo payment processing:", { planId, billingInterval });
+      
+      if (!planId || !subscriptionPlans[planId]) {
+        // If can't parse, just mark as paid without changing plan
+        console.log("Cannot parse plan from transactionId, just acknowledging payment");
+        return res.json({ success: true, message: "Demo payment acknowledged" });
+      }
+      
+      const periodEnd = new Date();
+      if (billingInterval === 'annual') {
+        periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+      } else {
+        periodEnd.setMonth(periodEnd.getMonth() + 1);
+      }
+      
+      // Update subscription directly (bypass external gateway status check)
+      await storage.updateMerchantSubscription(merchantId, {
+        subscriptionPlanId: planId,
+        subscriptionStatus: 'active',
+        paymentSubscriptionId: transactionId,
+        lastInvoiceId: transactionId,
+        currentPeriodEnd: periodEnd,
+        billingInterval,
+        pendingTransactionId: null,
+        conversationsUsed: 0,
+        conversationsResetAt: new Date(),
+      });
+      
+      console.log("Demo payment success - subscription updated:", { merchantId, planId, periodEnd });
+      
+      res.json({ 
+        success: true, 
+        message: "Demo payment successful - subscription activated",
+        planId,
+        billingInterval,
+        currentPeriodEnd: periodEnd.toISOString(),
+      });
+    } catch (error: any) {
+      console.error("Demo payment error:", error);
+      res.status(500).json({ error: error.message || "Failed to process demo payment" });
+    }
+  });
+
   app.get("/api/billing/payment-status/:transactionId", requireMerchant, async (req, res) => {
     try {
       const { transactionId } = req.params;

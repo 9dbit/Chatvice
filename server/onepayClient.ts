@@ -408,18 +408,65 @@ export async function checkPaymentStatus(transactionId: string): Promise<Payment
     const requestTarget = `/partner/transaction/status/${transactionId}`;
     const signature = generateSignatureWithCredentials('', timestamp, clientKey, clientSecret, requestTarget);
 
-    const response = await fetch(`${apiBaseUrl}${requestTarget}`, {
-      method: 'GET',
-      headers: {
-        'Client-key': clientKey,
-        'Request-Timestamp': timestamp,
-        'Signature': signature,
-      },
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    
+    let response: Response;
+    try {
+      response = await fetch(`${apiBaseUrl}${requestTarget}`, {
+        method: 'GET',
+        headers: {
+          'Client-key': clientKey,
+          'Request-Timestamp': timestamp,
+          'Signature': signature,
+        },
+        signal: controller.signal,
+      });
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        console.warn('Payment status check timeout - gateway tidak merespons');
+        return {
+          success: false,
+          error: 'Gateway timeout - silakan coba lagi',
+        };
+      }
+      console.warn('Payment status fetch error:', fetchError.message);
+      return {
+        success: false,
+        error: `Connection error: ${fetchError.message}`,
+      };
+    }
+    clearTimeout(timeoutId);
+    
+    // Check content type before parsing
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const textResponse = await response.text();
+      console.warn('Payment status returned non-JSON response:', {
+        status: response.status,
+        contentType,
+        preview: textResponse.substring(0, 200),
+      });
+      
+      // If gateway returns HTML error page, report as pending (don't fail the check)
+      if (textResponse.includes('<!DOCTYPE') || textResponse.includes('<html')) {
+        return {
+          success: false,
+          error: 'Gateway returned error page - status check unavailable',
+        };
+      }
+      
+      return {
+        success: false,
+        error: 'Unexpected response format from gateway',
+      };
+    }
 
     const data = await response.json();
     
     if (!response.ok) {
+      console.warn('Payment status API error:', data);
       return {
         success: false,
         error: data.message || 'Failed to check status',

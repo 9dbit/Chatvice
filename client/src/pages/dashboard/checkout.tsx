@@ -336,11 +336,27 @@ export default function CheckoutPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transactionId }),
       });
-      if (response.ok) {
-        toast({ title: "Demo payment triggered", description: "Simulating payment success..." });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        toast({ 
+          title: "Payment Successful!", 
+          description: "Your subscription has been activated." 
+        });
+        // Clear cache and redirect to billing
+        queryClient.invalidateQueries({ queryKey: ['/api/merchant/current'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/billing'] });
+        setTimeout(() => {
+          navigate('/dashboard/billing');
+        }, 1500);
+      } else {
+        toast({ 
+          title: "Demo payment triggered", 
+          description: data.message || "Processing..." 
+        });
       }
     } catch (err) {
       console.error("Demo payment error:", err);
+      toast({ title: "Error", description: "Failed to process demo payment", variant: "destructive" });
     }
   };
 
