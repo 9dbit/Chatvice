@@ -3623,9 +3623,33 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         }
       }
       
-      // Calculate final price with discount
+      // Calculate proration credit for upgrades
+      let prorationCredit = 0;
+      let isUpgrade = false;
+      
+      if (merchant.subscriptionPlanId && merchant.subscriptionPlanId !== 'free' && merchant.subscriptionPlanId !== planId) {
+        const currentPlan = await getEffectiveSubscriptionPlan(merchant.subscriptionPlanId);
+        
+        if (currentPlan && merchant.currentPeriodEnd) {
+          const endDate = new Date(merchant.currentPeriodEnd);
+          const now = new Date();
+          const daysRemaining = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+          
+          if (daysRemaining > 0) {
+            const currentPlanPrice = merchant.billingInterval === 'annual' 
+              ? (currentPlan.annualPrice || 0) 
+              : (currentPlan.monthlyPrice || 0);
+            const dailyRate = currentPlanPrice / 30;
+            prorationCredit = Math.round(dailyRate * daysRemaining * 100) / 100;
+            isUpgrade = true;
+          }
+        }
+      }
+      
+      // Calculate final price with discount and proration credit
       const discountAmount = basePriceUSD * (discountPercent / 100);
-      const finalPriceUSD = Math.max(0, basePriceUSD - discountAmount);
+      const priceAfterDiscount = Math.max(0, basePriceUSD - discountAmount);
+      const finalPriceUSD = Math.max(0, priceAfterDiscount - prorationCredit);
       const priceIDR = Math.round(finalPriceUSD * exchangeRate);
       
       console.log('Checkout-v2 pricing:', {
@@ -3634,6 +3658,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         basePriceUSD,
         discountPercent,
         discountAmount,
+        prorationCredit,
+        isUpgrade,
+        priceAfterDiscount,
         finalPriceUSD,
         exchangeRate,
         priceIDR,
@@ -3686,6 +3713,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             billingInterval,
             discountPercent,
             appliedPromoCode,
+            prorationCredit,
+            isUpgrade,
           });
           
         case 'va':
