@@ -93,6 +93,20 @@ interface QRISPaymentResponse {
   billingInterval: string;
 }
 
+interface BillingTransaction {
+  id: string;
+  invoiceNumber: string | null;
+  amount: number;
+  amountFormatted: string;
+  status: 'pending' | 'paid' | 'failed' | 'expired' | 'cancelled';
+  paymentMethod: string | null;
+  planName: string | null;
+  subscriptionMonths: number | null;
+  createdAt: string;
+  paidAt: string | null;
+  expiresAt: string | null;
+}
+
 export default function BillingPage() {
   const { toast } = useToast();
   const [isAnnual, setIsAnnual] = useState(false);
@@ -141,6 +155,13 @@ export default function BillingPage() {
   const { data: activePromos = [] } = useQuery<ActivePromotion[]>({
     queryKey: ["/api/promotions/active"],
   });
+  
+  // Fetch billing transaction history
+  const { data: billingHistory = [], isLoading: isLoadingHistory } = useQuery<BillingTransaction[]>({
+    queryKey: ["/api/billing/transactions"],
+  });
+  
+  const [showBillingHistory, setShowBillingHistory] = useState(false);
   
   const trialDays = (platformSettings as any)?.trial_days ? parseInt((platformSettings as any).trial_days) : 7;
 
@@ -873,6 +894,79 @@ export default function BillingPage() {
             </div>
             {promoError && <span className="text-xs text-red-500">{promoError}</span>}
           </div>
+        )}
+
+        {/* Billing History Section */}
+        {billingHistory.length > 0 && (
+          <Collapsible open={showBillingHistory} onOpenChange={setShowBillingHistory} className="mb-6">
+            <Card>
+              <CollapsibleTrigger asChild>
+                <CardHeader className="cursor-pointer hover-elevate py-3 px-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-muted-foreground" />
+                      <CardTitle className="text-sm">Riwayat Pembayaran</CardTitle>
+                      <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{billingHistory.length}</Badge>
+                    </div>
+                    {showBillingHistory ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </div>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="pt-0 pb-3 px-4">
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {isLoadingHistory ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      </div>
+                    ) : (
+                      billingHistory.map((tx) => (
+                        <div 
+                          key={tx.id} 
+                          className="flex items-center justify-between gap-3 py-2 px-3 rounded-md bg-muted/30 border border-border/50"
+                          data-testid={`billing-transaction-${tx.id}`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className={`w-2 h-2 rounded-full shrink-0 ${
+                              tx.status === 'paid' ? 'bg-green-500' :
+                              tx.status === 'pending' ? 'bg-amber-500' :
+                              tx.status === 'expired' ? 'bg-gray-400' :
+                              'bg-red-500'
+                            }`} />
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium truncate">
+                                {tx.planName || 'Unknown Plan'}
+                                {tx.subscriptionMonths && tx.subscriptionMonths > 1 && (
+                                  <span className="text-muted-foreground"> ({tx.subscriptionMonths} bulan)</span>
+                                )}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {tx.invoiceNumber || tx.id.slice(0, 8)}
+                                {' • '}
+                                {format(new Date(tx.createdAt), 'dd MMM yyyy')}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-xs font-semibold">{tx.amountFormatted}</p>
+                            <Badge 
+                              variant={tx.status === 'paid' ? 'default' : tx.status === 'pending' ? 'secondary' : 'destructive'} 
+                              className="text-[9px] h-4 px-1.5"
+                            >
+                              {tx.status === 'paid' ? 'Lunas' : 
+                               tx.status === 'pending' ? 'Pending' : 
+                               tx.status === 'expired' ? 'Expired' :
+                               tx.status === 'cancelled' ? 'Dibatalkan' : 'Gagal'}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">

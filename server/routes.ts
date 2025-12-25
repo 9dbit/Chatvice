@@ -4004,6 +4004,33 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // Get merchant's payment transaction history
+  app.get("/api/billing/transactions", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const transactions = await storage.getPaymentTransactionsByMerchant(merchantId);
+      
+      const formattedTransactions = transactions.map(t => ({
+        id: t.id,
+        invoiceNumber: t.invoiceNumber,
+        amount: t.amount,
+        amountFormatted: new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(t.amount),
+        status: t.status,
+        paymentMethod: t.paymentMethod,
+        planName: t.planName,
+        subscriptionMonths: t.subscriptionMonths,
+        createdAt: t.createdAt,
+        paidAt: t.paidAt,
+        expiresAt: t.expiresAt,
+      }));
+      
+      res.json(formattedTransactions);
+    } catch (error: any) {
+      console.error("Get billing transactions error:", error);
+      res.status(500).json({ error: error.message || "Failed to get transactions" });
+    }
+  });
+
   app.post("/api/billing/sync", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
