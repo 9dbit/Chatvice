@@ -953,7 +953,17 @@ export default function BillingPage() {
                 </CardContent>
                 <CardFooter className="pt-2">
                   {isCustom ? (
-                    <Button variant="outline" className="w-full" size="sm" data-testid="button-contact-sales-custom">
+                    <Button 
+                      variant="outline" 
+                      className="w-full" 
+                      size="sm" 
+                      onClick={() => {
+                        const subject = encodeURIComponent("Custom Plan Inquiry");
+                        const body = encodeURIComponent("Hi, I'm interested in discussing a custom plan for Chatvice.");
+                        window.location.href = `mailto:sales@chatvice.app?subject=${subject}&body=${body}`;
+                      }}
+                      data-testid="button-contact-sales-custom"
+                    >
                       Contact Sales
                       <ArrowUpRight className="w-3 h-3 ml-1" />
                     </Button>
@@ -1050,11 +1060,12 @@ export default function BillingPage() {
       </div>
 
       <Dialog open={qrisPaymentOpen} onOpenChange={handleClosePayment}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="sm:max-w-md max-h-[95vh] p-0 flex flex-col gap-0">
           {/* Checkout Confirmation Step */}
           {paymentStep === 'checkout' && selectedPlan && (
-            <ScrollArea className="flex-1 max-h-[80vh]">
-              <div className="space-y-5 pr-4">
+            <div className="flex flex-col flex-1 min-h-0">
+              <ScrollArea className="flex-1">
+                <div className="space-y-5 p-4 sm:p-6">
                 {/* Header */}
                 <div className="text-center space-y-2">
                   <div className="w-12 h-12 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
@@ -1187,32 +1198,35 @@ export default function BillingPage() {
                   </label>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-3 pt-2">
-                  <Button 
-                    variant="outline" 
-                    className="flex-1"
-                    onClick={handleClosePayment}
-                    data-testid="button-cancel-checkout"
-                  >
-                    Batal
-                  </Button>
-                  <Button 
-                    className="flex-1"
-                    onClick={handleProceedToPayment}
-                    disabled={!termsAccepted || checkoutMutation.isPending}
-                    data-testid="button-proceed-payment"
-                  >
-                    {checkoutMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <ArrowRight className="w-4 h-4 mr-2" />
-                    )}
-                    Lanjutkan Bayar
-                  </Button>
                 </div>
               </div>
-            </ScrollArea>
+              </ScrollArea>
+
+              {/* Action Buttons - Always Visible at Bottom */}
+              <div className="flex gap-3 p-4 sm:p-6 border-t bg-background shrink-0">
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={handleClosePayment}
+                  data-testid="button-cancel-checkout"
+                >
+                  Batal
+                </Button>
+                <Button 
+                  className="flex-1"
+                  onClick={handleProceedToPayment}
+                  disabled={!termsAccepted || checkoutMutation.isPending}
+                  data-testid="button-proceed-payment"
+                >
+                  {checkoutMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <ArrowRight className="w-4 h-4 mr-2" />
+                  )}
+                  Lanjutkan Bayar
+                </Button>
+              </div>
+            </div>
           )}
 
           {paymentStep === 'loading' && (
