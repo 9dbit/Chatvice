@@ -6823,87 +6823,131 @@ function GatewayStatisticsSection({ gateways, toast }: { gateways: PaymentGatewa
   );
 }
 
-function TransactionsTab({ toast }: { toast: any }) {
-  const [statusFilter, setStatusFilter] = useState<"all" | "completed" | "pending" | "failed">("all");
-  const transactions = [
-    { id: "tx_001", merchant: "Acme Corp", email: "billing@acme.com", amount: 99, plan: "Pro", date: "2024-01-15", status: "completed", paymentMethod: "QRIS", invoiceId: "INV-2024-001" },
-    { id: "tx_002", merchant: "TechStart Inc", email: "admin@techstart.co", amount: 29, plan: "Starter", date: "2024-01-14", status: "completed", paymentMethod: "QRIS", invoiceId: "INV-2024-002" },
-    { id: "tx_003", merchant: "GlobalShop", email: "finance@globalshop.id", amount: 299, plan: "Enterprise", date: "2024-01-13", status: "completed", paymentMethod: "Bank Transfer", invoiceId: "INV-2024-003" },
-    { id: "tx_004", merchant: "LocalBiz", email: "owner@localbiz.co.id", amount: 29, plan: "Starter", date: "2024-01-12", status: "pending", paymentMethod: "QRIS", invoiceId: "INV-2024-004" },
-    { id: "tx_005", merchant: "MegaCorp", email: "ap@megacorp.com", amount: 99, plan: "Pro", date: "2024-01-11", status: "completed", paymentMethod: "Credit Card", invoiceId: "INV-2024-005" },
-    { id: "tx_006", merchant: "StartupXYZ", email: "billing@startupxyz.io", amount: 29, plan: "Starter", date: "2024-01-10", status: "failed", paymentMethod: "QRIS", invoiceId: "INV-2024-006" },
-  ];
+interface TransactionData {
+  id: string;
+  merchantId: string;
+  merchantEmail: string | null;
+  merchantCompanyName: string | null;
+  amount: number;
+  currency: string | null;
+  status: string | null;
+  paymentMethod: string | null;
+  planId: string | null;
+  planName: string | null;
+  subscriptionMonths: number | null;
+  invoiceNumber: string | null;
+  externalId: string | null;
+  createdAt: string;
+  paidAt: string | null;
+  expiresAt: string | null;
+}
 
-  const filteredTransactions = transactions.filter(tx => 
-    statusFilter === "all" || tx.status === statusFilter
-  );
+function TransactionsTab({ toast }: { toast: any }) {
+  const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "pending" | "failed" | "expired" | "cancelled">("all");
+  
+  // Fetch real transaction data from API
+  const { data: transactions = [], isLoading } = useQuery<TransactionData[]>({
+    queryKey: ["/api/admin/payment/transactions"],
+  });
+
+  const filteredTransactions = transactions.filter(tx => {
+    const normalizedStatus = tx.status === "completed" ? "paid" : tx.status;
+    return statusFilter === "all" || normalizedStatus === statusFilter;
+  });
+
+  // Format amount for display
+  const formatAmount = (amount: number, currency: string | null) => {
+    if (currency === "IDR" || !currency) {
+      return `Rp ${amount.toLocaleString('id-ID')}`;
+    }
+    return `$${(amount / 100).toFixed(2)}`;
+  };
 
   const handleExport = () => {
+    const exportData = filteredTransactions.map(tx => ({
+      invoiceNumber: tx.invoiceNumber || tx.id.slice(0, 12),
+      merchant: tx.merchantCompanyName || 'Unknown',
+      email: tx.merchantEmail || '',
+      plan: tx.planName || '-',
+      amount: tx.amount,
+      currency: tx.currency || 'IDR',
+      paymentMethod: tx.paymentMethod || '-',
+      date: tx.createdAt ? format(new Date(tx.createdAt), 'yyyy-MM-dd HH:mm') : '',
+      status: tx.status || 'unknown',
+    }));
     const columns = [
-      { key: "invoiceId", label: "Invoice ID" },
+      { key: "invoiceNumber", label: "Invoice Number" },
       { key: "merchant", label: "Merchant" },
       { key: "email", label: "Email" },
       { key: "plan", label: "Plan" },
-      { key: "amount", label: "Amount ($)" },
+      { key: "amount", label: "Amount" },
+      { key: "currency", label: "Currency" },
       { key: "paymentMethod", label: "Payment Method" },
       { key: "date", label: "Date" },
       { key: "status", label: "Status" },
     ];
-    const csv = generateCSV(filteredTransactions, columns);
+    const csv = generateCSV(exportData, columns);
     downloadCSV(csv, `transactions_${statusFilter}_${format(new Date(), 'yyyy-MM-dd')}.csv`);
     toast({ title: "Export Complete", description: `${filteredTransactions.length} transactions exported.` });
   };
 
-  const totalRevenue = transactions.filter(t => t.status === "completed").reduce((sum, t) => sum + t.amount, 0);
+  const paidTransactions = transactions.filter(t => t.status === "paid" || t.status === "completed");
+  const totalRevenue = paidTransactions.reduce((sum, t) => sum + t.amount, 0);
   const pendingAmount = transactions.filter(t => t.status === "pending").reduce((sum, t) => sum + t.amount, 0);
-  const failedAmount = transactions.filter(t => t.status === "failed").reduce((sum, t) => sum + t.amount, 0);
+  const failedAmount = transactions.filter(t => t.status === "failed" || t.status === "expired").reduce((sum, t) => sum + t.amount, 0);
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-green-500" />
-              <MetricTooltip metricKey="completedRevenue">
-                <span>Completed Revenue</span>
-              </MetricTooltip>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-green-600 dark:text-green-400">${totalRevenue}</p>
-            <p className="text-xs text-muted-foreground">{transactions.filter(t => t.status === "completed").length} transactions</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Clock className="w-4 h-4 text-yellow-500" />
-              <MetricTooltip metricKey="pendingRevenue">
-                <span>Pending</span>
-              </MetricTooltip>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">${pendingAmount}</p>
-            <p className="text-xs text-muted-foreground">{transactions.filter(t => t.status === "pending").length} awaiting</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <XCircle className="w-4 h-4 text-red-500" />
-              <MetricTooltip metricKey="refundedRevenue">
-                <span>Failed</span>
-              </MetricTooltip>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-red-600 dark:text-red-400">${failedAmount}</p>
-            <p className="text-xs text-muted-foreground">{transactions.filter(t => t.status === "failed").length} failed</p>
-          </CardContent>
-        </Card>
-      </div>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <MetricTooltip metricKey="completedRevenue">
+                  <span>Completed Revenue</span>
+                </MetricTooltip>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">Rp {totalRevenue.toLocaleString('id-ID')}</p>
+              <p className="text-xs text-muted-foreground">{paidTransactions.length} transactions</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Clock className="w-4 h-4 text-yellow-500" />
+                <MetricTooltip metricKey="pendingRevenue">
+                  <span>Pending</span>
+                </MetricTooltip>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">Rp {pendingAmount.toLocaleString('id-ID')}</p>
+              <p className="text-xs text-muted-foreground">{transactions.filter(t => t.status === "pending").length} awaiting</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <XCircle className="w-4 h-4 text-red-500" />
+                <MetricTooltip metricKey="refundedRevenue">
+                  <span>Failed/Expired</span>
+                </MetricTooltip>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-red-600 dark:text-red-400">Rp {failedAmount.toLocaleString('id-ID')}</p>
+              <p className="text-xs text-muted-foreground">{transactions.filter(t => t.status === "failed" || t.status === "expired").length} transactions</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <Card>
         <CardHeader>
@@ -6913,8 +6957,8 @@ function TransactionsTab({ toast }: { toast: any }) {
               <CardDescription>Detailed payment history with invoice tracking</CardDescription>
             </div>
             <div className="flex flex-wrap gap-2">
-              <div className="flex gap-1">
-                {(["all", "completed", "pending", "failed"] as const).map((status) => (
+              <div className="flex gap-1 flex-wrap">
+                {(["all", "paid", "pending", "failed", "expired", "cancelled"] as const).map((status) => (
                   <Button
                     key={status}
                     variant={statusFilter === status ? "default" : "outline"}
@@ -6922,11 +6966,11 @@ function TransactionsTab({ toast }: { toast: any }) {
                     onClick={() => setStatusFilter(status)}
                     data-testid={`button-tx-filter-${status}`}
                   >
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                    {status === "paid" ? "Paid" : status.charAt(0).toUpperCase() + status.slice(1)}
                   </Button>
                 ))}
               </div>
-              <Button variant="outline" size="sm" onClick={handleExport} data-testid="button-export-transactions">
+              <Button variant="outline" size="sm" onClick={handleExport} disabled={filteredTransactions.length === 0} data-testid="button-export-transactions">
                 <Download className="w-4 h-4 mr-2" />
                 Export CSV
               </Button>
@@ -6958,24 +7002,31 @@ function TransactionsTab({ toast }: { toast: any }) {
                 ) : (
                   filteredTransactions.map((tx) => (
                     <TableRow key={tx.id} data-testid={`row-transaction-${tx.id}`}>
-                      <TableCell className="font-mono text-xs">{tx.invoiceId}</TableCell>
-                      <TableCell className="font-medium text-sm">{tx.merchant}</TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{tx.email}</TableCell>
+                      <TableCell className="font-mono text-xs">{tx.invoiceNumber || tx.id.slice(0, 12)}</TableCell>
+                      <TableCell className="font-medium text-sm">{tx.merchantCompanyName || 'Unknown'}</TableCell>
+                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{tx.merchantEmail || '-'}</TableCell>
                       <TableCell className="hidden sm:table-cell">
-                        <Badge variant="outline">{tx.plan}</Badge>
+                        <Badge variant="outline">{tx.planName || '-'}</Badge>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell text-sm">{tx.paymentMethod}</TableCell>
-                      <TableCell className="font-medium">${tx.amount}</TableCell>
-                      <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">{tx.date}</TableCell>
+                      <TableCell className="hidden md:table-cell text-sm">{tx.paymentMethod || '-'}</TableCell>
+                      <TableCell className="font-medium">{formatAmount(tx.amount, tx.currency)}</TableCell>
+                      <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
+                        {tx.createdAt ? format(new Date(tx.createdAt), 'dd MMM yyyy HH:mm') : '-'}
+                      </TableCell>
                       <TableCell>
                         <Badge className={
-                          tx.status === "completed" 
+                          tx.status === "paid" || tx.status === "completed"
                             ? "bg-green-500/20 text-green-700 dark:text-green-400" 
                             : tx.status === "pending"
                             ? "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400"
+                            : tx.status === "expired"
+                            ? "bg-gray-500/20 text-gray-700 dark:text-gray-400"
                             : "bg-red-500/20 text-red-700 dark:text-red-400"
                         }>
-                          {tx.status}
+                          {tx.status === "paid" || tx.status === "completed" ? "Paid" : 
+                           tx.status === "pending" ? "Pending" : 
+                           tx.status === "expired" ? "Expired" :
+                           tx.status === "cancelled" ? "Cancelled" : "Failed"}
                         </Badge>
                       </TableCell>
                     </TableRow>
@@ -6991,34 +7042,55 @@ function TransactionsTab({ toast }: { toast: any }) {
         <Card>
           <CardHeader className="pb-2">
             <MetricTooltip metricKey="totalRevenue">
-              <CardTitle className="text-sm font-medium">Revenue (MTD)</CardTitle>
+              <CardTitle className="text-sm font-medium">Revenue (This Month)</CardTitle>
             </MetricTooltip>
           </CardHeader>
           <CardContent>
-            <p className="text-xl md:text-2xl font-bold">$4,527</p>
-            <p className="text-xs text-green-600 dark:text-green-400">+18% from last month</p>
+            {(() => {
+              const now = new Date();
+              const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+              const mtdRevenue = paidTransactions
+                .filter(t => new Date(t.createdAt) >= monthStart)
+                .reduce((sum, t) => sum + t.amount, 0);
+              return (
+                <>
+                  <p className="text-xl md:text-2xl font-bold">Rp {mtdRevenue.toLocaleString('id-ID')}</p>
+                  <p className="text-xs text-muted-foreground">{paidTransactions.filter(t => new Date(t.createdAt) >= monthStart).length} transactions</p>
+                </>
+              );
+            })()}
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <MetricTooltip metricKey="totalRevenue">
-              <CardTitle className="text-sm font-medium">Revenue (YTD)</CardTitle>
+              <CardTitle className="text-sm font-medium">Revenue (This Year)</CardTitle>
             </MetricTooltip>
           </CardHeader>
           <CardContent>
-            <p className="text-xl md:text-2xl font-bold">$42,830</p>
-            <p className="text-xs text-green-600 dark:text-green-400">+24% from last year</p>
+            {(() => {
+              const yearStart = new Date(new Date().getFullYear(), 0, 1);
+              const ytdRevenue = paidTransactions
+                .filter(t => new Date(t.createdAt) >= yearStart)
+                .reduce((sum, t) => sum + t.amount, 0);
+              return (
+                <>
+                  <p className="text-xl md:text-2xl font-bold">Rp {ytdRevenue.toLocaleString('id-ID')}</p>
+                  <p className="text-xs text-muted-foreground">{paidTransactions.filter(t => new Date(t.createdAt) >= yearStart).length} transactions</p>
+                </>
+              );
+            })()}
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <MetricTooltip metricKey="totalRevenue">
-              <CardTitle className="text-sm font-medium">MRR</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Revenue (All Time)</CardTitle>
             </MetricTooltip>
           </CardHeader>
           <CardContent>
-            <p className="text-xl md:text-2xl font-bold">$5,120</p>
-            <p className="text-xs text-green-600 dark:text-green-400">+12% MoM</p>
+            <p className="text-xl md:text-2xl font-bold">Rp {totalRevenue.toLocaleString('id-ID')}</p>
+            <p className="text-xs text-muted-foreground">{paidTransactions.length} total transactions</p>
           </CardContent>
         </Card>
       </div>
