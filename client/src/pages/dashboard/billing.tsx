@@ -1081,36 +1081,43 @@ export default function BillingPage() {
 
                 {/* Order Details */}
                 <div className="p-4 rounded-xl bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <Crown className="w-4 h-4 text-primary" />
-                      <span className="font-semibold">{selectedPlan.name} Plan</span>
-                    </div>
-                    <Badge className="bg-primary/20 text-primary border-0 hover:bg-primary/20">
-                      {isAnnual ? 'Tahunan' : 'Bulanan'}
-                    </Badge>
-                  </div>
-                  
-                  {/* Price Breakdown */}
-                  <div className="space-y-2 pt-2 border-t border-primary/10">
-                    {(() => {
-                      const exchangeRate = (platformSettings?.exchange_rate ? parseInt((platformSettings as any).exchange_rate) : 16000);
-                      // Fix: Don't multiply annual by 12 - annualPrice is already the annual total
-                      const priceUSD = isAnnual ? (selectedPlan.annualPrice || 0) : (selectedPlan.monthlyPrice || 0);
-                      const priceIDR = Math.round(priceUSD * exchangeRate); // USD to IDR conversion
-                      const promo = getPromoForPlan(selectedPlan.id);
-                      const discountPercent = promo?.discountPercent || 0;
-                      const discountAmount = Math.round(priceIDR * discountPercent / 100);
-                      const finalPrice = priceIDR - discountAmount;
-                      
-                      // Fix: Convert proration finalAmount from USD to IDR
-                      let finalPaymentIDR = finalPrice;
-                      if (prorationInfo?.prorationApplied && prorationInfo?.finalAmount) {
-                        finalPaymentIDR = Math.round(prorationInfo.finalAmount * exchangeRate) - discountAmount;
-                      }
-                      
-                      return (
-                        <>
+                  {(() => {
+                    const exchangeRate = (platformSettings as any)?.exchange_rate ? parseInt((platformSettings as any).exchange_rate) : 16000;
+                    const priceUSD = isAnnual ? (selectedPlan.annualPrice || 0) : (selectedPlan.monthlyPrice || 0);
+                    const priceIDR = Math.round(priceUSD * exchangeRate);
+                    const promo = getPromoForPlan(selectedPlan.id);
+                    const discountPercent = promo?.discountPercent || 0;
+                    const discountAmount = Math.round(priceIDR * discountPercent / 100);
+                    const finalPrice = priceIDR - discountAmount;
+                    
+                    let finalPaymentIDR = finalPrice;
+                    if (prorationInfo?.prorationApplied && prorationInfo?.finalAmount) {
+                      finalPaymentIDR = Math.round(prorationInfo.finalAmount * exchangeRate) - discountAmount;
+                    }
+                    
+                    return (
+                      <>
+                        {/* Plan Name with USD Price */}
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Crown className="w-4 h-4 text-primary" />
+                            <span className="font-semibold">{selectedPlan.name} Plan</span>
+                          </div>
+                          <span className="text-lg font-bold text-primary">${priceUSD.toFixed(2)}</span>
+                        </div>
+                        
+                        {/* Billing Period Badge */}
+                        <div className="flex items-center justify-between mb-3">
+                          <Badge className="bg-primary/20 text-primary border-0 hover:bg-primary/20">
+                            {isAnnual ? 'Tahunan' : 'Bulanan'}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            Kurs: Rp {exchangeRate.toLocaleString('id-ID')}/USD
+                          </span>
+                        </div>
+                        
+                        {/* Price Breakdown */}
+                        <div className="space-y-2 pt-2 border-t border-primary/10">
                           <div className="flex justify-between text-sm">
                             <span className="text-muted-foreground">Harga {isAnnual ? 'Tahunan' : 'Bulanan'}</span>
                             <span>Rp {priceIDR.toLocaleString('id-ID')}</span>
@@ -1133,13 +1140,10 @@ export default function BillingPage() {
                               Rp {finalPaymentIDR.toLocaleString('id-ID')}
                             </span>
                           </div>
-                          <p className="text-xs text-muted-foreground text-right">
-                            ≈ ${priceUSD.toFixed(2)} USD
-                          </p>
-                        </>
-                      );
-                    })()}
-                  </div>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Plan Features */}
