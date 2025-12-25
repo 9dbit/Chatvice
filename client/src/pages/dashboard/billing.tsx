@@ -665,7 +665,7 @@ export default function BillingPage() {
         </Card>
       </div>
 
-      {billingStatus?.pendingTransaction && (
+      {billingStatus?.pendingTransaction?.transactionId && (
         <Card className="border-amber-500/50 bg-amber-500/5" data-testid="card-pending-transaction">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
@@ -675,19 +675,23 @@ export default function BillingPage() {
                   Pembayaran Pending
                 </CardTitle>
               </div>
-              <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400">
-                {billingStatus.pendingTransaction.paymentMethod.toUpperCase()}
-              </Badge>
+              {billingStatus.pendingTransaction.paymentMethod && (
+                <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400">
+                  {billingStatus.pendingTransaction.paymentMethod.toUpperCase()}
+                </Badge>
+              )}
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Nominal</span>
-                <span className="text-lg font-bold text-amber-700 dark:text-amber-400">
-                  {billingStatus.pendingTransaction.amountFormatted}
-                </span>
-              </div>
+              {billingStatus.pendingTransaction.amountFormatted && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Nominal</span>
+                  <span className="text-lg font-bold text-amber-700 dark:text-amber-400">
+                    {billingStatus.pendingTransaction.amountFormatted}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Order ID</span>
                 <span className="text-xs font-mono">
@@ -705,7 +709,7 @@ export default function BillingPage() {
               <div className="pt-2">
                 <Button 
                   size="sm" 
-                  className="w-full"
+                  className="w-full min-h-[44px]"
                   onClick={() => window.location.href = `/dashboard/checkout?resume=${billingStatus.pendingTransaction?.transactionId}`}
                   data-testid="button-continue-payment"
                 >
