@@ -549,11 +549,11 @@ export default function CheckoutPage() {
         <Card>
           <CardContent className="py-10 text-center space-y-3">
             <AlertTriangle className="w-10 h-10 mx-auto text-amber-500" />
-            <h2 className="text-base font-semibold">Plan Not Found</h2>
-            <p className="text-[11px] text-muted-foreground">Please select a plan from the billing page.</p>
-            <Button size="sm" onClick={() => navigate('/dashboard/billing')}>
+            <h2 className="text-base font-semibold">Tidak Ada Transaksi</h2>
+            <p className="text-[11px] text-muted-foreground">Silakan pilih paket dari halaman billing untuk melakukan upgrade.</p>
+            <Button size="sm" onClick={() => navigate('/dashboard/billing')} data-testid="button-back-to-billing">
               <ArrowLeft className="w-3 h-3 mr-1" />
-              Back
+              Kembali ke Billing
             </Button>
           </CardContent>
         </Card>
@@ -892,9 +892,16 @@ export default function CheckoutPage() {
                       <span className="text-muted-foreground">Periode</span>
                       <span className="font-medium">{qrisData.billingInterval === 'annual' ? 'Tahunan' : 'Bulanan'}</span>
                     </div>
-                    <div className="flex justify-between text-xs">
+                    <div className="flex justify-between text-xs items-center">
                       <span className="text-muted-foreground">Order ID</span>
-                      <span className="font-mono text-[10px] text-muted-foreground">{qrisData.orderId}</span>
+                      <button 
+                        onClick={() => copyToClipboard(qrisData.orderId)}
+                        className="font-mono text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1"
+                        title={qrisData.orderId}
+                      >
+                        <span className="max-w-[120px] truncate">{qrisData.orderId.slice(-12)}</span>
+                        <Copy className="w-3 h-3 flex-shrink-0" />
+                      </button>
                     </div>
                   </div>
 

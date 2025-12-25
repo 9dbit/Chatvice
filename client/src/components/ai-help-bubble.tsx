@@ -644,19 +644,22 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
         className="fixed z-50"
         style={{ bottom: position.y, right: Math.max(8, position.x) }}
       >
-        <Card className="w-56 sm:w-64 max-w-[calc(100vw-16px)] shadow-xl border border-border">
-          <CardHeader className="p-2.5 sm:p-3 flex flex-row items-center justify-between space-y-0 gap-2" style={{ backgroundColor: widgetColor }}>
+        <div className="w-56 sm:w-64 max-w-[calc(100vw-16px)] rounded-xl shadow-xl border border-white/20 backdrop-blur-md bg-background/80 dark:bg-background/70">
+          <div className="p-2.5 sm:p-3 flex flex-row items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-                <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
+              <div 
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: `${widgetColor}30` }}
+              >
+                <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: widgetColor }} />
               </div>
-              <span className="font-semibold text-xs sm:text-sm truncate text-white">{guideName}</span>
+              <span className="font-semibold text-xs sm:text-sm truncate">{guideName}</span>
             </div>
             <div className="flex gap-1 flex-shrink-0">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 text-white hover:bg-white/20"
+                className="h-6 w-6 hover:bg-muted"
                 onClick={() => setIsMinimized(false)}
                 data-testid="button-maximize-help"
               >
@@ -665,15 +668,15 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 text-white hover:bg-white/20"
+                className="h-6 w-6 hover:bg-muted"
                 onClick={() => setIsOpen(false)}
                 data-testid="button-close-help"
               >
                 <X className="w-3 h-3" />
               </Button>
             </div>
-          </CardHeader>
-        </Card>
+          </div>
+        </div>
       </div>
     );
   }
