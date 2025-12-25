@@ -3590,8 +3590,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(503).json({ error: "Payment gateway not configured" });
       }
       
-      // Supported bank codes for VA
-      const SUPPORTED_BANK_CODES = ['BCA', 'BRI', 'MANDIRI', 'BNI', 'CIMB', 'PERMATA'];
+      // Supported bank codes for VA (numeric codes per Kompas Pay docs)
+      const SUPPORTED_BANK_CODES = ['014', '002', '008', '009', '022', '013']; // BCA, BRI, MANDIRI, BNI, CIMB, PERMATA
       
       // Use same currency conversion as existing checkout endpoint
       const priceUSD = billingInterval === 'annual' ? plan.annualPrice * 12 : plan.monthlyPrice;
@@ -3649,17 +3649,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             return res.status(400).json({ error: "Bank code is required for Virtual Account" });
           }
           
-          // Validate bank code
-          const normalizedBankCode = bankCode.toUpperCase();
-          if (!SUPPORTED_BANK_CODES.includes(normalizedBankCode)) {
-            return res.status(400).json({ error: `Unsupported bank. Supported: ${SUPPORTED_BANK_CODES.join(', ')}` });
+          // Validate bank code (numeric codes)
+          if (!SUPPORTED_BANK_CODES.includes(bankCode)) {
+            return res.status(400).json({ error: `Unsupported bank code. Supported: ${SUPPORTED_BANK_CODES.join(', ')}` });
           }
           
           paymentResult = await createVAPayment({
             merchantId: merchant.id,
             orderId,
             amount: priceIDR,
-            bankCode: bankCode.toUpperCase(),
+            bankCode: bankCode,
             customerName: merchant.companyName,
             customerEmail: merchant.email,
             description: `Chatvice ${plan.name} Subscription`,
