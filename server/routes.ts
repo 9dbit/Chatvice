@@ -19,7 +19,7 @@ import path from "path";
 import fs from "fs";
 import { processKnowledgeBase, searchKnowledge } from "./embeddings";
 import { extractFAQContent } from "./crawler";
-import { createQRISPayment, checkPaymentStatus, isOnePayConfigured, convertToIDR, formatIDR } from "./onepayClient";
+import { createQRISPayment, createVAPayment, checkPaymentStatus, isOnePayConfigured, convertToIDR, formatIDR } from "./onepayClient";
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats } from "@shared/schema";
 import crypto from "crypto";
@@ -3497,6 +3497,267 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       });
     } catch (error: any) {
       console.error("Checkout error:", error);
+      res.status(500).json({ error: error.message || "Failed to create checkout session" });
+    }
+  });
+
+  // Exchange rate endpoint - fetches from external source
+  app.get("/api/exchange-rate", async (req, res) => {
+    try {
+      // Try to fetch from free forex API
+      let rate = 16500; // Default fallback rate
+      let source = "Default";
+      let lastUpdated = new Date().toISOString();
+      
+      try {
+        // Use exchangerate-api.com free tier (limited calls but reliable)
+        const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD', {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.rates && data.rates.IDR) {
+            rate = Math.round(data.rates.IDR);
+            source = "Google Finance via ExchangeRate-API";
+            lastUpdated = data.time_last_updated ? new Date(data.time_last_updated * 1000).toISOString() : new Date().toISOString();
+          }
+        }
+      } catch (e) {
+        // Fallback: try another free API
+        try {
+          const fallbackResponse = await fetch('https://open.er-api.com/v6/latest/USD');
+          if (fallbackResponse.ok) {
+            const fallbackData = await fallbackResponse.json();
+            if (fallbackData.rates && fallbackData.rates.IDR) {
+              rate = Math.round(fallbackData.rates.IDR);
+              source = "Open Exchange Rates";
+              lastUpdated = fallbackData.time_last_update_utc || new Date().toISOString();
+            }
+          }
+        } catch {
+          // Use platform settings as final fallback
+          const savedRate = await storage.getPlatformSetting("exchange_rate");
+          if (savedRate) {
+            rate = parseInt(savedRate);
+            source = "Cached Rate";
+          }
+        }
+      }
+      
+      // Store the rate for caching
+      await storage.setPlatformSetting("exchange_rate", rate.toString());
+      await storage.setPlatformSetting("exchange_rate_source", source);
+      await storage.setPlatformSetting("exchange_rate_updated", lastUpdated);
+      
+      res.json({
+        rate,
+        source,
+        lastUpdated,
+        currency: "IDR",
+        baseCurrency: "USD",
+      });
+    } catch (error: any) {
+      console.error("Exchange rate fetch error:", error);
+      // Return cached/default rate on error
+      const savedRate = await storage.getPlatformSetting("exchange_rate");
+      res.json({
+        rate: savedRate ? parseInt(savedRate) : 16500,
+        source: "Cached Rate",
+        lastUpdated: new Date().toISOString(),
+        currency: "IDR",
+        baseCurrency: "USD",
+      });
+    }
+  });
+
+  // Checkout with payment method selection
+  app.post("/api/billing/checkout-v2", requireMerchant, async (req, res) => {
+    try {
+      const { planId, billingInterval, paymentMethod, bankCode, senderName, senderBank } = req.body;
+      const merchant = await storage.getMerchant(req.session.merchantId!);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      const plan = await getEffectiveSubscriptionPlan(planId);
+      if (!plan) {
+        return res.status(400).json({ error: "Invalid plan" });
+      }
+
+      if (!isOnePayConfigured()) {
+        return res.status(503).json({ error: "Payment gateway not configured" });
+      }
+      
+      // Get exchange rate
+      const savedRate = await storage.getPlatformSetting("exchange_rate");
+      const exchangeRate = savedRate ? parseInt(savedRate) : 16500;
+      
+      const priceUSD = billingInterval === 'annual' ? plan.annualPrice * 12 : plan.monthlyPrice;
+      const priceIDR = Math.round(priceUSD * exchangeRate);
+      
+      const orderId = `SUB_${merchant.id}_${planId}_${billingInterval}_${Date.now()}`;
+      
+      const forwardedHost = req.get('x-forwarded-host') || req.get('host');
+      const isLocalhost = !forwardedHost || forwardedHost.includes('localhost');
+      const callbackUrl = isLocalhost 
+        ? 'https://chatvice.app/api/onepay/webhook'
+        : `https://${forwardedHost}/api/onepay/webhook`;
+      
+      let paymentResult: any = null;
+      
+      switch (paymentMethod) {
+        case 'qris':
+          paymentResult = await createQRISPayment({
+            merchantId: merchant.id,
+            orderId,
+            amount: priceIDR,
+            customerName: merchant.companyName,
+            customerEmail: merchant.email,
+            description: `Chatvice ${plan.name} - ${billingInterval === 'annual' ? 'Annual' : 'Monthly'} Subscription`,
+            expiryMinutes: 30,
+            callbackUrl,
+            metadata: { merchantId: merchant.id, planId, billingInterval, type: 'subscription' },
+          });
+          
+          if (!paymentResult.success || !paymentResult.data) {
+            return res.status(500).json({ error: paymentResult.error || "Failed to create QRIS payment" });
+          }
+          
+          await storage.updateMerchantSubscription(merchant.id, {
+            pendingTransactionId: paymentResult.data.transactionId,
+          });
+          
+          return res.json({
+            paymentMethod: 'qris',
+            transactionId: paymentResult.data.transactionId,
+            orderId: paymentResult.data.orderId,
+            qrisString: paymentResult.data.qrisString,
+            qrisImage: paymentResult.data.qrisImageUrl,
+            amount: priceIDR,
+            amountUSD: priceUSD,
+            expiryTime: paymentResult.data.expiryTime,
+            planId,
+            planName: plan.name,
+            billingInterval,
+          });
+          
+        case 'va':
+        case 'virtual_account':
+          if (!bankCode) {
+            return res.status(400).json({ error: "Bank code is required for Virtual Account" });
+          }
+          
+          paymentResult = await createVAPayment({
+            merchantId: merchant.id,
+            orderId,
+            amount: priceIDR,
+            bankCode: bankCode.toUpperCase(),
+            customerName: merchant.companyName,
+            customerEmail: merchant.email,
+            description: `Chatvice ${plan.name} Subscription`,
+            expiryMinutes: 1440, // 24 hours
+            callbackUrl,
+            metadata: { merchantId: merchant.id, planId, billingInterval, type: 'subscription' },
+          });
+          
+          if (!paymentResult.success || !paymentResult.data) {
+            return res.status(500).json({ error: paymentResult.error || "Failed to create Virtual Account" });
+          }
+          
+          await storage.updateMerchantSubscription(merchant.id, {
+            pendingTransactionId: paymentResult.data.transactionId,
+          });
+          
+          return res.json({
+            paymentMethod: 'virtual_account',
+            transactionId: paymentResult.data.transactionId,
+            orderId: paymentResult.data.orderId,
+            vaNumber: paymentResult.data.vaNumber,
+            bankCode: paymentResult.data.bankCode,
+            amount: priceIDR,
+            amountUSD: priceUSD,
+            expiryTime: paymentResult.data.expiryTime,
+            planId,
+            planName: plan.name,
+            billingInterval,
+          });
+          
+        case 'bank_transfer':
+          // Bank transfer requires sender info
+          return res.json({
+            paymentMethod: 'bank_transfer',
+            orderId,
+            amount: priceIDR,
+            amountUSD: priceUSD,
+            planId,
+            planName: plan.name,
+            billingInterval,
+            bankAccounts: [
+              { bankCode: 'BCA', bankName: 'Bank Central Asia', accountNumber: '1234567890', accountName: 'PT Chatvice Indonesia' },
+              { bankCode: 'BRI', bankName: 'Bank Rakyat Indonesia', accountNumber: '0987654321', accountName: 'PT Chatvice Indonesia' },
+              { bankCode: 'MANDIRI', bankName: 'Bank Mandiri', accountNumber: '1122334455', accountName: 'PT Chatvice Indonesia' },
+              { bankCode: 'BNI', bankName: 'Bank Negara Indonesia', accountNumber: '5566778899', accountName: 'PT Chatvice Indonesia' },
+              { bankCode: 'CIMB', bankName: 'CIMB Niaga', accountNumber: '6677889900', accountName: 'PT Chatvice Indonesia' },
+            ],
+            instructions: [
+              'Transfer sesuai nominal yang tertera',
+              'Simpan bukti transfer',
+              'Konfirmasi pembayaran melalui WhatsApp atau email',
+            ],
+            senderInfo: { name: senderName, bank: senderBank },
+          });
+          
+        case 'ewallet':
+          // E-wallet redirects to Kompas Pay payment page
+          return res.json({
+            paymentMethod: 'ewallet',
+            orderId,
+            amount: priceIDR,
+            amountUSD: priceUSD,
+            planId,
+            planName: plan.name,
+            billingInterval,
+            redirectUrl: `https://payment.kompas.id/ewallet/${orderId}`,
+            supportedWallets: ['GoPay', 'OVO', 'DANA', 'ShopeePay', 'LinkAja'],
+          });
+          
+        case 'payment_link':
+          // Payment link - generates a hosted payment page
+          return res.json({
+            paymentMethod: 'payment_link',
+            orderId,
+            amount: priceIDR,
+            amountUSD: priceUSD,
+            planId,
+            planName: plan.name,
+            billingInterval,
+            paymentUrl: `https://payment.kompas.id/checkout/${orderId}`,
+          });
+          
+        case 'credit_card':
+          // Credit card via PayPal - redirect to PayPal
+          return res.json({
+            paymentMethod: 'credit_card',
+            orderId,
+            amount: priceIDR,
+            amountUSD: priceUSD,
+            planId,
+            planName: plan.name,
+            billingInterval,
+            paypalClientId: process.env.PAYPAL_CLIENT_ID || '',
+            currency: 'USD',
+          });
+          
+        case 'crypto':
+          return res.status(503).json({ error: "Cryptocurrency payment coming soon" });
+          
+        default:
+          return res.status(400).json({ error: "Invalid payment method" });
+      }
+    } catch (error: any) {
+      console.error("Checkout v2 error:", error);
       res.status(500).json({ error: error.message || "Failed to create checkout session" });
     }
   });
