@@ -3575,7 +3575,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   // Checkout with payment method selection
   app.post("/api/billing/checkout-v2", requireMerchant, async (req, res) => {
     try {
-      const { planId, billingInterval, paymentMethod, bankCode, senderName, senderBank } = req.body;
+      const { planId, billingInterval, paymentMethod, bankCode } = req.body;
       const merchant = await storage.getMerchant(req.session.merchantId!);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
@@ -3590,12 +3590,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(503).json({ error: "Payment gateway not configured" });
       }
       
-      // Get exchange rate
-      const savedRate = await storage.getPlatformSetting("exchange_rate");
-      const exchangeRate = savedRate ? parseInt(savedRate) : 16500;
+      // Supported bank codes for VA
+      const SUPPORTED_BANK_CODES = ['BCA', 'BRI', 'MANDIRI', 'BNI', 'CIMB', 'PERMATA'];
       
+      // Use same currency conversion as existing checkout endpoint
       const priceUSD = billingInterval === 'annual' ? plan.annualPrice * 12 : plan.monthlyPrice;
-      const priceIDR = Math.round(priceUSD * exchangeRate);
+      const priceIDR = convertToIDR(priceUSD);
       
       const orderId = `SUB_${merchant.id}_${planId}_${billingInterval}_${Date.now()}`;
       
@@ -3649,6 +3649,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             return res.status(400).json({ error: "Bank code is required for Virtual Account" });
           }
           
+          // Validate bank code
+          const normalizedBankCode = bankCode.toUpperCase();
+          if (!SUPPORTED_BANK_CODES.includes(normalizedBankCode)) {
+            return res.status(400).json({ error: `Unsupported bank. Supported: ${SUPPORTED_BANK_CODES.join(', ')}` });
+          }
+          
           paymentResult = await createVAPayment({
             merchantId: merchant.id,
             orderId,
@@ -3685,73 +3691,23 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           });
           
         case 'bank_transfer':
-          // Bank transfer requires sender info
-          return res.json({
-            paymentMethod: 'bank_transfer',
-            orderId,
-            amount: priceIDR,
-            amountUSD: priceUSD,
-            planId,
-            planName: plan.name,
-            billingInterval,
-            bankAccounts: [
-              { bankCode: 'BCA', bankName: 'Bank Central Asia', accountNumber: '1234567890', accountName: 'PT Chatvice Indonesia' },
-              { bankCode: 'BRI', bankName: 'Bank Rakyat Indonesia', accountNumber: '0987654321', accountName: 'PT Chatvice Indonesia' },
-              { bankCode: 'MANDIRI', bankName: 'Bank Mandiri', accountNumber: '1122334455', accountName: 'PT Chatvice Indonesia' },
-              { bankCode: 'BNI', bankName: 'Bank Negara Indonesia', accountNumber: '5566778899', accountName: 'PT Chatvice Indonesia' },
-              { bankCode: 'CIMB', bankName: 'CIMB Niaga', accountNumber: '6677889900', accountName: 'PT Chatvice Indonesia' },
-            ],
-            instructions: [
-              'Transfer sesuai nominal yang tertera',
-              'Simpan bukti transfer',
-              'Konfirmasi pembayaran melalui WhatsApp atau email',
-            ],
-            senderInfo: { name: senderName, bank: senderBank },
-          });
+          // Bank transfer is not yet fully implemented (requires manual verification)
+          return res.status(503).json({ error: "Bank Transfer payment coming soon. Please use QRIS or Virtual Account." });
           
         case 'ewallet':
-          // E-wallet redirects to Kompas Pay payment page
-          return res.json({
-            paymentMethod: 'ewallet',
-            orderId,
-            amount: priceIDR,
-            amountUSD: priceUSD,
-            planId,
-            planName: plan.name,
-            billingInterval,
-            redirectUrl: `https://payment.kompas.id/ewallet/${orderId}`,
-            supportedWallets: ['GoPay', 'OVO', 'DANA', 'ShopeePay', 'LinkAja'],
-          });
+          // E-wallet requires Kompas Pay gateway integration
+          return res.status(503).json({ error: "E-Wallet payment coming soon. Please use QRIS for e-wallet payments." });
           
         case 'payment_link':
-          // Payment link - generates a hosted payment page
-          return res.json({
-            paymentMethod: 'payment_link',
-            orderId,
-            amount: priceIDR,
-            amountUSD: priceUSD,
-            planId,
-            planName: plan.name,
-            billingInterval,
-            paymentUrl: `https://payment.kompas.id/checkout/${orderId}`,
-          });
+          // Payment link requires Kompas Pay gateway integration  
+          return res.status(503).json({ error: "Payment Link coming soon. Please use QRIS or Virtual Account." });
           
         case 'credit_card':
-          // Credit card via PayPal - redirect to PayPal
-          return res.json({
-            paymentMethod: 'credit_card',
-            orderId,
-            amount: priceIDR,
-            amountUSD: priceUSD,
-            planId,
-            planName: plan.name,
-            billingInterval,
-            paypalClientId: process.env.PAYPAL_CLIENT_ID || '',
-            currency: 'USD',
-          });
+          // Credit card via PayPal not yet implemented
+          return res.status(503).json({ error: "Credit Card payment via PayPal coming soon. Please use QRIS for now." });
           
         case 'crypto':
-          return res.status(503).json({ error: "Cryptocurrency payment coming soon" });
+          return res.status(503).json({ error: "Cryptocurrency payment coming soon." });
           
         default:
           return res.status(400).json({ error: "Invalid payment method" });

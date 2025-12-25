@@ -6,8 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -30,7 +28,6 @@ import {
   Link2,
   QrCode,
   Copy,
-  ExternalLink,
   Bitcoin
 } from "lucide-react";
 
@@ -106,11 +103,11 @@ type PaymentStep = 'select_method' | 'bank_form' | 'loading' | 'qris' | 'va' | '
 
 const PAYMENT_METHODS: PaymentMethodOption[] = [
   { id: 'qris', name: 'QRIS', description: 'All e-wallets & mobile banking', icon: QrCode, available: true, provider: 'Kompas Pay' },
-  { id: 'bank_transfer', name: 'Bank Transfer', description: 'BCA, BRI, Mandiri, CIMB, BNI', icon: Building2, available: true, provider: 'Kompas Pay' },
   { id: 'virtual_account', name: 'Virtual Account', description: 'Automatic verification', icon: CreditCard, available: true, provider: 'Kompas Pay' },
-  { id: 'ewallet', name: 'E-Wallet', description: 'GoPay, OVO, DANA, ShopeePay', icon: Wallet, available: true, provider: 'Kompas Pay' },
-  { id: 'payment_link', name: 'Payment Link', description: 'Hosted payment page', icon: Link2, available: true, provider: 'Kompas Pay' },
-  { id: 'credit_card', name: 'Credit Card', description: 'Visa, Mastercard, AMEX', icon: CreditCard, available: true, provider: 'PayPal' },
+  { id: 'bank_transfer', name: 'Bank Transfer', description: 'Coming soon', icon: Building2, available: false, provider: 'Kompas Pay' },
+  { id: 'ewallet', name: 'E-Wallet', description: 'Use QRIS for e-wallets', icon: Wallet, available: false, provider: 'Kompas Pay' },
+  { id: 'payment_link', name: 'Payment Link', description: 'Coming soon', icon: Link2, available: false, provider: 'Kompas Pay' },
+  { id: 'credit_card', name: 'Credit Card', description: 'Coming soon via PayPal', icon: CreditCard, available: false, provider: 'PayPal' },
   { id: 'crypto', name: 'Cryptocurrency', description: 'Coming soon', icon: Bitcoin, available: false, provider: 'Future' },
 ];
 
@@ -135,8 +132,6 @@ export default function CheckoutPage() {
   
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('qris');
   const [selectedBank, setSelectedBank] = useState<string>('');
-  const [senderName, setSenderName] = useState('');
-  const [senderBank, setSenderBank] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [paymentStep, setPaymentStep] = useState<PaymentStep>('select_method');
   const [qrisData, setQrisData] = useState<QRISPaymentResponse | null>(null);
@@ -291,11 +286,6 @@ export default function CheckoutPage() {
   const handleProceedToPayment = () => {
     if (!selectedPlan || !termsAccepted) return;
     
-    if (selectedPaymentMethod === 'bank_transfer' && (!selectedBank || !senderName)) {
-      toast({ title: "Error", description: "Please fill in sender information", variant: "destructive" });
-      return;
-    }
-    
     if (selectedPaymentMethod === 'virtual_account' && !selectedBank) {
       toast({ title: "Error", description: "Please select a bank", variant: "destructive" });
       return;
@@ -306,9 +296,7 @@ export default function CheckoutPage() {
       planId: selectedPlan.id,
       billingInterval: isAnnual ? 'annual' : 'monthly',
       paymentMethod: selectedPaymentMethod,
-      bankCode: selectedBank,
-      senderName,
-      senderBank,
+      bankCode: selectedBank || undefined,
       promoCode: promoCode || undefined,
     });
   };
@@ -391,7 +379,7 @@ export default function CheckoutPage() {
   
   const finalPrice = Math.max(0, priceIDR - discountAmount - creditAmountIDR);
 
-  const needsBankSelection = selectedPaymentMethod === 'bank_transfer' || selectedPaymentMethod === 'virtual_account';
+  const needsBankSelection = selectedPaymentMethod === 'virtual_account';
 
   return (
     <div className="max-w-md mx-auto py-4 px-4 space-y-3">
@@ -453,17 +441,15 @@ export default function CheckoutPage() {
             <div className="p-3">
               <h3 className="text-[11px] font-medium mb-2">Payment Method</h3>
               <div className="space-y-1.5">
-                {PAYMENT_METHODS.map((method) => (
+                {PAYMENT_METHODS.filter(m => m.available).map((method) => (
                   <div
                     key={method.id}
                     className={`p-2 rounded-md border cursor-pointer transition-all ${
                       selectedPaymentMethod === method.id
                         ? 'border-primary bg-primary/5'
-                        : method.available
-                        ? 'border-border hover:border-primary/50'
-                        : 'border-border/50 opacity-50 cursor-not-allowed'
+                        : 'border-border hover:border-primary/50'
                     }`}
-                    onClick={() => method.available && setSelectedPaymentMethod(method.id)}
+                    onClick={() => setSelectedPaymentMethod(method.id)}
                     data-testid={`payment-method-${method.id}`}
                   >
                     <div className="flex items-center gap-2">
@@ -476,6 +462,9 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                 ))}
+                <div className="pt-1 border-t border-border/50">
+                  <p className="text-[9px] text-muted-foreground">More payment methods coming soon: Bank Transfer, E-Wallet, Credit Card, Crypto</p>
+                </div>
               </div>
             </div>
           </Card>
@@ -483,10 +472,10 @@ export default function CheckoutPage() {
           {needsBankSelection && (
             <Card>
               <div className="p-3 space-y-2.5">
-                <h3 className="text-[11px] font-medium">Bank Selection</h3>
+                <h3 className="text-[11px] font-medium">Select Bank</h3>
                 <Select value={selectedBank} onValueChange={setSelectedBank}>
                   <SelectTrigger className="h-8 text-xs" data-testid="select-bank">
-                    <SelectValue placeholder="Select bank" />
+                    <SelectValue placeholder="Select bank for Virtual Account" />
                   </SelectTrigger>
                   <SelectContent>
                     {BANKS.map((bank) => (
@@ -496,31 +485,6 @@ export default function CheckoutPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                
-                {selectedPaymentMethod === 'bank_transfer' && (
-                  <div className="space-y-2">
-                    <div>
-                      <Label className="text-[10px]">Sender Name</Label>
-                      <Input
-                        className="h-8 text-xs mt-1"
-                        placeholder="Your name as it appears in bank"
-                        value={senderName}
-                        onChange={(e) => setSenderName(e.target.value)}
-                        data-testid="input-sender-name"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-[10px]">Sender Bank</Label>
-                      <Input
-                        className="h-8 text-xs mt-1"
-                        placeholder="Your bank name"
-                        value={senderBank}
-                        onChange={(e) => setSenderBank(e.target.value)}
-                        data-testid="input-sender-bank"
-                      />
-                    </div>
-                  </div>
-                )}
               </div>
             </Card>
           )}
