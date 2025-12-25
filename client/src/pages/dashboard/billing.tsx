@@ -22,7 +22,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
-import { Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Lock, Loader2, CheckCircle2, Sparkles, Gift, Building2, ChevronDown, ChevronUp, QrCode, Timer, RefreshCw, Copy, XCircle, Tag } from "lucide-react";
+import { Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Lock, Loader2, CheckCircle2, Sparkles, Gift, Building2, ChevronDown, ChevronUp, QrCode, Timer, RefreshCw, Download, XCircle, Tag, Smartphone, Copy } from "lucide-react";
 import { format } from "date-fns";
 import { type SubscriptionPlanId } from "@shared/schema";
 
@@ -289,12 +289,19 @@ export default function BillingPage() {
       setQrisData(data);
       setPaymentStep('qris');
       
-      const expiryTime = new Date(data.expiryTime).getTime();
+      // Parse Kompas Pay format "2025-12-24 18:50:03" - replace space with T for ISO format
+      const expiryTimeStr = data.expiryTime?.replace(' ', 'T') + 'Z';
+      const expiryTime = new Date(expiryTimeStr).getTime();
       const now = Date.now();
-      setTimeRemaining(Math.max(0, Math.floor((expiryTime - now) / 1000)));
+      
+      // Fallback to 5 minutes if parsing fails
+      const initialRemaining = isNaN(expiryTime) ? 300 : Math.max(0, Math.floor((expiryTime - now) / 1000));
+      setTimeRemaining(initialRemaining);
       
       countdownIntervalRef.current = setInterval(() => {
-        const remaining = Math.max(0, Math.floor((expiryTime - Date.now()) / 1000));
+        const remaining = isNaN(expiryTime) 
+          ? Math.max(0, initialRemaining - Math.floor((Date.now() - now) / 1000))
+          : Math.max(0, Math.floor((expiryTime - Date.now()) / 1000));
         setTimeRemaining(remaining);
         
         if (remaining <= 0) {
@@ -403,13 +410,31 @@ export default function BillingPage() {
     }
   };
 
-  const handleCopyQRIS = () => {
-    if (qrisData?.qrisString) {
-      navigator.clipboard.writeText(qrisData.qrisString);
-      toast({
-        title: "Copied!",
-        description: "QRIS code copied to clipboard",
-      });
+  const handleSaveQRIS = async () => {
+    if (qrisData?.qrisImageUrl) {
+      try {
+        const response = await fetch(qrisData.qrisImageUrl);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `qris-payment-${qrisData.orderId}.png`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast({
+          title: "Tersimpan!",
+          description: "Gambar QRIS berhasil disimpan",
+        });
+      } catch {
+        // Fallback: open image in new tab
+        window.open(qrisData.qrisImageUrl, '_blank');
+        toast({
+          title: "Gambar QRIS",
+          description: "Gambar QRIS dibuka di tab baru",
+        });
+      }
     }
   };
 
@@ -940,88 +965,106 @@ export default function BillingPage() {
           )}
 
           {paymentStep === 'qris' && qrisData && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <QrCode className="w-5 h-5" />
-                  Scan to Pay
-                </DialogTitle>
-                <DialogDescription>
-                  Scan this QR code with any e-wallet or mobile banking app
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="space-y-4">
-                <div className="p-4 rounded-lg bg-muted/50 border">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium">{qrisData.planName} Plan</span>
-                    <Badge variant="secondary">{qrisData.billingInterval === 'annual' ? 'Annual' : 'Monthly'}</Badge>
-                  </div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold">{qrisData.amountFormatted}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    ≈ ${qrisData.amountUSD} USD
-                  </p>
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="text-center space-y-2">
+                <div className="w-12 h-12 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+                  <Smartphone className="w-6 h-6 text-primary" />
                 </div>
+                <DialogHeader className="space-y-1">
+                  <DialogTitle className="text-xl">Scan & Bayar</DialogTitle>
+                  <DialogDescription className="text-sm">
+                    Scan kode QR dengan aplikasi e-wallet atau mobile banking
+                  </DialogDescription>
+                </DialogHeader>
+              </div>
+              
+              {/* Plan Info Card */}
+              <div className="p-4 rounded-xl bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Crown className="w-4 h-4 text-primary" />
+                    <span className="font-semibold">{qrisData.planName}</span>
+                  </div>
+                  <Badge className="bg-primary/20 text-primary border-0 hover:bg-primary/20">
+                    {qrisData.billingInterval === 'annual' ? 'Tahunan' : 'Bulanan'}
+                  </Badge>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold">{qrisData.amountFormatted || `Rp ${qrisData.amount?.toLocaleString('id-ID')}`}</span>
+                </div>
+                {qrisData.amountUSD && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    ≈ ${qrisData.amountUSD?.toFixed(2)} USD
+                  </p>
+                )}
+              </div>
 
-                <div className="flex justify-center p-4 bg-white rounded-lg border">
+              {/* QR Code */}
+              <div className="relative">
+                <div className="flex justify-center p-6 bg-white rounded-2xl border-2 border-dashed border-muted-foreground/20">
                   {qrisData.qrisImageUrl ? (
                     <img 
                       src={qrisData.qrisImageUrl} 
                       alt="QRIS Payment Code" 
-                      className="w-48 h-48 object-contain"
+                      className="w-52 h-52 object-contain"
                       data-testid="img-qris-code"
                     />
                   ) : (
-                    <div className="w-48 h-48 flex items-center justify-center bg-muted rounded">
-                      <QrCode className="w-24 h-24 text-muted-foreground" />
+                    <div className="w-52 h-52 flex items-center justify-center bg-muted rounded-xl">
+                      <QrCode className="w-24 h-24 text-muted-foreground/50" />
                     </div>
                   )}
                 </div>
-
-                <div className="flex items-center justify-center gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                  <Timer className="w-4 h-4 text-amber-600" />
-                  <span className="text-sm font-medium text-amber-700">
-                    Time remaining: {formatTime(timeRemaining)}
-                  </span>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    className="flex-1"
-                    onClick={handleCopyQRIS}
-                    data-testid="button-copy-qris"
-                  >
-                    <Copy className="w-4 h-4 mr-2" />
-                    Copy QRIS
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="flex-1"
-                    onClick={handleDemoPayment}
-                    data-testid="button-demo-pay"
-                  >
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    Demo Pay
-                  </Button>
-                </div>
-
-                <div className="flex items-center gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                  <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
-                  <span className="text-sm text-blue-700">
-                    Waiting for payment confirmation...
-                  </span>
-                </div>
-
-                <div className="text-center">
-                  <p className="text-xs text-muted-foreground">
-                    Supported: GoPay, OVO, DANA, ShopeePay, LinkAja, BCA Mobile, Mandiri Livin, BRI Mobile, BNI Mobile
-                  </p>
+                
+                {/* Timer Badge */}
+                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2">
+                  <div className="flex items-center gap-1.5 px-4 py-1.5 bg-amber-500 text-white rounded-full text-sm font-medium shadow-lg">
+                    <Timer className="w-3.5 h-3.5" />
+                    <span>{formatTime(timeRemaining)}</span>
+                  </div>
                 </div>
               </div>
-            </>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-2">
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={handleSaveQRIS}
+                  data-testid="button-save-qris"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Simpan
+                </Button>
+                <Button 
+                  className="flex-1"
+                  onClick={handleDemoPayment}
+                  data-testid="button-demo-pay"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Demo Pay
+                </Button>
+              </div>
+
+              {/* Status */}
+              <div className="flex items-center justify-center gap-2 py-3 px-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl">
+                <div className="relative">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping absolute" />
+                  <div className="w-2 h-2 bg-blue-500 rounded-full relative" />
+                </div>
+                <span className="text-sm text-blue-700 dark:text-blue-300">
+                  Menunggu pembayaran...
+                </span>
+              </div>
+
+              {/* Supported Apps */}
+              <div className="text-center pt-2">
+                <p className="text-xs text-muted-foreground">
+                  GoPay • OVO • DANA • ShopeePay • LinkAja • BCA • Mandiri • BRI • BNI
+                </p>
+              </div>
+            </div>
           )}
 
           {paymentStep === 'checking' && (
