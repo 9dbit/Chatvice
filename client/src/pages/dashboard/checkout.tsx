@@ -162,7 +162,7 @@ export default function CheckoutPage() {
   });
   
   // Resume pending transaction if resumeTransactionId is provided
-  const { data: resumeData, isLoading: resumeLoading } = useQuery<{
+  const { data: resumeData, isLoading: resumeLoading, isError: resumeError } = useQuery<{
     transactionId: string;
     orderId: string;
     status: string;
@@ -187,6 +187,7 @@ export default function CheckoutPage() {
     },
     enabled: Boolean(resumeTransactionId),
     refetchOnWindowFocus: false,
+    retry: false,
   });
   
   const isInitialLoading = billingLoading || exchangeLoading || plansLoading || (isResumeMode && resumeLoading);
@@ -516,16 +517,41 @@ export default function CheckoutPage() {
     );
   }
 
+  // Handle resume mode error (invalid transaction ID)
+  if (isResumeMode && resumeError) {
+    return (
+      <div className="max-w-lg mx-auto py-6 px-4 md:py-8 space-y-4">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigate('/dashboard/billing')} data-testid="button-back">
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <h1 className="text-base font-semibold">Lanjutkan Pembayaran</h1>
+        </div>
+        <Card>
+          <CardContent className="py-10 text-center space-y-3">
+            <AlertTriangle className="w-10 h-10 mx-auto text-amber-500" />
+            <h2 className="text-base font-semibold">Transaksi Tidak Ditemukan</h2>
+            <p className="text-[11px] text-muted-foreground">Transaksi yang Anda cari tidak ditemukan atau sudah kadaluarsa.</p>
+            <Button size="sm" onClick={() => navigate('/dashboard/billing')} data-testid="button-back-to-billing">
+              <ArrowLeft className="w-3 h-3 mr-1" />
+              Kembali ke Billing
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
   // In resume mode, we don't need planId - show payment directly
   if (!isResumeMode && (!planId || !selectedPlan)) {
     return (
-      <div className="max-w-md mx-auto py-8 px-4">
+      <div className="max-w-lg mx-auto py-6 px-4 md:py-8 space-y-4">
         <Card>
           <CardContent className="py-10 text-center space-y-3">
             <AlertTriangle className="w-10 h-10 mx-auto text-amber-500" />
             <h2 className="text-base font-semibold">Plan Not Found</h2>
             <p className="text-[11px] text-muted-foreground">Please select a plan from the billing page.</p>
-            <Button size="sm" onClick={() => navigate('/dashboard/plans')}>
+            <Button size="sm" onClick={() => navigate('/dashboard/billing')}>
               <ArrowLeft className="w-3 h-3 mr-1" />
               Back
             </Button>
