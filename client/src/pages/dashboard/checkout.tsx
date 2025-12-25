@@ -112,11 +112,11 @@ const PAYMENT_METHODS: PaymentMethodOption[] = [
 ];
 
 const BANKS = [
-  { code: 'BCA', name: 'Bank Central Asia' },
-  { code: 'BRI', name: 'Bank Rakyat Indonesia' },
-  { code: 'MANDIRI', name: 'Bank Mandiri' },
-  { code: 'BNI', name: 'Bank Negara Indonesia' },
-  { code: 'CIMB', name: 'CIMB Niaga' },
+  { code: '014', name: 'Bank Central Asia (BCA)' },
+  { code: '002', name: 'Bank Rakyat Indonesia (BRI)' },
+  { code: '008', name: 'Bank Mandiri' },
+  { code: '009', name: 'Bank Negara Indonesia (BNI)' },
+  { code: '022', name: 'CIMB Niaga' },
 ];
 
 export default function CheckoutPage() {
