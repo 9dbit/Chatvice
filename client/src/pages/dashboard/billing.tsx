@@ -22,7 +22,9 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
-import { Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Lock, Loader2, CheckCircle2, Sparkles, Gift, Building2, ChevronDown, ChevronUp, QrCode, Timer, RefreshCw, Download, XCircle, Tag, Smartphone, Copy } from "lucide-react";
+import { Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Lock, Loader2, CheckCircle2, Sparkles, Gift, Building2, ChevronDown, ChevronUp, QrCode, Timer, RefreshCw, Download, XCircle, Tag, Smartphone, Copy, ShieldCheck, FileText, ArrowRight } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { type SubscriptionPlanId } from "@shared/schema";
 
@@ -85,7 +87,8 @@ export default function BillingPage() {
   const [isAnnual, setIsAnnual] = useState(false);
   const [qrisPaymentOpen, setQrisPaymentOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
-  const [paymentStep, setPaymentStep] = useState<'loading' | 'qris' | 'checking' | 'success' | 'expired' | 'error'>('loading');
+  const [paymentStep, setPaymentStep] = useState<'checkout' | 'loading' | 'qris' | 'checking' | 'success' | 'expired' | 'error'>('checkout');
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [qrisData, setQrisData] = useState<QRISPaymentResponse | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
@@ -382,9 +385,10 @@ export default function BillingPage() {
     if (plan) {
       setSelectedPlan(plan);
       setQrisPaymentOpen(true);
-      setPaymentStep('loading');
+      setPaymentStep('checkout'); // Show checkout confirmation first
       setQrisData(null);
       setProrationInfo(null);
+      setTermsAccepted(false);
       
       if (billingStatus?.status === 'active') {
         try {
@@ -399,15 +403,20 @@ export default function BillingPage() {
           console.error("Failed to fetch proration info:", err);
         }
       }
-      
-      // Get applicable promo code for this plan (only if plan qualifies)
-      const promo = getPromoForPlan(planId);
-      checkoutMutation.mutate({
-        planId,
-        billingInterval: isAnnual ? 'annual' : 'monthly',
-        promoCode: promo?.code,
-      });
     }
+  };
+  
+  // Proceed from checkout to payment
+  const handleProceedToPayment = () => {
+    if (!selectedPlan || !termsAccepted) return;
+    
+    setPaymentStep('loading');
+    const promo = getPromoForPlan(selectedPlan.id);
+    checkoutMutation.mutate({
+      planId: selectedPlan.id,
+      billingInterval: isAnnual ? 'annual' : 'monthly',
+      promoCode: promo?.code,
+    });
   };
 
   const handleSaveQRIS = async () => {
@@ -953,7 +962,163 @@ export default function BillingPage() {
       </Card>
 
       <Dialog open={qrisPaymentOpen} onOpenChange={handleClosePayment}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+          {/* Checkout Confirmation Step */}
+          {paymentStep === 'checkout' && selectedPlan && (
+            <ScrollArea className="flex-1 max-h-[80vh]">
+              <div className="space-y-5 pr-4">
+                {/* Header */}
+                <div className="text-center space-y-2">
+                  <div className="w-12 h-12 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+                    <FileText className="w-6 h-6 text-primary" />
+                  </div>
+                  <DialogHeader className="space-y-1">
+                    <DialogTitle className="text-xl">Konfirmasi Checkout</DialogTitle>
+                    <DialogDescription className="text-sm">
+                      Review pesanan Anda sebelum melanjutkan pembayaran
+                    </DialogDescription>
+                  </DialogHeader>
+                </div>
+
+                {/* Order Details */}
+                <div className="p-4 rounded-xl bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Crown className="w-4 h-4 text-primary" />
+                      <span className="font-semibold">{selectedPlan.name} Plan</span>
+                    </div>
+                    <Badge className="bg-primary/20 text-primary border-0 hover:bg-primary/20">
+                      {isAnnual ? 'Tahunan' : 'Bulanan'}
+                    </Badge>
+                  </div>
+                  
+                  {/* Price Breakdown */}
+                  <div className="space-y-2 pt-2 border-t border-primary/10">
+                    {(() => {
+                      const priceUSD = isAnnual ? (selectedPlan.annualPrice || 0) * 12 : (selectedPlan.monthlyPrice || 0);
+                      const priceIDR = Math.round(priceUSD * 16000); // USD to IDR conversion
+                      const promo = getPromoForPlan(selectedPlan.id);
+                      const discountPercent = promo?.discountPercent || 0;
+                      const discountAmount = Math.round(priceIDR * discountPercent / 100);
+                      const finalPrice = priceIDR - discountAmount;
+                      
+                      return (
+                        <>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Harga {isAnnual ? 'Tahunan' : 'Bulanan'}</span>
+                            <span>Rp {priceIDR.toLocaleString('id-ID')}</span>
+                          </div>
+                          {discountPercent > 0 && (
+                            <div className="flex justify-between text-sm text-green-600">
+                              <span>Diskon ({discountPercent}%)</span>
+                              <span>- Rp {discountAmount.toLocaleString('id-ID')}</span>
+                            </div>
+                          )}
+                          {prorationInfo?.prorationApplied && (
+                            <div className="flex justify-between text-sm text-blue-600">
+                              <span>Kredit dari plan sebelumnya</span>
+                              <span>- Rp {prorationInfo.creditAmount.toLocaleString('id-ID')}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between pt-2 border-t border-primary/10">
+                            <span className="font-semibold">Total Pembayaran</span>
+                            <span className="text-2xl font-bold text-primary">
+                              Rp {(prorationInfo?.finalAmount || finalPrice).toLocaleString('id-ID')}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground text-right">
+                            ≈ ${priceUSD.toFixed(2)} USD
+                          </p>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Plan Features */}
+                <div className="p-4 rounded-lg border bg-muted/30">
+                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-primary" />
+                    Fitur yang Didapat
+                  </h4>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-green-500" />
+                      <span>{selectedPlan.conversationsLimit?.toLocaleString() || 'Unlimited'} percakapan/bulan</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-green-500" />
+                      <span>{selectedPlan.supervisorsLimit || 'Unlimited'} supervisor</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-green-500" />
+                      <span>{selectedPlan.agentsLimit || 'Unlimited'} AI agent</span>
+                    </li>
+                    {selectedPlan.features?.slice(0, 3).map((feature: string, idx: number) => (
+                      <li key={idx} className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-green-500" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Terms & Conditions */}
+                <div className="p-4 rounded-lg border bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
+                  <h4 className="font-medium mb-2 flex items-center gap-2 text-amber-800 dark:text-amber-300">
+                    <ShieldCheck className="w-4 h-4" />
+                    Syarat & Ketentuan
+                  </h4>
+                  <ul className="text-xs text-amber-700 dark:text-amber-400 space-y-1.5">
+                    <li>• Pembayaran bersifat non-refundable setelah aktivasi</li>
+                    <li>• Langganan akan otomatis diperpanjang setiap periode</li>
+                    <li>• Anda dapat membatalkan langganan kapan saja</li>
+                    <li>• Upgrade berlaku segera setelah pembayaran berhasil</li>
+                    <li>• Harga dapat berubah dengan pemberitahuan 30 hari</li>
+                  </ul>
+                </div>
+
+                {/* Terms Acceptance */}
+                <div className="flex items-start gap-3 p-3 rounded-lg border">
+                  <Checkbox 
+                    id="terms" 
+                    checked={termsAccepted}
+                    onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+                    data-testid="checkbox-terms"
+                  />
+                  <label htmlFor="terms" className="text-sm cursor-pointer">
+                    Saya menyetujui <span className="text-primary font-medium">Syarat & Ketentuan</span> serta memahami bahwa pembayaran akan diproses setelah konfirmasi
+                  </label>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-2">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={handleClosePayment}
+                    data-testid="button-cancel-checkout"
+                  >
+                    Batal
+                  </Button>
+                  <Button 
+                    className="flex-1"
+                    onClick={handleProceedToPayment}
+                    disabled={!termsAccepted || checkoutMutation.isPending}
+                    data-testid="button-proceed-payment"
+                  >
+                    {checkoutMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <ArrowRight className="w-4 h-4 mr-2" />
+                    )}
+                    Lanjutkan Bayar
+                  </Button>
+                </div>
+              </div>
+            </ScrollArea>
+          )}
+
           {paymentStep === 'loading' && (
             <div className="py-12 text-center space-y-4">
               <Loader2 className="w-12 h-12 mx-auto animate-spin text-primary" />
@@ -965,106 +1130,108 @@ export default function BillingPage() {
           )}
 
           {paymentStep === 'qris' && qrisData && (
-            <div className="space-y-6">
-              {/* Header */}
-              <div className="text-center space-y-2">
-                <div className="w-12 h-12 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
-                  <Smartphone className="w-6 h-6 text-primary" />
-                </div>
-                <DialogHeader className="space-y-1">
-                  <DialogTitle className="text-xl">Scan & Bayar</DialogTitle>
-                  <DialogDescription className="text-sm">
-                    Scan kode QR dengan aplikasi e-wallet atau mobile banking
-                  </DialogDescription>
-                </DialogHeader>
-              </div>
-              
-              {/* Plan Info Card */}
-              <div className="p-4 rounded-xl bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Crown className="w-4 h-4 text-primary" />
-                    <span className="font-semibold">{qrisData.planName}</span>
+            <ScrollArea className="flex-1 max-h-[80vh]">
+              <div className="space-y-5 pr-4">
+                {/* Header */}
+                <div className="text-center space-y-2">
+                  <div className="w-12 h-12 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+                    <Smartphone className="w-6 h-6 text-primary" />
                   </div>
-                  <Badge className="bg-primary/20 text-primary border-0 hover:bg-primary/20">
-                    {qrisData.billingInterval === 'annual' ? 'Tahunan' : 'Bulanan'}
-                  </Badge>
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold">{qrisData.amountFormatted || `Rp ${qrisData.amount?.toLocaleString('id-ID')}`}</span>
-                </div>
-                {qrisData.amountUSD && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    ≈ ${qrisData.amountUSD?.toFixed(2)} USD
-                  </p>
-                )}
-              </div>
-
-              {/* QR Code */}
-              <div className="relative">
-                <div className="flex justify-center p-6 bg-white rounded-2xl border-2 border-dashed border-muted-foreground/20">
-                  {qrisData.qrisImageUrl ? (
-                    <img 
-                      src={qrisData.qrisImageUrl} 
-                      alt="QRIS Payment Code" 
-                      className="w-52 h-52 object-contain"
-                      data-testid="img-qris-code"
-                    />
-                  ) : (
-                    <div className="w-52 h-52 flex items-center justify-center bg-muted rounded-xl">
-                      <QrCode className="w-24 h-24 text-muted-foreground/50" />
-                    </div>
-                  )}
+                  <DialogHeader className="space-y-1">
+                    <DialogTitle className="text-xl">Scan & Bayar</DialogTitle>
+                    <DialogDescription className="text-sm">
+                      Scan kode QR dengan aplikasi e-wallet atau mobile banking
+                    </DialogDescription>
+                  </DialogHeader>
                 </div>
                 
-                {/* Timer Badge */}
-                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2">
-                  <div className="flex items-center gap-1.5 px-4 py-1.5 bg-amber-500 text-white rounded-full text-sm font-medium shadow-lg">
-                    <Timer className="w-3.5 h-3.5" />
-                    <span>{formatTime(timeRemaining)}</span>
+                {/* Plan Info Card */}
+                <div className="p-4 rounded-xl bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Crown className="w-4 h-4 text-primary" />
+                      <span className="font-semibold">{qrisData.planName}</span>
+                    </div>
+                    <Badge className="bg-primary/20 text-primary border-0 hover:bg-primary/20">
+                      {qrisData.billingInterval === 'annual' ? 'Tahunan' : 'Bulanan'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold">Rp {(qrisData.amount || 0).toLocaleString('id-ID')}</span>
+                  </div>
+                  {qrisData.amountUSD && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      ≈ ${qrisData.amountUSD?.toFixed(2)} USD
+                    </p>
+                  )}
+                </div>
+
+                {/* QR Code */}
+                <div className="relative">
+                  <div className="flex justify-center p-6 bg-white rounded-2xl border-2 border-dashed border-muted-foreground/20">
+                    {qrisData.qrisImageUrl ? (
+                      <img 
+                        src={qrisData.qrisImageUrl} 
+                        alt="QRIS Payment Code" 
+                        className="w-44 h-44 object-contain"
+                        data-testid="img-qris-code"
+                      />
+                    ) : (
+                      <div className="w-44 h-44 flex items-center justify-center bg-muted rounded-xl">
+                        <QrCode className="w-20 h-20 text-muted-foreground/50" />
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Timer Badge */}
+                  <div className="absolute -bottom-3 left-1/2 -translate-x-1/2">
+                    <div className="flex items-center gap-1.5 px-4 py-1.5 bg-amber-500 text-white rounded-full text-sm font-medium shadow-lg">
+                      <Timer className="w-3.5 h-3.5" />
+                      <span>{formatTime(timeRemaining)}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Actions */}
-              <div className="flex gap-3 pt-2">
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={handleSaveQRIS}
-                  data-testid="button-save-qris"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Simpan
-                </Button>
-                <Button 
-                  className="flex-1"
-                  onClick={handleDemoPayment}
-                  data-testid="button-demo-pay"
-                >
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Demo Pay
-                </Button>
-              </div>
-
-              {/* Status */}
-              <div className="flex items-center justify-center gap-2 py-3 px-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl">
-                <div className="relative">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping absolute" />
-                  <div className="w-2 h-2 bg-blue-500 rounded-full relative" />
+                {/* Actions */}
+                <div className="flex gap-3 pt-4">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={handleSaveQRIS}
+                    data-testid="button-save-qris"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Simpan
+                  </Button>
+                  <Button 
+                    className="flex-1"
+                    onClick={handleDemoPayment}
+                    data-testid="button-demo-pay"
+                  >
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Demo Pay
+                  </Button>
                 </div>
-                <span className="text-sm text-blue-700 dark:text-blue-300">
-                  Menunggu pembayaran...
-                </span>
-              </div>
 
-              {/* Supported Apps */}
-              <div className="text-center pt-2">
-                <p className="text-xs text-muted-foreground">
-                  GoPay • OVO • DANA • ShopeePay • LinkAja • BCA • Mandiri • BRI • BNI
-                </p>
+                {/* Status */}
+                <div className="flex items-center justify-center gap-2 py-3 px-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl">
+                  <div className="relative">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping absolute" />
+                    <div className="w-2 h-2 bg-blue-500 rounded-full relative" />
+                  </div>
+                  <span className="text-sm text-blue-700 dark:text-blue-300">
+                    Menunggu pembayaran...
+                  </span>
+                </div>
+
+                {/* Supported Apps */}
+                <div className="text-center pt-2">
+                  <p className="text-xs text-muted-foreground">
+                    GoPay • OVO • DANA • ShopeePay • LinkAja • BCA • Mandiri • BRI • BNI
+                  </p>
+                </div>
               </div>
-            </div>
+            </ScrollArea>
           )}
 
           {paymentStep === 'checking' && (
