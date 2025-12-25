@@ -1197,8 +1197,6 @@ export default function BillingPage() {
                     Saya menyetujui <span className="text-primary font-medium">Syarat & Ketentuan</span> serta memahami bahwa pembayaran akan diproses setelah konfirmasi
                   </label>
                 </div>
-
-                </div>
               </div>
               </ScrollArea>
 
