@@ -142,22 +142,24 @@ export default function CheckoutPage() {
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const { data: billingStatus } = useQuery<BillingStatus>({
+  const { data: billingStatus, isLoading: billingLoading } = useQuery<BillingStatus>({
     queryKey: ["/api/billing/status"],
   });
   
-  const { data: exchangeRateData } = useQuery<ExchangeRateData>({
+  const { data: exchangeRateData, isLoading: exchangeLoading } = useQuery<ExchangeRateData>({
     queryKey: ["/api/exchange-rate"],
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
   
-  const { data: dbPlans = [] } = useQuery<any[]>({
+  const { data: dbPlans = [], isLoading: plansLoading } = useQuery<any[]>({
     queryKey: ["/api/subscription-plans"],
   });
   
   const { data: activePromos = [] } = useQuery<ActivePromotion[]>({
     queryKey: ["/api/promotions/active"],
   });
+  
+  const isInitialLoading = billingLoading || exchangeLoading || plansLoading;
 
   const selectedPlan = dbPlans.find((p: any) => p.id === planId);
   
@@ -347,6 +349,30 @@ export default function CheckoutPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  if (isInitialLoading) {
+    return (
+      <div className="max-w-md mx-auto py-4 px-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/dashboard/plans')}>
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <h1 className="text-sm font-semibold">Checkout</h1>
+        </div>
+        <Card>
+          <CardContent className="py-8">
+            <div className="space-y-3">
+              <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
+              <div className="h-3 w-1/2 bg-muted animate-pulse rounded" />
+              <div className="h-12 w-full bg-muted animate-pulse rounded mt-4" />
+              <div className="h-24 w-full bg-muted animate-pulse rounded" />
+              <div className="h-10 w-full bg-muted animate-pulse rounded" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (!planId || !selectedPlan) {
     return (
       <div className="max-w-md mx-auto py-8 px-4">
@@ -462,8 +488,24 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                 ))}
-                <div className="pt-1 border-t border-border/50">
-                  <p className="text-[9px] text-muted-foreground">More payment methods coming soon: Bank Transfer, E-Wallet, Credit Card, Crypto</p>
+                
+                <div className="pt-2 mt-2 border-t border-border/50">
+                  <p className="text-[9px] text-muted-foreground mb-1.5">Coming Soon</p>
+                  {PAYMENT_METHODS.filter(m => !m.available).map((method) => (
+                    <div
+                      key={method.id}
+                      className="p-2 rounded-md border border-border/30 bg-muted/30 opacity-50 cursor-not-allowed"
+                    >
+                      <div className="flex items-center gap-2">
+                        <method.icon className="w-4 h-4 text-muted-foreground/50" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-medium text-muted-foreground/70">{method.name}</p>
+                          <p className="text-[9px] text-muted-foreground/50">{method.description}</p>
+                        </div>
+                        <Badge variant="secondary" className="text-[8px] h-4 px-1.5 opacity-60">Soon</Badge>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
