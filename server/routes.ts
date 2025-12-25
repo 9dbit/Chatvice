@@ -3317,6 +3317,17 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const shouldRefresh = req.query.refresh === 'true';
       
       if (merchant.pendingTransactionId) {
+        // Try to get plan name from local transaction record
+        let transactionPlanName = '';
+        try {
+          const localTx = await storage.getPaymentTransactionByExternalId(merchant.pendingTransactionId);
+          if (localTx?.planName) {
+            transactionPlanName = localTx.planName;
+          }
+        } catch (err) {
+          console.error("Error fetching local transaction:", err);
+        }
+        
         if (shouldRefresh) {
           try {
             const statusResult = await checkPaymentStatus(merchant.pendingTransactionId);
@@ -3330,6 +3341,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                 expiryTime: pd.expiryTime,
                 paymentMethod: pd.paymentMethod || 'qris',
                 orderId: pd.orderId,
+                planName: transactionPlanName,
               };
             }
           } catch (err) {
@@ -3337,12 +3349,14 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             pendingTransaction = {
               transactionId: merchant.pendingTransactionId,
               status: 'PENDING',
+              planName: transactionPlanName,
             };
           }
         } else {
           pendingTransaction = {
             transactionId: merchant.pendingTransactionId,
             status: 'PENDING',
+            planName: transactionPlanName,
           };
         }
       }

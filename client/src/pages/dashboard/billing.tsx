@@ -57,11 +57,12 @@ interface ValidatedPromo {
 interface PendingTransaction {
   transactionId: string;
   status: string;
-  amount: number;
-  amountFormatted: string;
+  amount?: number;
+  amountFormatted?: string;
   expiryTime?: string;
-  paymentMethod: string;
+  paymentMethod?: string;
   orderId?: string;
+  planName?: string;
 }
 
 interface BillingStatus {
@@ -693,7 +694,9 @@ export default function BillingPage() {
               <div className="flex items-center gap-2">
                 <Timer className="w-4 h-4 text-amber-500" />
                 <CardTitle className="text-sm font-medium text-amber-700 dark:text-amber-400">
-                  Pembayaran Pending
+                  {billingStatus.pendingTransaction.planName 
+                    ? `Upgrade to ${billingStatus.pendingTransaction.planName} plan - waiting for payment`
+                    : 'Pembayaran Pending'}
                 </CardTitle>
               </div>
               {billingStatus.pendingTransaction.paymentMethod && (
@@ -713,12 +716,6 @@ export default function BillingPage() {
                   </span>
                 </div>
               )}
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Order ID</span>
-                <span className="text-xs font-mono">
-                  {billingStatus.pendingTransaction.orderId || billingStatus.pendingTransaction.transactionId}
-                </span>
-              </div>
               {billingStatus.pendingTransaction.expiryTime && (
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Batas Waktu</span>

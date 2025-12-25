@@ -126,30 +126,22 @@ export default function BillingDetailsPage() {
               </div>
               <div>
                 <p className="font-medium">
-                  {billingStatus?.status === 'trial' 
-                    ? 'Upgrade sebelum trial berakhir!' 
-                    : billingStatus?.status === 'active'
-                      ? 'Upgrade ke plan yang lebih tinggi' 
-                      : 'Mulai berlangganan sekarang'}
+                  Kelola pembayaran dan langganan Anda
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {billingStatus?.status === 'trial' 
-                    ? 'Dapatkan akses penuh ke semua fitur premium'
-                    : billingStatus?.status === 'active'
-                      ? 'Tingkatkan limit percakapan dan fitur lainnya'
-                      : 'Pilih plan yang sesuai dengan kebutuhan bisnis Anda'}
+                  Lihat status transaksi atau upgrade plan
                 </p>
               </div>
             </div>
             <Button 
               size="default"
-              className="shrink-0 min-w-[140px]"
+              className="shrink-0 min-w-[180px]"
               asChild
               data-testid="button-checkout"
             >
-              <Link href="/dashboard/plans">
+              <Link href="/dashboard/checkout">
                 <ArrowRight className="w-4 h-4 mr-2" />
-                Checkout
+                Check your transaction
               </Link>
             </Button>
           </div>
