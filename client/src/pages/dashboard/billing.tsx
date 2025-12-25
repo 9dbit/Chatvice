@@ -429,26 +429,15 @@ export default function BillingPage() {
   const handleUpgrade = async (planId: string) => {
     const plan = dbPlans.find((p: any) => p.id === planId);
     if (plan) {
-      setSelectedPlan(plan);
-      setQrisPaymentOpen(true);
-      setPaymentStep('checkout'); // Show checkout confirmation first
-      setQrisData(null);
-      setProrationInfo(null);
-      setTermsAccepted(false);
-      
-      if (billingStatus?.status === 'active') {
-        try {
-          const response = await fetch(`/api/billing/proration?planId=${planId}&billingInterval=${isAnnual ? 'annual' : 'monthly'}`, {
-            credentials: 'include',
-          });
-          if (response.ok) {
-            const data = await response.json();
-            setProrationInfo(data);
-          }
-        } catch (err) {
-          console.error("Failed to fetch proration info:", err);
-        }
+      const promo = getPromoForPlan(planId);
+      const params = new URLSearchParams({
+        plan: planId,
+        interval: isAnnual ? 'annual' : 'monthly',
+      });
+      if (promo?.code) {
+        params.set('promo', promo.code);
       }
+      window.location.href = `/dashboard/checkout?${params.toString()}`;
     }
   };
   
