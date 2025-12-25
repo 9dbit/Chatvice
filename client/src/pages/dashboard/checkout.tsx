@@ -178,7 +178,15 @@ export default function CheckoutPage() {
     billingInterval?: string;
   }>({
     queryKey: ["/api/billing/payment-status", resumeTransactionId],
+    queryFn: async () => {
+      const response = await fetch(`/api/billing/payment-status/${resumeTransactionId}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch payment status');
+      return response.json();
+    },
     enabled: Boolean(resumeTransactionId),
+    refetchOnWindowFocus: false,
   });
   
   const isInitialLoading = billingLoading || exchangeLoading || plansLoading || (isResumeMode && resumeLoading);
@@ -489,21 +497,18 @@ export default function CheckoutPage() {
 
   if (isInitialLoading) {
     return (
-      <div className="max-w-md mx-auto py-4 px-4 space-y-3">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/dashboard/plans')}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <h1 className="text-sm font-semibold">Checkout</h1>
+      <div className="max-w-lg mx-auto py-6 px-4 md:py-8 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 bg-muted animate-pulse rounded" />
+          <div className="h-5 w-40 bg-muted animate-pulse rounded" />
         </div>
         <Card>
           <CardContent className="py-8">
-            <div className="space-y-3">
-              <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
-              <div className="h-3 w-1/2 bg-muted animate-pulse rounded" />
-              <div className="h-12 w-full bg-muted animate-pulse rounded mt-4" />
-              <div className="h-24 w-full bg-muted animate-pulse rounded" />
-              <div className="h-10 w-full bg-muted animate-pulse rounded" />
+            <div className="space-y-4">
+              <div className="h-5 w-3/4 bg-muted animate-pulse rounded" />
+              <div className="h-4 w-1/2 bg-muted animate-pulse rounded" />
+              <div className="h-48 w-full bg-muted animate-pulse rounded mt-4" />
+              <div className="h-12 w-full bg-muted animate-pulse rounded" />
             </div>
           </CardContent>
         </Card>
@@ -565,7 +570,8 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      {(paymentStep === 'select_method' || paymentStep === 'bank_form') && (
+      {/* In resume mode, skip checkout form and go straight to payment display */}
+      {!isResumeMode && (paymentStep === 'select_method' || paymentStep === 'bank_form') && (
         <div className="space-y-3">
           <Card className="overflow-hidden">
             <div className="p-3 flex items-start gap-2.5">
