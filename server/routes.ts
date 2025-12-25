@@ -3575,7 +3575,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   // Checkout with payment method selection
   app.post("/api/billing/checkout-v2", requireMerchant, async (req, res) => {
     try {
-      const { planId, billingInterval, paymentMethod, bankCode } = req.body;
+      const { planId, billingInterval, paymentMethod, bankCode, promoCode } = req.body;
       const merchant = await storage.getMerchant(req.session.merchantId!);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
@@ -3593,9 +3593,52 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       // Supported bank codes for VA (numeric codes per Kompas Pay docs)
       const SUPPORTED_BANK_CODES = ['014', '002', '008', '009', '022', '013']; // BCA, BRI, MANDIRI, BNI, CIMB, PERMATA
       
-      // Use same currency conversion as existing checkout endpoint
-      const priceUSD = billingInterval === 'annual' ? plan.annualPrice * 12 : plan.monthlyPrice;
-      const priceIDR = convertToIDR(priceUSD);
+      // Get exchange rate from settings
+      const savedRate = await storage.getPlatformSetting("exchange_rate");
+      const exchangeRate = savedRate ? parseInt(savedRate) : 16500;
+      
+      // Calculate base price in USD
+      const basePriceUSD = billingInterval === 'annual' ? (plan.annualPrice || 0) : (plan.monthlyPrice || 0);
+      
+      // Apply promo discount if valid
+      let discountPercent = 0;
+      let appliedPromoCode = '';
+      if (promoCode) {
+        const promo = await storage.getPromotionByCode(promoCode);
+        if (promo && promo.isActive) {
+          const now = new Date();
+          const startDate = promo.startDate ? new Date(promo.startDate) : null;
+          const endDate = promo.endDate ? new Date(promo.endDate) : null;
+          const isInDateRange = (!startDate || now >= startDate) && (!endDate || now <= endDate);
+          const usageOk = !promo.maxUses || (promo.currentUses || 0) < promo.maxUses;
+          const billingCycleOk = promo.billingCycle === 'both' || promo.billingCycle === billingInterval;
+          const targetPlans = promo.targetPlans || [];
+          const planOk = targetPlans.includes('all') || targetPlans.includes(planId) || 
+                         (targetPlans.includes('upgrade') && planId !== 'free');
+          
+          if (isInDateRange && usageOk && billingCycleOk && planOk) {
+            discountPercent = promo.discountPercent || 0;
+            appliedPromoCode = promoCode;
+          }
+        }
+      }
+      
+      // Calculate final price with discount
+      const discountAmount = basePriceUSD * (discountPercent / 100);
+      const finalPriceUSD = Math.max(0, basePriceUSD - discountAmount);
+      const priceIDR = Math.round(finalPriceUSD * exchangeRate);
+      
+      console.log('Checkout-v2 pricing:', {
+        planId,
+        billingInterval,
+        basePriceUSD,
+        discountPercent,
+        discountAmount,
+        finalPriceUSD,
+        exchangeRate,
+        priceIDR,
+        appliedPromoCode,
+      });
       
       const orderId = `SUB_${merchant.id}_${planId}_${billingInterval}_${Date.now()}`;
       
@@ -3636,11 +3679,13 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             qrisString: paymentResult.data.qrisString,
             qrisImage: paymentResult.data.qrisImageUrl,
             amount: priceIDR,
-            amountUSD: priceUSD,
+            amountUSD: finalPriceUSD,
             expiryTime: paymentResult.data.expiryTime,
             planId,
             planName: plan.name,
             billingInterval,
+            discountPercent,
+            appliedPromoCode,
           });
           
         case 'va':
@@ -3682,7 +3727,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             vaNumber: paymentResult.data.vaNumber,
             bankCode: paymentResult.data.bankCode,
             amount: priceIDR,
-            amountUSD: priceUSD,
+            amountUSD: finalPriceUSD,
             expiryTime: paymentResult.data.expiryTime,
             planId,
             planName: plan.name,
