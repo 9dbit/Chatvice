@@ -222,16 +222,40 @@ export async function createQRISPayment(request: CreateQRISRequest): Promise<Cre
       body: body,
     });
 
-    const response = await fetch(`${apiBaseUrl}${requestTarget}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Client-key': clientKey,
-        'Request-Timestamp': timestamp,
-        'Signature': signature,
-      },
-      body: payload,
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    
+    let response: Response;
+    try {
+      response = await fetch(`${apiBaseUrl}${requestTarget}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Client-key': clientKey,
+          'Request-Timestamp': timestamp,
+          'Signature': signature,
+        },
+        body: payload,
+        signal: controller.signal,
+      });
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        console.error('QRIS request timeout after 30 seconds');
+        return {
+          success: false,
+          gatewayName,
+          error: 'Request timeout - payment gateway tidak merespons dalam 30 detik',
+        };
+      }
+      console.error('QRIS fetch error:', fetchError.message);
+      return {
+        success: false,
+        gatewayName,
+        error: `Connection error: ${fetchError.message}`,
+      };
+    }
+    clearTimeout(timeoutId);
 
     const data = await response.json();
     
@@ -298,18 +322,50 @@ export async function createVAPayment(request: CreateVARequest): Promise<CreateV
     const requestTarget = '/partner/create/va';
     const signature = generateSignatureWithCredentials(payload, timestamp, clientKey, clientSecret, requestTarget);
 
-    const response = await fetch(`${apiBaseUrl}${requestTarget}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Client-key': clientKey,
-        'Request-Timestamp': timestamp,
-        'Signature': signature,
-      },
-      body: payload,
+    console.log('Creating VA payment:', {
+      gatewayName,
+      url: `${apiBaseUrl}${requestTarget}`,
+      bankCode: request.bankCode,
+      amount: request.amount,
     });
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    
+    let response: Response;
+    try {
+      response = await fetch(`${apiBaseUrl}${requestTarget}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Client-key': clientKey,
+          'Request-Timestamp': timestamp,
+          'Signature': signature,
+        },
+        body: payload,
+        signal: controller.signal,
+      });
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        console.error('VA request timeout after 30 seconds');
+        return {
+          success: false,
+          gatewayName,
+          error: 'Request timeout - payment gateway tidak merespons dalam 30 detik',
+        };
+      }
+      console.error('VA fetch error:', fetchError.message);
+      return {
+        success: false,
+        gatewayName,
+        error: `Connection error: ${fetchError.message}`,
+      };
+    }
+    clearTimeout(timeoutId);
+
     const data = await response.json();
+    console.log(`${gatewayName} VA response:`, data);
     
     if (!response.ok || data.status === 'error') {
       console.error(`${gatewayName} VA creation error:`, data);
