@@ -274,20 +274,55 @@ export class PaymentWebhookHandler {
   }
 
   private static async handlePaymentExpired(payload: OnePayWebhookPayload): Promise<{ success: boolean; message: string }> {
-    const { metadata, transaction_id, external_id } = payload;
+    const { metadata, transaction_id, external_id, amount, payment_method } = payload;
     
     let merchantId = metadata?.merchantId;
+    let planId = metadata?.planId as SubscriptionPlanId | undefined;
+    let billingInterval = metadata?.billingInterval || 'monthly';
+    
     if (!merchantId) {
       const parts = external_id.split('_');
       merchantId = parts[1];
+      planId = parts[2] as SubscriptionPlanId;
+      billingInterval = parts[3] || 'monthly';
     }
     
     if (merchantId) {
       const merchant = await storage.getMerchant(merchantId);
-      if (merchant && merchant.pendingTransactionId === transaction_id) {
-        await storage.updateMerchantSubscription(merchantId, {
-          pendingTransactionId: null,
-        });
+      if (merchant) {
+        // Clear pending transaction
+        if (merchant.pendingTransactionId === transaction_id) {
+          await storage.updateMerchantSubscription(merchantId, {
+            pendingTransactionId: null,
+          });
+        }
+        
+        // Check if transaction already recorded
+        const existingTransaction = await storage.getPaymentTransactionByExternalId(external_id);
+        if (!existingTransaction) {
+          // Record the expired transaction for billing history
+          const plan = planId ? await getEffectiveSubscriptionPlan(planId) : null;
+          const planName = plan?.name || subscriptionPlans[planId as SubscriptionPlanId]?.name || planId || 'Unknown';
+          const subscriptionMonths = billingInterval === 'annual' ? 12 : 1;
+          
+          await storage.createPaymentTransaction({
+            merchantId,
+            gatewayName: await getActiveGatewayName(),
+            externalId: external_id,
+            amount: amount || 0,
+            currency: 'IDR',
+            status: 'expired',
+            paymentMethod: payment_method || 'QRIS',
+            planId: planId || 'unknown',
+            planName,
+            subscriptionMonths,
+            merchantEmail: merchant.email,
+            merchantCompanyName: merchant.companyName || merchant.email.split('@')[0],
+            gatewayResponse: payload,
+          });
+          
+          console.log(`Expired transaction recorded for merchant ${merchantId}`);
+        }
       }
     }
     
@@ -296,20 +331,56 @@ export class PaymentWebhookHandler {
   }
 
   private static async handlePaymentFailed(payload: OnePayWebhookPayload): Promise<{ success: boolean; message: string }> {
-    const { metadata, transaction_id, external_id, status } = payload;
+    const { metadata, transaction_id, external_id, status, amount, payment_method } = payload;
     
     let merchantId = metadata?.merchantId;
+    let planId = metadata?.planId as SubscriptionPlanId | undefined;
+    let billingInterval = metadata?.billingInterval || 'monthly';
+    
     if (!merchantId) {
       const parts = external_id.split('_');
       merchantId = parts[1];
+      planId = parts[2] as SubscriptionPlanId;
+      billingInterval = parts[3] || 'monthly';
     }
     
     if (merchantId) {
       const merchant = await storage.getMerchant(merchantId);
-      if (merchant && merchant.pendingTransactionId === transaction_id) {
-        await storage.updateMerchantSubscription(merchantId, {
-          pendingTransactionId: null,
-        });
+      if (merchant) {
+        // Clear pending transaction
+        if (merchant.pendingTransactionId === transaction_id) {
+          await storage.updateMerchantSubscription(merchantId, {
+            pendingTransactionId: null,
+          });
+        }
+        
+        // Check if transaction already recorded
+        const existingTransaction = await storage.getPaymentTransactionByExternalId(external_id);
+        if (!existingTransaction) {
+          // Record the failed/cancelled transaction for billing history
+          const plan = planId ? await getEffectiveSubscriptionPlan(planId) : null;
+          const planName = plan?.name || subscriptionPlans[planId as SubscriptionPlanId]?.name || planId || 'Unknown';
+          const subscriptionMonths = billingInterval === 'annual' ? 12 : 1;
+          const transactionStatus = status.toLowerCase() as 'failed' | 'cancelled';
+          
+          await storage.createPaymentTransaction({
+            merchantId,
+            gatewayName: await getActiveGatewayName(),
+            externalId: external_id,
+            amount: amount || 0,
+            currency: 'IDR',
+            status: transactionStatus,
+            paymentMethod: payment_method || 'QRIS',
+            planId: planId || 'unknown',
+            planName,
+            subscriptionMonths,
+            merchantEmail: merchant.email,
+            merchantCompanyName: merchant.companyName || merchant.email.split('@')[0],
+            gatewayResponse: payload,
+          });
+          
+          console.log(`${status} transaction recorded for merchant ${merchantId}`);
+        }
       }
     }
     
