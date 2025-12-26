@@ -467,6 +467,7 @@ export default function BillingPage() {
       const params = new URLSearchParams({
         plan: planId,
         interval: isAnnual ? 'annual' : 'monthly',
+        from: 'plans',
       });
       if (promo?.code) {
         params.set('promo', promo.code);
@@ -710,7 +711,7 @@ export default function BillingPage() {
             <div className="space-y-2">
               {billingStatus.pendingTransaction.amountFormatted && (
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Nominal</span>
+                  <span className="text-sm text-muted-foreground">Amount</span>
                   <span className="text-lg font-bold text-amber-700 dark:text-amber-400">
                     {billingStatus.pendingTransaction.amountFormatted}
                   </span>
@@ -718,7 +719,7 @@ export default function BillingPage() {
               )}
               {billingStatus.pendingTransaction.expiryTime && (
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Batas Waktu</span>
+                  <span className="text-sm text-muted-foreground">Expires</span>
                   <span className="text-sm">
                     {format(new Date(billingStatus.pendingTransaction.expiryTime.replace(' ', 'T') + 'Z'), 'dd MMM yyyy HH:mm')}
                   </span>
@@ -728,11 +729,11 @@ export default function BillingPage() {
                 <Button 
                   size="sm" 
                   className="w-full min-h-[44px]"
-                  onClick={() => window.location.href = `/dashboard/checkout?resume=${billingStatus.pendingTransaction?.transactionId}`}
+                  onClick={() => window.location.href = `/dashboard/checkout?resume=${billingStatus.pendingTransaction?.transactionId}&from=plans`}
                   data-testid="button-continue-payment"
                 >
                   <ArrowRight className="w-4 h-4 mr-2" />
-                  Lanjutkan Pembayaran
+                  Continue Payment
                 </Button>
               </div>
             </div>
@@ -748,28 +749,18 @@ export default function BillingPage() {
               Choose the plan that best fits your needs
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-3">
-              <Label htmlFor="annual-toggle" className="text-sm">Monthly</Label>
-              <Switch 
-                id="annual-toggle" 
-                checked={isAnnual} 
-                onCheckedChange={setIsAnnual}
-                data-testid="switch-billing-interval"
-              />
-              <Label htmlFor="annual-toggle" className="text-sm flex items-center gap-1">
-                Annual
-                <Badge variant="secondary" className="ml-1">Save 16%</Badge>
-              </Label>
-            </div>
-            <Button 
-              onClick={() => window.location.href = `/dashboard/checkout?plan=pro&interval=${isAnnual ? 'annual' : 'monthly'}`}
-              className="min-h-[44px]"
-              data-testid="button-checkout"
-            >
-              <Zap className="w-4 h-4 mr-2" />
-              Checkout
-            </Button>
+          <div className="flex items-center gap-3">
+            <Label htmlFor="annual-toggle" className="text-sm">Monthly</Label>
+            <Switch 
+              id="annual-toggle" 
+              checked={isAnnual} 
+              onCheckedChange={setIsAnnual}
+              data-testid="switch-billing-interval"
+            />
+            <Label htmlFor="annual-toggle" className="text-sm flex items-center gap-1">
+              Annual
+              <Badge variant="secondary" className="ml-1">Save 16%</Badge>
+            </Label>
           </div>
         </div>
 

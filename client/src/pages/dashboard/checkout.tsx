@@ -128,9 +128,19 @@ export default function CheckoutPage() {
   const billingInterval = urlParams.get('interval') || 'monthly';
   const promoCode = urlParams.get('promo') || '';
   const resumeTransactionId = urlParams.get('resume');
+  const fromPage = urlParams.get('from') || 'plans';
   
   const isAnnual = billingInterval === 'annual';
   const isResumeMode = Boolean(resumeTransactionId);
+  
+  // Smart back button navigation
+  const handleBack = () => {
+    if (fromPage === 'billing') {
+      navigate('/dashboard/billing');
+    } else {
+      navigate('/dashboard/plans');
+    }
+  };
   
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('qris');
   const [selectedBank, setSelectedBank] = useState<string>('');
@@ -430,8 +440,8 @@ export default function CheckoutPage() {
           URL.revokeObjectURL(url);
           
           toast({
-            title: "QRIS Tersimpan!",
-            description: "Gambar QRIS berhasil disimpan ke perangkat Anda",
+            title: "QRIS Saved!",
+            description: "QRIS image has been saved to your device",
           });
         }
       }, 'image/jpeg', 0.95);
@@ -446,7 +456,7 @@ export default function CheckoutPage() {
       
       toast({
         title: "QRIS",
-        description: "Gambar QRIS dibuka di tab baru",
+        description: "QRIS image opened in a new tab",
       });
     }
   };
@@ -522,19 +532,19 @@ export default function CheckoutPage() {
     return (
       <div className="max-w-lg mx-auto py-6 px-4 md:py-8 space-y-4">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigate('/dashboard/billing')} data-testid="button-back">
+          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleBack} data-testid="button-back">
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <h1 className="text-base font-semibold">Lanjutkan Pembayaran</h1>
+          <h1 className="text-base font-semibold">Continue Payment</h1>
         </div>
         <Card>
           <CardContent className="py-10 text-center space-y-3">
             <AlertTriangle className="w-10 h-10 mx-auto text-amber-500" />
-            <h2 className="text-base font-semibold">Transaksi Tidak Ditemukan</h2>
-            <p className="text-[11px] text-muted-foreground">Transaksi yang Anda cari tidak ditemukan atau sudah kadaluarsa.</p>
-            <Button size="sm" onClick={() => navigate('/dashboard/billing')} data-testid="button-back-to-billing">
+            <h2 className="text-base font-semibold">Transaction Not Found</h2>
+            <p className="text-[11px] text-muted-foreground">The transaction you are looking for was not found or has expired.</p>
+            <Button size="sm" onClick={handleBack} data-testid="button-back-to-previous">
               <ArrowLeft className="w-3 h-3 mr-1" />
-              Kembali ke Billing
+              Back
             </Button>
           </CardContent>
         </Card>
@@ -551,9 +561,9 @@ export default function CheckoutPage() {
             <AlertTriangle className="w-10 h-10 mx-auto text-amber-500" />
             <h2 className="text-base font-semibold">No Pending Transaction</h2>
             <p className="text-[11px] text-muted-foreground">Please select a plan from the Plans page to upgrade or downgrade.</p>
-            <Button size="sm" onClick={() => navigate('/dashboard/plans')} data-testid="button-back-to-plans">
+            <Button size="sm" onClick={handleBack} data-testid="button-back-to-previous">
               <ArrowLeft className="w-3 h-3 mr-1" />
-              Back to Plans
+              Back
             </Button>
           </CardContent>
         </Card>
@@ -585,11 +595,11 @@ export default function CheckoutPage() {
   return (
     <div className="max-w-4xl mx-auto py-6 px-4 md:py-8 space-y-4">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigate('/dashboard/billing')} data-testid="button-back">
+        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleBack} data-testid="button-back">
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div>
-          <h1 className="text-base font-semibold">{isResumeMode ? 'Lanjutkan Pembayaran' : 'Checkout'}</h1>
+          <h1 className="text-base font-semibold">{isResumeMode ? 'Continue Payment' : 'Checkout'}</h1>
           {isResumeMode && resumeData && (
             <p className="text-[10px] text-muted-foreground">Order: {resumeData.orderId}</p>
           )}
@@ -885,12 +895,12 @@ export default function CheckoutPage() {
                   {/* Order Details */}
                   <div className="space-y-2.5 bg-muted/30 rounded-lg p-3">
                     <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Produk</span>
+                      <span className="text-muted-foreground">Product</span>
                       <span className="font-semibold">{qrisData.planName} Plan</span>
                     </div>
                     <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Periode</span>
-                      <span className="font-medium">{qrisData.billingInterval === 'annual' ? 'Tahunan' : 'Bulanan'}</span>
+                      <span className="text-muted-foreground">Period</span>
+                      <span className="font-medium">{qrisData.billingInterval === 'annual' ? 'Annual' : 'Monthly'}</span>
                     </div>
                     <div className="flex justify-between text-xs items-center">
                       <span className="text-muted-foreground">Order ID</span>

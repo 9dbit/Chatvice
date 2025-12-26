@@ -263,11 +263,13 @@ export default function WelcomeBubblePage() {
                 <div className="relative bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg p-6 min-h-[400px]">
                   {form.isEnabled && (
                     <div className="absolute right-4 top-4 w-80 bg-white rounded-2xl shadow-2xl overflow-hidden">
-                      <button className="absolute right-3 top-3 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100">
-                        <X className="w-5 h-5" />
-                      </button>
-                      <div className="p-6 pt-8">
-                        <h3 className="text-xl font-bold mb-2">{form.headline}</h3>
+                      <div className="p-6">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h3 className="text-xl font-bold">{form.headline}</h3>
+                          <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 flex-shrink-0 -mr-2 -mt-1">
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
                         <p className="text-gray-600 mb-6">{form.message}</p>
                         <div className="space-y-3">
                           <button

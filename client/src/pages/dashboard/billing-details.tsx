@@ -126,10 +126,10 @@ export default function BillingDetailsPage() {
               </div>
               <div>
                 <p className="font-medium">
-                  Kelola pembayaran dan langganan Anda
+                  Manage your payments and subscriptions
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Lihat status transaksi atau upgrade plan
+                  View transaction status or upgrade plan
                 </p>
               </div>
             </div>
@@ -139,7 +139,7 @@ export default function BillingDetailsPage() {
               asChild
               data-testid="button-checkout"
             >
-              <Link href="/dashboard/checkout">
+              <Link href="/dashboard/checkout?from=billing">
                 <ArrowRight className="w-4 h-4 mr-2" />
                 Check your transaction
               </Link>
