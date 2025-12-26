@@ -561,17 +561,19 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                 />
               )}
               {/* Welcome bubble - compact style */}
-              <div className={`bg-card shadow-xl p-3 w-52 border border-border relative ${promoImageEnabled && promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}>
-                <button
-                  onClick={dismissWelcomeBubble}
-                  className="absolute top-2 right-3 p-0.5 rounded-full hover:bg-muted transition-colors"
-                  data-testid="button-dismiss-welcome"
-                >
-                  <X className="w-3 h-3 text-muted-foreground" />
-                </button>
-                <p className="font-semibold text-sm pr-4">
-                  {bubbleEnabled ? bubbleText : (publicMode ? "Need help?" : "Need help navigating?")}
-                </p>
+              <div className={`bg-card shadow-xl p-3 w-52 border border-border ${promoImageEnabled && promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-semibold text-sm">
+                    {bubbleEnabled ? bubbleText : (publicMode ? "Need help?" : "Need help navigating?")}
+                  </p>
+                  <button
+                    onClick={dismissWelcomeBubble}
+                    className="p-0.5 rounded-full hover:bg-muted transition-colors flex-shrink-0 -mr-0.5"
+                    data-testid="button-dismiss-welcome"
+                  >
+                    <X className="w-3 h-3 text-muted-foreground" />
+                  </button>
+                </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   {publicMode 
                     ? `Ask me about ${guideName.replace('Guide', '').trim()} features and pricing!` 

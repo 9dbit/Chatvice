@@ -77,11 +77,29 @@ interface VAPaymentResponse {
   billingInterval: string;
 }
 
+interface PendingTransaction {
+  transactionId: string;
+  orderId: string;
+  status: string;
+  amount?: number;
+  amountFormatted?: string;
+  paymentMethod?: string;
+  qrisImage?: string;
+  qrisString?: string;
+  vaNumber?: string;
+  bankCode?: string;
+  expiryTime?: string;
+  planId?: string;
+  planName?: string;
+  billingInterval?: string;
+}
+
 interface BillingStatus {
   currentPlan: string;
   planId: string;
   status: string;
   periodEnd?: string;
+  pendingTransaction?: PendingTransaction;
 }
 
 interface ProrationInfo {
@@ -269,6 +287,49 @@ export default function CheckoutPage() {
       }
     }
   }, [isResumeMode, resumeData]);
+  
+  // Auto-load pending transaction from billing status when visiting checkout without resume parameter
+  useEffect(() => {
+    if (!isResumeMode && billingStatus?.pendingTransaction?.transactionId && paymentStep === 'select_method') {
+      const pending = billingStatus.pendingTransaction;
+      if (pending.status === 'PENDING') {
+        if (pending.paymentMethod === 'qris' && pending.qrisImage) {
+          setQrisData({
+            paymentMethod: 'qris',
+            transactionId: pending.transactionId,
+            orderId: pending.orderId,
+            qrisString: pending.qrisString || '',
+            qrisImage: pending.qrisImage,
+            amount: pending.amount || 0,
+            expiryTime: pending.expiryTime || '',
+            planId: pending.planId || '',
+            planName: pending.planName || '',
+            billingInterval: pending.billingInterval || 'monthly',
+          });
+          setPaymentStep('qris');
+          if (pending.expiryTime) {
+            startPaymentPolling(pending.transactionId, pending.expiryTime);
+          }
+        } else if (pending.paymentMethod === 'virtual_account' && pending.vaNumber) {
+          setVaData({
+            paymentMethod: 'virtual_account',
+            transactionId: pending.transactionId,
+            orderId: pending.orderId,
+            vaNumber: pending.vaNumber,
+            bankCode: pending.bankCode || '',
+            amount: pending.amount || 0,
+            expiryTime: pending.expiryTime || '',
+            planName: pending.planName || '',
+            billingInterval: pending.billingInterval || 'monthly',
+          });
+          setPaymentStep('va');
+          if (pending.expiryTime) {
+            startPaymentPolling(pending.transactionId, pending.expiryTime);
+          }
+        }
+      }
+    }
+  }, [isResumeMode, billingStatus, paymentStep]);
   
   useEffect(() => {
     if (planId && billingStatus?.status === 'active') {
