@@ -561,23 +561,21 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                 />
               )}
               {/* Welcome bubble - compact style */}
-              <div className={`bg-card shadow-xl p-3 w-52 border border-border ${promoImageEnabled && promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}>
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-semibold text-sm leading-tight">
-                    {bubbleEnabled ? bubbleText : (publicMode ? "Need help?" : "Need help navigating?")}
+              <div className={`bg-card shadow-xl p-4 w-52 border border-border ${promoImageEnabled && promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}>
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold text-sm leading-none">
+                    {bubbleEnabled ? bubbleText : "Need help?"}
                   </p>
                   <button
                     onClick={dismissWelcomeBubble}
-                    className="p-0.5 rounded-full hover:bg-muted transition-colors flex-shrink-0"
+                    className="p-0 rounded-full hover:bg-muted/50 transition-colors flex-shrink-0 -mt-0.5 -mr-1"
                     data-testid="button-dismiss-welcome"
                   >
-                    <X className="w-3.5 h-3.5 text-muted-foreground" />
+                    <X className="w-4 h-4 text-muted-foreground" />
                   </button>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {publicMode 
-                    ? `Ask me about ${guideName.replace('Guide', '').trim()} features and pricing!` 
-                    : "I can guide you through the dashboard features."}
+                <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                  I can guide you through the dashboard features.
                 </p>
                 <Button
                   size="sm"
