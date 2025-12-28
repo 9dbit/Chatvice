@@ -553,7 +553,7 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                 <img 
                   src={promoImageUrl} 
                   alt="Promotion" 
-                  className="w-52 h-auto object-cover rounded-t-xl"
+                  className="w-52 h-auto object-cover rounded-t-xl mb-2"
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';
                   }}
@@ -561,26 +561,26 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                 />
               )}
               {/* Welcome bubble - compact style */}
-              <div className={`bg-card shadow-xl px-4 py-3 w-52 border border-border ${promoImageEnabled && promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <p className="font-semibold text-sm">
+              <div className={`bg-card shadow-xl px-5 pt-4 pb-4 w-52 border border-border mr-2 ${promoImageEnabled && promoImageUrl ? 'rounded-xl' : 'rounded-xl'}`}>
+                <div className="flex items-start justify-between mb-3">
+                  <p className="font-semibold text-sm pt-0.5">
                     {bubbleEnabled ? bubbleText : "Need help?"}
                   </p>
                   <button
                     onClick={dismissWelcomeBubble}
-                    className="p-0.5 -mr-0.5 rounded hover:bg-muted/50 transition-colors flex-shrink-0"
+                    className="p-0 rounded hover:bg-muted/50 transition-colors flex-shrink-0"
                     data-testid="button-dismiss-welcome"
                   >
-                    <X className="w-3.5 h-3.5 text-muted-foreground/70" />
+                    <X className="w-4 h-4 text-muted-foreground/60" />
                   </button>
                 </div>
-                <p className="text-xs text-muted-foreground leading-normal">
+                <p className="text-xs text-muted-foreground leading-relaxed mb-4">
                   I can guide you through the<br />dashboard features.
                 </p>
                 <Button
                   size="sm"
                   onClick={handleOpenFromWelcome}
-                  className="w-full mt-3 h-8 text-xs text-white bg-primary hover:bg-primary/90"
+                  className="w-full h-9 text-sm text-white bg-primary hover:bg-primary/90"
                   data-testid="button-open-from-welcome"
                 >
                   Chat with Guide
