@@ -554,14 +554,22 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                 <img 
                   src={promoImageUrl} 
                   alt="Promotion" 
-                  className="w-52 h-auto object-cover rounded-t-xl"
-                  style={{ marginTop: '10px', marginBottom: '-16px' }}
+                  className="w-52 h-auto object-cover rounded-t-xl mt-2.5 md:mt-2.5"
+                  style={{ marginBottom: '-16px' }}
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';
                   }}
                   data-testid="img-promo-bubble"
                 />
               )}
+              {/* Extra spacing for mobile */}
+              <style>{`
+                @media (max-width: 767px) {
+                  [data-testid="img-promo-bubble"] {
+                    margin-top: 30px !important;
+                  }
+                }
+              `}</style>
               {/* Welcome bubble - compact style */}
               <div className={`bg-card shadow-xl px-4 pt-6 pb-4 w-52 border border-border ${promoImageEnabled && promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}>
                 <div className="flex items-center justify-between gap-2 mb-2">
