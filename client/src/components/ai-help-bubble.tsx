@@ -531,8 +531,9 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
           {/* Combined Promo Image + Welcome Bubble container with smooth toggle */}
           {showWelcomeBubble && bubbleEnabled && (
             <div 
-              className="absolute bottom-full right-0 mb-2 touch-pan-y"
+              className="absolute bottom-full mb-2 touch-pan-y"
               style={{
+                right: '10px',
                 transform: `translateY(${bubbleTranslateY}px)`,
                 transition: bubbleTranslateY === 0 ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease' : 'none',
                 opacity: bubbleCollapsed ? 0 : 1,
