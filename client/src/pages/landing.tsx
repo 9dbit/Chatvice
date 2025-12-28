@@ -100,6 +100,42 @@ function useParallaxScroll() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 }
+
+const heroTaglines = [
+  "Scale your support team instantly — no extra hires needed.",
+  "Deliver flawless, consistent responses every single time.",
+  "Transform how you connect with customers, 24/7.",
+];
+
+function FlippingHeroText() {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isFlipping, setIsFlipping] = useState(false);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsFlipping(true);
+      setTimeout(() => {
+        setCurrentIndex((prev) => (prev + 1) % heroTaglines.length);
+        setIsFlipping(false);
+      }, 300);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <p 
+      className="text-base md:text-2xl text-white/90 max-w-xl leading-tight mb-3 md:mb-4 text-left transition-all duration-300"
+      style={{
+        transform: isFlipping ? 'rotateX(90deg)' : 'rotateX(0deg)',
+        opacity: isFlipping ? 0 : 1,
+        transformOrigin: 'center center',
+      }}
+    >
+      {heroTaglines[currentIndex]}
+    </p>
+  );
+}
 import chatviceLogoLight from "@assets/Chatvice-02_1764703423166.png";
 import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
 import advancedReportingImage from "@assets/IMG_0311_1765160576065.jpeg";
@@ -750,9 +786,7 @@ function HeroSection() {
                 Meet<br />
                 <span className="text-[#7c3aed]">LEXA1</span>
               </h1>
-              <p className="text-base md:text-2xl text-white/90 max-w-xl leading-tight mb-3 md:mb-4 text-left">
-                AI-powered customer service platform that transforms how you connect with customers.
-              </p>
+              <FlippingHeroText />
               <div className="flex flex-col sm:flex-row gap-2">
                 <Link href="/register">
                   <Button size="lg" className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white px-6 md:px-8 font-semibold text-sm md:text-base" data-testid="button-hero-start">
