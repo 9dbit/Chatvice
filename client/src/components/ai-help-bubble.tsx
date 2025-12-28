@@ -561,26 +561,26 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                 />
               )}
               {/* Welcome bubble - compact style */}
-              <div className={`bg-card shadow-xl p-4 w-52 border border-border ${promoImageEnabled && promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}>
-                <div className="flex items-center justify-between">
-                  <p className="font-semibold text-sm leading-none">
+              <div className={`bg-card shadow-xl px-4 py-3 w-52 border border-border ${promoImageEnabled && promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="font-semibold text-sm">
                     {bubbleEnabled ? bubbleText : "Need help?"}
                   </p>
                   <button
                     onClick={dismissWelcomeBubble}
-                    className="p-0 rounded-full hover:bg-muted/50 transition-colors flex-shrink-0 -mt-0.5 -mr-1"
+                    className="p-0.5 -mr-0.5 rounded hover:bg-muted/50 transition-colors flex-shrink-0"
                     data-testid="button-dismiss-welcome"
                   >
-                    <X className="w-4 h-4 text-muted-foreground" />
+                    <X className="w-3.5 h-3.5 text-muted-foreground/70" />
                   </button>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                  I can guide you through the dashboard features.
+                <p className="text-xs text-muted-foreground leading-normal">
+                  I can guide you through the<br />dashboard features.
                 </p>
                 <Button
                   size="sm"
                   onClick={handleOpenFromWelcome}
-                  className="w-full mt-2 h-7 text-xs text-white bg-primary hover:bg-primary/90"
+                  className="w-full mt-3 h-8 text-xs text-white bg-primary hover:bg-primary/90"
                   data-testid="button-open-from-welcome"
                 >
                   Chat with Guide

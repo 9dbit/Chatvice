@@ -102,9 +102,9 @@ function useParallaxScroll() {
 }
 
 const heroTaglines = [
-  "Scale your support team instantly — no extra hires needed.",
-  "Deliver flawless, consistent responses every single time.",
-  "Transform how you connect with customers, 24/7.",
+  "Scale your support team instantly —\nno extra hires needed.",
+  "Deliver flawless, consistent responses\nevery single time.",
+  "Transform how you connect\nwith customers, 24/7.",
 ];
 
 function FlippingHeroText() {
@@ -125,7 +125,7 @@ function FlippingHeroText() {
 
   return (
     <p 
-      className="text-base md:text-2xl text-white/90 max-w-xl leading-tight mb-3 md:mb-4 text-left transition-all duration-300"
+      className="text-base md:text-2xl text-white/90 max-w-xl leading-tight mb-3 md:mb-4 text-left transition-all duration-300 whitespace-pre-line"
       style={{
         transform: isFlipping ? 'rotateX(90deg)' : 'rotateX(0deg)',
         opacity: isFlipping ? 0 : 1,
