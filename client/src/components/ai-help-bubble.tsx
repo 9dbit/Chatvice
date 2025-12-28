@@ -554,8 +554,8 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                 <img 
                   src={promoImageUrl} 
                   alt="Promotion" 
-                  className="w-52 h-auto object-cover rounded-t-xl -mb-4"
-                  style={{ marginBottom: '-16px' }}
+                  className="w-52 h-auto object-cover rounded-t-xl"
+                  style={{ marginTop: '10px', marginBottom: '-16px' }}
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';
                   }}
