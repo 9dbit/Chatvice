@@ -421,6 +421,15 @@ Always answer in a clear, structured way while maintaining a conversational tone
 TONE/STYLE INSTRUCTION:
 ${toneInstruction}
 
+TYPO CORRECTION (CRITICAL):
+- If a customer message contains typos or misspellings, try to understand the intended meaning
+- Consider nearby keyboard keys that might have been pressed by mistake:
+  Q-W-E-R-T-Y-U-I-O-P (top row), A-S-D-F-G-H-J-K-L (middle row), Z-X-C-V-B-N-M (bottom row)
+- Common typo patterns: adjacent keys (e.g., 'teh' = 'the', 'adn' = 'and'), missing letters, doubled letters
+- If the typo seems intentional or you're unsure, interpret it based on conversation context
+- Do NOT correct the customer or point out their typos - just understand and respond naturally
+- Example: "hraga" likely means "harga" (price), "promo" might be "promo" or "promosi"
+
 LANGUAGE MATCHING (CRITICAL - WAJIB DIIKUTI):
 - WAJIB: Selalu jawab menggunakan bahasa yang SAMA dengan bahasa pesan TERAKHIR customer
 - Jika customer bertanya dalam Bahasa Indonesia, JAWAB dalam Bahasa Indonesia
@@ -5899,6 +5908,15 @@ Selalu akhiri dengan:
 [BTN:Mulai Free Trial:Saya mau daftar free trial]
 [LINK:Lihat Detail Lengkap:/pricing]
 
+TYPO CORRECTION (CRITICAL):
+- If a user message contains typos or misspellings, try to understand the intended meaning
+- Consider nearby keyboard keys that might have been pressed by mistake:
+  Q-W-E-R-T-Y-U-I-O-P (top row), A-S-D-F-G-H-J-K-L (middle row), Z-X-C-V-B-N-M (bottom row)
+- Common typo patterns: adjacent keys (e.g., 'teh' = 'the', 'adn' = 'and'), missing letters, doubled letters
+- If the typo seems intentional or you're unsure, interpret it based on conversation context
+- Do NOT correct the user or point out their typos - just understand and respond naturally
+- Example: "hraga" likely means "harga" (price), "fitur2" might mean "fitur-fitur"
+
 LANGUAGE MATCHING (CRITICAL):
 - WAJIB: Selalu jawab menggunakan bahasa yang SAMA dengan bahasa pesan TERAKHIR user
 - Jika user bertanya dalam Bahasa Indonesia, JAWAB dalam Bahasa Indonesia
@@ -6083,6 +6101,15 @@ BILLING GUIDANCE (IMPORTANT):
 - Jika merchant bertanya "berapa yang harus saya bayar" atau "berapa tagihan saya", beri tahu nominal berdasarkan data billing
 - Arahkan merchant ke [LINK:halaman Billing:/billing] untuk detail tagihan dan pembayaran
 - Untuk pembayaran baru, arahkan ke [LINK:halaman Checkout:/checkout]
+
+TYPO CORRECTION (CRITICAL):
+- If a user message contains typos or misspellings, try to understand the intended meaning
+- Consider nearby keyboard keys that might have been pressed by mistake:
+  Q-W-E-R-T-Y-U-I-O-P (top row), A-S-D-F-G-H-J-K-L (middle row), Z-X-C-V-B-N-M (bottom row)
+- Common typo patterns: adjacent keys (e.g., 'teh' = 'the', 'adn' = 'and'), missing letters, doubled letters
+- If the typo seems intentional or you're unsure, interpret it based on conversation context
+- Do NOT correct the user or point out their typos - just understand and respond naturally
+- Example: "hraga" likely means "harga", "billig" means "billing", "widger" means "widget"
 
 LANGUAGE MATCHING (CRITICAL):
 - WAJIB: Selalu jawab menggunakan bahasa yang SAMA dengan bahasa pesan TERAKHIR user
