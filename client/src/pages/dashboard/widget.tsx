@@ -36,6 +36,8 @@ export default function WidgetPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const iconFileInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingIcon, setIsUploadingIcon] = useState(false);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
+  const [isRemovingBg, setIsRemovingBg] = useState(false);
   const [config, setConfig] = useState({
     iconUrl: "",
     iconSize: 70,
@@ -285,6 +287,92 @@ export default function WidgetPage() {
       setIsUploadingIcon(false);
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleFlipImage = async (direction: "horizontal" | "vertical") => {
+    if (!config.iconUrl) return;
+    setIsProcessingImage(true);
+    try {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.src = config.iconUrl;
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+      });
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d")!;
+      if (direction === "horizontal") {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      } else {
+        ctx.translate(0, canvas.height);
+        ctx.scale(1, -1);
+      }
+      ctx.drawImage(img, 0, 0);
+      const flippedUrl = canvas.toDataURL("image/webp", 0.9);
+      setConfig({ ...config, iconUrl: flippedUrl });
+      toast({ title: "Image flipped", description: `Image flipped ${direction}ly and converted to WebP.` });
+    } catch (error) {
+      toast({ title: "Failed to flip image", description: "Please try again.", variant: "destructive" });
+    }
+    setIsProcessingImage(false);
+  };
+
+  const handleConvertToWebP = async () => {
+    if (!config.iconUrl) return;
+    setIsProcessingImage(true);
+    try {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.src = config.iconUrl;
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+      });
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0);
+      const webpUrl = canvas.toDataURL("image/webp", 0.85);
+      setConfig({ ...config, iconUrl: webpUrl });
+      const originalSize = config.iconUrl.length;
+      const newSize = webpUrl.length;
+      const saved = Math.round((1 - newSize / originalSize) * 100);
+      toast({ 
+        title: "Converted to WebP", 
+        description: saved > 0 ? `Reduced file size by ~${saved}%` : "Image converted to WebP format."
+      });
+    } catch (error) {
+      toast({ title: "Failed to convert", description: "Please try again.", variant: "destructive" });
+    }
+    setIsProcessingImage(false);
+  };
+
+  const handleRemoveBackground = async () => {
+    if (!config.iconUrl) return;
+    setIsRemovingBg(true);
+    try {
+      const response = await apiRequest("POST", "/api/image/remove-background", {
+        imageUrl: config.iconUrl,
+      });
+      if (response.imageUrl) {
+        setConfig({ ...config, iconUrl: response.imageUrl });
+        toast({ title: "Background removed", description: "Image background has been removed." });
+      } else {
+        throw new Error("No image returned");
+      }
+    } catch (error: any) {
+      toast({ 
+        title: "Failed to remove background", 
+        description: error?.message || "Please try again.", 
+        variant: "destructive" 
+      });
+    }
+    setIsRemovingBg(false);
   };
 
   const saveMutation = useMutation({
@@ -537,16 +625,60 @@ window.chatvice('identify', { token }); // identify the user with Chatvice`;
                             data-testid="input-icon-url"
                           />
                           {config.iconUrl && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive h-auto p-0"
-                              onClick={() => setConfig({ ...config, iconUrl: "" })}
-                              data-testid="button-remove-icon"
-                            >
-                              <X className="w-3 h-3 mr-1" />
-                              Remove custom icon
-                            </Button>
+                            <div className="space-y-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive h-auto p-0"
+                                onClick={() => setConfig({ ...config, iconUrl: "" })}
+                                data-testid="button-remove-icon"
+                              >
+                                <X className="w-3 h-3 mr-1" />
+                                Remove custom icon
+                              </Button>
+                              <div className="flex flex-wrap gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleFlipImage("horizontal")}
+                                  disabled={isProcessingImage}
+                                  data-testid="button-flip-horizontal"
+                                >
+                                  {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ArrowUpRight className="w-3 h-3 mr-1 -scale-x-100" />}
+                                  Flip H
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleFlipImage("vertical")}
+                                  disabled={isProcessingImage}
+                                  data-testid="button-flip-vertical"
+                                >
+                                  {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ArrowUpRight className="w-3 h-3 mr-1 -scale-y-100" />}
+                                  Flip V
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={handleConvertToWebP}
+                                  disabled={isProcessingImage || config.iconUrl.startsWith('data:image/webp')}
+                                  data-testid="button-convert-webp"
+                                >
+                                  {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ImageIcon className="w-3 h-3 mr-1" />}
+                                  To WebP
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={handleRemoveBackground}
+                                  disabled={isRemovingBg}
+                                  data-testid="button-remove-bg"
+                                >
+                                  {isRemovingBg ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Frame className="w-3 h-3 mr-1" />}
+                                  Remove BG
+                                </Button>
+                              </div>
+                            </div>
                           )}
                           <p className="text-xs text-muted-foreground">
                             Supports PNG, GIF, JPG, SVG, WebP. Max 2MB.
@@ -566,7 +698,7 @@ window.chatvice('identify', { token }); // identify the user with Chatvice`;
                             value={[config.iconWidth]}
                             onValueChange={([value]) => setConfig({ ...config, iconWidth: value })}
                             min={30}
-                            max={200}
+                            max={400}
                             step={5}
                             data-testid="slider-icon-width"
                           />
@@ -580,7 +712,7 @@ window.chatvice('identify', { token }); // identify the user with Chatvice`;
                             value={[config.iconHeight]}
                             onValueChange={([value]) => setConfig({ ...config, iconHeight: value })}
                             min={30}
-                            max={200}
+                            max={400}
                             step={5}
                             data-testid="slider-icon-height"
                           />

@@ -247,8 +247,8 @@ export type ChatResponse = z.infer<typeof chatResponseSchema>;
 export const merchantConfigSchema = z.object({
   iconUrl: z.string().optional(),
   iconSize: z.number().min(40).max(120).optional(),
-  iconWidth: z.number().min(20).max(300).optional(),
-  iconHeight: z.number().min(20).max(300).optional(),
+  iconWidth: z.number().min(20).max(500).optional(),
+  iconHeight: z.number().min(20).max(500).optional(),
   useCustomIconDimensions: z.boolean().optional(),
   online: z.boolean().optional(),
   primaryColor: z.string().optional(),
