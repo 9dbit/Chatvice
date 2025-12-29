@@ -837,18 +837,18 @@ window.chatvice('identify', { token }); // identify the user with Chatvice`;
                   </div>
 
                   <div
-                    className={`cursor-pointer shadow-lg flex items-center justify-center relative ${config.bubblePosition === "left" ? "mr-auto" : "ml-auto"} ${config.useCustomIconDimensions && config.iconUrl ? "" : "rounded-full"}`}
+                    className={`cursor-pointer flex items-center justify-center relative ${config.bubblePosition === "left" ? "mr-auto" : "ml-auto"} ${config.iconUrl ? "" : "rounded-full shadow-lg"}`}
                     style={{
                       width: config.useCustomIconDimensions ? config.iconWidth : config.iconSize,
                       height: config.useCustomIconDimensions ? config.iconHeight : config.iconSize,
-                      backgroundColor: config.useCustomIconDimensions && config.iconUrl ? "transparent" : config.primaryColor,
+                      backgroundColor: config.iconUrl ? "transparent" : config.primaryColor,
                     }}
                   >
                     {config.iconUrl ? (
                       <img
                         src={config.iconUrl}
                         alt="Chat icon"
-                        className={`w-full h-full object-contain ${config.useCustomIconDimensions ? "" : "rounded-full object-cover"}`}
+                        className="w-full h-full object-contain drop-shadow-lg"
                         onError={(e) => {
                           e.currentTarget.style.display = "none";
                         }}
@@ -856,7 +856,7 @@ window.chatvice('identify', { token }); // identify the user with Chatvice`;
                     ) : (
                       <Bot className="w-1/2 h-1/2 text-white" />
                     )}
-                    {!config.useCustomIconDimensions && (
+                    {!config.iconUrl && (
                       <div
                         className={`absolute bottom-1 right-1 w-3 h-3 rounded-full border-2 border-white ${
                           config.online ? "bg-status-online" : "bg-status-offline"
