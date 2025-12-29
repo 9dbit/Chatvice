@@ -440,7 +440,19 @@ export default function WidgetPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      // Always save icon settings to merchant config (iconUrl, iconWidth, iconHeight are merchant-level settings)
+      const merchantIconConfig = {
+        iconUrl: config.iconUrl,
+        iconSize: config.iconSize,
+        iconWidth: config.iconWidth,
+        iconHeight: config.iconHeight,
+        useCustomIconDimensions: config.useCustomIconDimensions,
+        online: config.online,
+      };
+      await apiRequest("POST", "/api/merchant/config", merchantIconConfig);
+      
       if (merchant?.activeAgentId) {
+        // Save agent-specific widget settings
         return apiRequest("POST", `/api/agents/${merchant.activeAgentId}/widget-settings`, {
           primaryColor: config.primaryColor,
           widgetTheme: config.widgetTheme,
@@ -450,9 +462,15 @@ export default function WidgetPage() {
           name: config.agentName,
         });
       } else {
+        // Save remaining merchant config when no active agent
         return apiRequest("POST", "/api/merchant/config", {
-          merchantId,
-          ...config,
+          primaryColor: config.primaryColor,
+          welcomeMessage: config.welcomeMessage,
+          agentName: config.agentName,
+          agentPhotoUrl: config.agentPhotoUrl,
+          widgetTheme: config.widgetTheme,
+          bubblePosition: config.bubblePosition,
+          allowedDomains: config.allowedDomains,
         });
       }
     },

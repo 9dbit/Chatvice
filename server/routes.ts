@@ -5641,8 +5641,49 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   
   var button = document.createElement("div");
   button.id = "chatvice-widget-button";
+  
+  // Default styles - will be updated after fetching config
+  var defaultColor = "#6b5dfc";
+  var buttonWidth = 60;
+  var buttonHeight = 60;
+  var iconUrl = "";
+  var bubblePosition = "right";
+  
+  function updateButtonStyles(config) {
+    defaultColor = config.primaryColor || defaultColor;
+    iconUrl = config.iconUrl || "";
+    buttonWidth = iconUrl ? (config.iconWidth || 70) : (config.iconSize || 60);
+    buttonHeight = iconUrl ? (config.iconHeight || 70) : (config.iconSize || 60);
+    bubblePosition = config.bubblePosition || "right";
+    
+    var positionStyle = bubblePosition === "left" 
+      ? "left:20px;right:auto;" 
+      : "right:20px;left:auto;";
+    
+    if (iconUrl) {
+      // Custom icon - no background, no border-radius
+      button.style.cssText = "position:fixed;bottom:20px;" + positionStyle + "width:" + buttonWidth + "px;height:" + buttonHeight + "px;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:99999;transition:transform 0.2s ease;";
+      button.innerHTML = '<img src="' + iconUrl + '" style="width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.3));" />';
+    } else {
+      // Default chat bubble icon
+      button.style.cssText = "position:fixed;bottom:20px;" + positionStyle + "width:" + buttonWidth + "px;height:" + buttonHeight + "px;border-radius:50%;background:" + defaultColor + ";cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:99999;box-shadow:0 4px 15px " + defaultColor + "66;transition:transform 0.2s ease;";
+      button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
+    }
+    
+    // Also update iframe position
+    iframe.style.cssText = "position:fixed;bottom:20px;" + positionStyle + "width:380px;height:550px;border:none;z-index:99999;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,0.15);display:" + (isOpen ? "block" : "none") + ";";
+  }
+  
+  // Initial default styles
   button.style.cssText = "position:fixed;bottom:20px;right:20px;width:60px;height:60px;border-radius:50%;background:#6b5dfc;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:99999;box-shadow:0 4px 15px rgba(107,93,252,0.4);transition:transform 0.2s ease;";
   button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
+  
+  // Fetch merchant config and apply custom styles
+  fetch(baseUrl + "/api/merchant/status/" + merchantId)
+    .then(function(response) { return response.json(); })
+    .then(function(config) { updateButtonStyles(config); })
+    .catch(function(err) { console.log("Chatvice: Could not load config, using defaults"); });
+  
   button.onmouseover = function() { button.style.transform = "scale(1.05)"; };
   button.onmouseout = function() { button.style.transform = "scale(1)"; };
   
