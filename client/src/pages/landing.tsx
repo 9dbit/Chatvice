@@ -146,7 +146,7 @@ import purposeBuiltForLlmsImage from "@assets/IMG_0315_1765160576065.jpeg";
 import maleAvatar from "@assets/345c6d52234bbc72407ea25d49ad945e_1764867029228.jpg";
 import femaleAvatar from "@assets/b80ad9fd48f0b1e8d404775c495633be_1764867029228.jpg";
 import heroBackgroundImage from "@assets/IMG_0185_1764870218768.jpeg";
-import heroBackgroundVideo from "@assets/copy_53B9DA66-03D2-4D92-A023-B952385D4A77_1765179045883.mov";
+import heroBackgroundVideo from "@assets/copy_53B9DA66-03D2-4D92-A023-B952385D4A77_1766983330206.mov";
 
 function RunningTextBanner({ settings }: { settings?: LandingPageSettings }) {
   const textContent = settings?.runningTextContent || "MEET LEXA1. THE NEXT POWERFUL AI CHATBOT.";
