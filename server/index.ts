@@ -9,9 +9,23 @@ import { isPaymentGatewayConfigured, getActiveGatewayName } from './onepayClient
 
 const app = express();
 
+// Health check endpoint - must be defined early for deployment health checks
+app.get('/health', (_req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Also respond to root health check
+app.get('/__health', (_req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
 const uploadsPath = path.resolve(process.cwd(), "uploads");
-if (!fs.existsSync(uploadsPath)) {
-  fs.mkdirSync(uploadsPath, { recursive: true });
+try {
+  if (!fs.existsSync(uploadsPath)) {
+    fs.mkdirSync(uploadsPath, { recursive: true });
+  }
+} catch (error) {
+  console.warn('Failed to create uploads directory:', error);
 }
 app.use("/uploads", express.static(uploadsPath));
 const httpServer = createServer(app);
@@ -23,12 +37,17 @@ declare module "http" {
 }
 
 async function initPayment() {
-  const isConfigured = await isPaymentGatewayConfigured();
-  if (isConfigured) {
-    const gatewayName = await getActiveGatewayName();
-    console.log(`${gatewayName} payment gateway configured`);
-  } else {
-    console.log('Payment gateway not configured, payment features will be limited');
+  try {
+    const isConfigured = await isPaymentGatewayConfigured();
+    if (isConfigured) {
+      const gatewayName = await getActiveGatewayName();
+      console.log(`${gatewayName} payment gateway configured`);
+    } else {
+      console.log('Payment gateway not configured, payment features will be limited');
+    }
+  } catch (error) {
+    console.error('Payment gateway initialization error:', error);
+    console.log('Continuing without payment gateway...');
   }
 }
 

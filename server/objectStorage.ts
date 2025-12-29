@@ -32,13 +32,24 @@ export class ObjectNotFoundError extends Error {
 
 export class ObjectStorageService {
   private bucketName: string;
+  private initialized: boolean = false;
 
   constructor() {
-    this.bucketName = process.env.OBJECT_STORAGE_BUCKET || "";
+    try {
+      this.bucketName = process.env.OBJECT_STORAGE_BUCKET || "";
+      this.initialized = true;
+      if (!this.bucketName) {
+        console.warn("ObjectStorageService: OBJECT_STORAGE_BUCKET not set. Object storage features will be disabled.");
+      }
+    } catch (error) {
+      console.error("ObjectStorageService initialization error:", error);
+      this.bucketName = "";
+      this.initialized = false;
+    }
   }
 
   isConfigured(): boolean {
-    return !!this.bucketName;
+    return this.initialized && !!this.bucketName;
   }
 
   getBucketName(): string {
