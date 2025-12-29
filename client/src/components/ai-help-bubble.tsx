@@ -615,7 +615,7 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
           {buttonIconUrl && buttonIconWidth > 0 && buttonIconHeight > 0 ? (
             <button
               onClick={() => setIsOpen(true)}
-              className="shadow-lg flex items-center justify-center relative z-10 transition-transform hover:scale-105"
+              className="flex items-center justify-center relative z-10 transition-transform hover:scale-105 bg-transparent border-0 p-0"
               style={{ 
                 width: buttonIconWidth,
                 height: buttonIconHeight,
@@ -625,7 +625,7 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
               <img 
                 src={buttonIconUrl} 
                 alt={guideName}
-                className="w-full h-full object-contain"
+                className="w-full h-full object-contain drop-shadow-lg"
               />
               <span
                 className="absolute bottom-1 right-1 w-3 h-3 rounded-full border-2 border-white bg-green-500"
