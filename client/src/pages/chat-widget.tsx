@@ -749,14 +749,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               dismissWelcomeBubble();
               handleWidgetOpen();
             }}
-            className="shadow-lg flex items-center justify-center transition-transform hover:scale-105 relative"
+            className="flex items-center justify-center transition-transform hover:scale-105 relative"
             style={{
-              width: useCustomIconDimensions && merchantConfig?.iconUrl ? iconWidth : (merchantConfig?.iconUrl ? 'auto' : iconSize),
-              height: useCustomIconDimensions && merchantConfig?.iconUrl ? iconHeight : (merchantConfig?.iconUrl ? 'auto' : iconSize),
-              minWidth: useCustomIconDimensions ? iconWidth : iconSize,
-              minHeight: useCustomIconDimensions ? iconHeight : iconSize,
+              width: merchantConfig?.iconUrl ? iconWidth : iconSize,
+              height: merchantConfig?.iconUrl ? iconHeight : iconSize,
               backgroundColor: merchantConfig?.iconUrl ? 'transparent' : primaryColor,
-              borderRadius: useCustomIconDimensions && merchantConfig?.iconUrl ? '0' : (merchantConfig?.iconUrl ? '8px' : '50%'),
+              borderRadius: merchantConfig?.iconUrl ? '0' : '50%',
+              boxShadow: merchantConfig?.iconUrl ? 'none' : '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
             }}
             data-testid="button-open-widget"
           >
@@ -764,16 +763,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               <img
                 src={merchantConfig.iconUrl}
                 alt="Chat"
-                className={`object-contain ${useCustomIconDimensions ? 'w-full h-full' : 'max-w-[80px] max-h-[80px]'}`}
-                style={{ 
-                  width: useCustomIconDimensions ? iconWidth : 'auto',
-                  height: useCustomIconDimensions ? iconHeight : 'auto',
-                }}
+                className="w-full h-full object-contain drop-shadow-lg"
               />
             ) : (
               <Bot className="w-1/2 h-1/2 text-white" />
             )}
-            {!useCustomIconDimensions && !merchantConfig?.iconUrl && (
+            {!merchantConfig?.iconUrl && (
               <span
                 className={`absolute bottom-1 right-1 w-3 h-3 rounded-full border-2 border-white ${
                   isOnline ? "bg-status-online" : "bg-status-offline"

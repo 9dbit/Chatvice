@@ -555,68 +555,56 @@ window.chatvice('identify', { token }); // identify the user with Chatvice`;
                       </div>
                     </div>
 
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Label>Use Custom Dimensions</Label>
-                          <p className="text-xs text-muted-foreground">
-                            Set exact width and height in pixels
-                          </p>
-                        </div>
-                        <Switch
-                          checked={config.useCustomIconDimensions}
-                          onCheckedChange={(checked) => setConfig({ ...config, useCustomIconDimensions: checked })}
-                          data-testid="switch-custom-dimensions"
-                        />
-                      </div>
-
-                      {!config.useCustomIconDimensions ? (
+                    {config.iconUrl ? (
+                      <div className="space-y-4">
                         <div className="space-y-2">
                           <div className="flex justify-between">
-                            <Label>Icon Size</Label>
-                            <span className="text-sm text-muted-foreground">{config.iconSize}px</span>
+                            <Label>Icon Width</Label>
+                            <span className="text-sm text-muted-foreground">{config.iconWidth}px</span>
                           </div>
                           <Slider
-                            value={[config.iconSize]}
-                            onValueChange={([value]) => setConfig({ ...config, iconSize: value })}
-                            min={50}
-                            max={100}
+                            value={[config.iconWidth]}
+                            onValueChange={([value]) => setConfig({ ...config, iconWidth: value })}
+                            min={30}
+                            max={200}
                             step={5}
-                            data-testid="slider-icon-size"
+                            data-testid="slider-icon-width"
                           />
                         </div>
-                      ) : (
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="iconWidth">Width (px)</Label>
-                            <Input
-                              id="iconWidth"
-                              type="number"
-                              value={config.iconWidth}
-                              onChange={(e) => setConfig({ ...config, iconWidth: Math.max(20, Math.min(300, parseInt(e.target.value) || 70)) })}
-                              min={20}
-                              max={300}
-                              data-testid="input-icon-width"
-                            />
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <Label>Icon Height</Label>
+                            <span className="text-sm text-muted-foreground">{config.iconHeight}px</span>
                           </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="iconHeight">Height (px)</Label>
-                            <Input
-                              id="iconHeight"
-                              type="number"
-                              value={config.iconHeight}
-                              onChange={(e) => setConfig({ ...config, iconHeight: Math.max(20, Math.min(300, parseInt(e.target.value) || 70)) })}
-                              min={20}
-                              max={300}
-                              data-testid="input-icon-height"
-                            />
-                          </div>
-                          <p className="col-span-2 text-xs text-muted-foreground">
-                            Custom dimensions allow non-square icons (PNG/GIF). No circular mask applied.
-                          </p>
+                          <Slider
+                            value={[config.iconHeight]}
+                            onValueChange={([value]) => setConfig({ ...config, iconHeight: value })}
+                            min={30}
+                            max={200}
+                            step={5}
+                            data-testid="slider-icon-height"
+                          />
                         </div>
-                      )}
-                    </div>
+                        <p className="text-xs text-muted-foreground">
+                          Adjust width and height independently for custom icons.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <Label>Icon Size</Label>
+                          <span className="text-sm text-muted-foreground">{config.iconSize}px</span>
+                        </div>
+                        <Slider
+                          value={[config.iconSize]}
+                          onValueChange={([value]) => setConfig({ ...config, iconSize: value })}
+                          min={50}
+                          max={100}
+                          step={5}
+                          data-testid="slider-icon-size"
+                        />
+                      </div>
+                    )}
 
                     <div className="space-y-2">
                       <Label>Primary Color</Label>
@@ -839,8 +827,8 @@ window.chatvice('identify', { token }); // identify the user with Chatvice`;
                   <div
                     className={`cursor-pointer flex items-center justify-center relative ${config.bubblePosition === "left" ? "mr-auto" : "ml-auto"} ${config.iconUrl ? "" : "rounded-full shadow-lg"}`}
                     style={{
-                      width: config.useCustomIconDimensions ? config.iconWidth : config.iconSize,
-                      height: config.useCustomIconDimensions ? config.iconHeight : config.iconSize,
+                      width: config.iconUrl ? config.iconWidth : config.iconSize,
+                      height: config.iconUrl ? config.iconHeight : config.iconSize,
                       backgroundColor: config.iconUrl ? "transparent" : config.primaryColor,
                     }}
                   >
