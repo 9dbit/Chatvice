@@ -931,58 +931,15 @@ export class DatabaseStorage implements IStorage {
 
   async createAgent(data: InsertAgent): Promise<Agent> {
     const id = generateId("ag_");
-    
-    // Default basic knowledge for new agents (from Chatvice Guide)
-    const defaultBasicKnowledge = data.knowledgeContent || `BASIC CUSTOMER SERVICE KNOWLEDGE:
-
-1. GREETING & WELCOME
-- Greet customers warmly and professionally
-- Ask how you can help them today
-- Be patient and understanding
-
-2. HANDLING INQUIRIES
-- Listen carefully to customer questions
-- Provide accurate information based on your knowledge base
-- If unsure, offer to connect with a human agent
-
-3. COMMON RESPONSES
-- For product questions: Refer to your product catalog and pricing
-- For order issues: Ask for order details to assist better
-- For complaints: Apologize and offer solutions
-- For technical issues: Gather details and escalate if needed
-
-4. ESCALATION GUIDELINES
-- Complex issues requiring human judgment
-- Angry or frustrated customers
-- Requests to speak with a manager
-- Technical problems beyond scope
-
-5. CLOSING CONVERSATIONS
-- Ensure all questions are answered
-- Thank the customer for their time
-- Offer further assistance if needed
-
-Add your specific business information, FAQs, product details, and policies to customize this knowledge base.`;
-
-    // Default system prompt with typo correction built-in
-    const defaultSystemPrompt = data.systemPrompt || `You are a professional and friendly AI customer service agent. Your role is to help customers with their inquiries efficiently and courteously.
-
-KEY BEHAVIORS:
-- Be helpful, patient, and professional
-- Provide accurate information from the knowledge base
-- Match the customer's language (respond in the same language they use)
-- If you don't know something, honestly say so and offer alternatives
-- Escalate to human agents when appropriate`;
-
     const result = await db.insert(agents).values({
       id,
       merchantId: data.merchantId,
       name: data.name,
       description: data.description || "",
-      knowledgeContent: defaultBasicKnowledge,
+      knowledgeContent: data.knowledgeContent || "",
       isActive: data.isActive ?? true,
       photoUrl: data.photoUrl || "",
-      systemPrompt: defaultSystemPrompt,
+      systemPrompt: data.systemPrompt || "",
       toneStyle: data.toneStyle || "formal",
       autoEscalateAngry: data.autoEscalateAngry ?? false,
       welcomeMessageEnabled: data.welcomeMessageEnabled ?? false,
