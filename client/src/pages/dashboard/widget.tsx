@@ -38,6 +38,7 @@ export default function WidgetPage() {
   const [isUploadingIcon, setIsUploadingIcon] = useState(false);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [isRemovingBg, setIsRemovingBg] = useState(false);
+  const [bgRemovalStatus, setBgRemovalStatus] = useState<{ used: number; limit: number } | null>(null);
   const [config, setConfig] = useState({
     iconUrl: "",
     iconSize: 70,
@@ -91,6 +92,18 @@ export default function WidgetPage() {
       });
     },
   });
+
+  // Background removal usage status
+  const { data: bgStatusData, refetch: refetchBgStatus } = useQuery<{ used: number; limit: number; planId: string }>({
+    queryKey: ["/api/image/bg-removal-status"],
+    enabled: !!merchantId,
+  });
+
+  useEffect(() => {
+    if (bgStatusData) {
+      setBgRemovalStatus({ used: bgStatusData.used, limit: bgStatusData.limit });
+    }
+  }, [bgStatusData]);
 
   // Allowed Domains management
   const [newDomain, setNewDomain] = useState("");
@@ -375,15 +388,42 @@ export default function WidgetPage() {
 
   const handleRemoveBackground = async () => {
     if (!config.iconUrl) return;
+    
+    // Check limit before proceeding
+    if (bgRemovalStatus && bgRemovalStatus.limit >= 0 && bgRemovalStatus.used >= bgRemovalStatus.limit) {
+      toast({ 
+        title: "Limit reached", 
+        description: `You've used all ${bgRemovalStatus.limit} background removals this month. Upgrade your plan for more.`,
+        variant: "destructive" 
+      });
+      return;
+    }
+    
     setIsRemovingBg(true);
     try {
       // Convert URL to base64 data URL if needed
       const base64Url = await convertToBase64DataUrl(config.iconUrl);
       const response = await apiRequest("POST", "/api/image/remove-background", {
         imageUrl: base64Url,
-      }) as { imageUrl?: string };
+      }) as { imageUrl?: string; used?: number; limit?: number; limitReached?: boolean };
+      
+      if (response.limitReached) {
+        toast({ 
+          title: "Limit reached", 
+          description: `You've used all ${response.limit} background removals this month.`,
+          variant: "destructive" 
+        });
+        setBgRemovalStatus({ used: response.used || 0, limit: response.limit || 0 });
+        return;
+      }
+      
       if (response.imageUrl) {
         setConfig({ ...config, iconUrl: response.imageUrl });
+        // Update local status
+        if (response.used !== undefined && response.limit !== undefined) {
+          setBgRemovalStatus({ used: response.used, limit: response.limit });
+        }
+        refetchBgStatus();
         toast({ title: "Background removed", description: "Image background has been removed." });
       } else {
         throw new Error("No image returned");
@@ -694,13 +734,28 @@ window.chatvice('identify', { token }); // identify the user with Chatvice`;
                                   variant="outline"
                                   size="sm"
                                   onClick={handleRemoveBackground}
-                                  disabled={isRemovingBg}
+                                  disabled={isRemovingBg || (bgRemovalStatus !== null && bgRemovalStatus.limit >= 0 && bgRemovalStatus.used >= bgRemovalStatus.limit)}
                                   data-testid="button-remove-bg"
+                                  title={bgRemovalStatus ? `${bgRemovalStatus.used}/${bgRemovalStatus.limit} used this month` : "Remove background"}
                                 >
                                   {isRemovingBg ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Frame className="w-3 h-3 mr-1" />}
-                                  Remove BG
+                                  Remove BG {bgRemovalStatus && bgRemovalStatus.limit > 0 && (
+                                    <span className="text-[10px] opacity-70 ml-1">({bgRemovalStatus.limit - bgRemovalStatus.used})</span>
+                                  )}
                                 </Button>
                               </div>
+                              {bgRemovalStatus && bgRemovalStatus.limit === 0 && (
+                                <p className="text-xs text-amber-600 dark:text-amber-400">
+                                  <Lock className="w-3 h-3 inline mr-1" />
+                                  Background removal requires Starter plan or higher
+                                </p>
+                              )}
+                              {bgRemovalStatus && bgRemovalStatus.limit > 0 && bgRemovalStatus.used >= bgRemovalStatus.limit && (
+                                <p className="text-xs text-amber-600 dark:text-amber-400">
+                                  <AlertCircle className="w-3 h-3 inline mr-1" />
+                                  Monthly limit reached ({bgRemovalStatus.used}/{bgRemovalStatus.limit})
+                                </p>
+                              )}
                             </div>
                           )}
                           <p className="text-xs text-muted-foreground">

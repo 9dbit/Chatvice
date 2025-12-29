@@ -32,6 +32,8 @@ export const merchants = pgTable("merchants", {
   billingInterval: text("billing_interval").default("monthly"),
   conversationsUsed: integer("conversations_used").default(0),
   conversationsResetAt: timestamp("conversations_reset_at"),
+  bgRemovalUsed: integer("bg_removal_used").default(0),
+  bgRemovalResetAt: timestamp("bg_removal_reset_at"),
   identitySecretKey: text("identity_secret_key"),
   allowedDomains: text("allowed_domains").default(""),
   chatTimeout: integer("chat_timeout").default(300),
@@ -437,6 +439,7 @@ export const subscriptionPlans = {
     supervisorsPerAgentLimit: 1,
     domainsLimit: 1,
     chatRetentionHours: 1,
+    bgRemovalLimit: 0,
     features: [
       "20 AI conversations/month",
       "1 AI Agent",
@@ -463,6 +466,7 @@ export const subscriptionPlans = {
     supervisorsPerAgentLimit: 1,
     domainsLimit: 1,
     chatRetentionHours: 12,
+    bgRemovalLimit: 3,
     features: [
       "2,000 AI conversations/month",
       "1 AI Agent",
@@ -493,6 +497,7 @@ export const subscriptionPlans = {
     supervisorsPerAgentLimit: 3,
     domainsLimit: 2,
     chatRetentionHours: 24,
+    bgRemovalLimit: 5,
     features: [
       "10,000 AI conversations/month",
       "3 AI Agents",
@@ -526,6 +531,7 @@ export const subscriptionPlans = {
     supervisorsPerAgentLimit: 5,
     domainsLimit: 3,
     chatRetentionHours: 24,
+    bgRemovalLimit: 10,
     features: [
       "50,000 AI conversations/month",
       "10 AI Agents",
@@ -561,6 +567,7 @@ export const subscriptionPlans = {
     supervisorsPerAgentLimit: -1,
     domainsLimit: 5,
     chatRetentionHours: 24,
+    bgRemovalLimit: 15,
     features: [
       "Unlimited conversations",
       "Unlimited AI Agents",

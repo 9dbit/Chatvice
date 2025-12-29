@@ -2107,9 +2107,54 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   // AI Background Removal endpoint using Gemini
   app.post("/api/image/remove-background", requireMerchant, async (req, res) => {
     try {
+      const merchantId = req.session.merchantId!;
       const { imageUrl } = req.body;
       if (!imageUrl) {
         return res.status(400).json({ error: "Image URL is required" });
+      }
+
+      // Check subscription limits for background removal
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      const planId = merchant.subscriptionPlanId as keyof typeof subscriptionPlans || "free";
+      const plan = subscriptionPlans[planId];
+      const limit = plan?.bgRemovalLimit ?? 0;
+      const used = merchant.bgRemovalUsed ?? 0;
+
+      // Check if reset is needed (monthly reset)
+      const now = new Date();
+      const resetAt = merchant.bgRemovalResetAt;
+      let shouldReset = false;
+      if (!resetAt) {
+        shouldReset = true;
+      } else {
+        const resetDate = new Date(resetAt);
+        const monthsSinceReset = (now.getFullYear() - resetDate.getFullYear()) * 12 + (now.getMonth() - resetDate.getMonth());
+        if (monthsSinceReset >= 1) {
+          shouldReset = true;
+        }
+      }
+
+      let currentUsed = used;
+      if (shouldReset) {
+        currentUsed = 0;
+        await storage.updateMerchant(merchantId, { 
+          bgRemovalUsed: 0, 
+          bgRemovalResetAt: now 
+        });
+      }
+
+      // Check if limit is exceeded
+      if (limit >= 0 && currentUsed >= limit) {
+        return res.status(403).json({ 
+          error: `Background removal limit reached (${limit}/month). Upgrade your plan for more.`,
+          limitReached: true,
+          used: currentUsed,
+          limit: limit
+        });
       }
 
       const { GoogleGenAI, Modality } = await import("@google/genai");
@@ -2169,10 +2214,55 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const resultMimeType = imagePart.inlineData.mimeType || "image/png";
       const resultDataUrl = `data:${resultMimeType};base64,${imagePart.inlineData.data}`;
 
-      res.json({ imageUrl: resultDataUrl });
+      // Increment usage counter after successful removal
+      await storage.updateMerchant(merchantId, { 
+        bgRemovalUsed: currentUsed + 1 
+      });
+
+      res.json({ 
+        imageUrl: resultDataUrl,
+        used: currentUsed + 1,
+        limit: limit
+      });
     } catch (error: any) {
       console.error("Background removal error:", error);
       res.status(500).json({ error: error.message || "Failed to remove background" });
+    }
+  });
+
+  // Get background removal usage status
+  app.get("/api/image/bg-removal-status", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      const planId = merchant.subscriptionPlanId as keyof typeof subscriptionPlans || "free";
+      const plan = subscriptionPlans[planId];
+      const limit = plan?.bgRemovalLimit ?? 0;
+      let used = merchant.bgRemovalUsed ?? 0;
+
+      // Check if reset is needed
+      const now = new Date();
+      const resetAt = merchant.bgRemovalResetAt;
+      if (resetAt) {
+        const resetDate = new Date(resetAt);
+        const monthsSinceReset = (now.getFullYear() - resetDate.getFullYear()) * 12 + (now.getMonth() - resetDate.getMonth());
+        if (monthsSinceReset >= 1) {
+          used = 0;
+          await storage.updateMerchant(merchantId, { 
+            bgRemovalUsed: 0, 
+            bgRemovalResetAt: now 
+          });
+        }
+      }
+
+      res.json({ used, limit, planId });
+    } catch (error) {
+      console.error("BG removal status error:", error);
+      res.status(500).json({ error: "Server error" });
     }
   });
 
