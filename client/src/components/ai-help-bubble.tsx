@@ -550,11 +550,11 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
               </div>
               {/* Promo Image - displayed above welcome bubble when enabled, same width */}
               {promoImageEnabled && promoImageUrl && (
-                <div className="w-52 h-32 rounded-t-xl overflow-hidden" style={{ marginBottom: '-16px' }}>
+                <div className="w-52 rounded-t-xl overflow-hidden bg-background/50" style={{ marginBottom: '-16px' }}>
                   <img 
                     src={promoImageUrl} 
                     alt="Promotion" 
-                    className="w-full h-full object-cover object-center"
+                    className="w-full h-auto max-h-36 object-contain"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
                     }}
