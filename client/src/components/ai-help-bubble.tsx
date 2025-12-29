@@ -538,7 +538,6 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                 transition: bubbleTranslateY === 0 ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease' : 'none',
                 opacity: bubbleCollapsed ? 0 : 1,
                 pointerEvents: bubbleCollapsed ? 'none' : 'auto',
-                overflow: 'visible',
               }}
               onTouchStart={handleBubbleTouchStart}
               onTouchMove={handleBubbleTouchMove}
@@ -551,16 +550,17 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
               </div>
               {/* Promo Image - displayed above welcome bubble when enabled, same width */}
               {promoImageEnabled && promoImageUrl && (
-                <img 
-                  src={promoImageUrl} 
-                  alt="Promotion" 
-                  className="w-52 h-auto max-h-40 object-contain rounded-t-xl"
-                  style={{ marginBottom: '-16px' }}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
-                  data-testid="img-promo-bubble"
-                />
+                <div className="w-52 h-32 rounded-t-xl overflow-hidden" style={{ marginBottom: '-16px' }}>
+                  <img 
+                    src={promoImageUrl} 
+                    alt="Promotion" 
+                    className="w-full h-full object-cover object-center"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                    data-testid="img-promo-bubble"
+                  />
+                </div>
               )}
               {/* Welcome bubble - compact style with frosted glass */}
               <div className={`bg-card/80 backdrop-blur-md shadow-xl px-4 pt-6 pb-4 w-52 border border-border/50 ${promoImageEnabled && promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}>
