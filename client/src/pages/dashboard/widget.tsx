@@ -352,13 +352,36 @@ export default function WidgetPage() {
     setIsProcessingImage(false);
   };
 
+  const convertToBase64DataUrl = async (url: string): Promise<string> => {
+    // If already a data URL, return as-is
+    if (url.startsWith("data:")) {
+      return url;
+    }
+    // For external URLs, fetch and convert to base64
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = url;
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(img, 0, 0);
+    return canvas.toDataURL("image/png");
+  };
+
   const handleRemoveBackground = async () => {
     if (!config.iconUrl) return;
     setIsRemovingBg(true);
     try {
+      // Convert URL to base64 data URL if needed
+      const base64Url = await convertToBase64DataUrl(config.iconUrl);
       const response = await apiRequest("POST", "/api/image/remove-background", {
-        imageUrl: config.iconUrl,
-      });
+        imageUrl: base64Url,
+      }) as { imageUrl?: string };
       if (response.imageUrl) {
         setConfig({ ...config, iconUrl: response.imageUrl });
         toast({ title: "Background removed", description: "Image background has been removed." });

@@ -2104,6 +2104,78 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // AI Background Removal endpoint using Gemini
+  app.post("/api/image/remove-background", requireMerchant, async (req, res) => {
+    try {
+      const { imageUrl } = req.body;
+      if (!imageUrl) {
+        return res.status(400).json({ error: "Image URL is required" });
+      }
+
+      const { GoogleGenAI, Modality } = await import("@google/genai");
+      const ai = new GoogleGenAI({
+        apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
+        httpOptions: {
+          apiVersion: "",
+          baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
+        },
+      });
+
+      // Extract base64 data from data URL or fetch from URL
+      let base64Data: string;
+      let mimeType: string;
+      
+      if (imageUrl.startsWith("data:")) {
+        const match = imageUrl.match(/^data:([^;]+);base64,(.+)$/);
+        if (!match) {
+          return res.status(400).json({ error: "Invalid data URL format" });
+        }
+        mimeType = match[1];
+        base64Data = match[2];
+      } else {
+        return res.status(400).json({ error: "Only base64 data URLs are supported" });
+      }
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash-image",
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                inlineData: {
+                  mimeType: mimeType,
+                  data: base64Data,
+                },
+              },
+              {
+                text: "Remove the background from this image completely. Make the background fully transparent (alpha = 0). Keep only the main subject/object with clean, smooth edges. Return only the processed image with transparent background.",
+              },
+            ],
+          },
+        ],
+        config: {
+          responseModalities: [Modality.TEXT, Modality.IMAGE],
+        },
+      });
+
+      const candidate = response.candidates?.[0];
+      const imagePart = candidate?.content?.parts?.find((part: any) => part.inlineData);
+
+      if (!imagePart?.inlineData?.data) {
+        return res.status(500).json({ error: "AI could not process the image" });
+      }
+
+      const resultMimeType = imagePart.inlineData.mimeType || "image/png";
+      const resultDataUrl = `data:${resultMimeType};base64,${imagePart.inlineData.data}`;
+
+      res.json({ imageUrl: resultDataUrl });
+    } catch (error: any) {
+      console.error("Background removal error:", error);
+      res.status(500).json({ error: error.message || "Failed to remove background" });
+    }
+  });
+
   app.post("/api/chat/ask", async (req, res) => {
     try {
       const data = chatAskSchema.parse(req.body);
