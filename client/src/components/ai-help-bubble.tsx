@@ -554,7 +554,7 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                 <img 
                   src={promoImageUrl} 
                   alt="Promotion" 
-                  className="w-52 h-auto object-contain rounded-t-xl mt-2.5 md:mt-2.5"
+                  className="w-52 h-auto max-h-40 object-contain rounded-t-xl"
                   style={{ marginBottom: '-16px' }}
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';
@@ -562,14 +562,6 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                   data-testid="img-promo-bubble"
                 />
               )}
-              {/* Extra spacing for mobile */}
-              <style>{`
-                @media (max-width: 767px) {
-                  [data-testid="img-promo-bubble"] {
-                    margin-top: 30px !important;
-                  }
-                }
-              `}</style>
               {/* Welcome bubble - compact style with frosted glass */}
               <div className={`bg-card/80 backdrop-blur-md shadow-xl px-4 pt-6 pb-4 w-52 border border-border/50 ${promoImageEnabled && promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}>
                 <div className="flex items-center justify-between gap-2 mb-2">
