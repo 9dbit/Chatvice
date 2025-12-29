@@ -538,7 +538,7 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                 transition: bubbleTranslateY === 0 ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease' : 'none',
                 opacity: bubbleCollapsed ? 0 : 1,
                 pointerEvents: bubbleCollapsed ? 'none' : 'auto',
-                maxHeight: '50vh',
+                overflow: 'visible',
               }}
               onTouchStart={handleBubbleTouchStart}
               onTouchMove={handleBubbleTouchMove}
@@ -554,7 +554,7 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                 <img 
                   src={promoImageUrl} 
                   alt="Promotion" 
-                  className="w-52 h-auto object-cover rounded-t-xl mt-2.5 md:mt-2.5"
+                  className="w-52 h-auto object-contain rounded-t-xl mt-2.5 md:mt-2.5"
                   style={{ marginBottom: '-16px' }}
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';
