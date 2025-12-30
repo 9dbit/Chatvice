@@ -6877,6 +6877,172 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
     }
   });
 
+  // Profanity filter for customer names
+  const inappropriateWords = [
+    // Indonesian inappropriate words
+    "anjing", "asu", "bangsat", "babi", "bajingan", "bego", "bodoh", "goblok", "idiot", "kampret", "kontol", "memek", "ngentot", "pepek", "setan", "tai", "tolol",
+    // English inappropriate words
+    "fuck", "shit", "bitch", "ass", "dick", "cock", "pussy", "damn", "bastard", "cunt", "whore", "slut",
+    // General offensive terms
+    "stupid", "dumb", "retard", "moron"
+  ];
+
+  function sanitizeCustomerName(name: string): { isValid: boolean; sanitizedName: string; error?: string } {
+    // Trim and basic cleanup
+    let sanitized = name.trim();
+    
+    // Check for empty
+    if (!sanitized) {
+      return { isValid: false, sanitizedName: "", error: "Name is required" };
+    }
+    
+    // Check length
+    if (sanitized.length < 2) {
+      return { isValid: false, sanitizedName: "", error: "Name must be at least 2 characters" };
+    }
+    if (sanitized.length > 50) {
+      return { isValid: false, sanitizedName: "", error: "Name is too long" };
+    }
+    
+    // Check for inappropriate words
+    const lowerName = sanitized.toLowerCase();
+    for (const word of inappropriateWords) {
+      if (lowerName.includes(word)) {
+        return { isValid: false, sanitizedName: "", error: "Please use an appropriate name" };
+      }
+    }
+    
+    // Check for special characters (only allow letters, spaces, and basic punctuation)
+    const validNamePattern = /^[a-zA-Z\u00C0-\u024F\u1E00-\u1EFF\s\-'.]+$/;
+    if (!validNamePattern.test(sanitized)) {
+      // Remove invalid characters
+      sanitized = sanitized.replace(/[^a-zA-Z\u00C0-\u024F\u1E00-\u1EFF\s\-'.]/g, "").trim();
+      if (!sanitized) {
+        return { isValid: false, sanitizedName: "", error: "Please enter a valid name" };
+      }
+    }
+    
+    // Capitalize first letter of each word
+    sanitized = sanitized.split(" ").map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(" ");
+    
+    return { isValid: true, sanitizedName: sanitized };
+  }
+
+  // Public endpoint for widget to start chat with customer name
+  app.post("/api/widget/start-chat", async (req, res) => {
+    try {
+      const { merchantId, sessionId, customerName, initialMessage } = req.body;
+      
+      if (!merchantId || !sessionId || !customerName) {
+        return res.status(400).json({ success: false, error: "Missing required fields" });
+      }
+
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ success: false, error: "Merchant not found" });
+      }
+
+      // Validate and sanitize customer name
+      const nameResult = sanitizeCustomerName(customerName);
+      if (!nameResult.isValid) {
+        return res.json({ success: false, error: nameResult.error });
+      }
+
+      const sanitizedName = nameResult.sanitizedName;
+
+      // Create or update session with customer name
+      let session = await storage.getSession(sessionId);
+      const assignedAgentId = await getNextAgentId(merchantId);
+      
+      if (!session) {
+        session = await storage.createSession({
+          id: sessionId,
+          merchantId,
+          mode: "AI",
+          customerName: sanitizedName,
+          agentId: assignedAgentId,
+        });
+      } else {
+        await storage.updateSession(sessionId, { 
+          customerName: sanitizedName,
+          lastActivity: new Date()
+        });
+      }
+
+      // Get agent settings for personalized greeting
+      let agentName = "Chatvice";
+      let agentSystemPrompt = "";
+      const activeAgentId = merchant.activeAgentId || assignedAgentId;
+      
+      if (activeAgentId) {
+        const agent = await storage.getAgent(activeAgentId);
+        if (agent) {
+          agentName = agent.name || "Chatvice";
+          agentSystemPrompt = agent.systemPrompt || "";
+        }
+      }
+
+      // Store the initial message from customer
+      const finalMessage = initialMessage || "Halo kak, ada yang mau saya tanyakan";
+      await storage.createMessage({
+        sessionId,
+        from: "customer",
+        content: finalMessage,
+      });
+
+      // Generate personalized AI greeting response
+      const greetingPrompt = `You are ${agentName}, a friendly customer service AI assistant for ${merchant.companyName}. 
+${agentSystemPrompt ? `Additional context: ${agentSystemPrompt}` : ""}
+
+The customer named "${sanitizedName}" just started a chat with the message: "${finalMessage}"
+
+Respond with a warm, personalized greeting that:
+1. Uses their name naturally (e.g., "Halo ${sanitizedName}!" or "Hi ${sanitizedName}!")
+2. Is friendly and welcoming
+3. Asks how you can help them today
+4. Keep it brief (1-2 sentences)
+5. Respond in Indonesian as the customer used Indonesian
+
+Do not use brackets, special formatting, or mention that you're an AI.`;
+
+      let aiGreeting = `Halo ${sanitizedName}! Terima kasih sudah menghubungi kami. Ada yang bisa saya bantu hari ini?`;
+
+      try {
+        const response = await openai.chat.completions.create({
+          model: "gpt-4.1-mini",
+          messages: [{ role: "user", content: greetingPrompt }],
+          max_tokens: 150,
+          temperature: 0.7,
+        });
+        
+        if (response.choices[0]?.message?.content) {
+          aiGreeting = response.choices[0].message.content;
+        }
+      } catch (aiError) {
+        console.error("AI greeting error, using fallback:", aiError);
+        // Use fallback greeting
+      }
+
+      // Store AI response
+      await storage.createMessage({
+        sessionId,
+        from: "chatvice",
+        content: aiGreeting,
+      });
+
+      res.json({ 
+        success: true, 
+        answer: aiGreeting,
+        sanitizedName
+      });
+    } catch (error) {
+      console.error("Error starting chat:", error);
+      res.status(500).json({ success: false, error: "Server error" });
+    }
+  });
+
 // Chat Logs API
   app.get("/api/chat-logs", requireMerchantOrSupervisor, async (req, res) => {
     try {

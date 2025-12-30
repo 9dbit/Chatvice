@@ -114,6 +114,25 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const [sessionId] = useState(() => initialSessionId || `sess_${Math.random().toString(36).substring(2, 12)}`);
   const [message, setMessage] = useState("");
   const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
+  
+  // Customer name form state
+  const customerNameKey = `chatvice_customer_name_${merchantId}_${sessionId}`;
+  const [customerName, setCustomerName] = useState(() => {
+    try {
+      return sessionStorage.getItem(customerNameKey) || "";
+    } catch {
+      return "";
+    }
+  });
+  const [hasSubmittedName, setHasSubmittedName] = useState(() => {
+    try {
+      return sessionStorage.getItem(`${customerNameKey}_submitted`) === "true";
+    } catch {
+      return false;
+    }
+  });
+  const [nameInputValue, setNameInputValue] = useState("");
+  const [nameError, setNameError] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -410,6 +429,65 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       { clientId: generateClientId(), from: "user", content: sq.question, timestamp: new Date() },
     ]);
     useSuggestedQuestionMutation.mutate(sq);
+  };
+
+  // Start chat mutation with customer name
+  const startChatMutation = useMutation({
+    mutationFn: async ({ name, initialMessage }: { name: string; initialMessage: string }) => {
+      const response = await apiRequest("POST", "/api/widget/start-chat", {
+        merchantId,
+        sessionId,
+        customerName: name,
+        initialMessage,
+      });
+      return response.json() as Promise<{ success: boolean; answer: string; error?: string; sanitizedName?: string }>;
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        const finalName = data.sanitizedName || nameInputValue.trim();
+        setCustomerName(finalName);
+        setHasSubmittedName(true);
+        try {
+          sessionStorage.setItem(customerNameKey, finalName);
+          sessionStorage.setItem(`${customerNameKey}_submitted`, "true");
+        } catch {}
+        
+        // Add initial message from user and AI response
+        const defaultMessage = "Halo kak, ada yang mau saya tanyakan";
+        setPendingMessages([
+          { clientId: generateClientId(), from: "user", content: defaultMessage, timestamp: new Date() },
+          { clientId: generateClientId(), from: "chatvice", content: data.answer, timestamp: new Date() },
+        ]);
+        playNotificationSound("reply");
+        queryClient.invalidateQueries({ queryKey: ["/api/messages", sessionId] });
+      } else {
+        setNameError(data.error || "Invalid name. Please try again.");
+      }
+    },
+    onError: () => {
+      setNameError("Failed to start chat. Please try again.");
+    },
+  });
+
+  const handleNameSubmit = () => {
+    const name = nameInputValue.trim();
+    if (!name) {
+      setNameError("Please enter your name");
+      return;
+    }
+    if (name.length < 2) {
+      setNameError("Name must be at least 2 characters");
+      return;
+    }
+    if (name.length > 50) {
+      setNameError("Name is too long");
+      return;
+    }
+    setNameError("");
+    startChatMutation.mutate({ 
+      name, 
+      initialMessage: "Halo kak, ada yang mau saya tanyakan" 
+    });
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -999,9 +1077,67 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         )}
       </div>
 
-      <ScrollArea className="flex-1 p-4">
-        <div className="space-y-4">
-          {allMessages.map((msg, index) => (
+      {/* Customer name form - shown for new customers */}
+      {!hasSubmittedName && !serverMessages?.length ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-6">
+          <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: `${primaryColor}20` }}>
+            <User className="w-8 h-8" style={{ color: primaryColor }} />
+          </div>
+          <h3 className="text-lg font-semibold mb-2 text-center">Welcome!</h3>
+          <p className="text-sm text-muted-foreground mb-6 text-center">
+            Please enter your name to start chatting with us.
+          </p>
+          
+          <div className="w-full max-w-xs space-y-4">
+            <div className="space-y-2">
+              <Input
+                placeholder="Enter your name"
+                value={nameInputValue}
+                onChange={(e) => {
+                  setNameInputValue(e.target.value);
+                  setNameError("");
+                }}
+                onKeyPress={(e) => {
+                  if (e.key === "Enter") {
+                    handleNameSubmit();
+                  }
+                }}
+                className="text-center"
+                data-testid="input-customer-name"
+              />
+              {nameError && (
+                <p className="text-xs text-red-500 text-center" data-testid="text-name-error">
+                  {nameError}
+                </p>
+              )}
+            </div>
+            
+            <div className="bg-muted/50 rounded-lg p-3 border">
+              <p className="text-xs text-muted-foreground mb-1">Your message:</p>
+              <p className="text-sm italic">"Halo kak, ada yang mau saya tanyakan"</p>
+            </div>
+            
+            <Button
+              onClick={handleNameSubmit}
+              disabled={startChatMutation.isPending || !nameInputValue.trim()}
+              className="w-full text-white"
+              style={{ backgroundColor: primaryColor }}
+              data-testid="button-start-chat"
+            >
+              {startChatMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Send className="w-4 h-4 mr-2" />
+              )}
+              Start Chat
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <ScrollArea className="flex-1 p-4">
+            <div className="space-y-4">
+              {allMessages.map((msg, index) => (
             <div key={msg.id || index}>
               <div
                 className={`flex gap-2 ${msg.from === "user" ? "justify-end" : "justify-start"}`}
@@ -1402,6 +1538,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </p>
         )}
       </div>
+      </>
+      )}
       
       {viewingImage && (
         <div 
