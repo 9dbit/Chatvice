@@ -34,6 +34,7 @@ Chatvice is a monorepo application structured with `/client`, `/server`, and `/s
 - **Chatvice Guide Configuration**: Admin dashboard tab for managing the AI help widget across landing page and merchant dashboard, including AI agent settings, welcome messages, and live preview.
 - **Promotional Discount System**: Comprehensive promo code system with admin CRUD, plan targeting, usage limits, and integration into pricing and billing pages.
 - **Chatvice Top Up v2 (Multi-Tenant Payment System)**: Multi-tenant coin top-up system for widget-embedded game/app monetization with JWT-based SSO, a defined payment flow, and API endpoints.
+- **Chat Security Monitoring**: AI-powered monitoring of supervisor conversations to detect suspicious activities (financial fraud, data theft, external contact attempts, inappropriate content). Features configurable sensitivity (0-100), custom pattern detection, tolerance settings for jokes/off-topic messages, real-time alerts with severity levels (low/medium/high/critical), and email notifications to merchant admins. Uses Gemini 2.5 Flash for analysis. Default protection applies to new merchants immediately without manual configuration.
 
 **Data Model Highlights**:
 Core entities include Merchants, Supervisors, Sessions, Messages, Triggers, Knowledge Base content, Subscription Plans, and Agents. New tables support supervisor roles, shifts, product cards, quick replies, chat buttons, welcome bubbles, notification settings, widget sites, site domains, coin orders, and topup nominals.
