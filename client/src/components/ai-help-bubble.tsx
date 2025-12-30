@@ -572,14 +572,23 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
               `}</style>
               {/* Welcome bubble - compact style, z-10 so promo image (z-20) stays on top */}
               <div className={`bg-card shadow-xl px-4 pt-6 pb-4 w-52 border border-border relative z-10 ${promoImageEnabled && promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}>
-                {/* X button positioned at card's outer right edge */}
+                {/* X button positioned at card's outer right edge, adjusted for mobile */}
                 <button
                   onClick={dismissWelcomeBubble}
-                  className="absolute top-2 right-2 p-0 hover:opacity-70 transition-opacity"
+                  className="absolute top-2 right-2 md:top-2 md:right-2 p-0 hover:opacity-70 transition-opacity"
+                  style={{ top: 'calc(0.5rem + 5px)', right: 'calc(0.5rem - 20px)' }}
                   data-testid="button-dismiss-welcome"
                 >
                   <X className="w-4 h-4 text-muted-foreground" />
                 </button>
+                <style>{`
+                  @media (min-width: 768px) {
+                    [data-testid="button-dismiss-welcome"] {
+                      top: 0.5rem !important;
+                      right: 0.5rem !important;
+                    }
+                  }
+                `}</style>
                 <div className="mb-2 pr-4">
                   <p className="font-semibold text-base">
                     {bubbleEnabled ? bubbleText : "Need help?"}
