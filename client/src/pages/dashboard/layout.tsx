@@ -28,6 +28,7 @@ import TeamActivityPage from "./team-activity";
 import ChatButtonsPage from "./chat-buttons";
 import LivePreviewPage from "./live-preview";
 import CheckoutPage from "./checkout";
+import ChatSecurityPage from "./chat-security";
 import type { Merchant } from "@shared/schema";
 
 const pageNames: Record<string, string> = {
@@ -54,6 +55,7 @@ const pageNames: Record<string, string> = {
   "chat-buttons": "Chat Buttons",
   "live-preview": "Live Preview",
   "checkout": "Checkout",
+  "chat-security": "Chat Security",
 };
 
 function Breadcrumb({ location }: { location: string }) {
@@ -144,6 +146,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/plans" component={PlansPage} />
               <Route path="/dashboard/billing" component={BillingDetailsPage} />
               <Route path="/dashboard/settings" component={SettingsPage} />
+              <Route path="/dashboard/chat-security" component={ChatSecurityPage} />
             </Switch>
           </main>
           <AIHelpBubble />

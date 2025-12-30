@@ -3126,6 +3126,18 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         message: { from: "supervisor", content: message },
       });
 
+      const session = await storage.getSession(sessionId);
+      if (session) {
+        const { analyzeMessageForSecurity } = await import("./chat-security");
+        const recentMessages = await storage.getMessages(sessionId);
+        const context = recentMessages
+          .slice(-5)
+          .map(m => `${m.from}: ${m.content}`)
+          .join("\n");
+        analyzeMessageForSecurity(message, sessionId, supervisorId, session.merchantId, context)
+          .catch(err => console.error("Security analysis error:", err));
+      }
+
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -7930,6 +7942,110 @@ ${log.extractedKnowledge}` : ''}
         maxProductsPerRecommendation: settings?.maxProductsPerRecommendation ?? 3,
         showPriceInRecommendation: settings?.showPriceInRecommendation ?? true,
       });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ============== CHAT SECURITY ROUTES ==============
+  
+  // Get chat security settings
+  app.get("/api/chat-security/settings", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const settings = await storage.getChatSecuritySettings(merchantId);
+      res.json(settings || {
+        isEnabled: true,
+        sensitivity: 50,
+        alertEmailEnabled: true,
+        alertEmails: [],
+        customPatterns: [],
+        monitorFinancialFraud: true,
+        monitorDataTheft: true,
+        monitorExternalContact: true,
+        monitorInappropriate: true,
+        tolerateJokes: true,
+        tolerateOffTopic: true,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Update chat security settings
+  app.put("/api/chat-security/settings", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      
+      const validationSchema = z.object({
+        isEnabled: z.boolean().optional(),
+        sensitivity: z.number().min(0).max(100).optional(),
+        alertEmailEnabled: z.boolean().optional(),
+        alertEmails: z.array(z.string().email()).optional(),
+        customPatterns: z.array(z.string()).optional(),
+        monitorFinancialFraud: z.boolean().optional(),
+        monitorDataTheft: z.boolean().optional(),
+        monitorExternalContact: z.boolean().optional(),
+        monitorInappropriate: z.boolean().optional(),
+        tolerateJokes: z.boolean().optional(),
+        tolerateOffTopic: z.boolean().optional(),
+      });
+      
+      const parseResult = validationSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Invalid settings data", details: parseResult.error.errors });
+      }
+      
+      const settings = await storage.upsertChatSecuritySettings(merchantId, parseResult.data);
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get chat security alerts
+  app.get("/api/chat-security/alerts", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const status = req.query.status as string | undefined;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const alerts = await storage.getChatSecurityAlerts(merchantId, status, limit);
+      res.json(alerts);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get chat security alert stats
+  app.get("/api/chat-security/stats", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const stats = await storage.getChatSecurityAlertStats(merchantId);
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Update chat security alert status
+  app.patch("/api/chat-security/alerts/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { id } = req.params;
+      const { status } = req.body;
+      
+      // Verify the alert belongs to this merchant
+      const alert = await storage.getChatSecurityAlert(id);
+      if (!alert || alert.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Alert not found" });
+      }
+      
+      const updatedAlert = await storage.updateChatSecurityAlert(id, {
+        status,
+        reviewedBy: req.session.userId,
+        reviewedAt: new Date(),
+      });
+      res.json(updatedAlert);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
     }

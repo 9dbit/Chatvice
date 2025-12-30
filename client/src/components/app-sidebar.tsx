@@ -41,6 +41,7 @@ import {
   Eye,
   ChevronDown,
   Receipt,
+  ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -114,6 +115,7 @@ const iconMap: Record<string, any> = {
   Plug2,
   CreditCard,
   Receipt,
+  ShieldAlert,
 };
 
 const menuItemsMap: Record<string, MenuItem> = {
@@ -138,6 +140,7 @@ const menuItemsMap: Record<string, MenuItem> = {
   "integrations": { id: "integrations", title: "Integrations", url: "/dashboard/integrations", icon: Plug2, permission: "settings" },
   "plans": { id: "plans", title: "Plans", url: "/dashboard/plans", icon: CreditCard, permission: "billing" },
   "billing": { id: "billing", title: "Billing", url: "/dashboard/billing", icon: Receipt, permission: "billing" },
+  "chat-security": { id: "chat-security", title: "Chat Security", url: "/dashboard/chat-security", icon: ShieldAlert, permission: "settings" },
 };
 
 const defaultMainMenuItems: MenuItem[] = [
@@ -169,6 +172,7 @@ const defaultManagementItems: MenuItem[] = [
   menuItemsMap["team-activity"],
   menuItemsMap["work-scheduler"],
   menuItemsMap["integrations"],
+  menuItemsMap["chat-security"],
   menuItemsMap["plans"],
   menuItemsMap["billing"],
 ];
@@ -193,6 +197,7 @@ const defaultGroupForItem: Record<string, "main" | "widgetSetting" | "messageSet
   "team-activity": "management",
   "work-scheduler": "management",
   "integrations": "management",
+  "chat-security": "management",
   "plans": "management",
   "billing": "management",
 };
