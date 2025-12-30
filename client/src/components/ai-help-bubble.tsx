@@ -571,18 +571,19 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                 }
               `}</style>
               {/* Welcome bubble - compact style */}
-              <div className={`bg-card shadow-xl px-4 pt-6 pb-4 w-52 border border-border ${promoImageEnabled && promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}>
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <p className="font-semibold text-base flex-1">
+              <div className={`bg-card shadow-xl px-4 pt-6 pb-4 w-52 border border-border relative ${promoImageEnabled && promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}>
+                {/* X button positioned at card's outer right edge */}
+                <button
+                  onClick={dismissWelcomeBubble}
+                  className="absolute top-2 right-2 p-0 hover:opacity-70 transition-opacity"
+                  data-testid="button-dismiss-welcome"
+                >
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </button>
+                <div className="mb-2 pr-4">
+                  <p className="font-semibold text-base">
                     {bubbleEnabled ? bubbleText : "Need help?"}
                   </p>
-                  <button
-                    onClick={dismissWelcomeBubble}
-                    className="p-0 hover:opacity-70 transition-opacity flex-shrink-0"
-                    data-testid="button-dismiss-welcome"
-                  >
-                    <X className="w-4 h-4 text-muted-foreground" />
-                  </button>
                 </div>
                 <p className="text-xs text-muted-foreground leading-normal mb-3">
                   I can guide you through the dashboard features.
