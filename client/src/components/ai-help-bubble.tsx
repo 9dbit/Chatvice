@@ -549,12 +549,12 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
               <div className="flex justify-center mb-1 md:hidden">
                 <div className="w-8 h-1 bg-muted-foreground/30 rounded-full" />
               </div>
-              {/* Promo Image - displayed above welcome bubble when enabled, same width */}
+              {/* Promo Image - displayed above welcome bubble when enabled, same width, z-20 to stay on top */}
               {promoImageEnabled && promoImageUrl && (
                 <img 
                   src={promoImageUrl} 
                   alt="Promotion" 
-                  className="w-52 h-auto object-cover rounded-t-xl mt-2.5 md:mt-2.5"
+                  className="w-52 h-auto object-cover rounded-t-xl mt-2.5 md:mt-2.5 relative z-20"
                   style={{ marginBottom: '-16px' }}
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';
@@ -570,8 +570,8 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                   }
                 }
               `}</style>
-              {/* Welcome bubble - compact style */}
-              <div className={`bg-card shadow-xl px-4 pt-6 pb-4 w-52 border border-border relative ${promoImageEnabled && promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}>
+              {/* Welcome bubble - compact style, z-10 so promo image (z-20) stays on top */}
+              <div className={`bg-card shadow-xl px-4 pt-6 pb-4 w-52 border border-border relative z-10 ${promoImageEnabled && promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}>
                 {/* X button positioned at card's outer right edge */}
                 <button
                   onClick={dismissWelcomeBubble}
