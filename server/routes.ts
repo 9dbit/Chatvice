@@ -6965,6 +6965,13 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
           agentId: assignedAgentId,
         });
       } else {
+        // Security check: Verify session belongs to this merchant
+        if (session.merchantId !== merchantId) {
+          return res.status(403).json({ 
+            success: false, 
+            error: "Session does not belong to this merchant" 
+          });
+        }
         await storage.updateSession(sessionId, { 
           customerName: sanitizedName,
           lastActivity: new Date()
