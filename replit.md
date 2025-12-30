@@ -18,7 +18,7 @@ Chatvice is a monorepo application structured with `/client`, `/server`, and `/s
 **Key Features:**
 - **AI-Powered Chatbot**: Automates customer responses using semantic search from a per-agent knowledge base with conversation memory optimization. Supports multi-language and AI media analysis for images and documents.
 - **Human Escalation**: Automatic or manual escalation to human supervisors based on triggers or customer requests.
-- **Configurable Chat Widget**: Embeddable, customizable widget with dynamic theming, real-time status, media upload, suggested questions, and programmatic control via a script embed method using `postMessage`.
+- **Configurable Chat Widget**: Embeddable, customizable widget with dynamic theming, real-time status, media upload, suggested questions, and programmatic control via a script embed method using `postMessage`. Features customer name collection form on first visit with profanity filtering (Indonesian and English), input validation, and AI-generated personalized greetings.
 - **AI Media Analysis**: AI analyzes uploaded images (OpenAI Vision) and documents (summarization for CSV, TXT) to provide contextual responses.
 - **Merchant Dashboard**: Provides analytics, knowledge base management (with web crawler), trigger configuration, supervisor management, subscription management, quick replies, product cards, and notification settings. Includes a draggable/hideable Chatvice Guide AI assistant.
 - **Product Offer Messages**: Both supervisors and AI can recommend products to customers, displayed as rich cards.
