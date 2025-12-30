@@ -576,7 +576,7 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                 <button
                   onClick={dismissWelcomeBubble}
                   className="absolute top-2 right-2 md:top-2 md:right-2 p-0 hover:opacity-70 transition-opacity"
-                  style={{ top: 'calc(0.5rem + 2px)', right: 'calc(0.5rem - 2px)' }}
+                  style={{ top: 'calc(0.5rem + 5px)', right: 'calc(0.5rem - 20px)' }}
                   data-testid="button-dismiss-welcome"
                 >
                   <X className="w-4 h-4 text-muted-foreground" />
