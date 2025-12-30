@@ -1156,3 +1156,65 @@ export const adminNotifications = pgTable("admin_notifications", {
 export const insertAdminNotificationSchema = createInsertSchema(adminNotifications).omit({ id: true, createdAt: true });
 export type InsertAdminNotification = z.infer<typeof insertAdminNotificationSchema>;
 export type AdminNotification = typeof adminNotifications.$inferSelect;
+
+// ============ Chat Security Monitoring ============
+
+// Chat Security Settings - per-merchant security configuration
+export const chatSecuritySettings = pgTable("chat_security_settings", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull().unique(),
+  isEnabled: boolean("is_enabled").default(true),
+  sensitivity: integer("sensitivity").default(50), // 0-100 scale, higher = more sensitive
+  // Email notifications
+  alertEmailEnabled: boolean("alert_email_enabled").default(true),
+  alertEmails: text("alert_emails").array(), // List of PIC emails to notify
+  // Custom suspicious patterns (merchant can add their own)
+  customPatterns: text("custom_patterns").array(), // Custom keywords/phrases to watch
+  // Categories to monitor
+  monitorFinancialFraud: boolean("monitor_financial_fraud").default(true),
+  monitorDataTheft: boolean("monitor_data_theft").default(true),
+  monitorExternalContact: boolean("monitor_external_contact").default(true),
+  monitorInappropriate: boolean("monitor_inappropriate").default(true),
+  // Tolerance settings
+  tolerateJokes: boolean("tolerate_jokes").default(true), // Allow casual banter
+  tolerateOffTopic: boolean("tolerate_off_topic").default(true), // Allow minor off-topic
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertChatSecuritySettingsSchema = createInsertSchema(chatSecuritySettings).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertChatSecuritySettings = z.infer<typeof insertChatSecuritySettingsSchema>;
+export type ChatSecuritySettings = typeof chatSecuritySettings.$inferSelect;
+
+// Chat Security Alerts - stores detected suspicious conversations
+export const chatSecurityAlerts = pgTable("chat_security_alerts", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  sessionId: varchar("session_id", { length: 64 }).notNull(),
+  supervisorId: varchar("supervisor_id", { length: 32 }), // The supervisor involved
+  // Alert details
+  alertType: varchar("alert_type", { length: 50 }).notNull(), // financial_fraud, data_theft, external_contact, inappropriate, custom
+  severity: varchar("severity", { length: 20 }).default("medium"), // low, medium, high, critical
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  // Evidence
+  suspiciousMessage: text("suspicious_message").notNull(), // The message that triggered alert
+  conversationContext: text("conversation_context"), // Surrounding messages for context
+  aiAnalysis: text("ai_analysis"), // AI explanation of why it's suspicious
+  confidenceScore: integer("confidence_score").default(50), // 0-100 confidence
+  // Status
+  status: varchar("status", { length: 20 }).default("new"), // new, reviewed, dismissed, escalated
+  reviewedBy: varchar("reviewed_by", { length: 32 }), // Merchant who reviewed
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
+  // Notification status
+  emailSentAt: timestamp("email_sent_at"),
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertChatSecurityAlertSchema = createInsertSchema(chatSecurityAlerts).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertChatSecurityAlert = z.infer<typeof insertChatSecurityAlertSchema>;
+export type ChatSecurityAlert = typeof chatSecurityAlerts.$inferSelect;

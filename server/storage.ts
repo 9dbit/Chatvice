@@ -42,11 +42,13 @@ import {
   type PaymentGateway, type InsertPaymentGateway,
   type PaymentTransaction, type InsertPaymentTransaction,
   type AdminNotification, type InsertAdminNotification,
+  type ChatSecuritySettings, type InsertChatSecuritySettings,
+  type ChatSecurityAlert, type InsertChatSecurityAlert,
   merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings, storedFiles,
   workShifts, shiftAssignments, workReports, quickReplies, chatButtons, productCards, productCardButtons, welcomeBubbles, notificationSettings, productRecommendationSettings, productTriggers, supervisorInvitations,
   emailVerificationTokens, passwordResetTokens, promotions, promotionUsage,
   widgetSites, siteDomains, coinOrders, topupNominals, merchantDomains, paymentGateways,
-  paymentTransactions, adminNotifications,
+  paymentTransactions, adminNotifications, chatSecuritySettings, chatSecurityAlerts,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -315,6 +317,17 @@ export interface IStorage {
   createAdminNotification(data: InsertAdminNotification): Promise<AdminNotification>;
   markAdminNotificationRead(id: string): Promise<boolean>;
   markAllAdminNotificationsRead(): Promise<boolean>;
+  
+  // Chat Security Settings
+  getChatSecuritySettings(merchantId: string): Promise<ChatSecuritySettings | undefined>;
+  upsertChatSecuritySettings(merchantId: string, data: Partial<InsertChatSecuritySettings>): Promise<ChatSecuritySettings>;
+  
+  // Chat Security Alerts
+  getChatSecurityAlerts(merchantId: string, status?: string, limit?: number): Promise<ChatSecurityAlert[]>;
+  getChatSecurityAlert(id: string): Promise<ChatSecurityAlert | undefined>;
+  createChatSecurityAlert(data: InsertChatSecurityAlert): Promise<ChatSecurityAlert>;
+  updateChatSecurityAlert(id: string, data: Partial<ChatSecurityAlert>): Promise<ChatSecurityAlert | undefined>;
+  getChatSecurityAlertStats(merchantId: string): Promise<{ total: number; new: number; reviewed: number; dismissed: number; escalated: number }>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -2084,6 +2097,89 @@ export class DatabaseStorage implements IStorage {
   async markAllAdminNotificationsRead(): Promise<boolean> {
     await db.update(adminNotifications).set({ isRead: true });
     return true;
+  }
+  
+  // Chat Security Settings
+  async getChatSecuritySettings(merchantId: string): Promise<ChatSecuritySettings | undefined> {
+    const result = await db.select().from(chatSecuritySettings)
+      .where(eq(chatSecuritySettings.merchantId, merchantId));
+    return result[0];
+  }
+  
+  async upsertChatSecuritySettings(merchantId: string, data: Partial<InsertChatSecuritySettings>): Promise<ChatSecuritySettings> {
+    const existing = await this.getChatSecuritySettings(merchantId);
+    if (existing) {
+      const result = await db.update(chatSecuritySettings)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(chatSecuritySettings.merchantId, merchantId))
+        .returning();
+      return result[0];
+    } else {
+      const id = generateId("css_");
+      const result = await db.insert(chatSecuritySettings).values({
+        id,
+        merchantId,
+        ...data,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }).returning();
+      return result[0];
+    }
+  }
+  
+  // Chat Security Alerts
+  async getChatSecurityAlerts(merchantId: string, status?: string, limit: number = 50): Promise<ChatSecurityAlert[]> {
+    if (status) {
+      return db.select().from(chatSecurityAlerts)
+        .where(and(
+          eq(chatSecurityAlerts.merchantId, merchantId),
+          eq(chatSecurityAlerts.status, status)
+        ))
+        .orderBy(desc(chatSecurityAlerts.createdAt))
+        .limit(limit);
+    }
+    return db.select().from(chatSecurityAlerts)
+      .where(eq(chatSecurityAlerts.merchantId, merchantId))
+      .orderBy(desc(chatSecurityAlerts.createdAt))
+      .limit(limit);
+  }
+  
+  async getChatSecurityAlert(id: string): Promise<ChatSecurityAlert | undefined> {
+    const result = await db.select().from(chatSecurityAlerts)
+      .where(eq(chatSecurityAlerts.id, id));
+    return result[0];
+  }
+  
+  async createChatSecurityAlert(data: InsertChatSecurityAlert): Promise<ChatSecurityAlert> {
+    const id = generateId("csa_");
+    const result = await db.insert(chatSecurityAlerts).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+  
+  async updateChatSecurityAlert(id: string, data: Partial<ChatSecurityAlert>): Promise<ChatSecurityAlert | undefined> {
+    const result = await db.update(chatSecurityAlerts)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(chatSecurityAlerts.id, id))
+      .returning();
+    return result[0];
+  }
+  
+  async getChatSecurityAlertStats(merchantId: string): Promise<{ total: number; new: number; reviewed: number; dismissed: number; escalated: number }> {
+    const alerts = await db.select().from(chatSecurityAlerts)
+      .where(eq(chatSecurityAlerts.merchantId, merchantId));
+    
+    return {
+      total: alerts.length,
+      new: alerts.filter(a => a.status === 'new').length,
+      reviewed: alerts.filter(a => a.status === 'reviewed').length,
+      dismissed: alerts.filter(a => a.status === 'dismissed').length,
+      escalated: alerts.filter(a => a.status === 'escalated').length,
+    };
   }
 }
 
