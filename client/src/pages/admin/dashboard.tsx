@@ -117,6 +117,7 @@ import {
   Wallet,
   Pencil,
   Bitcoin,
+  Key,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -6098,6 +6099,137 @@ import type { GatewayStats } from "@shared/schema";
 
 const PAYMENT_METHODS = ["QRIS", "VA", "EWALLET", "BANK", "CARD", "CRYPTO"];
 
+function GatewayCredentialsCard({ toast }: { toast: any }) {
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const { data: config, isLoading } = useQuery<PaymentConfig>({
+    queryKey: ["/api/admin/payment/config"],
+  });
+
+  const handleTestConnection = async () => {
+    setIsTesting(true);
+    setTestResult(null);
+    try {
+      const response = await apiRequest("POST", "/api/admin/payment/test");
+      const result = await response.json();
+      if (response.ok) {
+        setTestResult({ success: true, message: result.message || "Connection successful!" });
+        toast({ title: "Success", description: "Payment gateway connection verified." });
+      } else {
+        setTestResult({ success: false, message: result.error || "Connection test failed." });
+        toast({ title: "Error", description: result.error || "Connection test failed.", variant: "destructive" });
+      }
+    } catch (error: any) {
+      setTestResult({ success: false, message: error.message || "Connection test failed." });
+      toast({ title: "Error", description: "Failed to test connection.", variant: "destructive" });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  if (isLoading) {
+    return <Skeleton className="h-48" />;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Key className="w-5 h-5" />
+              Gateway Credentials
+            </CardTitle>
+            <CardDescription>API credentials for payment gateway authentication</CardDescription>
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={handleTestConnection}
+            disabled={isTesting || !config?.isConfigured}
+            data-testid="button-test-gateway-connection"
+          >
+            {isTesting ? (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                Testing...
+              </>
+            ) : (
+              <>
+                <Zap className="w-4 h-4 mr-2" />
+                Test Connection
+              </>
+            )}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="p-4 border rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-sm font-medium">Client Key</p>
+              {config?.hasClientKey ? (
+                <Badge variant="outline" className="bg-green-500/10 text-green-700 dark:text-green-400">
+                  <CheckCircle className="w-3 h-3 mr-1" /> Configured
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-red-500/10 text-red-700 dark:text-red-400">
+                  <XCircle className="w-3 h-3 mr-1" /> Not Set
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Environment variable: <code className="px-1 py-0.5 bg-muted rounded">ONEPAY_CLIENT_KEY</code>
+            </p>
+            {config?.clientKeyPreview && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Preview: <code className="px-1 py-0.5 bg-muted rounded">{config.clientKeyPreview}</code>
+              </p>
+            )}
+          </div>
+          <div className="p-4 border rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-sm font-medium">Client Secret</p>
+              {config?.hasClientSecret ? (
+                <Badge variant="outline" className="bg-green-500/10 text-green-700 dark:text-green-400">
+                  <CheckCircle className="w-3 h-3 mr-1" /> Configured
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-red-500/10 text-red-700 dark:text-red-400">
+                  <XCircle className="w-3 h-3 mr-1" /> Not Set
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Environment variable: <code className="px-1 py-0.5 bg-muted rounded">ONEPAY_CLIENT_SECRET</code>
+            </p>
+          </div>
+        </div>
+
+        {testResult && (
+          <div className={`p-3 rounded-lg text-sm ${testResult.success ? 'bg-green-500/10 text-green-700 dark:text-green-400' : 'bg-red-500/10 text-red-700 dark:text-red-400'}`}>
+            <div className="flex items-center gap-2">
+              {testResult.success ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+              {testResult.message}
+            </div>
+          </div>
+        )}
+
+        <div className="p-4 bg-muted/50 rounded-lg">
+          <p className="text-sm font-medium mb-2">How to Update Credentials</p>
+          <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+            <li>Open the <strong>Secrets</strong> tab in Replit (lock icon in the left sidebar)</li>
+            <li>Add or update <code className="px-1 py-0.5 bg-background rounded">ONEPAY_CLIENT_KEY</code> with your Client Key</li>
+            <li>Add or update <code className="px-1 py-0.5 bg-background rounded">ONEPAY_CLIENT_SECRET</code> with your Client Secret</li>
+            <li>Restart the application to apply changes</li>
+            <li>Click "Test Connection" above to verify</li>
+          </ol>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function PaymentIntegrationTab({ toast }: { toast: any }) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingGateway, setEditingGateway] = useState<PaymentGateway | null>(null);
@@ -6281,6 +6413,9 @@ function PaymentIntegrationTab({ toast }: { toast: any }) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Gateway Credentials Configuration */}
+      <GatewayCredentialsCard toast={toast} />
 
       {gateways && gateways.length === 0 ? (
         <Card>
