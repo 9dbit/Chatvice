@@ -22,7 +22,7 @@ export const merchants = pgTable("merchants", {
   bubblePosition: text("bubble_position").default("right"),
   paymentCustomerId: text("payment_customer_id"),
   paymentSubscriptionId: text("payment_subscription_id"),
-  paymentProvider: text("payment_provider").default("onepay"),
+  paymentProvider: text("payment_provider").default("kompaspay"),
   lastInvoiceId: text("last_invoice_id"),
   pendingTransactionId: text("pending_transaction_id"),
   subscriptionStatus: text("subscription_status").default("trial"),

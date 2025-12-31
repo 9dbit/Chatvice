@@ -6179,7 +6179,7 @@ function GatewayCredentialsCard({ toast }: { toast: any }) {
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Environment variable: <code className="px-1 py-0.5 bg-muted rounded">ONEPAY_CLIENT_KEY</code>
+              Environment variable: <code className="px-1 py-0.5 bg-muted rounded">KOMPASPAY_CLIENT_KEY</code>
             </p>
             {config?.clientKeyPreview && (
               <p className="text-xs text-muted-foreground mt-1">
@@ -6201,7 +6201,7 @@ function GatewayCredentialsCard({ toast }: { toast: any }) {
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Environment variable: <code className="px-1 py-0.5 bg-muted rounded">ONEPAY_CLIENT_SECRET</code>
+              Environment variable: <code className="px-1 py-0.5 bg-muted rounded">KOMPASPAY_CLIENT_SECRET</code>
             </p>
           </div>
         </div>
@@ -6219,8 +6219,8 @@ function GatewayCredentialsCard({ toast }: { toast: any }) {
           <p className="text-sm font-medium mb-2">How to Update Credentials</p>
           <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
             <li>Open the <strong>Secrets</strong> tab in Replit (lock icon in the left sidebar)</li>
-            <li>Add or update <code className="px-1 py-0.5 bg-background rounded">ONEPAY_CLIENT_KEY</code> with your Client Key</li>
-            <li>Add or update <code className="px-1 py-0.5 bg-background rounded">ONEPAY_CLIENT_SECRET</code> with your Client Secret</li>
+            <li>Add or update <code className="px-1 py-0.5 bg-background rounded">KOMPASPAY_CLIENT_KEY</code> with your Client Key</li>
+            <li>Add or update <code className="px-1 py-0.5 bg-background rounded">KOMPASPAY_CLIENT_SECRET</code> with your Client Secret</li>
             <li>Restart the application to apply changes</li>
             <li>Click "Test Connection" above to verify</li>
           </ol>

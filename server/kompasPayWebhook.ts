@@ -1,4 +1,4 @@
-import { verifyWebhookSignature, getActiveGatewayName } from './onepayClient';
+import { verifyWebhookSignature, getActiveGatewayName } from './kompasPayClient';
 import { storage } from './storage';
 import { subscriptionPlans, type SubscriptionPlanId } from '@shared/schema';
 import { getEffectiveSubscriptionPlan } from './subscriptionPlanUtils';
@@ -18,9 +18,6 @@ export interface PaymentWebhookPayload {
     type?: string;
   };
 }
-
-// Legacy alias for backward compatibility
-export type OnePayWebhookPayload = PaymentWebhookPayload;
 
 export class PaymentWebhookHandler {
   static async processWebhook(
@@ -61,7 +58,7 @@ export class PaymentWebhookHandler {
     }
   }
 
-  private static async handlePaymentSuccess(payload: OnePayWebhookPayload): Promise<{ success: boolean; message: string }> {
+  private static async handlePaymentSuccess(payload: PaymentWebhookPayload): Promise<{ success: boolean; message: string }> {
     const { external_id, metadata, transaction_id, amount, payment_method, paid_at } = payload;
     
     let merchantId: string | undefined;
@@ -96,12 +93,10 @@ export class PaymentWebhookHandler {
       return { success: false, message: 'Missing required metadata' };
     }
     
-    // Check for existing transaction to ensure idempotency
     const existingTransaction = await storage.getPaymentTransactionByExternalId(external_id);
     if (existingTransaction) {
       console.log(`Transaction already processed: ${existingTransaction.invoiceNumber}`);
       
-      // If receipt wasn't sent, try again
       if (!existingTransaction.receiptSentAt) {
         const merchant = await storage.getMerchant(merchantId);
         if (merchant) {
@@ -127,7 +122,6 @@ export class PaymentWebhookHandler {
       return { success: true, message: 'Transaction already processed' };
     }
     
-    // Get merchant and plan info for transaction record
     const merchant = await storage.getMerchant(merchantId);
     if (!merchant) {
       return { success: false, message: 'Merchant not found' };
@@ -139,7 +133,6 @@ export class PaymentWebhookHandler {
     const paidAtDate = paid_at ? new Date(paid_at) : new Date();
     const merchantName = merchant.companyName || merchant.email.split('@')[0];
     
-    // Calculate subscription end date
     const periodEnd = new Date(paidAtDate);
     if (billingInterval === 'annual') {
       periodEnd.setFullYear(periodEnd.getFullYear() + 1);
@@ -147,7 +140,6 @@ export class PaymentWebhookHandler {
       periodEnd.setMonth(periodEnd.getMonth() + 1);
     }
     
-    // Create payment transaction record
     const transaction = await storage.createPaymentTransaction({
       merchantId,
       gatewayName: await getActiveGatewayName(),
@@ -168,10 +160,8 @@ export class PaymentWebhookHandler {
     
     console.log(`Payment transaction recorded: ${transaction.invoiceNumber}`);
     
-    // Activate subscription
     await this.activateSubscription(merchantId, planId, billingInterval, transaction_id);
     
-    // Send receipt email to merchant
     try {
       await sendPaymentReceiptEmail({
         merchantEmail: merchant.email,
@@ -185,7 +175,6 @@ export class PaymentWebhookHandler {
         expiresAt: periodEnd,
       });
       
-      // Update receipt sent timestamp
       await storage.updatePaymentTransaction(transaction.id, {
         receiptSentAt: new Date(),
       });
@@ -193,7 +182,6 @@ export class PaymentWebhookHandler {
       console.error('Failed to send receipt email:', emailError);
     }
     
-    // Create admin notification
     const adminNotification = await storage.createAdminNotification({
       type: 'payment_received',
       title: 'New Payment Received',
@@ -212,9 +200,7 @@ export class PaymentWebhookHandler {
     
     console.log(`Admin notification created: ${adminNotification.id}`);
     
-    // Send admin notification email
     try {
-      // Get all admins to notify
       const adminEmails = ['admin@chatvice.app', 'master@chatvice.app'];
       for (const adminEmail of adminEmails) {
         await sendAdminPaymentNotificationEmail({
@@ -241,10 +227,8 @@ export class PaymentWebhookHandler {
     billingInterval: string,
     transactionId: string
   ): Promise<void> {
-    // Use effective plan with custom overrides from database
     const plan = await getEffectiveSubscriptionPlan(planId);
     if (!plan) {
-      // Fallback to base plan if effective plan fails
       const basePlan = subscriptionPlans[planId];
       if (!basePlan) {
         throw new Error(`Invalid plan: ${planId}`);
@@ -273,7 +257,7 @@ export class PaymentWebhookHandler {
     console.log(`Subscription activated for merchant ${merchantId}: ${planId} (${billingInterval})`);
   }
 
-  private static async handlePaymentExpired(payload: OnePayWebhookPayload): Promise<{ success: boolean; message: string }> {
+  private static async handlePaymentExpired(payload: PaymentWebhookPayload): Promise<{ success: boolean; message: string }> {
     const { metadata, transaction_id, external_id, amount, payment_method } = payload;
     
     let merchantId = metadata?.merchantId;
@@ -290,17 +274,14 @@ export class PaymentWebhookHandler {
     if (merchantId) {
       const merchant = await storage.getMerchant(merchantId);
       if (merchant) {
-        // Clear pending transaction
         if (merchant.pendingTransactionId === transaction_id) {
           await storage.updateMerchantSubscription(merchantId, {
             pendingTransactionId: null,
           });
         }
         
-        // Check if transaction already recorded
         const existingTransaction = await storage.getPaymentTransactionByExternalId(external_id);
         if (!existingTransaction) {
-          // Record the expired transaction for billing history
           const plan = planId ? await getEffectiveSubscriptionPlan(planId) : null;
           const planName = plan?.name || subscriptionPlans[planId as SubscriptionPlanId]?.name || planId || 'Unknown';
           const subscriptionMonths = billingInterval === 'annual' ? 12 : 1;
@@ -330,7 +311,7 @@ export class PaymentWebhookHandler {
     return { success: true, message: 'Payment expiry recorded' };
   }
 
-  private static async handlePaymentFailed(payload: OnePayWebhookPayload): Promise<{ success: boolean; message: string }> {
+  private static async handlePaymentFailed(payload: PaymentWebhookPayload): Promise<{ success: boolean; message: string }> {
     const { metadata, transaction_id, external_id, status, amount, payment_method } = payload;
     
     let merchantId = metadata?.merchantId;
@@ -347,17 +328,14 @@ export class PaymentWebhookHandler {
     if (merchantId) {
       const merchant = await storage.getMerchant(merchantId);
       if (merchant) {
-        // Clear pending transaction
         if (merchant.pendingTransactionId === transaction_id) {
           await storage.updateMerchantSubscription(merchantId, {
             pendingTransactionId: null,
           });
         }
         
-        // Check if transaction already recorded
         const existingTransaction = await storage.getPaymentTransactionByExternalId(external_id);
         if (!existingTransaction) {
-          // Record the failed/cancelled transaction for billing history
           const plan = planId ? await getEffectiveSubscriptionPlan(planId) : null;
           const planName = plan?.name || subscriptionPlans[planId as SubscriptionPlanId]?.name || planId || 'Unknown';
           const subscriptionMonths = billingInterval === 'annual' ? 12 : 1;
@@ -391,5 +369,4 @@ export class PaymentWebhookHandler {
 
 export async function checkAndRenewExpiredSubscriptions(): Promise<void> {
   console.log('Checking for expired subscriptions...');
-  
 }

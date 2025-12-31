@@ -2,10 +2,9 @@ import crypto from 'crypto';
 import { storage } from './storage';
 import type { PaymentGateway } from '@shared/schema';
 
-// Cache for gateway credentials to avoid DB lookups on every request
 let cachedGateway: PaymentGateway | null = null;
 let cacheTime = 0;
-const CACHE_TTL = 60000; // 1 minute cache
+const CACHE_TTL = 60000;
 
 interface PaymentGatewayCredentials {
   clientKey: string;
@@ -16,12 +15,10 @@ interface PaymentGatewayCredentials {
 }
 
 async function getGatewayCredentials(): Promise<PaymentGatewayCredentials> {
-  // Check cache first
   if (cachedGateway && Date.now() - cacheTime < CACHE_TTL) {
     return extractCredentials(cachedGateway);
   }
   
-  // Fetch from database
   const gateway = await storage.getDefaultPaymentGateway();
   if (!gateway) {
     throw new Error('No default payment gateway configured. Please configure a payment gateway in admin panel.');
@@ -36,11 +33,9 @@ async function getGatewayCredentials(): Promise<PaymentGatewayCredentials> {
 function extractCredentials(gateway: PaymentGateway): PaymentGatewayCredentials {
   const config = gateway.config as Record<string, any> || {};
   
-  // Get credentials from config first, then fallback to env vars
   let clientKey = config.clientKey || '';
   let clientSecret = config.clientSecret || '';
   
-  // Fallback to environment variables if config doesn't have them
   if (!clientKey && gateway.clientKeyEnvVar) {
     clientKey = process.env[gateway.clientKeyEnvVar] || '';
   }
@@ -57,30 +52,23 @@ function extractCredentials(gateway: PaymentGateway): PaymentGatewayCredentials 
     throw new Error(`Payment gateway "${gateway.name}" credentials not configured. Please update in admin panel.`);
   }
   
-  // Get API base URL from config or use default
-  const apiBaseUrl = config.apiBaseUrl || config.baseUrl || 'https://api.1-pay.id';
+  const apiBaseUrl = config.apiBaseUrl || config.baseUrl || 'https://api.kompaspay.com';
   
   return {
     clientKey,
     clientSecret,
     gatewayName: gateway.name,
     apiBaseUrl,
-    environment: gateway.environment || 'sandbox',
+    environment: gateway.environment || 'production',
   };
 }
 
-// Clear cache when gateway is updated
 export function clearGatewayCache() {
   cachedGateway = null;
   cacheTime = 0;
 }
 
 function generateSignatureWithCredentials(payload: string, timestamp: string, clientKey: string, clientSecret: string, requestTarget: string): string {
-  // Kompas Pay signature format:
-  // 1. Create digest of body using SHA256, output as Base64
-  // 2. Concatenate components with newline
-  // 3. HMAC-SHA256 the concatenated string, output as Hex
-  
   const bodyDigest = crypto.createHash('sha256').update(payload).digest('base64');
   
   const rawStringData = [
@@ -104,7 +92,6 @@ function generateSignatureWithCredentials(payload: string, timestamp: string, cl
 }
 
 function generateTimestamp(): string {
-  // ISO timestamp format: 2025-12-04T08:29:15.123Z
   return new Date().toISOString();
 }
 
@@ -192,12 +179,10 @@ export async function createQRISPayment(request: CreateQRISRequest): Promise<Cre
     const { clientKey, clientSecret, gatewayName, apiBaseUrl } = await getGatewayCredentials();
     const timestamp = generateTimestamp();
     
-    // Calculate expiry time in format "YYYY-MM-DD HH:mm:ss"
     const expiryMinutes = request.expiryMinutes || 30;
     const expiryDate = new Date(Date.now() + expiryMinutes * 60 * 1000);
     const expiredStr = expiryDate.toISOString().replace('T', ' ').split('.')[0];
     
-    // Body format per payment gateway documentation
     const body = {
       expired: expiredStr,
       amount: request.amount,
@@ -271,7 +256,6 @@ export async function createQRISPayment(request: CreateQRISRequest): Promise<Cre
       };
     }
     
-    // Handle Kompas Pay response format
     const responseData = data.data || data;
     
     return {
@@ -301,7 +285,6 @@ export async function createVAPayment(request: CreateVARequest): Promise<CreateV
     const { clientKey, clientSecret, gatewayName, apiBaseUrl } = await getGatewayCredentials();
     const timestamp = generateTimestamp();
     
-    // Kompas Pay VA request body format
     const expiryMinutes = request.expiryMinutes || 1440;
     const expiryDate = new Date(Date.now() + expiryMinutes * 60 * 1000);
     const expiredStr = expiryDate.toISOString().replace('T', ' ').split('.')[0];
@@ -376,7 +359,6 @@ export async function createVAPayment(request: CreateVARequest): Promise<CreateV
       };
     }
     
-    // Handle Kompas Pay VA response format
     const responseData = data.data || data;
     
     return {
@@ -439,7 +421,6 @@ export async function checkPaymentStatus(transactionId: string): Promise<Payment
     }
     clearTimeout(timeoutId);
     
-    // Check content type before parsing
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
       const textResponse = await response.text();
@@ -449,7 +430,6 @@ export async function checkPaymentStatus(transactionId: string): Promise<Payment
         preview: textResponse.substring(0, 200),
       });
       
-      // If gateway returns HTML error page, report as pending (don't fail the check)
       if (textResponse.includes('<!DOCTYPE') || textResponse.includes('<html')) {
         return {
           success: false,
@@ -538,12 +518,10 @@ export function verifyWebhookSignature(
   timestamp: string,
   receivedSignature: string
 ): boolean {
-  // Use cached credentials for webhook verification
   const { clientKey, clientSecret } = cachedGateway 
     ? extractCredentials(cachedGateway)
-    : { clientKey: process.env.ONEPAY_CLIENT_KEY || '', clientSecret: process.env.ONEPAY_CLIENT_SECRET || '' };
+    : { clientKey: process.env.KOMPASPAY_CLIENT_KEY || '', clientSecret: process.env.KOMPASPAY_CLIENT_SECRET || '' };
   
-  // Webhook callback doesn't have a request target, use empty string
   const webhookTarget = '/webhook/callback';
   const expectedSignature = generateSignatureWithCredentials(payload, timestamp, clientKey, clientSecret, webhookTarget);
   
@@ -573,11 +551,10 @@ export async function isPaymentGatewayConfigured(): Promise<boolean> {
   }
 }
 
-// Legacy function for backward compatibility
-export function isOnePayConfigured(): boolean {
-  const hasClientKey = !!process.env.ONEPAY_CLIENT_KEY;
-  const hasClientSecret = !!process.env.ONEPAY_CLIENT_SECRET;
-  console.log('Legacy 1-Pay configuration check:', { hasClientKey, hasClientSecret });
+export function isKompasPayConfigured(): boolean {
+  const hasClientKey = !!process.env.KOMPASPAY_CLIENT_KEY;
+  const hasClientSecret = !!process.env.KOMPASPAY_CLIENT_SECRET;
+  console.log('Kompas Pay configuration check:', { hasClientKey, hasClientSecret });
   return hasClientKey && hasClientSecret;
 }
 
@@ -595,7 +572,6 @@ export function formatIDR(amount: number): string {
   }).format(amount);
 }
 
-// Get current gateway name
 export async function getActiveGatewayName(): Promise<string> {
   try {
     const gateway = await storage.getDefaultPaymentGateway();

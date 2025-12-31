@@ -71,8 +71,8 @@ const integrations: Integration[] = [
     status: "available",
   },
   {
-    id: "onepay",
-    name: "1-Pay (QRIS)",
+    id: "kompaspay",
+    name: "Kompas Pay (QRIS)",
     description: "Indonesian payment gateway with QRIS support for easy subscriptions. Compatible with all Indonesian e-wallets.",
     icon: CreditCard,
     category: "payment",

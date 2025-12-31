@@ -19,7 +19,7 @@ import path from "path";
 import fs from "fs";
 import { processKnowledgeBase, searchKnowledge } from "./embeddings";
 import { extractFAQContent } from "./crawler";
-import { createQRISPayment, createVAPayment, checkPaymentStatus, isOnePayConfigured, convertToIDR, formatIDR } from "./onepayClient";
+import { createQRISPayment, createVAPayment, checkPaymentStatus, isKompasPayConfigured, convertToIDR, formatIDR } from "./kompasPayClient";
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats } from "@shared/schema";
 import crypto from "crypto";
@@ -3665,7 +3665,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(400).json({ error: "Invalid plan" });
       }
 
-      if (!isOnePayConfigured()) {
+      if (!isKompasPayConfigured()) {
         return res.status(503).json({ error: "Payment gateway not configured" });
       }
       
@@ -3678,8 +3678,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const forwardedHost = req.get('x-forwarded-host') || req.get('host');
       const isLocalhost = !forwardedHost || forwardedHost.includes('localhost');
       const callbackUrl = isLocalhost 
-        ? 'https://chatvice.app/api/onepay/webhook'
-        : `https://${forwardedHost}/api/onepay/webhook`;
+        ? 'https://chatvice.app/api/payment/webhook'
+        : `https://${forwardedHost}/api/payment/webhook`;
       
       const qrisResult = await createQRISPayment({
         merchantId: merchant.id,
@@ -3811,7 +3811,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(400).json({ error: "Invalid plan" });
       }
 
-      if (!isOnePayConfigured()) {
+      if (!isKompasPayConfigured()) {
         return res.status(503).json({ error: "Payment gateway not configured" });
       }
       
@@ -3897,8 +3897,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const forwardedHost = req.get('x-forwarded-host') || req.get('host');
       const isLocalhost = !forwardedHost || forwardedHost.includes('localhost');
       const callbackUrl = isLocalhost 
-        ? 'https://chatvice.app/api/onepay/webhook'
-        : `https://${forwardedHost}/api/onepay/webhook`;
+        ? 'https://chatvice.app/api/payment/webhook'
+        : `https://${forwardedHost}/api/payment/webhook`;
       
       let paymentResult: any = null;
       
@@ -4016,18 +4016,18 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
-  // Test endpoint for 1-Pay API (development only)
-  app.post("/api/billing/test-onepay", async (req, res) => {
+  // Test endpoint for Kompas Pay API (development only)
+  app.post("/api/billing/test-kompaspay", async (req, res) => {
     try {
-      if (!isOnePayConfigured()) {
-        return res.status(503).json({ error: "1-Pay not configured" });
+      if (!isKompasPayConfigured()) {
+        return res.status(503).json({ error: "Kompas Pay not configured" });
       }
       
       // Use production URL for callback (Kompas Pay requires public URL)
-      const callbackUrl = `https://chatvice.app/api/onepay/webhook`;
+      const callbackUrl = `https://chatvice.app/api/payment/webhook`;
       const orderId = `TEST_${Date.now()}`;
       
-      console.log("Testing 1-Pay API...");
+      console.log("Testing Kompas Pay API...");
       
       const qrisResult = await createQRISPayment({
         merchantId: "test",
@@ -4040,11 +4040,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         callbackUrl,
       });
       
-      console.log("1-Pay test result:", qrisResult);
+      console.log("Kompas Pay test result:", qrisResult);
       
       res.json(qrisResult);
     } catch (error: any) {
-      console.error("1-Pay test error:", error);
+      console.error("Kompas Pay test error:", error);
       res.status(500).json({ error: error.message || "Test failed" });
     }
   });
@@ -4550,8 +4550,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   // Get payment gateway configuration status (never expose actual keys)
   app.get("/api/admin/payment/config", requireAdmin, async (req, res) => {
     try {
-      const hasClientKey = !!process.env.ONEPAY_CLIENT_KEY;
-      const hasClientSecret = !!process.env.ONEPAY_CLIENT_SECRET;
+      const hasClientKey = !!process.env.KOMPASPAY_CLIENT_KEY;
+      const hasClientSecret = !!process.env.KOMPASPAY_CLIENT_SECRET;
       const isConfigured = hasClientKey && hasClientSecret;
       
       // Get masked key preview (first 4 and last 4 chars only)
@@ -4561,15 +4561,15 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       };
       
       // Get payment settings from platform settings
-      const gatewayName = await storage.getPlatformSetting("payment_gateway_name") || "1-Pay Indonesia";
-      const webhookUrl = `${process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://chatvice.app"}/api/onepay/webhook`;
-      const apiBaseUrl = process.env.NODE_ENV === 'production' ? 'https://api.1-pay.id' : 'https://api.1-pay.id';
+      const gatewayName = await storage.getPlatformSetting("payment_gateway_name") || "Kompas Pay";
+      const webhookUrl = `${process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://chatvice.app"}/api/payment/webhook`;
+      const apiBaseUrl = 'https://api.kompaspay.com';
       
       res.json({
         isConfigured,
         hasClientKey,
         hasClientSecret,
-        clientKeyPreview: maskKey(process.env.ONEPAY_CLIENT_KEY),
+        clientKeyPreview: maskKey(process.env.KOMPASPAY_CLIENT_KEY),
         gatewayName,
         webhookUrl,
         apiBaseUrl,
@@ -4585,12 +4585,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   // Test payment gateway connection
   app.post("/api/admin/payment/test", requireAdmin, async (req, res) => {
     try {
-      const { isOnePayConfigured, getBalance } = await import("./onepayClient");
+      const { isKompasPayConfigured, getBalance } = await import("./kompasPayClient");
       
-      if (!isOnePayConfigured()) {
+      if (!isKompasPayConfigured()) {
         return res.status(400).json({ 
           success: false, 
-          error: "Payment gateway not configured. Please add ONEPAY_CLIENT_KEY and ONEPAY_CLIENT_SECRET in Secrets." 
+          error: "Payment gateway not configured. Please add KOMPASPAY_CLIENT_KEY and KOMPASPAY_CLIENT_SECRET in Secrets." 
         });
       }
       

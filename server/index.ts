@@ -4,8 +4,8 @@ import fs from "fs";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
-import { PaymentWebhookHandler, type PaymentWebhookPayload } from './onepayWebhook';
-import { isPaymentGatewayConfigured, getActiveGatewayName } from './onepayClient';
+import { PaymentWebhookHandler, type PaymentWebhookPayload } from './kompasPayWebhook';
+import { isPaymentGatewayConfigured, getActiveGatewayName } from './kompasPayClient';
 
 const app = express();
 
@@ -84,8 +84,8 @@ app.post(
   }
 );
 
-// Legacy 1-Pay webhook endpoint (redirect to new endpoint)
-app.post('/api/onepay/webhook', express.json(), async (req, res) => {
+// Legacy webhook endpoint (redirect to new endpoint for backward compatibility)
+app.post('/api/kompaspay/webhook', express.json(), async (req, res) => {
   const signature = req.headers['x-signature'] as string || '';
   const timestamp = req.headers['x-timestamp'] as string || '';
   
