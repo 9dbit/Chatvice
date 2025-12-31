@@ -16,6 +16,8 @@ export interface PaymentWebhookPayload {
     planId?: string;
     billingInterval?: string;
     type?: string;
+    isDowngrade?: string;
+    scheduledActivationDate?: string;
   };
 }
 
@@ -64,6 +66,8 @@ export class PaymentWebhookHandler {
     let merchantId: string | undefined;
     let planId: SubscriptionPlanId | undefined;
     let billingInterval = 'monthly';
+    let isDowngrade = false;
+    let scheduledActivationDate: Date | null = null;
     
     if (!metadata?.merchantId) {
       const parts = external_id.split('_');
@@ -86,6 +90,10 @@ export class PaymentWebhookHandler {
       merchantId = metadata.merchantId;
       planId = metadata.planId as SubscriptionPlanId;
       billingInterval = metadata.billingInterval || 'monthly';
+      isDowngrade = metadata.isDowngrade === 'true';
+      if (metadata.scheduledActivationDate && metadata.scheduledActivationDate !== '') {
+        scheduledActivationDate = new Date(metadata.scheduledActivationDate);
+      }
     }
     
     if (!merchantId || !planId) {
@@ -160,7 +168,13 @@ export class PaymentWebhookHandler {
     
     console.log(`Payment transaction recorded: ${transaction.invoiceNumber}`);
     
-    await this.activateSubscription(merchantId, planId, billingInterval, transaction_id);
+    // Handle scheduled downgrades vs immediate upgrades/new subscriptions
+    if (isDowngrade && scheduledActivationDate) {
+      await this.scheduleSubscriptionDowngrade(merchantId, planId, billingInterval, transaction_id, scheduledActivationDate);
+      console.log(`Subscription downgrade scheduled for merchant ${merchantId}: ${planId} activates on ${scheduledActivationDate.toISOString()}`);
+    } else {
+      await this.activateSubscription(merchantId, planId, billingInterval, transaction_id);
+    }
     
     try {
       await sendPaymentReceiptEmail({
@@ -252,9 +266,41 @@ export class PaymentWebhookHandler {
       pendingTransactionId: null,
       conversationsUsed: 0,
       conversationsResetAt: new Date(),
+      // Clear any scheduled downgrade when activating a new subscription
+      scheduledPlanId: null,
+      scheduledBillingInterval: null,
+      scheduledPlanActivatesAt: null,
+      scheduledPlanTransactionId: null,
     });
 
     console.log(`Subscription activated for merchant ${merchantId}: ${planId} (${billingInterval})`);
+  }
+
+  private static async scheduleSubscriptionDowngrade(
+    merchantId: string,
+    planId: SubscriptionPlanId,
+    billingInterval: string,
+    transactionId: string,
+    activationDate: Date
+  ): Promise<void> {
+    const plan = await getEffectiveSubscriptionPlan(planId);
+    if (!plan) {
+      const basePlan = subscriptionPlans[planId];
+      if (!basePlan) {
+        throw new Error(`Invalid plan: ${planId}`);
+      }
+    }
+
+    // Schedule the plan change - current subscription continues until activation date
+    await storage.updateMerchantSubscription(merchantId, {
+      pendingTransactionId: null,
+      scheduledPlanId: planId,
+      scheduledBillingInterval: billingInterval,
+      scheduledPlanActivatesAt: activationDate,
+      scheduledPlanTransactionId: transactionId,
+    });
+
+    console.log(`Subscription downgrade scheduled for merchant ${merchantId}: ${planId} (${billingInterval}) activates on ${activationDate.toISOString()}`);
   }
 
   private static async handlePaymentExpired(payload: PaymentWebhookPayload): Promise<{ success: boolean; message: string }> {

@@ -867,6 +867,10 @@ export class DatabaseStorage implements IStorage {
     customSuggestedQuestionsLimit?: number | null;
     customMonthlyPrice?: number | null;
     customAnnualPrice?: number | null;
+    scheduledPlanId?: string | null;
+    scheduledBillingInterval?: string | null;
+    scheduledPlanActivatesAt?: Date | null;
+    scheduledPlanTransactionId?: string | null;
   }): Promise<Merchant | undefined> {
     const result = await db.update(merchants)
       .set(data)

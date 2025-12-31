@@ -99,6 +99,8 @@ interface BillingStatus {
   planId: string;
   status: string;
   periodEnd?: string;
+  currentPeriodEnd?: string;
+  billingInterval?: string;
   pendingTransaction?: PendingTransaction;
 }
 
@@ -669,6 +671,27 @@ export default function CheckoutPage() {
   
   const finalPrice = Math.max(0, priceIDR - discountAmount - creditAmountIDR);
 
+  // Detect if this is a downgrade by comparing plan prices
+  // Use monthly prices for fair comparison regardless of billing interval
+  const currentPlanData = dbPlans.find((p: any) => p.id === billingStatus?.planId);
+  const currentPlanMonthlyPriceUSD = currentPlanData?.monthlyPrice || 0;
+  const selectedPlanMonthlyPriceUSD = selectedPlan?.monthlyPrice || 0;
+  
+  const isDowngrade = billingStatus?.status === 'active' && 
+                      billingStatus?.planId && 
+                      billingStatus.planId !== 'free' && 
+                      selectedPlanMonthlyPriceUSD < currentPlanMonthlyPriceUSD;
+  
+  // Format the current period end date for display
+  const periodEndDate = billingStatus?.currentPeriodEnd || billingStatus?.periodEnd;
+  const currentPeriodEndFormatted = periodEndDate 
+    ? new Date(periodEndDate).toLocaleDateString('id-ID', { 
+        day: 'numeric', 
+        month: 'long', 
+        year: 'numeric' 
+      })
+    : '';
+
   const needsBankSelection = selectedPaymentMethod === 'virtual_account';
   
   // For resume mode, use resume data values
@@ -749,6 +772,12 @@ export default function CheckoutPage() {
                   <a href="/terms" className="text-primary hover:underline">Terms of Service</a>.{' '}
                   <a href="/terms#cancel" className="text-primary hover:underline">Learn how to cancel</a>.
                 </p>
+                {isDowngrade && currentPeriodEndFormatted && (
+                  <p className="text-amber-600 dark:text-amber-400 font-medium">
+                    Note: Since this is a plan downgrade, payment will be processed now but the new plan 
+                    will be activated on {currentPeriodEndFormatted} after your current subscription period ends.
+                  </p>
+                )}
                 <p>
                   Currency fluctuations and bank fees may affect the final amount charged to you.
                 </p>
@@ -867,6 +896,12 @@ export default function CheckoutPage() {
                 <a href="/terms" className="text-primary hover:underline">Terms of Service</a>.{' '}
                 <a href="/terms#cancel" className="text-primary hover:underline">Learn how to cancel</a>.
               </p>
+              {isDowngrade && currentPeriodEndFormatted && (
+                <p className="text-amber-600 dark:text-amber-400 font-medium">
+                  Note: Since this is a plan downgrade, payment will be processed now but the new plan 
+                  will be activated on {currentPeriodEndFormatted} after your current subscription period ends.
+                </p>
+              )}
               <p>
                 Currency fluctuations and bank fees may affect the final amount charged to you.
               </p>

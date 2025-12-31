@@ -3852,6 +3852,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       // Proration credit should NOT apply for downgrades
       let prorationCredit = 0;
       let isUpgrade = false;
+      let isDowngrade = false;
+      let scheduledActivationDate: Date | null = null;
       
       if (merchant.subscriptionPlanId && merchant.subscriptionPlanId !== 'free' && merchant.subscriptionPlanId !== planId) {
         const currentPlan = await getEffectiveSubscriptionPlan(merchant.subscriptionPlanId);
@@ -3877,6 +3879,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
               prorationCredit = Math.round(dailyRate * daysRemaining * 100) / 100;
               isUpgrade = true;
             }
+          } else if (newPlanPrice < currentPlanPrice) {
+            // This is a downgrade - plan activates after current period ends
+            isDowngrade = true;
+            scheduledActivationDate = new Date(merchant.currentPeriodEnd);
           }
           // For downgrades, no proration credit - customer pays full price for new plan
           // Their current subscription remains until period end
@@ -3901,6 +3907,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         discountAmount,
         prorationCredit,
         isUpgrade,
+        isDowngrade,
+        scheduledActivationDate: scheduledActivationDate?.toISOString(),
         priceAfterDiscount,
         finalPriceUSD,
         exchangeRate,
@@ -3930,7 +3938,14 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             description: `Chatvice ${plan.name} - ${billingInterval === 'annual' ? 'Annual' : 'Monthly'} Subscription`,
             expiryMinutes: 30,
             callbackUrl,
-            metadata: { merchantId: merchant.id, planId, billingInterval, type: 'subscription' },
+            metadata: { 
+              merchantId: merchant.id, 
+              planId, 
+              billingInterval, 
+              type: 'subscription',
+              isDowngrade: isDowngrade ? 'true' : 'false',
+              scheduledActivationDate: scheduledActivationDate?.toISOString() || '',
+            },
           });
           
           if (!paymentResult.success || !paymentResult.data) {
@@ -3957,6 +3972,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             appliedPromoCode,
             prorationCredit,
             isUpgrade,
+            isDowngrade,
+            scheduledActivationDate: scheduledActivationDate?.toISOString(),
           });
           
         case 'va':
@@ -3980,7 +3997,14 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             description: `Chatvice ${plan.name} Subscription`,
             expiryMinutes: 1440, // 24 hours
             callbackUrl,
-            metadata: { merchantId: merchant.id, planId, billingInterval, type: 'subscription' },
+            metadata: { 
+              merchantId: merchant.id, 
+              planId, 
+              billingInterval, 
+              type: 'subscription',
+              isDowngrade: isDowngrade ? 'true' : 'false',
+              scheduledActivationDate: scheduledActivationDate?.toISOString() || '',
+            },
           });
           
           if (!paymentResult.success || !paymentResult.data) {
@@ -4003,6 +4027,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             planId,
             planName: plan.name,
             billingInterval,
+            isDowngrade,
+            scheduledActivationDate: scheduledActivationDate?.toISOString(),
           });
           
         case 'bank_transfer':
