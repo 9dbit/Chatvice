@@ -52,6 +52,11 @@ export const merchants = pgTable("merchants", {
   customSuggestedQuestionsLimit: integer("custom_suggested_questions_limit"),
   customMonthlyPrice: integer("custom_monthly_price"),
   customAnnualPrice: integer("custom_annual_price"),
+  // Scheduled plan change (for downgrades - activates after current period ends)
+  scheduledPlanId: text("scheduled_plan_id"),
+  scheduledBillingInterval: text("scheduled_billing_interval"),
+  scheduledPlanActivatesAt: timestamp("scheduled_plan_activates_at"),
+  scheduledPlanTransactionId: text("scheduled_plan_transaction_id"),
   // Additional merchant profile fields
   websiteUrl: text("website_url").default(""),
   picName: text("pic_name").default(""), // Person in Charge
