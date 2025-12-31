@@ -3848,26 +3848,38 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         }
       }
       
-      // Calculate proration credit for upgrades
+      // Calculate proration credit for upgrades ONLY
+      // Proration credit should NOT apply for downgrades
       let prorationCredit = 0;
       let isUpgrade = false;
       
       if (merchant.subscriptionPlanId && merchant.subscriptionPlanId !== 'free' && merchant.subscriptionPlanId !== planId) {
         const currentPlan = await getEffectiveSubscriptionPlan(merchant.subscriptionPlanId);
+        const newPlan = plan;
         
-        if (currentPlan && merchant.currentPeriodEnd) {
-          const endDate = new Date(merchant.currentPeriodEnd);
-          const now = new Date();
-          const daysRemaining = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+        if (currentPlan && newPlan && merchant.currentPeriodEnd) {
+          // Determine if this is an upgrade by comparing plan prices
+          const currentPlanPrice = merchant.billingInterval === 'annual' 
+            ? (currentPlan.annualPrice || 0) 
+            : (currentPlan.monthlyPrice || 0);
+          const newPlanPrice = billingInterval === 'annual' 
+            ? (newPlan.annualPrice || 0) 
+            : (newPlan.monthlyPrice || 0);
           
-          if (daysRemaining > 0) {
-            const currentPlanPrice = merchant.billingInterval === 'annual' 
-              ? (currentPlan.annualPrice || 0) 
-              : (currentPlan.monthlyPrice || 0);
-            const dailyRate = currentPlanPrice / 30;
-            prorationCredit = Math.round(dailyRate * daysRemaining * 100) / 100;
-            isUpgrade = true;
+          // Only apply proration credit for UPGRADES (when new plan is more expensive)
+          if (newPlanPrice > currentPlanPrice) {
+            const endDate = new Date(merchant.currentPeriodEnd);
+            const now = new Date();
+            const daysRemaining = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+            
+            if (daysRemaining > 0) {
+              const dailyRate = currentPlanPrice / 30;
+              prorationCredit = Math.round(dailyRate * daysRemaining * 100) / 100;
+              isUpgrade = true;
+            }
           }
+          // For downgrades, no proration credit - customer pays full price for new plan
+          // Their current subscription remains until period end
         }
       }
       
