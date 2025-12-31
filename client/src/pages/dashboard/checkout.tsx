@@ -462,6 +462,29 @@ export default function CheckoutPage() {
     setTimeRemaining(0);
   };
 
+  const handleCancelPending = async () => {
+    try {
+      const response = await fetch('/api/billing/cancel-pending', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (response.ok) {
+        toast({ title: "Transaction canceled", description: "You can now start a new checkout" });
+        setPaymentStep('select_method');
+        setQrisData(null);
+        setVaData(null);
+        setTimeRemaining(0);
+        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+        queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
+      } else {
+        toast({ title: "Error", description: "Failed to cancel transaction", variant: "destructive" });
+      }
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to cancel transaction", variant: "destructive" });
+    }
+  };
+
   const handleSaveQRIS = async () => {
     if (!qrisData?.qrisImage) return;
     
@@ -1018,6 +1041,18 @@ export default function CheckoutPage() {
                       </Button>
                     )}
                   </div>
+                  
+                  {/* Cancel and restart */}
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className="w-full text-muted-foreground hover:text-foreground"
+                    onClick={handleCancelPending}
+                    data-testid="button-cancel-payment"
+                  >
+                    <XCircle className="w-4 h-4 mr-2" />
+                    Batalkan & Mulai Ulang
+                  </Button>
                 </div>
               </div>
             </div>

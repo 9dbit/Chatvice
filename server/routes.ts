@@ -4197,6 +4197,32 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // Cancel pending transaction only (not subscription)
+  app.post("/api/billing/cancel-pending", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      if (!merchant.pendingTransactionId) {
+        return res.json({ success: true, message: "No pending transaction" });
+      }
+      
+      await storage.updateMerchantSubscription(merchantId, {
+        pendingTransactionId: null,
+      });
+      
+      console.log("Cleared pending transaction for merchant:", merchantId);
+      res.json({ success: true, message: "Pending transaction canceled" });
+    } catch (error: any) {
+      console.error("Cancel pending transaction error:", error);
+      res.status(500).json({ error: error.message || "Failed to cancel pending transaction" });
+    }
+  });
+
   // Get merchant's payment transaction history
   app.get("/api/billing/transactions", requireMerchant, async (req, res) => {
     try {
