@@ -3877,6 +3877,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const finalPriceUSD = Math.max(0, priceAfterDiscount - prorationCredit);
       const priceIDR = Math.round(finalPriceUSD * exchangeRate);
       
+      // Minimum amount for Kompas Pay is 10,000 IDR
+      const MIN_PAYMENT_AMOUNT = 10000;
+      const finalPriceIDR = Math.max(priceIDR, MIN_PAYMENT_AMOUNT);
+      
       console.log('Checkout-v2 pricing:', {
         planId,
         billingInterval,
@@ -3889,6 +3893,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         finalPriceUSD,
         exchangeRate,
         priceIDR,
+        finalPriceIDR,
         appliedPromoCode,
       });
       
@@ -3907,7 +3912,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           paymentResult = await createQRISPayment({
             merchantId: merchant.id,
             orderId,
-            amount: priceIDR,
+            amount: finalPriceIDR,
             customerName: merchant.companyName,
             customerEmail: merchant.email,
             description: `Chatvice ${plan.name} - ${billingInterval === 'annual' ? 'Annual' : 'Monthly'} Subscription`,
@@ -3930,7 +3935,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             orderId: paymentResult.data.orderId,
             qrisString: paymentResult.data.qrisString,
             qrisImage: paymentResult.data.qrisImageUrl,
-            amount: priceIDR,
+            amount: finalPriceIDR,
             amountUSD: finalPriceUSD,
             expiryTime: paymentResult.data.expiryTime,
             planId,
@@ -3956,7 +3961,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           paymentResult = await createVAPayment({
             merchantId: merchant.id,
             orderId,
-            amount: priceIDR,
+            amount: finalPriceIDR,
             bankCode: bankCode,
             customerName: merchant.companyName,
             customerEmail: merchant.email,
@@ -3980,7 +3985,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             orderId: paymentResult.data.orderId,
             vaNumber: paymentResult.data.vaNumber,
             bankCode: paymentResult.data.bankCode,
-            amount: priceIDR,
+            amount: finalPriceIDR,
             amountUSD: finalPriceUSD,
             expiryTime: paymentResult.data.expiryTime,
             planId,
