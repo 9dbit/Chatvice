@@ -153,6 +153,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       return false;
     }
   });
+  const [unreadCount, setUnreadCount] = useState(0);
   const [widgetPosition, setWidgetPosition] = useState(() => {
     try {
       const saved = localStorage.getItem(`chatvice_widget_position_${merchantId}`);
@@ -193,7 +194,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
   const { data: serverMessages } = useQuery<Message[]>({
     queryKey: ["/api/messages", sessionId],
-    enabled: !!sessionId && isOpen,
+    enabled: !!sessionId,
     refetchInterval: 2000,
   });
 
@@ -238,7 +239,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioInitializedRef = useRef(false);
   
-  const initAudio = () => {
+  const initAudio = useCallback(() => {
     if (audioInitializedRef.current) return;
     try {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -249,7 +250,24 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     } catch (e) {
       console.warn("Audio initialization failed:", e);
     }
-  };
+  }, []);
+
+  // Initialize audio on first user interaction to enable sound playback
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      initAudio();
+      document.removeEventListener('click', handleFirstInteraction);
+      document.removeEventListener('touchstart', handleFirstInteraction);
+    };
+    
+    document.addEventListener('click', handleFirstInteraction);
+    document.addEventListener('touchstart', handleFirstInteraction);
+    
+    return () => {
+      document.removeEventListener('click', handleFirstInteraction);
+      document.removeEventListener('touchstart', handleFirstInteraction);
+    };
+  }, [initAudio]);
 
   const playNotificationSound = (type: "incoming" | "reply") => {
     if (!notificationSettings) return;
@@ -717,11 +735,24 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     if (lastProcessedServerMsgId.current !== lastServerMsg.id) {
       const isFromOthers = lastServerMsg.from !== "customer";
       if (isFromOthers && lastProcessedServerMsgId.current !== null) {
+        // Play notification sound for incoming messages from AI/supervisor
         playNotificationSound("incoming");
+        
+        // Increment unread count if widget is minimized
+        if (!isOpen && !embedded) {
+          setUnreadCount(prev => prev + 1);
+        }
       }
       lastProcessedServerMsgId.current = lastServerMsg.id;
     }
-  }, [serverMessages]);
+  }, [serverMessages, isOpen, embedded]);
+
+  // Clear unread count when widget opens
+  useEffect(() => {
+    if (isOpen) {
+      setUnreadCount(0);
+    }
+  }, [isOpen]);
 
   const positionClass = previewMode ? "absolute" : "fixed";
   
@@ -852,6 +883,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   isOnline ? "bg-status-online" : "bg-status-offline"
                 }`}
               />
+            )}
+            {unreadCount > 0 && (
+              <span
+                className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center animate-pulse"
+                data-testid="badge-unread-count"
+              >
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
             )}
           </button>
         </div>
