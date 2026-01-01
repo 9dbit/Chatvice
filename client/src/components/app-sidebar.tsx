@@ -140,7 +140,7 @@ const menuItemsMap: Record<string, MenuItem> = {
   "integrations": { id: "integrations", title: "Integrations", url: "/dashboard/integrations", icon: Plug2, permission: "settings" },
   "plans": { id: "plans", title: "Plans", url: "/dashboard/plans", icon: CreditCard, permission: "billing" },
   "billing": { id: "billing", title: "Billing", url: "/dashboard/billing", icon: Receipt, permission: "billing" },
-  "chat-security": { id: "chat-security", title: "Chat Security", url: "/dashboard/chat-security", icon: ShieldAlert, permission: "settings" },
+  "chat-monitoring": { id: "chat-monitoring", title: "Chat Monitoring", url: "/dashboard/chat-monitoring", icon: ShieldAlert, permission: "settings" },
 };
 
 const defaultMainMenuItems: MenuItem[] = [
@@ -172,7 +172,7 @@ const defaultManagementItems: MenuItem[] = [
   menuItemsMap["team-activity"],
   menuItemsMap["work-scheduler"],
   menuItemsMap["integrations"],
-  menuItemsMap["chat-security"],
+  menuItemsMap["chat-monitoring"],
   menuItemsMap["plans"],
   menuItemsMap["billing"],
 ];
@@ -197,7 +197,7 @@ const defaultGroupForItem: Record<string, "main" | "widgetSetting" | "messageSet
   "team-activity": "management",
   "work-scheduler": "management",
   "integrations": "management",
-  "chat-security": "management",
+  "chat-monitoring": "management",
   "plans": "management",
   "billing": "management",
 };

@@ -8120,6 +8120,73 @@ ${log.extractedKnowledge}` : ''}
     }
   });
 
+  // ============== CHAT MONITORING ROUTES ==============
+
+  // Get realtime supervisor chat logs grouped by supervisor
+  app.get("/api/chat-monitoring/logs", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const limit = parseInt(req.query.limit as string) || 100;
+      
+      // Get all supervisors for this merchant
+      const supervisors = await storage.getSupervisors(merchantId);
+      
+      // Get recent messages from sessions with supervisor involvement
+      const sessions = await storage.getSessionsByMerchant(merchantId);
+      const activeSessions = sessions.filter(s => s.supervisorId && s.status === 'active');
+      
+      // Get messages for each session and group by supervisor
+      const supervisorLogs: Record<string, any> = {};
+      
+      for (const supervisor of supervisors) {
+        supervisorLogs[supervisor.id] = {
+          supervisorId: supervisor.id,
+          supervisorName: supervisor.name,
+          supervisorEmail: supervisor.email,
+          status: supervisor.status || 'offline',
+          messages: [] as any[],
+        };
+      }
+      
+      // Get messages from sessions with supervisors
+      for (const session of activeSessions) {
+        if (session.supervisorId) {
+          const messages = await storage.getSessionMessages(session.id);
+          // Get only supervisor messages and recent customer messages
+          const relevantMessages = messages
+            .filter(m => m.from === 'supervisor' || m.from === 'customer')
+            .slice(-limit)
+            .map(m => ({
+              id: m.id,
+              sessionId: session.id,
+              customerName: session.customerName || 'Customer',
+              from: m.from,
+              content: m.content,
+              timestamp: m.timestamp,
+            }));
+          
+          if (supervisorLogs[session.supervisorId]) {
+            supervisorLogs[session.supervisorId].messages.push(...relevantMessages);
+          }
+        }
+      }
+      
+      // Sort messages by timestamp for each supervisor
+      for (const key of Object.keys(supervisorLogs)) {
+        supervisorLogs[key].messages.sort((a: any, b: any) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+        // Limit to most recent messages
+        supervisorLogs[key].messages = supervisorLogs[key].messages.slice(0, limit);
+      }
+      
+      res.json(Object.values(supervisorLogs));
+    } catch (error) {
+      console.error("Error fetching chat monitoring logs:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // ============== TEAM ACTIVITY ROUTES ==============
   
   // Update supervisor status
