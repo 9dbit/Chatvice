@@ -83,7 +83,7 @@ function MessageItem({ message }: { message: SupervisorMessage }) {
 
 function SupervisorColumn({ log }: { log: SupervisorLog }) {
   return (
-    <Card className="h-full flex flex-col min-w-[320px] max-w-[400px]" data-testid={`column-supervisor-${log.supervisorId}`}>
+    <Card className="flex flex-col h-[500px]" data-testid={`column-supervisor-${log.supervisorId}`}>
       <CardHeader className="pb-3 border-b">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -102,8 +102,8 @@ function SupervisorColumn({ log }: { log: SupervisorLog }) {
           <span>{log.messages.length} messages</span>
         </div>
       </CardHeader>
-      <CardContent className="flex-1 p-0">
-        <ScrollArea className="h-[calc(100vh-280px)]">
+      <CardContent className="flex-1 p-0 overflow-hidden">
+        <ScrollArea className="h-full">
           <div className="p-3 space-y-2">
             {log.messages.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
@@ -123,7 +123,7 @@ function SupervisorColumn({ log }: { log: SupervisorLog }) {
 }
 
 export default function ChatMonitoringPage() {
-  const { data: logs, isLoading, refetch, isFetching } = useQuery<SupervisorLog[]>({
+  const { data: logs, isLoading, isError, refetch, isFetching } = useQuery<SupervisorLog[]>({
     queryKey: ["/api/chat-monitoring/logs"],
     refetchInterval: 5000,
   });
@@ -142,8 +142,9 @@ export default function ChatMonitoringPage() {
     );
   }
 
-  const activeSupervisors = logs?.filter(log => log.messages.length > 0) || [];
-  const inactiveSupervisors = logs?.filter(log => log.messages.length === 0) || [];
+  const supervisorData = logs || [];
+  const activeSupervisors = supervisorData.filter(log => log.messages.length > 0);
+  const inactiveSupervisors = supervisorData.filter(log => log.messages.length === 0);
   const sortedLogs = [...activeSupervisors, ...inactiveSupervisors];
 
   return (
@@ -194,7 +195,7 @@ export default function ChatMonitoringPage() {
           </div>
         </Card>
       ) : (
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {sortedLogs.map((log) => (
             <SupervisorColumn key={log.supervisorId} log={log} />
           ))}

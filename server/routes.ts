@@ -8126,18 +8126,27 @@ ${log.extractedKnowledge}` : ''}
   app.get("/api/chat-monitoring/logs", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
-      const limit = parseInt(req.query.limit as string) || 100;
+      const limit = parseInt(req.query.limit as string) || 50;
       
       // Get all supervisors for this merchant
-      const supervisors = await storage.getSupervisors(merchantId);
+      const supervisors = await storage.getSupervisorsByMerchant(merchantId);
       
-      // Get recent messages from sessions with supervisor involvement
+      // Early return if no supervisors
+      if (!supervisors || supervisors.length === 0) {
+        return res.json([]);
+      }
+      
+      // Get sessions with supervisor involvement (any status, not just active)
       const sessions = await storage.getSessionsByMerchant(merchantId);
-      const activeSessions = sessions.filter(s => s.supervisorId && s.status === 'active');
+      const supervisorSessions = sessions.filter(s => s.supervisorId);
       
-      // Get messages for each session and group by supervisor
+      // Sort sessions by last activity (most recent first) and limit
+      const recentSessions = supervisorSessions
+        .sort((a, b) => new Date(b.lastActivity || 0).getTime() - new Date(a.lastActivity || 0).getTime())
+        .slice(0, 20); // Limit to 20 most recent sessions for performance
+      
+      // Initialize supervisor logs
       const supervisorLogs: Record<string, any> = {};
-      
       for (const supervisor of supervisors) {
         supervisorLogs[supervisor.id] = {
           supervisorId: supervisor.id,
@@ -8148,35 +8157,36 @@ ${log.extractedKnowledge}` : ''}
         };
       }
       
-      // Get messages from sessions with supervisors
-      for (const session of activeSessions) {
-        if (session.supervisorId) {
-          const messages = await storage.getSessionMessages(session.id);
-          // Get only supervisor messages and recent customer messages
-          const relevantMessages = messages
-            .filter(m => m.from === 'supervisor' || m.from === 'customer')
-            .slice(-limit)
-            .map(m => ({
-              id: m.id,
-              sessionId: session.id,
-              customerName: session.customerName || 'Customer',
-              from: m.from,
-              content: m.content,
-              timestamp: m.timestamp,
-            }));
-          
-          if (supervisorLogs[session.supervisorId]) {
+      // Get messages from recent sessions with supervisors
+      for (const session of recentSessions) {
+        if (session.supervisorId && supervisorLogs[session.supervisorId]) {
+          try {
+            const messages = await storage.getSessionMessages(session.id);
+            // Get only supervisor and customer messages, limit per session
+            const relevantMessages = messages
+              .filter(m => m.from === 'supervisor' || m.from === 'customer')
+              .slice(-20) // Last 20 messages per session
+              .map(m => ({
+                id: m.id,
+                sessionId: session.id,
+                customerName: session.customerName || 'Customer',
+                from: m.from,
+                content: m.content,
+                timestamp: m.timestamp ? new Date(m.timestamp).toISOString() : new Date().toISOString(),
+              }));
+            
             supervisorLogs[session.supervisorId].messages.push(...relevantMessages);
+          } catch (err) {
+            console.error(`Error fetching messages for session ${session.id}:`, err);
           }
         }
       }
       
-      // Sort messages by timestamp for each supervisor
+      // Sort messages by timestamp (newest first) and limit per supervisor
       for (const key of Object.keys(supervisorLogs)) {
         supervisorLogs[key].messages.sort((a: any, b: any) => 
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         );
-        // Limit to most recent messages
         supervisorLogs[key].messages = supervisorLogs[key].messages.slice(0, limit);
       }
       
