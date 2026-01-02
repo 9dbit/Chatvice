@@ -252,7 +252,7 @@ export async function createQRISPayment(request: CreateQRISRequest): Promise<Cre
 
     const data = await response.json();
     
-    console.log(`${gatewayName} QRIS response:`, data);
+    console.log(`${gatewayName} QRIS full response:`, JSON.stringify(data, null, 2));
     
     if (!response.ok || data.status === 'error' || data.success === false) {
       console.error(`${gatewayName} QRIS creation error:`, data);
@@ -266,14 +266,41 @@ export async function createQRISPayment(request: CreateQRISRequest): Promise<Cre
     
     const responseData = data.data || data;
     
+    // Log all available fields for debugging
+    console.log(`${gatewayName} QRIS responseData fields:`, Object.keys(responseData));
+    
+    const qrisImageUrl = responseData.imageqris || 
+                         responseData.image_qris || 
+                         responseData.qris_image || 
+                         responseData.qris_image_url || 
+                         responseData.qr_url || 
+                         responseData.qr_image ||
+                         responseData.qris_url ||
+                         responseData.image_url ||
+                         responseData.url ||
+                         '';
+    
+    const qrisString = responseData.qris_text || 
+                       responseData.qris_string || 
+                       responseData.qr_string ||
+                       responseData.qris ||
+                       responseData.qr ||
+                       '';
+    
+    console.log(`${gatewayName} QRIS extracted values:`, {
+      qrisImageUrl: qrisImageUrl ? qrisImageUrl.substring(0, 50) + '...' : 'EMPTY',
+      qrisString: qrisString ? qrisString.substring(0, 20) + '...' : 'EMPTY',
+      transactionId: responseData.identifier_id || responseData.transaction_id || request.orderId,
+    });
+    
     return {
       success: true,
       gatewayName,
       data: {
-        transactionId: responseData.identifier_id || request.orderId,
+        transactionId: responseData.identifier_id || responseData.transaction_id || request.orderId,
         orderId: request.orderId,
-        qrisString: responseData.qris_text || responseData.qris_string || responseData.qr_string || '',
-        qrisImageUrl: responseData.imageqris || responseData.qris_image_url || responseData.qr_url || responseData.qr_image || '',
+        qrisString,
+        qrisImageUrl,
         amount: request.amount,
         expiryTime: responseData.expired || responseData.expiry_time || expiredStr,
         status: 'PENDING',
