@@ -37,10 +37,18 @@ function extractCredentials(gateway: PaymentGateway): PaymentGatewayCredentials 
   let clientSecret = config.clientSecret || '';
   
   if (!clientKey && gateway.clientKeyEnvVar) {
-    clientKey = process.env[gateway.clientKeyEnvVar] || '';
+    if (gateway.clientKeyEnvVar.startsWith('CK-') || gateway.clientKeyEnvVar.includes('-')) {
+      clientKey = gateway.clientKeyEnvVar;
+    } else {
+      clientKey = process.env[gateway.clientKeyEnvVar] || '';
+    }
   }
   if (!clientSecret && gateway.clientSecretEnvVar) {
-    clientSecret = process.env[gateway.clientSecretEnvVar] || '';
+    if (gateway.clientSecretEnvVar.startsWith('SK-') || gateway.clientSecretEnvVar.includes('-')) {
+      clientSecret = gateway.clientSecretEnvVar;
+    } else {
+      clientSecret = process.env[gateway.clientSecretEnvVar] || '';
+    }
   }
   
   if (!clientKey || !clientSecret) {
@@ -541,8 +549,24 @@ export async function isPaymentGatewayConfigured(): Promise<boolean> {
     if (!gateway) return false;
     
     const config = gateway.config as Record<string, any> || {};
-    const hasClientKey = !!(config.clientKey || (gateway.clientKeyEnvVar && process.env[gateway.clientKeyEnvVar]));
-    const hasClientSecret = !!(config.clientSecret || (gateway.clientSecretEnvVar && process.env[gateway.clientSecretEnvVar]));
+    
+    let hasClientKey = !!config.clientKey;
+    let hasClientSecret = !!config.clientSecret;
+    
+    if (!hasClientKey && gateway.clientKeyEnvVar) {
+      if (gateway.clientKeyEnvVar.startsWith('CK-') || gateway.clientKeyEnvVar.includes('-')) {
+        hasClientKey = true;
+      } else {
+        hasClientKey = !!process.env[gateway.clientKeyEnvVar];
+      }
+    }
+    if (!hasClientSecret && gateway.clientSecretEnvVar) {
+      if (gateway.clientSecretEnvVar.startsWith('SK-') || gateway.clientSecretEnvVar.includes('-')) {
+        hasClientSecret = true;
+      } else {
+        hasClientSecret = !!process.env[gateway.clientSecretEnvVar];
+      }
+    }
     
     console.log(`Payment gateway "${gateway.name}" configuration check:`, { hasClientKey, hasClientSecret });
     return hasClientKey && hasClientSecret;
