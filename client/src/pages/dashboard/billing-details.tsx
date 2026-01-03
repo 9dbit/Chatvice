@@ -18,6 +18,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast";
 import { Receipt, Mail, Building2, CreditCard, History, FileText, Calendar, Zap, ArrowRight, Timer, Clock, Copy, XCircle, RefreshCw, Loader2, Eye, Download } from "lucide-react";
 import type { Merchant } from "@shared/schema";
+import chatviceLightLogo from "@assets/Chatvice-02_1767458901049.png";
+import gpnLogo from "@assets/IMG_1410_1767458901049.png";
 
 interface PendingPaymentDetails {
   hasPendingPayment: boolean;
@@ -714,29 +716,29 @@ export default function BillingDetailsPage() {
           <div ref={orderDetailsRef} className="bg-white text-gray-900 p-6">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="4" y="4" width="7" height="7" rx="1" fill="white"/>
-                    <rect x="13" y="4" width="7" height="7" rx="1" fill="white"/>
-                    <rect x="4" y="13" width="7" height="7" rx="1" fill="white"/>
-                    <path d="M13 13H20V20H13V13Z" fill="white" fillOpacity="0.5"/>
-                  </svg>
-                </div>
-                <div>
-                  <p className="font-semibold text-lg">Chatvice</p>
-                  <p className="text-sm text-gray-500">Subscription Payment</p>
+              <div className="flex items-center gap-2">
+                <img 
+                  src={chatviceLightLogo} 
+                  alt="Chatvice" 
+                  className="h-8 object-contain"
+                />
+                <div className="border-l border-gray-300 pl-2">
+                  <p className="text-xs text-gray-500">Subscription Payment</p>
                 </div>
               </div>
               {pendingPaymentDetails?.paymentMethod === 'qris' && (
-                <div className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded">
-                  <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded font-medium">GPN</span>
-                  <span className="text-sm font-semibold">QRIS</span>
+                <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
+                  <img 
+                    src={gpnLogo} 
+                    alt="GPN" 
+                    className="h-6 object-contain"
+                  />
+                  <span className="text-sm font-bold text-gray-700">QRIS</span>
                 </div>
               )}
               {pendingPaymentDetails?.paymentMethod === 'virtual_account' && (
-                <div className="bg-gray-100 px-3 py-1 rounded">
-                  <span className="text-sm font-semibold">{getBankName(pendingPaymentDetails.bankCode || '')}</span>
+                <div className="bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
+                  <span className="text-sm font-semibold text-gray-700">{getBankName(pendingPaymentDetails.bankCode || '')}</span>
                 </div>
               )}
             </div>
