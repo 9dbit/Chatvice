@@ -4007,7 +4007,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             customerName: merchant.companyName,
             customerEmail: merchant.email,
             description: `Chatvice ${plan.name} - ${billingInterval === 'annual' ? 'Annual' : 'Monthly'} Subscription`,
-            expiryMinutes: 30,
+            expiryMinutes: 5, // QRIS: 5 minutes expiry
             callbackUrl,
             metadata: { 
               merchantId: merchant.id, 
@@ -4095,7 +4095,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             customerName: merchant.companyName,
             customerEmail: merchant.email,
             description: `Chatvice ${plan.name} Subscription`,
-            expiryMinutes: 1440, // 24 hours
+            expiryMinutes: 30, // VA: 30 minutes expiry
             callbackUrl,
             metadata: { 
               merchantId: merchant.id, 
@@ -4129,15 +4129,15 @@ Sitemap: ${baseUrl}/sitemap.xml`;
               const normalizedExpiry = expiryStr.replace(' ', 'T');
               vaExpiresAt = new Date(normalizedExpiry);
               if (isNaN(vaExpiresAt.getTime())) {
-                console.warn('[VA] Invalid expiryTime format, using 24h default:', expiryStr);
-                vaExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+                console.warn('[VA] Invalid expiryTime format, using 30min default:', expiryStr);
+                vaExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
               }
             } else {
-              vaExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+              vaExpiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes default
             }
           } catch (e) {
-            console.warn('[VA] Error parsing expiryTime, using 24h default');
-            vaExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+            console.warn('[VA] Error parsing expiryTime, using 30min default');
+            vaExpiresAt = new Date(Date.now() + 30 * 60 * 1000);
           }
           
           // Save payment transaction to database for resume capability
@@ -4201,7 +4201,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             customerName: merchant.companyName,
             customerEmail: merchant.email,
             description: `Chatvice ${plan.name} Subscription`,
-            expiryMinutes: 1440, // 24 hours
+            expiryMinutes: 30, // Bank Transfer: 30 minutes expiry
             callbackUrl,
             metadata: { 
               merchantId: merchant.id, 
