@@ -3815,8 +3815,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(503).json({ error: "Payment gateway not configured" });
       }
       
-      // Supported bank codes for VA (numeric codes per Kompas Pay docs)
-      const SUPPORTED_BANK_CODES = ['014', '002', '008', '009', '022', '013']; // BCA, BRI, MANDIRI, BNI, CIMB, PERMATA
+      // Supported bank codes for VA (numeric codes per Kompas Pay credential)
+      // Note: BNI (009) temporarily excluded due to "BNIVA param error" from gateway
+      // Active: BRI=002, Mandiri=008, CIMB=022, Permata=013, Danamon=011, Maybank=016, BNC=490, BSI=451
+      const SUPPORTED_BANK_CODES = ['002', '008', '022', '013', '011', '016', '490', '451'];
       
       // Get exchange rate from settings
       const savedRate = await storage.getPlatformSetting("exchange_rate");
@@ -3917,7 +3919,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         appliedPromoCode,
       });
       
-      const orderId = `SUB_${merchant.id}_${planId}_${billingInterval}_${Date.now()}`;
+      // Generate order ID - standard alphanumeric for QRIS, numeric-only for VA (BNI requires numeric ≤20 chars)
+      const timestamp = Date.now();
+      const orderId = `SUB_${merchant.id}_${planId}_${billingInterval}_${timestamp}`;
+      const numericOrderId = timestamp.toString().slice(-15) + Math.floor(Math.random() * 10000).toString().padStart(4, '0'); // 19 chars max, numeric only
       
       const forwardedHost = req.get('x-forwarded-host') || req.get('host');
       const isLocalhost = !forwardedHost || forwardedHost.includes('localhost');
@@ -4014,10 +4019,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             return res.status(400).json({ error: `Unsupported bank code. Supported: ${SUPPORTED_BANK_CODES.join(', ')}` });
           }
           
-          console.log('[VA] Calling createVAPayment with orderId:', orderId);
+          // Use numeric-only orderId for VA (BNI requires numeric ≤20 chars)
+          console.log('[VA] Calling createVAPayment with numericOrderId:', numericOrderId);
           paymentResult = await createVAPayment({
             merchantId: merchant.id,
-            orderId,
+            orderId: numericOrderId, // Numeric only for VA (BNI requirement)
             amount: finalPriceIDR,
             bankCode: bankCode,
             customerName: merchant.companyName,
@@ -4032,6 +4038,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
               type: 'subscription',
               isDowngrade: isDowngrade ? 'true' : 'false',
               scheduledActivationDate: scheduledActivationDate?.toISOString() || '',
+              originalOrderId: orderId, // Keep reference to original order ID
             },
           });
           
