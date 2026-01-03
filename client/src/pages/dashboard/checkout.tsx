@@ -1158,113 +1158,144 @@ export default function CheckoutPage() {
 
       {paymentStep === 'qris' && qrisData && (
         <div className="space-y-4">
-          {/* QRIS Payment - Landscape Layout for Desktop/Tablet */}
-          <Card className="overflow-hidden" id="qris-receipt">
-            <div className="p-4 md:p-6">
-              {/* Desktop/Tablet: Two Column Layout */}
+          {/* QRIS Payment - Ticket/Boarding Pass Style */}
+          <div 
+            className="relative bg-[radial-gradient(circle,#e5e7eb_1px,white_1px)] dark:bg-[radial-gradient(circle,#3f3f46_1px,#18181b_1px)] bg-[length:16px_16px] rounded-2xl overflow-hidden shadow-lg border border-gray-200 dark:border-zinc-700" 
+            id="qris-receipt"
+          >
+            {/* Top Header with Logos */}
+            <div className="bg-white dark:bg-zinc-800 px-5 py-4 border-b border-dashed border-gray-300 dark:border-zinc-600">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  {/* Chatvice Logo - Inline SVG */}
+                  <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
+                    <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="currentColor">
+                      <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+                      <circle cx="12" cy="10" r="2"/>
+                      <circle cx="7" cy="10" r="2"/>
+                      <circle cx="17" cy="10" r="2"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white">Chatvice</h3>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400">Subscription Payment</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {/* GPN Logo - Inline SVG */}
+                  <div className="flex items-center gap-1.5 px-2 py-1 bg-red-50 dark:bg-red-950/30 rounded border border-red-200 dark:border-red-800">
+                    <svg viewBox="0 0 60 24" className="h-4 w-auto">
+                      <rect x="0" y="2" width="20" height="20" rx="2" fill="#c41e3a"/>
+                      <text x="3" y="17" fontSize="10" fontWeight="bold" fill="white">G</text>
+                      <text x="24" y="17" fontSize="11" fontWeight="bold" fill="#c41e3a">GPN</text>
+                    </svg>
+                    <span className="text-[10px] font-semibold text-red-600 dark:text-red-400">QRIS</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Main Content */}
+            <div className="relative p-5 bg-white/80 dark:bg-zinc-900/80">
+              {/* Ticket Notch Left - positioned relative to content */}
+              <div className="hidden sm:block absolute -left-2 top-1/2 w-4 h-8 bg-gray-100 dark:bg-zinc-950 rounded-r-full -translate-y-1/2"></div>
+              {/* Ticket Notch Right */}
+              <div className="hidden sm:block absolute -right-2 top-1/2 w-4 h-8 bg-gray-100 dark:bg-zinc-950 rounded-l-full -translate-y-1/2"></div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Left Column - QR Code */}
                 <div className="flex flex-col items-center justify-center space-y-4">
-                  {/* Header - Mobile only */}
-                  <div className="md:hidden text-center space-y-1 w-full">
-                    <div className="w-10 h-10 mx-auto rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/20">
-                      <QrCode className="w-5 h-5 text-primary" />
-                    </div>
-                    <h3 className="text-sm font-bold tracking-tight">PEMBAYARAN QRIS</h3>
-                    <p className="text-[10px] text-muted-foreground">Scan dengan e-wallet atau mobile banking</p>
+                  <div className="text-center space-y-1">
+                    <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Scan to Pay</h4>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400">Gunakan e-wallet atau mobile banking</p>
                   </div>
                   
-                  {/* QR Code */}
-                  <div className="relative p-4 bg-white rounded-xl shadow-[0_4px_16px_-4px_rgba(0,0,0,0.1)] border border-gray-100" id="qris-code-container">
-                    {/* Corner decorations */}
-                    <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-primary/30 rounded-tl"></div>
-                    <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-primary/30 rounded-tr"></div>
-                    <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-primary/30 rounded-bl"></div>
-                    <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-primary/30 rounded-br"></div>
-                    
+                  {/* QR Code Container */}
+                  <div className="relative p-3 bg-white rounded-xl shadow-sm border-2 border-gray-100 dark:border-zinc-700" id="qris-code-container">
                     {qrisData.qrisString ? (
                       <QRCodeSVG 
                         value={qrisData.qrisString}
-                        size={224}
+                        size={200}
                         level="M"
                         includeMargin={false}
-                        className="w-48 h-48 md:w-56 md:h-56"
+                        className="w-44 h-44 md:w-48 md:h-48"
                         data-testid="img-qris-code"
                       />
                     ) : qrisData.qrisImage ? (
                       <img 
                         src={qrisData.qrisImage} 
                         alt="QRIS Payment Code" 
-                        className="w-48 h-48 md:w-56 md:h-56 object-contain"
+                        className="w-44 h-44 md:w-48 md:h-48 object-contain"
                         data-testid="img-qris-code"
                       />
                     ) : (
-                      <div className="w-48 h-48 md:w-56 md:h-56 flex items-center justify-center bg-muted rounded">
-                        <p className="text-xs text-muted-foreground text-center px-4">QR Code tidak tersedia</p>
+                      <div className="w-44 h-44 md:w-48 md:h-48 flex items-center justify-center bg-gray-50 rounded">
+                        <p className="text-xs text-gray-400 text-center px-4">QR Code tidak tersedia</p>
                       </div>
                     )}
                   </div>
                   
                   {/* Supported Apps */}
-                  <p className="text-[10px] text-muted-foreground text-center">
-                    GoPay • OVO • DANA • ShopeePay • BCA • Mandiri • BRI
-                  </p>
+                  <div className="text-center">
+                    <p className="text-[9px] text-gray-400 dark:text-gray-500 leading-relaxed">
+                      GoPay • OVO • DANA • ShopeePay • LinkAja<br/>
+                      BCA • Mandiri • BRI • BNI • CIMB
+                    </p>
+                  </div>
                 </div>
                 
                 {/* Right Column - Details */}
                 <div className="flex flex-col justify-center space-y-4">
-                  {/* Header - Desktop only */}
-                  <div className="hidden md:block space-y-1">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/20">
-                        <QrCode className="w-5 h-5 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="text-base font-bold tracking-tight">PEMBAYARAN QRIS</h3>
-                        <p className="text-xs text-muted-foreground">Scan dengan e-wallet atau mobile banking</p>
-                      </div>
-                    </div>
-                  </div>
+                  {/* Dashed Divider - Mobile */}
+                  <div className="md:hidden border-t border-dashed border-gray-300 dark:border-zinc-600 -mx-5 px-5"></div>
                   
-                  {/* Divider - Desktop */}
-                  <div className="hidden md:block border-t border-dashed border-muted-foreground/20"></div>
-                  
-                  {/* Order Details */}
-                  <div className="space-y-2.5 bg-muted/30 rounded-lg p-3">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Product</span>
-                      <span className="font-semibold">{qrisData.planName} Plan</span>
+                  {/* Order Details Section */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-1 h-4 bg-primary rounded-full"></div>
+                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Order Details</span>
                     </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Period</span>
-                      <span className="font-medium">{qrisData.billingInterval === 'annual' ? 'Annual' : 'Monthly'}</span>
-                    </div>
-                    <div className="flex justify-between text-xs items-center">
-                      <span className="text-muted-foreground">Order ID</span>
-                      <button 
-                        onClick={() => copyToClipboard(qrisData.orderId)}
-                        className="font-mono text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1"
-                        title={qrisData.orderId}
-                      >
-                        <span className="max-w-[120px] truncate">{qrisData.orderId.slice(-12)}</span>
-                        <Copy className="w-3 h-3 flex-shrink-0" />
-                      </button>
+                    
+                    <div className="space-y-2 bg-gray-50 dark:bg-zinc-800 rounded-lg p-3">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-500 dark:text-gray-400">Product</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">{qrisData.planName} Plan</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-500 dark:text-gray-400">Period</span>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">{qrisData.billingInterval === 'annual' ? 'Annual' : 'Monthly'}</span>
+                      </div>
+                      <div className="border-t border-dashed border-gray-200 dark:border-zinc-700 pt-2">
+                        <div className="flex justify-between text-xs items-start">
+                          <span className="text-gray-500 dark:text-gray-400">Order ID</span>
+                          <button 
+                            onClick={() => copyToClipboard(qrisData.orderId)}
+                            className="font-mono text-[10px] text-gray-600 dark:text-gray-400 hover:text-primary flex items-center gap-1 text-right"
+                            title="Click to copy"
+                          >
+                            <span className="break-all text-right leading-tight">{qrisData.orderId}</span>
+                            <Copy className="w-3 h-3 flex-shrink-0 ml-1" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
+                  {/* Dashed Divider */}
+                  <div className="border-t border-dashed border-gray-300 dark:border-zinc-600"></div>
+
                   {/* Total Amount */}
-                  <div className="text-center md:text-left py-2 bg-primary/5 rounded-lg px-4">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Total Pembayaran</p>
+                  <div className="text-center py-3 bg-gradient-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20 rounded-xl border border-primary/20">
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Total Pembayaran</p>
                     <div className="text-2xl md:text-3xl font-bold text-primary" data-testid="text-qris-amount">
                       Rp {(qrisData.amount || 0).toLocaleString('id-ID')}
                     </div>
                     {qrisData.amountUSD && (
-                      <p className="text-[10px] text-muted-foreground mt-0.5">≈ ${qrisData.amountUSD?.toFixed(2)} USD</p>
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">≈ ${qrisData.amountUSD?.toFixed(2)} USD</p>
                     )}
                   </div>
 
                   {/* Timer */}
-                  <div className="flex items-center justify-center md:justify-start gap-2 py-2.5 px-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40 rounded-lg border border-amber-200/50 dark:border-amber-800/50">
+                  <div className="flex items-center justify-center gap-2 py-2.5 px-4 bg-amber-50 dark:bg-amber-950/40 rounded-lg border border-amber-200 dark:border-amber-800/50">
                     <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                     <span className="font-mono text-lg font-bold text-amber-700 dark:text-amber-300" data-testid="text-qris-countdown">
                       {formatTime(timeRemaining)}
@@ -1276,17 +1307,17 @@ export default function CheckoutPage() {
                   <div className="flex gap-2">
                     <Button 
                       variant="outline" 
-                      className="flex-1 h-11 min-h-[44px]" 
+                      className="flex-1 h-10" 
                       onClick={handleSaveQRIS}
                       data-testid="button-save-qris"
                     >
                       <Download className="w-4 h-4 mr-2" />
-                      Simpan QRIS
+                      Simpan
                     </Button>
                     {import.meta.env.DEV && (
                       <Button 
                         variant="outline" 
-                        className="flex-1 h-11 min-h-[44px]" 
+                        className="flex-1 h-10" 
                         onClick={handleDemoPayment}
                         data-testid="button-demo-payment"
                       >
@@ -1294,34 +1325,35 @@ export default function CheckoutPage() {
                       </Button>
                     )}
                   </div>
-                  
-                  {/* Cancel and restart */}
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    className="w-full text-muted-foreground hover:text-foreground"
-                    onClick={handleCancelPending}
-                    data-testid="button-cancel-payment"
-                  >
-                    <XCircle className="w-4 h-4 mr-2" />
-                    Batalkan & Mulai Ulang
-                  </Button>
                 </div>
               </div>
             </div>
-          </Card>
 
-          {/* Status indicator */}
-          <div className="flex items-center justify-center gap-2 py-2">
-            <div className="relative flex items-center gap-1.5">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-              <span className="text-xs text-muted-foreground">Menunggu pembayaran...</span>
+            {/* Bottom Dashed Line */}
+            <div className="border-t border-dashed border-gray-300 dark:border-zinc-600"></div>
+
+            {/* Footer */}
+            <div className="bg-white dark:bg-zinc-800 px-5 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                  <span className="text-[10px] text-gray-500 dark:text-gray-400">Menunggu pembayaran...</span>
+                </div>
+                <button 
+                  onClick={handleCancelPending}
+                  className="text-[10px] text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 flex items-center gap-1 transition-colors"
+                  data-testid="button-cancel-payment"
+                >
+                  <XCircle className="w-3 h-3" />
+                  Batalkan
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Powered by */}
-          <p className="text-center text-[10px] text-muted-foreground">
-            Powered by Kompas Pay
+          <p className="text-center text-[10px] text-gray-400 dark:text-gray-500">
+            Secured by <span className="font-medium">Kompas Pay</span> • GPN Network
           </p>
         </div>
       )}
