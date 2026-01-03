@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { 
@@ -32,9 +33,10 @@ import {
   Copy,
   Bitcoin,
   ExternalLink,
-  Share2
+  Share2,
+  Mail
 } from "lucide-react";
-import { SiWhatsapp, SiTelegram, SiMessenger, SiPaypal } from "react-icons/si";
+import { SiWhatsapp, SiTelegram, SiMessenger, SiPaypal, SiBitcoin, SiEthereum, SiSolana, SiBinance, SiTether, SiRipple } from "react-icons/si";
 import PayPalButton from "@/components/PayPalButton";
 import chatviceLogoImg from "@assets/Chatvice-02_1767473402687.png";
 import gpnLogoImg from "@assets/IMG_1410_1767473402687.png";
@@ -144,7 +146,85 @@ interface ActivePromotion {
   targetPlans: string[];
 }
 
-type PaymentStep = 'select_method' | 'bank_form' | 'loading' | 'qris' | 'va' | 'bank_transfer' | 'payment_link' | 'success' | 'failed' | 'expired';
+type PaymentStep = 'select_method' | 'bank_form' | 'loading' | 'qris' | 'va' | 'bank_transfer' | 'payment_link' | 'crypto' | 'success' | 'failed' | 'expired';
+
+// Cryptocurrency wallet addresses
+interface CryptoCoin {
+  id: string;
+  symbol: string;
+  name: string;
+  network: string;
+  address: string;
+  memo?: string;
+  icon: any;
+  color: string;
+  bgColor: string;
+}
+
+const CRYPTO_COINS: CryptoCoin[] = [
+  { 
+    id: 'btc', 
+    symbol: 'BTC', 
+    name: 'Bitcoin', 
+    network: 'Bitcoin',
+    address: 'bc1q9mk7032hjfu0fu9cnk0c3tgk7z5vxswaz3avy6',
+    icon: SiBitcoin,
+    color: '#F7931A',
+    bgColor: 'bg-orange-500/10'
+  },
+  { 
+    id: 'eth', 
+    symbol: 'ETH', 
+    name: 'Ethereum', 
+    network: 'Ethereum',
+    address: '0xD395A9CFC24848828b731d42eb1c9242D5BD9cA7',
+    icon: SiEthereum,
+    color: '#627EEA',
+    bgColor: 'bg-blue-500/10'
+  },
+  { 
+    id: 'sol', 
+    symbol: 'SOL', 
+    name: 'Solana', 
+    network: 'Solana',
+    address: 'FvfgL8MdwZ7Po6795XHCgF6rWsCEdmUxwDgMD2Fn6zQg',
+    memo: 'No memo required',
+    icon: SiSolana,
+    color: '#9945FF',
+    bgColor: 'bg-purple-500/10'
+  },
+  { 
+    id: 'bnb', 
+    symbol: 'BNB', 
+    name: 'BNB Smart Chain', 
+    network: 'BNB Smart Chain',
+    address: '0xD395A9CFC24848828b731d42eb1c9242D5BD9cA7',
+    icon: SiBinance,
+    color: '#F3BA2F',
+    bgColor: 'bg-yellow-500/10'
+  },
+  { 
+    id: 'usdt', 
+    symbol: 'USDT', 
+    name: 'Tether', 
+    network: 'Ethereum',
+    address: '0xD395A9CFC24848828b731d42eb1c9242D5BD9cA7',
+    icon: SiTether,
+    color: '#26A17B',
+    bgColor: 'bg-green-500/10'
+  },
+  { 
+    id: 'xrp', 
+    symbol: 'XRP', 
+    name: 'XRP', 
+    network: 'XRP',
+    address: 'raAGkuxS7b92wYWRKERQCDknKz9fMpyJpH',
+    memo: 'No destination tag required',
+    icon: SiRipple,
+    color: '#23292F',
+    bgColor: 'bg-gray-500/10'
+  },
+];
 
 interface PaymentLinkResponse {
   paymentMethod: 'payment_link';
@@ -167,7 +247,7 @@ const PAYMENT_METHODS: PaymentMethodOption[] = [
   { id: 'ewallet', name: 'E-Wallet', description: 'Use QRIS for e-wallets', icon: Wallet, available: false, provider: 'Kompas Pay' },
   { id: 'payment_link', name: 'Payment Link', description: 'Share checkout link to others', icon: Link2, available: true, provider: 'Share' },
   { id: 'credit_card', name: 'Credit Card', description: 'Coming soon via PayPal', icon: CreditCard, available: false, provider: 'PayPal' },
-  { id: 'crypto', name: 'Cryptocurrency', description: 'Coming soon', icon: Bitcoin, available: false, provider: 'Future' },
+  { id: 'crypto', name: 'Cryptocurrency', description: 'Pay with BTC, ETH, SOL, BNB, USDT, XRP', icon: Bitcoin, available: true, provider: 'Manual' },
 ];
 
 // Kompas Pay VA uses numeric bank codes - Active banks per Kompas Pay credential
@@ -224,6 +304,8 @@ export default function CheckoutPage() {
   const [paymentLinkData, setPaymentLinkData] = useState<PaymentLinkResponse | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [prorationInfo, setProrationInfo] = useState<ProrationInfo | null>(null);
+  const [selectedCrypto, setSelectedCrypto] = useState<CryptoCoin | null>(null);
+  const [showCryptoDialog, setShowCryptoDialog] = useState(false);
   
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -504,6 +586,12 @@ export default function CheckoutPage() {
     
     if ((selectedPaymentMethod === 'virtual_account' || selectedPaymentMethod === 'bank_transfer') && !selectedBank) {
       toast({ title: "Error", description: "Please select a bank", variant: "destructive" });
+      return;
+    }
+    
+    // Handle crypto payment locally (no API call needed)
+    if (selectedPaymentMethod === 'crypto') {
+      setPaymentStep('crypto');
       return;
     }
     
@@ -1862,6 +1950,185 @@ export default function CheckoutPage() {
           </p>
         </div>
       )}
+
+      {paymentStep === 'crypto' && (
+        <div className="space-y-3">
+          <Card>
+            <CardContent className="pt-3 pb-3 space-y-3">
+              <div className="text-center">
+                <div className="w-9 h-9 mx-auto rounded-full bg-amber-500/10 flex items-center justify-center mb-2">
+                  <Bitcoin className="w-4 h-4 text-amber-500" />
+                </div>
+                <h3 className="text-xs font-semibold">Cryptocurrency Payment</h3>
+                <p className="text-[10px] text-muted-foreground">
+                  Select a cryptocurrency to view wallet address
+                </p>
+              </div>
+
+              {/* Order Summary */}
+              <div className="p-2.5 rounded-md bg-muted/50 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-muted-foreground">Plan</span>
+                  <span className="text-[11px] font-medium">{selectedPlan?.name || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-muted-foreground">Billing</span>
+                  <span className="text-[11px] font-medium">{isAnnual ? 'Annual' : 'Monthly'}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-muted-foreground">Amount (USD)</span>
+                  <span className="text-sm font-bold text-primary">
+                    ${((selectedPlan?.priceMonthly || 0) * (isAnnual ? 12 * 0.8 : 1)).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Crypto Coin Selection */}
+              <div className="grid grid-cols-3 gap-2">
+                {CRYPTO_COINS.map((coin) => (
+                  <Button
+                    key={coin.id}
+                    variant="outline"
+                    size="sm"
+                    className={`h-16 flex-col gap-1 hover-elevate ${coin.bgColor}`}
+                    onClick={() => {
+                      setSelectedCrypto(coin);
+                      setShowCryptoDialog(true);
+                    }}
+                    data-testid={`button-crypto-${coin.id}`}
+                  >
+                    <coin.icon className="w-5 h-5" style={{ color: coin.color }} />
+                    <span className="text-[10px] font-semibold">{coin.symbol}</span>
+                    <span className="text-[8px] text-muted-foreground">{coin.network}</span>
+                  </Button>
+                ))}
+              </div>
+
+              <div className="p-2 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                <p className="text-[10px] text-amber-700 dark:text-amber-300">
+                  After sending payment, please contact support with transaction hash for manual verification.
+                </p>
+              </div>
+
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full"
+                onClick={() => setPaymentStep('select_method')}
+                data-testid="button-back-to-methods"
+              >
+                <ArrowLeft className="w-3 h-3 mr-1" />
+                Back to Payment Methods
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Crypto Wallet Dialog */}
+      <Dialog open={showCryptoDialog} onOpenChange={setShowCryptoDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {selectedCrypto && (
+                <>
+                  <selectedCrypto.icon className="w-5 h-5" style={{ color: selectedCrypto.color }} />
+                  <span>{selectedCrypto.symbol}</span>
+                  <Badge variant="secondary" className="text-[10px]">{selectedCrypto.network}</Badge>
+                </>
+              )}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Send exactly the amount shown to the wallet address below
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedCrypto && (
+            <div className="space-y-4">
+              {/* QR Code */}
+              <div className="flex justify-center p-4 bg-white rounded-lg">
+                <QRCodeSVG 
+                  value={selectedCrypto.address} 
+                  size={180}
+                  level="H"
+                  includeMargin={true}
+                />
+              </div>
+
+              {/* Wallet Address */}
+              <div className="space-y-2">
+                <label className="text-[10px] text-muted-foreground">Wallet Address</label>
+                <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 border">
+                  <input 
+                    type="text" 
+                    readOnly 
+                    value={selectedCrypto.address} 
+                    className="flex-1 text-[10px] font-mono bg-transparent outline-none"
+                    data-testid="input-crypto-address"
+                  />
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2"
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedCrypto.address);
+                      toast({ title: "Address copied!", description: "Wallet address copied to clipboard" });
+                    }}
+                    data-testid="button-copy-crypto-address"
+                  >
+                    <Copy className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Memo/Tag if applicable */}
+              {selectedCrypto.memo && (
+                <div className="p-2 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                  <p className="text-[10px] text-blue-700 dark:text-blue-300 text-center">
+                    {selectedCrypto.memo}
+                  </p>
+                </div>
+              )}
+
+              {/* Amount to Pay */}
+              <div className="p-3 rounded-md bg-muted/50 text-center">
+                <p className="text-[10px] text-muted-foreground">Amount to Pay (USD)</p>
+                <p className="text-lg font-bold text-primary">
+                  ${((selectedPlan?.priceMonthly || 0) * (isAnnual ? 12 * 0.8 : 1)).toFixed(2)}
+                </p>
+                <p className="text-[9px] text-muted-foreground mt-1">
+                  Convert to {selectedCrypto.symbol} at current market rate
+                </p>
+              </div>
+
+              {/* Instructions */}
+              <div className="p-2 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 space-y-1">
+                <p className="text-[10px] font-medium text-amber-800 dark:text-amber-300">Instructions:</p>
+                <ul className="text-[9px] text-amber-700 dark:text-amber-400 list-disc list-inside space-y-0.5">
+                  <li>Send the exact amount in {selectedCrypto.symbol}</li>
+                  <li>Use the {selectedCrypto.network} network</li>
+                  <li>Save the transaction hash (TXID)</li>
+                  <li>Contact support with your TXID for verification</li>
+                </ul>
+              </div>
+
+              <Button 
+                variant="default"
+                size="sm" 
+                className="w-full"
+                onClick={() => {
+                  window.open(`mailto:support@chatvice.app?subject=Crypto Payment Verification&body=Plan: ${selectedPlan?.name}%0D%0AAmount: $${((selectedPlan?.priceMonthly || 0) * (isAnnual ? 12 * 0.8 : 1)).toFixed(2)}%0D%0ACrypto: ${selectedCrypto.symbol}%0D%0ATransaction Hash: `, '_blank');
+                }}
+                data-testid="button-contact-support"
+              >
+                <Mail className="w-3 h-3 mr-1" />
+                Contact Support After Payment
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {paymentStep === 'success' && (
         <Card>
