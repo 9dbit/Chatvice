@@ -345,6 +345,7 @@ export async function createVAPayment(request: CreateVARequest): Promise<CreateV
       url: `${apiBaseUrl}${requestTarget}`,
       bankCode: request.bankCode,
       amount: request.amount,
+      requestBody: body,
     });
 
     const controller = new AbortController();
@@ -383,7 +384,7 @@ export async function createVAPayment(request: CreateVARequest): Promise<CreateV
     clearTimeout(timeoutId);
 
     const data = await response.json();
-    console.log(`${gatewayName} VA response:`, data);
+    console.log(`${gatewayName} VA full response:`, JSON.stringify(data, null, 2));
     
     if (!response.ok || data.status === 'error') {
       console.error(`${gatewayName} VA creation error:`, data);
@@ -396,13 +397,31 @@ export async function createVAPayment(request: CreateVARequest): Promise<CreateV
     
     const responseData = data.data || data;
     
+    const vaNumber = responseData.virtual_account || responseData.va_number || responseData.virtualAccountNumber || responseData.account_number;
+    
+    console.log(`${gatewayName} VA parsed data:`, {
+      vaNumber,
+      identifierId: responseData.identifier_id,
+      expired: responseData.expired,
+      rawKeys: Object.keys(responseData),
+    });
+    
+    if (!vaNumber) {
+      console.error(`${gatewayName} VA response missing VA number:`, responseData);
+      return {
+        success: false,
+        gatewayName,
+        error: 'Virtual Account number not returned from payment gateway',
+      };
+    }
+    
     return {
       success: true,
       gatewayName,
       data: {
         transactionId: responseData.identifier_id || request.orderId,
         orderId: request.orderId,
-        vaNumber: responseData.virtual_account || responseData.va_number,
+        vaNumber: vaNumber,
         bankCode: request.bankCode,
         amount: request.amount,
         expiryTime: responseData.expired || responseData.expiry_time,
