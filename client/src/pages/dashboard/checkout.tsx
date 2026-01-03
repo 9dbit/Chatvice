@@ -78,6 +78,23 @@ interface VAPaymentResponse {
   billingInterval: string;
 }
 
+interface BankTransferResponse {
+  paymentMethod: string;
+  transactionId: string;
+  orderId: string;
+  accountNumber: string;
+  accountName: string;
+  bankCode: string;
+  bankName: string;
+  amount: number;
+  amountUSD?: number;
+  expiryTime: string;
+  planName: string;
+  billingInterval: string;
+  uniqueCode?: number;
+  totalAmount?: number;
+}
+
 interface PendingTransaction {
   transactionId: string;
   orderId: string;
@@ -125,19 +142,30 @@ type PaymentStep = 'select_method' | 'bank_form' | 'loading' | 'qris' | 'va' | '
 const PAYMENT_METHODS: PaymentMethodOption[] = [
   { id: 'qris', name: 'QRIS', description: 'All e-wallets & mobile banking', icon: QrCode, available: true, provider: 'Kompas Pay' },
   { id: 'virtual_account', name: 'Virtual Account', description: 'Automatic verification', icon: CreditCard, available: true, provider: 'Kompas Pay' },
-  { id: 'bank_transfer', name: 'Bank Transfer', description: 'Coming soon', icon: Building2, available: false, provider: 'Kompas Pay' },
+  { id: 'bank_transfer', name: 'Bank Transfer', description: 'Transfer to merchant account', icon: Building2, available: true, provider: 'Kompas Pay' },
   { id: 'ewallet', name: 'E-Wallet', description: 'Use QRIS for e-wallets', icon: Wallet, available: false, provider: 'Kompas Pay' },
   { id: 'payment_link', name: 'Payment Link', description: 'Coming soon', icon: Link2, available: false, provider: 'Kompas Pay' },
   { id: 'credit_card', name: 'Credit Card', description: 'Coming soon via PayPal', icon: CreditCard, available: false, provider: 'PayPal' },
   { id: 'crypto', name: 'Cryptocurrency', description: 'Coming soon', icon: Bitcoin, available: false, provider: 'Future' },
 ];
 
-const BANKS = [
-  { code: 'BCA', name: 'Bank Central Asia (BCA)' },
-  { code: 'BRI', name: 'Bank Rakyat Indonesia (BRI)' },
-  { code: 'MANDIRI', name: 'Bank Mandiri' },
-  { code: 'BNI', name: 'Bank Negara Indonesia (BNI)' },
-  { code: 'CIMB', name: 'CIMB Niaga' },
+const VA_BANKS = [
+  { code: '009', name: 'Bank Negara Indonesia (BNI)' },
+  { code: '002', name: 'Bank Rakyat Indonesia (BRI)' },
+  { code: '008', name: 'Bank Mandiri' },
+  { code: '022', name: 'CIMB Niaga' },
+  { code: '011', name: 'Bank Danamon' },
+  { code: '016', name: 'Maybank' },
+  { code: '013', name: 'Bank Permata' },
+  { code: '451', name: 'Bank Syariah Indonesia (BSI)' },
+  { code: '490', name: 'Bank Neo Commerce (BNC)' },
+];
+
+const TRANSFER_BANKS = [
+  { code: '009', name: 'Bank Negara Indonesia (BNI)' },
+  { code: '002', name: 'Bank Rakyat Indonesia (BRI)' },
+  { code: '008', name: 'Bank Mandiri' },
+  { code: '014', name: 'Bank Central Asia (BCA)' },
 ];
 
 export default function CheckoutPage() {
@@ -169,6 +197,7 @@ export default function CheckoutPage() {
   const [paymentStep, setPaymentStep] = useState<PaymentStep>('select_method');
   const [qrisData, setQrisData] = useState<QRISPaymentResponse | null>(null);
   const [vaData, setVaData] = useState<VAPaymentResponse | null>(null);
+  const [bankTransferData, setBankTransferData] = useState<BankTransferResponse | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [prorationInfo, setProrationInfo] = useState<ProrationInfo | null>(null);
   
@@ -375,7 +404,9 @@ export default function CheckoutPage() {
         setPaymentStep('va');
         startPaymentPolling(data.transactionId, data.expiryTime);
       } else if (data.paymentMethod === 'bank_transfer') {
+        setBankTransferData(data);
         setPaymentStep('bank_transfer');
+        startPaymentPolling(data.transactionId, data.expiryTime);
       } else if (data.paymentMethod === 'ewallet' || data.paymentMethod === 'payment_link') {
         if (data.redirectUrl || data.paymentUrl) {
           window.open(data.redirectUrl || data.paymentUrl, '_blank');
@@ -443,7 +474,7 @@ export default function CheckoutPage() {
   const handleProceedToPayment = () => {
     if (!selectedPlan || !termsAccepted) return;
     
-    if (selectedPaymentMethod === 'virtual_account' && !selectedBank) {
+    if ((selectedPaymentMethod === 'virtual_account' || selectedPaymentMethod === 'bank_transfer') && !selectedBank) {
       toast({ title: "Error", description: "Please select a bank", variant: "destructive" });
       return;
     }
@@ -462,6 +493,7 @@ export default function CheckoutPage() {
     setPaymentStep('select_method');
     setQrisData(null);
     setVaData(null);
+    setBankTransferData(null);
     setTimeRemaining(0);
   };
 
@@ -476,6 +508,7 @@ export default function CheckoutPage() {
         setPaymentStep('select_method');
         setQrisData(null);
         setVaData(null);
+        setBankTransferData(null);
         setTimeRemaining(0);
         if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
         if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
@@ -823,7 +856,8 @@ export default function CheckoutPage() {
       })
     : '';
 
-  const needsBankSelection = selectedPaymentMethod === 'virtual_account';
+  const needsBankSelection = selectedPaymentMethod === 'virtual_account' || selectedPaymentMethod === 'bank_transfer';
+  const bankList = selectedPaymentMethod === 'virtual_account' ? VA_BANKS : TRANSFER_BANKS;
   
   // For resume mode, use resume data values
   const displayAmount = isResumeMode && qrisData ? qrisData.amount : finalPrice;
@@ -1003,10 +1037,10 @@ export default function CheckoutPage() {
                   <h3 className="text-sm font-medium">Select Bank</h3>
                   <Select value={selectedBank} onValueChange={setSelectedBank}>
                     <SelectTrigger className="h-10 text-sm" data-testid="select-bank">
-                      <SelectValue placeholder="Select bank for Virtual Account" />
+                      <SelectValue placeholder={selectedPaymentMethod === 'virtual_account' ? 'Select bank for Virtual Account' : 'Select bank for transfer'} />
                     </SelectTrigger>
                     <SelectContent>
-                      {BANKS.map((bank) => (
+                      {bankList.map((bank) => (
                         <SelectItem key={bank.code} value={bank.code} className="text-sm">
                           {bank.name}
                         </SelectItem>
@@ -1271,7 +1305,7 @@ export default function CheckoutPage() {
               <div className="p-2.5 rounded-md bg-muted/50 space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-[10px] text-muted-foreground">Bank</span>
-                  <span className="text-[11px] font-medium">{vaData.bankCode}</span>
+                  <span className="text-[11px] font-medium">{VA_BANKS.find(b => b.code === vaData.bankCode)?.name || vaData.bankCode}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-[10px] text-muted-foreground">VA Number</span>
@@ -1287,6 +1321,81 @@ export default function CheckoutPage() {
                   <span className="text-[10px] text-muted-foreground">Amount</span>
                   <span className="text-sm font-bold text-primary">Rp {(vaData.amount || 0).toLocaleString('id-ID')}</span>
                 </div>
+              </div>
+
+              <div className="flex items-center justify-center gap-1.5 text-amber-600 dark:text-amber-400">
+                <Clock className="w-3 h-3" />
+                <span className="font-mono text-xs font-medium">{formatTime(timeRemaining)}</span>
+              </div>
+
+              {import.meta.env.DEV && (
+                <Button variant="outline" size="sm" className="w-full h-7 text-[10px]" onClick={handleDemoPayment}>
+                  Demo Pay
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
+          <p className="text-center text-[9px] text-muted-foreground">
+            Waiting for payment... Status updates automatically
+          </p>
+        </div>
+      )}
+
+      {paymentStep === 'bank_transfer' && bankTransferData && (
+        <div className="space-y-3">
+          <Card>
+            <CardContent className="pt-3 pb-3 space-y-2.5">
+              <div className="text-center">
+                <div className="w-9 h-9 mx-auto rounded-full bg-primary/10 flex items-center justify-center mb-2">
+                  <Building2 className="w-4 h-4 text-primary" />
+                </div>
+                <h3 className="text-xs font-semibold">Bank Transfer</h3>
+                <p className="text-[10px] text-muted-foreground">
+                  Transfer to the bank account below
+                </p>
+              </div>
+              
+              <div className="p-2.5 rounded-md bg-muted/50 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-muted-foreground">Bank</span>
+                  <span className="text-[11px] font-medium">{bankTransferData.bankName || TRANSFER_BANKS.find(b => b.code === bankTransferData.bankCode)?.name || bankTransferData.bankCode}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-muted-foreground">Account Name</span>
+                  <span className="text-[11px] font-medium">{bankTransferData.accountName}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-muted-foreground">Account Number</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[11px] font-mono font-medium">{bankTransferData.accountNumber}</span>
+                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => copyToClipboard(bankTransferData.accountNumber)}>
+                      <Copy className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+                <Separator />
+                {bankTransferData.uniqueCode && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-muted-foreground">Unique Code</span>
+                    <span className="text-[11px] font-medium">+Rp {bankTransferData.uniqueCode.toLocaleString('id-ID')}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-muted-foreground">Total Amount</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm font-bold text-primary">Rp {(bankTransferData.totalAmount || bankTransferData.amount || 0).toLocaleString('id-ID')}</span>
+                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => copyToClipboard(String(bankTransferData.totalAmount || bankTransferData.amount))}>
+                      <Copy className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-2 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                <p className="text-[10px] text-amber-700 dark:text-amber-300">
+                  Please transfer the exact amount including unique code for automatic verification.
+                </p>
               </div>
 
               <div className="flex items-center justify-center gap-1.5 text-amber-600 dark:text-amber-400">

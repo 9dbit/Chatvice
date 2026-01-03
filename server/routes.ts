@@ -19,7 +19,7 @@ import path from "path";
 import fs from "fs";
 import { processKnowledgeBase, searchKnowledge } from "./embeddings";
 import { extractFAQContent } from "./crawler";
-import { createQRISPayment, createVAPayment, checkPaymentStatus, isKompasPayConfigured, convertToIDR, formatIDR } from "./kompasPayClient";
+import { createQRISPayment, createVAPayment, createBankTransferPayment, checkPaymentStatus, isKompasPayConfigured, convertToIDR, formatIDR } from "./kompasPayClient";
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats } from "@shared/schema";
 import crypto from "crypto";
@@ -4032,8 +4032,57 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           });
           
         case 'bank_transfer':
-          // Bank transfer is not yet fully implemented (requires manual verification)
-          return res.status(503).json({ error: "Bank Transfer payment coming soon. Please use QRIS or Virtual Account." });
+          if (!bankCode) {
+            return res.status(400).json({ error: "Bank code is required for Bank Transfer" });
+          }
+          
+          paymentResult = await createBankTransferPayment({
+            merchantId: merchant.id,
+            orderId,
+            amount: finalPriceIDR,
+            bankCode: bankCode,
+            customerName: merchant.companyName,
+            customerEmail: merchant.email,
+            description: `Chatvice ${plan.name} Subscription`,
+            expiryMinutes: 1440, // 24 hours
+            callbackUrl,
+            metadata: { 
+              merchantId: merchant.id, 
+              planId, 
+              billingInterval, 
+              type: 'subscription',
+              isDowngrade: isDowngrade ? 'true' : 'false',
+              scheduledActivationDate: scheduledActivationDate?.toISOString() || '',
+            },
+          });
+          
+          if (!paymentResult.success || !paymentResult.data) {
+            return res.status(500).json({ error: paymentResult.error || "Failed to create Bank Transfer" });
+          }
+          
+          await storage.updateMerchantSubscription(merchant.id, {
+            pendingTransactionId: paymentResult.data.transactionId,
+          });
+          
+          return res.json({
+            paymentMethod: 'bank_transfer',
+            transactionId: paymentResult.data.transactionId,
+            orderId: paymentResult.data.orderId,
+            accountNumber: paymentResult.data.accountNumber,
+            accountName: paymentResult.data.accountName,
+            bankCode: paymentResult.data.bankCode,
+            bankName: paymentResult.data.bankName,
+            amount: finalPriceIDR,
+            amountUSD: finalPriceUSD,
+            expiryTime: paymentResult.data.expiryTime,
+            uniqueCode: paymentResult.data.uniqueCode,
+            totalAmount: paymentResult.data.totalAmount,
+            planId,
+            planName: plan.name,
+            billingInterval,
+            isDowngrade,
+            scheduledActivationDate: scheduledActivationDate?.toISOString(),
+          });
           
         case 'ewallet':
           // E-wallet requires Kompas Pay gateway integration
