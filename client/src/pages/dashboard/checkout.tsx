@@ -31,8 +31,10 @@ import {
   QrCode,
   Copy,
   Bitcoin,
-  ExternalLink
+  ExternalLink,
+  Share2
 } from "lucide-react";
+import { SiWhatsapp, SiTelegram, SiMessenger } from "react-icons/si";
 
 type PaymentMethod = 'qris' | 'bank_transfer' | 'virtual_account' | 'ewallet' | 'payment_link' | 'credit_card' | 'crypto';
 
@@ -159,7 +161,7 @@ const PAYMENT_METHODS: PaymentMethodOption[] = [
   { id: 'virtual_account', name: 'Virtual Account', description: 'Automatic verification', icon: CreditCard, available: true, provider: 'Kompas Pay' },
   { id: 'bank_transfer', name: 'Bank Transfer', description: 'Transfer to merchant account', icon: Building2, available: true, provider: 'Kompas Pay' },
   { id: 'ewallet', name: 'E-Wallet', description: 'Use QRIS for e-wallets', icon: Wallet, available: false, provider: 'Kompas Pay' },
-  { id: 'payment_link', name: 'Payment Link', description: 'Merchant platform only', icon: Link2, available: false, provider: 'Kompas Pay' },
+  { id: 'payment_link', name: 'Payment Link', description: 'Contact Kompas Pay to enable', icon: Link2, available: false, provider: 'Kompas Pay' },
   { id: 'credit_card', name: 'Credit Card', description: 'Coming soon via PayPal', icon: CreditCard, available: false, provider: 'PayPal' },
   { id: 'crypto', name: 'Cryptocurrency', description: 'Coming soon', icon: Bitcoin, available: false, provider: 'Future' },
 ];
@@ -1517,19 +1519,88 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              <Button 
-                className="w-full" 
-                size="sm"
-                onClick={() => window.open(paymentLinkData.paymentUrl, '_blank')}
-                data-testid="button-open-payment-link"
-              >
-                <ExternalLink className="w-3 h-3 mr-1.5" />
-                Open Payment Page
-              </Button>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 border">
+                  <input 
+                    type="text" 
+                    readOnly 
+                    value={paymentLinkData.paymentUrl} 
+                    className="flex-1 text-[10px] bg-transparent outline-none truncate"
+                    data-testid="input-payment-link-url"
+                  />
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2"
+                    onClick={() => {
+                      navigator.clipboard.writeText(paymentLinkData.paymentUrl);
+                      toast({ title: "Link copied!", description: "Payment link copied to clipboard" });
+                    }}
+                    data-testid="button-copy-payment-link"
+                  >
+                    <Copy className="w-3 h-3 mr-1" />
+                    Copy
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-4 gap-2">
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="h-9 flex-col gap-0.5 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/40 border-green-200 dark:border-green-800"
+                    onClick={() => {
+                      const text = `Payment Link for ${paymentLinkData.planName} Plan - Rp ${paymentLinkData.amount.toLocaleString('id-ID')}`;
+                      window.open(`https://wa.me/?text=${encodeURIComponent(text + '\n' + paymentLinkData.paymentUrl)}`, '_blank');
+                    }}
+                    data-testid="button-share-whatsapp"
+                  >
+                    <SiWhatsapp className="w-4 h-4 text-green-600" />
+                    <span className="text-[8px] text-green-700 dark:text-green-400">WhatsApp</span>
+                  </Button>
+
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="h-9 flex-col gap-0.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 border-blue-200 dark:border-blue-800"
+                    onClick={() => {
+                      const text = `Payment Link for ${paymentLinkData.planName} Plan - Rp ${paymentLinkData.amount.toLocaleString('id-ID')}`;
+                      window.open(`https://t.me/share/url?url=${encodeURIComponent(paymentLinkData.paymentUrl)}&text=${encodeURIComponent(text)}`, '_blank');
+                    }}
+                    data-testid="button-share-telegram"
+                  >
+                    <SiTelegram className="w-4 h-4 text-blue-500" />
+                    <span className="text-[8px] text-blue-700 dark:text-blue-400">Telegram</span>
+                  </Button>
+
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="h-9 flex-col gap-0.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800"
+                    onClick={() => {
+                      window.open(`https://www.facebook.com/dialog/send?link=${encodeURIComponent(paymentLinkData.paymentUrl)}&app_id=966242223397117&redirect_uri=${encodeURIComponent(window.location.href)}`, '_blank');
+                    }}
+                    data-testid="button-share-messenger"
+                  >
+                    <SiMessenger className="w-4 h-4 text-indigo-600" />
+                    <span className="text-[8px] text-indigo-700 dark:text-indigo-400">Messenger</span>
+                  </Button>
+
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="h-9 flex-col gap-0.5"
+                    onClick={() => window.open(paymentLinkData.paymentUrl, '_blank')}
+                    data-testid="button-open-payment-link"
+                  >
+                    <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-[8px] text-muted-foreground">Open</span>
+                  </Button>
+                </div>
+              </div>
 
               <div className="p-2 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
                 <p className="text-[10px] text-blue-700 dark:text-blue-300">
-                  Complete your payment on the payment page. This page will update automatically once payment is confirmed.
+                  Share this payment link or open it in a new tab. Payment status updates automatically.
                 </p>
               </div>
 
