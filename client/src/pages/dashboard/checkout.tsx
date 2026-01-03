@@ -492,42 +492,164 @@ export default function CheckoutPage() {
     if (!qrisData) return;
     
     try {
-      // Find the SVG element in the container
       const container = document.getElementById('qris-code-container');
       const svgElement = container?.querySelector('svg');
       
       if (svgElement && qrisData.qrisString) {
-        // Convert SVG to canvas then to image
         const svgData = new XMLSerializer().serializeToString(svgElement);
+        
+        // Create beautiful frosted glass card design
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        const img = new Image();
+        if (!ctx) return;
         
-        // Add padding for better visual
-        const padding = 20;
-        const size = 224 + (padding * 2);
-        canvas.width = size;
-        canvas.height = size;
+        // Card dimensions (mobile-friendly portrait)
+        const cardWidth = 420;
+        const cardHeight = 680;
+        canvas.width = cardWidth;
+        canvas.height = cardHeight;
         
+        // Draw gradient background (purple aurora)
+        const bgGradient = ctx.createLinearGradient(0, 0, cardWidth, cardHeight);
+        bgGradient.addColorStop(0, '#1a0a2e');
+        bgGradient.addColorStop(0.3, '#2d1b4e');
+        bgGradient.addColorStop(0.5, '#4a2c7a');
+        bgGradient.addColorStop(0.7, '#6b3fa0');
+        bgGradient.addColorStop(1, '#2d1b4e');
+        ctx.fillStyle = bgGradient;
+        ctx.fillRect(0, 0, cardWidth, cardHeight);
+        
+        // Add aurora glow effect
+        const glowGradient = ctx.createRadialGradient(cardWidth * 0.7, cardHeight * 0.3, 0, cardWidth * 0.7, cardHeight * 0.3, 200);
+        glowGradient.addColorStop(0, 'rgba(168, 85, 247, 0.4)');
+        glowGradient.addColorStop(0.5, 'rgba(139, 92, 246, 0.2)');
+        glowGradient.addColorStop(1, 'rgba(139, 92, 246, 0)');
+        ctx.fillStyle = glowGradient;
+        ctx.fillRect(0, 0, cardWidth, cardHeight);
+        
+        // Frosted glass card
+        const cardX = 30;
+        const cardY = 40;
+        const cardInnerWidth = cardWidth - 60;
+        const cardInnerHeight = cardHeight - 80;
+        const borderRadius = 24;
+        
+        // Draw frosted glass background
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(cardX, cardY, cardInnerWidth, cardInnerHeight, borderRadius);
+        ctx.clip();
+        
+        // Glass effect with gradient
+        const glassGradient = ctx.createLinearGradient(cardX, cardY, cardX, cardY + cardInnerHeight);
+        glassGradient.addColorStop(0, 'rgba(255, 255, 255, 0.15)');
+        glassGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.08)');
+        glassGradient.addColorStop(1, 'rgba(255, 255, 255, 0.12)');
+        ctx.fillStyle = glassGradient;
+        ctx.fill();
+        ctx.restore();
+        
+        // Glass border
+        ctx.beginPath();
+        ctx.roundRect(cardX, cardY, cardInnerWidth, cardInnerHeight, borderRadius);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        
+        // Load and draw logos
+        const loadImage = (src: string): Promise<HTMLImageElement> => {
+          return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = src;
+          });
+        };
+        
+        // Draw GPN logo (top left of card)
+        try {
+          const gpnLogo = await loadImage('/attached_assets/IMG_1410_1767435254419.png');
+          ctx.drawImage(gpnLogo, cardX + 20, cardY + 20, 60, 50);
+        } catch (e) {
+          console.log('GPN logo not loaded');
+        }
+        
+        // Draw Chatvice logo (top right of card)
+        try {
+          const chatviceLogo = await loadImage('/attached_assets/Chatvice-04_1767435390364.png');
+          ctx.drawImage(chatviceLogo, cardX + cardInnerWidth - 140, cardY + 25, 120, 40);
+        } catch (e) {
+          console.log('Chatvice logo not loaded');
+        }
+        
+        // "Trusted QRIS Payment" title
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.font = 'bold 22px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Trusted QRIS Payment', cardWidth / 2, cardY + 110);
+        
+        // Subtitle
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.font = '14px system-ui, -apple-system, sans-serif';
+        ctx.fillText('Scan with any e-wallet or mobile banking', cardWidth / 2, cardY + 135);
+        
+        // White QR code container
+        const qrSize = 200;
+        const qrX = (cardWidth - qrSize - 24) / 2;
+        const qrY = cardY + 160;
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.roundRect(qrX, qrY, qrSize + 24, qrSize + 24, 16);
+        ctx.fill();
+        
+        // Draw QR code
+        const qrImg = new Image();
         await new Promise<void>((resolve, reject) => {
-          img.onload = () => {
-            if (ctx) {
-              ctx.fillStyle = '#ffffff';
-              ctx.fillRect(0, 0, canvas.width, canvas.height);
-              ctx.drawImage(img, padding, padding, 224, 224);
-            }
+          qrImg.onload = () => {
+            ctx.drawImage(qrImg, qrX + 12, qrY + 12, qrSize, qrSize);
             resolve();
           };
-          img.onerror = reject;
-          img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+          qrImg.onerror = reject;
+          qrImg.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
         });
         
-        canvas.toBlob((pngBlob) => {
-          if (pngBlob) {
-            const url = URL.createObjectURL(pngBlob);
+        // Amount section
+        const amountY = qrY + qrSize + 50;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.font = '12px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('TOTAL AMOUNT', cardWidth / 2, amountY);
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 32px system-ui, -apple-system, sans-serif';
+        ctx.fillText(`Rp ${(qrisData.amount || 0).toLocaleString('id-ID')}`, cardWidth / 2, amountY + 38);
+        
+        // Plan info
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.font = '14px system-ui, -apple-system, sans-serif';
+        ctx.fillText(`${qrisData.planName} Plan - ${qrisData.billingInterval === 'annual' ? 'Annual' : 'Monthly'}`, cardWidth / 2, amountY + 65);
+        
+        // Order ID
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.font = '11px monospace';
+        const shortOrderId = qrisData.orderId.length > 30 ? '...' + qrisData.orderId.slice(-25) : qrisData.orderId;
+        ctx.fillText(shortOrderId, cardWidth / 2, amountY + 95);
+        
+        // Supported apps
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.font = '11px system-ui, -apple-system, sans-serif';
+        ctx.fillText('GoPay \u2022 OVO \u2022 DANA \u2022 ShopeePay \u2022 LinkAja', cardWidth / 2, cardHeight - 55);
+        ctx.fillText('BCA \u2022 Mandiri \u2022 BRI \u2022 BNI \u2022 CIMB', cardWidth / 2, cardHeight - 38);
+        
+        // Save as JPG
+        canvas.toBlob((jpgBlob) => {
+          if (jpgBlob) {
+            const url = URL.createObjectURL(jpgBlob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `qris-chatvice-${qrisData.orderId}.png`;
+            link.download = `qris-chatvice-${qrisData.orderId.slice(-12)}.jpg`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -535,27 +657,10 @@ export default function CheckoutPage() {
             
             toast({
               title: "QRIS Saved!",
-              description: "QRIS image has been saved to your device",
+              description: "Beautiful QRIS card saved to your device",
             });
           }
-        }, 'image/png');
-      } else if (qrisData.qrisImage) {
-        // Fallback to image URL if available
-        const response = await fetch(qrisData.qrisImage);
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `qris-chatvice-${qrisData.orderId}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        
-        toast({
-          title: "QRIS Saved!",
-          description: "QRIS image has been saved to your device",
-        });
+        }, 'image/jpeg', 0.95);
       } else {
         toast({
           title: "Error",
