@@ -611,6 +611,8 @@ export default function CheckoutPage() {
     setVaData(null);
     setBankTransferData(null);
     setPaymentLinkData(null);
+    setSelectedCrypto(null);
+    setShowCryptoDialog(false);
     setTimeRemaining(0);
   };
 
@@ -1037,6 +1039,12 @@ export default function CheckoutPage() {
     : 0;
   
   const finalPrice = Math.max(0, priceIDR - discountAmount - creditAmountIDR);
+  
+  // Use authoritative proration finalAmount when available (already a net value, no discount re-apply)
+  // Otherwise calculate from catalog price with discount
+  const finalPriceUSD = prorationInfo?.prorationApplied 
+    ? Math.max(0, prorationInfo.finalAmount)
+    : Math.max(0, priceUSD - (priceUSD * discountPercent / 100));
 
   // Detect if this is a downgrade by comparing plan prices
   // Use monthly prices for fair comparison regardless of billing interval
@@ -1976,12 +1984,28 @@ export default function CheckoutPage() {
                   <span className="text-[11px] font-medium">{isAnnual ? 'Annual' : 'Monthly'}</span>
                 </div>
                 <Separator />
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] text-muted-foreground">Amount (USD)</span>
-                  <span className="text-sm font-bold text-primary">
-                    ${((selectedPlan?.priceMonthly || 0) * (isAnnual ? 12 * 0.8 : 1)).toFixed(2)}
-                  </span>
-                </div>
+                {finalPrice === 0 && finalPriceUSD === 0 && selectedPlan ? (
+                  <div className="p-2 rounded-md bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                    <p className="text-[10px] text-green-700 dark:text-green-300 text-center font-medium">
+                      No payment required - Credits cover full amount
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] text-muted-foreground">Amount (IDR)</span>
+                      <span className="text-sm font-bold text-primary">
+                        {selectedPlan ? `Rp ${finalPrice.toLocaleString('id-ID')}` : <Loader2 className="w-3 h-3 animate-spin" />}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] text-muted-foreground">Amount (USD)</span>
+                      <span className="text-xs text-muted-foreground">
+                        {selectedPlan ? `~$${finalPriceUSD.toFixed(2)}` : '-'}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Crypto Coin Selection */}
@@ -2093,10 +2117,19 @@ export default function CheckoutPage() {
 
               {/* Amount to Pay */}
               <div className="p-3 rounded-md bg-muted/50 text-center">
-                <p className="text-[10px] text-muted-foreground">Amount to Pay (USD)</p>
-                <p className="text-lg font-bold text-primary">
-                  ${((selectedPlan?.priceMonthly || 0) * (isAnnual ? 12 * 0.8 : 1)).toFixed(2)}
-                </p>
+                <p className="text-[10px] text-muted-foreground">Amount to Pay</p>
+                {finalPrice === 0 && finalPriceUSD === 0 && selectedPlan ? (
+                  <p className="text-sm font-medium text-green-600 dark:text-green-400">No payment required</p>
+                ) : (
+                  <>
+                    <p className="text-lg font-bold text-primary">
+                      {selectedPlan ? `Rp ${finalPrice.toLocaleString('id-ID')}` : <Loader2 className="w-4 h-4 animate-spin mx-auto" />}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedPlan ? `~$${finalPriceUSD.toFixed(2)} USD` : '-'}
+                    </p>
+                  </>
+                )}
                 <p className="text-[9px] text-muted-foreground mt-1">
                   Convert to {selectedCrypto.symbol} at current market rate
                 </p>
@@ -2118,7 +2151,15 @@ export default function CheckoutPage() {
                 size="sm" 
                 className="w-full"
                 onClick={() => {
-                  window.open(`mailto:support@chatvice.app?subject=Crypto Payment Verification&body=Plan: ${selectedPlan?.name}%0D%0AAmount: $${((selectedPlan?.priceMonthly || 0) * (isAnnual ? 12 * 0.8 : 1)).toFixed(2)}%0D%0ACrypto: ${selectedCrypto.symbol}%0D%0ATransaction Hash: `, '_blank');
+                  const subject = encodeURIComponent('Crypto Payment Verification');
+                  const body = encodeURIComponent(
+                    `Plan: ${selectedPlan?.name}\n` +
+                    `Billing: ${isAnnual ? 'Annual' : 'Monthly'}\n` +
+                    `Amount: Rp ${finalPrice.toLocaleString('id-ID')} (~$${finalPriceUSD.toFixed(2)} USD)\n` +
+                    `Crypto: ${selectedCrypto.symbol}\n` +
+                    `Transaction Hash: `
+                  );
+                  window.open(`mailto:support@chatvice.app?subject=${subject}&body=${body}`, '_blank');
                 }}
                 data-testid="button-contact-support"
               >
