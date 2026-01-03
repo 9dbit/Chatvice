@@ -36,6 +36,8 @@ import {
 } from "lucide-react";
 import { SiWhatsapp, SiTelegram, SiMessenger, SiPaypal } from "react-icons/si";
 import PayPalButton from "@/components/PayPalButton";
+import chatviceLogoImg from "@assets/Chatvice-02_1767473402687.png";
+import gpnLogoImg from "@assets/IMG_1410_1767473402687.png";
 
 type PaymentMethod = 'qris' | 'bank_transfer' | 'virtual_account' | 'ewallet' | 'payment_link' | 'credit_card' | 'crypto' | 'paypal';
 
@@ -604,78 +606,89 @@ export default function CheckoutPage() {
         ctx.stroke();
         ctx.setLineDash([]);
         
-        // Draw Chatvice Logo (icon + text)
+        // Load Chatvice logo image
+        const chatviceLogo = new Image();
+        chatviceLogo.crossOrigin = 'anonymous';
+        const chatviceLogoLoaded = new Promise<void>((resolve) => {
+          chatviceLogo.onload = () => resolve();
+          chatviceLogo.onerror = () => resolve(); // Continue even if logo fails
+          chatviceLogo.src = chatviceLogoImg;
+        });
+        
+        // Load GPN logo image
+        const gpnLogo = new Image();
+        gpnLogo.crossOrigin = 'anonymous';
+        const gpnLogoLoaded = new Promise<void>((resolve) => {
+          gpnLogo.onload = () => resolve();
+          gpnLogo.onerror = () => resolve(); // Continue even if logo fails
+          gpnLogo.src = gpnLogoImg;
+        });
+        
+        // Wait for both logos to load
+        await Promise.all([chatviceLogoLoaded, gpnLogoLoaded]);
+        
+        // Draw Chatvice Logo
         const logoX = cardX + 20;
-        const logoY = cardY + 20;
+        const logoY = cardY + 15;
+        const chatviceLogoHeight = 28;
+        // Calculate width while maintaining aspect ratio
+        const chatviceLogoWidth = chatviceLogo.naturalWidth && chatviceLogo.naturalHeight 
+          ? (chatviceLogo.naturalWidth / chatviceLogo.naturalHeight) * chatviceLogoHeight 
+          : 120;
         
-        // Logo icon background (primary color - orange)
-        ctx.fillStyle = '#f97316';
-        ctx.beginPath();
-        ctx.roundRect(logoX, logoY, 32, 32, 8);
-        ctx.fill();
-        
-        // Chat icon in logo (simplified)
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.roundRect(logoX + 6, logoY + 8, 20, 14, 3);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(logoX + 10, logoY + 22);
-        ctx.lineTo(logoX + 14, logoY + 26);
-        ctx.lineTo(logoX + 18, logoY + 22);
-        ctx.fill();
-        
-        // Three dots in chat
-        ctx.fillStyle = '#f97316';
-        for (let i = 0; i < 3; i++) {
-          ctx.beginPath();
-          ctx.arc(logoX + 11 + (i * 5), logoY + 15, 2, 0, Math.PI * 2);
-          ctx.fill();
+        if (chatviceLogo.complete && chatviceLogo.naturalWidth > 0) {
+          ctx.drawImage(chatviceLogo, logoX, logoY, chatviceLogoWidth, chatviceLogoHeight);
+        } else {
+          // Fallback: draw text if logo fails to load
+          ctx.fillStyle = '#8b5cf6';
+          ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText('Chatvice', logoX, logoY + 20);
         }
         
-        // Chatvice text
-        ctx.fillStyle = '#18181b';
-        ctx.font = 'bold 14px system-ui, -apple-system, sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText('Chatvice', logoX + 40, logoY + 16);
-        
+        // Subscription Payment text below logo
         ctx.fillStyle = '#71717a';
         ctx.font = '10px system-ui, -apple-system, sans-serif';
-        ctx.fillText('Subscription Payment', logoX + 40, logoY + 30);
+        ctx.textAlign = 'left';
+        ctx.fillText('Subscription Payment', logoX, logoY + chatviceLogoHeight + 12);
         
-        // GPN QRIS Badge (right side)
-        const badgeX = cardX + cardInnerWidth - 90;
-        const badgeY = logoY + 4;
+        // Draw GPN QRIS Badge with actual logo (right side)
+        const badgeX = cardX + cardInnerWidth - 85;
+        const badgeY = logoY + 2;
         
-        // Badge background
+        // GPN Badge background
         ctx.fillStyle = '#fef2f2';
         ctx.strokeStyle = '#fecaca';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.roundRect(badgeX, badgeY, 70, 24, 4);
+        ctx.roundRect(badgeX, badgeY, 65, 36, 6);
         ctx.fill();
         ctx.stroke();
         
-        // GPN icon (red square with G)
-        ctx.fillStyle = '#dc2626';
-        ctx.beginPath();
-        ctx.roundRect(badgeX + 6, badgeY + 4, 16, 16, 2);
-        ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 10px system-ui';
-        ctx.textAlign = 'center';
-        ctx.fillText('G', badgeX + 14, badgeY + 15);
-        
-        // GPN text
-        ctx.fillStyle = '#dc2626';
-        ctx.font = 'bold 9px system-ui';
-        ctx.textAlign = 'left';
-        ctx.fillText('GPN', badgeX + 26, badgeY + 14);
-        
-        // QRIS text
-        ctx.fillStyle = '#dc2626';
-        ctx.font = 'bold 9px system-ui';
-        ctx.fillText('QRIS', badgeX + 46, badgeY + 14);
+        if (gpnLogo.complete && gpnLogo.naturalWidth > 0) {
+          // Draw actual GPN logo inside badge
+          const gpnLogoHeight = 22;
+          const gpnLogoWidth = gpnLogo.naturalWidth && gpnLogo.naturalHeight 
+            ? (gpnLogo.naturalWidth / gpnLogo.naturalHeight) * gpnLogoHeight 
+            : 28;
+          const gpnLogoX = badgeX + (65 - gpnLogoWidth) / 2;
+          ctx.drawImage(gpnLogo, gpnLogoX, badgeY + 3, gpnLogoWidth, gpnLogoHeight);
+          
+          // QRIS text below logo
+          ctx.fillStyle = '#1e3a8a';
+          ctx.font = 'bold 8px system-ui';
+          ctx.textAlign = 'center';
+          ctx.fillText('QRIS', badgeX + 32, badgeY + 32);
+        } else {
+          // Fallback: draw text if GPN logo fails to load
+          ctx.fillStyle = '#dc2626';
+          ctx.font = 'bold 10px system-ui';
+          ctx.textAlign = 'center';
+          ctx.fillText('GPN', badgeX + 32, badgeY + 16);
+          ctx.fillStyle = '#1e3a8a';
+          ctx.font = 'bold 9px system-ui';
+          ctx.fillText('QRIS', badgeX + 32, badgeY + 28);
+        }
         
         // Main content area
         const contentY = cardY + headerHeight + 30;
