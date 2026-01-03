@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { QRCodeSVG } from "qrcode.react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -244,13 +245,13 @@ export default function CheckoutPage() {
   // Handle resume mode - set payment data from pending transaction
   useEffect(() => {
     if (isResumeMode && resumeData && resumeData.status === 'PENDING') {
-      if (resumeData.paymentMethod === 'qris' && resumeData.qrisImage) {
+      if (resumeData.paymentMethod === 'qris' && (resumeData.qrisImage || resumeData.qrisString)) {
         setQrisData({
           paymentMethod: 'qris',
           transactionId: resumeData.transactionId,
           orderId: resumeData.orderId,
           qrisString: resumeData.qrisString || '',
-          qrisImage: resumeData.qrisImage,
+          qrisImage: resumeData.qrisImage || '',
           amount: resumeData.amount,
           expiryTime: resumeData.expiryTime || '',
           planId: resumeData.planId || '',
@@ -295,13 +296,13 @@ export default function CheckoutPage() {
     if (!isResumeMode && billingStatus?.pendingTransaction?.transactionId && paymentStep === 'select_method') {
       const pending = billingStatus.pendingTransaction;
       if (pending.status === 'PENDING') {
-        if (pending.paymentMethod === 'qris' && pending.qrisImage) {
+        if (pending.paymentMethod === 'qris' && (pending.qrisImage || pending.qrisString)) {
           setQrisData({
             paymentMethod: 'qris',
             transactionId: pending.transactionId,
             orderId: pending.orderId,
             qrisString: pending.qrisString || '',
-            qrisImage: pending.qrisImage,
+            qrisImage: pending.qrisImage || '',
             amount: pending.amount || 0,
             expiryTime: pending.expiryTime || '',
             planId: pending.planId || '',
@@ -488,61 +489,86 @@ export default function CheckoutPage() {
   };
 
   const handleSaveQRIS = async () => {
-    if (!qrisData?.qrisImage) return;
+    if (!qrisData) return;
     
     try {
-      const response = await fetch(qrisData.qrisImage);
-      const blob = await response.blob();
+      // Find the SVG element in the container
+      const container = document.getElementById('qris-code-container');
+      const svgElement = container?.querySelector('svg');
       
-      const canvas = document.createElement('canvas');
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => {
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
+      if (svgElement && qrisData.qrisString) {
+        // Convert SVG to canvas then to image
+        const svgData = new XMLSerializer().serializeToString(svgElement);
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        // Add padding for better visual
+        const padding = 20;
+        const size = 224 + (padding * 2);
+        canvas.width = size;
+        canvas.height = size;
+        
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => {
+            if (ctx) {
+              ctx.fillStyle = '#ffffff';
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              ctx.drawImage(img, padding, padding, 224, 224);
+            }
+            resolve();
+          };
+          img.onerror = reject;
+          img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+        });
+        
+        canvas.toBlob((pngBlob) => {
+          if (pngBlob) {
+            const url = URL.createObjectURL(pngBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `qris-chatvice-${qrisData.orderId}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            toast({
+              title: "QRIS Saved!",
+              description: "QRIS image has been saved to your device",
+            });
           }
-          resolve();
-        };
-        img.onerror = reject;
-        img.src = URL.createObjectURL(blob);
-      });
-      
-      canvas.toBlob((jpegBlob) => {
-        if (jpegBlob) {
-          const url = URL.createObjectURL(jpegBlob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = `qris-chatvice-${qrisData.orderId}.jpg`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-          
-          toast({
-            title: "QRIS Saved!",
-            description: "QRIS image has been saved to your device",
-          });
-        }
-      }, 'image/jpeg', 0.95);
+        }, 'image/png');
+      } else if (qrisData.qrisImage) {
+        // Fallback to image URL if available
+        const response = await fetch(qrisData.qrisImage);
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `qris-chatvice-${qrisData.orderId}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        toast({
+          title: "QRIS Saved!",
+          description: "QRIS image has been saved to your device",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "No QRIS data available to save",
+          variant: "destructive",
+        });
+      }
     } catch (err) {
-      const link = document.createElement('a');
-      link.href = qrisData.qrisImage;
-      link.download = `qris-chatvice-${qrisData.orderId}.png`;
-      link.target = '_blank';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
+      console.error("Failed to save QRIS:", err);
       toast({
-        title: "QRIS",
-        description: "QRIS image opened in a new tab",
+        title: "Error",
+        description: "Failed to save QRIS image",
+        variant: "destructive",
       });
     }
   };
@@ -972,19 +998,34 @@ export default function CheckoutPage() {
                   </div>
                   
                   {/* QR Code */}
-                  <div className="relative p-4 bg-white rounded-xl shadow-[0_4px_16px_-4px_rgba(0,0,0,0.1)] border border-gray-100">
+                  <div className="relative p-4 bg-white rounded-xl shadow-[0_4px_16px_-4px_rgba(0,0,0,0.1)] border border-gray-100" id="qris-code-container">
                     {/* Corner decorations */}
                     <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-primary/30 rounded-tl"></div>
                     <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-primary/30 rounded-tr"></div>
                     <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-primary/30 rounded-bl"></div>
                     <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-primary/30 rounded-br"></div>
                     
-                    <img 
-                      src={qrisData.qrisImage} 
-                      alt="QRIS Payment Code" 
-                      className="w-48 h-48 md:w-56 md:h-56 object-contain"
-                      data-testid="img-qris-code"
-                    />
+                    {qrisData.qrisString ? (
+                      <QRCodeSVG 
+                        value={qrisData.qrisString}
+                        size={224}
+                        level="M"
+                        includeMargin={false}
+                        className="w-48 h-48 md:w-56 md:h-56"
+                        data-testid="img-qris-code"
+                      />
+                    ) : qrisData.qrisImage ? (
+                      <img 
+                        src={qrisData.qrisImage} 
+                        alt="QRIS Payment Code" 
+                        className="w-48 h-48 md:w-56 md:h-56 object-contain"
+                        data-testid="img-qris-code"
+                      />
+                    ) : (
+                      <div className="w-48 h-48 md:w-56 md:h-56 flex items-center justify-center bg-muted rounded">
+                        <p className="text-xs text-muted-foreground text-center px-4">QR Code tidak tersedia</p>
+                      </div>
+                    )}
                   </div>
                   
                   {/* Supported Apps */}
