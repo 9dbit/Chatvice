@@ -20,6 +20,7 @@ import fs from "fs";
 import { processKnowledgeBase, searchKnowledge } from "./embeddings";
 import { extractFAQContent } from "./crawler";
 import { createQRISPayment, createVAPayment, createBankTransferPayment, createPaymentLinkPayment, checkPaymentStatus, isKompasPayConfigured, convertToIDR, formatIDR } from "./kompasPayClient";
+import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats } from "@shared/schema";
 import crypto from "crypto";
@@ -67,6 +68,14 @@ declare module "express-session" {
     merchantId: string;
     isAdmin?: boolean;
     oauthState?: string;
+    pendingPaypalOrder?: {
+      amount: string;
+      currency: string;
+      planId: string;
+      billingInterval: string;
+      merchantId: string;
+      createdAt: string;
+    };
   }
 }
 
@@ -4353,6 +4362,130 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     } catch (error: any) {
       console.error("Checkout v2 error:", error);
       res.status(500).json({ error: error.message || "Failed to create checkout session" });
+    }
+  });
+
+  // PayPal payment routes - secured with merchant authentication
+  app.get("/api/paypal/setup", requireMerchant, async (req, res) => {
+    await loadPaypalDefault(req, res);
+  });
+
+  app.post("/api/paypal/order", requireMerchant, async (req, res) => {
+    try {
+      const { amount, currency, intent, planId, billingInterval } = req.body;
+      const merchant = await storage.getMerchant(req.session.merchantId!);
+      
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      // Store pending PayPal order info in session for later verification
+      req.session.pendingPaypalOrder = {
+        amount,
+        currency,
+        planId,
+        billingInterval,
+        merchantId: merchant.id,
+        createdAt: new Date().toISOString(),
+      };
+      
+      await createPaypalOrder(req, res);
+    } catch (error: any) {
+      console.error("PayPal order creation error:", error);
+      res.status(500).json({ error: error.message || "Failed to create PayPal order" });
+    }
+  });
+
+  app.post("/api/paypal/order/:orderID/capture", requireMerchant, async (req, res) => {
+    try {
+      const merchant = await storage.getMerchant(req.session.merchantId!);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      const pendingOrder = req.session.pendingPaypalOrder;
+      if (!pendingOrder) {
+        return res.status(400).json({ error: "No pending PayPal order found" });
+      }
+      
+      // Capture the PayPal order
+      const captureResponse = await new Promise<any>((resolve, reject) => {
+        const originalJson = res.json.bind(res);
+        res.json = (data: any) => {
+          resolve(data);
+          return res;
+        };
+        capturePaypalOrder(req, res).catch(reject);
+      });
+      
+      // If capture was successful (status COMPLETED)
+      if (captureResponse && captureResponse.status === 'COMPLETED') {
+        const plan = await getEffectiveSubscriptionPlan(pendingOrder.planId);
+        if (!plan) {
+          return res.status(400).json({ error: "Invalid plan" });
+        }
+        
+        // Calculate subscription period
+        const now = new Date();
+        const periodEnd = pendingOrder.billingInterval === 'annual'
+          ? new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000)
+          : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+        
+        // Get USD amount from capture
+        const purchaseUnit = captureResponse.purchase_units?.[0];
+        const capturedAmount = purchaseUnit?.payments?.captures?.[0]?.amount?.value;
+        const amountUSD = parseFloat(capturedAmount || pendingOrder.amount);
+        
+        // Convert to IDR for billing record
+        const savedRate = await storage.getPlatformSetting("exchange_rate");
+        const exchangeRate = savedRate ? parseInt(savedRate) : 16500;
+        const amountIDR = Math.round(amountUSD * exchangeRate);
+        
+        // Create billing transaction record
+        await storage.createBillingTransaction({
+          merchantId: merchant.id,
+          amount: amountIDR,
+          status: 'completed',
+          gatewayName: 'PayPal',
+          externalId: req.params.orderID,
+          paymentMethod: 'paypal',
+          planId: pendingOrder.planId,
+          billingInterval: pendingOrder.billingInterval,
+          amountUsd: amountUSD,
+          currency: 'USD',
+          description: `${plan.name} Subscription - ${pendingOrder.billingInterval === 'annual' ? 'Annual' : 'Monthly'}`,
+        });
+        
+        // Update merchant subscription
+        await storage.updateMerchantSubscription(merchant.id, {
+          subscriptionPlanId: pendingOrder.planId,
+          subscriptionStatus: 'active',
+          subscriptionInterval: pendingOrder.billingInterval,
+          subscriptionCurrentPeriodEnd: periodEnd,
+          subscriptionCancelAtPeriodEnd: false,
+          pendingTransactionId: null,
+          scheduledPlanId: null,
+          scheduledPlanActivationDate: null,
+        });
+        
+        // Clear pending order from session
+        delete req.session.pendingPaypalOrder;
+        
+        console.log(`PayPal payment completed for merchant ${merchant.id}: Plan ${pendingOrder.planId}, Amount: $${amountUSD}`);
+        
+        return res.json({
+          ...captureResponse,
+          subscriptionActivated: true,
+          planId: pendingOrder.planId,
+          planName: plan.name,
+          periodEnd: periodEnd.toISOString(),
+        });
+      }
+      
+      return res.json(captureResponse);
+    } catch (error: any) {
+      console.error("PayPal capture error:", error);
+      res.status(500).json({ error: error.message || "Failed to capture PayPal order" });
     }
   });
 

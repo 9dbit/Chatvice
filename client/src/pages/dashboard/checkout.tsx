@@ -34,9 +34,10 @@ import {
   ExternalLink,
   Share2
 } from "lucide-react";
-import { SiWhatsapp, SiTelegram, SiMessenger } from "react-icons/si";
+import { SiWhatsapp, SiTelegram, SiMessenger, SiPaypal } from "react-icons/si";
+import PayPalButton from "@/components/PayPalButton";
 
-type PaymentMethod = 'qris' | 'bank_transfer' | 'virtual_account' | 'ewallet' | 'payment_link' | 'credit_card' | 'crypto';
+type PaymentMethod = 'qris' | 'bank_transfer' | 'virtual_account' | 'ewallet' | 'payment_link' | 'credit_card' | 'crypto' | 'paypal';
 
 interface ExchangeRateData {
   rate: number;
@@ -160,6 +161,7 @@ const PAYMENT_METHODS: PaymentMethodOption[] = [
   { id: 'qris', name: 'QRIS', description: 'All e-wallets & mobile banking', icon: QrCode, available: true, provider: 'Kompas Pay' },
   { id: 'virtual_account', name: 'Virtual Account', description: 'Automatic verification', icon: CreditCard, available: true, provider: 'Kompas Pay' },
   { id: 'bank_transfer', name: 'Bank Transfer', description: 'Transfer to merchant account', icon: Building2, available: true, provider: 'Kompas Pay' },
+  { id: 'paypal', name: 'PayPal', description: 'Pay with PayPal account or credit card', icon: () => <SiPaypal className="w-5 h-5" />, available: true, provider: 'PayPal' },
   { id: 'ewallet', name: 'E-Wallet', description: 'Use QRIS for e-wallets', icon: Wallet, available: false, provider: 'Kompas Pay' },
   { id: 'payment_link', name: 'Payment Link', description: 'Share checkout link to others', icon: Link2, available: true, provider: 'Share' },
   { id: 'credit_card', name: 'Credit Card', description: 'Coming soon via PayPal', icon: CreditCard, available: false, provider: 'PayPal' },
@@ -994,7 +996,7 @@ export default function CheckoutPage() {
               <Button 
                 className="w-full h-11 min-h-[44px]"
                 onClick={handleProceedToPayment}
-                disabled={!termsAccepted || checkoutMutation.isPending || (needsBankSelection && !selectedBank) || selectedPaymentMethod === 'payment_link'}
+                disabled={!termsAccepted || checkoutMutation.isPending || (needsBankSelection && !selectedBank) || selectedPaymentMethod === 'payment_link' || selectedPaymentMethod === 'paypal'}
                 data-testid="button-proceed-payment"
               >
                 {checkoutMutation.isPending ? (
@@ -1003,7 +1005,7 @@ export default function CheckoutPage() {
                   <ArrowRight className="w-4 h-4 mr-2" />
                 )}
                 <span className="text-sm">
-                  {selectedPaymentMethod === 'payment_link' ? 'Use share buttons on the right' : `Subscribe • Rp ${finalPrice.toLocaleString('id-ID')}`}
+                  {selectedPaymentMethod === 'payment_link' ? 'Use share buttons on the right' : selectedPaymentMethod === 'paypal' ? 'Use PayPal button on the right' : `Subscribe • Rp ${finalPrice.toLocaleString('id-ID')}`}
                 </span>
               </Button>
             </div>
@@ -1155,6 +1157,66 @@ export default function CheckoutPage() {
                           </motion.div>
                         )}
                       </AnimatePresence>
+
+                      {/* PayPal payment panel */}
+                      <AnimatePresence>
+                        {selectedPaymentMethod === method.id && method.id === 'paypal' && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2, ease: 'easeOut' }}
+                            className="overflow-hidden"
+                          >
+                            <div className="pt-3 space-y-3">
+                              <div className="p-2 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                                <p className="text-[10px] text-blue-700 dark:text-blue-300">
+                                  Pay securely with your PayPal account or credit/debit card. Amount: ${(finalPrice / exchangeRate).toFixed(2)} USD
+                                </p>
+                              </div>
+
+                              {termsAccepted ? (
+                                <div className="flex justify-center">
+                                  <PayPalButton 
+                                    amount={(finalPrice / exchangeRate).toFixed(2)}
+                                    currency="USD"
+                                    intent="CAPTURE"
+                                    planId={planId || ''}
+                                    billingInterval={billingInterval}
+                                    onSuccess={(data) => {
+                                      console.log("PayPal payment success:", data);
+                                      if (data.subscriptionActivated) {
+                                        toast({ title: "Payment successful!", description: `Your ${data.planName} subscription has been activated.` });
+                                      } else {
+                                        toast({ title: "Payment received!", description: "Your subscription is being processed." });
+                                      }
+                                      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+                                      navigate('/dashboard/billing');
+                                    }}
+                                    onError={(error) => {
+                                      console.error("PayPal payment error:", error);
+                                      toast({ title: "Payment failed", description: "Please try again or use another payment method.", variant: "destructive" });
+                                    }}
+                                    onCancel={() => {
+                                      toast({ title: "Payment cancelled", description: "You can try again when ready." });
+                                    }}
+                                  />
+                                </div>
+                              ) : (
+                                <div className="p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                                  <p className="text-[10px] text-amber-700 dark:text-amber-300 text-center">
+                                    Please accept the Terms of Service above to enable PayPal payment
+                                  </p>
+                                </div>
+                              )}
+
+                              <p className="text-[9px] text-center text-muted-foreground">
+                                You'll be redirected to PayPal to complete payment
+                              </p>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   ))}
                   
@@ -1221,7 +1283,7 @@ export default function CheckoutPage() {
             <Button 
               className="w-full h-11 min-h-[44px]"
               onClick={handleProceedToPayment}
-              disabled={!termsAccepted || checkoutMutation.isPending || (needsBankSelection && !selectedBank) || selectedPaymentMethod === 'payment_link'}
+              disabled={!termsAccepted || checkoutMutation.isPending || (needsBankSelection && !selectedBank) || selectedPaymentMethod === 'payment_link' || selectedPaymentMethod === 'paypal'}
               data-testid="button-proceed-payment-mobile"
             >
               {checkoutMutation.isPending ? (
@@ -1230,7 +1292,7 @@ export default function CheckoutPage() {
                 <ArrowRight className="w-4 h-4 mr-2" />
               )}
               <span className="text-sm">
-                {selectedPaymentMethod === 'payment_link' ? 'Use share buttons above' : `Subscribe • Rp ${finalPrice.toLocaleString('id-ID')}`}
+                {selectedPaymentMethod === 'payment_link' ? 'Use share buttons above' : selectedPaymentMethod === 'paypal' ? 'Use PayPal button above' : `Subscribe • Rp ${finalPrice.toLocaleString('id-ID')}`}
               </span>
             </Button>
           </div>
