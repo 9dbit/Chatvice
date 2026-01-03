@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { QRCodeSVG } from "qrcode.react";
 import html2canvas from "html2canvas";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -62,6 +62,7 @@ interface BillingHistory {
 export default function BillingDetailsPage() {
   const merchantId = localStorage.getItem("merchantId") || "";
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [pendingPaymentTimeRemaining, setPendingPaymentTimeRemaining] = useState<number>(0);
   const pendingPaymentCountdownRef = useRef<NodeJS.Timeout | null>(null);
   const [showOrderDetailsDialog, setShowOrderDetailsDialog] = useState(false);
@@ -435,6 +436,17 @@ export default function BillingDetailsPage() {
                 View Details
               </Button>
               <Button
+                variant="default"
+                className="flex-1"
+                onClick={() => navigate(`/dashboard/checkout?resume=${pendingPaymentDetails.transactionId}`)}
+                data-testid="button-view-checkout-payment"
+              >
+                <Receipt className="w-4 h-4 mr-2" />
+                View Checkout
+              </Button>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
                 variant="outline"
                 className="flex-1"
                 onClick={() => cancelPendingPaymentMutation.mutate()}
@@ -449,7 +461,7 @@ export default function BillingDetailsPage() {
                 Cancel Payment
               </Button>
               <Button
-                variant="default"
+                variant="outline"
                 className="flex-1"
                 onClick={() => refetchPendingPayment()}
                 data-testid="button-refresh-payment-status"

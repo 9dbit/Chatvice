@@ -559,111 +559,150 @@ export default function CheckoutPage() {
       if (svgElement && qrisData.qrisString) {
         const svgData = new XMLSerializer().serializeToString(svgElement);
         
-        // Create beautiful frosted glass card design
+        // Create clean light mode invoice design matching checkout UI
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
         
         // Card dimensions (mobile-friendly portrait)
         const cardWidth = 420;
-        const cardHeight = 680;
+        const cardHeight = 720;
         canvas.width = cardWidth;
         canvas.height = cardHeight;
         
-        // Draw gradient background (purple aurora)
-        const bgGradient = ctx.createLinearGradient(0, 0, cardWidth, cardHeight);
-        bgGradient.addColorStop(0, '#1a0a2e');
-        bgGradient.addColorStop(0.3, '#2d1b4e');
-        bgGradient.addColorStop(0.5, '#4a2c7a');
-        bgGradient.addColorStop(0.7, '#6b3fa0');
-        bgGradient.addColorStop(1, '#2d1b4e');
-        ctx.fillStyle = bgGradient;
+        // Draw light gray background
+        ctx.fillStyle = '#f4f4f5';
         ctx.fillRect(0, 0, cardWidth, cardHeight);
         
-        // Add aurora glow effect
-        const glowGradient = ctx.createRadialGradient(cardWidth * 0.7, cardHeight * 0.3, 0, cardWidth * 0.7, cardHeight * 0.3, 200);
-        glowGradient.addColorStop(0, 'rgba(168, 85, 247, 0.4)');
-        glowGradient.addColorStop(0.5, 'rgba(139, 92, 246, 0.2)');
-        glowGradient.addColorStop(1, 'rgba(139, 92, 246, 0)');
-        ctx.fillStyle = glowGradient;
-        ctx.fillRect(0, 0, cardWidth, cardHeight);
+        // Main white card with rounded corners
+        const cardX = 20;
+        const cardY = 20;
+        const cardInnerWidth = cardWidth - 40;
+        const cardInnerHeight = cardHeight - 40;
+        const borderRadius = 16;
         
-        // Frosted glass card
-        const cardX = 30;
-        const cardY = 40;
-        const cardInnerWidth = cardWidth - 60;
-        const cardInnerHeight = cardHeight - 80;
-        const borderRadius = 24;
-        
-        // Draw frosted glass background
+        // Draw white card background
         ctx.save();
         ctx.beginPath();
         ctx.roundRect(cardX, cardY, cardInnerWidth, cardInnerHeight, borderRadius);
-        ctx.clip();
-        
-        // Glass effect with gradient
-        const glassGradient = ctx.createLinearGradient(cardX, cardY, cardX, cardY + cardInnerHeight);
-        glassGradient.addColorStop(0, 'rgba(255, 255, 255, 0.15)');
-        glassGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.08)');
-        glassGradient.addColorStop(1, 'rgba(255, 255, 255, 0.12)');
-        ctx.fillStyle = glassGradient;
+        ctx.fillStyle = '#ffffff';
         ctx.fill();
-        ctx.restore();
-        
-        // Glass border
-        ctx.beginPath();
-        ctx.roundRect(cardX, cardY, cardInnerWidth, cardInnerHeight, borderRadius);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.strokeStyle = '#e4e4e7';
         ctx.lineWidth = 1;
         ctx.stroke();
+        ctx.restore();
         
-        // Load and draw logos
-        const loadImage = (src: string): Promise<HTMLImageElement> => {
-          return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.onload = () => resolve(img);
-            img.onerror = reject;
-            img.src = src;
-          });
-        };
+        // Header section with border-bottom
+        const headerHeight = 70;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(cardX, cardY, cardInnerWidth, headerHeight);
+        ctx.strokeStyle = '#d1d5db';
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(cardX + 20, cardY + headerHeight);
+        ctx.lineTo(cardX + cardInnerWidth - 20, cardY + headerHeight);
+        ctx.stroke();
+        ctx.setLineDash([]);
         
-        // Draw GPN logo (top left of card)
-        try {
-          const gpnLogo = await loadImage('/attached_assets/IMG_1410_1767435254419.png');
-          ctx.drawImage(gpnLogo, cardX + 20, cardY + 20, 60, 50);
-        } catch (e) {
-          console.log('GPN logo not loaded');
-        }
+        // Draw Chatvice Logo (icon + text)
+        const logoX = cardX + 20;
+        const logoY = cardY + 20;
         
-        // Draw Chatvice logo (top right of card)
-        try {
-          const chatviceLogo = await loadImage('/attached_assets/Chatvice-04_1767435390364.png');
-          ctx.drawImage(chatviceLogo, cardX + cardInnerWidth - 140, cardY + 25, 120, 40);
-        } catch (e) {
-          console.log('Chatvice logo not loaded');
-        }
+        // Logo icon background (primary color - orange)
+        ctx.fillStyle = '#f97316';
+        ctx.beginPath();
+        ctx.roundRect(logoX, logoY, 32, 32, 8);
+        ctx.fill();
         
-        // "Trusted QRIS Payment" title
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        ctx.font = 'bold 22px system-ui, -apple-system, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('Trusted QRIS Payment', cardWidth / 2, cardY + 110);
-        
-        // Subtitle
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-        ctx.font = '14px system-ui, -apple-system, sans-serif';
-        ctx.fillText('Scan with any e-wallet or mobile banking', cardWidth / 2, cardY + 135);
-        
-        // White QR code container
-        const qrSize = 200;
-        const qrX = (cardWidth - qrSize - 24) / 2;
-        const qrY = cardY + 160;
-        
+        // Chat icon in logo (simplified)
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.roundRect(qrX, qrY, qrSize + 24, qrSize + 24, 16);
+        ctx.roundRect(logoX + 6, logoY + 8, 20, 14, 3);
         ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(logoX + 10, logoY + 22);
+        ctx.lineTo(logoX + 14, logoY + 26);
+        ctx.lineTo(logoX + 18, logoY + 22);
+        ctx.fill();
+        
+        // Three dots in chat
+        ctx.fillStyle = '#f97316';
+        for (let i = 0; i < 3; i++) {
+          ctx.beginPath();
+          ctx.arc(logoX + 11 + (i * 5), logoY + 15, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        
+        // Chatvice text
+        ctx.fillStyle = '#18181b';
+        ctx.font = 'bold 14px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('Chatvice', logoX + 40, logoY + 16);
+        
+        ctx.fillStyle = '#71717a';
+        ctx.font = '10px system-ui, -apple-system, sans-serif';
+        ctx.fillText('Subscription Payment', logoX + 40, logoY + 30);
+        
+        // GPN QRIS Badge (right side)
+        const badgeX = cardX + cardInnerWidth - 90;
+        const badgeY = logoY + 4;
+        
+        // Badge background
+        ctx.fillStyle = '#fef2f2';
+        ctx.strokeStyle = '#fecaca';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(badgeX, badgeY, 70, 24, 4);
+        ctx.fill();
+        ctx.stroke();
+        
+        // GPN icon (red square with G)
+        ctx.fillStyle = '#dc2626';
+        ctx.beginPath();
+        ctx.roundRect(badgeX + 6, badgeY + 4, 16, 16, 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 10px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('G', badgeX + 14, badgeY + 15);
+        
+        // GPN text
+        ctx.fillStyle = '#dc2626';
+        ctx.font = 'bold 9px system-ui';
+        ctx.textAlign = 'left';
+        ctx.fillText('GPN', badgeX + 26, badgeY + 14);
+        
+        // QRIS text
+        ctx.fillStyle = '#dc2626';
+        ctx.font = 'bold 9px system-ui';
+        ctx.fillText('QRIS', badgeX + 46, badgeY + 14);
+        
+        // Main content area
+        const contentY = cardY + headerHeight + 30;
+        
+        // Scan to Pay title
+        ctx.fillStyle = '#374151';
+        ctx.font = 'bold 12px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('SCAN TO PAY', cardWidth / 2, contentY);
+        
+        ctx.fillStyle = '#9ca3af';
+        ctx.font = '11px system-ui, -apple-system, sans-serif';
+        ctx.fillText('Gunakan e-wallet atau mobile banking', cardWidth / 2, contentY + 18);
+        
+        // QR Code container
+        const qrSize = 200;
+        const qrX = (cardWidth - qrSize - 24) / 2;
+        const qrY = contentY + 35;
+        
+        // White QR background with border
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(qrX, qrY, qrSize + 24, qrSize + 24, 12);
+        ctx.fill();
+        ctx.stroke();
         
         // Draw QR code
         const qrImg = new Image();
@@ -676,33 +715,68 @@ export default function CheckoutPage() {
           qrImg.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
         });
         
-        // Amount section
-        const amountY = qrY + qrSize + 50;
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.font = '12px system-ui, -apple-system, sans-serif';
+        // Supported apps text
+        const appsY = qrY + qrSize + 45;
+        ctx.fillStyle = '#9ca3af';
+        ctx.font = '10px system-ui, -apple-system, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('TOTAL AMOUNT', cardWidth / 2, amountY);
+        ctx.fillText('GoPay \u2022 OVO \u2022 DANA \u2022 ShopeePay \u2022 LinkAja', cardWidth / 2, appsY);
+        ctx.fillText('BCA \u2022 Mandiri \u2022 BRI \u2022 BNI \u2022 CIMB', cardWidth / 2, appsY + 14);
         
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 32px system-ui, -apple-system, sans-serif';
-        ctx.fillText(`Rp ${(qrisData.amount || 0).toLocaleString('id-ID')}`, cardWidth / 2, amountY + 38);
+        // Order Details section with orange left border
+        const detailsY = appsY + 40;
+        const detailsX = cardX + 30;
         
-        // Plan info
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        ctx.font = '14px system-ui, -apple-system, sans-serif';
-        ctx.fillText(`${qrisData.planName} Plan - ${qrisData.billingInterval === 'annual' ? 'Annual' : 'Monthly'}`, cardWidth / 2, amountY + 65);
+        // Orange left border
+        ctx.fillStyle = '#f97316';
+        ctx.fillRect(detailsX, detailsY, 4, 80);
         
-        // Order ID
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-        ctx.font = '11px monospace';
-        const shortOrderId = qrisData.orderId.length > 30 ? '...' + qrisData.orderId.slice(-25) : qrisData.orderId;
-        ctx.fillText(shortOrderId, cardWidth / 2, amountY + 95);
+        // ORDER DETAILS title
+        ctx.fillStyle = '#18181b';
+        ctx.font = 'bold 11px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('ORDER DETAILS', detailsX + 14, detailsY + 14);
         
-        // Supported apps
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        // Details rows
         ctx.font = '11px system-ui, -apple-system, sans-serif';
-        ctx.fillText('GoPay \u2022 OVO \u2022 DANA \u2022 ShopeePay \u2022 LinkAja', cardWidth / 2, cardHeight - 55);
-        ctx.fillText('BCA \u2022 Mandiri \u2022 BRI \u2022 BNI \u2022 CIMB', cardWidth / 2, cardHeight - 38);
+        ctx.fillStyle = '#6b7280';
+        ctx.fillText('Product', detailsX + 14, detailsY + 34);
+        ctx.fillStyle = '#18181b';
+        ctx.font = '11px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(`${qrisData.planName} Plan`, cardX + cardInnerWidth - 30, detailsY + 34);
+        
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#6b7280';
+        ctx.fillText('Period', detailsX + 14, detailsY + 52);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#18181b';
+        ctx.fillText(qrisData.billingInterval === 'annual' ? 'Annual' : 'Monthly', cardX + cardInnerWidth - 30, detailsY + 52);
+        
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#6b7280';
+        ctx.fillText('Order ID', detailsX + 14, detailsY + 70);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#18181b';
+        ctx.font = '9px monospace';
+        const shortOrderId = qrisData.orderId.length > 24 ? qrisData.orderId.slice(-24) : qrisData.orderId;
+        ctx.fillText(shortOrderId, cardX + cardInnerWidth - 30, detailsY + 70);
+        
+        // Total section at bottom
+        const totalY = detailsY + 100;
+        ctx.fillStyle = '#f4f4f5';
+        ctx.beginPath();
+        ctx.roundRect(cardX + 20, totalY, cardInnerWidth - 40, 50, 8);
+        ctx.fill();
+        
+        ctx.fillStyle = '#6b7280';
+        ctx.font = '10px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('TOTAL PEMBAYARAN', cardWidth / 2, totalY + 18);
+        
+        ctx.fillStyle = '#f97316';
+        ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
+        ctx.fillText(`Rp ${(qrisData.amount || 0).toLocaleString('id-ID')}`, cardWidth / 2, totalY + 40);
         
         // Save as JPG
         canvas.toBlob((jpgBlob) => {
@@ -710,15 +784,15 @@ export default function CheckoutPage() {
             const url = URL.createObjectURL(jpgBlob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `qris-chatvice-${qrisData.orderId.slice(-12)}.jpg`;
+            link.download = `Invoice-Chatvice-${qrisData.orderId.slice(-12)}.jpg`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
             
             toast({
-              title: "QRIS Saved!",
-              description: "Beautiful QRIS card saved to your device",
+              title: "Invoice Saved!",
+              description: "Invoice has been saved to your device",
             });
           }
         }, 'image/jpeg', 0.95);
@@ -733,7 +807,7 @@ export default function CheckoutPage() {
       console.error("Failed to save QRIS:", err);
       toast({
         title: "Error",
-        description: "Failed to save QRIS image",
+        description: "Failed to save invoice",
         variant: "destructive",
       });
     }
