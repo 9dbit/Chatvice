@@ -3554,6 +3554,72 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // Get detailed pending payment info for billing page display
+  app.get("/api/billing/pending-payment-details", requireMerchant, async (req, res) => {
+    try {
+      const merchant = await storage.getMerchant(req.session.merchantId!);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      if (!merchant.pendingTransactionId) {
+        return res.json({ hasPendingPayment: false });
+      }
+      
+      // Get local transaction data with all payment details
+      const localTransaction = await storage.getPaymentTransactionByExternalId(merchant.pendingTransactionId);
+      
+      if (!localTransaction) {
+        // Clear stale pending transaction
+        await storage.updateMerchantSubscription(merchant.id, {
+          pendingTransactionId: null,
+        });
+        return res.json({ hasPendingPayment: false });
+      }
+      
+      // Check if expired
+      if (localTransaction.expiresAt && new Date(localTransaction.expiresAt) < new Date()) {
+        // Clear expired pending transaction
+        await storage.updateMerchantSubscription(merchant.id, {
+          pendingTransactionId: null,
+        });
+        await storage.updatePaymentTransaction(localTransaction.id, { status: 'expired' });
+        return res.json({ hasPendingPayment: false });
+      }
+      
+      // Extract payment details from gatewayResponse
+      const gatewayResponse = localTransaction.gatewayResponse as Record<string, any> || {};
+      
+      res.json({
+        hasPendingPayment: true,
+        transactionId: merchant.pendingTransactionId,
+        orderId: localTransaction.invoiceNumber || gatewayResponse.orderId,
+        status: localTransaction.status || 'pending',
+        amount: localTransaction.amount,
+        amountFormatted: `Rp ${(localTransaction.amount || 0).toLocaleString('id-ID')}`,
+        paymentMethod: localTransaction.paymentMethod || 'qris',
+        planId: localTransaction.planId,
+        planName: localTransaction.planName,
+        billingInterval: localTransaction.subscriptionMonths === 12 ? 'annual' : 'monthly',
+        expiryTime: localTransaction.expiresAt?.toISOString(),
+        createdAt: localTransaction.createdAt?.toISOString(),
+        // QRIS specific
+        qrisString: gatewayResponse.qrisString || gatewayResponse.qris_string,
+        qrisUrl: localTransaction.qrisUrl,
+        // VA specific
+        vaNumber: gatewayResponse.vaNumber || gatewayResponse.va_number,
+        bankCode: gatewayResponse.bankCode || gatewayResponse.bank_code,
+        // Bank transfer specific
+        accountNumber: gatewayResponse.accountNumber,
+        accountName: gatewayResponse.accountName,
+        uniqueCode: gatewayResponse.uniqueCode,
+      });
+    } catch (error: any) {
+      console.error("Error fetching pending payment details:", error);
+      res.status(500).json({ error: error.message || "Failed to get pending payment details" });
+    }
+  });
+
   app.get("/api/billing/proration", requireMerchant, async (req, res) => {
     try {
       const { planId, billingInterval } = req.query;

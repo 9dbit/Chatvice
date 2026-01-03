@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Link } from "wouter";
+import { QRCodeSVG } from "qrcode.react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,8 +14,30 @@ import { Badge } from "@/components/ui/badge";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { Receipt, Mail, Building2, CreditCard, History, FileText, Calendar, Zap, ArrowRight } from "lucide-react";
+import { Receipt, Mail, Building2, CreditCard, History, FileText, Calendar, Zap, ArrowRight, Timer, Clock, Copy, XCircle, RefreshCw, Loader2 } from "lucide-react";
 import type { Merchant } from "@shared/schema";
+
+interface PendingPaymentDetails {
+  hasPendingPayment: boolean;
+  transactionId?: string;
+  orderId?: string;
+  status?: string;
+  amount?: number;
+  amountFormatted?: string;
+  paymentMethod?: string;
+  planId?: string;
+  planName?: string;
+  billingInterval?: string;
+  expiryTime?: string;
+  createdAt?: string;
+  qrisString?: string;
+  qrisUrl?: string;
+  vaNumber?: string;
+  bankCode?: string;
+  accountNumber?: string;
+  accountName?: string;
+  uniqueCode?: string;
+}
 
 const billingDetailsSchema = z.object({
   billingEmail: z.string().email("Please enter a valid email"),
@@ -35,6 +58,8 @@ interface BillingHistory {
 export default function BillingDetailsPage() {
   const merchantId = localStorage.getItem("merchantId") || "";
   const { toast } = useToast();
+  const [pendingPaymentTimeRemaining, setPendingPaymentTimeRemaining] = useState<number>(0);
+  const pendingPaymentCountdownRef = useRef<NodeJS.Timeout | null>(null);
 
   const { data: merchant, isLoading } = useQuery<Merchant>({
     queryKey: ["/api/merchant", merchantId],
@@ -50,6 +75,88 @@ export default function BillingDetailsPage() {
     queryKey: ["/api/billing/status"],
     enabled: !!merchantId,
   });
+
+  // Fetch detailed pending payment info
+  const { data: pendingPaymentDetails, refetch: refetchPendingPayment, isLoading: isPendingPaymentLoading } = useQuery<PendingPaymentDetails>({
+    queryKey: ["/api/billing/pending-payment-details"],
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+  });
+
+  // Pending payment countdown timer
+  useEffect(() => {
+    if (pendingPaymentDetails?.hasPendingPayment && pendingPaymentDetails.expiryTime) {
+      const calculateRemaining = () => {
+        const expiryTime = new Date(pendingPaymentDetails.expiryTime!).getTime();
+        const now = Date.now();
+        return Math.max(0, Math.floor((expiryTime - now) / 1000));
+      };
+      
+      setPendingPaymentTimeRemaining(calculateRemaining());
+      
+      pendingPaymentCountdownRef.current = setInterval(() => {
+        const remaining = calculateRemaining();
+        setPendingPaymentTimeRemaining(remaining);
+        
+        if (remaining <= 0) {
+          if (pendingPaymentCountdownRef.current) {
+            clearInterval(pendingPaymentCountdownRef.current);
+          }
+          refetchPendingPayment();
+        }
+      }, 1000);
+      
+      return () => {
+        if (pendingPaymentCountdownRef.current) {
+          clearInterval(pendingPaymentCountdownRef.current);
+        }
+      };
+    }
+  }, [pendingPaymentDetails?.hasPendingPayment, pendingPaymentDetails?.expiryTime, refetchPendingPayment]);
+
+  // Cancel pending payment mutation
+  const cancelPendingPaymentMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/billing/cancel-pending", {});
+    },
+    onSuccess: () => {
+      toast({
+        title: "Payment Cancelled",
+        description: "Your pending payment has been cancelled.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/billing/pending-payment-details"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to cancel payment. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Format countdown
+  const formatPendingCountdown = () => {
+    const hours = Math.floor(pendingPaymentTimeRemaining / 3600);
+    const minutes = Math.floor((pendingPaymentTimeRemaining % 3600) / 60);
+    const seconds = pendingPaymentTimeRemaining % 60;
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  // Get bank name from code
+  const getBankName = (bankCode: string) => {
+    const banks: Record<string, string> = {
+      '002': 'BRI', '008': 'Mandiri', '009': 'BNI', '014': 'BCA',
+      '022': 'CIMB Niaga', '013': 'Permata', '011': 'Danamon',
+      '016': 'Maybank', '490': 'BNC', '451': 'BSI',
+    };
+    return banks[bankCode] || bankCode;
+  };
 
   const form = useForm<BillingDetailsData>({
     resolver: zodResolver(billingDetailsSchema),
@@ -116,37 +223,186 @@ export default function BillingDetailsPage() {
         </p>
       </div>
 
-      {/* Checkout Action Button */}
-      <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-primary/20">
-        <CardContent className="py-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Zap className="w-5 h-5 text-primary" />
+      {/* Awaiting Payment Section */}
+      {isPendingPaymentLoading ? (
+        <Skeleton className="h-48 w-full" />
+      ) : pendingPaymentDetails?.hasPendingPayment ? (
+        <Card className="border-amber-500/50 bg-amber-500/5" data-testid="card-pending-transaction">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Timer className="w-5 h-5 text-amber-500" />
+                <CardTitle className="text-lg">Awaiting Payment</CardTitle>
               </div>
-              <div>
-                <p className="font-medium">
-                  Manage your payments and subscriptions
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  View transaction status or upgrade plan
-                </p>
+              <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                {pendingPaymentDetails.planName} - {pendingPaymentDetails.billingInterval === 'yearly' ? 'Yearly' : 'Monthly'}
+              </Badge>
+            </div>
+            <CardDescription>
+              Complete your payment before it expires
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Order Info Row */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-muted/50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Order ID:</span>
+                <code className="text-sm font-mono">{pendingPaymentDetails.orderId}</code>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6"
+                  onClick={() => {
+                    navigator.clipboard.writeText(pendingPaymentDetails.orderId || '');
+                    toast({ title: "Copied!", description: "Order ID copied to clipboard" });
+                  }}
+                  data-testid="button-copy-order-id"
+                >
+                  <Copy className="w-3 h-3" />
+                </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-amber-500" />
+                <span className="text-sm font-medium text-amber-600 dark:text-amber-400">
+                  Expires in {formatPendingCountdown()}
+                </span>
               </div>
             </div>
-            <Button 
-              size="default"
-              className="shrink-0 min-w-[180px]"
-              asChild
-              data-testid="button-checkout"
-            >
-              <Link href="/dashboard/checkout?from=billing">
-                <ArrowRight className="w-4 h-4 mr-2" />
-                Check your transaction
-              </Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+
+            {/* Amount */}
+            <div className="text-center py-2">
+              <p className="text-sm text-muted-foreground">Amount to Pay</p>
+              <p className="text-2xl font-bold text-primary">{pendingPaymentDetails.amountFormatted}</p>
+            </div>
+
+            {/* Payment Method Specific Content */}
+            {pendingPaymentDetails.paymentMethod === 'qris' && pendingPaymentDetails.qrisString && (
+              <div className="flex flex-col items-center gap-4 p-4 bg-white dark:bg-gray-900 rounded-lg border">
+                <p className="text-sm font-medium">Scan QR Code with any QRIS-enabled app</p>
+                <div className="bg-white p-4 rounded-lg">
+                  <QRCodeSVG value={pendingPaymentDetails.qrisString} size={180} level="M" />
+                </div>
+              </div>
+            )}
+
+            {pendingPaymentDetails.paymentMethod === 'virtual_account' && pendingPaymentDetails.vaNumber && (
+              <div className="flex flex-col items-center gap-4 p-4 bg-muted/30 rounded-lg border">
+                <p className="text-sm font-medium">Transfer to Virtual Account</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Bank:</span>
+                  <span className="font-medium">{getBankName(pendingPaymentDetails.bankCode || '')}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <code className="text-lg font-mono font-bold">{pendingPaymentDetails.vaNumber}</code>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    onClick={() => {
+                      navigator.clipboard.writeText(pendingPaymentDetails.vaNumber || '');
+                      toast({ title: "Copied!", description: "VA number copied to clipboard" });
+                    }}
+                    data-testid="button-copy-va-number"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {pendingPaymentDetails.paymentMethod === 'bank_transfer' && pendingPaymentDetails.accountNumber && (
+              <div className="flex flex-col items-center gap-4 p-4 bg-muted/30 rounded-lg border">
+                <p className="text-sm font-medium">Transfer to Bank Account</p>
+                <div className="grid grid-cols-2 gap-4 text-sm w-full max-w-sm">
+                  <div className="text-muted-foreground">Bank:</div>
+                  <div className="font-medium">Bank Danamon</div>
+                  <div className="text-muted-foreground">Account:</div>
+                  <div className="flex items-center gap-2">
+                    <code className="font-mono">{pendingPaymentDetails.accountNumber}</code>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6"
+                      onClick={() => {
+                        navigator.clipboard.writeText(pendingPaymentDetails.accountNumber || '');
+                        toast({ title: "Copied!", description: "Account number copied to clipboard" });
+                      }}
+                    >
+                      <Copy className="w-3 h-3" />
+                    </Button>
+                  </div>
+                  <div className="text-muted-foreground">Name:</div>
+                  <div className="font-medium">{pendingPaymentDetails.accountName}</div>
+                  {pendingPaymentDetails.uniqueCode && (
+                    <>
+                      <div className="text-muted-foreground">Unique Code:</div>
+                      <div className="font-medium text-amber-600">+{pendingPaymentDetails.uniqueCode}</div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-2 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => cancelPendingPaymentMutation.mutate()}
+                disabled={cancelPendingPaymentMutation.isPending}
+                data-testid="button-cancel-pending-payment"
+              >
+                {cancelPendingPaymentMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <XCircle className="w-4 h-4 mr-2" />
+                )}
+                Cancel Payment
+              </Button>
+              <Button
+                variant="default"
+                className="flex-1"
+                onClick={() => refetchPendingPayment()}
+                data-testid="button-refresh-payment-status"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Check Status
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-primary/20">
+          <CardContent className="py-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Zap className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-medium">
+                    Manage your payments and subscriptions
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    View transaction status or upgrade plan
+                  </p>
+                </div>
+              </div>
+              <Button 
+                size="default"
+                className="shrink-0 min-w-[180px]"
+                asChild
+                data-testid="button-checkout"
+              >
+                <Link href="/dashboard/checkout?from=billing">
+                  <ArrowRight className="w-4 h-4 mr-2" />
+                  View Subscription Plans
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
