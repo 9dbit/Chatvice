@@ -30,7 +30,8 @@ import {
   Link2,
   QrCode,
   Copy,
-  Bitcoin
+  Bitcoin,
+  ExternalLink
 } from "lucide-react";
 
 type PaymentMethod = 'qris' | 'bank_transfer' | 'virtual_account' | 'ewallet' | 'payment_link' | 'credit_card' | 'crypto';
@@ -138,7 +139,20 @@ interface ActivePromotion {
   targetPlans: string[];
 }
 
-type PaymentStep = 'select_method' | 'bank_form' | 'loading' | 'qris' | 'va' | 'bank_transfer' | 'success' | 'failed' | 'expired';
+type PaymentStep = 'select_method' | 'bank_form' | 'loading' | 'qris' | 'va' | 'bank_transfer' | 'payment_link' | 'success' | 'failed' | 'expired';
+
+interface PaymentLinkResponse {
+  paymentMethod: 'payment_link';
+  transactionId: string;
+  orderId: string;
+  paymentUrl: string;
+  amount: number;
+  amountUSD: number;
+  expiryTime: string;
+  planId: string;
+  planName: string;
+  billingInterval: string;
+}
 
 const PAYMENT_METHODS: PaymentMethodOption[] = [
   { id: 'qris', name: 'QRIS', description: 'All e-wallets & mobile banking', icon: QrCode, available: true, provider: 'Kompas Pay' },
@@ -201,6 +215,7 @@ export default function CheckoutPage() {
   const [qrisData, setQrisData] = useState<QRISPaymentResponse | null>(null);
   const [vaData, setVaData] = useState<VAPaymentResponse | null>(null);
   const [bankTransferData, setBankTransferData] = useState<BankTransferResponse | null>(null);
+  const [paymentLinkData, setPaymentLinkData] = useState<PaymentLinkResponse | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [prorationInfo, setProrationInfo] = useState<ProrationInfo | null>(null);
   
@@ -410,7 +425,11 @@ export default function CheckoutPage() {
         setBankTransferData(data);
         setPaymentStep('bank_transfer');
         startPaymentPolling(data.transactionId, data.expiryTime);
-      } else if (data.paymentMethod === 'ewallet' || data.paymentMethod === 'payment_link') {
+      } else if (data.paymentMethod === 'payment_link') {
+        setPaymentLinkData(data);
+        setPaymentStep('payment_link');
+        startPaymentPolling(data.transactionId, data.expiryTime);
+      } else if (data.paymentMethod === 'ewallet') {
         if (data.redirectUrl || data.paymentUrl) {
           window.open(data.redirectUrl || data.paymentUrl, '_blank');
         }
@@ -497,6 +516,7 @@ export default function CheckoutPage() {
     setQrisData(null);
     setVaData(null);
     setBankTransferData(null);
+    setPaymentLinkData(null);
     setTimeRemaining(0);
   };
 
@@ -512,6 +532,7 @@ export default function CheckoutPage() {
         setQrisData(null);
         setVaData(null);
         setBankTransferData(null);
+        setPaymentLinkData(null);
         setTimeRemaining(0);
         if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
         if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
@@ -1412,6 +1433,71 @@ export default function CheckoutPage() {
               <div className="p-2 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
                 <p className="text-[10px] text-amber-700 dark:text-amber-300">
                   Please transfer the exact amount including unique code for automatic verification.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-center gap-1.5 text-amber-600 dark:text-amber-400">
+                <Clock className="w-3 h-3" />
+                <span className="font-mono text-xs font-medium">{formatTime(timeRemaining)}</span>
+              </div>
+
+              {import.meta.env.DEV && (
+                <Button variant="outline" size="sm" className="w-full h-7 text-[10px]" onClick={handleDemoPayment}>
+                  Demo Pay
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
+          <p className="text-center text-[9px] text-muted-foreground">
+            Waiting for payment... Status updates automatically
+          </p>
+        </div>
+      )}
+
+      {paymentStep === 'payment_link' && paymentLinkData && (
+        <div className="space-y-3">
+          <Card>
+            <CardContent className="pt-3 pb-3 space-y-2.5">
+              <div className="text-center">
+                <div className="w-9 h-9 mx-auto rounded-full bg-primary/10 flex items-center justify-center mb-2">
+                  <Link2 className="w-4 h-4 text-primary" />
+                </div>
+                <h3 className="text-xs font-semibold">Payment Link</h3>
+                <p className="text-[10px] text-muted-foreground">
+                  Click the button below to complete payment
+                </p>
+              </div>
+              
+              <div className="p-2.5 rounded-md bg-muted/50 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-muted-foreground">Plan</span>
+                  <span className="text-[11px] font-medium">{paymentLinkData.planName}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-muted-foreground">Billing</span>
+                  <span className="text-[11px] font-medium">{paymentLinkData.billingInterval === 'annual' ? 'Annual' : 'Monthly'}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-muted-foreground">Amount</span>
+                  <span className="text-sm font-bold text-primary">Rp {(paymentLinkData.amount || 0).toLocaleString('id-ID')}</span>
+                </div>
+              </div>
+
+              <Button 
+                className="w-full" 
+                size="sm"
+                onClick={() => window.open(paymentLinkData.paymentUrl, '_blank')}
+                data-testid="button-open-payment-link"
+              >
+                <ExternalLink className="w-3 h-3 mr-1.5" />
+                Open Payment Page
+              </Button>
+
+              <div className="p-2 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                <p className="text-[10px] text-blue-700 dark:text-blue-300">
+                  Complete your payment on the payment page. This page will update automatically once payment is confirmed.
                 </p>
               </div>
 

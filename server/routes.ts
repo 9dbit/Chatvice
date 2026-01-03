@@ -19,7 +19,7 @@ import path from "path";
 import fs from "fs";
 import { processKnowledgeBase, searchKnowledge } from "./embeddings";
 import { extractFAQContent } from "./crawler";
-import { createQRISPayment, createVAPayment, createBankTransferPayment, checkPaymentStatus, isKompasPayConfigured, convertToIDR, formatIDR } from "./kompasPayClient";
+import { createQRISPayment, createVAPayment, createBankTransferPayment, createPaymentLinkPayment, checkPaymentStatus, isKompasPayConfigured, convertToIDR, formatIDR } from "./kompasPayClient";
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats } from "@shared/schema";
 import crypto from "crypto";
@@ -4208,8 +4208,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           return res.status(503).json({ error: "E-Wallet payment coming soon. Please use QRIS for e-wallet payments." });
           
         case 'payment_link':
-          // Payment link requires Kompas Pay gateway integration  
-          return res.status(503).json({ error: "Payment Link coming soon. Please use QRIS or Virtual Account." });
+          // Payment Link endpoint not available on Kompas Pay - return user-friendly error
+          return res.status(503).json({ 
+            error: "Payment Link belum tersedia. Silakan gunakan QRIS atau Virtual Account." 
+          });
           
         case 'credit_card':
           // Credit card via PayPal not yet implemented

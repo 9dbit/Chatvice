@@ -193,6 +193,33 @@ export interface CreateBankTransferResponse {
   message?: string;
 }
 
+export interface CreatePaymentLinkRequest {
+  merchantId: string;
+  orderId: string;
+  amount: number;
+  customerName?: string;
+  customerEmail?: string;
+  description?: string;
+  expiryMinutes?: number;
+  callbackUrl?: string;
+  metadata?: Record<string, string>;
+}
+
+export interface CreatePaymentLinkResponse {
+  success: boolean;
+  gatewayName?: string;
+  data?: {
+    transactionId: string;
+    orderId: string;
+    paymentUrl: string;
+    amount: number;
+    expiryTime: string;
+    status: string;
+  };
+  error?: string;
+  message?: string;
+}
+
 export interface PaymentStatusResponse {
   success: boolean;
   data?: {
@@ -544,6 +571,137 @@ export async function createBankTransferPayment(request: CreateBankTransferReque
     };
   } catch (error: any) {
     console.error('Bank Transfer payment request error:', error);
+    return {
+      success: false,
+      error: error.message || 'Network error',
+    };
+  }
+}
+
+export async function createPaymentLinkPayment(request: CreatePaymentLinkRequest): Promise<CreatePaymentLinkResponse> {
+  try {
+    const { clientKey, clientSecret, gatewayName, apiBaseUrl } = await getGatewayCredentials();
+    const timestamp = generateTimestamp();
+    
+    const expiryMinutes = request.expiryMinutes || 1440;
+    const expiryDate = new Date(Date.now() + expiryMinutes * 60 * 1000);
+    const expiredStr = expiryDate.toISOString().replace('T', ' ').split('.')[0];
+    
+    const body = {
+      expired: expiredStr,
+      amount: request.amount,
+      customer_phone: '081200000000',
+      customer_email: request.customerEmail || 'customer@example.com',
+      customer_name: request.customerName || 'Customer',
+      remark: request.description || 'Subscription Payment',
+      url_callback: request.callbackUrl || '',
+      identifier_id: request.orderId,
+    };
+
+    const payload = JSON.stringify(body);
+    const requestTarget = '/partner/create/paymentlink';
+    const signature = generateSignatureWithCredentials(payload, timestamp, clientKey, clientSecret, requestTarget);
+
+    console.log('Creating Payment Link:', {
+      gatewayName,
+      url: `${apiBaseUrl}${requestTarget}`,
+      amount: request.amount,
+      orderId: request.orderId,
+      requestBody: body,
+    });
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    
+    let response: Response;
+    try {
+      response = await fetch(`${apiBaseUrl}${requestTarget}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Client-key': clientKey,
+          'Request-Timestamp': timestamp,
+          'Signature': signature,
+        },
+        body: payload,
+        signal: controller.signal,
+      });
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        console.error('Payment Link request timeout after 30 seconds');
+        return {
+          success: false,
+          gatewayName,
+          error: 'Request timeout - payment gateway tidak merespons dalam 30 detik',
+        };
+      }
+      console.error('Payment Link fetch error:', fetchError.message);
+      return {
+        success: false,
+        gatewayName,
+        error: `Connection error: ${fetchError.message}`,
+      };
+    }
+    clearTimeout(timeoutId);
+
+    const data = await response.json();
+    console.log(`\n========== ${gatewayName} PAYMENT LINK FULL RESPONSE ==========`);
+    console.log('HTTP Status:', response.status);
+    console.log('Response JSON:', JSON.stringify(data, null, 2));
+    console.log('Response Keys:', Object.keys(data));
+    console.log('================================================\n');
+    
+    if (!response.ok || data.status === 'error' || data.success === false) {
+      console.error(`${gatewayName} Payment Link creation error:`, data);
+      return {
+        success: false,
+        gatewayName,
+        error: data.message || data.error || 'Failed to create Payment Link',
+      };
+    }
+    
+    const responseData = data.data || data;
+    
+    // Extract payment URL from various possible field names
+    const paymentUrl = responseData.payment_url || 
+                       responseData.paymentUrl || 
+                       responseData.url || 
+                       responseData.link_url ||
+                       responseData.checkout_url ||
+                       responseData.redirect_url ||
+                       '';
+    
+    console.log(`${gatewayName} Payment Link parsed data:`, {
+      paymentUrl,
+      identifierId: responseData.identifier_id,
+      expired: responseData.expired,
+      rawKeys: Object.keys(responseData),
+    });
+    
+    if (!paymentUrl) {
+      console.error(`${gatewayName} Payment Link response missing URL:`, responseData);
+      return {
+        success: false,
+        gatewayName,
+        error: 'Payment URL not returned from payment gateway',
+      };
+    }
+    
+    return {
+      success: true,
+      gatewayName,
+      data: {
+        transactionId: responseData.identifier_id || request.orderId,
+        orderId: request.orderId,
+        paymentUrl: paymentUrl,
+        amount: request.amount,
+        expiryTime: responseData.expired || responseData.expiry_time || expiredStr,
+        status: 'PENDING',
+      },
+    };
+  } catch (error: any) {
+    console.error('Payment Link request error:', error);
     return {
       success: false,
       error: error.message || 'Network error',
