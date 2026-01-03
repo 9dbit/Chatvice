@@ -4208,9 +4208,70 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           return res.status(503).json({ error: "E-Wallet payment coming soon. Please use QRIS for e-wallet payments." });
           
         case 'payment_link':
-          // Payment Link endpoint not available on Kompas Pay - return user-friendly error
-          return res.status(503).json({ 
-            error: "Payment Link belum tersedia. Silakan gunakan QRIS atau Virtual Account." 
+          console.log('[PAYMENT_LINK] Starting Payment Link creation for merchant:', merchant.id);
+          
+          if (!isKompasPayConfigured()) {
+            return res.status(503).json({ error: "Payment gateway not configured" });
+          }
+          
+          paymentResult = await createPaymentLinkPayment({
+            merchantId: merchant.id,
+            orderId,
+            amount: finalPriceIDR,
+            customerName: merchant.businessName || merchant.email,
+            customerEmail: merchant.email,
+            description: `${plan.name} Plan - ${billingInterval === 'annual' ? 'Annual' : 'Monthly'} Subscription`,
+            expiryMinutes: 1440,
+            callbackUrl,
+          });
+          
+          console.log('[PAYMENT_LINK] createPaymentLinkPayment result:', JSON.stringify(paymentResult, null, 2));
+          
+          if (!paymentResult.success || !paymentResult.data) {
+            const errorMsg = paymentResult.error || "Failed to create Payment Link";
+            console.error('[PAYMENT_LINK] Payment Link creation failed:', errorMsg);
+            return res.status(400).json({ 
+              error: errorMsg,
+              gatewayName: paymentResult.gatewayName,
+            });
+          }
+          
+          try {
+            await storage.createPaymentTransaction({
+              merchantId: merchant.id,
+              transactionId: paymentResult.data.transactionId,
+              orderId: paymentResult.data.orderId,
+              paymentMethod: 'payment_link',
+              amount: finalPriceIDR,
+              status: 'pending',
+              gatewayName: paymentResult.gatewayName || 'Kompas Pay',
+              gatewayResponse: {
+                paymentUrl: paymentResult.data.paymentUrl,
+              },
+              expiresAt: new Date(paymentResult.data.expiryTime),
+              invoiceNumber: orderId,
+            });
+          } catch (saveErr) {
+            console.warn("Could not save Payment Link transaction to local DB:", saveErr);
+          }
+          
+          await storage.updateMerchantSubscription(merchant.id, {
+            pendingTransactionId: paymentResult.data.transactionId,
+          });
+          
+          return res.json({
+            paymentMethod: 'payment_link',
+            transactionId: paymentResult.data.transactionId,
+            orderId: paymentResult.data.orderId,
+            paymentUrl: paymentResult.data.paymentUrl,
+            amount: finalPriceIDR,
+            amountUSD: finalPriceUSD,
+            expiryTime: paymentResult.data.expiryTime,
+            planId,
+            planName: plan.name,
+            billingInterval,
+            isDowngrade,
+            scheduledActivationDate: scheduledActivationDate?.toISOString(),
           });
           
         case 'credit_card':

@@ -645,12 +645,40 @@ export async function createPaymentLinkPayment(request: CreatePaymentLinkRequest
     }
     clearTimeout(timeoutId);
 
-    const data = await response.json();
-    console.log(`\n========== ${gatewayName} PAYMENT LINK FULL RESPONSE ==========`);
+    // Check content type before parsing
+    const contentType = response.headers.get('content-type') || '';
+    const responseText = await response.text();
+    
+    console.log(`\n========== ${gatewayName} PAYMENT LINK RAW RESPONSE ==========`);
     console.log('HTTP Status:', response.status);
-    console.log('Response JSON:', JSON.stringify(data, null, 2));
-    console.log('Response Keys:', Object.keys(data));
+    console.log('Content-Type:', contentType);
+    console.log('Response Preview:', responseText.substring(0, 500));
     console.log('================================================\n');
+    
+    // Check if response is HTML (error page)
+    if (responseText.startsWith('<!DOCTYPE') || responseText.startsWith('<html') || contentType.includes('text/html')) {
+      console.error(`${gatewayName} Payment Link endpoint returned HTML - endpoint may not exist or not be configured`);
+      return {
+        success: false,
+        gatewayName,
+        error: 'Payment Link endpoint tidak tersedia. Silakan hubungi Kompas Pay untuk mengaktifkan fitur ini.',
+      };
+    }
+    
+    let data: any;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error(`${gatewayName} Failed to parse response:`, parseError);
+      return {
+        success: false,
+        gatewayName,
+        error: 'Invalid response from payment gateway',
+      };
+    }
+    
+    console.log(`${gatewayName} PAYMENT LINK Parsed JSON:`, JSON.stringify(data, null, 2));
+    console.log('Response Keys:', Object.keys(data));
     
     if (!response.ok || data.status === 'error' || data.success === false) {
       console.error(`${gatewayName} Payment Link creation error:`, data);
