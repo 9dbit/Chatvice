@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Link } from "wouter";
 import { QRCodeSVG } from "qrcode.react";
+import html2canvas from "html2canvas";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,8 +14,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Receipt, Mail, Building2, CreditCard, History, FileText, Calendar, Zap, ArrowRight, Timer, Clock, Copy, XCircle, RefreshCw, Loader2 } from "lucide-react";
+import { Receipt, Mail, Building2, CreditCard, History, FileText, Calendar, Zap, ArrowRight, Timer, Clock, Copy, XCircle, RefreshCw, Loader2, Eye, Download } from "lucide-react";
 import type { Merchant } from "@shared/schema";
 
 interface PendingPaymentDetails {
@@ -60,6 +62,9 @@ export default function BillingDetailsPage() {
   const { toast } = useToast();
   const [pendingPaymentTimeRemaining, setPendingPaymentTimeRemaining] = useState<number>(0);
   const pendingPaymentCountdownRef = useRef<NodeJS.Timeout | null>(null);
+  const [showOrderDetailsDialog, setShowOrderDetailsDialog] = useState(false);
+  const [isSavingImage, setIsSavingImage] = useState(false);
+  const orderDetailsRef = useRef<HTMLDivElement>(null);
 
   const { data: merchant, isLoading } = useQuery<Merchant>({
     queryKey: ["/api/merchant", merchantId],
@@ -157,6 +162,79 @@ export default function BillingDetailsPage() {
     };
     return banks[bankCode] || bankCode;
   };
+
+  // Save order details as image to device gallery
+  const saveToGallery = useCallback(async () => {
+    if (!orderDetailsRef.current || !pendingPaymentDetails) return;
+    
+    setIsSavingImage(true);
+    try {
+      const canvas = await html2canvas(orderDetailsRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+      
+      // Convert to JPG blob
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((b) => {
+          if (b) resolve(b);
+          else reject(new Error('Failed to create image'));
+        }, 'image/jpeg', 0.95);
+      });
+      
+      // Create filename with order ID and timestamp
+      const filename = `Chatvice_Order_${pendingPaymentDetails.orderId}_${Date.now()}.jpg`;
+      
+      // Try using the File System Access API for modern browsers
+      if ('showSaveFilePicker' in window) {
+        try {
+          const handle = await (window as unknown as { showSaveFilePicker: (options: { suggestedName: string; types: { description: string; accept: Record<string, string[]> }[] }) => Promise<FileSystemFileHandle> }).showSaveFilePicker({
+            suggestedName: filename,
+            types: [{
+              description: 'JPEG Image',
+              accept: { 'image/jpeg': ['.jpg', '.jpeg'] },
+            }],
+          });
+          const writable = await handle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          toast({
+            title: "Saved!",
+            description: "Order details saved to your device.",
+          });
+          return;
+        } catch (e) {
+          // User cancelled or API not supported, fall back to download
+        }
+      }
+      
+      // Fallback: trigger download
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Downloaded!",
+        description: "Order details image has been downloaded.",
+      });
+    } catch (error) {
+      console.error('Failed to save image:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save image. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingImage(false);
+    }
+  }, [pendingPaymentDetails, toast]);
 
   const form = useForm<BillingDetailsData>({
     resolver: zodResolver(billingDetailsSchema),
@@ -345,6 +423,15 @@ export default function BillingDetailsPage() {
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-2 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowOrderDetailsDialog(true)}
+                data-testid="button-view-order-details"
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                View Details
+              </Button>
               <Button
                 variant="outline"
                 className="flex-1"
@@ -615,6 +702,143 @@ export default function BillingDetailsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Order Details Dialog */}
+      <Dialog open={showOrderDetailsDialog} onOpenChange={setShowOrderDetailsDialog}>
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Order Details</DialogTitle>
+          </DialogHeader>
+          
+          {/* Capturable Content - Light mode white background */}
+          <div ref={orderDetailsRef} className="bg-white text-gray-900 p-6">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="4" y="4" width="7" height="7" rx="1" fill="white"/>
+                    <rect x="13" y="4" width="7" height="7" rx="1" fill="white"/>
+                    <rect x="4" y="13" width="7" height="7" rx="1" fill="white"/>
+                    <path d="M13 13H20V20H13V13Z" fill="white" fillOpacity="0.5"/>
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-semibold text-lg">Chatvice</p>
+                  <p className="text-sm text-gray-500">Subscription Payment</p>
+                </div>
+              </div>
+              {pendingPaymentDetails?.paymentMethod === 'qris' && (
+                <div className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded">
+                  <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded font-medium">GPN</span>
+                  <span className="text-sm font-semibold">QRIS</span>
+                </div>
+              )}
+              {pendingPaymentDetails?.paymentMethod === 'virtual_account' && (
+                <div className="bg-gray-100 px-3 py-1 rounded">
+                  <span className="text-sm font-semibold">{getBankName(pendingPaymentDetails.bankCode || '')}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Payment Section */}
+            {pendingPaymentDetails?.paymentMethod === 'qris' && pendingPaymentDetails.qrisString && (
+              <div className="text-center mb-6">
+                <h3 className="font-semibold text-lg mb-1">SCAN TO PAY</h3>
+                <p className="text-sm text-gray-500 mb-4">Gunakan e-wallet atau mobile banking</p>
+                <div className="bg-white border border-gray-200 rounded-lg p-4 inline-block mb-4">
+                  <QRCodeSVG value={pendingPaymentDetails.qrisString} size={200} level="M" />
+                </div>
+                <p className="text-xs text-gray-400">
+                  GoPay • OVO • DANA • ShopeePay • LinkAja<br/>
+                  BCA • Mandiri • BRI • BNI • CIMB
+                </p>
+              </div>
+            )}
+
+            {pendingPaymentDetails?.paymentMethod === 'virtual_account' && pendingPaymentDetails.vaNumber && (
+              <div className="text-center mb-6">
+                <h3 className="font-semibold text-lg mb-1">TRANSFER TO</h3>
+                <p className="text-sm text-gray-500 mb-4">Virtual Account {getBankName(pendingPaymentDetails.bankCode || '')}</p>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-2">
+                  <p className="text-2xl font-mono font-bold tracking-wider">{pendingPaymentDetails.vaNumber}</p>
+                </div>
+                <p className="text-xs text-gray-400">
+                  Transfer exact amount to complete payment
+                </p>
+              </div>
+            )}
+
+            {pendingPaymentDetails?.paymentMethod === 'bank_transfer' && pendingPaymentDetails.accountNumber && (
+              <div className="text-center mb-6">
+                <h3 className="font-semibold text-lg mb-1">BANK TRANSFER</h3>
+                <p className="text-sm text-gray-500 mb-4">Transfer to Bank Danamon</p>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-2">
+                  <p className="text-xl font-mono font-bold tracking-wider">{pendingPaymentDetails.accountNumber}</p>
+                  <p className="text-sm text-gray-600 mt-1">a.n. {pendingPaymentDetails.accountName}</p>
+                  {pendingPaymentDetails.uniqueCode && (
+                    <p className="text-amber-600 font-medium mt-2">+ Unique Code: {pendingPaymentDetails.uniqueCode}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Order Details */}
+            <div className="border-l-4 border-primary pl-4 mb-6">
+              <h4 className="font-semibold text-gray-800 mb-3">ORDER DETAILS</h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Product</span>
+                  <span className="font-medium">{pendingPaymentDetails?.planName} Plan</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Period</span>
+                  <span className="font-medium">{pendingPaymentDetails?.billingInterval === 'yearly' ? 'Yearly' : 'Monthly'}</span>
+                </div>
+                <div className="flex justify-between items-start">
+                  <span className="text-gray-500">Order ID</span>
+                  <div className="flex items-center gap-1">
+                    <span className="font-mono text-xs text-right max-w-[180px] break-all">{pendingPaymentDetails?.orderId}</span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(pendingPaymentDetails?.orderId || '');
+                        toast({ title: "Copied!", description: "Order ID copied" });
+                      }}
+                      className="text-gray-400 hover:text-gray-600"
+                      data-testid="button-copy-order-id-dialog"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Total */}
+            <div className="bg-gray-100 rounded-lg p-4 text-center">
+              <p className="text-sm text-gray-500 mb-1">TOTAL PEMBAYARAN</p>
+              <p className="text-2xl font-bold text-primary">{pendingPaymentDetails?.amountFormatted}</p>
+            </div>
+          </div>
+
+          {/* Download Button - Outside capturable area */}
+          <div className="p-4 border-t bg-muted/30">
+            <Button
+              className="w-full"
+              onClick={saveToGallery}
+              disabled={isSavingImage}
+              data-testid="button-save-order-image"
+            >
+              {isSavingImage ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 mr-2" />
+              )}
+              Save to Gallery
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
