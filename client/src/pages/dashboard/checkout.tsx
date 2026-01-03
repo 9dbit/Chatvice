@@ -161,7 +161,7 @@ const PAYMENT_METHODS: PaymentMethodOption[] = [
   { id: 'virtual_account', name: 'Virtual Account', description: 'Automatic verification', icon: CreditCard, available: true, provider: 'Kompas Pay' },
   { id: 'bank_transfer', name: 'Bank Transfer', description: 'Transfer to merchant account', icon: Building2, available: true, provider: 'Kompas Pay' },
   { id: 'ewallet', name: 'E-Wallet', description: 'Use QRIS for e-wallets', icon: Wallet, available: false, provider: 'Kompas Pay' },
-  { id: 'payment_link', name: 'Payment Link', description: 'Contact Kompas Pay to enable', icon: Link2, available: false, provider: 'Kompas Pay' },
+  { id: 'payment_link', name: 'Payment Link', description: 'Share checkout link to others', icon: Link2, available: true, provider: 'Share' },
   { id: 'credit_card', name: 'Credit Card', description: 'Coming soon via PayPal', icon: CreditCard, available: false, provider: 'PayPal' },
   { id: 'crypto', name: 'Cryptocurrency', description: 'Coming soon', icon: Bitcoin, available: false, provider: 'Future' },
 ];
@@ -994,7 +994,7 @@ export default function CheckoutPage() {
               <Button 
                 className="w-full h-11 min-h-[44px]"
                 onClick={handleProceedToPayment}
-                disabled={!termsAccepted || checkoutMutation.isPending || (needsBankSelection && !selectedBank)}
+                disabled={!termsAccepted || checkoutMutation.isPending || (needsBankSelection && !selectedBank) || selectedPaymentMethod === 'payment_link'}
                 data-testid="button-proceed-payment"
               >
                 {checkoutMutation.isPending ? (
@@ -1002,7 +1002,9 @@ export default function CheckoutPage() {
                 ) : (
                   <ArrowRight className="w-4 h-4 mr-2" />
                 )}
-                <span className="text-sm">Subscribe • Rp {finalPrice.toLocaleString('id-ID')}</span>
+                <span className="text-sm">
+                  {selectedPaymentMethod === 'payment_link' ? 'Use share buttons on the right' : `Subscribe • Rp ${finalPrice.toLocaleString('id-ID')}`}
+                </span>
               </Button>
             </div>
           </div>
@@ -1062,6 +1064,93 @@ export default function CheckoutPage() {
                                   ))}
                                 </SelectContent>
                               </Select>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      {/* Payment Link share panel */}
+                      <AnimatePresence>
+                        {selectedPaymentMethod === method.id && method.id === 'payment_link' && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2, ease: 'easeOut' }}
+                            className="overflow-hidden"
+                          >
+                            <div className="pt-3 space-y-3">
+                              <div className="p-2 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                                <p className="text-[10px] text-blue-700 dark:text-blue-300">
+                                  Share this checkout link with others. They can complete the payment on their device.
+                                </p>
+                              </div>
+
+                              <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 border">
+                                <input 
+                                  type="text" 
+                                  readOnly 
+                                  value={window.location.href} 
+                                  className="flex-1 text-[10px] bg-transparent outline-none truncate"
+                                  data-testid="input-checkout-url"
+                                />
+                                <Button 
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 px-2"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(window.location.href);
+                                    toast({ title: "Link copied!", description: "Checkout link copied to clipboard" });
+                                  }}
+                                  data-testid="button-copy-checkout-link"
+                                >
+                                  <Copy className="w-3 h-3 mr-1" />
+                                  Copy
+                                </Button>
+                              </div>
+
+                              <div className="grid grid-cols-3 gap-2">
+                                <Button 
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-10 flex-col gap-1 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/40 border-green-200 dark:border-green-800"
+                                  onClick={() => {
+                                    const text = `Checkout ${selectedPlan?.name || 'Plan'} - Rp ${finalPrice.toLocaleString('id-ID')}`;
+                                    window.open(`https://wa.me/?text=${encodeURIComponent(text + '\n' + window.location.href)}`, '_blank');
+                                  }}
+                                  data-testid="button-share-whatsapp"
+                                >
+                                  <SiWhatsapp className="w-5 h-5 text-green-600" />
+                                  <span className="text-[9px] text-green-700 dark:text-green-400">WhatsApp</span>
+                                </Button>
+
+                                <Button 
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-10 flex-col gap-1 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 border-blue-200 dark:border-blue-800"
+                                  onClick={() => {
+                                    const text = `Checkout ${selectedPlan?.name || 'Plan'} - Rp ${finalPrice.toLocaleString('id-ID')}`;
+                                    window.open(`https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(text)}`, '_blank');
+                                  }}
+                                  data-testid="button-share-telegram"
+                                >
+                                  <SiTelegram className="w-5 h-5 text-blue-500" />
+                                  <span className="text-[9px] text-blue-700 dark:text-blue-400">Telegram</span>
+                                </Button>
+
+                                <Button 
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-10 flex-col gap-1 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800"
+                                  onClick={() => {
+                                    window.open(`https://www.facebook.com/dialog/send?link=${encodeURIComponent(window.location.href)}&app_id=966242223397117&redirect_uri=${encodeURIComponent(window.location.href)}`, '_blank');
+                                  }}
+                                  data-testid="button-share-messenger"
+                                >
+                                  <SiMessenger className="w-5 h-5 text-indigo-600" />
+                                  <span className="text-[9px] text-indigo-700 dark:text-indigo-400">Messenger</span>
+                                </Button>
+                              </div>
                             </div>
                           </motion.div>
                         )}
@@ -1132,7 +1221,7 @@ export default function CheckoutPage() {
             <Button 
               className="w-full h-11 min-h-[44px]"
               onClick={handleProceedToPayment}
-              disabled={!termsAccepted || checkoutMutation.isPending || (needsBankSelection && !selectedBank)}
+              disabled={!termsAccepted || checkoutMutation.isPending || (needsBankSelection && !selectedBank) || selectedPaymentMethod === 'payment_link'}
               data-testid="button-proceed-payment-mobile"
             >
               {checkoutMutation.isPending ? (
@@ -1140,7 +1229,9 @@ export default function CheckoutPage() {
               ) : (
                 <ArrowRight className="w-4 h-4 mr-2" />
               )}
-              <span className="text-sm">Subscribe • Rp {finalPrice.toLocaleString('id-ID')}</span>
+              <span className="text-sm">
+                {selectedPaymentMethod === 'payment_link' ? 'Use share buttons above' : `Subscribe • Rp ${finalPrice.toLocaleString('id-ID')}`}
+              </span>
             </Button>
           </div>
         </div>
