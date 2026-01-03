@@ -384,9 +384,13 @@ export async function createVAPayment(request: CreateVARequest): Promise<CreateV
     clearTimeout(timeoutId);
 
     const data = await response.json();
-    console.log(`${gatewayName} VA full response:`, JSON.stringify(data, null, 2));
+    console.log(`\n========== ${gatewayName} VA FULL RESPONSE ==========`);
+    console.log('HTTP Status:', response.status);
+    console.log('Response JSON:', JSON.stringify(data, null, 2));
+    console.log('Response Keys:', Object.keys(data));
+    console.log('================================================\n');
     
-    if (!response.ok || data.status === 'error') {
+    if (!response.ok || data.status === 'error' || data.success === false) {
       console.error(`${gatewayName} VA creation error:`, data);
       return {
         success: false,
@@ -397,13 +401,21 @@ export async function createVAPayment(request: CreateVARequest): Promise<CreateV
     
     const responseData = data.data || data;
     
-    const vaNumber = responseData.virtual_account || responseData.va_number || responseData.virtualAccountNumber || responseData.account_number;
+    const vaNumber = responseData.virtual_account || 
+                     responseData.va_number || 
+                     responseData.virtualAccountNumber || 
+                     responseData.account_number ||
+                     responseData.vaNumber ||
+                     responseData.no_va ||
+                     responseData.va;
     
     console.log(`${gatewayName} VA parsed data:`, {
       vaNumber,
+      bankCode: request.bankCode,
       identifierId: responseData.identifier_id,
       expired: responseData.expired,
       rawKeys: Object.keys(responseData),
+      allValues: responseData,
     });
     
     if (!vaNumber) {
