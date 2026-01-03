@@ -3952,6 +3952,31 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             return res.status(500).json({ error: paymentResult.error || "Failed to create QRIS payment" });
           }
           
+          // Save payment transaction to database for resume capability
+          try {
+            await storage.createPaymentTransaction({
+              merchantId: merchant.id,
+              externalId: paymentResult.data.transactionId,
+              amount: finalPriceIDR,
+              status: 'pending',
+              paymentMethod: 'qris',
+              planId,
+              planName: plan.name,
+              subscriptionMonths: billingInterval === 'annual' ? 12 : 1,
+              merchantEmail: merchant.email,
+              merchantCompanyName: merchant.companyName,
+              qrisUrl: paymentResult.data.qrisImageUrl,
+              gatewayResponse: { 
+                qrisString: paymentResult.data.qrisString,
+                orderId: paymentResult.data.orderId,
+              },
+              expiresAt: new Date(paymentResult.data.expiryTime),
+              invoiceNumber: orderId,
+            });
+          } catch (saveErr) {
+            console.warn("Could not save QRIS transaction to local DB:", saveErr);
+          }
+          
           await storage.updateMerchantSubscription(merchant.id, {
             pendingTransactionId: paymentResult.data.transactionId,
           });
@@ -3978,6 +4003,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           
         case 'va':
         case 'virtual_account':
+          console.log('[VA] Starting Virtual Account creation for merchant:', merchant.id, 'bankCode:', bankCode);
+          
           if (!bankCode) {
             return res.status(400).json({ error: "Bank code is required for Virtual Account" });
           }
@@ -3987,6 +4014,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             return res.status(400).json({ error: `Unsupported bank code. Supported: ${SUPPORTED_BANK_CODES.join(', ')}` });
           }
           
+          console.log('[VA] Calling createVAPayment with orderId:', orderId);
           paymentResult = await createVAPayment({
             merchantId: merchant.id,
             orderId,
@@ -4007,14 +4035,70 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             },
           });
           
+          console.log('[VA] createVAPayment result:', JSON.stringify(paymentResult, null, 2));
+          
           if (!paymentResult.success || !paymentResult.data) {
-            return res.status(500).json({ error: paymentResult.error || "Failed to create Virtual Account" });
+            console.error('[VA] Payment creation failed:', paymentResult.error);
+            // Provide user-friendly error messages for known issues
+            let errorMsg = paymentResult.error || "Failed to create Virtual Account";
+            if (errorMsg.includes("not registered on your merchant")) {
+              errorMsg = "Virtual Account payment method is not yet available. Please use QRIS or Bank Transfer instead.";
+            }
+            return res.status(400).json({ error: errorMsg });
+          }
+          
+          // Parse expiry time safely
+          let vaExpiresAt: Date;
+          try {
+            const expiryStr = paymentResult.data.expiryTime;
+            if (expiryStr) {
+              // Handle format "2026-01-04 12:56:49" by replacing space with T
+              const normalizedExpiry = expiryStr.replace(' ', 'T');
+              vaExpiresAt = new Date(normalizedExpiry);
+              if (isNaN(vaExpiresAt.getTime())) {
+                console.warn('[VA] Invalid expiryTime format, using 24h default:', expiryStr);
+                vaExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+              }
+            } else {
+              vaExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+            }
+          } catch (e) {
+            console.warn('[VA] Error parsing expiryTime, using 24h default');
+            vaExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+          }
+          
+          // Save payment transaction to database for resume capability
+          try {
+            console.log('[VA] Saving transaction to database...');
+            await storage.createPaymentTransaction({
+              merchantId: merchant.id,
+              externalId: paymentResult.data.transactionId,
+              amount: finalPriceIDR,
+              status: 'pending',
+              paymentMethod: 'virtual_account',
+              planId,
+              planName: plan.name,
+              subscriptionMonths: billingInterval === 'annual' ? 12 : 1,
+              merchantEmail: merchant.email,
+              merchantCompanyName: merchant.companyName,
+              gatewayResponse: { 
+                vaNumber: paymentResult.data.vaNumber,
+                bankCode: paymentResult.data.bankCode,
+                orderId: paymentResult.data.orderId,
+              },
+              expiresAt: vaExpiresAt,
+              invoiceNumber: orderId,
+            });
+            console.log('[VA] Transaction saved successfully');
+          } catch (saveErr) {
+            console.warn("[VA] Could not save VA transaction to local DB:", saveErr);
           }
           
           await storage.updateMerchantSubscription(merchant.id, {
             pendingTransactionId: paymentResult.data.transactionId,
           });
           
+          console.log('[VA] Returning successful response with vaNumber:', paymentResult.data.vaNumber);
           return res.json({
             paymentMethod: 'virtual_account',
             transactionId: paymentResult.data.transactionId,
@@ -4058,6 +4142,34 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           
           if (!paymentResult.success || !paymentResult.data) {
             return res.status(500).json({ error: paymentResult.error || "Failed to create Bank Transfer" });
+          }
+          
+          // Save payment transaction to database for resume capability
+          try {
+            await storage.createPaymentTransaction({
+              merchantId: merchant.id,
+              externalId: paymentResult.data.transactionId,
+              amount: paymentResult.data.totalAmount || finalPriceIDR,
+              status: 'pending',
+              paymentMethod: 'bank_transfer',
+              planId,
+              planName: plan.name,
+              subscriptionMonths: billingInterval === 'annual' ? 12 : 1,
+              merchantEmail: merchant.email,
+              merchantCompanyName: merchant.companyName,
+              gatewayResponse: { 
+                accountNumber: paymentResult.data.accountNumber,
+                accountName: paymentResult.data.accountName,
+                bankCode: paymentResult.data.bankCode,
+                bankName: paymentResult.data.bankName,
+                uniqueCode: paymentResult.data.uniqueCode,
+                orderId: paymentResult.data.orderId,
+              },
+              expiresAt: new Date(paymentResult.data.expiryTime),
+              invoiceNumber: orderId,
+            });
+          } catch (saveErr) {
+            console.warn("Could not save Bank Transfer transaction to local DB:", saveErr);
           }
           
           await storage.updateMerchantSubscription(merchant.id, {
@@ -4243,19 +4355,72 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       }
       
       if (merchant.pendingTransactionId !== transactionId) {
-        return res.status(400).json({ error: "Transaction not found" });
+        return res.status(400).json({ error: "Transaction not found or does not belong to this merchant" });
       }
       
+      // First, try to get local transaction data as backup
+      let localTransaction = null;
+      try {
+        localTransaction = await storage.getPaymentTransactionByExternalId(transactionId);
+      } catch (localErr) {
+        console.warn("Could not fetch local transaction:", localErr);
+      }
+      
+      // Try to check status from gateway
       const statusResult = await checkPaymentStatus(transactionId);
       
       if (!statusResult.success) {
+        // Gateway failed - use local data if available
+        console.warn("Gateway status check failed, using local data:", statusResult.error);
+        
+        if (localTransaction) {
+          // Extract payment details from gatewayResponse if available
+          const gatewayResponse = localTransaction.gatewayResponse as Record<string, any> || {};
+          
+          // Return data from local database
+          return res.json({
+            status: localTransaction.status || 'PENDING',
+            paidAt: localTransaction.paidAt,
+            transactionId: transactionId,
+            orderId: localTransaction.invoiceNumber,
+            amount: localTransaction.amount,
+            amountFormatted: `Rp ${localTransaction.amount.toLocaleString('id-ID')}`,
+            paymentMethod: localTransaction.paymentMethod || 'qris',
+            planId: localTransaction.planId,
+            planName: localTransaction.planName,
+            billingInterval: localTransaction.subscriptionMonths === 12 ? 'annual' : 'monthly',
+            qrisString: gatewayResponse.qrisString || gatewayResponse.qris_string,
+            qrisUrl: localTransaction.qrisUrl,
+            vaNumber: gatewayResponse.vaNumber || gatewayResponse.va_number,
+            bankCode: gatewayResponse.bankCode || gatewayResponse.bank_code,
+            expiryTime: localTransaction.expiresAt?.toISOString(),
+            fromLocalDb: true,
+            gatewayError: statusResult.error,
+          });
+        }
+        
+        // No local data and gateway failed - return error
         return res.status(500).json({ error: statusResult.error || "Failed to check status" });
       }
       
+      // Gateway returned data - merge with local data if available
+      const gatewayResponse = localTransaction?.gatewayResponse as Record<string, any> || {};
       res.json({
         status: statusResult.data?.status || 'PENDING',
         paidAt: statusResult.data?.paidAt,
-        transactionId: statusResult.data?.transactionId,
+        transactionId: statusResult.data?.transactionId || transactionId,
+        orderId: statusResult.data?.orderId,
+        amount: statusResult.data?.amount || localTransaction?.amount,
+        amountFormatted: statusResult.data?.amount ? `Rp ${statusResult.data.amount.toLocaleString('id-ID')}` : localTransaction?.amount ? `Rp ${localTransaction.amount.toLocaleString('id-ID')}` : undefined,
+        paymentMethod: statusResult.data?.paymentMethod || localTransaction?.paymentMethod,
+        planId: localTransaction?.planId,
+        planName: localTransaction?.planName,
+        billingInterval: localTransaction?.subscriptionMonths === 12 ? 'annual' : 'monthly',
+        qrisString: gatewayResponse.qrisString || gatewayResponse.qris_string,
+        qrisUrl: localTransaction?.qrisUrl,
+        vaNumber: gatewayResponse.vaNumber || gatewayResponse.va_number,
+        bankCode: gatewayResponse.bankCode || gatewayResponse.bank_code,
+        expiryTime: localTransaction?.expiresAt?.toISOString(),
       });
     } catch (error: any) {
       console.error("Payment status check error:", error);

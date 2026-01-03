@@ -142,7 +142,7 @@ type PaymentStep = 'select_method' | 'bank_form' | 'loading' | 'qris' | 'va' | '
 
 const PAYMENT_METHODS: PaymentMethodOption[] = [
   { id: 'qris', name: 'QRIS', description: 'All e-wallets & mobile banking', icon: QrCode, available: true, provider: 'Kompas Pay' },
-  { id: 'virtual_account', name: 'Virtual Account', description: 'Automatic verification', icon: CreditCard, available: true, provider: 'Kompas Pay' },
+  { id: 'virtual_account', name: 'Virtual Account', description: 'Coming soon', icon: CreditCard, available: false, provider: 'Kompas Pay' },
   { id: 'bank_transfer', name: 'Bank Transfer', description: 'Transfer to merchant account', icon: Building2, available: true, provider: 'Kompas Pay' },
   { id: 'ewallet', name: 'E-Wallet', description: 'Use QRIS for e-wallets', icon: Wallet, available: false, provider: 'Kompas Pay' },
   { id: 'payment_link', name: 'Payment Link', description: 'Coming soon', icon: Link2, available: false, provider: 'Kompas Pay' },
@@ -150,17 +150,14 @@ const PAYMENT_METHODS: PaymentMethodOption[] = [
   { id: 'crypto', name: 'Cryptocurrency', description: 'Coming soon', icon: Bitcoin, available: false, provider: 'Future' },
 ];
 
-// Kompas Pay VA uses alphabetic channel codes
+// Kompas Pay VA uses numeric bank codes
 const VA_BANKS = [
-  { code: 'BNIVA', name: 'Bank Negara Indonesia (BNI)' },
-  { code: 'BRIVA', name: 'Bank Rakyat Indonesia (BRI)' },
-  { code: 'MANDIRIVA', name: 'Bank Mandiri' },
-  { code: 'CIMBVA', name: 'CIMB Niaga' },
-  { code: 'DANAMONVA', name: 'Bank Danamon' },
-  { code: 'MAYBANKVA', name: 'Maybank' },
-  { code: 'PERMATAVA', name: 'Bank Permata' },
-  { code: 'BSIVA', name: 'Bank Syariah Indonesia (BSI)' },
-  { code: 'BNCVA', name: 'Bank Neo Commerce (BNC)' },
+  { code: '014', name: 'Bank Negara Indonesia (BNI)' },
+  { code: '002', name: 'Bank Rakyat Indonesia (BRI)' },
+  { code: '008', name: 'Bank Mandiri' },
+  { code: '009', name: 'Bank BNI Syariah' },
+  { code: '022', name: 'CIMB Niaga' },
+  { code: '013', name: 'Bank Permata' },
 ];
 
 // Transfer banks use standard bank codes for manual bank transfer
