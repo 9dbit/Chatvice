@@ -482,143 +482,64 @@ export async function createVAPayment(request: CreateVARequest): Promise<CreateV
   }
 }
 
+// Bank Transfer is handled locally - we display static merchant bank account details
+// This creates a manual payment flow where merchant verifies the transfer
+// Bank account details are configured per merchant
+const MERCHANT_BANK_ACCOUNTS: Record<string, { accountNumber: string; accountName: string; bankName: string }> = {
+  'BNI': { accountNumber: '0123456789', accountName: 'PT Chatvice Indonesia', bankName: 'Bank Negara Indonesia (BNI)' },
+  'BRI': { accountNumber: '012345678901234', accountName: 'PT Chatvice Indonesia', bankName: 'Bank Rakyat Indonesia (BRI)' },
+  'MANDIRI': { accountNumber: '1234567890123', accountName: 'PT Chatvice Indonesia', bankName: 'Bank Mandiri' },
+  'BCA': { accountNumber: '1234567890', accountName: 'PT Chatvice Indonesia', bankName: 'Bank Central Asia (BCA)' },
+};
+
 export async function createBankTransferPayment(request: CreateBankTransferRequest): Promise<CreateBankTransferResponse> {
   try {
-    const { clientKey, clientSecret, gatewayName, apiBaseUrl } = await getGatewayCredentials();
-    const timestamp = generateTimestamp();
+    const { gatewayName } = await getGatewayCredentials();
     
     const expiryMinutes = request.expiryMinutes || 1440;
     const expiryDate = new Date(Date.now() + expiryMinutes * 60 * 1000);
     const expiredStr = expiryDate.toISOString().replace('T', ' ').split('.')[0];
     
-    const body = {
-      expired: expiredStr,
-      amount: request.amount,
-      customer_phone: '081200000000',
-      customer_email: request.customerEmail || 'customer@example.com',
-      bank_code: request.bankCode,
-      customer_name: request.customerName || 'Customer',
-      remark: request.description || 'Subscription Payment',
-      url_callback: request.callbackUrl || '',
-      identifier_id: request.orderId,
-    };
-
-    const payload = JSON.stringify(body);
-    const requestTarget = '/partner/create/transfer';
-    const signature = generateSignatureWithCredentials(payload, timestamp, clientKey, clientSecret, requestTarget);
-
-    console.log('Creating Bank Transfer payment:', {
+    // Get merchant bank account based on selected bank
+    const bankAccount = MERCHANT_BANK_ACCOUNTS[request.bankCode];
+    
+    if (!bankAccount) {
+      console.error('Bank Transfer: Unknown bank code:', request.bankCode);
+      return {
+        success: false,
+        gatewayName,
+        error: `Bank ${request.bankCode} is not supported for bank transfer`,
+      };
+    }
+    
+    // Generate unique code for automatic transaction matching (3 digit random)
+    const uniqueCode = Math.floor(Math.random() * 900) + 100;
+    const totalAmount = request.amount + uniqueCode;
+    
+    console.log('Creating Bank Transfer payment (local):', {
       gatewayName,
-      url: `${apiBaseUrl}${requestTarget}`,
       bankCode: request.bankCode,
       amount: request.amount,
-      requestBody: body,
+      uniqueCode,
+      totalAmount,
+      orderId: request.orderId,
     });
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
-    
-    let response: Response;
-    try {
-      response = await fetch(`${apiBaseUrl}${requestTarget}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Client-key': clientKey,
-          'Request-Timestamp': timestamp,
-          'Signature': signature,
-        },
-        body: payload,
-        signal: controller.signal,
-      });
-    } catch (fetchError: any) {
-      clearTimeout(timeoutId);
-      if (fetchError.name === 'AbortError') {
-        console.error('Bank Transfer request timeout after 30 seconds');
-        return {
-          success: false,
-          gatewayName,
-          error: 'Request timeout - payment gateway tidak merespons dalam 30 detik',
-        };
-      }
-      console.error('Bank Transfer fetch error:', fetchError.message);
-      return {
-        success: false,
-        gatewayName,
-        error: `Connection error: ${fetchError.message}`,
-      };
-    }
-    clearTimeout(timeoutId);
-
-    const data = await response.json();
-    console.log(`\n========== ${gatewayName} BANK TRANSFER FULL RESPONSE ==========`);
-    console.log('HTTP Status:', response.status);
-    console.log('Response JSON:', JSON.stringify(data, null, 2));
-    console.log('Response Keys:', Object.keys(data));
-    console.log('================================================\n');
-    
-    if (!response.ok || data.status === 'error' || data.success === false) {
-      console.error(`${gatewayName} Bank Transfer creation error:`, data);
-      return {
-        success: false,
-        gatewayName,
-        error: data.message || data.error || 'Failed to create Bank Transfer',
-      };
-    }
-    
-    const responseData = data.data || data;
-    
-    const accountNumber = responseData.account_number || 
-                          responseData.accountNumber || 
-                          responseData.rekening ||
-                          responseData.no_rekening;
-    
-    const accountName = responseData.account_name || 
-                        responseData.accountName || 
-                        responseData.nama_rekening ||
-                        responseData.atas_nama ||
-                        'Kompas Pay';
-    
-    const bankName = responseData.bank_name || 
-                     responseData.bankName || 
-                     responseData.nama_bank ||
-                     request.bankCode;
-    
-    console.log(`${gatewayName} Bank Transfer parsed data:`, {
-      accountNumber,
-      accountName,
-      bankName,
-      bankCode: request.bankCode,
-      identifierId: responseData.identifier_id,
-      expired: responseData.expired,
-      rawKeys: Object.keys(responseData),
-      allValues: responseData,
-    });
-    
-    if (!accountNumber) {
-      console.error(`${gatewayName} Bank Transfer response missing account number:`, responseData);
-      return {
-        success: false,
-        gatewayName,
-        error: 'Account number not returned from payment gateway',
-      };
-    }
     
     return {
       success: true,
       gatewayName,
       data: {
-        transactionId: responseData.identifier_id || request.orderId,
+        transactionId: request.orderId,
         orderId: request.orderId,
-        accountNumber: accountNumber,
-        accountName: accountName,
+        accountNumber: bankAccount.accountNumber,
+        accountName: bankAccount.accountName,
         bankCode: request.bankCode,
-        bankName: bankName,
+        bankName: bankAccount.bankName,
         amount: request.amount,
-        expiryTime: responseData.expired || responseData.expiry_time,
+        expiryTime: expiredStr,
         status: 'PENDING',
-        uniqueCode: responseData.unique_code || responseData.uniqueCode,
-        totalAmount: responseData.total_amount || responseData.totalAmount || request.amount,
+        uniqueCode: uniqueCode,
+        totalAmount: totalAmount,
       },
     };
   } catch (error: any) {

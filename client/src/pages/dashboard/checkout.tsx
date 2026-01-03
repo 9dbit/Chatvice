@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -149,23 +150,25 @@ const PAYMENT_METHODS: PaymentMethodOption[] = [
   { id: 'crypto', name: 'Cryptocurrency', description: 'Coming soon', icon: Bitcoin, available: false, provider: 'Future' },
 ];
 
+// Kompas Pay VA uses alphabetic channel codes
 const VA_BANKS = [
-  { code: '009', name: 'Bank Negara Indonesia (BNI)' },
-  { code: '002', name: 'Bank Rakyat Indonesia (BRI)' },
-  { code: '008', name: 'Bank Mandiri' },
-  { code: '022', name: 'CIMB Niaga' },
-  { code: '011', name: 'Bank Danamon' },
-  { code: '016', name: 'Maybank' },
-  { code: '013', name: 'Bank Permata' },
-  { code: '451', name: 'Bank Syariah Indonesia (BSI)' },
-  { code: '490', name: 'Bank Neo Commerce (BNC)' },
+  { code: 'BNIVA', name: 'Bank Negara Indonesia (BNI)' },
+  { code: 'BRIVA', name: 'Bank Rakyat Indonesia (BRI)' },
+  { code: 'MANDIRIVA', name: 'Bank Mandiri' },
+  { code: 'CIMBVA', name: 'CIMB Niaga' },
+  { code: 'DANAMONVA', name: 'Bank Danamon' },
+  { code: 'MAYBANKVA', name: 'Maybank' },
+  { code: 'PERMATAVA', name: 'Bank Permata' },
+  { code: 'BSIVA', name: 'Bank Syariah Indonesia (BSI)' },
+  { code: 'BNCVA', name: 'Bank Neo Commerce (BNC)' },
 ];
 
+// Transfer banks use standard bank codes for manual bank transfer
 const TRANSFER_BANKS = [
-  { code: '009', name: 'Bank Negara Indonesia (BNI)' },
-  { code: '002', name: 'Bank Rakyat Indonesia (BRI)' },
-  { code: '008', name: 'Bank Mandiri' },
-  { code: '014', name: 'Bank Central Asia (BCA)' },
+  { code: 'BNI', name: 'Bank Negara Indonesia (BNI)' },
+  { code: 'BRI', name: 'Bank Rakyat Indonesia (BRI)' },
+  { code: 'MANDIRI', name: 'Bank Mandiri' },
+  { code: 'BCA', name: 'Bank Central Asia (BCA)' },
 ];
 
 export default function CheckoutPage() {
@@ -988,24 +991,58 @@ export default function CheckoutPage() {
                 <h3 className="text-sm font-medium mb-3">Payment Method</h3>
                 <div className="space-y-2">
                   {PAYMENT_METHODS.filter(m => m.available).map((method) => (
-                    <div
-                      key={method.id}
-                      className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                        selectedPaymentMethod === method.id
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                      onClick={() => setSelectedPaymentMethod(method.id)}
-                      data-testid={`payment-method-${method.id}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <method.icon className={`w-5 h-5 ${selectedPaymentMethod === method.id ? 'text-primary' : 'text-muted-foreground'}`} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{method.name}</p>
-                          <p className="text-[10px] text-muted-foreground">{method.description}</p>
+                    <div key={method.id}>
+                      <div
+                        className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                          selectedPaymentMethod === method.id
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                        onClick={() => {
+                          setSelectedPaymentMethod(method.id);
+                          if (method.id !== 'virtual_account' && method.id !== 'bank_transfer') {
+                            setSelectedBank('');
+                          }
+                        }}
+                        data-testid={`payment-method-${method.id}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <method.icon className={`w-5 h-5 ${selectedPaymentMethod === method.id ? 'text-primary' : 'text-muted-foreground'}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium">{method.name}</p>
+                            <p className="text-[10px] text-muted-foreground">{method.description}</p>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground">{method.provider}</span>
                         </div>
-                        <span className="text-[10px] text-muted-foreground">{method.provider}</span>
                       </div>
+                      
+                      {/* Bank selection dropdown with slide-down animation - appears below selected payment method */}
+                      <AnimatePresence>
+                        {selectedPaymentMethod === method.id && (method.id === 'virtual_account' || method.id === 'bank_transfer') && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2, ease: 'easeOut' }}
+                            className="overflow-hidden"
+                          >
+                            <div className="pt-2 pl-8">
+                              <Select value={selectedBank} onValueChange={setSelectedBank}>
+                                <SelectTrigger className="h-9 text-xs border-primary/30 bg-primary/5" data-testid="select-bank">
+                                  <SelectValue placeholder={method.id === 'virtual_account' ? 'Select bank for VA' : 'Select bank for transfer'} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {bankList.map((bank) => (
+                                    <SelectItem key={bank.code} value={bank.code} className="text-xs">
+                                      {bank.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   ))}
                   
@@ -1030,26 +1067,6 @@ export default function CheckoutPage() {
                 </div>
               </div>
             </Card>
-
-            {needsBankSelection && (
-              <Card>
-                <div className="p-4 space-y-3">
-                  <h3 className="text-sm font-medium">Select Bank</h3>
-                  <Select value={selectedBank} onValueChange={setSelectedBank}>
-                    <SelectTrigger className="h-10 text-sm" data-testid="select-bank">
-                      <SelectValue placeholder={selectedPaymentMethod === 'virtual_account' ? 'Select bank for Virtual Account' : 'Select bank for transfer'} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {bankList.map((bank) => (
-                        <SelectItem key={bank.code} value={bank.code} className="text-sm">
-                          {bank.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </Card>
-            )}
           </div>
 
           {/* Terms and Submit - Mobile */}
