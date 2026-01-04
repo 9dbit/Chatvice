@@ -2061,20 +2061,29 @@ export default function CheckoutPage() {
               )}
             </div>
 
-            {/* Crypto Coin Selection - Clean Grid */}
+            {/* Crypto Coin Selection - Vertical List on Mobile */}
             <div className="mb-5">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-sm font-medium text-foreground">Select Cryptocurrency</span>
                 <div className="flex items-center gap-2">
-                  <div className="crypto-live-dot" />
-                  <span className="text-xs text-green-600 dark:text-green-400 font-medium">Live Prices</span>
+                  {cryptoPricesLoading ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin text-purple-500" />
+                      <span className="text-xs text-purple-500 font-medium">Load price</span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="crypto-live-dot" />
+                      <span className="text-xs text-green-600 dark:text-green-400 font-medium">Live Prices</span>
+                    </>
+                  )}
                 </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="flex flex-col gap-2 md:grid md:grid-cols-3 md:gap-3">
                 {CRYPTO_COINS.map((coin) => (
                   <button
                     key={coin.id}
-                    className="crypto-coin-btn p-4 cursor-pointer text-left"
+                    className="crypto-coin-btn p-3 md:p-4 cursor-pointer text-left w-full"
                     data-coin={coin.id}
                     onClick={() => {
                       setSelectedCrypto(coin);
@@ -2083,27 +2092,34 @@ export default function CheckoutPage() {
                     data-testid={`button-crypto-${coin.id}`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full flex items-center justify-center bg-muted/50 dark:bg-white/10">
+                      <div className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center bg-muted/50 dark:bg-white/10 shrink-0">
                         <coin.icon 
-                          className="w-8 h-8" 
+                          className="w-6 h-6 md:w-8 md:h-8" 
                           style={{ color: coin.color }} 
                         />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-base font-bold text-foreground">{coin.symbol}</span>
-                          {cryptoPrices?.prices?.[coin.id] && (
-                            <span className="text-sm font-semibold text-green-600 dark:text-green-400">
-                              ${cryptoPrices.prices[coin.id] >= 100 
-                                ? cryptoPrices.prices[coin.id].toLocaleString('en-US', { maximumFractionDigits: 0 })
-                                : cryptoPrices.prices[coin.id] >= 1
-                                  ? cryptoPrices.prices[coin.id].toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                                  : cryptoPrices.prices[coin.id].toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
-                              }
-                            </span>
-                          )}
-                        </div>
+                        <span className="text-sm md:text-base font-bold text-foreground">{coin.symbol}</span>
                         <span className="text-xs text-muted-foreground block truncate">{coin.name}</span>
+                      </div>
+                      <div className="text-right shrink-0">
+                        {cryptoPricesLoading ? (
+                          <div className="flex items-center gap-1">
+                            <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">Loading</span>
+                          </div>
+                        ) : cryptoPrices?.prices?.[coin.id] ? (
+                          <span className="text-sm font-semibold text-green-600 dark:text-green-400">
+                            ${cryptoPrices.prices[coin.id] >= 100 
+                              ? cryptoPrices.prices[coin.id].toLocaleString('en-US', { maximumFractionDigits: 0 })
+                              : cryptoPrices.prices[coin.id] >= 1
+                                ? cryptoPrices.prices[coin.id].toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                : cryptoPrices.prices[coin.id].toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
+                            }
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">--</span>
+                        )}
                       </div>
                     </div>
                   </button>
@@ -2134,11 +2150,11 @@ export default function CheckoutPage() {
         </div>
       )}
 
-      {/* Crypto Wallet Dialog - Clean Design */}
+      {/* Crypto Wallet Dialog - Frosted Glass with Mobile Scroll */}
       <Dialog open={showCryptoDialog} onOpenChange={setShowCryptoDialog}>
-        <DialogContent className="max-w-md p-0 overflow-hidden border-0 crypto-dialog-glass">
+        <DialogContent className="max-w-md p-0 border-0 max-h-[90vh] overflow-y-auto backdrop-blur-xl bg-background/80 dark:bg-background/90 shadow-2xl">
           {selectedCrypto && (
-            <div className="p-6" id="crypto-invoice-content">
+            <div className="p-5 md:p-6" id="crypto-invoice-content">
               {/* Header - Clean */}
               <div className="flex items-center gap-4 mb-5">
                 <div className="w-14 h-14 rounded-full flex items-center justify-center bg-muted/50 dark:bg-white/10 shrink-0">
@@ -2410,7 +2426,7 @@ export default function CheckoutPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Confirm Crypto Payment Dialog */}
+      {/* Confirm Crypto Payment Dialog - Frosted Glass with Mobile Scroll */}
       <Dialog open={showConfirmPaymentDialog} onOpenChange={(open) => {
         setShowConfirmPaymentDialog(open);
         if (!open) {
@@ -2419,7 +2435,7 @@ export default function CheckoutPage() {
           setCryptoProofPreview(null);
         }
       }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto backdrop-blur-xl bg-background/80 dark:bg-background/90 shadow-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Upload className="w-5 h-5 text-purple-500" />
