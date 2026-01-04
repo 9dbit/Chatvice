@@ -1223,3 +1223,40 @@ export const chatSecurityAlerts = pgTable("chat_security_alerts", {
 export const insertChatSecurityAlertSchema = createInsertSchema(chatSecurityAlerts).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertChatSecurityAlert = z.infer<typeof insertChatSecurityAlertSchema>;
 export type ChatSecurityAlert = typeof chatSecurityAlerts.$inferSelect;
+
+// ============ Crypto Payment Confirmations ============
+
+export const cryptoPaymentConfirmations = pgTable("crypto_payment_confirmations", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  // Order details
+  planId: text("plan_id").notNull(),
+  planName: text("plan_name").notNull(),
+  billingInterval: text("billing_interval").notNull(), // monthly or annual
+  isUpgrade: boolean("is_upgrade").default(false),
+  isDowngrade: boolean("is_downgrade").default(false),
+  // Payment details
+  cryptocurrency: text("cryptocurrency").notNull(), // BTC, ETH, etc.
+  network: text("network").notNull(), // Bitcoin, ERC-20, etc.
+  amountUsd: integer("amount_usd").notNull(), // in cents
+  amountCrypto: text("amount_crypto").notNull(), // string to preserve precision
+  walletAddress: text("wallet_address").notNull(),
+  transactionHash: text("transaction_hash"),
+  // Proof of payment
+  proofImageUrl: text("proof_image_url"),
+  // Status
+  status: text("status").default("pending"), // pending, approved, rejected
+  reviewedBy: varchar("reviewed_by", { length: 32 }),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
+  // Contact info
+  merchantEmail: text("merchant_email").notNull(),
+  merchantCompanyName: text("merchant_company_name"),
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertCryptoPaymentConfirmationSchema = createInsertSchema(cryptoPaymentConfirmations).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertCryptoPaymentConfirmation = z.infer<typeof insertCryptoPaymentConfirmationSchema>;
+export type CryptoPaymentConfirmation = typeof cryptoPaymentConfirmations.$inferSelect;

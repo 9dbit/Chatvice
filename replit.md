@@ -60,7 +60,20 @@ Core entities include Merchants, Supervisors, Sessions, Messages, Triggers, Know
 The checkout page features a premium crypto payment interface with:
 - **6 Supported Coins**: Bitcoin (BTC), Ethereum (ETH), Solana (SOL), Binance Coin (BNB), Tether (USDT), XRP
 - **Live Pricing**: Real-time prices from CoinGecko API with 60-second cache and 3% transaction fee
-- **Premium Design**: Neon glow effects, glassmorphism dialogs, framer-motion animations
-- **CSS Classes**: crypto-card, crypto-coin-btn, crypto-icon-halo, crypto-dialog-glass, crypto-amount-display, crypto-live-dot, crypto-float
-- **Manual Verification**: Customers send payment and contact support with transaction hash for verification
-- **Responsive Grid**: 2-column (mobile) / 3-column (desktop) coin selection with animated hover effects
+- **Premium Design**: Clean, simplified dialogs with purple gradient branding
+- **CSS Classes**: crypto-card, crypto-coin-btn, crypto-purple-btn, crypto-dialog-glass
+- **Responsive Grid**: 2-column (mobile) / 3-column (desktop) coin selection with hover effects
+
+## Crypto Payment Confirmation System
+A comprehensive payment verification workflow for cryptocurrency payments:
+- **User Flow**: After sending crypto payment, merchants click "Confirm Payment" to submit proof of payment
+- **Proof Submission**: Upload screenshot of transaction + enter transaction hash (TXID)
+- **Order Summary**: Shows plan, billing interval, crypto amount, and upgrade/downgrade badges
+- **Database Table**: `crypto_payment_confirmations` stores all payment submissions with status tracking
+- **Admin Review Dashboard**: Located at `/admin/crypto-payments` in admin sidebar with filter tabs (All/Pending/Approved/Rejected)
+- **Admin Actions**: Review proof image, approve (activates subscription) or reject payments
+- **Email Notifications**: 
+  - On submission: Email to hello@chatvice.app with payment details and proof image
+  - On approval: Confirmation email sent to merchant with subscription details
+- **Subscription Activation**: Upon approval, merchant subscription is automatically activated with correct billing interval
+- **Review Notes**: Admin can add notes during review process

@@ -22,7 +22,9 @@ import { extractFAQContent } from "./crawler";
 import { createQRISPayment, createVAPayment, createBankTransferPayment, createPaymentLinkPayment, checkPaymentStatus, isKompasPayConfigured, convertToIDR, formatIDR } from "./kompasPayClient";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient } from "./resendClient";
-import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats } from "@shared/schema";
+import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations } from "@shared/schema";
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
 import crypto from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
@@ -4606,6 +4608,266 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         decimals: CRYPTO_DECIMALS,
         feePercent: 3,
       });
+    }
+  });
+
+  // POST /api/upload - General file upload endpoint for merchants
+  app.post("/api/upload", requireMerchant, upload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      
+      const file = req.file;
+      const uploadType = req.body.type || 'general';
+      
+      // Try to upload to object storage first
+      const objectStorage = ObjectStorageService.getInstance();
+      if (objectStorage.isConfigured()) {
+        try {
+          const fileBuffer = fs.readFileSync(file.path);
+          const uniqueFilename = `${uploadType}_${Date.now()}_${file.filename}`;
+          const fileUrl = await objectStorage.uploadFile(fileBuffer, uniqueFilename, file.mimetype);
+          
+          // Remove local file after successful upload to object storage
+          fs.unlinkSync(file.path);
+          
+          return res.json({ url: fileUrl });
+        } catch (storageError) {
+          console.error('Object storage upload failed, using local:', storageError);
+        }
+      }
+      
+      // Fall back to local file storage
+      const fileUrl = `/uploads/${file.filename}`;
+      res.json({ url: fileUrl });
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      res.status(500).json({ error: error.message || "Upload failed" });
+    }
+  });
+
+  // POST /api/crypto-payment/confirm - Submit crypto payment confirmation with proof
+  app.post("/api/crypto-payment/confirm", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      const {
+        planId,
+        planName,
+        billingInterval,
+        isUpgrade,
+        isDowngrade,
+        cryptocurrency,
+        network,
+        amountUsd,
+        amountCrypto,
+        walletAddress,
+        transactionHash,
+        proofImageUrl,
+      } = req.body;
+      
+      // Validate required fields
+      if (!planId || !cryptocurrency || !transactionHash || !proofImageUrl) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      // Create confirmation record
+      const confirmationId = `cpc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      
+      await db.insert(cryptoPaymentConfirmations).values({
+        id: confirmationId,
+        merchantId,
+        planId,
+        planName: planName || planId,
+        billingInterval: billingInterval || 'monthly',
+        isUpgrade: Boolean(isUpgrade),
+        isDowngrade: Boolean(isDowngrade),
+        cryptocurrency,
+        network: network || cryptocurrency,
+        amountUsd: amountUsd || 0,
+        amountCrypto: amountCrypto || 'N/A',
+        walletAddress: walletAddress || '',
+        transactionHash,
+        proofImageUrl,
+        status: 'pending',
+        merchantEmail: merchant.email,
+        merchantCompanyName: merchant.companyName,
+      });
+      
+      // Send email notification to admin
+      try {
+        const { Resend } = await import('resend');
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        
+        await resend.emails.send({
+          from: 'Chatvice <noreply@chatvice.app>',
+          to: 'hello@chatvice.app',
+          subject: `[Crypto Payment] ${merchant.companyName} - ${cryptocurrency} ${amountCrypto}`,
+          html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #7c3aed;">New Crypto Payment Confirmation</h2>
+              
+              <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="margin-top: 0;">Merchant Details</h3>
+                <p><strong>Company:</strong> ${merchant.companyName}</p>
+                <p><strong>Email:</strong> ${merchant.email}</p>
+                <p><strong>Merchant ID:</strong> ${merchantId}</p>
+              </div>
+              
+              <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="margin-top: 0;">Order Details</h3>
+                <p><strong>Plan:</strong> ${planName} (${billingInterval})</p>
+                <p><strong>Type:</strong> ${isUpgrade ? 'Upgrade' : isDowngrade ? 'Downgrade' : 'New Subscription'}</p>
+                <p><strong>Amount (USD):</strong> $${(amountUsd / 100).toFixed(2)}</p>
+              </div>
+              
+              <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="margin-top: 0;">Payment Details</h3>
+                <p><strong>Cryptocurrency:</strong> ${cryptocurrency} (${network})</p>
+                <p><strong>Amount:</strong> ${amountCrypto} ${cryptocurrency}</p>
+                <p><strong>Wallet:</strong> ${walletAddress}</p>
+                <p><strong>Transaction Hash:</strong> <code style="background: #e5e7eb; padding: 2px 6px; border-radius: 4px;">${transactionHash}</code></p>
+              </div>
+              
+              <div style="margin: 20px 0;">
+                <h3>Proof of Payment</h3>
+                <img src="${proofImageUrl}" alt="Payment Proof" style="max-width: 100%; border-radius: 8px; border: 1px solid #e5e7eb;" />
+              </div>
+              
+              <div style="margin-top: 30px; text-align: center;">
+                <a href="https://chatvice.app/admin/crypto-payments" style="background: #7c3aed; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">
+                  Review Payment
+                </a>
+              </div>
+            </div>
+          `,
+        });
+        
+        console.log('Crypto payment notification email sent to hello@chatvice.app');
+      } catch (emailError) {
+        console.error('Failed to send crypto payment notification email:', emailError);
+        // Don't fail the request if email fails
+      }
+      
+      res.json({ 
+        success: true, 
+        confirmationId,
+        message: "Payment confirmation submitted successfully" 
+      });
+    } catch (error: any) {
+      console.error('Crypto payment confirmation error:', error);
+      res.status(500).json({ error: error.message || "Failed to submit payment confirmation" });
+    }
+  });
+  
+  // GET /api/admin/crypto-payments - Get all crypto payment confirmations (admin only)
+  app.get("/api/admin/crypto-payments", requireAdmin, async (req, res) => {
+    try {
+      const confirmations = await db
+        .select()
+        .from(cryptoPaymentConfirmations)
+        .orderBy(desc(cryptoPaymentConfirmations.createdAt));
+      
+      res.json(confirmations);
+    } catch (error: any) {
+      console.error('Get crypto payments error:', error);
+      res.status(500).json({ error: error.message || "Failed to get crypto payments" });
+    }
+  });
+  
+  // PATCH /api/admin/crypto-payments/:id - Update crypto payment status (admin only)
+  app.patch("/api/admin/crypto-payments/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, reviewNotes } = req.body;
+      
+      if (!['pending', 'approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: "Invalid status" });
+      }
+      
+      await db
+        .update(cryptoPaymentConfirmations)
+        .set({
+          status,
+          reviewNotes,
+          reviewedBy: req.session.adminId,
+          reviewedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(cryptoPaymentConfirmations.id, id));
+      
+      // If approved, activate the subscription
+      if (status === 'approved') {
+        const [confirmation] = await db
+          .select()
+          .from(cryptoPaymentConfirmations)
+          .where(eq(cryptoPaymentConfirmations.id, id));
+        
+        if (confirmation) {
+          const periodEnd = confirmation.billingInterval === 'annual' 
+            ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+            : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+          
+          await storage.updateMerchantSubscription(confirmation.merchantId, {
+            subscriptionPlanId: confirmation.planId,
+            subscriptionStatus: 'active',
+            paymentProvider: 'crypto',
+            paymentSubscriptionId: `crypto_${id}`,
+            currentPeriodEnd: periodEnd,
+            billingInterval: confirmation.billingInterval,
+            conversationsUsed: 0,
+            conversationsResetAt: new Date(),
+            // Clear any scheduled plan change
+            scheduledPlanId: null,
+            scheduledBillingInterval: null,
+            scheduledPlanActivatesAt: null,
+            scheduledPlanTransactionId: null,
+          });
+          
+          // Send approval email to merchant
+          try {
+            const { Resend } = await import('resend');
+            const resend = new Resend(process.env.RESEND_API_KEY);
+            
+            await resend.emails.send({
+              from: 'Chatvice <noreply@chatvice.app>',
+              to: confirmation.merchantEmail,
+              subject: 'Payment Confirmed - Your Subscription is Active!',
+              html: `
+                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2 style="color: #7c3aed;">Payment Confirmed!</h2>
+                  <p>Great news! Your crypto payment has been verified and your subscription is now active.</p>
+                  
+                  <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <p><strong>Plan:</strong> ${confirmation.planName}</p>
+                    <p><strong>Billing:</strong> ${confirmation.billingInterval}</p>
+                    <p><strong>Valid Until:</strong> ${periodEnd.toLocaleDateString()}</p>
+                  </div>
+                  
+                  <div style="margin-top: 30px; text-align: center;">
+                    <a href="https://chatvice.app/dashboard" style="background: #7c3aed; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">
+                      Go to Dashboard
+                    </a>
+                  </div>
+                </div>
+              `,
+            });
+          } catch (emailError) {
+            console.error('Failed to send approval email:', emailError);
+          }
+        }
+      }
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Update crypto payment error:', error);
+      res.status(500).json({ error: error.message || "Failed to update crypto payment" });
     }
   });
 

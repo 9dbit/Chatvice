@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -34,7 +37,9 @@ import {
   Bitcoin,
   ExternalLink,
   Share2,
-  Mail
+  Mail,
+  Upload,
+  ImageIcon
 } from "lucide-react";
 import { SiWhatsapp, SiTelegram, SiMessenger, SiPaypal, SiBitcoin, SiEthereum, SiSolana, SiBinance, SiTether, SiRipple } from "react-icons/si";
 import PayPalButton from "@/components/PayPalButton";
@@ -306,6 +311,12 @@ export default function CheckoutPage() {
   const [prorationInfo, setProrationInfo] = useState<ProrationInfo | null>(null);
   const [selectedCrypto, setSelectedCrypto] = useState<CryptoCoin | null>(null);
   const [showCryptoDialog, setShowCryptoDialog] = useState(false);
+  const [showConfirmPaymentDialog, setShowConfirmPaymentDialog] = useState(false);
+  const [cryptoTxHash, setCryptoTxHash] = useState("");
+  const [cryptoProofFile, setCryptoProofFile] = useState<File | null>(null);
+  const [cryptoProofPreview, setCryptoProofPreview] = useState<string | null>(null);
+  const [submittingCryptoPayment, setSubmittingCryptoPayment] = useState(false);
+  const [priceLoadingProgress, setPriceLoadingProgress] = useState(0);
   
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -348,6 +359,22 @@ export default function CheckoutPage() {
     staleTime: 30 * 1000, // 30 seconds
     refetchInterval: showCryptoDialog ? 60 * 1000 : false, // Auto-refresh every 60s when dialog open
   });
+  
+  // Price loading progress animation
+  useEffect(() => {
+    if (cryptoPricesLoading) {
+      setPriceLoadingProgress(0);
+      const interval = setInterval(() => {
+        setPriceLoadingProgress(prev => {
+          if (prev >= 90) return prev;
+          return prev + Math.random() * 15;
+        });
+      }, 150);
+      return () => clearInterval(interval);
+    } else {
+      setPriceLoadingProgress(100);
+    }
+  }, [cryptoPricesLoading]);
   
   // Resume pending transaction if resumeTransactionId is provided
   const { data: resumeData, isLoading: resumeLoading, isError: resumeError } = useQuery<{
@@ -2228,9 +2255,12 @@ export default function CheckoutPage() {
                     <div className="text-center py-3 bg-purple-500/10 dark:bg-purple-500/20 rounded-lg">
                       <p className="text-xs text-muted-foreground mb-2">Send Exactly</p>
                       {cryptoPricesLoading ? (
-                        <div className="flex items-center justify-center gap-2 py-2">
-                          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">Fetching live price...</span>
+                        <div className="py-3 px-4">
+                          <div className="flex items-center justify-center gap-2 mb-2">
+                            <Loader2 className="w-4 h-4 animate-spin text-purple-500" />
+                            <span className="text-sm text-muted-foreground">Fetching live price...</span>
+                          </div>
+                          <Progress value={priceLoadingProgress} className="h-1.5" />
                         </div>
                       ) : cryptoPrices?.prices?.[selectedCrypto.id] ? (
                         <>
@@ -2265,9 +2295,15 @@ export default function CheckoutPage() {
                               Cached prices - refreshing...
                             </p>
                           )}
-                          <p className="text-[10px] text-muted-foreground/70 mt-1">
-                            Updated {new Date(cryptoPrices.timestamp).toLocaleTimeString()}
-                          </p>
+                          <div className="flex items-center justify-center gap-2 mt-1">
+                            <p className="text-[10px] text-muted-foreground/70">
+                              Updated {new Date(cryptoPrices.timestamp).toLocaleTimeString()}
+                            </p>
+                            <span className="text-[10px] text-muted-foreground/50">•</span>
+                            <p className="text-[10px] text-muted-foreground/70">
+                              Powered by CoinGecko
+                            </p>
+                          </div>
                         </>
                       ) : (
                         <div className="py-2">
@@ -2355,13 +2391,164 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                {/* Contact Support Button */}
+                {/* Confirm Payment Button */}
                 <Button 
                   size="sm" 
-                  variant="outline"
-                  className="w-full h-10"
+                  className="w-full h-10 crypto-purple-btn"
                   onClick={() => {
-                    const subject = encodeURIComponent('Crypto Payment Verification');
+                    setShowCryptoDialog(false);
+                    setShowConfirmPaymentDialog(true);
+                  }}
+                  data-testid="button-confirm-crypto-payment"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Confirm Payment
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm Crypto Payment Dialog */}
+      <Dialog open={showConfirmPaymentDialog} onOpenChange={(open) => {
+        setShowConfirmPaymentDialog(open);
+        if (!open) {
+          setCryptoTxHash("");
+          setCryptoProofFile(null);
+          setCryptoProofPreview(null);
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="w-5 h-5 text-purple-500" />
+              Confirm Crypto Payment
+            </DialogTitle>
+            <DialogDescription>
+              Upload proof of payment to verify your transaction
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedCrypto && selectedPlan && (
+            <div className="space-y-4">
+              {/* Order Summary */}
+              <div className="p-3 rounded-lg bg-muted/30 border border-border/50 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Plan</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{selectedPlan.name} ({isAnnual ? 'Annual' : 'Monthly'})</span>
+                    {billingStatus?.status === 'active' && billingStatus?.planId && selectedPlan?.id !== billingStatus?.planId && (
+                      isDowngrade ? (
+                        <Badge variant="secondary" className="text-xs bg-amber-500/20 text-amber-600">Downgrade</Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-xs bg-green-500/20 text-green-600">Upgrade</Badge>
+                      )
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Crypto</span>
+                  <span className="font-medium">{selectedCrypto.symbol} ({selectedCrypto.network})</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Amount</span>
+                  <span className="font-medium">${(finalPriceUSD * 1.03).toFixed(2)}</span>
+                </div>
+                {cryptoPrices?.prices?.[selectedCrypto.id] && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Crypto Amount</span>
+                    <span className="font-medium text-purple-600">
+                      {(() => {
+                        const price = cryptoPrices.prices[selectedCrypto.id];
+                        const amountWithFee = finalPriceUSD * 1.03;
+                        const cryptoAmount = amountWithFee / price;
+                        const decimals = cryptoPrices.decimals?.[selectedCrypto.id] || 6;
+                        return `${cryptoAmount.toFixed(decimals)} ${selectedCrypto.symbol}`;
+                      })()}
+                    </span>
+                  </div>
+                )}
+              </div>
+              
+              {/* Transaction Hash */}
+              <div className="space-y-2">
+                <Label htmlFor="txHash">Transaction Hash (TXID)</Label>
+                <Input
+                  id="txHash"
+                  placeholder="Enter your transaction hash..."
+                  value={cryptoTxHash}
+                  onChange={(e) => setCryptoTxHash(e.target.value)}
+                  data-testid="input-crypto-tx-hash"
+                />
+              </div>
+              
+              {/* Proof of Payment Upload */}
+              <div className="space-y-2">
+                <Label>Proof of Payment (Screenshot)</Label>
+                <div 
+                  className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-purple-500/50 transition-colors"
+                  onClick={() => document.getElementById('cryptoProofInput')?.click()}
+                >
+                  {cryptoProofPreview ? (
+                    <div className="space-y-2">
+                      <img src={cryptoProofPreview} alt="Proof" className="max-h-40 mx-auto rounded-lg" />
+                      <p className="text-xs text-muted-foreground">{cryptoProofFile?.name}</p>
+                    </div>
+                  ) : (
+                    <div className="py-4 space-y-2">
+                      <ImageIcon className="w-10 h-10 mx-auto text-muted-foreground/50" />
+                      <p className="text-sm text-muted-foreground">Click to upload screenshot</p>
+                      <p className="text-xs text-muted-foreground/70">PNG, JPG up to 5MB</p>
+                    </div>
+                  )}
+                </div>
+                <input
+                  id="cryptoProofInput"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      if (file.size > 5 * 1024 * 1024) {
+                        toast({ title: "File too large", description: "Please upload an image under 5MB", variant: "destructive" });
+                        return;
+                      }
+                      setCryptoProofFile(file);
+                      const reader = new FileReader();
+                      reader.onloadend = () => setCryptoProofPreview(reader.result as string);
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  data-testid="input-crypto-proof-file"
+                />
+              </div>
+              
+              {/* Submit Button */}
+              <Button
+                className="w-full crypto-purple-btn"
+                disabled={!cryptoTxHash.trim() || !cryptoProofFile || submittingCryptoPayment}
+                onClick={async () => {
+                  if (!cryptoTxHash.trim() || !cryptoProofFile || !selectedCrypto || !selectedPlan) return;
+                  
+                  setSubmittingCryptoPayment(true);
+                  try {
+                    // Upload proof image first
+                    const formData = new FormData();
+                    formData.append('file', cryptoProofFile);
+                    formData.append('type', 'crypto-payment-proof');
+                    
+                    const uploadRes = await fetch('/api/upload', {
+                      method: 'POST',
+                      body: formData,
+                      credentials: 'include',
+                    });
+                    
+                    if (!uploadRes.ok) throw new Error('Failed to upload proof image');
+                    const uploadData = await uploadRes.json();
+                    
+                    // Calculate crypto amount
                     let cryptoAmountStr = 'N/A';
                     if (cryptoPrices?.prices?.[selectedCrypto.id]) {
                       const price = cryptoPrices.prices[selectedCrypto.id];
@@ -2370,25 +2557,57 @@ export default function CheckoutPage() {
                       const decimals = cryptoPrices.decimals?.[selectedCrypto.id] || 6;
                       cryptoAmountStr = cryptoAmount.toFixed(decimals);
                     }
-                    const body = encodeURIComponent(
-                      `Plan: ${selectedPlan?.name}\n` +
-                      `Billing: ${isAnnual ? 'Annual' : 'Monthly'}\n` +
-                      `Base Amount: $${finalPriceUSD.toFixed(2)} USD\n` +
-                      `Total with 3% Fee: $${(finalPriceUSD * 1.03).toFixed(2)} USD\n` +
-                      `Crypto: ${selectedCrypto.symbol}\n` +
-                      `Crypto Amount: ${cryptoAmountStr} ${selectedCrypto.symbol}\n` +
-                      `Network: ${selectedCrypto.network}\n` +
-                      `Wallet: ${selectedCrypto.address}\n\n` +
-                      `Transaction Hash (TXID): `
-                    );
-                    window.open(`mailto:support@chatvice.app?subject=${subject}&body=${body}`, '_blank');
-                  }}
-                  data-testid="button-contact-support"
-                >
-                  <Mail className="w-4 h-4 mr-2" />
-                  Contact Support After Payment
-                </Button>
-              </div>
+                    
+                    // Submit payment confirmation
+                    const response = await apiRequest('POST', '/api/crypto-payment/confirm', {
+                      planId: selectedPlan.id,
+                      planName: selectedPlan.name,
+                      billingInterval: isAnnual ? 'annual' : 'monthly',
+                      isUpgrade: billingStatus?.status === 'active' && billingStatus?.planId && selectedPlan?.id !== billingStatus?.planId && !isDowngrade,
+                      isDowngrade: isDowngrade,
+                      cryptocurrency: selectedCrypto.symbol,
+                      network: selectedCrypto.network,
+                      amountUsd: Math.round(finalPriceUSD * 1.03 * 100), // in cents
+                      amountCrypto: cryptoAmountStr,
+                      walletAddress: selectedCrypto.address,
+                      transactionHash: cryptoTxHash.trim(),
+                      proofImageUrl: uploadData.url,
+                    });
+                    
+                    toast({ 
+                      title: "Payment Submitted!", 
+                      description: "We'll verify your payment and activate your subscription within 1-2 hours." 
+                    });
+                    setShowConfirmPaymentDialog(false);
+                    setCryptoTxHash("");
+                    setCryptoProofFile(null);
+                    setCryptoProofPreview(null);
+                    navigate('/dashboard/billing');
+                  } catch (error) {
+                    console.error('Submit error:', error);
+                    toast({ 
+                      title: "Submission Failed", 
+                      description: "Please try again or contact support", 
+                      variant: "destructive" 
+                    });
+                  } finally {
+                    setSubmittingCryptoPayment(false);
+                  }
+                }}
+                data-testid="button-submit-crypto-confirmation"
+              >
+                {submittingCryptoPayment ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Submit Payment Confirmation
+                  </>
+                )}
+              </Button>
             </div>
           )}
         </DialogContent>
