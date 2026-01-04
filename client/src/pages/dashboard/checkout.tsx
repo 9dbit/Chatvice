@@ -2067,17 +2067,22 @@ export default function CheckoutPage() {
               <div className="flex items-center justify-between mb-4">
                 <span className="text-sm font-medium text-foreground">Select Cryptocurrency</span>
                 <div className="flex items-center gap-2">
-                  {(cryptoPricesLoading || cryptoPricesFetching) && !cryptoPrices ? (
+                  {cryptoPricesLoading || (cryptoPricesFetching && !cryptoPrices) ? (
                     <>
                       <Loader2 className="w-3 h-3 animate-spin text-purple-500" />
                       <span className="text-xs text-purple-500 font-medium">Loading prices...</span>
                     </>
                   ) : cryptoPrices ? (
-                    <>
+                    <div className="flex items-center gap-2">
+                      {cryptoPricesFetching && (
+                        <Loader2 className="w-3 h-3 animate-spin text-green-500" />
+                      )}
                       <div className="crypto-live-dot" />
                       <span className="text-xs text-green-600 dark:text-green-400 font-medium">Live Prices</span>
-                    </>
-                  ) : null}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Prices unavailable</span>
+                  )}
                 </div>
               </div>
               <div className="flex flex-col gap-2 md:grid md:grid-cols-3 md:gap-3">
@@ -2110,15 +2115,15 @@ export default function CheckoutPage() {
                           <span className="text-xs text-muted-foreground block truncate">{coin.name}</span>
                         </div>
                         <div className="text-right shrink-0">
-                          {(cryptoPricesLoading || cryptoPricesFetching) && !cryptoPrices ? (
+                          {cryptoPricesLoading || (cryptoPricesFetching && !cryptoPrices) ? (
                             <div className="flex items-center gap-1">
                               <Loader2 className="w-3 h-3 animate-spin text-purple-500" />
                               <span className="text-xs text-muted-foreground">Loading</span>
                             </div>
-                          ) : cryptoAmount !== null ? (
+                          ) : cryptoAmount !== null && !isNaN(cryptoAmount) ? (
                             <div className="flex flex-col items-end">
                               <span className="text-sm font-semibold text-purple-600 dark:text-purple-400">
-                                {cryptoAmount.toFixed(Math.min(decimals, 4))} {coin.symbol}
+                                {cryptoAmount.toFixed(Math.min(decimals || 6, 4))} {coin.symbol}
                               </span>
                               <span className="text-[10px] text-muted-foreground">
                                 ${(finalPriceUSD * 1.03).toFixed(2)}
@@ -2422,9 +2427,8 @@ export default function CheckoutPage() {
                           </div>
                         </div>
                         
-                        <div style="text-align: center; margin-bottom: 16px;">
+                        <div id="qr-placeholder" style="text-align: center; margin-bottom: 16px;">
                           <div style="display: inline-block; padding: 16px; background: white; border-radius: 12px;">
-                            ${document.querySelector('#crypto-invoice-content svg[viewBox]')?.outerHTML || ''}
                           </div>
                         </div>
                         
@@ -2464,7 +2468,7 @@ export default function CheckoutPage() {
                         <div style="text-align: center; padding: 16px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(168, 85, 247, 0.15)); border-radius: 12px; margin-bottom: 16px;">
                           <div style="font-size: 11px; color: ${isDark ? '#888' : '#666'}; margin-bottom: 8px;">Send Exactly</div>
                           <div style="font-size: 28px; font-weight: 700; background: linear-gradient(135deg, #8B5CF6, #A855F7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                            ${cryptoAmount !== null ? cryptoAmount.toFixed(decimals) : '--'} <span style="font-size: 18px; color: ${selectedCrypto.color}; -webkit-text-fill-color: ${selectedCrypto.color};">${selectedCrypto.symbol}</span>
+                            ${cryptoAmount !== null ? cryptoAmount.toFixed(decimals || 6) : '--'} <span style="font-size: 18px; color: ${selectedCrypto.color}; -webkit-text-fill-color: ${selectedCrypto.color};">${selectedCrypto.symbol}</span>
                           </div>
                           ${price ? `<div style="font-size: 10px; color: ${isDark ? '#888' : '#666'}; margin-top: 4px;">1 ${selectedCrypto.symbol} = $${price.toLocaleString('en-US', { maximumFractionDigits: 2 })}</div>` : ''}
                         </div>
@@ -2475,6 +2479,16 @@ export default function CheckoutPage() {
                       `;
                       
                       document.body.appendChild(exportContainer);
+                      
+                      // Clone and insert the QR code from the dialog
+                      const qrSource = document.querySelector('#crypto-invoice-content svg');
+                      const qrPlaceholder = exportContainer.querySelector('#qr-placeholder > div');
+                      if (qrSource && qrPlaceholder) {
+                        const qrClone = qrSource.cloneNode(true) as SVGElement;
+                        qrClone.style.width = '160px';
+                        qrClone.style.height = '160px';
+                        qrPlaceholder.appendChild(qrClone);
+                      }
                       
                       const canvas = await html2canvas(exportContainer, {
                         backgroundColor: isDark ? '#0f0f19' : '#ffffff',
