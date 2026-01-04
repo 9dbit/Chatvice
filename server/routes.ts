@@ -4622,7 +4622,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const uploadType = req.body.type || 'general';
       
       // Try to upload to object storage first
-      const objectStorage = ObjectStorageService.getInstance();
+      const objectStorage = new ObjectStorageService();
       if (objectStorage.isConfigured()) {
         try {
           const fileBuffer = fs.readFileSync(file.path);
