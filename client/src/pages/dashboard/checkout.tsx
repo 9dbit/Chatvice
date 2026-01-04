@@ -2369,63 +2369,40 @@ export default function CheckoutPage() {
                       const html2canvas = (await import('html2canvas')).default;
                       const isDark = document.documentElement.classList.contains('dark');
                       
-                      // Get QR code from visible dialog - find the QRCodeSVG that's already rendered
-                      const visibleQR = document.querySelector('#crypto-invoice-content svg[class*="qr"]') || 
-                                        document.querySelector('#crypto-invoice-content .qr-code-container svg');
-                      let qrDataUrl = '';
+                      // Generate QR code using canvas - with proper waiting
+                      const { QRCodeCanvas } = await import('qrcode.react');
+                      const { createRoot } = await import('react-dom/client');
+                      const { flushSync } = await import('react-dom');
                       
-                      // If we can find a visible QR canvas or SVG, use it
-                      const qrElement = document.querySelector('#crypto-invoice-content canvas');
-                      if (qrElement && qrElement instanceof HTMLCanvasElement) {
-                        qrDataUrl = qrElement.toDataURL('image/png');
-                      } else {
-                        // Generate QR using canvas approach
-                        const { QRCodeCanvas } = await import('qrcode.react');
-                        const { createRoot } = await import('react-dom/client');
-                        const { flushSync } = await import('react-dom');
-                        
-                        const qrContainer = document.createElement('div');
-                        qrContainer.style.cssText = 'position: absolute; left: -9999px; top: 0; visibility: hidden;';
-                        document.body.appendChild(qrContainer);
-                        
-                        const qrRoot = createRoot(qrContainer);
-                        flushSync(() => {
-                          qrRoot.render(
-                            <QRCodeCanvas 
-                              value={selectedCrypto.address} 
-                              size={180}
-                              level="H"
-                              includeMargin={false}
-                              fgColor="#1a1a2e"
-                              bgColor="#ffffff"
-                            />
-                          );
-                        });
-                        
-                        // Wait for render to complete
-                        await new Promise(resolve => setTimeout(resolve, 300));
-                        
-                        const qrCanvas = qrContainer.querySelector('canvas');
-                        if (qrCanvas) {
-                          qrDataUrl = qrCanvas.toDataURL('image/png');
-                        }
-                        
-                        qrRoot.unmount();
-                        document.body.removeChild(qrContainer);
+                      const qrContainer = document.createElement('div');
+                      qrContainer.style.cssText = 'position: fixed; left: 0; top: 0; z-index: -9999; background: #ffffff; padding: 10px;';
+                      document.body.appendChild(qrContainer);
+                      
+                      const qrRoot = createRoot(qrContainer);
+                      flushSync(() => {
+                        qrRoot.render(
+                          <QRCodeCanvas 
+                            value={selectedCrypto.address} 
+                            size={200}
+                            level="H"
+                            includeMargin={true}
+                            fgColor="#1a1a2e"
+                            bgColor="#ffffff"
+                          />
+                        );
+                      });
+                      
+                      // Wait longer for canvas to fully render
+                      await new Promise(resolve => setTimeout(resolve, 500));
+                      
+                      let qrDataUrl = '';
+                      const qrCanvas = qrContainer.querySelector('canvas');
+                      if (qrCanvas) {
+                        qrDataUrl = qrCanvas.toDataURL('image/png');
                       }
                       
-                      // Create export container
-                      const exportContainer = document.createElement('div');
-                      exportContainer.style.cssText = `
-                        position: absolute;
-                        left: -9999px;
-                        top: 0;
-                        width: 375px;
-                        background: ${isDark ? '#0f0f19' : '#ffffff'};
-                        color: ${isDark ? '#ffffff' : '#1a1a2e'};
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                        padding: 24px;
-                      `;
+                      qrRoot.unmount();
+                      document.body.removeChild(qrContainer);
                       
                       // Calculate amounts
                       const price = cryptoPrices?.prices?.[selectedCrypto.id];
@@ -2433,32 +2410,60 @@ export default function CheckoutPage() {
                       const cryptoAmount = price ? amountWithFee / price : null;
                       const decimals = cryptoPrices?.decimals?.[selectedCrypto.id] || 6;
                       
-                      // Chatvice logo SVG
-                      const logoSvg = `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect width="32" height="32" rx="7" fill="#8B5CF6"/>
-                        <rect x="7" y="9" width="18" height="14" rx="2.5" fill="white"/>
-                        <circle cx="12" cy="16" r="2" fill="#8B5CF6"/>
-                        <circle cx="16" cy="16" r="2" fill="#A855F7"/>
-                        <circle cx="20" cy="16" r="2" fill="#C084FC"/>
+                      // Real Chatvice logo as proper SVG (matching actual brand)
+                      const chatviceLogoSvg = `<svg width="36" height="36" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                          <linearGradient id="chatGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#8B5CF6"/>
+                            <stop offset="100%" style="stop-color:#A855F7"/>
+                          </linearGradient>
+                        </defs>
+                        <rect width="100" height="100" rx="22" fill="url(#chatGrad)"/>
+                        <path d="M25 30 L25 55 L35 55 L35 75 L55 55 L75 55 L75 30 Z" fill="white"/>
+                        <path d="M30 35 L30 50 L37 50 L37 65 L52 50 L70 50 L70 35 Z" fill="url(#chatGrad)" opacity="0.15"/>
                       </svg>`;
                       
-                      // Partner logos SVGs (simplified monochrome versions)
-                      const coingeckoSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="${isDark ? '#666' : '#999'}"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="9" cy="10" r="2" fill="currentColor"/><path d="M8 15c2 2 6 2 8 0" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>`;
-                      const coinbaseSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="${isDark ? '#666' : '#999'}"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/><rect x="8" y="10" width="8" height="4" rx="1" fill="currentColor"/></svg>`;
-                      const binanceSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="${isDark ? '#666' : '#999'}"><path d="M12 4L8 8l2 2 2-2 2 2 2-2-4-4zM6 10l-2 2 2 2 2-2-2-2zM18 10l-2 2 2 2 2-2-2-2zM12 12l-2 2 2 2 2-2-2-2zM12 18l2-2-2-2-2 2 2 2z" fill="currentColor"/></svg>`;
-                      const trustWalletSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="${isDark ? '#666' : '#999'}"><path d="M12 3L4 7v6c0 5 3.5 9.7 8 11 4.5-1.3 8-6 8-11V7l-8-4z" stroke="currentColor" stroke-width="2" fill="none"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" fill="none"/></svg>`;
+                      // Crypto icon SVGs - actual brand icons
+                      const cryptoIcons: Record<string, string> = {
+                        btc: `<svg width="40" height="40" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#F7931A"/><path d="M22.5 14.1c.3-2-1.2-3-3.3-3.8l.7-2.8-1.7-.4-.7 2.7c-.4-.1-1-.2-1.4-.3l.7-2.7-1.7-.4-.7 2.8c-.4-.1-.7-.2-1-.3v-.1l-2.4-.6-.4 1.8s1.3.3 1.2.3c.7.2.8.6.8 1l-.8 3.3c0 0 .1 0 .2.1h-.2l-1.2 4.8c-.1.2-.3.6-.8.4 0 0-1.2-.3-1.2-.3l-.8 2 2.2.6c.4.1.8.2 1.2.3l-.7 2.8 1.7.4.7-2.8c.5.1 1 .2 1.4.3l-.7 2.8 1.7.4.7-2.8c3 .6 5.2.3 6.2-2.4.7-2.2 0-3.4-1.6-4.2 1.1-.3 2-.1.1 2.2 0-1.7-1.2-2.6-3.3-3zm-1 4.5c-.5 2-4 .9-5.1.7l.9-3.7c1.1.3 4.7.8 4.2 3zm.5-4.5c-.5 1.8-3.4.9-4.3.6l.8-3.3c1 .2 4 .7 3.5 2.7z" fill="white"/></svg>`,
+                        eth: `<svg width="40" height="40" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#627EEA"/><path d="M16 4v8.9l7.5 3.3L16 4z" fill="white" fill-opacity="0.6"/><path d="M16 4L8.5 16.2l7.5-3.3V4z" fill="white"/><path d="M16 22v6l7.5-10.5L16 22z" fill="white" fill-opacity="0.6"/><path d="M16 28v-6l-7.5-4.5L16 28z" fill="white"/><path d="M16 20.6l7.5-4.4-7.5-3.3v7.7z" fill="white" fill-opacity="0.2"/><path d="M8.5 16.2l7.5 4.4v-7.7l-7.5 3.3z" fill="white" fill-opacity="0.6"/></svg>`,
+                        sol: `<svg width="40" height="40" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#9945FF"/><path d="M9 20.5h11.3c.2 0 .3.1.4.2l2.3 2.3c.2.2.1.5-.2.5H11.5c-.1 0-.3-.1-.4-.2L9 21c-.2-.2-.1-.5.2-.5h-.2zm0-5h11.3c.2 0 .3.1.4.2l2.3 2.3c.2.2.1.5-.2.5H11.5c-.1 0-.3-.1-.4-.2L9 16c-.2-.2-.1-.5.2-.5h-.2zm13.8-4.5H11.5c-.2 0-.3-.1-.4-.2L9 8.5c-.2-.2-.1-.5.2-.5h11.3c.1 0 .3.1.4.2l2.1 2.3c.2.2.1.5-.2.5z" fill="white"/></svg>`,
+                        bnb: `<svg width="40" height="40" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#F3BA2F"/><path d="M12.1 14.1L16 10.2l3.9 3.9 2.3-2.3L16 5.6l-6.2 6.2 2.3 2.3zm-4.5 1.9l2.3-2.3 2.3 2.3-2.3 2.3-2.3-2.3zm4.5 1.9L16 21.8l3.9-3.9 2.3 2.3-6.2 6.2-6.2-6.2 2.3-2.3zm8.4-1.9l2.3-2.3 2.3 2.3-2.3 2.3-2.3-2.3zM18.3 16L16 13.7 14.2 15.5l-.2.2-.3.3L16 18.3l2.3-2.3z" fill="white"/></svg>`,
+                        usdt: `<svg width="40" height="40" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#26A17B"/><path d="M17.9 17.1v-.1c-.1 0-.7 0-1.9 0s-1.7 0-2 .1v.1c-3.5.2-6.2.7-6.2 1.4s2.7 1.3 6.2 1.4v4.6h3.9V20c3.5-.2 6.1-.7 6.1-1.4s-2.6-1.3-6.1-1.5zm0 2.4v-.1c-.3 0-.9.1-1.9.1s-1.5 0-2-.1v.1c-3 .1-5.3.5-5.3 1s2.3.9 5.3 1v-2c.5 0 1.1.1 2 .1.9 0 1.6 0 1.9-.1v2c3-.1 5.2-.5 5.2-1s-2.2-.9-5.2-1zM22.4 10H9.6v2.2h4.6v3.5h3.6v-3.5h4.6V10z" fill="white"/></svg>`,
+                        xrp: `<svg width="40" height="40" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#23292F"/><path d="M23.4 9h2.5l-5.7 5.5c-1.2 1.1-3.1 1.1-4.3 0L10.1 9h2.5l4.1 4c.7.7 1.9.7 2.6 0l4.1-4zm-13 14h-2.5l5.8-5.6c1.2-1.1 3.1-1.1 4.3 0l5.9 5.6h-2.5l-4.2-4c-.7-.7-1.9-.7-2.6 0l-4.2 4z" fill="white"/></svg>`
+                      };
+                      
+                      const currencyIconSvg = cryptoIcons[selectedCrypto.id] || `<svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="20" fill="${selectedCrypto.color}"/><text x="20" y="26" text-anchor="middle" fill="white" font-size="16" font-weight="bold">${selectedCrypto.symbol.charAt(0)}</text></svg>`;
+                      
+                      // Partner logos SVGs
+                      const coingeckoSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="${isDark ? '#888' : '#666'}"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="9" cy="10" r="2" fill="currentColor"/><path d="M8 15c2 2 6 2 8 0" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>`;
+                      const coinbaseSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="${isDark ? '#888' : '#666'}"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/><rect x="8" y="10" width="8" height="4" rx="1" fill="currentColor"/></svg>`;
+                      const binanceSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="${isDark ? '#888' : '#666'}"><path d="M12 4L8 8l2 2 2-2 2 2 2-2-4-4zM6 10l-2 2 2 2 2-2-2-2zM18 10l-2 2 2 2 2-2-2-2zM12 12l-2 2 2 2 2-2-2-2zM12 18l2-2-2-2-2 2 2 2z"/></svg>`;
+                      const trustSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="${isDark ? '#888' : '#666'}"><path d="M12 3L4 7v6c0 5 3.5 9.7 8 11 4.5-1.3 8-6 8-11V7l-8-4z" stroke="currentColor" stroke-width="2" fill="none"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" fill="none"/></svg>`;
+                      
+                      // Create export container with all proper elements
+                      const exportContainer = document.createElement('div');
+                      exportContainer.style.cssText = `
+                        position: fixed;
+                        left: 0;
+                        top: 0;
+                        z-index: -9999;
+                        width: 375px;
+                        background: ${isDark ? '#0f0f19' : '#ffffff'};
+                        color: ${isDark ? '#ffffff' : '#1a1a2e'};
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        padding: 24px;
+                      `;
                       
                       exportContainer.innerHTML = `
                         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
-                          ${logoSvg}
-                          <span style="font-size: 22px; font-weight: 700; color: ${isDark ? '#ffffff' : '#1a1a2e'};">Chatvice</span>
+                          ${chatviceLogoSvg}
+                          <span style="font-size: 22px; font-weight: 700; background: linear-gradient(135deg, #8B5CF6, #A855F7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Chatvice</span>
                         </div>
                         <p style="font-size: 12px; color: ${isDark ? '#888' : '#666'}; margin-bottom: 20px;">Crypto Payment Invoice</p>
                         
                         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 12px; background: ${isDark ? '#1a1a2e' : '#f5f5f7'}; border-radius: 12px;">
-                          <div style="width: 44px; height: 44px; border-radius: 50%; background: ${selectedCrypto.color}20; display: flex; align-items: center; justify-content: center;">
-                            <span style="font-size: 18px; font-weight: 700; color: ${selectedCrypto.color};">${selectedCrypto.symbol.charAt(0)}</span>
-                          </div>
+                          ${currencyIconSvg}
                           <div>
                             <div style="font-size: 16px; font-weight: 700; color: ${isDark ? '#ffffff' : '#1a1a2e'};">${selectedCrypto.symbol}</div>
                             <div style="font-size: 11px; color: ${isDark ? '#888' : '#666'};">${selectedCrypto.name} • ${selectedCrypto.network}</div>
@@ -2466,8 +2471,8 @@ export default function CheckoutPage() {
                         </div>
                         
                         <div style="text-align: center; margin-bottom: 16px;">
-                          <div style="display: inline-block; padding: 12px; background: #ffffff; border-radius: 10px;">
-                            ${qrDataUrl ? `<img src="${qrDataUrl}" width="160" height="160" style="display: block;" />` : `<div style="width:160px;height:160px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;color:#999;font-size:12px;">QR Code</div>`}
+                          <div style="display: inline-block; padding: 12px; background: #ffffff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                            ${qrDataUrl ? `<img src="${qrDataUrl}" width="180" height="180" style="display: block; border-radius: 8px;" />` : `<div style="width:180px;height:180px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;color:#999;font-size:12px;border-radius:8px;">QR Code</div>`}
                           </div>
                         </div>
                         
@@ -2517,7 +2522,7 @@ export default function CheckoutPage() {
                             ${coingeckoSvg}
                             ${coinbaseSvg}
                             ${binanceSvg}
-                            ${trustWalletSvg}
+                            ${trustSvg}
                           </div>
                           <div style="font-size: 10px; color: ${isDark ? '#555' : '#999'};">
                             Generated ${new Date().toLocaleString()} • Powered by CoinGecko
@@ -2527,8 +2532,8 @@ export default function CheckoutPage() {
                       
                       document.body.appendChild(exportContainer);
                       
-                      // Wait for images to load
-                      await new Promise(resolve => setTimeout(resolve, 150));
+                      // Wait for all elements and images to render
+                      await new Promise(resolve => setTimeout(resolve, 300));
                       
                       const canvas = await html2canvas(exportContainer, {
                         backgroundColor: isDark ? '#0f0f19' : '#ffffff',
@@ -2540,10 +2545,38 @@ export default function CheckoutPage() {
                       
                       document.body.removeChild(exportContainer);
                       
+                      // Convert to blob for sharing
+                      const blob = await new Promise<Blob>((resolve) => {
+                        canvas.toBlob((b) => resolve(b!), 'image/png', 1.0);
+                      });
+                      
+                      const fileName = `chatvice-crypto-${selectedCrypto.symbol}-${Date.now()}.png`;
+                      const file = new File([blob], fileName, { type: 'image/png' });
+                      
+                      // Try Web Share API first (for mobile - saves to gallery)
+                      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                        try {
+                          await navigator.share({
+                            files: [file],
+                            title: 'Chatvice Crypto Invoice',
+                            text: `Payment invoice for ${selectedCrypto.symbol}`
+                          });
+                          toast({ title: "Saved!", description: "Invoice shared/saved to your device" });
+                          return;
+                        } catch (shareErr) {
+                          // User cancelled or share failed, fall through to download
+                          if ((shareErr as Error).name !== 'AbortError') {
+                            console.log('Share failed, falling back to download');
+                          }
+                        }
+                      }
+                      
+                      // Fallback to download
                       const link = document.createElement('a');
-                      link.download = `chatvice-crypto-${selectedCrypto.symbol}-${Date.now()}.png`;
-                      link.href = canvas.toDataURL('image/png');
+                      link.download = fileName;
+                      link.href = URL.createObjectURL(blob);
                       link.click();
+                      URL.revokeObjectURL(link.href);
                       toast({ title: "Saved!", description: "Invoice saved to your device" });
                     } catch (error) {
                       console.error('Save error:', error);
