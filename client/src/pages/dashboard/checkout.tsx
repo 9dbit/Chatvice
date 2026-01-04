@@ -2111,7 +2111,12 @@ export default function CheckoutPage() {
                             <span className="text-sm font-bold text-foreground">{coin.symbol}</span>
                             {cryptoPrices?.prices?.[coin.id] && (
                               <span className="text-[9px] text-emerald-400 font-medium">
-                                ${cryptoPrices.prices[coin.id].toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                                ${cryptoPrices.prices[coin.id] >= 100 
+                                  ? cryptoPrices.prices[coin.id].toLocaleString('en-US', { maximumFractionDigits: 0 })
+                                  : cryptoPrices.prices[coin.id] >= 1
+                                    ? cryptoPrices.prices[coin.id].toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                    : cryptoPrices.prices[coin.id].toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
+                                }
                               </span>
                             )}
                           </div>
