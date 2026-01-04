@@ -53,5 +53,14 @@ Core entities include Merchants, Supervisors, Sessions, Messages, Triggers, Know
 -   **AI Services**: OpenAI API (GPT-4.1-mini, text-embedding-3-small).
 -   **Database**: PostgreSQL.
 -   **UI Component Libraries**: Radix UI, Shadcn/ui.
--   **Payment Gateway**: Kompas Pay Indonesian payment gateway for subscription billing.
+-   **Payment Gateways**: Kompas Pay (Indonesian payment gateway), PayPal, Cryptocurrency (BTC, ETH, SOL, BNB, USDT, XRP with CoinGecko live pricing).
 -   **Development Environment**: Replit Platform.
+
+## Cryptocurrency Payment UI
+The checkout page features a premium crypto payment interface with:
+- **6 Supported Coins**: Bitcoin (BTC), Ethereum (ETH), Solana (SOL), Binance Coin (BNB), Tether (USDT), XRP
+- **Live Pricing**: Real-time prices from CoinGecko API with 60-second cache and 3% transaction fee
+- **Premium Design**: Neon glow effects, glassmorphism dialogs, framer-motion animations
+- **CSS Classes**: crypto-card, crypto-coin-btn, crypto-icon-halo, crypto-dialog-glass, crypto-amount-display, crypto-live-dot, crypto-float
+- **Manual Verification**: Customers send payment and contact support with transaction hash for verification
+- **Responsive Grid**: 2-column (mobile) / 3-column (desktop) coin selection with animated hover effects
