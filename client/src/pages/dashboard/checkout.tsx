@@ -327,6 +327,28 @@ export default function CheckoutPage() {
     queryKey: ["/api/promotions/active"],
   });
   
+  // Fetch crypto prices when dialog opens
+  interface CryptoPricesResponse {
+    prices: Record<string, number>;
+    timestamp: number;
+    cached: boolean;
+    stale?: boolean;
+    decimals: Record<string, number>;
+    feePercent: number;
+    error?: string;
+  }
+  
+  const { 
+    data: cryptoPrices, 
+    isLoading: cryptoPricesLoading,
+    refetch: refetchCryptoPrices,
+  } = useQuery<CryptoPricesResponse>({
+    queryKey: ["/api/crypto/prices"],
+    enabled: showCryptoDialog,
+    staleTime: 30 * 1000, // 30 seconds
+    refetchInterval: showCryptoDialog ? 60 * 1000 : false, // Auto-refresh every 60s when dialog open
+  });
+  
   // Resume pending transaction if resumeTransactionId is provided
   const { data: resumeData, isLoading: resumeLoading, isError: resumeError } = useQuery<{
     transactionId: string;
@@ -2115,25 +2137,99 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              {/* Amount to Pay */}
-              <div className="p-3 rounded-md bg-muted/50 text-center">
-                <p className="text-[10px] text-muted-foreground">Amount to Pay</p>
+              {/* Amount to Pay with Live Crypto Conversion */}
+              <div className="p-3 rounded-md bg-muted/50 space-y-2">
                 {finalPrice === 0 && finalPriceUSD === 0 && selectedPlan ? (
-                  <p className="text-sm font-medium text-green-600 dark:text-green-400">No payment required</p>
+                  <p className="text-sm font-medium text-green-600 dark:text-green-400 text-center">No payment required</p>
                 ) : (
                   <>
-                    <p className="text-lg font-bold text-primary">
-                      {selectedPlan ? `Rp ${finalPrice.toLocaleString('id-ID')}` : <Loader2 className="w-4 h-4 animate-spin mx-auto" />}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {selectedPlan ? `~$${finalPriceUSD.toFixed(2)} USD` : '-'}
-                    </p>
+                    {/* USD Amount with 3% fee */}
+                    <div className="text-center border-b border-muted-foreground/20 pb-2">
+                      <p className="text-[10px] text-muted-foreground">Base Amount</p>
+                      <p className="text-sm font-medium">
+                        ${finalPriceUSD.toFixed(2)} USD
+                      </p>
+                      <p className="text-[9px] text-muted-foreground">
+                        + 3% crypto fee = <span className="font-medium">${(finalPriceUSD * 1.03).toFixed(2)} USD</span>
+                      </p>
+                    </div>
+                    
+                    {/* Crypto Amount */}
+                    <div className="text-center pt-1">
+                      <p className="text-[10px] text-muted-foreground">Send Exactly</p>
+                      {cryptoPricesLoading ? (
+                        <div className="flex items-center justify-center gap-2 py-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span className="text-xs text-muted-foreground">Loading price...</span>
+                        </div>
+                      ) : cryptoPrices?.prices?.[selectedCrypto.id] ? (
+                        <>
+                          <p className="text-xl font-bold text-primary">
+                            {(() => {
+                              const price = cryptoPrices.prices[selectedCrypto.id];
+                              const amountWithFee = finalPriceUSD * 1.03;
+                              const cryptoAmount = amountWithFee / price;
+                              const decimals = cryptoPrices.decimals?.[selectedCrypto.id] || 6;
+                              return cryptoAmount.toFixed(decimals);
+                            })()}
+                            <span className="text-base ml-1">{selectedCrypto.symbol}</span>
+                          </p>
+                          <div className="flex items-center justify-center gap-2 mt-1">
+                            <p className="text-[9px] text-muted-foreground">
+                              Rate: 1 {selectedCrypto.symbol} = ${cryptoPrices.prices[selectedCrypto.id].toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                            </p>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-5 px-1"
+                              onClick={() => refetchCryptoPrices()}
+                              data-testid="button-refresh-price"
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                            </Button>
+                          </div>
+                          {cryptoPrices.stale && (
+                            <p className="text-[9px] text-amber-600 mt-1">
+                              Using cached prices - API temporarily unavailable
+                            </p>
+                          )}
+                          <p className="text-[8px] text-muted-foreground mt-1">
+                            Updated: {new Date(cryptoPrices.timestamp).toLocaleTimeString()}
+                          </p>
+                        </>
+                      ) : (
+                        <div className="py-2">
+                          <p className="text-xs text-amber-600">Price unavailable</p>
+                          <p className="text-[9px] text-muted-foreground mt-1">
+                            Convert ${(finalPriceUSD * 1.03).toFixed(2)} to {selectedCrypto.symbol} manually
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </>
                 )}
-                <p className="text-[9px] text-muted-foreground mt-1">
-                  Convert to {selectedCrypto.symbol} at current market rate
-                </p>
               </div>
+              
+              {/* Copy Amount Button */}
+              {cryptoPrices?.prices?.[selectedCrypto.id] && finalPriceUSD > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    const price = cryptoPrices.prices[selectedCrypto.id];
+                    const amountWithFee = finalPriceUSD * 1.03;
+                    const cryptoAmount = amountWithFee / price;
+                    const decimals = cryptoPrices.decimals?.[selectedCrypto.id] || 6;
+                    navigator.clipboard.writeText(cryptoAmount.toFixed(decimals));
+                    toast({ title: "Amount copied!", description: `${cryptoAmount.toFixed(decimals)} ${selectedCrypto.symbol} copied to clipboard` });
+                  }}
+                  data-testid="button-copy-crypto-amount"
+                >
+                  <Copy className="w-3 h-3 mr-1" />
+                  Copy Amount
+                </Button>
+              )}
 
               {/* Instructions */}
               <div className="p-2 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 space-y-1">
@@ -2152,12 +2248,25 @@ export default function CheckoutPage() {
                 className="w-full"
                 onClick={() => {
                   const subject = encodeURIComponent('Crypto Payment Verification');
+                  // Calculate crypto amount if price available
+                  let cryptoAmountStr = 'N/A';
+                  if (cryptoPrices?.prices?.[selectedCrypto.id]) {
+                    const price = cryptoPrices.prices[selectedCrypto.id];
+                    const amountWithFee = finalPriceUSD * 1.03;
+                    const cryptoAmount = amountWithFee / price;
+                    const decimals = cryptoPrices.decimals?.[selectedCrypto.id] || 6;
+                    cryptoAmountStr = cryptoAmount.toFixed(decimals);
+                  }
                   const body = encodeURIComponent(
                     `Plan: ${selectedPlan?.name}\n` +
                     `Billing: ${isAnnual ? 'Annual' : 'Monthly'}\n` +
-                    `Amount: Rp ${finalPrice.toLocaleString('id-ID')} (~$${finalPriceUSD.toFixed(2)} USD)\n` +
+                    `Base Amount: $${finalPriceUSD.toFixed(2)} USD\n` +
+                    `Total with 3% Fee: $${(finalPriceUSD * 1.03).toFixed(2)} USD\n` +
                     `Crypto: ${selectedCrypto.symbol}\n` +
-                    `Transaction Hash: `
+                    `Crypto Amount: ${cryptoAmountStr} ${selectedCrypto.symbol}\n` +
+                    `Network: ${selectedCrypto.network}\n` +
+                    `Wallet: ${selectedCrypto.address}\n\n` +
+                    `Transaction Hash (TXID): `
                   );
                   window.open(`mailto:support@chatvice.app?subject=${subject}&body=${body}`, '_blank');
                 }}
