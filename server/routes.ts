@@ -4489,6 +4489,126 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // Crypto prices cache (60 second TTL)
+  interface CryptoPriceCache {
+    prices: Record<string, number>;
+    timestamp: number;
+  }
+  let cryptoPriceCache: CryptoPriceCache | null = null;
+  const CRYPTO_CACHE_TTL = 60 * 1000; // 60 seconds
+  
+  // TrustWallet API token mapping
+  const CRYPTO_TOKEN_IDS: Record<string, string> = {
+    btc: 'bitcoin',
+    eth: 'ethereum', 
+    sol: 'solana',
+    bnb: 'binancecoin',
+    usdt: 'tether',
+    xrp: 'ripple',
+  };
+  
+  // Decimal precision per coin
+  const CRYPTO_DECIMALS: Record<string, number> = {
+    btc: 8,
+    eth: 6,
+    sol: 5,
+    bnb: 5,
+    usdt: 2,
+    xrp: 2,
+  };
+  
+  // Fetch crypto prices from TrustWallet/CoinGecko API
+  async function fetchCryptoPrices(): Promise<Record<string, number>> {
+    const tokens = Object.values(CRYPTO_TOKEN_IDS).join(',');
+    
+    try {
+      // Use CoinGecko API as it's more reliable for server-side calls
+      const response = await fetch(
+        `https://api.coingecko.com/api/v3/simple/price?ids=${tokens}&vs_currencies=usd`,
+        {
+          headers: {
+            'Accept': 'application/json',
+          },
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error(`CoinGecko API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Map back to our coin symbols
+      const prices: Record<string, number> = {};
+      for (const [symbol, tokenId] of Object.entries(CRYPTO_TOKEN_IDS)) {
+        if (data[tokenId]?.usd) {
+          prices[symbol] = data[tokenId].usd;
+        }
+      }
+      
+      return prices;
+    } catch (error) {
+      console.error('Failed to fetch crypto prices:', error);
+      throw error;
+    }
+  }
+  
+  // GET /api/crypto/prices - Get current crypto prices with 3% fee calculation
+  app.get("/api/crypto/prices", async (req, res) => {
+    try {
+      const now = Date.now();
+      
+      // Check cache
+      if (cryptoPriceCache && (now - cryptoPriceCache.timestamp) < CRYPTO_CACHE_TTL) {
+        return res.json({
+          prices: cryptoPriceCache.prices,
+          timestamp: cryptoPriceCache.timestamp,
+          cached: true,
+          decimals: CRYPTO_DECIMALS,
+          feePercent: 3,
+        });
+      }
+      
+      // Fetch fresh prices
+      const prices = await fetchCryptoPrices();
+      
+      // Update cache
+      cryptoPriceCache = {
+        prices,
+        timestamp: now,
+      };
+      
+      res.json({
+        prices,
+        timestamp: now,
+        cached: false,
+        decimals: CRYPTO_DECIMALS,
+        feePercent: 3,
+      });
+    } catch (error: any) {
+      console.error('Crypto prices error:', error);
+      
+      // Return cached data if available, even if stale
+      if (cryptoPriceCache) {
+        return res.json({
+          prices: cryptoPriceCache.prices,
+          timestamp: cryptoPriceCache.timestamp,
+          cached: true,
+          stale: true,
+          decimals: CRYPTO_DECIMALS,
+          feePercent: 3,
+          error: 'Using cached prices due to API error',
+        });
+      }
+      
+      res.status(503).json({ 
+        error: 'Failed to fetch crypto prices. Please try again later.',
+        decimals: CRYPTO_DECIMALS,
+        feePercent: 3,
+      });
+    }
+  });
+
   // Test endpoint for Kompas Pay API (development only)
   app.post("/api/billing/test-kompaspay", async (req, res) => {
     try {
