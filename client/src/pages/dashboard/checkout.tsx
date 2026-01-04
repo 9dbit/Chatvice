@@ -352,12 +352,13 @@ export default function CheckoutPage() {
   const { 
     data: cryptoPrices, 
     isLoading: cryptoPricesLoading,
+    isFetching: cryptoPricesFetching,
     refetch: refetchCryptoPrices,
   } = useQuery<CryptoPricesResponse>({
     queryKey: ["/api/crypto/prices"],
-    enabled: showCryptoDialog,
+    enabled: paymentStep === 'crypto' || showCryptoDialog, // Load when entering crypto step
     staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: showCryptoDialog ? 60 * 1000 : false, // Auto-refresh every 60s when dialog open
+    refetchInterval: (paymentStep === 'crypto' || showCryptoDialog) ? 60 * 1000 : false, // Auto-refresh every 60s
   });
   
   // Price loading progress animation
@@ -2066,64 +2067,71 @@ export default function CheckoutPage() {
               <div className="flex items-center justify-between mb-4">
                 <span className="text-sm font-medium text-foreground">Select Cryptocurrency</span>
                 <div className="flex items-center gap-2">
-                  {cryptoPricesLoading ? (
+                  {(cryptoPricesLoading || cryptoPricesFetching) && !cryptoPrices ? (
                     <>
                       <Loader2 className="w-3 h-3 animate-spin text-purple-500" />
-                      <span className="text-xs text-purple-500 font-medium">Load price</span>
+                      <span className="text-xs text-purple-500 font-medium">Loading prices...</span>
                     </>
-                  ) : (
+                  ) : cryptoPrices ? (
                     <>
                       <div className="crypto-live-dot" />
                       <span className="text-xs text-green-600 dark:text-green-400 font-medium">Live Prices</span>
                     </>
-                  )}
+                  ) : null}
                 </div>
               </div>
               <div className="flex flex-col gap-2 md:grid md:grid-cols-3 md:gap-3">
-                {CRYPTO_COINS.map((coin) => (
-                  <button
-                    key={coin.id}
-                    className="crypto-coin-btn p-3 md:p-4 cursor-pointer text-left w-full"
-                    data-coin={coin.id}
-                    onClick={() => {
-                      setSelectedCrypto(coin);
-                      setShowCryptoDialog(true);
-                    }}
-                    data-testid={`button-crypto-${coin.id}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center bg-muted/50 dark:bg-white/10 shrink-0">
-                        <coin.icon 
-                          className="w-6 h-6 md:w-8 md:h-8" 
-                          style={{ color: coin.color }} 
-                        />
+                {CRYPTO_COINS.map((coin) => {
+                  const price = cryptoPrices?.prices?.[coin.id];
+                  const amountWithFee = finalPriceUSD * 1.03;
+                  const cryptoAmount = price ? amountWithFee / price : null;
+                  const decimals = cryptoPrices?.decimals?.[coin.id] || 6;
+                  
+                  return (
+                    <button
+                      key={coin.id}
+                      className="crypto-coin-btn p-3 md:p-4 cursor-pointer text-left w-full"
+                      data-coin={coin.id}
+                      onClick={() => {
+                        setSelectedCrypto(coin);
+                        setShowCryptoDialog(true);
+                      }}
+                      data-testid={`button-crypto-${coin.id}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center bg-muted/50 dark:bg-white/10 shrink-0">
+                          <coin.icon 
+                            className="w-6 h-6 md:w-8 md:h-8" 
+                            style={{ color: coin.color }} 
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm md:text-base font-bold text-foreground">{coin.symbol}</span>
+                          <span className="text-xs text-muted-foreground block truncate">{coin.name}</span>
+                        </div>
+                        <div className="text-right shrink-0">
+                          {(cryptoPricesLoading || cryptoPricesFetching) && !cryptoPrices ? (
+                            <div className="flex items-center gap-1">
+                              <Loader2 className="w-3 h-3 animate-spin text-purple-500" />
+                              <span className="text-xs text-muted-foreground">Loading</span>
+                            </div>
+                          ) : cryptoAmount !== null ? (
+                            <div className="flex flex-col items-end">
+                              <span className="text-sm font-semibold text-purple-600 dark:text-purple-400">
+                                {cryptoAmount.toFixed(Math.min(decimals, 4))} {coin.symbol}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">
+                                ${(finalPriceUSD * 1.03).toFixed(2)}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">--</span>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <span className="text-sm md:text-base font-bold text-foreground">{coin.symbol}</span>
-                        <span className="text-xs text-muted-foreground block truncate">{coin.name}</span>
-                      </div>
-                      <div className="text-right shrink-0">
-                        {cryptoPricesLoading ? (
-                          <div className="flex items-center gap-1">
-                            <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
-                            <span className="text-xs text-muted-foreground">Loading</span>
-                          </div>
-                        ) : cryptoPrices?.prices?.[coin.id] ? (
-                          <span className="text-sm font-semibold text-green-600 dark:text-green-400">
-                            ${cryptoPrices.prices[coin.id] >= 100 
-                              ? cryptoPrices.prices[coin.id].toLocaleString('en-US', { maximumFractionDigits: 0 })
-                              : cryptoPrices.prices[coin.id] >= 1
-                                ? cryptoPrices.prices[coin.id].toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                                : cryptoPrices.prices[coin.id].toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
-                            }
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">--</span>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -2363,19 +2371,126 @@ export default function CheckoutPage() {
                   onClick={async () => {
                     try {
                       const html2canvas = (await import('html2canvas')).default;
-                      const element = document.getElementById('crypto-invoice-content');
-                      if (element) {
-                        const canvas = await html2canvas(element, {
-                          backgroundColor: document.documentElement.classList.contains('dark') ? '#0f0f19' : '#ffffff',
-                          scale: 2,
-                        });
-                        const link = document.createElement('a');
-                        link.download = `crypto-invoice-${selectedCrypto.symbol}-${Date.now()}.jpg`;
-                        link.href = canvas.toDataURL('image/jpeg', 0.95);
-                        link.click();
-                        toast({ title: "Saved!", description: "Invoice saved to your device" });
-                      }
+                      const isDark = document.documentElement.classList.contains('dark');
+                      
+                      // Create a clean export template
+                      const exportContainer = document.createElement('div');
+                      exportContainer.style.cssText = `
+                        position: fixed;
+                        left: -9999px;
+                        top: 0;
+                        width: 375px;
+                        background: ${isDark ? '#0f0f19' : '#ffffff'};
+                        color: ${isDark ? '#ffffff' : '#0f0f19'};
+                        font-family: system-ui, -apple-system, sans-serif;
+                        padding: 24px;
+                      `;
+                      
+                      // Calculate crypto amount
+                      const price = cryptoPrices?.prices?.[selectedCrypto.id];
+                      const amountWithFee = finalPriceUSD * 1.03;
+                      const cryptoAmount = price ? amountWithFee / price : null;
+                      const decimals = cryptoPrices?.decimals?.[selectedCrypto.id] || 6;
+                      
+                      exportContainer.innerHTML = `
+                        <div style="text-align: center; margin-bottom: 20px;">
+                          <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px;">
+                            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                              <rect width="32" height="32" rx="8" fill="url(#gradient)"/>
+                              <defs>
+                                <linearGradient id="gradient" x1="0" y1="0" x2="32" y2="32">
+                                  <stop offset="0%" style="stop-color:#8B5CF6"/>
+                                  <stop offset="100%" style="stop-color:#7C3AED"/>
+                                </linearGradient>
+                              </defs>
+                              <path d="M10 12C10 10.8954 10.8954 10 12 10H20C21.1046 10 22 10.8954 22 12V20C22 21.1046 21.1046 22 20 22H12C10.8954 22 10 21.1046 10 20V12Z" fill="white"/>
+                              <circle cx="14" cy="15" r="2" fill="#8B5CF6"/>
+                              <circle cx="18" cy="17" r="1.5" fill="#A855F7"/>
+                            </svg>
+                            <span style="font-size: 20px; font-weight: 700; background: linear-gradient(135deg, #8B5CF6, #A855F7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Chatvice</span>
+                          </div>
+                          <p style="font-size: 12px; color: ${isDark ? '#888' : '#666'};">Crypto Payment Invoice</p>
+                        </div>
+                        
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 12px; background: ${isDark ? '#1a1a2e' : '#f5f5f7'}; border-radius: 12px;">
+                          <div style="width: 48px; height: 48px; border-radius: 50%; background: ${isDark ? '#2a2a3e' : '#eee'}; display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 24px; color: ${selectedCrypto.color};">${selectedCrypto.symbol.charAt(0)}</span>
+                          </div>
+                          <div>
+                            <div style="font-size: 18px; font-weight: 700;">${selectedCrypto.symbol}</div>
+                            <div style="font-size: 12px; color: ${isDark ? '#888' : '#666'};">${selectedCrypto.name} • ${selectedCrypto.network}</div>
+                          </div>
+                        </div>
+                        
+                        <div style="text-align: center; margin-bottom: 16px;">
+                          <div style="display: inline-block; padding: 16px; background: white; border-radius: 12px;">
+                            ${document.querySelector('#crypto-invoice-content svg[viewBox]')?.outerHTML || ''}
+                          </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 16px;">
+                          <div style="font-size: 11px; color: ${isDark ? '#888' : '#666'}; margin-bottom: 6px;">Wallet Address</div>
+                          <div style="padding: 12px; background: ${isDark ? '#1a1a2e' : '#f5f5f7'}; border-radius: 8px; font-family: monospace; font-size: 11px; word-break: break-all; line-height: 1.4;">
+                            ${selectedCrypto.address}
+                          </div>
+                        </div>
+                        
+                        ${selectedCrypto.memo ? `
+                          <div style="padding: 10px; background: ${isDark ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.1)'}; border: 1px solid ${isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.2)'}; border-radius: 8px; margin-bottom: 16px; text-align: center;">
+                            <span style="font-size: 11px; color: #3b82f6;">${selectedCrypto.memo}</span>
+                          </div>
+                        ` : ''}
+                        
+                        <div style="padding: 16px; background: ${isDark ? '#1a1a2e' : '#f5f5f7'}; border-radius: 12px; margin-bottom: 16px;">
+                          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="font-size: 12px; color: ${isDark ? '#888' : '#666'};">Plan</span>
+                            <span style="font-size: 12px; font-weight: 600;">${selectedPlan?.name} (${isAnnual ? 'Annual' : 'Monthly'})</span>
+                          </div>
+                          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="font-size: 12px; color: ${isDark ? '#888' : '#666'};">Base Amount</span>
+                            <span style="font-size: 12px; font-weight: 500;">$${finalPriceUSD.toFixed(2)}</span>
+                          </div>
+                          <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                            <span style="font-size: 12px; color: ${isDark ? '#888' : '#666'};">+ 3% Network Fee</span>
+                            <span style="font-size: 12px; font-weight: 500; color: #8b5cf6;">+$${(finalPriceUSD * 0.03).toFixed(2)}</span>
+                          </div>
+                          <div style="height: 1px; background: ${isDark ? '#333' : '#ddd'}; margin-bottom: 12px;"></div>
+                          <div style="display: flex; justify-content: space-between;">
+                            <span style="font-size: 14px; font-weight: 600;">Total</span>
+                            <span style="font-size: 14px; font-weight: 700;">$${amountWithFee.toFixed(2)}</span>
+                          </div>
+                        </div>
+                        
+                        <div style="text-align: center; padding: 16px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(168, 85, 247, 0.15)); border-radius: 12px; margin-bottom: 16px;">
+                          <div style="font-size: 11px; color: ${isDark ? '#888' : '#666'}; margin-bottom: 8px;">Send Exactly</div>
+                          <div style="font-size: 28px; font-weight: 700; background: linear-gradient(135deg, #8B5CF6, #A855F7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                            ${cryptoAmount !== null ? cryptoAmount.toFixed(decimals) : '--'} <span style="font-size: 18px; color: ${selectedCrypto.color}; -webkit-text-fill-color: ${selectedCrypto.color};">${selectedCrypto.symbol}</span>
+                          </div>
+                          ${price ? `<div style="font-size: 10px; color: ${isDark ? '#888' : '#666'}; margin-top: 4px;">1 ${selectedCrypto.symbol} = $${price.toLocaleString('en-US', { maximumFractionDigits: 2 })}</div>` : ''}
+                        </div>
+                        
+                        <div style="text-align: center; font-size: 10px; color: ${isDark ? '#555' : '#999'};">
+                          Generated ${new Date().toLocaleString()} • Powered by CoinGecko
+                        </div>
+                      `;
+                      
+                      document.body.appendChild(exportContainer);
+                      
+                      const canvas = await html2canvas(exportContainer, {
+                        backgroundColor: isDark ? '#0f0f19' : '#ffffff',
+                        scale: 2,
+                        useCORS: true,
+                      });
+                      
+                      document.body.removeChild(exportContainer);
+                      
+                      const link = document.createElement('a');
+                      link.download = `chatvice-crypto-${selectedCrypto.symbol}-${Date.now()}.png`;
+                      link.href = canvas.toDataURL('image/png');
+                      link.click();
+                      toast({ title: "Saved!", description: "Invoice saved to your device" });
                     } catch (error) {
+                      console.error('Save error:', error);
                       toast({ title: "Error", description: "Failed to save image", variant: "destructive" });
                     }
                   }}
