@@ -2367,9 +2367,37 @@ export default function CheckoutPage() {
                   onClick={async () => {
                     try {
                       const html2canvas = (await import('html2canvas')).default;
+                      const { QRCodeCanvas } = await import('qrcode.react');
+                      const { createRoot } = await import('react-dom/client');
                       const isDark = document.documentElement.classList.contains('dark');
                       
-                      // Create a clean export template
+                      // First, generate QR code as data URL
+                      const qrContainer = document.createElement('div');
+                      qrContainer.style.cssText = 'position: fixed; left: -9999px; top: 0;';
+                      document.body.appendChild(qrContainer);
+                      
+                      const qrRoot = createRoot(qrContainer);
+                      qrRoot.render(
+                        <QRCodeCanvas 
+                          value={selectedCrypto.address} 
+                          size={160}
+                          level="H"
+                          includeMargin={true}
+                          fgColor="#0a0a0f"
+                          bgColor="#ffffff"
+                        />
+                      );
+                      
+                      // Wait for QR canvas to render
+                      await new Promise(resolve => setTimeout(resolve, 200));
+                      
+                      const qrCanvas = qrContainer.querySelector('canvas');
+                      const qrDataUrl = qrCanvas ? qrCanvas.toDataURL('image/png') : '';
+                      
+                      qrRoot.unmount();
+                      document.body.removeChild(qrContainer);
+                      
+                      // Create export container with proper styling
                       const exportContainer = document.createElement('div');
                       exportContainer.style.cssText = `
                         position: fixed;
@@ -2377,7 +2405,7 @@ export default function CheckoutPage() {
                         top: 0;
                         width: 375px;
                         background: ${isDark ? '#0f0f19' : '#ffffff'};
-                        color: ${isDark ? '#ffffff' : '#0f0f19'};
+                        color: ${isDark ? '#ffffff' : '#1a1a2e'};
                         font-family: system-ui, -apple-system, sans-serif;
                         padding: 24px;
                       `;
@@ -2388,115 +2416,102 @@ export default function CheckoutPage() {
                       const cryptoAmount = price ? amountWithFee / price : null;
                       const decimals = cryptoPrices?.decimals?.[selectedCrypto.id] || 6;
                       
+                      // Chatvice logo as inline SVG (matches header)
+                      const logoSvg = `<svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="36" height="36" rx="8" fill="url(#logoGrad)"/>
+                        <defs>
+                          <linearGradient id="logoGrad" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stop-color="#8B5CF6"/>
+                            <stop offset="100%" stop-color="#7C3AED"/>
+                          </linearGradient>
+                        </defs>
+                        <rect x="8" y="10" width="20" height="16" rx="3" fill="white"/>
+                        <circle cx="13" cy="18" r="2.5" fill="#8B5CF6"/>
+                        <circle cx="18" cy="18" r="2.5" fill="#A855F7"/>
+                        <circle cx="23" cy="18" r="2.5" fill="#C084FC"/>
+                      </svg>`;
+                      
                       exportContainer.innerHTML = `
-                        <div style="text-align: center; margin-bottom: 20px;">
-                          <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px;">
-                            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                              <rect width="32" height="32" rx="8" fill="url(#gradient)"/>
-                              <defs>
-                                <linearGradient id="gradient" x1="0" y1="0" x2="32" y2="32">
-                                  <stop offset="0%" style="stop-color:#8B5CF6"/>
-                                  <stop offset="100%" style="stop-color:#7C3AED"/>
-                                </linearGradient>
-                              </defs>
-                              <path d="M10 12C10 10.8954 10.8954 10 12 10H20C21.1046 10 22 10.8954 22 12V20C22 21.1046 21.1046 22 20 22H12C10.8954 22 10 21.1046 10 20V12Z" fill="white"/>
-                              <circle cx="14" cy="15" r="2" fill="#8B5CF6"/>
-                              <circle cx="18" cy="17" r="1.5" fill="#A855F7"/>
-                            </svg>
-                            <span style="font-size: 20px; font-weight: 700; background: linear-gradient(135deg, #8B5CF6, #A855F7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Chatvice</span>
+                        <div style="text-align: center; margin-bottom: 24px;">
+                          <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 8px;">
+                            ${logoSvg}
+                            <span style="font-size: 24px; font-weight: 700; color: ${isDark ? '#ffffff' : '#1a1a2e'};">Chatvice</span>
                           </div>
-                          <p style="font-size: 12px; color: ${isDark ? '#888' : '#666'};">Crypto Payment Invoice</p>
+                          <p style="font-size: 13px; color: ${isDark ? '#a0a0a0' : '#666'};">Crypto Payment Invoice</p>
                         </div>
                         
-                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 12px; background: ${isDark ? '#1a1a2e' : '#f5f5f7'}; border-radius: 12px;">
-                          <div style="width: 48px; height: 48px; border-radius: 50%; background: ${isDark ? '#2a2a3e' : '#eee'}; display: flex; align-items: center; justify-content: center;">
-                            <span style="font-size: 24px; color: ${selectedCrypto.color};">${selectedCrypto.symbol.charAt(0)}</span>
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding: 14px; background: ${isDark ? '#1a1a2e' : '#f5f5f7'}; border-radius: 12px;">
+                          <div style="width: 48px; height: 48px; border-radius: 50%; background: ${selectedCrypto.color}20; display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 20px; font-weight: 700; color: ${selectedCrypto.color};">${selectedCrypto.symbol.charAt(0)}</span>
                           </div>
                           <div>
-                            <div style="font-size: 18px; font-weight: 700;">${selectedCrypto.symbol}</div>
-                            <div style="font-size: 12px; color: ${isDark ? '#888' : '#666'};">${selectedCrypto.name} • ${selectedCrypto.network}</div>
+                            <div style="font-size: 18px; font-weight: 700; color: ${isDark ? '#ffffff' : '#1a1a2e'};">${selectedCrypto.symbol}</div>
+                            <div style="font-size: 12px; color: ${isDark ? '#a0a0a0' : '#666'};">${selectedCrypto.name} • ${selectedCrypto.network}</div>
                           </div>
                         </div>
                         
-                        <div id="qr-placeholder" style="text-align: center; margin-bottom: 16px;">
-                          <div style="display: inline-block; padding: 16px; background: white; border-radius: 12px;">
+                        <div style="text-align: center; margin-bottom: 20px;">
+                          <div style="display: inline-block; padding: 16px; background: #ffffff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                            ${qrDataUrl ? `<img src="${qrDataUrl}" width="160" height="160" style="display: block;" />` : '<div style="width:160px;height:160px;background:#f0f0f0;"></div>'}
                           </div>
                         </div>
                         
                         <div style="margin-bottom: 16px;">
-                          <div style="font-size: 11px; color: ${isDark ? '#888' : '#666'}; margin-bottom: 6px;">Wallet Address</div>
-                          <div style="padding: 12px; background: ${isDark ? '#1a1a2e' : '#f5f5f7'}; border-radius: 8px; font-family: monospace; font-size: 11px; word-break: break-all; line-height: 1.4;">
+                          <div style="font-size: 11px; color: ${isDark ? '#a0a0a0' : '#666'}; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Wallet Address</div>
+                          <div style="padding: 14px; background: ${isDark ? '#1a1a2e' : '#f5f5f7'}; border-radius: 10px; font-family: 'SF Mono', Consolas, monospace; font-size: 11px; word-break: break-all; line-height: 1.5; color: ${isDark ? '#ffffff' : '#1a1a2e'};">
                             ${selectedCrypto.address}
                           </div>
                         </div>
                         
                         ${selectedCrypto.memo ? `
-                          <div style="padding: 10px; background: ${isDark ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.1)'}; border: 1px solid ${isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.2)'}; border-radius: 8px; margin-bottom: 16px; text-align: center;">
-                            <span style="font-size: 11px; color: #3b82f6;">${selectedCrypto.memo}</span>
+                          <div style="padding: 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 10px; margin-bottom: 16px; text-align: center;">
+                            <span style="font-size: 12px; color: #3b82f6; font-weight: 500;">${selectedCrypto.memo}</span>
                           </div>
                         ` : ''}
                         
                         <div style="padding: 16px; background: ${isDark ? '#1a1a2e' : '#f5f5f7'}; border-radius: 12px; margin-bottom: 16px;">
-                          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                            <span style="font-size: 12px; color: ${isDark ? '#888' : '#666'};">Plan</span>
-                            <span style="font-size: 12px; font-weight: 600;">${selectedPlan?.name} (${isAnnual ? 'Annual' : 'Monthly'})</span>
+                          <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                            <span style="font-size: 13px; color: ${isDark ? '#a0a0a0' : '#666'};">Plan</span>
+                            <span style="font-size: 13px; font-weight: 600; color: ${isDark ? '#ffffff' : '#1a1a2e'};">${selectedPlan?.name} (${isAnnual ? 'Annual' : 'Monthly'})</span>
                           </div>
-                          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                            <span style="font-size: 12px; color: ${isDark ? '#888' : '#666'};">Base Amount</span>
-                            <span style="font-size: 12px; font-weight: 500;">$${finalPriceUSD.toFixed(2)}</span>
+                          <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                            <span style="font-size: 13px; color: ${isDark ? '#a0a0a0' : '#666'};">Base Amount</span>
+                            <span style="font-size: 13px; font-weight: 500; color: ${isDark ? '#ffffff' : '#1a1a2e'};">$${finalPriceUSD.toFixed(2)}</span>
                           </div>
                           <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-                            <span style="font-size: 12px; color: ${isDark ? '#888' : '#666'};">+ 3% Network Fee</span>
-                            <span style="font-size: 12px; font-weight: 500; color: #8b5cf6;">+$${(finalPriceUSD * 0.03).toFixed(2)}</span>
+                            <span style="font-size: 13px; color: ${isDark ? '#a0a0a0' : '#666'};">+ 3% Network Fee</span>
+                            <span style="font-size: 13px; font-weight: 500; color: #8b5cf6;">+$${(finalPriceUSD * 0.03).toFixed(2)}</span>
                           </div>
-                          <div style="height: 1px; background: ${isDark ? '#333' : '#ddd'}; margin-bottom: 12px;"></div>
+                          <div style="height: 1px; background: ${isDark ? '#333' : '#e0e0e0'}; margin-bottom: 12px;"></div>
                           <div style="display: flex; justify-content: space-between;">
-                            <span style="font-size: 14px; font-weight: 600;">Total</span>
-                            <span style="font-size: 14px; font-weight: 700;">$${amountWithFee.toFixed(2)}</span>
+                            <span style="font-size: 15px; font-weight: 600; color: ${isDark ? '#ffffff' : '#1a1a2e'};">Total</span>
+                            <span style="font-size: 15px; font-weight: 700; color: ${isDark ? '#ffffff' : '#1a1a2e'};">$${amountWithFee.toFixed(2)}</span>
                           </div>
                         </div>
                         
-                        <div style="text-align: center; padding: 16px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(168, 85, 247, 0.15)); border-radius: 12px; margin-bottom: 16px;">
-                          <div style="font-size: 11px; color: ${isDark ? '#888' : '#666'}; margin-bottom: 8px;">Send Exactly</div>
-                          <div style="font-size: 28px; font-weight: 700; background: linear-gradient(135deg, #8B5CF6, #A855F7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                            ${cryptoAmount !== null ? cryptoAmount.toFixed(decimals || 6) : '--'} <span style="font-size: 18px; color: ${selectedCrypto.color}; -webkit-text-fill-color: ${selectedCrypto.color};">${selectedCrypto.symbol}</span>
+                        <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(168, 85, 247, 0.15)); border-radius: 12px; margin-bottom: 16px;">
+                          <div style="font-size: 12px; color: ${isDark ? '#a0a0a0' : '#666'}; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Send Exactly</div>
+                          <div style="font-size: 32px; font-weight: 800; color: #8B5CF6;">
+                            ${cryptoAmount !== null ? cryptoAmount.toFixed(Math.min(decimals || 6, 8)) : '--'} <span style="font-size: 20px; color: ${selectedCrypto.color};">${selectedCrypto.symbol}</span>
                           </div>
-                          ${price ? `<div style="font-size: 10px; color: ${isDark ? '#888' : '#666'}; margin-top: 4px;">1 ${selectedCrypto.symbol} = $${price.toLocaleString('en-US', { maximumFractionDigits: 2 })}</div>` : ''}
+                          ${price ? `<div style="font-size: 11px; color: ${isDark ? '#a0a0a0' : '#666'}; margin-top: 6px;">1 ${selectedCrypto.symbol} = $${price.toLocaleString('en-US', { maximumFractionDigits: 2 })}</div>` : ''}
                         </div>
                         
-                        <div style="text-align: center; font-size: 10px; color: ${isDark ? '#555' : '#999'};">
+                        <div style="text-align: center; font-size: 11px; color: ${isDark ? '#666' : '#999'};">
                           Generated ${new Date().toLocaleString()} • Powered by CoinGecko
                         </div>
                       `;
                       
                       document.body.appendChild(exportContainer);
                       
-                      // Generate QR code using ReactDOM
-                      const { createRoot } = await import('react-dom/client');
-                      const { QRCodeSVG } = await import('qrcode.react');
-                      const qrPlaceholder = exportContainer.querySelector('#qr-placeholder > div');
-                      if (qrPlaceholder) {
-                        const qrContainer = document.createElement('div');
-                        qrPlaceholder.appendChild(qrContainer);
-                        const root = createRoot(qrContainer);
-                        root.render(
-                          <QRCodeSVG 
-                            value={selectedCrypto.address} 
-                            size={160}
-                            level="H"
-                            includeMargin={true}
-                            fgColor="#0a0a0f"
-                            bgColor="#ffffff"
-                          />
-                        );
-                        // Wait for render
-                        await new Promise(resolve => setTimeout(resolve, 100));
-                      }
+                      // Small delay to ensure image loads
+                      await new Promise(resolve => setTimeout(resolve, 100));
                       
                       const canvas = await html2canvas(exportContainer, {
                         backgroundColor: isDark ? '#0f0f19' : '#ffffff',
                         scale: 2,
                         useCORS: true,
+                        logging: false,
                       });
                       
                       document.body.removeChild(exportContainer);
