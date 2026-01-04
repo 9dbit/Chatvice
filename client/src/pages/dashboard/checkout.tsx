@@ -1982,141 +1982,283 @@ export default function CheckoutPage() {
       )}
 
       {paymentStep === 'crypto' && (
-        <div className="space-y-3">
-          <Card>
-            <CardContent className="pt-3 pb-3 space-y-3">
-              <div className="text-center">
-                <div className="w-9 h-9 mx-auto rounded-full bg-amber-500/10 flex items-center justify-center mb-2">
-                  <Bitcoin className="w-4 h-4 text-amber-500" />
-                </div>
-                <h3 className="text-xs font-semibold">Cryptocurrency Payment</h3>
-                <p className="text-[10px] text-muted-foreground">
-                  Select a cryptocurrency to view wallet address
-                </p>
-              </div>
+        <div className="space-y-4">
+          {/* Premium Crypto Header Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="crypto-card p-5"
+          >
+            {/* Animated Header */}
+            <div className="text-center mb-4">
+              <motion.div 
+                className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center mb-3 relative"
+                style={{ 
+                  background: 'linear-gradient(135deg, rgba(247, 147, 26, 0.15), rgba(98, 126, 234, 0.15), rgba(153, 69, 255, 0.15))'
+                }}
+                animate={{ 
+                  boxShadow: [
+                    '0 0 20px rgba(247, 147, 26, 0.3)',
+                    '0 0 30px rgba(98, 126, 234, 0.3)',
+                    '0 0 20px rgba(153, 69, 255, 0.3)',
+                    '0 0 20px rgba(247, 147, 26, 0.3)'
+                  ]
+                }}
+                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+              >
+                <Bitcoin className="w-7 h-7 text-amber-500 crypto-float" />
+              </motion.div>
+              <h3 className="text-base font-bold bg-gradient-to-r from-amber-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
+                Pay with Cryptocurrency
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Fast, secure & decentralized payments
+              </p>
+              <div className="crypto-accent-line w-24 mx-auto mt-3" />
+            </div>
 
-              {/* Order Summary */}
-              <div className="p-2.5 rounded-md bg-muted/50 space-y-2">
+            {/* Order Summary - Glassmorphic */}
+            <div className="p-3 rounded-xl bg-white/5 dark:bg-white/5 backdrop-blur-sm border border-white/10 space-y-2 mb-4">
+              <div className="flex justify-between items-center">
+                <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                  <Crown className="w-3 h-3 text-amber-500" />
+                  Plan
+                </span>
+                <span className="text-xs font-semibold">{selectedPlan?.name || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                  <Clock className="w-3 h-3 text-blue-400" />
+                  Billing
+                </span>
+                <Badge variant="secondary" className="text-[9px]">{isAnnual ? 'Annual' : 'Monthly'}</Badge>
+              </div>
+              <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent my-2" />
+              {finalPrice === 0 && finalPriceUSD === 0 && selectedPlan ? (
+                <motion.div 
+                  initial={{ scale: 0.95 }}
+                  animate={{ scale: 1 }}
+                  className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20"
+                >
+                  <p className="text-[11px] text-emerald-400 text-center font-medium">
+                    No payment required - Credits cover full amount
+                  </p>
+                </motion.div>
+              ) : (
                 <div className="flex justify-between items-center">
-                  <span className="text-[10px] text-muted-foreground">Plan</span>
-                  <span className="text-[11px] font-medium">{selectedPlan?.name || 'N/A'}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] text-muted-foreground">Billing</span>
-                  <span className="text-[11px] font-medium">{isAnnual ? 'Annual' : 'Monthly'}</span>
-                </div>
-                <Separator />
-                {finalPrice === 0 && finalPriceUSD === 0 && selectedPlan ? (
-                  <div className="p-2 rounded-md bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-                    <p className="text-[10px] text-green-700 dark:text-green-300 text-center font-medium">
-                      No payment required - Credits cover full amount
+                  <span className="text-[11px] text-muted-foreground">Total Amount</span>
+                  <div className="text-right">
+                    <span className="text-lg font-bold crypto-amount-display">
+                      ${finalPriceUSD.toFixed(2)}
+                    </span>
+                    <p className="text-[9px] text-muted-foreground">
+                      ~Rp {finalPrice.toLocaleString('id-ID')}
                     </p>
                   </div>
-                ) : (
-                  <>
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] text-muted-foreground">Amount (IDR)</span>
-                      <span className="text-sm font-bold text-primary">
-                        {selectedPlan ? `Rp ${finalPrice.toLocaleString('id-ID')}` : <Loader2 className="w-3 h-3 animate-spin" />}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] text-muted-foreground">Amount (USD)</span>
-                      <span className="text-xs text-muted-foreground">
-                        {selectedPlan ? `~$${finalPriceUSD.toFixed(2)}` : '-'}
-                      </span>
-                    </div>
-                  </>
-                )}
-              </div>
+                </div>
+              )}
+            </div>
 
-              {/* Crypto Coin Selection */}
-              <div className="grid grid-cols-3 gap-2">
-                {CRYPTO_COINS.map((coin) => (
-                  <Button
-                    key={coin.id}
-                    variant="outline"
-                    size="sm"
-                    className={`h-16 flex-col gap-1 hover-elevate ${coin.bgColor}`}
-                    onClick={() => {
-                      setSelectedCrypto(coin);
-                      setShowCryptoDialog(true);
-                    }}
-                    data-testid={`button-crypto-${coin.id}`}
-                  >
-                    <coin.icon className="w-5 h-5" style={{ color: coin.color }} />
-                    <span className="text-[10px] font-semibold">{coin.symbol}</span>
-                    <span className="text-[8px] text-muted-foreground">{coin.network}</span>
-                  </Button>
-                ))}
+            {/* Crypto Coin Selection - Large Premium Grid */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-medium text-muted-foreground">Select Cryptocurrency</span>
+                <div className="flex items-center gap-1.5">
+                  <div className="crypto-live-dot" />
+                  <span className="text-[9px] text-emerald-400 font-medium">Live Prices</span>
+                </div>
               </div>
-
-              <div className="p-2 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-                <p className="text-[10px] text-amber-700 dark:text-amber-300">
-                  After sending payment, please contact support with transaction hash for manual verification.
-                </p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <AnimatePresence>
+                  {CRYPTO_COINS.map((coin, index) => (
+                    <motion.button
+                      key={coin.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.08, duration: 0.4 }}
+                      whileHover={{ scale: 1.03, y: -4 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="crypto-coin-btn p-4 cursor-pointer text-left group"
+                      data-coin={coin.id}
+                      onClick={() => {
+                        setSelectedCrypto(coin);
+                        setShowCryptoDialog(true);
+                      }}
+                      data-testid={`button-crypto-${coin.id}`}
+                    >
+                      {/* Coin Icon with Halo */}
+                      <div className="flex items-center gap-3">
+                        <motion.div 
+                          className="crypto-icon-halo"
+                          style={{ '--halo-color': `${coin.color}25` } as any}
+                          animate={{ 
+                            boxShadow: [
+                              `0 0 0 rgba(${coin.id === 'btc' ? '247,147,26' : coin.id === 'eth' ? '98,126,234' : coin.id === 'sol' ? '153,69,255' : coin.id === 'bnb' ? '243,186,47' : coin.id === 'usdt' ? '38,161,123' : '35,41,47'}, 0)`,
+                              `0 0 25px rgba(${coin.id === 'btc' ? '247,147,26' : coin.id === 'eth' ? '98,126,234' : coin.id === 'sol' ? '153,69,255' : coin.id === 'bnb' ? '243,186,47' : coin.id === 'usdt' ? '38,161,123' : '35,41,47'}, 0.3)`,
+                              `0 0 0 rgba(${coin.id === 'btc' ? '247,147,26' : coin.id === 'eth' ? '98,126,234' : coin.id === 'sol' ? '153,69,255' : coin.id === 'bnb' ? '243,186,47' : coin.id === 'usdt' ? '38,161,123' : '35,41,47'}, 0)`
+                            ]
+                          }}
+                          transition={{ duration: 2, repeat: Infinity, delay: index * 0.3 }}
+                        >
+                          <coin.icon 
+                            className="w-9 h-9 drop-shadow-lg transition-transform duration-300 group-hover:scale-110" 
+                            style={{ color: coin.color }} 
+                          />
+                        </motion.div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-bold text-foreground">{coin.symbol}</span>
+                            {cryptoPrices?.prices?.[coin.id] && (
+                              <span className="text-[9px] text-emerald-400 font-medium">
+                                ${cryptoPrices.prices[coin.id].toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-muted-foreground block truncate">{coin.name}</span>
+                          <Badge 
+                            variant="secondary" 
+                            className="text-[8px] px-1.5 py-0 h-4 mt-1 bg-white/5 border-white/10"
+                          >
+                            {coin.network}
+                          </Badge>
+                        </div>
+                      </div>
+                    </motion.button>
+                  ))}
+                </AnimatePresence>
               </div>
+            </div>
 
+            {/* Info Notice */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6 }}
+              className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2"
+            >
+              <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <p className="text-[10px] text-amber-300 dark:text-amber-300 leading-relaxed">
+                After sending payment, contact support with your transaction hash for manual verification. Payments are typically confirmed within 1-2 hours.
+              </p>
+            </motion.div>
+
+            {/* Back Button */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.7 }}
+              className="mt-4"
+            >
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="w-full"
+                className="w-full bg-white/5 border-white/10 hover:bg-white/10"
                 onClick={() => setPaymentStep('select_method')}
                 data-testid="button-back-to-methods"
               >
-                <ArrowLeft className="w-3 h-3 mr-1" />
+                <ArrowLeft className="w-3.5 h-3.5 mr-2" />
                 Back to Payment Methods
               </Button>
-            </CardContent>
-          </Card>
+            </motion.div>
+          </motion.div>
         </div>
       )}
 
-      {/* Crypto Wallet Dialog */}
+      {/* Crypto Wallet Dialog - Premium Design */}
       <Dialog open={showCryptoDialog} onOpenChange={setShowCryptoDialog}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {selectedCrypto && (
-                <>
-                  <selectedCrypto.icon className="w-5 h-5" style={{ color: selectedCrypto.color }} />
-                  <span>{selectedCrypto.symbol}</span>
-                  <Badge variant="secondary" className="text-[10px]">{selectedCrypto.network}</Badge>
-                </>
-              )}
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Send exactly the amount shown to the wallet address below
-            </DialogDescription>
-          </DialogHeader>
-
+        <DialogContent className="max-w-md p-0 overflow-hidden border-0 crypto-dialog-glass">
           {selectedCrypto && (
-            <div className="space-y-4">
-              {/* QR Code */}
-              <div className="flex justify-center p-4 bg-white rounded-lg">
-                <QRCodeSVG 
-                  value={selectedCrypto.address} 
-                  size={180}
-                  level="H"
-                  includeMargin={true}
-                />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3 }}
+              className="p-5"
+            >
+              {/* Header with Animated Icon */}
+              <div className="flex items-center gap-4 mb-5">
+                <motion.div 
+                  className="crypto-icon-halo shrink-0"
+                  style={{ '--halo-color': `${selectedCrypto.color}30` } as any}
+                  animate={{ 
+                    boxShadow: [
+                      `0 0 0 rgba(0,0,0,0)`,
+                      `0 0 30px ${selectedCrypto.color}40`,
+                      `0 0 0 rgba(0,0,0,0)`
+                    ]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <selectedCrypto.icon 
+                    className="w-10 h-10" 
+                    style={{ color: selectedCrypto.color }} 
+                  />
+                </motion.div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-bold">{selectedCrypto.symbol}</h2>
+                    <Badge 
+                      variant="secondary" 
+                      className="text-[9px] bg-white/5 border-white/10"
+                    >
+                      {selectedCrypto.network}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">{selectedCrypto.name}</p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="crypto-live-dot" />
+                  <span className="text-[9px] text-emerald-400">Live</span>
+                </div>
               </div>
 
+              <div className="crypto-accent-line mb-5" />
+
+              {/* QR Code Section */}
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="flex justify-center mb-5"
+              >
+                <div className="relative p-4 bg-white rounded-2xl shadow-xl">
+                  <QRCodeSVG 
+                    value={selectedCrypto.address} 
+                    size={160}
+                    level="H"
+                    includeMargin={true}
+                    fgColor="#0a0a0f"
+                    bgColor="#ffffff"
+                  />
+                  <div 
+                    className="absolute inset-0 rounded-2xl pointer-events-none"
+                    style={{ 
+                      boxShadow: `0 0 40px ${selectedCrypto.color}20, inset 0 0 0 2px ${selectedCrypto.color}15`
+                    }}
+                  />
+                </div>
+              </motion.div>
+
               {/* Wallet Address */}
-              <div className="space-y-2">
-                <label className="text-[10px] text-muted-foreground">Wallet Address</label>
-                <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50 border">
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+                className="mb-4"
+              >
+                <label className="text-[10px] text-muted-foreground mb-1.5 block">Wallet Address</label>
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-white/5 border border-white/10">
                   <input 
                     type="text" 
                     readOnly 
                     value={selectedCrypto.address} 
-                    className="flex-1 text-[10px] font-mono bg-transparent outline-none"
+                    className="flex-1 text-[10px] font-mono bg-transparent outline-none text-foreground"
                     data-testid="input-crypto-address"
                   />
                   <Button 
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    className="h-7 px-2"
+                    className="h-7 px-2 bg-white/5 hover:bg-white/10 border border-white/10"
                     onClick={() => {
                       navigator.clipboard.writeText(selectedCrypto.address);
                       toast({ title: "Address copied!", description: "Wallet address copied to clipboard" });
@@ -2126,45 +2268,60 @@ export default function CheckoutPage() {
                     <Copy className="w-3 h-3" />
                   </Button>
                 </div>
-              </div>
+              </motion.div>
 
               {/* Memo/Tag if applicable */}
               {selectedCrypto.memo && (
-                <div className="p-2 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                  <p className="text-[10px] text-blue-700 dark:text-blue-300 text-center">
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 mb-4"
+                >
+                  <p className="text-[10px] text-blue-300 text-center flex items-center justify-center gap-1.5">
+                    <Info className="w-3 h-3" />
                     {selectedCrypto.memo}
                   </p>
-                </div>
+                </motion.div>
               )}
 
-              {/* Amount to Pay with Live Crypto Conversion */}
-              <div className="p-3 rounded-md bg-muted/50 space-y-2">
+              {/* Amount Section - Premium Style */}
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 }}
+                className="p-4 rounded-xl bg-gradient-to-b from-white/5 to-transparent border border-white/10 mb-4"
+              >
                 {finalPrice === 0 && finalPriceUSD === 0 && selectedPlan ? (
-                  <p className="text-sm font-medium text-green-600 dark:text-green-400 text-center">No payment required</p>
+                  <p className="text-sm font-medium text-emerald-400 text-center py-2">No payment required</p>
                 ) : (
                   <>
-                    {/* USD Amount with 3% fee */}
-                    <div className="text-center border-b border-muted-foreground/20 pb-2">
-                      <p className="text-[10px] text-muted-foreground">Base Amount</p>
-                      <p className="text-sm font-medium">
-                        ${finalPriceUSD.toFixed(2)} USD
-                      </p>
-                      <p className="text-[9px] text-muted-foreground">
-                        + 3% crypto fee = <span className="font-medium">${(finalPriceUSD * 1.03).toFixed(2)} USD</span>
-                      </p>
+                    {/* Fee Breakdown */}
+                    <div className="flex justify-between items-center text-[10px] text-muted-foreground mb-2">
+                      <span>Base Amount</span>
+                      <span>${finalPriceUSD.toFixed(2)}</span>
                     </div>
+                    <div className="flex justify-between items-center text-[10px] text-muted-foreground mb-3">
+                      <span>+ 3% Network Fee</span>
+                      <span className="text-emerald-400">+${(finalPriceUSD * 0.03).toFixed(2)}</span>
+                    </div>
+                    <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent mb-3" />
                     
-                    {/* Crypto Amount */}
-                    <div className="text-center pt-1">
-                      <p className="text-[10px] text-muted-foreground">Send Exactly</p>
+                    {/* Crypto Amount Display */}
+                    <div className="text-center">
+                      <p className="text-[10px] text-muted-foreground mb-1">Send Exactly</p>
                       {cryptoPricesLoading ? (
-                        <div className="flex items-center justify-center gap-2 py-2">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span className="text-xs text-muted-foreground">Loading price...</span>
+                        <div className="flex items-center justify-center gap-2 py-3">
+                          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">Fetching live price...</span>
                         </div>
                       ) : cryptoPrices?.prices?.[selectedCrypto.id] ? (
                         <>
-                          <p className="text-xl font-bold text-primary">
+                          <motion.p 
+                            initial={{ scale: 0.9 }}
+                            animate={{ scale: 1 }}
+                            className="text-2xl font-bold crypto-amount-display"
+                          >
                             {(() => {
                               const price = cryptoPrices.prices[selectedCrypto.id];
                               const amountWithFee = finalPriceUSD * 1.03;
@@ -2172,16 +2329,18 @@ export default function CheckoutPage() {
                               const decimals = cryptoPrices.decimals?.[selectedCrypto.id] || 6;
                               return cryptoAmount.toFixed(decimals);
                             })()}
-                            <span className="text-base ml-1">{selectedCrypto.symbol}</span>
-                          </p>
-                          <div className="flex items-center justify-center gap-2 mt-1">
+                            <span className="text-lg ml-1.5" style={{ color: selectedCrypto.color }}>
+                              {selectedCrypto.symbol}
+                            </span>
+                          </motion.p>
+                          <div className="flex items-center justify-center gap-2 mt-2">
                             <p className="text-[9px] text-muted-foreground">
-                              Rate: 1 {selectedCrypto.symbol} = ${cryptoPrices.prices[selectedCrypto.id].toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                              1 {selectedCrypto.symbol} = ${cryptoPrices.prices[selectedCrypto.id].toLocaleString('en-US', { maximumFractionDigits: 2 })}
                             </p>
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-5 px-1"
+                              className="h-5 w-5 p-0 hover:bg-white/10"
                               onClick={() => refetchCryptoPrices()}
                               data-testid="button-refresh-price"
                             >
@@ -2189,93 +2348,110 @@ export default function CheckoutPage() {
                             </Button>
                           </div>
                           {cryptoPrices.stale && (
-                            <p className="text-[9px] text-amber-600 mt-1">
-                              Using cached prices - API temporarily unavailable
+                            <p className="text-[9px] text-amber-400 mt-1">
+                              Cached prices - refreshing...
                             </p>
                           )}
-                          <p className="text-[8px] text-muted-foreground mt-1">
-                            Updated: {new Date(cryptoPrices.timestamp).toLocaleTimeString()}
+                          <p className="text-[8px] text-muted-foreground/70 mt-1">
+                            Updated {new Date(cryptoPrices.timestamp).toLocaleTimeString()}
                           </p>
                         </>
                       ) : (
                         <div className="py-2">
-                          <p className="text-xs text-amber-600">Price unavailable</p>
+                          <p className="text-xs text-amber-400">Price unavailable</p>
                           <p className="text-[9px] text-muted-foreground mt-1">
-                            Convert ${(finalPriceUSD * 1.03).toFixed(2)} to {selectedCrypto.symbol} manually
+                            Convert ${(finalPriceUSD * 1.03).toFixed(2)} to {selectedCrypto.symbol}
                           </p>
                         </div>
                       )}
                     </div>
                   </>
                 )}
-              </div>
+              </motion.div>
               
-              {/* Copy Amount Button */}
-              {cryptoPrices?.prices?.[selectedCrypto.id] && finalPriceUSD > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => {
-                    const price = cryptoPrices.prices[selectedCrypto.id];
-                    const amountWithFee = finalPriceUSD * 1.03;
-                    const cryptoAmount = amountWithFee / price;
-                    const decimals = cryptoPrices.decimals?.[selectedCrypto.id] || 6;
-                    navigator.clipboard.writeText(cryptoAmount.toFixed(decimals));
-                    toast({ title: "Amount copied!", description: `${cryptoAmount.toFixed(decimals)} ${selectedCrypto.symbol} copied to clipboard` });
-                  }}
-                  data-testid="button-copy-crypto-amount"
-                >
-                  <Copy className="w-3 h-3 mr-1" />
-                  Copy Amount
-                </Button>
-              )}
-
-              {/* Instructions */}
-              <div className="p-2 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 space-y-1">
-                <p className="text-[10px] font-medium text-amber-800 dark:text-amber-300">Instructions:</p>
-                <ul className="text-[9px] text-amber-700 dark:text-amber-400 list-disc list-inside space-y-0.5">
-                  <li>Send the exact amount in {selectedCrypto.symbol}</li>
-                  <li>Use the {selectedCrypto.network} network</li>
-                  <li>Save the transaction hash (TXID)</li>
-                  <li>Contact support with your TXID for verification</li>
-                </ul>
-              </div>
-
-              <Button 
-                variant="default"
-                size="sm" 
-                className="w-full"
-                onClick={() => {
-                  const subject = encodeURIComponent('Crypto Payment Verification');
-                  // Calculate crypto amount if price available
-                  let cryptoAmountStr = 'N/A';
-                  if (cryptoPrices?.prices?.[selectedCrypto.id]) {
-                    const price = cryptoPrices.prices[selectedCrypto.id];
-                    const amountWithFee = finalPriceUSD * 1.03;
-                    const cryptoAmount = amountWithFee / price;
-                    const decimals = cryptoPrices.decimals?.[selectedCrypto.id] || 6;
-                    cryptoAmountStr = cryptoAmount.toFixed(decimals);
-                  }
-                  const body = encodeURIComponent(
-                    `Plan: ${selectedPlan?.name}\n` +
-                    `Billing: ${isAnnual ? 'Annual' : 'Monthly'}\n` +
-                    `Base Amount: $${finalPriceUSD.toFixed(2)} USD\n` +
-                    `Total with 3% Fee: $${(finalPriceUSD * 1.03).toFixed(2)} USD\n` +
-                    `Crypto: ${selectedCrypto.symbol}\n` +
-                    `Crypto Amount: ${cryptoAmountStr} ${selectedCrypto.symbol}\n` +
-                    `Network: ${selectedCrypto.network}\n` +
-                    `Wallet: ${selectedCrypto.address}\n\n` +
-                    `Transaction Hash (TXID): `
-                  );
-                  window.open(`mailto:support@chatvice.app?subject=${subject}&body=${body}`, '_blank');
-                }}
-                data-testid="button-contact-support"
+              {/* Action Buttons */}
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="space-y-2"
               >
-                <Mail className="w-3 h-3 mr-1" />
-                Contact Support After Payment
-              </Button>
-            </div>
+                {cryptoPrices?.prices?.[selectedCrypto.id] && finalPriceUSD > 0 && (
+                  <Button
+                    size="sm"
+                    className="w-full bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 border-0 text-white font-medium"
+                    onClick={() => {
+                      const price = cryptoPrices.prices[selectedCrypto.id];
+                      const amountWithFee = finalPriceUSD * 1.03;
+                      const cryptoAmount = amountWithFee / price;
+                      const decimals = cryptoPrices.decimals?.[selectedCrypto.id] || 6;
+                      navigator.clipboard.writeText(cryptoAmount.toFixed(decimals));
+                      toast({ title: "Amount copied!", description: `${cryptoAmount.toFixed(decimals)} ${selectedCrypto.symbol} copied to clipboard` });
+                    }}
+                    data-testid="button-copy-crypto-amount"
+                  >
+                    <Copy className="w-3.5 h-3.5 mr-2" />
+                    Copy Amount
+                  </Button>
+                )}
+
+                {/* Quick Instructions */}
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                  <div className="grid grid-cols-2 gap-2 text-[9px]">
+                    <div className="flex items-start gap-1.5">
+                      <CheckCircle className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
+                      <span className="text-muted-foreground">Send exact amount</span>
+                    </div>
+                    <div className="flex items-start gap-1.5">
+                      <CheckCircle className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
+                      <span className="text-muted-foreground">Use {selectedCrypto.network} network</span>
+                    </div>
+                    <div className="flex items-start gap-1.5">
+                      <CheckCircle className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
+                      <span className="text-muted-foreground">Save transaction hash</span>
+                    </div>
+                    <div className="flex items-start gap-1.5">
+                      <CheckCircle className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
+                      <span className="text-muted-foreground">Contact support after</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contact Support Button */}
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  className="w-full bg-white/5 border-white/10 hover:bg-white/10"
+                  onClick={() => {
+                    const subject = encodeURIComponent('Crypto Payment Verification');
+                    let cryptoAmountStr = 'N/A';
+                    if (cryptoPrices?.prices?.[selectedCrypto.id]) {
+                      const price = cryptoPrices.prices[selectedCrypto.id];
+                      const amountWithFee = finalPriceUSD * 1.03;
+                      const cryptoAmount = amountWithFee / price;
+                      const decimals = cryptoPrices.decimals?.[selectedCrypto.id] || 6;
+                      cryptoAmountStr = cryptoAmount.toFixed(decimals);
+                    }
+                    const body = encodeURIComponent(
+                      `Plan: ${selectedPlan?.name}\n` +
+                      `Billing: ${isAnnual ? 'Annual' : 'Monthly'}\n` +
+                      `Base Amount: $${finalPriceUSD.toFixed(2)} USD\n` +
+                      `Total with 3% Fee: $${(finalPriceUSD * 1.03).toFixed(2)} USD\n` +
+                      `Crypto: ${selectedCrypto.symbol}\n` +
+                      `Crypto Amount: ${cryptoAmountStr} ${selectedCrypto.symbol}\n` +
+                      `Network: ${selectedCrypto.network}\n` +
+                      `Wallet: ${selectedCrypto.address}\n\n` +
+                      `Transaction Hash (TXID): `
+                    );
+                    window.open(`mailto:support@chatvice.app?subject=${subject}&body=${body}`, '_blank');
+                  }}
+                  data-testid="button-contact-support"
+                >
+                  <Mail className="w-3.5 h-3.5 mr-2" />
+                  Contact Support After Payment
+                </Button>
+              </motion.div>
+            </motion.div>
           )}
         </DialogContent>
       </Dialog>
