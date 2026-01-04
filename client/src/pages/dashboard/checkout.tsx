@@ -1983,76 +1983,50 @@ export default function CheckoutPage() {
 
       {paymentStep === 'crypto' && (
         <div className="space-y-4">
-          {/* Premium Crypto Header Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="crypto-card p-5"
-          >
-            {/* Animated Header */}
-            <div className="text-center mb-4">
-              <motion.div 
-                className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center mb-3 relative"
-                style={{ 
-                  background: 'linear-gradient(135deg, rgba(247, 147, 26, 0.15), rgba(98, 126, 234, 0.15), rgba(153, 69, 255, 0.15))'
-                }}
-                animate={{ 
-                  boxShadow: [
-                    '0 0 20px rgba(247, 147, 26, 0.3)',
-                    '0 0 30px rgba(98, 126, 234, 0.3)',
-                    '0 0 20px rgba(153, 69, 255, 0.3)',
-                    '0 0 20px rgba(247, 147, 26, 0.3)'
-                  ]
-                }}
-                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-              >
-                <Bitcoin className="w-7 h-7 text-amber-500 crypto-float" />
-              </motion.div>
-              <h3 className="text-base font-bold bg-gradient-to-r from-amber-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
+          {/* Crypto Header Card - Clean Design */}
+          <div className="crypto-card p-6">
+            {/* Header - No icon, bigger title */}
+            <div className="text-center mb-5">
+              <h3 className="text-xl font-bold text-foreground">
                 Pay with Cryptocurrency
               </h3>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-sm text-muted-foreground mt-1">
                 Fast, secure & decentralized payments
               </p>
-              <div className="crypto-accent-line w-24 mx-auto mt-3" />
+              <div className="crypto-accent-line w-32 mx-auto mt-4" />
             </div>
 
-            {/* Order Summary - Glassmorphic */}
-            <div className="p-3 rounded-xl bg-white/5 dark:bg-white/5 backdrop-blur-sm border border-white/10 space-y-2 mb-4">
+            {/* Order Summary - Clean Box */}
+            <div className="p-4 rounded-xl bg-muted/30 dark:bg-white/5 border border-border/50 space-y-3 mb-5">
               <div className="flex justify-between items-center">
-                <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-                  <Crown className="w-3 h-3 text-amber-500" />
+                <span className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Crown className="w-4 h-4 text-purple-500" />
                   Plan
                 </span>
-                <span className="text-xs font-semibold">{selectedPlan?.name || 'N/A'}</span>
+                <span className="text-base font-semibold">{selectedPlan?.name || 'N/A'}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-                  <Clock className="w-3 h-3 text-blue-400" />
+                <span className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-purple-400" />
                   Billing
                 </span>
-                <Badge variant="secondary" className="text-[9px]">{isAnnual ? 'Annual' : 'Monthly'}</Badge>
+                <Badge variant="secondary" className="text-xs">{isAnnual ? 'Annual' : 'Monthly'}</Badge>
               </div>
-              <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent my-2" />
+              <div className="h-px bg-border/50 my-2" />
               {finalPrice === 0 && finalPriceUSD === 0 && selectedPlan ? (
-                <motion.div 
-                  initial={{ scale: 0.95 }}
-                  animate={{ scale: 1 }}
-                  className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20"
-                >
-                  <p className="text-[11px] text-emerald-400 text-center font-medium">
+                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                  <p className="text-sm text-emerald-500 text-center font-medium">
                     No payment required - Credits cover full amount
                   </p>
-                </motion.div>
+                </div>
               ) : (
                 <div className="flex justify-between items-center">
-                  <span className="text-[11px] text-muted-foreground">Total Amount</span>
+                  <span className="text-sm text-muted-foreground">Total Amount</span>
                   <div className="text-right">
-                    <span className="text-lg font-bold crypto-amount-display">
+                    <span className="text-2xl font-bold crypto-amount-display">
                       ${finalPriceUSD.toFixed(2)}
                     </span>
-                    <p className="text-[9px] text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       ~Rp {finalPrice.toLocaleString('id-ID')}
                     </p>
                   </div>
@@ -2060,173 +2034,112 @@ export default function CheckoutPage() {
               )}
             </div>
 
-            {/* Crypto Coin Selection - Large Premium Grid */}
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-medium text-muted-foreground">Select Cryptocurrency</span>
-                <div className="flex items-center gap-1.5">
+            {/* Crypto Coin Selection - Clean Grid */}
+            <div className="mb-5">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-sm font-medium text-foreground">Select Cryptocurrency</span>
+                <div className="flex items-center gap-2">
                   <div className="crypto-live-dot" />
-                  <span className="text-[9px] text-emerald-400 font-medium">Live Prices</span>
+                  <span className="text-xs text-green-600 dark:text-green-400 font-medium">Live Prices</span>
                 </div>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <AnimatePresence>
-                  {CRYPTO_COINS.map((coin, index) => (
-                    <motion.button
-                      key={coin.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.08, duration: 0.4 }}
-                      whileHover={{ scale: 1.03, y: -4 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="crypto-coin-btn p-4 cursor-pointer text-left group"
-                      data-coin={coin.id}
-                      onClick={() => {
-                        setSelectedCrypto(coin);
-                        setShowCryptoDialog(true);
-                      }}
-                      data-testid={`button-crypto-${coin.id}`}
-                    >
-                      {/* Coin Icon with Halo */}
-                      <div className="flex items-center gap-3">
-                        <motion.div 
-                          className="crypto-icon-halo"
-                          style={{ '--halo-color': `${coin.color}25` } as any}
-                          animate={{ 
-                            boxShadow: [
-                              `0 0 0 rgba(${coin.id === 'btc' ? '247,147,26' : coin.id === 'eth' ? '98,126,234' : coin.id === 'sol' ? '153,69,255' : coin.id === 'bnb' ? '243,186,47' : coin.id === 'usdt' ? '38,161,123' : '35,41,47'}, 0)`,
-                              `0 0 25px rgba(${coin.id === 'btc' ? '247,147,26' : coin.id === 'eth' ? '98,126,234' : coin.id === 'sol' ? '153,69,255' : coin.id === 'bnb' ? '243,186,47' : coin.id === 'usdt' ? '38,161,123' : '35,41,47'}, 0.3)`,
-                              `0 0 0 rgba(${coin.id === 'btc' ? '247,147,26' : coin.id === 'eth' ? '98,126,234' : coin.id === 'sol' ? '153,69,255' : coin.id === 'bnb' ? '243,186,47' : coin.id === 'usdt' ? '38,161,123' : '35,41,47'}, 0)`
-                            ]
-                          }}
-                          transition={{ duration: 2, repeat: Infinity, delay: index * 0.3 }}
-                        >
-                          <coin.icon 
-                            className="w-9 h-9 drop-shadow-lg transition-transform duration-300 group-hover:scale-110" 
-                            style={{ color: coin.color }} 
-                          />
-                        </motion.div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-sm font-bold text-foreground">{coin.symbol}</span>
-                            {cryptoPrices?.prices?.[coin.id] && (
-                              <span className="text-[9px] text-emerald-400 font-medium">
-                                ${cryptoPrices.prices[coin.id] >= 100 
-                                  ? cryptoPrices.prices[coin.id].toLocaleString('en-US', { maximumFractionDigits: 0 })
-                                  : cryptoPrices.prices[coin.id] >= 1
-                                    ? cryptoPrices.prices[coin.id].toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                                    : cryptoPrices.prices[coin.id].toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
-                                }
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-[10px] text-muted-foreground block truncate">{coin.name}</span>
-                          <Badge 
-                            variant="secondary" 
-                            className="text-[8px] px-1.5 py-0 h-4 mt-1 bg-white/5 border-white/10"
-                          >
-                            {coin.network}
-                          </Badge>
-                        </div>
+                {CRYPTO_COINS.map((coin) => (
+                  <button
+                    key={coin.id}
+                    className="crypto-coin-btn p-4 cursor-pointer text-left"
+                    data-coin={coin.id}
+                    onClick={() => {
+                      setSelectedCrypto(coin);
+                      setShowCryptoDialog(true);
+                    }}
+                    data-testid={`button-crypto-${coin.id}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full flex items-center justify-center bg-muted/50 dark:bg-white/10">
+                        <coin.icon 
+                          className="w-8 h-8" 
+                          style={{ color: coin.color }} 
+                        />
                       </div>
-                    </motion.button>
-                  ))}
-                </AnimatePresence>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base font-bold text-foreground">{coin.symbol}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground block truncate">{coin.name}</span>
+                        {cryptoPrices?.prices?.[coin.id] && (
+                          <span className="text-sm font-semibold text-green-600 dark:text-green-400 mt-1 block">
+                            ${cryptoPrices.prices[coin.id] >= 100 
+                              ? cryptoPrices.prices[coin.id].toLocaleString('en-US', { maximumFractionDigits: 0 })
+                              : cryptoPrices.prices[coin.id] >= 1
+                                ? cryptoPrices.prices[coin.id].toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                : cryptoPrices.prices[coin.id].toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
+                            }
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                ))}
               </div>
             </div>
 
             {/* Info Notice */}
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.6 }}
-              className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2"
-            >
-              <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <p className="text-[10px] text-amber-300 dark:text-amber-300 leading-relaxed">
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 mb-4">
+              <Info className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
                 After sending payment, contact support with your transaction hash for manual verification. Payments are typically confirmed within 1-2 hours.
               </p>
-            </motion.div>
+            </div>
 
             {/* Back Button */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.7 }}
-              className="mt-4"
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="w-full"
+              onClick={() => setPaymentStep('select_method')}
+              data-testid="button-back-to-methods"
             >
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full bg-white/5 border-white/10 hover:bg-white/10"
-                onClick={() => setPaymentStep('select_method')}
-                data-testid="button-back-to-methods"
-              >
-                <ArrowLeft className="w-3.5 h-3.5 mr-2" />
-                Back to Payment Methods
-              </Button>
-            </motion.div>
-          </motion.div>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Payment Methods
+            </Button>
+          </div>
         </div>
       )}
 
-      {/* Crypto Wallet Dialog - Premium Design */}
+      {/* Crypto Wallet Dialog - Clean Design */}
       <Dialog open={showCryptoDialog} onOpenChange={setShowCryptoDialog}>
         <DialogContent className="max-w-md p-0 overflow-hidden border-0 crypto-dialog-glass">
           {selectedCrypto && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.3 }}
-              className="p-5"
-            >
-              {/* Header with Animated Icon */}
+            <div className="p-6" id="crypto-invoice-content">
+              {/* Header - Clean */}
               <div className="flex items-center gap-4 mb-5">
-                <motion.div 
-                  className="crypto-icon-halo shrink-0"
-                  style={{ '--halo-color': `${selectedCrypto.color}30` } as any}
-                  animate={{ 
-                    boxShadow: [
-                      `0 0 0 rgba(0,0,0,0)`,
-                      `0 0 30px ${selectedCrypto.color}40`,
-                      `0 0 0 rgba(0,0,0,0)`
-                    ]
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
+                <div className="w-14 h-14 rounded-full flex items-center justify-center bg-muted/50 dark:bg-white/10 shrink-0">
                   <selectedCrypto.icon 
-                    className="w-10 h-10" 
+                    className="w-9 h-9" 
                     style={{ color: selectedCrypto.color }} 
                   />
-                </motion.div>
+                </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-bold">{selectedCrypto.symbol}</h2>
-                    <Badge 
-                      variant="secondary" 
-                      className="text-[9px] bg-white/5 border-white/10"
-                    >
+                    <h2 className="text-xl font-bold">{selectedCrypto.symbol}</h2>
+                    <Badge variant="secondary" className="text-xs">
                       {selectedCrypto.network}
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground truncate">{selectedCrypto.name}</p>
+                  <p className="text-sm text-muted-foreground truncate">{selectedCrypto.name}</p>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   <div className="crypto-live-dot" />
-                  <span className="text-[9px] text-emerald-400">Live</span>
+                  <span className="text-xs text-green-600 dark:text-green-400">Live</span>
                 </div>
               </div>
 
               <div className="crypto-accent-line mb-5" />
 
               {/* QR Code Section */}
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="flex justify-center mb-5"
-              >
-                <div className="relative p-4 bg-white rounded-2xl shadow-xl">
+              <div className="flex justify-center mb-5">
+                <div className="p-4 bg-white rounded-2xl shadow-lg">
                   <QRCodeSVG 
                     value={selectedCrypto.address} 
                     size={160}
@@ -2235,98 +2148,84 @@ export default function CheckoutPage() {
                     fgColor="#0a0a0f"
                     bgColor="#ffffff"
                   />
-                  <div 
-                    className="absolute inset-0 rounded-2xl pointer-events-none"
-                    style={{ 
-                      boxShadow: `0 0 40px ${selectedCrypto.color}20, inset 0 0 0 2px ${selectedCrypto.color}15`
-                    }}
-                  />
                 </div>
-              </motion.div>
+              </div>
 
               {/* Wallet Address */}
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 }}
-                className="mb-4"
-              >
-                <label className="text-[10px] text-muted-foreground mb-1.5 block">Wallet Address</label>
-                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-white/5 border border-white/10">
+              <div className="mb-4">
+                <label className="text-xs text-muted-foreground mb-2 block">Wallet Address</label>
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-muted/30 dark:bg-white/5 border border-border/50">
                   <input 
                     type="text" 
                     readOnly 
                     value={selectedCrypto.address} 
-                    className="flex-1 text-[10px] font-mono bg-transparent outline-none text-foreground"
+                    className="flex-1 text-xs font-mono bg-transparent outline-none text-foreground"
                     data-testid="input-crypto-address"
                   />
                   <Button 
                     variant="ghost"
                     size="sm"
-                    className="h-7 px-2 bg-white/5 hover:bg-white/10 border border-white/10"
+                    className="h-8 px-3"
                     onClick={() => {
                       navigator.clipboard.writeText(selectedCrypto.address);
                       toast({ title: "Address copied!", description: "Wallet address copied to clipboard" });
                     }}
                     data-testid="button-copy-crypto-address"
                   >
-                    <Copy className="w-3 h-3" />
+                    <Copy className="w-4 h-4" />
                   </Button>
                 </div>
-              </motion.div>
+              </div>
 
               {/* Memo/Tag if applicable */}
               {selectedCrypto.memo && (
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                  className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 mb-4"
-                >
-                  <p className="text-[10px] text-blue-300 text-center flex items-center justify-center gap-1.5">
-                    <Info className="w-3 h-3" />
+                <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 mb-4">
+                  <p className="text-xs text-blue-600 dark:text-blue-300 text-center flex items-center justify-center gap-2">
+                    <Info className="w-4 h-4" />
                     {selectedCrypto.memo}
                   </p>
-                </motion.div>
+                </div>
               )}
 
-              {/* Amount Section - Premium Style */}
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25 }}
-                className="p-4 rounded-xl bg-gradient-to-b from-white/5 to-transparent border border-white/10 mb-4"
-              >
+              {/* Amount Section - Larger Fonts */}
+              <div className="p-4 rounded-xl bg-muted/30 dark:bg-white/5 border border-border/50 mb-4">
                 {finalPrice === 0 && finalPriceUSD === 0 && selectedPlan ? (
-                  <p className="text-sm font-medium text-emerald-400 text-center py-2">No payment required</p>
+                  <p className="text-base font-medium text-emerald-500 text-center py-2">No payment required</p>
                 ) : (
                   <>
+                    {/* Plan Info */}
+                    <div className="flex justify-between items-center text-sm mb-2">
+                      <span className="text-muted-foreground">Plan</span>
+                      <span className="font-semibold">{selectedPlan?.name} ({isAnnual ? 'Annual' : 'Monthly'})</span>
+                    </div>
                     {/* Fee Breakdown */}
-                    <div className="flex justify-between items-center text-[10px] text-muted-foreground mb-2">
-                      <span>Base Amount</span>
-                      <span>${finalPriceUSD.toFixed(2)}</span>
+                    <div className="flex justify-between items-center text-sm mb-2">
+                      <span className="text-muted-foreground">Base Amount</span>
+                      <span className="font-medium">${finalPriceUSD.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between items-center text-[10px] text-muted-foreground mb-3">
-                      <span>+ 3% Network Fee</span>
-                      <span className="text-emerald-400">+${(finalPriceUSD * 0.03).toFixed(2)}</span>
+                    <div className="flex justify-between items-center text-sm mb-3">
+                      <span className="text-muted-foreground">+ 3% Network Fee</span>
+                      <span className="font-medium text-purple-600 dark:text-purple-400">+${(finalPriceUSD * 0.03).toFixed(2)}</span>
                     </div>
-                    <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent mb-3" />
+                    <div className="h-px bg-border/50 mb-3" />
                     
-                    {/* Crypto Amount Display */}
-                    <div className="text-center">
-                      <p className="text-[10px] text-muted-foreground mb-1">Send Exactly</p>
+                    {/* Total */}
+                    <div className="flex justify-between items-center text-base mb-4">
+                      <span className="font-semibold">Total</span>
+                      <span className="font-bold text-lg">${(finalPriceUSD * 1.03).toFixed(2)}</span>
+                    </div>
+                    
+                    {/* Crypto Amount Display - Large */}
+                    <div className="text-center py-3 bg-purple-500/10 dark:bg-purple-500/20 rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-2">Send Exactly</p>
                       {cryptoPricesLoading ? (
-                        <div className="flex items-center justify-center gap-2 py-3">
+                        <div className="flex items-center justify-center gap-2 py-2">
                           <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                          <span className="text-xs text-muted-foreground">Fetching live price...</span>
+                          <span className="text-sm text-muted-foreground">Fetching live price...</span>
                         </div>
                       ) : cryptoPrices?.prices?.[selectedCrypto.id] ? (
                         <>
-                          <motion.p 
-                            initial={{ scale: 0.9 }}
-                            animate={{ scale: 1 }}
-                            className="text-2xl font-bold crypto-amount-display"
-                          >
+                          <p className="text-3xl font-bold crypto-amount-display">
                             {(() => {
                               const price = cryptoPrices.prices[selectedCrypto.id];
                               const amountWithFee = finalPriceUSD * 1.03;
@@ -2334,18 +2233,18 @@ export default function CheckoutPage() {
                               const decimals = cryptoPrices.decimals?.[selectedCrypto.id] || 6;
                               return cryptoAmount.toFixed(decimals);
                             })()}
-                            <span className="text-lg ml-1.5" style={{ color: selectedCrypto.color }}>
+                            <span className="text-xl ml-2" style={{ color: selectedCrypto.color }}>
                               {selectedCrypto.symbol}
                             </span>
-                          </motion.p>
+                          </p>
                           <div className="flex items-center justify-center gap-2 mt-2">
-                            <p className="text-[9px] text-muted-foreground">
+                            <p className="text-xs text-muted-foreground">
                               1 {selectedCrypto.symbol} = ${cryptoPrices.prices[selectedCrypto.id].toLocaleString('en-US', { maximumFractionDigits: 2 })}
                             </p>
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-5 w-5 p-0 hover:bg-white/10"
+                              className="h-6 w-6 p-0"
                               onClick={() => refetchCryptoPrices()}
                               data-testid="button-refresh-price"
                             >
@@ -2353,18 +2252,18 @@ export default function CheckoutPage() {
                             </Button>
                           </div>
                           {cryptoPrices.stale && (
-                            <p className="text-[9px] text-amber-400 mt-1">
+                            <p className="text-xs text-amber-500 mt-1">
                               Cached prices - refreshing...
                             </p>
                           )}
-                          <p className="text-[8px] text-muted-foreground/70 mt-1">
+                          <p className="text-[10px] text-muted-foreground/70 mt-1">
                             Updated {new Date(cryptoPrices.timestamp).toLocaleTimeString()}
                           </p>
                         </>
                       ) : (
                         <div className="py-2">
-                          <p className="text-xs text-amber-400">Price unavailable</p>
-                          <p className="text-[9px] text-muted-foreground mt-1">
+                          <p className="text-sm text-amber-500">Price unavailable</p>
+                          <p className="text-xs text-muted-foreground mt-1">
                             Convert ${(finalPriceUSD * 1.03).toFixed(2)} to {selectedCrypto.symbol}
                           </p>
                         </div>
@@ -2372,19 +2271,14 @@ export default function CheckoutPage() {
                     </div>
                   </>
                 )}
-              </motion.div>
+              </div>
               
-              {/* Action Buttons */}
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="space-y-2"
-              >
+              {/* Action Buttons - Purple Gradient */}
+              <div className="space-y-2">
                 {cryptoPrices?.prices?.[selectedCrypto.id] && finalPriceUSD > 0 && (
                   <Button
                     size="sm"
-                    className="w-full bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 border-0 text-white font-medium"
+                    className="w-full crypto-purple-btn h-10"
                     onClick={() => {
                       const price = cryptoPrices.prices[selectedCrypto.id];
                       const amountWithFee = finalPriceUSD * 1.03;
@@ -2395,28 +2289,58 @@ export default function CheckoutPage() {
                     }}
                     data-testid="button-copy-crypto-amount"
                   >
-                    <Copy className="w-3.5 h-3.5 mr-2" />
+                    <Copy className="w-4 h-4 mr-2" />
                     Copy Amount
                   </Button>
                 )}
 
+                {/* Save to Gallery Button */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full h-10"
+                  onClick={async () => {
+                    try {
+                      const html2canvas = (await import('html2canvas')).default;
+                      const element = document.getElementById('crypto-invoice-content');
+                      if (element) {
+                        const canvas = await html2canvas(element, {
+                          backgroundColor: document.documentElement.classList.contains('dark') ? '#0f0f19' : '#ffffff',
+                          scale: 2,
+                        });
+                        const link = document.createElement('a');
+                        link.download = `crypto-invoice-${selectedCrypto.symbol}-${Date.now()}.png`;
+                        link.href = canvas.toDataURL('image/png');
+                        link.click();
+                        toast({ title: "Saved!", description: "Invoice saved to your device" });
+                      }
+                    } catch (error) {
+                      toast({ title: "Error", description: "Failed to save image", variant: "destructive" });
+                    }
+                  }}
+                  data-testid="button-save-to-gallery"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Save to Gallery
+                </Button>
+
                 {/* Quick Instructions */}
-                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                  <div className="grid grid-cols-2 gap-2 text-[9px]">
-                    <div className="flex items-start gap-1.5">
-                      <CheckCircle className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
+                <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="w-4 h-4 text-purple-500 shrink-0 mt-0.5" />
                       <span className="text-muted-foreground">Send exact amount</span>
                     </div>
-                    <div className="flex items-start gap-1.5">
-                      <CheckCircle className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="w-4 h-4 text-purple-500 shrink-0 mt-0.5" />
                       <span className="text-muted-foreground">Use {selectedCrypto.network} network</span>
                     </div>
-                    <div className="flex items-start gap-1.5">
-                      <CheckCircle className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="w-4 h-4 text-purple-500 shrink-0 mt-0.5" />
                       <span className="text-muted-foreground">Save transaction hash</span>
                     </div>
-                    <div className="flex items-start gap-1.5">
-                      <CheckCircle className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="w-4 h-4 text-purple-500 shrink-0 mt-0.5" />
                       <span className="text-muted-foreground">Contact support after</span>
                     </div>
                   </div>
@@ -2426,7 +2350,7 @@ export default function CheckoutPage() {
                 <Button 
                   size="sm" 
                   variant="outline"
-                  className="w-full bg-white/5 border-white/10 hover:bg-white/10"
+                  className="w-full h-10"
                   onClick={() => {
                     const subject = encodeURIComponent('Crypto Payment Verification');
                     let cryptoAmountStr = 'N/A';
@@ -2452,11 +2376,11 @@ export default function CheckoutPage() {
                   }}
                   data-testid="button-contact-support"
                 >
-                  <Mail className="w-3.5 h-3.5 mr-2" />
+                  <Mail className="w-4 h-4 mr-2" />
                   Contact Support After Payment
                 </Button>
-              </motion.div>
-            </motion.div>
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>
