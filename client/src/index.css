@@ -525,3 +525,181 @@ html {
 .parallax-scroll {
   will-change: transform;
 }
+
+/* ================================
+   CRYPTO PAYMENT UI STYLES
+   Premium neon glow effects
+================================ */
+
+/* Crypto card base with glassmorphism */
+.crypto-card {
+  position: relative;
+  background: linear-gradient(135deg, rgba(20, 20, 30, 0.9), rgba(10, 10, 20, 0.95));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  backdrop-filter: blur(20px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.crypto-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent, rgba(255,255,255,0.05));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Neon glow effect for crypto coins */
+.crypto-coin-btn {
+  position: relative;
+  background: linear-gradient(145deg, rgba(30, 30, 45, 0.95), rgba(20, 20, 35, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.crypto-coin-btn::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 18px;
+  background: var(--coin-glow, transparent);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  z-index: -1;
+  filter: blur(8px);
+}
+
+.crypto-coin-btn:hover {
+  transform: translateY(-4px) scale(1.02);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.crypto-coin-btn:hover::before {
+  opacity: 0.6;
+}
+
+/* Individual coin glow colors */
+.crypto-coin-btn[data-coin="btc"] { --coin-glow: linear-gradient(135deg, #F7931A, #FF6B00); }
+.crypto-coin-btn[data-coin="eth"] { --coin-glow: linear-gradient(135deg, #627EEA, #3B5998); }
+.crypto-coin-btn[data-coin="sol"] { --coin-glow: linear-gradient(135deg, #9945FF, #14F195); }
+.crypto-coin-btn[data-coin="bnb"] { --coin-glow: linear-gradient(135deg, #F3BA2F, #F0B90B); }
+.crypto-coin-btn[data-coin="usdt"] { --coin-glow: linear-gradient(135deg, #26A17B, #00FF88); }
+.crypto-coin-btn[data-coin="xrp"] { --coin-glow: linear-gradient(135deg, #23292F, #00AAE4); }
+
+/* Coin icon halo effect */
+.crypto-icon-halo {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center, var(--halo-color, rgba(255,255,255,0.1)) 0%, transparent 70%);
+}
+
+.crypto-icon-halo::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15), transparent);
+  pointer-events: none;
+}
+
+/* Crypto dialog glassmorphism */
+.crypto-dialog-glass {
+  background: linear-gradient(180deg, rgba(15, 15, 25, 0.98), rgba(10, 10, 20, 0.99));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(30px);
+}
+
+/* Crypto amount display with gradient text */
+.crypto-amount-display {
+  background: linear-gradient(135deg, #00FF88 0%, #00D4FF 50%, #7B68EE 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Neon accent line */
+.crypto-accent-line {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #00FF88, #00D4FF, transparent);
+  border-radius: 2px;
+}
+
+/* Pulse animation for live indicator */
+@keyframes crypto-pulse {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.4);
+  }
+  50% {
+    opacity: 0.8;
+    box-shadow: 0 0 0 8px rgba(0, 255, 136, 0);
+  }
+}
+
+.crypto-live-dot {
+  width: 8px;
+  height: 8px;
+  background: #00FF88;
+  border-radius: 50%;
+  animation: crypto-pulse 2s ease-in-out infinite;
+}
+
+/* Floating animation for coin icons */
+@keyframes crypto-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.crypto-float {
+  animation: crypto-float 3s ease-in-out infinite;
+}
+
+/* Shimmer effect for loading states */
+@keyframes crypto-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.crypto-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.crypto-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  animation: crypto-shimmer 2s ease-in-out infinite;
+}
+
+/* Light mode crypto adjustments */
+:root .crypto-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(240, 240, 250, 0.98));
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+:root .crypto-coin-btn {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(245, 245, 250, 0.99));
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+:root .crypto-dialog-glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(250, 250, 255, 0.99));
+  border-color: rgba(0, 0, 0, 0.08);
+}
