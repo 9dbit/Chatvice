@@ -44,6 +44,7 @@ import {
 import { SiWhatsapp, SiTelegram, SiMessenger, SiPaypal, SiBitcoin, SiEthereum, SiSolana, SiBinance, SiTether, SiRipple } from "react-icons/si";
 import PayPalButton from "@/components/PayPalButton";
 import chatviceLogoImg from "@assets/Chatvice-02_1767473402687.png";
+import chatviceCryptoLogo from "@assets/Chatvice-04_1767550221276.png";
 import gpnLogoImg from "@assets/IMG_1410_1767473402687.png";
 
 type PaymentMethod = 'qris' | 'bank_transfer' | 'virtual_account' | 'ewallet' | 'payment_link' | 'credit_card' | 'crypto' | 'paypal';
@@ -2366,24 +2367,22 @@ export default function CheckoutPage() {
                   className="w-full h-10"
                   onClick={async () => {
                     try {
-                      const html2canvas = (await import('html2canvas')).default;
-                      const isDark = document.documentElement.classList.contains('dark');
-                      
-                      // Generate QR code using canvas - with proper waiting
-                      const { QRCodeCanvas } = await import('qrcode.react');
+                      // Pure canvas approach - most reliable for QR codes
+                      const QRCode = await import('qrcode.react');
                       const { createRoot } = await import('react-dom/client');
                       const { flushSync } = await import('react-dom');
                       
-                      const qrContainer = document.createElement('div');
-                      qrContainer.style.cssText = 'position: fixed; left: 0; top: 0; z-index: -9999; background: #ffffff; padding: 10px;';
-                      document.body.appendChild(qrContainer);
+                      // Step 1: Generate QR code as canvas and get data URL
+                      const qrTempContainer = document.createElement('div');
+                      qrTempContainer.style.cssText = 'position: fixed; left: 0; top: 0; z-index: 99999; background: white; padding: 10px;';
+                      document.body.appendChild(qrTempContainer);
                       
-                      const qrRoot = createRoot(qrContainer);
+                      const qrRoot = createRoot(qrTempContainer);
                       flushSync(() => {
                         qrRoot.render(
-                          <QRCodeCanvas 
-                            value={selectedCrypto.address} 
-                            size={200}
+                          <QRCode.QRCodeCanvas 
+                            value={selectedCrypto.address}
+                            size={180}
                             level="H"
                             includeMargin={true}
                             fgColor="#1a1a2e"
@@ -2392,160 +2391,210 @@ export default function CheckoutPage() {
                         );
                       });
                       
-                      // Wait longer for canvas to fully render
-                      await new Promise(resolve => setTimeout(resolve, 500));
+                      // Wait for canvas to fully render
+                      await new Promise(r => setTimeout(r, 400));
                       
+                      const qrCanvas = qrTempContainer.querySelector('canvas');
                       let qrDataUrl = '';
-                      const qrCanvas = qrContainer.querySelector('canvas');
                       if (qrCanvas) {
                         qrDataUrl = qrCanvas.toDataURL('image/png');
                       }
                       
                       qrRoot.unmount();
-                      document.body.removeChild(qrContainer);
+                      document.body.removeChild(qrTempContainer);
                       
-                      // Calculate amounts
+                      if (!qrDataUrl) {
+                        toast({ title: "Error", description: "Failed to generate QR code", variant: "destructive" });
+                        return;
+                      }
+                      
+                      // Step 2: Create main canvas and draw everything
+                      const canvas = document.createElement('canvas');
+                      const ctx = canvas.getContext('2d')!;
+                      const isDark = document.documentElement.classList.contains('dark');
+                      
+                      // Canvas dimensions
+                      const width = 400;
+                      const height = 700;
+                      canvas.width = width * 2; // 2x for retina
+                      canvas.height = height * 2;
+                      ctx.scale(2, 2);
+                      
+                      // Background
+                      ctx.fillStyle = isDark ? '#0f0f19' : '#ffffff';
+                      ctx.fillRect(0, 0, width, height);
+                      
+                      let y = 24;
+                      
+                      // Load and draw logo
+                      const logoImg = new Image();
+                      logoImg.crossOrigin = 'anonymous';
+                      await new Promise<void>((resolve) => {
+                        logoImg.onload = () => resolve();
+                        logoImg.onerror = () => resolve();
+                        logoImg.src = chatviceCryptoLogo;
+                      });
+                      
+                      if (logoImg.complete && logoImg.naturalWidth > 0) {
+                        const logoHeight = 28;
+                        const logoWidth = (logoImg.naturalWidth / logoImg.naturalHeight) * logoHeight;
+                        ctx.drawImage(logoImg, 20, y, logoWidth, logoHeight);
+                      }
+                      
+                      // "Crypto Invoice" text on right
+                      ctx.fillStyle = isDark ? '#888888' : '#666666';
+                      ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
+                      ctx.textAlign = 'right';
+                      ctx.fillText('Crypto Invoice', width - 20, y + 18);
+                      ctx.textAlign = 'left';
+                      
+                      y += 50;
+                      
+                      // Divider
+                      ctx.strokeStyle = isDark ? '#333333' : '#eeeeee';
+                      ctx.beginPath();
+                      ctx.moveTo(20, y);
+                      ctx.lineTo(width - 20, y);
+                      ctx.stroke();
+                      
+                      y += 20;
+                      
+                      // Crypto name section
+                      ctx.fillStyle = isDark ? '#1a1a2e' : '#f5f5f7';
+                      ctx.beginPath();
+                      ctx.roundRect(20, y, width - 40, 60, 12);
+                      ctx.fill();
+                      
+                      // Crypto icon circle
+                      ctx.fillStyle = selectedCrypto.color + '30';
+                      ctx.beginPath();
+                      ctx.arc(56, y + 30, 22, 0, Math.PI * 2);
+                      ctx.fill();
+                      
+                      // Crypto initial
+                      ctx.fillStyle = selectedCrypto.color;
+                      ctx.font = 'bold 18px -apple-system, BlinkMacSystemFont, sans-serif';
+                      ctx.textAlign = 'center';
+                      ctx.fillText(selectedCrypto.symbol.charAt(0), 56, y + 36);
+                      ctx.textAlign = 'left';
+                      
+                      // Crypto symbol and name
+                      ctx.fillStyle = isDark ? '#ffffff' : '#1a1a2e';
+                      ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, sans-serif';
+                      ctx.fillText(selectedCrypto.symbol, 90, y + 26);
+                      ctx.fillStyle = isDark ? '#888888' : '#666666';
+                      ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
+                      ctx.fillText(`${selectedCrypto.name} • ${selectedCrypto.network}`, 90, y + 44);
+                      
+                      y += 80;
+                      
+                      // QR Code
+                      const qrImg = new Image();
+                      await new Promise<void>((resolve) => {
+                        qrImg.onload = () => resolve();
+                        qrImg.onerror = () => resolve();
+                        qrImg.src = qrDataUrl;
+                      });
+                      
+                      // White background for QR
+                      const qrSize = 180;
+                      const qrX = (width - qrSize - 24) / 2;
+                      ctx.fillStyle = '#ffffff';
+                      ctx.shadowColor = 'rgba(0,0,0,0.1)';
+                      ctx.shadowBlur = 10;
+                      ctx.beginPath();
+                      ctx.roundRect(qrX, y, qrSize + 24, qrSize + 24, 12);
+                      ctx.fill();
+                      ctx.shadowBlur = 0;
+                      
+                      // Draw QR
+                      ctx.drawImage(qrImg, qrX + 12, y + 12, qrSize, qrSize);
+                      
+                      y += qrSize + 44;
+                      
+                      // Wallet Address label
+                      ctx.fillStyle = isDark ? '#888888' : '#666666';
+                      ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+                      ctx.fillText('WALLET ADDRESS', 20, y);
+                      y += 12;
+                      
+                      // Address box
+                      ctx.fillStyle = isDark ? '#1a1a2e' : '#f5f5f7';
+                      ctx.beginPath();
+                      ctx.roundRect(20, y, width - 40, 48, 8);
+                      ctx.fill();
+                      
+                      // Address text (wrapped)
+                      ctx.fillStyle = isDark ? '#ffffff' : '#1a1a2e';
+                      ctx.font = '10px Consolas, Monaco, monospace';
+                      const address = selectedCrypto.address;
+                      const maxWidth = width - 64;
+                      let line = '';
+                      let lineY = y + 18;
+                      for (let i = 0; i < address.length; i++) {
+                        const testLine = line + address[i];
+                        if (ctx.measureText(testLine).width > maxWidth) {
+                          ctx.fillText(line, 32, lineY);
+                          line = address[i];
+                          lineY += 14;
+                        } else {
+                          line = testLine;
+                        }
+                      }
+                      ctx.fillText(line, 32, lineY);
+                      
+                      y += 68;
+                      
+                      // Amount section
                       const price = cryptoPrices?.prices?.[selectedCrypto.id];
                       const amountWithFee = finalPriceUSD * 1.03;
                       const cryptoAmount = price ? amountWithFee / price : null;
                       const decimals = cryptoPrices?.decimals?.[selectedCrypto.id] || 6;
                       
-                      // Real Chatvice logo as proper SVG (matching actual brand)
-                      const chatviceLogoSvg = `<svg width="36" height="36" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <defs>
-                          <linearGradient id="chatGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" style="stop-color:#8B5CF6"/>
-                            <stop offset="100%" style="stop-color:#A855F7"/>
-                          </linearGradient>
-                        </defs>
-                        <rect width="100" height="100" rx="22" fill="url(#chatGrad)"/>
-                        <path d="M25 30 L25 55 L35 55 L35 75 L55 55 L75 55 L75 30 Z" fill="white"/>
-                        <path d="M30 35 L30 50 L37 50 L37 65 L52 50 L70 50 L70 35 Z" fill="url(#chatGrad)" opacity="0.15"/>
-                      </svg>`;
+                      // Purple gradient background for amount
+                      const gradient = ctx.createLinearGradient(20, y, width - 20, y + 80);
+                      gradient.addColorStop(0, 'rgba(139, 92, 246, 0.15)');
+                      gradient.addColorStop(1, 'rgba(168, 85, 247, 0.15)');
+                      ctx.fillStyle = gradient;
+                      ctx.beginPath();
+                      ctx.roundRect(20, y, width - 40, 80, 10);
+                      ctx.fill();
                       
-                      // Crypto icon SVGs - actual brand icons
-                      const cryptoIcons: Record<string, string> = {
-                        btc: `<svg width="40" height="40" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#F7931A"/><path d="M22.5 14.1c.3-2-1.2-3-3.3-3.8l.7-2.8-1.7-.4-.7 2.7c-.4-.1-1-.2-1.4-.3l.7-2.7-1.7-.4-.7 2.8c-.4-.1-.7-.2-1-.3v-.1l-2.4-.6-.4 1.8s1.3.3 1.2.3c.7.2.8.6.8 1l-.8 3.3c0 0 .1 0 .2.1h-.2l-1.2 4.8c-.1.2-.3.6-.8.4 0 0-1.2-.3-1.2-.3l-.8 2 2.2.6c.4.1.8.2 1.2.3l-.7 2.8 1.7.4.7-2.8c.5.1 1 .2 1.4.3l-.7 2.8 1.7.4.7-2.8c3 .6 5.2.3 6.2-2.4.7-2.2 0-3.4-1.6-4.2 1.1-.3 2-.1.1 2.2 0-1.7-1.2-2.6-3.3-3zm-1 4.5c-.5 2-4 .9-5.1.7l.9-3.7c1.1.3 4.7.8 4.2 3zm.5-4.5c-.5 1.8-3.4.9-4.3.6l.8-3.3c1 .2 4 .7 3.5 2.7z" fill="white"/></svg>`,
-                        eth: `<svg width="40" height="40" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#627EEA"/><path d="M16 4v8.9l7.5 3.3L16 4z" fill="white" fill-opacity="0.6"/><path d="M16 4L8.5 16.2l7.5-3.3V4z" fill="white"/><path d="M16 22v6l7.5-10.5L16 22z" fill="white" fill-opacity="0.6"/><path d="M16 28v-6l-7.5-4.5L16 28z" fill="white"/><path d="M16 20.6l7.5-4.4-7.5-3.3v7.7z" fill="white" fill-opacity="0.2"/><path d="M8.5 16.2l7.5 4.4v-7.7l-7.5 3.3z" fill="white" fill-opacity="0.6"/></svg>`,
-                        sol: `<svg width="40" height="40" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#9945FF"/><path d="M9 20.5h11.3c.2 0 .3.1.4.2l2.3 2.3c.2.2.1.5-.2.5H11.5c-.1 0-.3-.1-.4-.2L9 21c-.2-.2-.1-.5.2-.5h-.2zm0-5h11.3c.2 0 .3.1.4.2l2.3 2.3c.2.2.1.5-.2.5H11.5c-.1 0-.3-.1-.4-.2L9 16c-.2-.2-.1-.5.2-.5h-.2zm13.8-4.5H11.5c-.2 0-.3-.1-.4-.2L9 8.5c-.2-.2-.1-.5.2-.5h11.3c.1 0 .3.1.4.2l2.1 2.3c.2.2.1.5-.2.5z" fill="white"/></svg>`,
-                        bnb: `<svg width="40" height="40" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#F3BA2F"/><path d="M12.1 14.1L16 10.2l3.9 3.9 2.3-2.3L16 5.6l-6.2 6.2 2.3 2.3zm-4.5 1.9l2.3-2.3 2.3 2.3-2.3 2.3-2.3-2.3zm4.5 1.9L16 21.8l3.9-3.9 2.3 2.3-6.2 6.2-6.2-6.2 2.3-2.3zm8.4-1.9l2.3-2.3 2.3 2.3-2.3 2.3-2.3-2.3zM18.3 16L16 13.7 14.2 15.5l-.2.2-.3.3L16 18.3l2.3-2.3z" fill="white"/></svg>`,
-                        usdt: `<svg width="40" height="40" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#26A17B"/><path d="M17.9 17.1v-.1c-.1 0-.7 0-1.9 0s-1.7 0-2 .1v.1c-3.5.2-6.2.7-6.2 1.4s2.7 1.3 6.2 1.4v4.6h3.9V20c3.5-.2 6.1-.7 6.1-1.4s-2.6-1.3-6.1-1.5zm0 2.4v-.1c-.3 0-.9.1-1.9.1s-1.5 0-2-.1v.1c-3 .1-5.3.5-5.3 1s2.3.9 5.3 1v-2c.5 0 1.1.1 2 .1.9 0 1.6 0 1.9-.1v2c3-.1 5.2-.5 5.2-1s-2.2-.9-5.2-1zM22.4 10H9.6v2.2h4.6v3.5h3.6v-3.5h4.6V10z" fill="white"/></svg>`,
-                        xrp: `<svg width="40" height="40" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#23292F"/><path d="M23.4 9h2.5l-5.7 5.5c-1.2 1.1-3.1 1.1-4.3 0L10.1 9h2.5l4.1 4c.7.7 1.9.7 2.6 0l4.1-4zm-13 14h-2.5l5.8-5.6c1.2-1.1 3.1-1.1 4.3 0l5.9 5.6h-2.5l-4.2-4c-.7-.7-1.9-.7-2.6 0l-4.2 4z" fill="white"/></svg>`
-                      };
+                      // "Send Exactly" label
+                      ctx.fillStyle = isDark ? '#888888' : '#666666';
+                      ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+                      ctx.textAlign = 'center';
+                      ctx.fillText('SEND EXACTLY', width / 2, y + 20);
                       
-                      const currencyIconSvg = cryptoIcons[selectedCrypto.id] || `<svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="20" fill="${selectedCrypto.color}"/><text x="20" y="26" text-anchor="middle" fill="white" font-size="16" font-weight="bold">${selectedCrypto.symbol.charAt(0)}</text></svg>`;
+                      // Amount
+                      ctx.fillStyle = '#8B5CF6';
+                      ctx.font = 'bold 28px -apple-system, BlinkMacSystemFont, sans-serif';
+                      const amountText = cryptoAmount !== null ? cryptoAmount.toFixed(Math.min(decimals, 8)) : '--';
+                      ctx.fillText(amountText + ' ' + selectedCrypto.symbol, width / 2, y + 52);
                       
-                      // Partner logos SVGs
-                      const coingeckoSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="${isDark ? '#888' : '#666'}"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="9" cy="10" r="2" fill="currentColor"/><path d="M8 15c2 2 6 2 8 0" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>`;
-                      const coinbaseSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="${isDark ? '#888' : '#666'}"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/><rect x="8" y="10" width="8" height="4" rx="1" fill="currentColor"/></svg>`;
-                      const binanceSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="${isDark ? '#888' : '#666'}"><path d="M12 4L8 8l2 2 2-2 2 2 2-2-4-4zM6 10l-2 2 2 2 2-2-2-2zM18 10l-2 2 2 2 2-2-2-2zM12 12l-2 2 2 2 2-2-2-2zM12 18l2-2-2-2-2 2 2 2z"/></svg>`;
-                      const trustSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="${isDark ? '#888' : '#666'}"><path d="M12 3L4 7v6c0 5 3.5 9.7 8 11 4.5-1.3 8-6 8-11V7l-8-4z" stroke="currentColor" stroke-width="2" fill="none"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" fill="none"/></svg>`;
+                      // Rate
+                      if (price) {
+                        ctx.fillStyle = isDark ? '#888888' : '#666666';
+                        ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+                        ctx.fillText(`1 ${selectedCrypto.symbol} = $${price.toLocaleString('en-US', { maximumFractionDigits: 2 })}`, width / 2, y + 70);
+                      }
                       
-                      // Create export container with all proper elements
-                      const exportContainer = document.createElement('div');
-                      exportContainer.style.cssText = `
-                        position: fixed;
-                        left: 0;
-                        top: 0;
-                        z-index: -9999;
-                        width: 375px;
-                        background: ${isDark ? '#0f0f19' : '#ffffff'};
-                        color: ${isDark ? '#ffffff' : '#1a1a2e'};
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                        padding: 24px;
-                      `;
+                      ctx.textAlign = 'left';
+                      y += 100;
                       
-                      exportContainer.innerHTML = `
-                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
-                          ${chatviceLogoSvg}
-                          <span style="font-size: 22px; font-weight: 700; background: linear-gradient(135deg, #8B5CF6, #A855F7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Chatvice</span>
-                        </div>
-                        <p style="font-size: 12px; color: ${isDark ? '#888' : '#666'}; margin-bottom: 20px;">Crypto Payment Invoice</p>
-                        
-                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 12px; background: ${isDark ? '#1a1a2e' : '#f5f5f7'}; border-radius: 12px;">
-                          ${currencyIconSvg}
-                          <div>
-                            <div style="font-size: 16px; font-weight: 700; color: ${isDark ? '#ffffff' : '#1a1a2e'};">${selectedCrypto.symbol}</div>
-                            <div style="font-size: 11px; color: ${isDark ? '#888' : '#666'};">${selectedCrypto.name} • ${selectedCrypto.network}</div>
-                          </div>
-                        </div>
-                        
-                        <div style="text-align: center; margin-bottom: 16px;">
-                          <div style="display: inline-block; padding: 12px; background: #ffffff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                            ${qrDataUrl ? `<img src="${qrDataUrl}" width="180" height="180" style="display: block; border-radius: 8px;" />` : `<div style="width:180px;height:180px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;color:#999;font-size:12px;border-radius:8px;">QR Code</div>`}
-                          </div>
-                        </div>
-                        
-                        <div style="margin-bottom: 14px;">
-                          <div style="font-size: 10px; color: ${isDark ? '#888' : '#666'}; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">Wallet Address</div>
-                          <div style="min-height: 48px; padding: 0 12px; background: ${isDark ? '#1a1a2e' : '#f5f5f7'}; border-radius: 8px; font-family: 'SF Mono', Consolas, monospace; font-size: 10px; word-break: break-all; line-height: 1.4; color: ${isDark ? '#ffffff' : '#1a1a2e'}; display: flex; align-items: center;">
-                            ${selectedCrypto.address}
-                          </div>
-                        </div>
-                        
-                        ${selectedCrypto.memo ? `
-                          <div style="padding: 10px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 8px; margin-bottom: 14px; text-align: center;">
-                            <span style="font-size: 11px; color: #3b82f6; font-weight: 500;">${selectedCrypto.memo}</span>
-                          </div>
-                        ` : ''}
-                        
-                        <div style="padding: 14px; background: ${isDark ? '#1a1a2e' : '#f5f5f7'}; border-radius: 10px; margin-bottom: 14px;">
-                          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                            <span style="font-size: 12px; color: ${isDark ? '#888' : '#666'};">Plan</span>
-                            <span style="font-size: 12px; font-weight: 600; color: ${isDark ? '#ffffff' : '#1a1a2e'};">${selectedPlan?.name} (${isAnnual ? 'Annual' : 'Monthly'})</span>
-                          </div>
-                          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                            <span style="font-size: 12px; color: ${isDark ? '#888' : '#666'};">Base Amount</span>
-                            <span style="font-size: 12px; font-weight: 500; color: ${isDark ? '#ffffff' : '#1a1a2e'};">$${finalPriceUSD.toFixed(2)}</span>
-                          </div>
-                          <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                            <span style="font-size: 12px; color: ${isDark ? '#888' : '#666'};">+ 3% Network Fee</span>
-                            <span style="font-size: 12px; font-weight: 500; color: #8b5cf6;">+$${(finalPriceUSD * 0.03).toFixed(2)}</span>
-                          </div>
-                          <div style="height: 1px; background: ${isDark ? '#333' : '#e0e0e0'}; margin-bottom: 10px;"></div>
-                          <div style="display: flex; justify-content: space-between;">
-                            <span style="font-size: 14px; font-weight: 600; color: ${isDark ? '#ffffff' : '#1a1a2e'};">Total</span>
-                            <span style="font-size: 14px; font-weight: 700; color: ${isDark ? '#ffffff' : '#1a1a2e'};">$${amountWithFee.toFixed(2)}</span>
-                          </div>
-                        </div>
-                        
-                        <div style="text-align: center; padding: 16px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(168, 85, 247, 0.15)); border-radius: 10px; margin-bottom: 14px;">
-                          <div style="font-size: 10px; color: ${isDark ? '#888' : '#666'}; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Send Exactly</div>
-                          <div style="font-size: 28px; font-weight: 800; color: #8B5CF6;">
-                            ${cryptoAmount !== null ? cryptoAmount.toFixed(Math.min(decimals || 6, 8)) : '--'} <span style="font-size: 16px; color: ${selectedCrypto.color};">${selectedCrypto.symbol}</span>
-                          </div>
-                          ${price ? `<div style="font-size: 10px; color: ${isDark ? '#888' : '#666'}; margin-top: 4px;">1 ${selectedCrypto.symbol} = $${price.toLocaleString('en-US', { maximumFractionDigits: 2 })}</div>` : ''}
-                        </div>
-                        
-                        <div style="text-align: center; padding-top: 12px; border-top: 1px solid ${isDark ? '#222' : '#eee'};">
-                          <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 8px;">
-                            ${coingeckoSvg}
-                            ${coinbaseSvg}
-                            ${binanceSvg}
-                            ${trustSvg}
-                          </div>
-                          <div style="font-size: 10px; color: ${isDark ? '#555' : '#999'};">
-                            Generated ${new Date().toLocaleString()} • Powered by CoinGecko
-                          </div>
-                        </div>
-                      `;
+                      // Footer
+                      ctx.strokeStyle = isDark ? '#333333' : '#eeeeee';
+                      ctx.beginPath();
+                      ctx.moveTo(20, y);
+                      ctx.lineTo(width - 20, y);
+                      ctx.stroke();
                       
-                      document.body.appendChild(exportContainer);
+                      ctx.fillStyle = isDark ? '#555555' : '#999999';
+                      ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+                      ctx.textAlign = 'center';
+                      ctx.fillText(`Generated ${new Date().toLocaleString()} • chatvice.app`, width / 2, y + 20);
                       
-                      // Wait for all elements and images to render
-                      await new Promise(resolve => setTimeout(resolve, 300));
-                      
-                      const canvas = await html2canvas(exportContainer, {
-                        backgroundColor: isDark ? '#0f0f19' : '#ffffff',
-                        scale: 2,
-                        useCORS: true,
-                        logging: false,
-                        allowTaint: true,
-                      });
-                      
-                      document.body.removeChild(exportContainer);
-                      
-                      // Convert to blob for sharing
+                      // Convert to blob
                       const blob = await new Promise<Blob>((resolve) => {
                         canvas.toBlob((b) => resolve(b!), 'image/png', 1.0);
                       });
@@ -2553,20 +2602,15 @@ export default function CheckoutPage() {
                       const fileName = `chatvice-crypto-${selectedCrypto.symbol}-${Date.now()}.png`;
                       const file = new File([blob], fileName, { type: 'image/png' });
                       
-                      // Try Web Share API first (for mobile - saves to gallery)
+                      // Try Web Share API (mobile gallery)
                       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
                         try {
-                          await navigator.share({
-                            files: [file],
-                            title: 'Chatvice Crypto Invoice',
-                            text: `Payment invoice for ${selectedCrypto.symbol}`
-                          });
-                          toast({ title: "Saved!", description: "Invoice shared/saved to your device" });
+                          await navigator.share({ files: [file], title: 'Chatvice Crypto Invoice' });
+                          toast({ title: "Saved!", description: "Invoice saved to your device" });
                           return;
-                        } catch (shareErr) {
-                          // User cancelled or share failed, fall through to download
-                          if ((shareErr as Error).name !== 'AbortError') {
-                            console.log('Share failed, falling back to download');
+                        } catch (e) {
+                          if ((e as Error).name !== 'AbortError') {
+                            console.log('Share cancelled or failed');
                           }
                         }
                       }
@@ -2577,7 +2621,7 @@ export default function CheckoutPage() {
                       link.href = URL.createObjectURL(blob);
                       link.click();
                       URL.revokeObjectURL(link.href);
-                      toast({ title: "Saved!", description: "Invoice saved to your device" });
+                      toast({ title: "Saved!", description: "Invoice downloaded to your device" });
                     } catch (error) {
                       console.error('Save error:', error);
                       toast({ title: "Error", description: "Failed to save image", variant: "destructive" });
