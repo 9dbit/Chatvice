@@ -2065,18 +2065,18 @@ export default function CheckoutPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-base font-bold text-foreground">{coin.symbol}</span>
+                          {cryptoPrices?.prices?.[coin.id] && (
+                            <span className="text-sm font-semibold text-green-600 dark:text-green-400">
+                              ${cryptoPrices.prices[coin.id] >= 100 
+                                ? cryptoPrices.prices[coin.id].toLocaleString('en-US', { maximumFractionDigits: 0 })
+                                : cryptoPrices.prices[coin.id] >= 1
+                                  ? cryptoPrices.prices[coin.id].toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                  : cryptoPrices.prices[coin.id].toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
+                              }
+                            </span>
+                          )}
                         </div>
                         <span className="text-xs text-muted-foreground block truncate">{coin.name}</span>
-                        {cryptoPrices?.prices?.[coin.id] && (
-                          <span className="text-sm font-semibold text-green-600 dark:text-green-400 mt-1 block">
-                            ${cryptoPrices.prices[coin.id] >= 100 
-                              ? cryptoPrices.prices[coin.id].toLocaleString('en-US', { maximumFractionDigits: 0 })
-                              : cryptoPrices.prices[coin.id] >= 1
-                                ? cryptoPrices.prices[coin.id].toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                                : cryptoPrices.prices[coin.id].toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
-                            }
-                          </span>
-                        )}
                       </div>
                     </div>
                   </button>
@@ -2193,10 +2193,19 @@ export default function CheckoutPage() {
                   <p className="text-base font-medium text-emerald-500 text-center py-2">No payment required</p>
                 ) : (
                   <>
-                    {/* Plan Info */}
+                    {/* Plan Info with Upgrade/Downgrade Badge */}
                     <div className="flex justify-between items-center text-sm mb-2">
                       <span className="text-muted-foreground">Plan</span>
-                      <span className="font-semibold">{selectedPlan?.name} ({isAnnual ? 'Annual' : 'Monthly'})</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">{selectedPlan?.name} ({isAnnual ? 'Annual' : 'Monthly'})</span>
+                        {billingStatus?.status === 'active' && billingStatus?.planId && selectedPlan?.id !== billingStatus?.planId && (
+                          isDowngrade ? (
+                            <Badge variant="secondary" className="text-xs bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30">Downgrade</Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30">Upgrade</Badge>
+                          )
+                        )}
+                      </div>
                     </div>
                     {/* Fee Breakdown */}
                     <div className="flex justify-between items-center text-sm mb-2">
@@ -2309,8 +2318,8 @@ export default function CheckoutPage() {
                           scale: 2,
                         });
                         const link = document.createElement('a');
-                        link.download = `crypto-invoice-${selectedCrypto.symbol}-${Date.now()}.png`;
-                        link.href = canvas.toDataURL('image/png');
+                        link.download = `crypto-invoice-${selectedCrypto.symbol}-${Date.now()}.jpg`;
+                        link.href = canvas.toDataURL('image/jpeg', 0.95);
                         link.click();
                         toast({ title: "Saved!", description: "Invoice saved to your device" });
                       }
