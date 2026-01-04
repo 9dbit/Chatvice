@@ -171,7 +171,7 @@ const CRYPTO_COINS: CryptoCoin[] = [
     id: 'btc', 
     symbol: 'BTC', 
     name: 'Bitcoin', 
-    network: 'Bitcoin',
+    network: 'BTC Network',
     address: 'bc1q9mk7032hjfu0fu9cnk0c3tgk7z5vxswaz3avy6',
     icon: SiBitcoin,
     color: '#F7931A',
@@ -181,7 +181,7 @@ const CRYPTO_COINS: CryptoCoin[] = [
     id: 'eth', 
     symbol: 'ETH', 
     name: 'Ethereum', 
-    network: 'Ethereum',
+    network: 'ERC-20',
     address: '0xD395A9CFC24848828b731d42eb1c9242D5BD9cA7',
     icon: SiEthereum,
     color: '#627EEA',
@@ -191,7 +191,7 @@ const CRYPTO_COINS: CryptoCoin[] = [
     id: 'sol', 
     symbol: 'SOL', 
     name: 'Solana', 
-    network: 'Solana',
+    network: 'SOL Network',
     address: 'FvfgL8MdwZ7Po6795XHCgF6rWsCEdmUxwDgMD2Fn6zQg',
     memo: 'No memo required',
     icon: SiSolana,
@@ -201,8 +201,8 @@ const CRYPTO_COINS: CryptoCoin[] = [
   { 
     id: 'bnb', 
     symbol: 'BNB', 
-    name: 'BNB Smart Chain', 
-    network: 'BNB Smart Chain',
+    name: 'BNB', 
+    network: 'BEP-20',
     address: '0xD395A9CFC24848828b731d42eb1c9242D5BD9cA7',
     icon: SiBinance,
     color: '#F3BA2F',
@@ -212,7 +212,7 @@ const CRYPTO_COINS: CryptoCoin[] = [
     id: 'usdt', 
     symbol: 'USDT', 
     name: 'Tether', 
-    network: 'Ethereum',
+    network: 'ERC-20',
     address: '0xD395A9CFC24848828b731d42eb1c9242D5BD9cA7',
     icon: SiTether,
     color: '#26A17B',
@@ -221,8 +221,8 @@ const CRYPTO_COINS: CryptoCoin[] = [
   { 
     id: 'xrp', 
     symbol: 'XRP', 
-    name: 'XRP', 
-    network: 'XRP',
+    name: 'Ripple', 
+    network: 'XRP Ledger',
     address: 'raAGkuxS7b92wYWRKERQCDknKz9fMpyJpH',
     memo: 'No destination tag required',
     icon: SiRipple,
@@ -2177,17 +2177,8 @@ export default function CheckoutPage() {
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-xl font-bold">{selectedCrypto.symbol}</h2>
-                    <Badge variant="secondary" className="text-xs">
-                      {selectedCrypto.network}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground truncate">{selectedCrypto.name}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="crypto-live-dot" />
-                  <span className="text-xs text-green-600 dark:text-green-400">Live</span>
+                  <h2 className="text-xl font-bold">{selectedCrypto.symbol}</h2>
+                  <p className="text-sm text-muted-foreground truncate">{selectedCrypto.name} • {selectedCrypto.network}</p>
                 </div>
               </div>
 
@@ -2480,14 +2471,26 @@ export default function CheckoutPage() {
                       
                       document.body.appendChild(exportContainer);
                       
-                      // Clone and insert the QR code from the dialog
-                      const qrSource = document.querySelector('#crypto-invoice-content svg');
+                      // Generate QR code using ReactDOM
+                      const { createRoot } = await import('react-dom/client');
+                      const { QRCodeSVG } = await import('qrcode.react');
                       const qrPlaceholder = exportContainer.querySelector('#qr-placeholder > div');
-                      if (qrSource && qrPlaceholder) {
-                        const qrClone = qrSource.cloneNode(true) as SVGElement;
-                        qrClone.style.width = '160px';
-                        qrClone.style.height = '160px';
-                        qrPlaceholder.appendChild(qrClone);
+                      if (qrPlaceholder) {
+                        const qrContainer = document.createElement('div');
+                        qrPlaceholder.appendChild(qrContainer);
+                        const root = createRoot(qrContainer);
+                        root.render(
+                          <QRCodeSVG 
+                            value={selectedCrypto.address} 
+                            size={160}
+                            level="H"
+                            includeMargin={true}
+                            fgColor="#0a0a0f"
+                            bgColor="#ffffff"
+                          />
+                        );
+                        // Wait for render
+                        await new Promise(resolve => setTimeout(resolve, 100));
                       }
                       
                       const canvas = await html2canvas(exportContainer, {
