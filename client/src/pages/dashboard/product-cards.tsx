@@ -7,14 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Edit2, ExternalLink, Image, Link2, Loader2, Package, Settings, Bot, Users, ChevronDown, Sparkles, Zap } from "lucide-react";
-import type { ProductCard, ProductCardButton, Agent, ProductRecommendationSetting } from "@shared/schema";
+import { Plus, Trash2, Edit2, ExternalLink, Image, Link2, Loader2, Package, Settings, Bot, Users, ChevronDown, Sparkles, Zap, Globe, RefreshCw, Check, X, ShoppingCart, Eye, Database } from "lucide-react";
+import type { ProductCard, ProductCardButton, Agent, ProductRecommendationSetting, ProductCrawlSource, CrawledProduct } from "@shared/schema";
 
 type ProductCardFormData = {
   title: string;
@@ -40,6 +41,12 @@ export default function ProductCardsPage() {
   const [editingCard, setEditingCard] = useState<ProductCard | null>(null);
   const [isCrawling, setIsCrawling] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isCrawlerOpen, setIsCrawlerOpen] = useState(true);
+  const [isAddSourceOpen, setIsAddSourceOpen] = useState(false);
+  const [crawlerUrl, setCrawlerUrl] = useState("");
+  const [crawlerName, setCrawlerName] = useState("");
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
+  const [showPendingProducts, setShowPendingProducts] = useState(false);
   const [form, setForm] = useState<ProductCardFormData>({
     title: "",
     description: "",
@@ -68,11 +75,110 @@ export default function ProductCardsPage() {
     queryKey: ["/api/product-recommendation-settings"],
   });
 
+  const { data: crawlSources = [] } = useQuery<ProductCrawlSource[]>({
+    queryKey: ["/api/product-crawl-sources"],
+  });
+
+  const { data: crawledProducts = [] } = useQuery<CrawledProduct[]>({
+    queryKey: ["/api/crawled-products"],
+  });
+
   useEffect(() => {
     if (settingsData) {
       setRecommendSettings(settingsData);
     }
   }, [settingsData]);
+
+  // Crawler mutations
+  const addSourceMutation = useMutation({
+    mutationFn: async (data: { url: string; name: string }) => {
+      return apiRequest("POST", "/api/product-crawl-sources", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/product-crawl-sources"] });
+      setIsAddSourceOpen(false);
+      setCrawlerUrl("");
+      setCrawlerName("");
+      toast({ title: "Product source added successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to add source", variant: "destructive" });
+    },
+  });
+
+  const deleteSourceMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/product-crawl-sources/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/product-crawl-sources"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/crawled-products"] });
+      toast({ title: "Source deleted successfully" });
+    },
+  });
+
+  const crawlSourceMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("POST", `/api/product-crawl-sources/${id}/crawl`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/product-crawl-sources"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/crawled-products"] });
+      setShowPendingProducts(true);
+      toast({ title: `Found ${data.productsFound} products. Please review and approve.` });
+    },
+    onError: () => {
+      toast({ title: "Failed to crawl URL", variant: "destructive" });
+    },
+  });
+
+  const approveProductMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("POST", `/api/crawled-products/${id}/approve`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crawled-products"] });
+      toast({ title: "Product approved" });
+    },
+  });
+
+  const rejectProductMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("POST", `/api/crawled-products/${id}/reject`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crawled-products"] });
+      toast({ title: "Product rejected" });
+    },
+  });
+
+  const approveAllMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/crawled-products/approve-all");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crawled-products"] });
+      toast({ title: `Approved ${data.approvedCount} products` });
+    },
+  });
+
+  const syncToKnowledgeMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/product-crawl-sources/sync-to-knowledge");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: data.message });
+    },
+    onError: () => {
+      toast({ title: "Failed to sync products to AI", variant: "destructive" });
+    },
+  });
+
+  const pendingProducts = crawledProducts.filter(p => p.status === "pending");
+  const approvedProducts = crawledProducts.filter(p => p.status === "approved");
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (data: Partial<RecommendationSettings>) => {
@@ -327,6 +433,292 @@ export default function ProductCardsPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Product Catalog Crawler Section */}
+      <Card>
+        <Collapsible open={isCrawlerOpen} onOpenChange={setIsCrawlerOpen}>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover-elevate">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Globe className="w-5 h-5 text-primary" />
+                  <div>
+                    <CardTitle className="text-base">Product Catalog Crawler</CardTitle>
+                    <CardDescription>Scan product pages to power AI recommendations and comparisons</CardDescription>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {approvedProducts.length > 0 && (
+                    <Badge variant="secondary">{approvedProducts.length} synced</Badge>
+                  )}
+                  {pendingProducts.length > 0 && (
+                    <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+                      {pendingProducts.length} pending
+                    </Badge>
+                  )}
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isCrawlerOpen ? "rotate-180" : ""}`} />
+                </div>
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-6">
+              {/* Info Box */}
+              <div className="p-4 bg-primary/5 rounded-lg border border-primary/10">
+                <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  How it works
+                </h4>
+                <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                  <li>Add your product page or catalog URL</li>
+                  <li>AI scans and extracts product information</li>
+                  <li>Review and approve products</li>
+                  <li>Sync to AI knowledge base for smart recommendations</li>
+                </ol>
+              </div>
+
+              {/* Add Source Section */}
+              <div className="flex gap-2">
+                <Dialog open={isAddSourceOpen} onOpenChange={setIsAddSourceOpen}>
+                  <DialogTrigger asChild>
+                    <Button data-testid="button-add-source">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Product URL
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add Product Source</DialogTitle>
+                      <DialogDescription>
+                        Enter a product page or catalog URL to scan for products
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="crawlerUrl">Product URL</Label>
+                        <Input
+                          id="crawlerUrl"
+                          value={crawlerUrl}
+                          onChange={(e) => setCrawlerUrl(e.target.value)}
+                          placeholder="https://example.com/products"
+                          data-testid="input-crawler-url"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="crawlerName">Source Name (optional)</Label>
+                        <Input
+                          id="crawlerName"
+                          value={crawlerName}
+                          onChange={(e) => setCrawlerName(e.target.value)}
+                          placeholder="My Product Catalog"
+                          data-testid="input-crawler-name"
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsAddSourceOpen(false)}>Cancel</Button>
+                      <Button
+                        onClick={() => addSourceMutation.mutate({ url: crawlerUrl, name: crawlerName })}
+                        disabled={!crawlerUrl || addSourceMutation.isPending}
+                        data-testid="button-save-source"
+                      >
+                        {addSourceMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        ) : null}
+                        Add Source
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                {approvedProducts.length > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={() => syncToKnowledgeMutation.mutate()}
+                    disabled={syncToKnowledgeMutation.isPending}
+                    data-testid="button-sync-ai"
+                  >
+                    {syncToKnowledgeMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : (
+                      <Database className="w-4 h-4 mr-2" />
+                    )}
+                    Sync to AI
+                  </Button>
+                )}
+              </div>
+
+              {/* Sources List */}
+              {crawlSources.length > 0 && (
+                <div className="space-y-3">
+                  <Label>Product Sources</Label>
+                  {crawlSources.map((source) => {
+                    let displayName = source.name;
+                    if (!displayName) {
+                      try {
+                        displayName = new URL(source.url).hostname;
+                      } catch {
+                        displayName = source.url.slice(0, 30);
+                      }
+                    }
+                    return (
+                    <div key={source.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg" data-testid={`source-${source.id}`}>
+                      <div className="flex items-center gap-3">
+                        <Globe className="w-4 h-4 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium text-sm">{displayName}</p>
+                          <p className="text-xs text-muted-foreground truncate max-w-[300px]">{source.url}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {source.totalProducts ? (
+                          <Badge variant="secondary">{source.totalProducts} products</Badge>
+                        ) : null}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedSourceId(source.id);
+                            crawlSourceMutation.mutate(source.id);
+                          }}
+                          disabled={crawlSourceMutation.isPending && selectedSourceId === source.id}
+                          data-testid={`button-crawl-${source.id}`}
+                        >
+                          {crawlSourceMutation.isPending && selectedSourceId === source.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="w-4 h-4" />
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive"
+                          onClick={() => deleteSourceMutation.mutate(source.id)}
+                          data-testid={`button-delete-source-${source.id}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Pending Products Review */}
+              {pendingProducts.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2">
+                      <Eye className="w-4 h-4" />
+                      Products Pending Review ({pendingProducts.length})
+                    </Label>
+                    <Button
+                      size="sm"
+                      onClick={() => approveAllMutation.mutate()}
+                      disabled={approveAllMutation.isPending}
+                      data-testid="button-approve-all"
+                    >
+                      {approveAllMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : (
+                        <Check className="w-4 h-4 mr-2" />
+                      )}
+                      Approve All
+                    </Button>
+                  </div>
+                  <ScrollArea className="h-[300px]">
+                    <div className="space-y-2 pr-4">
+                      {pendingProducts.map((product) => (
+                        <div key={product.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border" data-testid={`pending-product-${product.id}`}>
+                          {product.imageUrl ? (
+                            <img src={product.imageUrl} alt={product.title} className="w-12 h-12 object-cover rounded" />
+                          ) : (
+                            <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
+                              <ShoppingCart className="w-5 h-5 text-muted-foreground" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{product.title}</p>
+                            <div className="flex items-center gap-2">
+                              {product.price && <span className="text-xs text-primary font-medium">{product.price}</span>}
+                              {product.category && <span className="text-xs text-muted-foreground">{product.category}</span>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-green-600"
+                              onClick={() => approveProductMutation.mutate(product.id)}
+                              disabled={approveProductMutation.isPending}
+                              data-testid={`button-approve-${product.id}`}
+                            >
+                              <Check className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-destructive"
+                              onClick={() => rejectProductMutation.mutate(product.id)}
+                              disabled={rejectProductMutation.isPending}
+                              data-testid={`button-reject-${product.id}`}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              )}
+
+              {/* Approved Products */}
+              {approvedProducts.length > 0 && (
+                <div className="space-y-3">
+                  <Label className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-600" />
+                    Approved Products ({approvedProducts.length})
+                  </Label>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {approvedProducts.slice(0, 6).map((product) => (
+                      <div key={product.id} className="flex items-center gap-3 p-2 bg-green-500/5 rounded-lg border border-green-500/10" data-testid={`approved-product-${product.id}`}>
+                        {product.imageUrl ? (
+                          <img src={product.imageUrl} alt={product.title} className="w-10 h-10 object-cover rounded" />
+                        ) : (
+                          <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
+                            <ShoppingCart className="w-4 h-4 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{product.title}</p>
+                          {product.price && <span className="text-xs text-primary">{product.price}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {approvedProducts.length > 6 && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      +{approvedProducts.length - 6} more products
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Empty State */}
+              {crawlSources.length === 0 && (
+                <div className="text-center py-6 text-muted-foreground">
+                  <Globe className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p className="font-medium">No product sources yet</p>
+                  <p className="text-sm">Add a product URL to start scanning your catalog</p>
+                </div>
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </Card>
 
       <Card>
         <Collapsible open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>

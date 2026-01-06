@@ -46,12 +46,14 @@ import {
   type ChatSecurityAlert, type InsertChatSecurityAlert,
   type KnowledgebaseArticle, type InsertKnowledgebaseArticle,
   type KnowledgebaseTemplate, type InsertKnowledgebaseTemplate,
+  type ProductCrawlSource, type InsertProductCrawlSource,
+  type CrawledProduct, type InsertCrawledProduct,
   merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings, storedFiles,
   workShifts, shiftAssignments, workReports, quickReplies, chatButtons, productCards, productCardButtons, welcomeBubbles, notificationSettings, productRecommendationSettings, productTriggers, supervisorInvitations,
   emailVerificationTokens, passwordResetTokens, promotions, promotionUsage,
   widgetSites, siteDomains, coinOrders, topupNominals, merchantDomains, paymentGateways,
   paymentTransactions, adminNotifications, chatSecuritySettings, chatSecurityAlerts,
-  knowledgebaseArticles, knowledgebaseTemplates,
+  knowledgebaseArticles, knowledgebaseTemplates, productCrawlSources, crawledProducts,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -196,6 +198,25 @@ export interface IStorage {
   updateProductCardButton(id: string, data: Partial<ProductCardButton>): Promise<ProductCardButton | undefined>;
   deleteProductCardButton(id: string): Promise<boolean>;
   deleteProductCardButtonsByCard(cardId: string): Promise<boolean>;
+  
+  // Product Crawl Sources
+  getProductCrawlSources(merchantId: string): Promise<ProductCrawlSource[]>;
+  getProductCrawlSource(id: string): Promise<ProductCrawlSource | undefined>;
+  createProductCrawlSource(source: InsertProductCrawlSource): Promise<ProductCrawlSource>;
+  updateProductCrawlSource(id: string, data: Partial<ProductCrawlSource>): Promise<ProductCrawlSource | undefined>;
+  deleteProductCrawlSource(id: string): Promise<boolean>;
+  
+  // Crawled Products
+  getCrawledProducts(merchantId: string, status?: string): Promise<CrawledProduct[]>;
+  getCrawledProductsBySource(sourceId: string, status?: string): Promise<CrawledProduct[]>;
+  getCrawledProduct(id: string): Promise<CrawledProduct | undefined>;
+  createCrawledProduct(product: InsertCrawledProduct): Promise<CrawledProduct>;
+  updateCrawledProduct(id: string, data: Partial<CrawledProduct>): Promise<CrawledProduct | undefined>;
+  deleteCrawledProduct(id: string): Promise<boolean>;
+  deleteCrawledProductsBySource(sourceId: string): Promise<boolean>;
+  approveCrawledProduct(id: string, approvedBy: string): Promise<CrawledProduct | undefined>;
+  rejectCrawledProduct(id: string): Promise<CrawledProduct | undefined>;
+  getApprovedCrawledProducts(merchantId: string, agentId?: string): Promise<CrawledProduct[]>;
   
   // Welcome Bubble
   getWelcomeBubble(merchantId: string): Promise<WelcomeBubble | undefined>;
@@ -1485,6 +1506,127 @@ export class DatabaseStorage implements IStorage {
   async deleteProductCardButtonsByCard(cardId: string): Promise<boolean> {
     await db.delete(productCardButtons).where(eq(productCardButtons.cardId, cardId));
     return true;
+  }
+
+  // Product Crawl Sources
+  async getProductCrawlSources(merchantId: string): Promise<ProductCrawlSource[]> {
+    return db.select().from(productCrawlSources)
+      .where(eq(productCrawlSources.merchantId, merchantId))
+      .orderBy(desc(productCrawlSources.createdAt));
+  }
+
+  async getProductCrawlSource(id: string): Promise<ProductCrawlSource | undefined> {
+    const result = await db.select().from(productCrawlSources)
+      .where(eq(productCrawlSources.id, id));
+    return result[0];
+  }
+
+  async createProductCrawlSource(source: InsertProductCrawlSource): Promise<ProductCrawlSource> {
+    const id = generateId("pcs_");
+    const result = await db.insert(productCrawlSources).values({ ...source, id }).returning();
+    return result[0];
+  }
+
+  async updateProductCrawlSource(id: string, data: Partial<ProductCrawlSource>): Promise<ProductCrawlSource | undefined> {
+    const result = await db.update(productCrawlSources)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(productCrawlSources.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteProductCrawlSource(id: string): Promise<boolean> {
+    await db.delete(productCrawlSources).where(eq(productCrawlSources.id, id));
+    return true;
+  }
+
+  // Crawled Products
+  async getCrawledProducts(merchantId: string, status?: string): Promise<CrawledProduct[]> {
+    if (status) {
+      return db.select().from(crawledProducts)
+        .where(and(eq(crawledProducts.merchantId, merchantId), eq(crawledProducts.status, status)))
+        .orderBy(desc(crawledProducts.crawledAt));
+    }
+    return db.select().from(crawledProducts)
+      .where(eq(crawledProducts.merchantId, merchantId))
+      .orderBy(desc(crawledProducts.crawledAt));
+  }
+
+  async getCrawledProductsBySource(sourceId: string, status?: string): Promise<CrawledProduct[]> {
+    if (status) {
+      return db.select().from(crawledProducts)
+        .where(and(eq(crawledProducts.sourceId, sourceId), eq(crawledProducts.status, status)))
+        .orderBy(desc(crawledProducts.crawledAt));
+    }
+    return db.select().from(crawledProducts)
+      .where(eq(crawledProducts.sourceId, sourceId))
+      .orderBy(desc(crawledProducts.crawledAt));
+  }
+
+  async getCrawledProduct(id: string): Promise<CrawledProduct | undefined> {
+    const result = await db.select().from(crawledProducts)
+      .where(eq(crawledProducts.id, id));
+    return result[0];
+  }
+
+  async createCrawledProduct(product: InsertCrawledProduct): Promise<CrawledProduct> {
+    const id = generateId("cp_");
+    const result = await db.insert(crawledProducts).values({ ...product, id }).returning();
+    return result[0];
+  }
+
+  async updateCrawledProduct(id: string, data: Partial<CrawledProduct>): Promise<CrawledProduct | undefined> {
+    const result = await db.update(crawledProducts)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(crawledProducts.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteCrawledProduct(id: string): Promise<boolean> {
+    await db.delete(crawledProducts).where(eq(crawledProducts.id, id));
+    return true;
+  }
+
+  async deleteCrawledProductsBySource(sourceId: string): Promise<boolean> {
+    await db.delete(crawledProducts).where(eq(crawledProducts.sourceId, sourceId));
+    return true;
+  }
+
+  async approveCrawledProduct(id: string, approvedBy: string): Promise<CrawledProduct | undefined> {
+    const result = await db.update(crawledProducts)
+      .set({ status: "approved", approvedAt: new Date(), approvedBy, updatedAt: new Date() })
+      .where(eq(crawledProducts.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async rejectCrawledProduct(id: string): Promise<CrawledProduct | undefined> {
+    const result = await db.update(crawledProducts)
+      .set({ status: "rejected", updatedAt: new Date() })
+      .where(eq(crawledProducts.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async getApprovedCrawledProducts(merchantId: string, agentId?: string): Promise<CrawledProduct[]> {
+    if (agentId) {
+      return db.select().from(crawledProducts)
+        .where(and(
+          eq(crawledProducts.merchantId, merchantId),
+          eq(crawledProducts.status, "approved"),
+          eq(crawledProducts.isActive, true),
+          eq(crawledProducts.agentId, agentId)
+        ))
+        .orderBy(crawledProducts.title);
+    }
+    return db.select().from(crawledProducts)
+      .where(and(
+        eq(crawledProducts.merchantId, merchantId),
+        eq(crawledProducts.status, "approved"),
+        eq(crawledProducts.isActive, true)
+      ))
+      .orderBy(crawledProducts.title);
   }
 
   // Welcome Bubble

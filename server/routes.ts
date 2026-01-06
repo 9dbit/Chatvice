@@ -8710,6 +8710,423 @@ ${log.extractedKnowledge}` : ''}
     }
   });
 
+  // ============== PRODUCT CATALOG CRAWLER ROUTES ==============
+  
+  // Get all crawl sources for merchant
+  app.get("/api/product-crawl-sources", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const sources = await storage.getProductCrawlSources(merchantId);
+      res.json(sources);
+    } catch (error) {
+      console.error("Get crawl sources error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Create a new crawl source
+  app.post("/api/product-crawl-sources", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { url, name, sourceType, agentId, crawlFrequency } = req.body;
+      
+      if (!url) {
+        return res.status(400).json({ error: "URL is required" });
+      }
+      
+      const source = await storage.createProductCrawlSource({
+        merchantId,
+        url,
+        name: name || new URL(url).hostname,
+        sourceType: sourceType || "catalog_page",
+        agentId,
+        crawlFrequency: crawlFrequency || "manual",
+      });
+      
+      res.json(source);
+    } catch (error) {
+      console.error("Create crawl source error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Delete a crawl source (and its products)
+  app.delete("/api/product-crawl-sources/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { id } = req.params;
+      
+      const source = await storage.getProductCrawlSource(id);
+      if (!source || source.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Source not found" });
+      }
+      
+      // Delete all products from this source
+      await storage.deleteCrawledProductsBySource(id);
+      await storage.deleteProductCrawlSource(id);
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete crawl source error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Crawl a URL for products
+  app.post("/api/product-crawl-sources/:id/crawl", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { id } = req.params;
+      
+      const source = await storage.getProductCrawlSource(id);
+      if (!source || source.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Source not found" });
+      }
+      
+      // Fetch the page content
+      const response = await fetch(source.url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        },
+      });
+      
+      if (!response.ok) {
+        return res.status(400).json({ error: "Failed to fetch URL" });
+      }
+      
+      const html = await response.text();
+      
+      // Use AI to extract product information from the page
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({ 
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+      
+      const systemPrompt = `You are a product data extraction expert. Extract product information from the provided HTML content.
+
+For each product found, extract:
+- title: Product name/title
+- description: Brief description
+- price: Price with currency symbol
+- imageUrl: Main product image URL (make absolute URLs if relative)
+- productUrl: Link to product page (make absolute URLs if relative)
+- category: Product category if identifiable
+- brand: Brand name if found
+- availability: "in_stock", "out_of_stock", or "preorder"
+- rating: Star rating if present
+- reviewCount: Number of reviews if present
+- specifications: Key product specifications as an object
+
+Return a JSON object with:
+{
+  "products": [array of product objects],
+  "totalFound": number of products found
+}
+
+Important:
+- Only extract actual products, not navigation or ads
+- Convert relative URLs to absolute using the base URL provided
+- If a field is not found, use empty string or appropriate default`;
+
+      const userPrompt = `Extract products from this page: ${source.url}
+
+HTML Content (first 50000 chars):
+${html.substring(0, 50000)}`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.3,
+      });
+      
+      const responseText = completion.choices[0]?.message?.content || "{}";
+      let extractedData;
+      
+      try {
+        extractedData = JSON.parse(responseText);
+      } catch (e) {
+        console.error("Failed to parse AI response:", responseText);
+        return res.status(500).json({ error: "Failed to extract products" });
+      }
+      
+      const products = extractedData.products || [];
+      
+      // Store the crawled products with pending status
+      const createdProducts = [];
+      for (const product of products) {
+        if (product.title) {
+          const crawledProduct = await storage.createCrawledProduct({
+            merchantId,
+            sourceId: id,
+            agentId: source.agentId || undefined,
+            title: product.title,
+            description: product.description || "",
+            price: product.price || "",
+            currency: "IDR",
+            imageUrl: product.imageUrl || "",
+            productUrl: product.productUrl || source.url,
+            category: product.category || "",
+            brand: product.brand || "",
+            availability: product.availability || "in_stock",
+            rating: product.rating || "",
+            reviewCount: product.reviewCount || 0,
+            specifications: product.specifications || {},
+            variants: product.variants || [],
+            status: "pending",
+            isActive: true,
+          });
+          createdProducts.push(crawledProduct);
+        }
+      }
+      
+      // Update the source with crawl info
+      await storage.updateProductCrawlSource(id, {
+        lastCrawledAt: new Date(),
+        totalProducts: createdProducts.length,
+      });
+      
+      res.json({
+        success: true,
+        productsFound: createdProducts.length,
+        products: createdProducts,
+      });
+    } catch (error) {
+      console.error("Crawl error:", error);
+      res.status(500).json({ error: "Failed to crawl URL" });
+    }
+  });
+
+  // Get crawled products for merchant
+  app.get("/api/crawled-products", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { status, sourceId } = req.query;
+      
+      let products;
+      if (sourceId) {
+        products = await storage.getCrawledProductsBySource(sourceId as string, status as string);
+      } else {
+        products = await storage.getCrawledProducts(merchantId, status as string);
+      }
+      
+      res.json(products);
+    } catch (error) {
+      console.error("Get crawled products error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Approve a crawled product
+  app.post("/api/crawled-products/:id/approve", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { id } = req.params;
+      
+      const product = await storage.getCrawledProduct(id);
+      if (!product || product.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      
+      const approved = await storage.approveCrawledProduct(id, merchantId);
+      res.json(approved);
+    } catch (error) {
+      console.error("Approve product error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Reject a crawled product
+  app.post("/api/crawled-products/:id/reject", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { id } = req.params;
+      
+      const product = await storage.getCrawledProduct(id);
+      if (!product || product.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      
+      const rejected = await storage.rejectCrawledProduct(id);
+      res.json(rejected);
+    } catch (error) {
+      console.error("Reject product error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Approve all pending products from a source
+  app.post("/api/product-crawl-sources/:id/approve-all", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { id } = req.params;
+      
+      const source = await storage.getProductCrawlSource(id);
+      if (!source || source.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Source not found" });
+      }
+      
+      const pendingProducts = await storage.getCrawledProductsBySource(id, "pending");
+      
+      for (const product of pendingProducts) {
+        await storage.approveCrawledProduct(product.id, merchantId);
+      }
+      
+      res.json({ success: true, approvedCount: pendingProducts.length });
+    } catch (error) {
+      console.error("Approve all error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Approve all pending products (regardless of source)
+  app.post("/api/crawled-products/approve-all", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      
+      const allProducts = await storage.getCrawledProducts(merchantId);
+      const pendingProducts = allProducts.filter(p => p.status === "pending");
+      
+      for (const product of pendingProducts) {
+        await storage.approveCrawledProduct(product.id, merchantId);
+      }
+      
+      res.json({ success: true, approvedCount: pendingProducts.length });
+    } catch (error) {
+      console.error("Approve all error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Delete a crawled product
+  app.delete("/api/crawled-products/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { id } = req.params;
+      
+      const product = await storage.getCrawledProduct(id);
+      if (!product || product.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      
+      await storage.deleteCrawledProduct(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete product error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Update a crawled product
+  app.patch("/api/crawled-products/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { id } = req.params;
+      
+      const product = await storage.getCrawledProduct(id);
+      if (!product || product.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      
+      const updated = await storage.updateCrawledProduct(id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Update product error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Sync approved products to AI knowledge base
+  app.post("/api/product-crawl-sources/sync-to-knowledge", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { agentId } = req.body;
+      
+      // Get all approved products
+      const approvedProducts = await storage.getApprovedCrawledProducts(merchantId, agentId);
+      
+      if (approvedProducts.length === 0) {
+        return res.json({ success: true, message: "No approved products to sync" });
+      }
+      
+      // Format products for knowledge base
+      const productContent = approvedProducts.map(product => {
+        let content = `## ${product.title}\n`;
+        if (product.price) content += `**Price:** ${product.price}\n`;
+        if (product.brand) content += `**Brand:** ${product.brand}\n`;
+        if (product.category) content += `**Category:** ${product.category}\n`;
+        if (product.description) content += `**Description:** ${product.description}\n`;
+        if (product.availability) content += `**Availability:** ${product.availability === 'in_stock' ? 'In Stock' : product.availability === 'out_of_stock' ? 'Out of Stock' : 'Pre-order'}\n`;
+        if (product.rating) content += `**Rating:** ${product.rating}\n`;
+        if (product.productUrl) content += `**Product Link:** ${product.productUrl}\n`;
+        if (product.specifications && Object.keys(product.specifications as object).length > 0) {
+          content += `**Specifications:**\n`;
+          for (const [key, value] of Object.entries(product.specifications as object)) {
+            content += `- ${key}: ${value}\n`;
+          }
+        }
+        return content;
+      }).join("\n---\n\n");
+
+      // Get current knowledge base content
+      let currentKnowledge = "";
+      if (agentId) {
+        const knowledge = await storage.getKnowledgeByAgent(agentId);
+        currentKnowledge = knowledge?.content || "";
+      } else {
+        const knowledge = await storage.getKnowledge(merchantId);
+        currentKnowledge = knowledge?.content || "";
+      }
+
+      // Remove existing product catalog section
+      const catalogSectionStart = "\n\n<!-- AUTO-SYNCED PRODUCT CATALOG START -->";
+      const catalogSectionEnd = "<!-- AUTO-SYNCED PRODUCT CATALOG END -->\n";
+      
+      let baseContent = currentKnowledge;
+      const startIndex = currentKnowledge.indexOf(catalogSectionStart);
+      if (startIndex !== -1) {
+        const endIndex = currentKnowledge.indexOf(catalogSectionEnd);
+        if (endIndex !== -1) {
+          baseContent = currentKnowledge.substring(0, startIndex) + currentKnowledge.substring(endIndex + catalogSectionEnd.length);
+        }
+      }
+
+      // Build new synced content
+      const syncedContent = catalogSectionStart + "\n" +
+        "# Product Catalog\n" +
+        "The following is our product catalog. Use this information to help customers find products, compare options, and make recommendations:\n\n" +
+        productContent + "\n" +
+        catalogSectionEnd;
+
+      // Combine base content with synced products
+      const newContent = baseContent.trim() + syncedContent;
+
+      // Save updated knowledge base
+      if (agentId) {
+        await storage.setKnowledgeByAgent(merchantId, agentId, newContent);
+      } else {
+        await storage.setKnowledge(merchantId, newContent);
+      }
+
+      // Reprocess embeddings
+      await processKnowledgeBase(merchantId, newContent, agentId);
+      
+      res.json({ 
+        success: true, 
+        syncedProducts: approvedProducts.length,
+        message: `Synced ${approvedProducts.length} products to AI knowledge base`
+      });
+    } catch (error) {
+      console.error("Sync to knowledge error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // ============== WELCOME BUBBLE ROUTES ==============
   
   app.get("/api/welcome-bubble", requireMerchant, async (req, res) => {

@@ -48,6 +48,14 @@ Chatvice is a monorepo application structured with `/client`, `/server`, and `/s
     - When published article is unpublished/deleted, knowledge base is updated
     - Synced content is wrapped in markers for clean separation from manual training data
     - AI embeddings are automatically reprocessed for semantic search
+- **Product Catalog Crawler**: AI-powered product scanning system for intelligent product recommendations:
+  - **Location**: Product Cards page in Merchant Dashboard
+  - **Workflow**: Add URL → AI scans with GPT-4.1-mini → Human review → Approve/Reject → Sync to AI
+  - **Human-in-the-Loop**: All crawled products require explicit approval before syncing to AI knowledge base
+  - **Extracted Data**: title, description, price, imageUrl, productUrl, category, brand, availability, rating, specifications, variants
+  - **Database Tables**: `productCrawlSources` (source URLs) and `crawledProducts` (extracted product data)
+  - **Auto-Sync Markers**: Product catalog wrapped in `<!-- AUTO-SYNCED PRODUCT CATALOG START/END -->` markers
+  - **Use Cases**: Product comparisons, intelligent recommendations, add-to-cart assistance, catalog browsing
 
 **Data Model Highlights**:
 Core entities include Merchants, Supervisors, Sessions, Messages, Triggers, Knowledge Base content, Subscription Plans, and Agents. New tables support supervisor roles, shifts, product cards, quick replies, chat buttons, welcome bubbles, notification settings, widget sites, site domains, coin orders, and topup nominals.

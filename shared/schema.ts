@@ -794,6 +794,59 @@ export const insertProductCardButtonSchema = createInsertSchema(productCardButto
 export type InsertProductCardButton = z.infer<typeof insertProductCardButtonSchema>;
 export type ProductCardButton = typeof productCardButtons.$inferSelect;
 
+// Product Crawl Sources - URLs for automatic product discovery
+export const productCrawlSources = pgTable("product_crawl_sources", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  agentId: varchar("agent_id", { length: 32 }),
+  url: text("url").notNull(),
+  name: text("name").default(""),
+  sourceType: text("source_type").default("product_page"), // product_page, catalog_page, sitemap
+  lastCrawledAt: timestamp("last_crawled_at"),
+  crawlFrequency: text("crawl_frequency").default("manual"), // manual, daily, weekly
+  totalProducts: integer("total_products").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertProductCrawlSourceSchema = createInsertSchema(productCrawlSources).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertProductCrawlSource = z.infer<typeof insertProductCrawlSourceSchema>;
+export type ProductCrawlSource = typeof productCrawlSources.$inferSelect;
+
+// Crawled Products - products discovered from crawling
+export const crawledProducts = pgTable("crawled_products", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  sourceId: varchar("source_id", { length: 32 }).notNull(),
+  agentId: varchar("agent_id", { length: 32 }),
+  title: text("title").notNull(),
+  description: text("description").default(""),
+  price: text("price").default(""),
+  currency: text("currency").default("IDR"),
+  imageUrl: text("image_url").default(""),
+  productUrl: text("product_url").notNull(),
+  category: text("category").default(""),
+  brand: text("brand").default(""),
+  sku: text("sku").default(""),
+  availability: text("availability").default("in_stock"), // in_stock, out_of_stock, preorder
+  rating: text("rating").default(""),
+  reviewCount: integer("review_count").default(0),
+  specifications: jsonb("specifications").default({}),
+  variants: jsonb("variants").default([]),
+  status: text("status").default("pending"), // pending, approved, rejected
+  isActive: boolean("is_active").default(true),
+  crawledAt: timestamp("crawled_at").defaultNow(),
+  approvedAt: timestamp("approved_at"),
+  approvedBy: varchar("approved_by", { length: 32 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertCrawledProductSchema = createInsertSchema(crawledProducts).omit({ id: true, createdAt: true, updatedAt: true, crawledAt: true });
+export type InsertCrawledProduct = z.infer<typeof insertCrawledProductSchema>;
+export type CrawledProduct = typeof crawledProducts.$inferSelect;
+
 // Welcome Bubble Settings
 export const welcomeBubbles = pgTable("welcome_bubbles", {
   id: varchar("id", { length: 32 }).primaryKey(),
