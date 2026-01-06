@@ -1382,9 +1382,17 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       console.log("=== Google OAuth Login Success ===");
       console.log("Merchant ID:", merchant.id);
       console.log("Email:", merchant.email);
-      console.log("Redirecting to /dashboard");
-
-      res.redirect("/dashboard");
+      console.log("Session data set, saving session before redirect...");
+      
+      // Explicitly save session before redirect to ensure it persists
+      req.session.save((err) => {
+        if (err) {
+          console.error("Session save error:", err);
+          return res.redirect("/login?error=session_error");
+        }
+        console.log("Session saved successfully, redirecting to /dashboard");
+        res.redirect("/dashboard");
+      });
     } catch (error) {
       console.error("Google OAuth callback error:", error);
       res.redirect("/login?error=oauth_failed");
@@ -1566,7 +1574,14 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       req.session.userType = "merchant";
       req.session.merchantId = merchant.id;
 
-      res.redirect("/dashboard");
+      // Explicitly save session before redirect to ensure it persists
+      req.session.save((err) => {
+        if (err) {
+          console.error("GitHub session save error:", err);
+          return res.redirect("/login?error=session_error");
+        }
+        res.redirect("/dashboard");
+      });
     } catch (error) {
       console.error("GitHub OAuth callback error:", error);
       res.redirect("/login?error=oauth_failed");
