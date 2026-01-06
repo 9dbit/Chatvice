@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -12,12 +12,95 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Save, Globe, Loader2, Plus, Bot, Send, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, Sparkles, HelpCircle, Edit2, GripVertical, MessageSquare, Lock, Crown } from "lucide-react";
+import { Database, Save, Globe, Loader2, Plus, Bot, Send, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, Sparkles, HelpCircle, Edit2, GripVertical, MessageSquare, Lock, Crown, BookOpen, Eye, Search, Filter, FileText, Tag, Clock } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
-import type { Merchant, CrawledLink, Agent, SuggestedQuestion } from "@shared/schema";
+import type { Merchant, CrawledLink, Agent, SuggestedQuestion, KnowledgebaseArticle } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
+
+// Business type and category constants for Help Articles
+const BUSINESS_TYPES = [
+  { value: "retail_physical", label: "Retail - Physical Products" },
+  { value: "retail_digital", label: "Retail - Digital Products" },
+  { value: "company_profile", label: "Company/Service Profile" },
+];
+
+const RETAIL_PHYSICAL_CATEGORIES = [
+  { value: "fashion", label: "Fashion & Apparel" },
+  { value: "electronics", label: "Electronics & Gadgets" },
+  { value: "food_beverage", label: "Food & Beverage" },
+  { value: "health_beauty", label: "Health & Beauty" },
+  { value: "home_furniture", label: "Home & Furniture" },
+  { value: "sports_outdoor", label: "Sports & Outdoor" },
+  { value: "toys_games", label: "Toys & Games" },
+  { value: "jewelry_watches", label: "Jewelry & Watches" },
+  { value: "automotive", label: "Automotive & Parts" },
+  { value: "pet_supplies", label: "Pet Supplies" },
+];
+
+const RETAIL_DIGITAL_CATEGORIES = [
+  { value: "software", label: "Software & SaaS" },
+  { value: "ebooks_courses", label: "E-books & Online Courses" },
+  { value: "gaming", label: "Games & Digital Entertainment" },
+  { value: "streaming", label: "Streaming & Media" },
+  { value: "photography", label: "Digital Photos & Graphics" },
+  { value: "music_audio", label: "Music & Audio" },
+];
+
+const COMPANY_CATEGORIES = [
+  { value: "architect", label: "Architect & Design Firm" },
+  { value: "banking_finance", label: "Banking & Financial Services" },
+  { value: "consulting", label: "Consulting Firm" },
+  { value: "dental_clinic", label: "Dental Clinic" },
+  { value: "education", label: "Educational Institution" },
+  { value: "fitness_gym", label: "Fitness & Gym" },
+  { value: "government", label: "Government Agency" },
+  { value: "hotel_resort", label: "Hotel & Resort" },
+  { value: "insurance", label: "Insurance Company" },
+  { value: "jewelry_store", label: "Jewelry Store" },
+  { value: "kitchen_catering", label: "Kitchen & Catering" },
+  { value: "legal_law", label: "Law Firm" },
+  { value: "medical_hospital", label: "Medical & Hospital" },
+  { value: "ngo_nonprofit", label: "NGO & Nonprofit" },
+  { value: "optical_eyecare", label: "Optical & Eye Care" },
+  { value: "photography_studio", label: "Photography Studio" },
+  { value: "quality_testing", label: "Quality & Testing Lab" },
+  { value: "real_estate", label: "Real Estate Agency" },
+  { value: "salon_spa", label: "Salon & Spa" },
+  { value: "travel_agency", label: "Travel Agency" },
+  { value: "university", label: "University" },
+  { value: "veterinary", label: "Veterinary Clinic" },
+  { value: "warehouse_logistics", label: "Warehouse & Logistics" },
+  { value: "xray_diagnostic", label: "X-Ray & Diagnostic Center" },
+  { value: "yoga_wellness", label: "Yoga & Wellness" },
+  { value: "zoo_wildlife", label: "Zoo & Wildlife Park" },
+];
+
+function getCategoriesForBusinessType(businessType: string) {
+  switch (businessType) {
+    case "retail_physical":
+      return RETAIL_PHYSICAL_CATEGORIES;
+    case "retail_digital":
+      return RETAIL_DIGITAL_CATEGORIES;
+    case "company_profile":
+      return COMPANY_CATEGORIES;
+    default:
+      return [];
+  }
+}
+
+function getCategoryLabel(businessType: string, category: string) {
+  const categories = getCategoriesForBusinessType(businessType);
+  const found = categories.find(c => c.value === category);
+  return found?.label || category;
+}
+
+function getBusinessTypeLabel(businessType: string) {
+  const found = BUSINESS_TYPES.find(t => t.value === businessType);
+  return found?.label || businessType;
+}
 
 export default function KnowledgePage() {
   const merchantId = localStorage.getItem("merchantId") || "";
@@ -33,6 +116,31 @@ export default function KnowledgePage() {
   const [editingQuestion, setEditingQuestion] = useState<SuggestedQuestion | null>(null);
   const [newQuestion, setNewQuestion] = useState("");
   const [newAnswer, setNewAnswer] = useState("");
+  
+  // Help Articles state
+  const [activeTab, setActiveTab] = useState("training");
+  const [articleSearchQuery, setArticleSearchQuery] = useState("");
+  const [articleStatusFilter, setArticleStatusFilter] = useState<string>("all");
+  const [isGenerateOpen, setIsGenerateOpen] = useState(false);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [selectedArticle, setSelectedArticle] = useState<KnowledgebaseArticle | null>(null);
+  const [isViewOpen, setIsViewOpen] = useState(false);
+  const [generateForm, setGenerateForm] = useState({
+    businessType: "",
+    category: "",
+    topic: "",
+    businessInfo: "",
+  });
+  const [editorForm, setEditorForm] = useState({
+    title: "",
+    content: "",
+    tags: [] as string[],
+    category: "",
+    status: "draft",
+    businessType: "",
+    businessCategory: "",
+  });
+  const [newTag, setNewTag] = useState("");
 
   const { data: agents } = useQuery<Agent[]>({
     queryKey: ["/api/agents"],
@@ -96,6 +204,99 @@ export default function KnowledgePage() {
   const { data: crawledLinks = [], isLoading: linksLoading } = useQuery<CrawledLink[]>({
     queryKey: ["/api/knowledge/links", merchantId],
     enabled: !!merchantId,
+  });
+
+  // Help Articles queries
+  const { data: articles = [], isLoading: articlesLoading } = useQuery<KnowledgebaseArticle[]>({
+    queryKey: ["/api/knowledgebase/articles", articleStatusFilter !== "all" ? articleStatusFilter : undefined],
+    enabled: !!merchantId,
+  });
+
+  const generateMutation = useMutation({
+    mutationFn: async (data: { businessType: string; category: string; topic?: string; businessInfo?: string }): Promise<{ article: KnowledgebaseArticle; suggestedTopics: string[] }> => {
+      const response = await apiRequest("POST", "/api/knowledgebase/generate", data);
+      return response.json();
+    },
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledgebase/articles"] });
+      setIsGenerateOpen(false);
+      setGenerateForm({ businessType: "", category: "", topic: "", businessInfo: "" });
+      toast({
+        title: "Article generated",
+        description: "Your AI-generated article has been created as a draft.",
+      });
+      setSelectedArticle(response.article);
+      setEditorForm({
+        title: response.article.title,
+        content: response.article.content,
+        tags: response.article.tags || [],
+        category: response.article.category || "",
+        status: response.article.status || "draft",
+        businessType: response.article.businessType || "",
+        businessCategory: response.article.businessCategory || "",
+      });
+      setIsEditorOpen(true);
+    },
+    onError: () => {
+      toast({
+        title: "Generation failed",
+        description: "Failed to generate article. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const saveArticleMutation = useMutation({
+    mutationFn: async (data: Partial<KnowledgebaseArticle>) => {
+      if (selectedArticle) {
+        return apiRequest("PUT", `/api/knowledgebase/articles/${selectedArticle.id}`, data);
+      } else {
+        return apiRequest("POST", "/api/knowledgebase/articles", data);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledgebase/articles"] });
+      setIsEditorOpen(false);
+      setSelectedArticle(null);
+      toast({
+        title: "Article saved",
+        description: "Your article has been saved successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Save failed",
+        description: "Failed to save article. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteArticleMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/knowledgebase/articles/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledgebase/articles"] });
+      toast({
+        title: "Article deleted",
+        description: "The article has been deleted.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Delete failed",
+        description: "Failed to delete article. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const filteredArticles = articles.filter(article => {
+    const matchesSearch = article.title.toLowerCase().includes(articleSearchQuery.toLowerCase()) ||
+      article.content.toLowerCase().includes(articleSearchQuery.toLowerCase());
+    const matchesStatus = articleStatusFilter === "all" || article.status === articleStatusFilter;
+    return matchesSearch && matchesStatus;
   });
 
   useEffect(() => {
@@ -389,16 +590,34 @@ export default function KnowledgePage() {
   };
 
   return (
+    <div className="space-y-4 h-full">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold">Knowledge Base</h1>
+          <p className="text-sm text-muted-foreground hidden sm:block">
+            Train your AI with company info, FAQs, and help articles.
+          </p>
+        </div>
+      </div>
+      
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="training" className="flex items-center gap-2" data-testid="tab-training">
+            <Database className="w-4 h-4" />
+            Training Data
+          </TabsTrigger>
+          <TabsTrigger value="articles" className="flex items-center gap-2" data-testid="tab-articles">
+            <BookOpen className="w-4 h-4" />
+            Help Articles
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="training" className="mt-4">
     <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 h-full">
       {/* Left Column - Knowledge Editor */}
       <div className="flex-1 space-y-4 sm:space-y-6 min-w-0">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold">Knowledge Base</h1>
-            <p className="text-sm text-muted-foreground hidden sm:block">
-              Train your AI with company info, FAQs, and policies.
-            </p>
-          </div>
+          <div></div>
           {agents && agents.length > 0 && (
             <div className="flex items-center gap-2">
               <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap hidden sm:inline">Training:</span>
@@ -1044,6 +1263,385 @@ Example:
                 <Copy className="w-4 h-4 mr-2" />
               )}
               Import
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+        </TabsContent>
+
+        {/* Help Articles Tab */}
+        <TabsContent value="articles" className="mt-4">
+          <div className="space-y-4">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search articles..."
+                    value={articleSearchQuery}
+                    onChange={(e) => setArticleSearchQuery(e.target.value)}
+                    className="pl-9"
+                    data-testid="input-search-articles"
+                  />
+                </div>
+                <Select value={articleStatusFilter} onValueChange={setArticleStatusFilter}>
+                  <SelectTrigger className="w-[120px]" data-testid="select-status-filter">
+                    <Filter className="w-4 h-4 mr-2" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="published">Published</SelectItem>
+                    <SelectItem value="archived">Archived</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={() => {
+                  setSelectedArticle(null);
+                  setEditorForm({
+                    title: "",
+                    content: "",
+                    tags: [],
+                    category: "",
+                    status: "draft",
+                    businessType: "",
+                    businessCategory: "",
+                  });
+                  setIsEditorOpen(true);
+                }} data-testid="button-new-article">
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Article
+                </Button>
+                <Button onClick={() => setIsGenerateOpen(true)} data-testid="button-ai-generate">
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  AI Generate
+                </Button>
+              </div>
+            </div>
+
+            {/* Articles List */}
+            {articlesLoading ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-48" />
+                ))}
+              </div>
+            ) : filteredArticles.length === 0 ? (
+              <Card className="py-12">
+                <CardContent className="text-center">
+                  <BookOpen className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="font-semibold mb-2">No articles yet</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Create your first help article or let AI generate one for you.
+                  </p>
+                  <Button onClick={() => setIsGenerateOpen(true)}>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Generate with AI
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {filteredArticles.map((article) => (
+                  <Card key={article.id} className="hover-elevate cursor-pointer" data-testid={`card-article-${article.id}`}>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <CardTitle className="text-base line-clamp-2">{article.title}</CardTitle>
+                        <Badge variant={article.status === "published" ? "default" : article.status === "archived" ? "secondary" : "outline"}>
+                          {article.status}
+                        </Badge>
+                      </div>
+                      {article.businessType && (
+                        <p className="text-xs text-muted-foreground">
+                          {getBusinessTypeLabel(article.businessType)} • {getCategoryLabel(article.businessType, article.businessCategory || "")}
+                        </p>
+                      )}
+                    </CardHeader>
+                    <CardContent className="pb-2">
+                      <p className="text-sm text-muted-foreground line-clamp-3">
+                        {article.content.substring(0, 150)}...
+                      </p>
+                      {article.tags && article.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {article.tags.slice(0, 3).map((tag, i) => (
+                            <Badge key={i} variant="secondary" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                          {article.tags.length > 3 && (
+                            <Badge variant="secondary" className="text-xs">+{article.tags.length - 3}</Badge>
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                    <CardFooter className="pt-2 flex justify-between">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="w-3 h-3" />
+                        {formatDate(article.updatedAt || article.createdAt)}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button size="icon" variant="ghost" onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedArticle(article);
+                          setIsViewOpen(true);
+                        }} data-testid={`button-view-${article.id}`}>
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedArticle(article);
+                          setEditorForm({
+                            title: article.title,
+                            content: article.content,
+                            tags: article.tags || [],
+                            category: article.category || "",
+                            status: article.status || "draft",
+                            businessType: article.businessType || "",
+                            businessCategory: article.businessCategory || "",
+                          });
+                          setIsEditorOpen(true);
+                        }} data-testid={`button-edit-${article.id}`}>
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm("Are you sure you want to delete this article?")) {
+                            deleteArticleMutation.mutate(article.id);
+                          }
+                        }} data-testid={`button-delete-${article.id}`}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* AI Generate Dialog */}
+      <Dialog open={isGenerateOpen} onOpenChange={setIsGenerateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              AI Generate Article
+            </DialogTitle>
+            <DialogDescription>
+              Let AI create a help center article based on your business type and category.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Business Type</Label>
+              <Select value={generateForm.businessType} onValueChange={(v) => setGenerateForm({ ...generateForm, businessType: v, category: "" })}>
+                <SelectTrigger data-testid="select-business-type">
+                  <SelectValue placeholder="Select business type..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {BUSINESS_TYPES.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Category</Label>
+              <Select value={generateForm.category} onValueChange={(v) => setGenerateForm({ ...generateForm, category: v })} disabled={!generateForm.businessType}>
+                <SelectTrigger data-testid="select-category">
+                  <SelectValue placeholder="Select category..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {getCategoriesForBusinessType(generateForm.businessType).map((cat) => (
+                    <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Specific Topic (Optional)</Label>
+              <Input
+                placeholder="e.g., Return Policy, Size Guide..."
+                value={generateForm.topic}
+                onChange={(e) => setGenerateForm({ ...generateForm, topic: e.target.value })}
+                data-testid="input-topic"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Additional Business Info (Optional)</Label>
+              <Textarea
+                placeholder="Add specific details about your business that should be included..."
+                value={generateForm.businessInfo}
+                onChange={(e) => setGenerateForm({ ...generateForm, businessInfo: e.target.value })}
+                className="min-h-[80px]"
+                data-testid="textarea-business-info"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsGenerateOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={() => generateMutation.mutate(generateForm)} 
+              disabled={!generateForm.businessType || !generateForm.category || generateMutation.isPending}
+              data-testid="button-generate"
+            >
+              {generateMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4 mr-2" />
+              )}
+              Generate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Article Editor Dialog */}
+      <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedArticle ? "Edit Article" : "New Article"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Title</Label>
+              <Input
+                value={editorForm.title}
+                onChange={(e) => setEditorForm({ ...editorForm, title: e.target.value })}
+                placeholder="Article title..."
+                data-testid="input-article-title"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Content</Label>
+              <Textarea
+                value={editorForm.content}
+                onChange={(e) => setEditorForm({ ...editorForm, content: e.target.value })}
+                placeholder="Article content (supports Markdown)..."
+                className="min-h-[300px] font-mono text-sm"
+                data-testid="textarea-article-content"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={editorForm.status} onValueChange={(v) => setEditorForm({ ...editorForm, status: v })}>
+                  <SelectTrigger data-testid="select-article-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="published">Published</SelectItem>
+                    <SelectItem value="archived">Archived</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Tags</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    placeholder="Add tag..."
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newTag.trim()) {
+                        e.preventDefault();
+                        setEditorForm({ ...editorForm, tags: [...editorForm.tags, newTag.trim()] });
+                        setNewTag("");
+                      }
+                    }}
+                    data-testid="input-new-tag"
+                  />
+                  <Button type="button" size="icon" variant="outline" onClick={() => {
+                    if (newTag.trim()) {
+                      setEditorForm({ ...editorForm, tags: [...editorForm.tags, newTag.trim()] });
+                      setNewTag("");
+                    }
+                  }}>
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+                {editorForm.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {editorForm.tags.map((tag, i) => (
+                      <Badge key={i} variant="secondary" className="gap-1">
+                        {tag}
+                        <button onClick={() => setEditorForm({ ...editorForm, tags: editorForm.tags.filter((_, idx) => idx !== i) })}>
+                          <X className="w-3 h-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditorOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={() => saveArticleMutation.mutate(editorForm)} 
+              disabled={!editorForm.title || !editorForm.content || saveArticleMutation.isPending}
+              data-testid="button-save-article"
+            >
+              {saveArticleMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Article Dialog */}
+      <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedArticle?.title}</DialogTitle>
+            {selectedArticle?.businessType && (
+              <DialogDescription>
+                {getBusinessTypeLabel(selectedArticle.businessType)} • {getCategoryLabel(selectedArticle.businessType, selectedArticle.businessCategory || "")}
+              </DialogDescription>
+            )}
+          </DialogHeader>
+          <div className="py-4">
+            <div className="prose prose-sm max-w-none dark:prose-invert">
+              <div className="whitespace-pre-wrap">{selectedArticle?.content}</div>
+            </div>
+            {selectedArticle?.tags && selectedArticle.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-4 pt-4 border-t">
+                {selectedArticle.tags.map((tag, i) => (
+                  <Badge key={i} variant="secondary">{tag}</Badge>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsViewOpen(false)}>Close</Button>
+            <Button onClick={() => {
+              setIsViewOpen(false);
+              if (selectedArticle) {
+                setEditorForm({
+                  title: selectedArticle.title,
+                  content: selectedArticle.content,
+                  tags: selectedArticle.tags || [],
+                  category: selectedArticle.category || "",
+                  status: selectedArticle.status || "draft",
+                  businessType: selectedArticle.businessType || "",
+                  businessCategory: selectedArticle.businessCategory || "",
+                });
+                setIsEditorOpen(true);
+              }
+            }}>
+              <Edit2 className="w-4 h-4 mr-2" />
+              Edit
             </Button>
           </DialogFooter>
         </DialogContent>
