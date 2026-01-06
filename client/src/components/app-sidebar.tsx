@@ -42,6 +42,7 @@ import {
   ChevronDown,
   Receipt,
   ShieldAlert,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -116,6 +117,7 @@ const iconMap: Record<string, any> = {
   CreditCard,
   Receipt,
   ShieldAlert,
+  BookOpen,
 };
 
 const menuItemsMap: Record<string, MenuItem> = {
@@ -125,6 +127,7 @@ const menuItemsMap: Record<string, MenuItem> = {
   "chat-buttons": { id: "chat-buttons", title: "Chat Buttons", url: "/dashboard/chat-buttons", icon: MousePointer2, permission: "widgetSettings" },
   "sources": { id: "sources", title: "Sources", url: "/dashboard/sources", icon: FileText, permission: "sources" },
   "knowledge-base": { id: "knowledge-base", title: "Knowledge Base", url: "/dashboard/knowledge", icon: Database, permission: "knowledgeBase" },
+  "help-articles": { id: "help-articles", title: "Help Articles", url: "/dashboard/help-articles", icon: BookOpen, permission: "knowledgeBase" },
   "triggers": { id: "triggers", title: "Triggers", url: "/dashboard/triggers", icon: Zap, permission: "settings" },
   "analytics": { id: "analytics", title: "Analytics", url: "/dashboard/analytics", icon: BarChart3, permission: "analytics" },
   "chat-logs": { id: "chat-logs", title: "Chat Logs", url: "/dashboard/chat-logs", icon: FileText, permission: "chatLogs" },
@@ -148,6 +151,7 @@ const defaultMainMenuItems: MenuItem[] = [
   menuItemsMap["agents"],
   menuItemsMap["sources"],
   menuItemsMap["knowledge-base"],
+  menuItemsMap["help-articles"],
   menuItemsMap["analytics"],
   menuItemsMap["chat-logs"],
   menuItemsMap["notifications"],
@@ -182,6 +186,7 @@ const defaultGroupForItem: Record<string, "main" | "widgetSetting" | "messageSet
   "agents": "main",
   "sources": "main",
   "knowledge-base": "main",
+  "help-articles": "main",
   "analytics": "main",
   "chat-logs": "main",
   "notifications": "main",
