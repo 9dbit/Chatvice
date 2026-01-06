@@ -115,6 +115,10 @@ export function LoginPage() {
   const [requiresVerification, setRequiresVerification] = useState(false);
   const [unverifiedEmail, setUnverifiedEmail] = useState("");
 
+  const { data: providers } = useQuery<{ google: boolean; github: boolean }>({
+    queryKey: ["/api/auth/providers"],
+  });
+
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -261,53 +265,40 @@ export function LoginPage() {
   return (
     <AuthLayout title="Welcome back!" subtitle="Log in to your Chatvice account">
       <div className="space-y-4">
-        <Button 
-          variant="outline" 
-          className="w-full bg-zinc-900 border-zinc-700 text-white hover:bg-zinc-800 h-11"
-          onClick={() => handleSocialLogin("Google")}
-          data-testid="button-google-login"
-        >
-          <SiGoogle className="w-4 h-4 mr-2" />
-          Continue with Google
-        </Button>
-        
-        <Button 
-          variant="outline" 
-          className="w-full bg-zinc-900 border-zinc-700 text-white hover:bg-zinc-800 h-11"
-          onClick={() => handleSocialLogin("GitHub")}
-          data-testid="button-github-login"
-        >
-          <SiGithub className="w-4 h-4 mr-2" />
-          Continue with GitHub
-        </Button>
-        
-        <div className="flex items-center gap-2">
+        {providers?.google && (
           <Button 
             variant="outline" 
-            size="icon"
-            className="flex-1 bg-zinc-900 border-zinc-700 text-white hover:bg-zinc-800 h-11"
-            onClick={() => handleSocialLogin("LinkedIn")}
+            className="w-full bg-zinc-900 border-zinc-700 text-white hover:bg-zinc-800 h-11"
+            onClick={() => handleSocialLogin("Google")}
+            data-testid="button-google-login"
           >
-            <SiLinkedin className="w-4 h-4" />
+            <SiGoogle className="w-4 h-4 mr-2" />
+            Continue with Google
           </Button>
+        )}
+        
+        {providers?.github && (
           <Button 
             variant="outline" 
-            size="icon"
-            className="flex-1 bg-zinc-900 border-zinc-700 text-white hover:bg-zinc-800 h-11"
-            onClick={() => handleSocialLogin("Facebook")}
+            className="w-full bg-zinc-900 border-zinc-700 text-white hover:bg-zinc-800 h-11"
+            onClick={() => handleSocialLogin("GitHub")}
+            data-testid="button-github-login"
           >
-            <SiFacebook className="w-4 h-4" />
+            <SiGithub className="w-4 h-4 mr-2" />
+            Continue with GitHub
           </Button>
-        </div>
+        )}
         
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-zinc-700" />
+        {(providers?.google || providers?.github) && (
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-zinc-700" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-zinc-950 px-3 text-sm text-zinc-500">or</span>
+            </div>
           </div>
-          <div className="relative flex justify-center">
-            <span className="bg-zinc-950 px-3 text-sm text-zinc-500">or</span>
-          </div>
-        </div>
+        )}
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -394,6 +385,10 @@ export function RegisterPage() {
   
   const { data: platformSettings } = useQuery({
     queryKey: ["/api/platform-settings"],
+  });
+
+  const { data: providers } = useQuery<{ google: boolean; github: boolean }>({
+    queryKey: ["/api/auth/providers"],
   });
   
   const trialDays = (platformSettings as any)?.trial_days ? parseInt((platformSettings as any).trial_days) : 14;
@@ -544,34 +539,40 @@ export function RegisterPage() {
   return (
     <AuthLayout title="Create your account" subtitle={`Start your ${trialDays}-day free trial`}>
       <div className="space-y-4">
-        <Button 
-          variant="outline" 
-          className="w-full bg-zinc-900 border-zinc-700 text-white hover:bg-zinc-800 h-11"
-          onClick={() => handleSocialLogin("Google")}
-          data-testid="button-google-signup"
-        >
-          <SiGoogle className="w-4 h-4 mr-2" />
-          Continue with Google
-        </Button>
+        {providers?.google && (
+          <Button 
+            variant="outline" 
+            className="w-full bg-zinc-900 border-zinc-700 text-white hover:bg-zinc-800 h-11"
+            onClick={() => handleSocialLogin("Google")}
+            data-testid="button-google-signup"
+          >
+            <SiGoogle className="w-4 h-4 mr-2" />
+            Continue with Google
+          </Button>
+        )}
         
-        <Button 
-          variant="outline" 
-          className="w-full bg-zinc-900 border-zinc-700 text-white hover:bg-zinc-800 h-11"
-          onClick={() => handleSocialLogin("GitHub")}
-          data-testid="button-github-signup"
-        >
-          <SiGithub className="w-4 h-4 mr-2" />
-          Continue with GitHub
-        </Button>
+        {providers?.github && (
+          <Button 
+            variant="outline" 
+            className="w-full bg-zinc-900 border-zinc-700 text-white hover:bg-zinc-800 h-11"
+            onClick={() => handleSocialLogin("GitHub")}
+            data-testid="button-github-signup"
+          >
+            <SiGithub className="w-4 h-4 mr-2" />
+            Continue with GitHub
+          </Button>
+        )}
         
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-zinc-700" />
+        {(providers?.google || providers?.github) && (
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-zinc-700" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-zinc-950 px-3 text-sm text-zinc-500">or</span>
+            </div>
           </div>
-          <div className="relative flex justify-center">
-            <span className="bg-zinc-950 px-3 text-sm text-zinc-500">or</span>
-          </div>
-        </div>
+        )}
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

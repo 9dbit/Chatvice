@@ -1196,6 +1196,14 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     res.json({ authenticated: false });
   });
 
+  // Check which OAuth providers are configured
+  app.get("/api/auth/providers", (req, res) => {
+    res.json({
+      google: !!process.env.GOOGLE_CLIENT_ID && !!process.env.GOOGLE_CLIENT_SECRET,
+      github: !!process.env.GITHUB_CLIENT_ID && !!process.env.GITHUB_CLIENT_SECRET,
+    });
+  });
+
   // Google OAuth - Initiate login flow
   app.get("/api/auth/google", (req, res) => {
     const clientId = process.env.GOOGLE_CLIENT_ID;
