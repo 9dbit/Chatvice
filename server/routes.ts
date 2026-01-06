@@ -1223,17 +1223,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     const scope = encodeURIComponent("openid email profile");
     const state = crypto.randomBytes(16).toString("hex");
     
-    // Store state in session for CSRF protection
-    req.session.oauthState = state;
-    
-    // Save session explicitly before redirect
-    req.session.save((err) => {
-      if (err) {
-        console.error("Failed to save session for OAuth state:", err);
-      }
+    // Store state in a secure cookie for CSRF protection (more reliable than session across redirects)
+    res.cookie("oauth_state", state, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      maxAge: 10 * 60 * 1000, // 10 minutes
+      path: "/",
     });
     
-    console.log("Google OAuth initiated - state:", state, "session ID:", req.sessionID);
+    console.log("Google OAuth initiated - state:", state);
     
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${clientId}` +
@@ -1251,20 +1250,24 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   app.get("/api/auth/google/callback", async (req, res) => {
     try {
       const { code, state } = req.query;
+      const cookieState = req.cookies?.oauth_state;
       
-      console.log("Google OAuth callback received");
+      console.log("=== Google OAuth Callback ===");
+      console.log("Code received:", code ? "yes" : "no");
       console.log("State from URL:", state);
-      console.log("State from session:", req.session.oauthState);
-      console.log("Session ID:", req.sessionID);
+      console.log("State from cookie:", cookieState);
       
-      // Verify state for CSRF protection
-      if (!state || state !== req.session.oauthState) {
-        console.error("CSRF state mismatch - URL state:", state, "Session state:", req.session.oauthState);
+      // Clear the OAuth state cookie
+      res.clearCookie("oauth_state", { path: "/" });
+      
+      // Verify state for CSRF protection using cookie
+      if (!state || !cookieState || state !== cookieState) {
+        console.error("CSRF state mismatch - URL:", state, "Cookie:", cookieState);
         return res.redirect("/login?error=invalid_state");
       }
-      delete req.session.oauthState;
 
       if (!code || typeof code !== "string") {
+        console.error("No authorization code received");
         return res.redirect("/login?error=no_code");
       }
 
@@ -1282,6 +1285,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         : getBaseUrl(req);
       const redirectUri = `${baseUrl}/api/auth/google/callback`;
 
+      console.log("Exchanging code for tokens with redirect_uri:", redirectUri);
+      
       // Exchange code for tokens
       const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
         method: "POST",
@@ -1296,9 +1301,13 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       });
 
       if (!tokenResponse.ok) {
-        console.error("Google token exchange failed:", await tokenResponse.text());
+        const errorText = await tokenResponse.text();
+        console.error("Google token exchange failed:", errorText);
+        console.error("Used redirect_uri:", redirectUri);
         return res.redirect("/login?error=token_exchange_failed");
       }
+      
+      console.log("Token exchange successful");
 
       const tokens = await tokenResponse.json() as { access_token: string; id_token: string };
 
@@ -1318,9 +1327,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         name: string;
         picture?: string;
       };
+      
+      console.log("Google user info:", JSON.stringify(googleUser, null, 2));
 
       // Check if merchant exists with this Google ID
       let merchant = await storage.getMerchantByGoogleId(googleUser.id);
+      console.log("Existing merchant by Google ID:", merchant ? merchant.id : "not found");
       
       if (!merchant) {
         // Check if merchant exists with this email
@@ -1366,6 +1378,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       req.session.userId = merchant.id;
       req.session.userType = "merchant";
       req.session.merchantId = merchant.id;
+      
+      console.log("=== Google OAuth Login Success ===");
+      console.log("Merchant ID:", merchant.id);
+      console.log("Email:", merchant.email);
+      console.log("Redirecting to /dashboard");
 
       res.redirect("/dashboard");
     } catch (error) {
