@@ -9823,5 +9823,231 @@ ${log.extractedKnowledge}` : ''}
     }
   });
 
+  // ============== KNOWLEDGEBASE ROUTES ==============
+
+  // Get all articles for merchant
+  app.get("/api/knowledgebase/articles", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session?.merchantId!;
+      const status = req.query.status as string | undefined;
+      const articles = await storage.getKnowledgebaseArticles(merchantId, status);
+      res.json(articles);
+    } catch (error) {
+      console.error("Get knowledgebase articles error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get single article
+  app.get("/api/knowledgebase/articles/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session?.merchantId!;
+      const { id } = req.params;
+      const article = await storage.getKnowledgebaseArticle(id);
+      
+      if (!article || article.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Article not found" });
+      }
+      
+      res.json(article);
+    } catch (error) {
+      console.error("Get knowledgebase article error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Create article
+  app.post("/api/knowledgebase/articles", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session?.merchantId!;
+      const { title, content, tags, category, status, businessType, businessCategory, agentId } = req.body;
+      
+      if (!title || !content) {
+        return res.status(400).json({ error: "Title and content are required" });
+      }
+      
+      const article = await storage.createKnowledgebaseArticle({
+        merchantId,
+        agentId,
+        title,
+        content,
+        tags: tags || [],
+        category,
+        status: status || "draft",
+        generatedByAi: false,
+        businessType,
+        businessCategory,
+      });
+      
+      res.json(article);
+    } catch (error) {
+      console.error("Create knowledgebase article error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Update article
+  app.put("/api/knowledgebase/articles/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session?.merchantId!;
+      const { id } = req.params;
+      
+      const article = await storage.getKnowledgebaseArticle(id);
+      if (!article || article.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Article not found" });
+      }
+      
+      const { title, content, tags, category, status, businessType, businessCategory } = req.body;
+      
+      const updated = await storage.updateKnowledgebaseArticle(id, {
+        title,
+        content,
+        tags,
+        category,
+        status,
+        businessType,
+        businessCategory,
+      });
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Update knowledgebase article error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Delete article
+  app.delete("/api/knowledgebase/articles/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session?.merchantId!;
+      const { id } = req.params;
+      
+      const article = await storage.getKnowledgebaseArticle(id);
+      if (!article || article.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Article not found" });
+      }
+      
+      await storage.deleteKnowledgebaseArticle(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete knowledgebase article error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get templates
+  app.get("/api/knowledgebase/templates", async (req, res) => {
+    try {
+      const businessType = req.query.businessType as string | undefined;
+      const templates = await storage.getKnowledgebaseTemplates(businessType);
+      res.json(templates);
+    } catch (error) {
+      console.error("Get knowledgebase templates error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // AI Generate article
+  app.post("/api/knowledgebase/generate", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session?.merchantId!;
+      const { businessType, category, businessInfo, templateId, topic, agentId } = req.body;
+      
+      if (!businessType || !category) {
+        return res.status(400).json({ error: "Business type and category are required" });
+      }
+      
+      // Get merchant info
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      // Get template if provided
+      let template = null;
+      if (templateId) {
+        template = await storage.getKnowledgebaseTemplate(templateId);
+      } else {
+        template = await storage.getKnowledgebaseTemplateByCategory(businessType, category);
+      }
+      
+      // Build the prompt for AI
+      const systemPrompt = `You are an expert content writer specializing in creating help center articles and FAQs for businesses. Your task is to generate a comprehensive, helpful article based on the business information provided.
+
+The article should:
+1. Be professional and easy to understand
+2. Address common customer questions
+3. Provide practical and actionable information
+4. Be well-structured with clear headings
+5. Include relevant tags for categorization
+
+Output format (JSON):
+{
+  "title": "Article title",
+  "content": "Full article content in markdown format",
+  "tags": ["tag1", "tag2", "tag3"],
+  "suggestedTopics": ["Related topic 1", "Related topic 2"]
+}`;
+
+      const userPrompt = `Generate a help center article for the following business:
+
+Business Type: ${businessType}
+Category: ${category}
+Company Name: ${merchant.companyName}
+${topic ? `Specific Topic: ${topic}` : ''}
+${businessInfo ? `Additional Business Info: ${businessInfo}` : ''}
+${template?.sampleContent ? `Reference Template:\n${template.sampleContent}` : ''}
+${template?.suggestedTopics ? `Suggested Topics to Cover: ${template.suggestedTopics.join(', ')}` : ''}
+
+Please create a comprehensive help center article that would be useful for customers.`;
+
+      // Call OpenAI
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+      });
+      
+      const responseText = completion.choices[0]?.message?.content || "{}";
+      let generatedContent;
+      
+      try {
+        generatedContent = JSON.parse(responseText);
+      } catch (e) {
+        console.error("Failed to parse AI response:", responseText);
+        return res.status(500).json({ error: "Failed to generate article" });
+      }
+      
+      // Create the article
+      const article = await storage.createKnowledgebaseArticle({
+        merchantId,
+        agentId,
+        title: generatedContent.title || `${category} Help Article`,
+        content: generatedContent.content || "",
+        tags: generatedContent.tags || [],
+        category,
+        status: "draft",
+        generatedByAi: true,
+        businessType,
+        businessCategory: category,
+      });
+      
+      res.json({
+        article,
+        suggestedTopics: generatedContent.suggestedTopics || [],
+      });
+    } catch (error) {
+      console.error("Generate knowledgebase article error:", error);
+      res.status(500).json({ error: "Failed to generate article" });
+    }
+  });
+
   return httpServer;
 }
