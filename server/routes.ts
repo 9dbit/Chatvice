@@ -9948,7 +9948,7 @@ ${log.extractedKnowledge}` : ''}
   });
 
   // Seed templates (admin only - for initial setup)
-  app.post("/api/knowledgebase/templates/seed", async (req, res) => {
+  app.post("/api/knowledgebase/templates/seed", requireAdmin, async (req, res) => {
     try {
       // Check if templates already exist
       const existingTemplates = await storage.getKnowledgebaseTemplates();
@@ -10412,7 +10412,10 @@ Please create a comprehensive help center article that would be useful for custo
 
       // Call OpenAI
       const OpenAI = (await import("openai")).default;
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const openai = new OpenAI({ 
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
       
       const completion = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
