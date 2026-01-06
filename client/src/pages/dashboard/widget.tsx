@@ -528,27 +528,124 @@ export default function WidgetPage() {
     frameborder="0"
 ></iframe>`;
 
-  const identityVerificationCode = `// --- SERVER CODE ---
+  // Code examples for different frameworks
+  const codeExamples = {
+    nodejs: `// server.js (Node.js / Express)
 const jwt = require('jsonwebtoken');
 
-const secret = process.env.CHATVICE_IDENTITY_SECRET; // Your Chatvice secret key (should be stored as a secret not in the code)
+const CHATVICE_SECRET = process.env.CHATVICE_IDENTITY_SECRET;
 
-const user = await getSignedInUser(); // Get the current user signed in to your site
-
-const token = jwt.sign(
+app.get('/api/chatvice-token', async (req, res) => {
+  // Get user from your session/auth
+  const user = req.user;
+  
+  if (!user) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  
+  const token = jwt.sign(
     { 
-        user_id: user.id, // Your user's id
-        email: user.email, // User's email
-        name: user.name, // User's name
-        // ... other custom attributes
+      user_id: user.id,
+      email: user.email,
+      name: user.name,
+      // Add custom attributes as needed
+      plan: user.subscriptionPlan,
+      company: user.company,
     }, 
-    secret, 
+    CHATVICE_SECRET, 
     { expiresIn: '1h' }
-);
+  );
+  
+  res.json({ token });
+});`,
 
-// --- CLIENT CODE ---
-const token = await getUserToken(); // Get the token from your server
-window.chatvice('identify', { token }); // identify the user with Chatvice`;
+    php: `<?php
+// chatvice-token.php (PHP)
+require 'vendor/autoload.php';
+use Firebase\\JWT\\JWT;
+
+$secret = getenv('CHATVICE_IDENTITY_SECRET');
+
+// Get authenticated user from your session
+session_start();
+$user = $_SESSION['user'] ?? null;
+
+if (!$user) {
+    http_response_code(401);
+    echo json_encode(['error' => 'Not authenticated']);
+    exit;
+}
+
+$payload = [
+    'user_id' => $user['id'],
+    'email' => $user['email'],
+    'name' => $user['name'],
+    'iat' => time(),
+    'exp' => time() + 3600, // 1 hour
+];
+
+$token = JWT::encode($payload, $secret, 'HS256');
+echo json_encode(['token' => $token]);`,
+
+    python: `# chatvice_token.py (Python / Flask)
+import jwt
+import os
+from datetime import datetime, timedelta
+from flask import jsonify
+from flask_login import current_user, login_required
+
+CHATVICE_SECRET = os.environ.get('CHATVICE_IDENTITY_SECRET')
+
+@app.route('/api/chatvice-token')
+@login_required
+def get_chatvice_token():
+    payload = {
+        'user_id': str(current_user.id),
+        'email': current_user.email,
+        'name': current_user.name,
+        'exp': datetime.utcnow() + timedelta(hours=1)
+    }
+    
+    token = jwt.encode(payload, CHATVICE_SECRET, algorithm='HS256')
+    return jsonify({'token': token})`,
+
+    client: `// frontend.js (Browser / Client-side)
+async function initChatviceIdentity() {
+  try {
+    // Fetch token from your backend after user logs in
+    const response = await fetch('/api/chatvice-token', {
+      credentials: 'include' // Include session cookies
+    });
+    
+    if (!response.ok) {
+      console.log('User not logged in - using anonymous chat');
+      return;
+    }
+    
+    const { token } = await response.json();
+    
+    // Identify user to Chatvice widget
+    window.chatvice('identify', { token });
+    
+    console.log('User identified to Chatvice');
+  } catch (error) {
+    console.error('Failed to identify user:', error);
+  }
+}
+
+// Call after user login or page load
+document.addEventListener('DOMContentLoaded', initChatviceIdentity);
+
+// Or call after successful login
+async function handleLogin() {
+  await loginUser(); // Your login logic
+  await initChatviceIdentity(); // Then identify to Chatvice
+}`,
+  };
+
+  const [selectedCodeExample, setSelectedCodeExample] = useState<keyof typeof codeExamples>('nodejs');
+  
+  const identityVerificationCode = codeExamples[selectedCodeExample];
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -1594,19 +1691,125 @@ window.chatvice('identify', { token }); // identify the user with Chatvice`;
                 </CardContent>
               </Card>
 
+              {/* How It Works */}
               <Card>
                 <CardHeader>
                   <div className="flex items-center gap-2">
-                    <Code className="w-5 h-5 text-primary" />
-                    <CardTitle>Implementation Guide</CardTitle>
+                    <MessageSquare className="w-5 h-5 text-primary" />
+                    <CardTitle>How Identity Verification Works</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-4">
+                    <div className="flex flex-col items-center text-center p-4 bg-muted/50 rounded-lg">
+                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center mb-2">
+                        <span className="text-primary font-bold">1</span>
+                      </div>
+                      <h4 className="font-medium text-sm mb-1">User Logs In</h4>
+                      <p className="text-xs text-muted-foreground">Customer logs into your website using your existing auth</p>
+                    </div>
+                    <div className="flex flex-col items-center text-center p-4 bg-muted/50 rounded-lg">
+                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center mb-2">
+                        <span className="text-primary font-bold">2</span>
+                      </div>
+                      <h4 className="font-medium text-sm mb-1">Generate Token</h4>
+                      <p className="text-xs text-muted-foreground">Your server creates a JWT with user info using your secret key</p>
+                    </div>
+                    <div className="flex flex-col items-center text-center p-4 bg-muted/50 rounded-lg">
+                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center mb-2">
+                        <span className="text-primary font-bold">3</span>
+                      </div>
+                      <h4 className="font-medium text-sm mb-1">Send to Widget</h4>
+                      <p className="text-xs text-muted-foreground">Your frontend calls chatvice('identify', &#123; token &#125;)</p>
+                    </div>
+                    <div className="flex flex-col items-center text-center p-4 bg-muted/50 rounded-lg">
+                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center mb-2">
+                        <span className="text-primary font-bold">4</span>
+                      </div>
+                      <h4 className="font-medium text-sm mb-1">Personalized Chat</h4>
+                      <p className="text-xs text-muted-foreground">AI greets user by name and has access to their info</p>
+                    </div>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div>
+                    <h4 className="font-medium mb-2">Benefits</h4>
+                    <div className="grid gap-2 md:grid-cols-2">
+                      <div className="flex items-start gap-2">
+                        <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                        <span className="text-sm">Passwords never pass through Chatvice - fully secure</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                        <span className="text-sm">AI agent can greet customers by name</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                        <span className="text-sm">Pass custom attributes like subscription plan, order ID, etc.</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                        <span className="text-sm">Conversation history tied to verified user identity</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Code Examples */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <Code className="w-5 h-5 text-primary" />
+                      <CardTitle>Implementation Code</CardTitle>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button 
+                        variant={selectedCodeExample === 'nodejs' ? 'default' : 'outline'} 
+                        size="sm"
+                        onClick={() => setSelectedCodeExample('nodejs')}
+                        data-testid="button-code-nodejs"
+                      >
+                        Node.js
+                      </Button>
+                      <Button 
+                        variant={selectedCodeExample === 'php' ? 'default' : 'outline'} 
+                        size="sm"
+                        onClick={() => setSelectedCodeExample('php')}
+                        data-testid="button-code-php"
+                      >
+                        PHP
+                      </Button>
+                      <Button 
+                        variant={selectedCodeExample === 'python' ? 'default' : 'outline'} 
+                        size="sm"
+                        onClick={() => setSelectedCodeExample('python')}
+                        data-testid="button-code-python"
+                      >
+                        Python
+                      </Button>
+                      <Button 
+                        variant={selectedCodeExample === 'client' ? 'default' : 'outline'} 
+                        size="sm"
+                        onClick={() => setSelectedCodeExample('client')}
+                        data-testid="button-code-client"
+                      >
+                        Frontend
+                      </Button>
+                    </div>
                   </div>
                   <CardDescription>
-                    Use this code example to implement identity verification in your application.
+                    {selectedCodeExample === 'client' 
+                      ? 'Add this code to your frontend to identify users to the Chatvice widget.'
+                      : `Server-side code for ${selectedCodeExample === 'nodejs' ? 'Node.js / Express' : selectedCodeExample === 'php' ? 'PHP' : 'Python / Flask'} to generate JWT tokens.`
+                    }
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="relative">
-                    <pre className="bg-muted p-4 rounded-lg font-mono text-xs overflow-x-auto">
+                    <pre className="bg-muted p-4 rounded-lg font-mono text-xs overflow-x-auto max-h-[400px]">
                       {identityVerificationCode}
                     </pre>
                     <Button
@@ -1628,6 +1831,107 @@ window.chatvice('identify', { token }); // identify the user with Chatvice`;
                         </>
                       )}
                     </Button>
+                  </div>
+                  
+                  {selectedCodeExample !== 'client' && (
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                        <div className="text-sm">
+                          <p className="font-medium text-amber-600 dark:text-amber-400">Security Reminder</p>
+                          <p className="text-muted-foreground">Store your secret key as an environment variable (CHATVICE_IDENTITY_SECRET). Never expose it in client-side code or commit it to version control.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* JWT Payload Reference */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Key className="w-5 h-5 text-primary" />
+                    <CardTitle>JWT Payload Reference</CardTitle>
+                  </div>
+                  <CardDescription>
+                    Fields you can include in the JWT token to personalize the chat experience.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left py-2 pr-4 font-medium">Field</th>
+                          <th className="text-left py-2 pr-4 font-medium">Type</th>
+                          <th className="text-left py-2 pr-4 font-medium">Required</th>
+                          <th className="text-left py-2 font-medium">Description</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        <tr>
+                          <td className="py-2 pr-4"><code className="text-xs bg-muted px-1.5 py-0.5 rounded">user_id</code></td>
+                          <td className="py-2 pr-4 text-muted-foreground">string</td>
+                          <td className="py-2 pr-4"><Badge variant="default" className="text-xs">Required</Badge></td>
+                          <td className="py-2 text-muted-foreground">Unique identifier for the user in your system</td>
+                        </tr>
+                        <tr>
+                          <td className="py-2 pr-4"><code className="text-xs bg-muted px-1.5 py-0.5 rounded">email</code></td>
+                          <td className="py-2 pr-4 text-muted-foreground">string</td>
+                          <td className="py-2 pr-4"><Badge variant="secondary" className="text-xs">Optional</Badge></td>
+                          <td className="py-2 text-muted-foreground">User's email address</td>
+                        </tr>
+                        <tr>
+                          <td className="py-2 pr-4"><code className="text-xs bg-muted px-1.5 py-0.5 rounded">name</code></td>
+                          <td className="py-2 pr-4 text-muted-foreground">string</td>
+                          <td className="py-2 pr-4"><Badge variant="secondary" className="text-xs">Optional</Badge></td>
+                          <td className="py-2 text-muted-foreground">Display name - AI will greet user with this name</td>
+                        </tr>
+                        <tr>
+                          <td className="py-2 pr-4"><code className="text-xs bg-muted px-1.5 py-0.5 rounded">exp</code></td>
+                          <td className="py-2 pr-4 text-muted-foreground">number</td>
+                          <td className="py-2 pr-4"><Badge variant="default" className="text-xs">Required</Badge></td>
+                          <td className="py-2 text-muted-foreground">Token expiration time (Unix timestamp). Recommended: 1 hour</td>
+                        </tr>
+                        <tr>
+                          <td className="py-2 pr-4"><code className="text-xs bg-muted px-1.5 py-0.5 rounded">[custom]</code></td>
+                          <td className="py-2 pr-4 text-muted-foreground">any</td>
+                          <td className="py-2 pr-4"><Badge variant="secondary" className="text-xs">Optional</Badge></td>
+                          <td className="py-2 text-muted-foreground">Any custom fields (plan, company, order_id, etc.)</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Troubleshooting */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-primary" />
+                    <CardTitle>Common Issues</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="p-3 bg-muted/50 rounded-lg">
+                      <p className="font-medium text-sm mb-1">Token verification failed</p>
+                      <p className="text-xs text-muted-foreground">Make sure you're using the correct secret key. If you recently regenerated it, update your server code with the new key.</p>
+                    </div>
+                    <div className="p-3 bg-muted/50 rounded-lg">
+                      <p className="font-medium text-sm mb-1">Token expired</p>
+                      <p className="text-xs text-muted-foreground">Generate a new token with a fresh expiration time. Consider refreshing tokens every hour or when the user performs important actions.</p>
+                    </div>
+                    <div className="p-3 bg-muted/50 rounded-lg">
+                      <p className="font-medium text-sm mb-1">User not being recognized</p>
+                      <p className="text-xs text-muted-foreground">Ensure you're calling <code className="bg-muted px-1 rounded">window.chatvice('identify', &#123; token &#125;)</code> after the widget script has loaded and the user is authenticated.</p>
+                    </div>
+                    <div className="p-3 bg-muted/50 rounded-lg">
+                      <p className="font-medium text-sm mb-1">CORS errors when fetching token</p>
+                      <p className="text-xs text-muted-foreground">Your token endpoint should allow requests from your website domain. Add appropriate CORS headers on your server.</p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
