@@ -1211,7 +1211,15 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       return res.status(500).json({ error: "Google OAuth not configured" });
     }
 
-    const redirectUri = `${getBaseUrl(req)}/api/auth/google/callback`;
+    // Use custom domain if available, otherwise use dynamic base URL
+    const host = req.headers["x-forwarded-host"] || req.headers.host || "";
+    const baseUrl = host.includes("chatvice.app") 
+      ? "https://chatvice.app" 
+      : getBaseUrl(req);
+    const redirectUri = `${baseUrl}/api/auth/google/callback`;
+    
+    console.log("Google OAuth redirect_uri:", redirectUri);
+    
     const scope = encodeURIComponent("openid email profile");
     const state = crypto.randomBytes(16).toString("hex");
     
@@ -1252,7 +1260,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.redirect("/login?error=oauth_not_configured");
       }
 
-      const redirectUri = `${getBaseUrl(req)}/api/auth/google/callback`;
+      // Use custom domain if available, otherwise use dynamic base URL
+      const host = req.headers["x-forwarded-host"] || req.headers.host || "";
+      const baseUrl = host.includes("chatvice.app") 
+        ? "https://chatvice.app" 
+        : getBaseUrl(req);
+      const redirectUri = `${baseUrl}/api/auth/google/callback`;
 
       // Exchange code for tokens
       const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
