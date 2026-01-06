@@ -9825,6 +9825,74 @@ ${log.extractedKnowledge}` : ''}
 
   // ============== KNOWLEDGEBASE ROUTES ==============
 
+  // Helper function to sync published articles to knowledge base training data
+  async function syncArticlesToKnowledgeBase(merchantId: string, agentId?: string) {
+    try {
+      // Get all published articles for this merchant
+      const articles = await storage.getKnowledgebaseArticles(merchantId, "published");
+
+      // Get current knowledge base content
+      let currentKnowledge = "";
+      if (agentId) {
+        const knowledge = await storage.getKnowledgeByAgent(agentId);
+        currentKnowledge = knowledge?.content || "";
+      } else {
+        const knowledge = await storage.getKnowledge(merchantId);
+        currentKnowledge = knowledge?.content || "";
+      }
+
+      // Remove existing auto-synced article content (marked with special markers)
+      const articleSectionStart = "\n\n<!-- AUTO-SYNCED HELP ARTICLES START -->";
+      const articleSectionEnd = "<!-- AUTO-SYNCED HELP ARTICLES END -->\n";
+      
+      let baseContent = currentKnowledge;
+      const startIndex = currentKnowledge.indexOf(articleSectionStart);
+      if (startIndex !== -1) {
+        const endIndex = currentKnowledge.indexOf(articleSectionEnd);
+        if (endIndex !== -1) {
+          baseContent = currentKnowledge.substring(0, startIndex) + currentKnowledge.substring(endIndex + articleSectionEnd.length);
+        }
+      }
+
+      let newContent: string;
+      
+      if (articles.length === 0) {
+        // No published articles - just use the base content (without synced section)
+        newContent = baseContent.trim();
+        console.log(`Removed synced articles from knowledge base for merchant ${merchantId} (no published articles)`);
+      } else {
+        // Format articles for knowledge base
+        const articleContents = articles.map(article => {
+          const tags = article.tags && article.tags.length > 0 ? `Tags: ${article.tags.join(", ")}` : "";
+          return `## ${article.title}\n${tags ? tags + "\n" : ""}${article.content}`;
+        });
+
+        // Build new synced content
+        const syncedContent = articleSectionStart + "\n" +
+          "# Help Center Articles\n" +
+          "The following are published help center articles that can be used to answer customer questions:\n\n" +
+          articleContents.join("\n\n---\n\n") + "\n" +
+          articleSectionEnd;
+
+        // Combine base content with synced articles
+        newContent = baseContent.trim() + syncedContent;
+        console.log(`Synced ${articles.length} published articles to knowledge base for merchant ${merchantId}`);
+      }
+
+      // Save updated knowledge base
+      if (agentId) {
+        await storage.setKnowledgeByAgent(merchantId, agentId, newContent);
+      } else {
+        await storage.setKnowledge(merchantId, newContent);
+      }
+
+      // Reprocess embeddings for semantic search (always do this to keep embeddings in sync)
+      await processKnowledgeBase(merchantId, newContent, agentId);
+    } catch (error) {
+      console.error("Error syncing articles to knowledge base:", error);
+    }
+  }
+
   // Get all articles for merchant
   app.get("/api/knowledgebase/articles", requireMerchant, async (req, res) => {
     try {
@@ -9879,6 +9947,12 @@ ${log.extractedKnowledge}` : ''}
         businessCategory,
       });
       
+      // Sync to knowledge base if article is published
+      if (status === "published") {
+        const merchant = await storage.getMerchant(merchantId);
+        await syncArticlesToKnowledgeBase(merchantId, merchant?.activeAgentId || undefined);
+      }
+      
       res.json(article);
     } catch (error) {
       console.error("Create knowledgebase article error:", error);
@@ -9899,6 +9973,8 @@ ${log.extractedKnowledge}` : ''}
       
       const { title, content, tags, category, status, businessType, businessCategory } = req.body;
       
+      const previousStatus = article.status;
+      
       const updated = await storage.updateKnowledgebaseArticle(id, {
         title,
         content,
@@ -9908,6 +9984,15 @@ ${log.extractedKnowledge}` : ''}
         businessType,
         businessCategory,
       });
+      
+      // Sync to knowledge base if:
+      // 1. Article was just published (status changed to "published")
+      // 2. A published article was updated (status is still "published")
+      // 3. Article was unpublished (status changed from "published" to something else)
+      if (status === "published" || previousStatus === "published") {
+        const merchant = await storage.getMerchant(merchantId);
+        await syncArticlesToKnowledgeBase(merchantId, merchant?.activeAgentId || undefined);
+      }
       
       res.json(updated);
     } catch (error) {
@@ -9927,7 +10012,16 @@ ${log.extractedKnowledge}` : ''}
         return res.status(404).json({ error: "Article not found" });
       }
       
+      const wasPublished = article.status === "published";
+      
       await storage.deleteKnowledgebaseArticle(id);
+      
+      // Re-sync knowledge base if a published article was deleted
+      if (wasPublished) {
+        const merchant = await storage.getMerchant(merchantId);
+        await syncArticlesToKnowledgeBase(merchantId, merchant?.activeAgentId || undefined);
+      }
+      
       res.json({ success: true });
     } catch (error) {
       console.error("Delete knowledgebase article error:", error);

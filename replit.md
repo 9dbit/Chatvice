@@ -42,6 +42,12 @@ Chatvice is a monorepo application structured with `/client`, `/server`, and `/s
     - **AI Generation**: GPT-4.1-mini generates articles with title, content, tags, and suggested topics
     - **Article Management**: Create, edit, publish, archive articles with search and status filtering
     - **Pre-seeded Templates**: 42 business type templates with suggested topics, sample questions, and content structure
+  - **Auto-Sync Feature**: Published articles are automatically synchronized to Training Data:
+    - When article status changes to "published", content is added to knowledge base
+    - When published article is updated, knowledge base is refreshed
+    - When published article is unpublished/deleted, knowledge base is updated
+    - Synced content is wrapped in markers for clean separation from manual training data
+    - AI embeddings are automatically reprocessed for semantic search
 
 **Data Model Highlights**:
 Core entities include Merchants, Supervisors, Sessions, Messages, Triggers, Knowledge Base content, Subscription Plans, and Agents. New tables support supervisor roles, shifts, product cards, quick replies, chat buttons, welcome bubbles, notification settings, widget sites, site domains, coin orders, and topup nominals.
