@@ -1226,6 +1226,15 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     // Store state in session for CSRF protection
     req.session.oauthState = state;
     
+    // Save session explicitly before redirect
+    req.session.save((err) => {
+      if (err) {
+        console.error("Failed to save session for OAuth state:", err);
+      }
+    });
+    
+    console.log("Google OAuth initiated - state:", state, "session ID:", req.sessionID);
+    
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${clientId}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
@@ -1243,8 +1252,14 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const { code, state } = req.query;
       
+      console.log("Google OAuth callback received");
+      console.log("State from URL:", state);
+      console.log("State from session:", req.session.oauthState);
+      console.log("Session ID:", req.sessionID);
+      
       // Verify state for CSRF protection
       if (!state || state !== req.session.oauthState) {
+        console.error("CSRF state mismatch - URL state:", state, "Session state:", req.session.oauthState);
         return res.redirect("/login?error=invalid_state");
       }
       delete req.session.oauthState;
