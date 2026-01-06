@@ -701,22 +701,24 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // Trust proxy for production (required for secure cookies behind load balancer/reverse proxy)
   app.set("trust proxy", true);
   
-  app.use(
-    session({
-      secret: process.env.SESSION_SECRET || "chatvice-secret-key-change-in-production",
-      resave: false,
-      saveUninitialized: false,
-      store: new MemoryStoreSession({
-        checkPeriod: 86400000,
-      }),
-      cookie: {
-        secure: process.env.NODE_ENV === "production",
-        httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000,
-        sameSite: "lax",
-      },
-    })
-  );
+  // Configure session with proper production settings
+  const isProduction = process.env.NODE_ENV === "production";
+  const sessionConfig: session.SessionOptions = {
+    secret: process.env.SESSION_SECRET || "chatvice-secret-key-change-in-production",
+    resave: false,
+    saveUninitialized: false,
+    store: new MemoryStoreSession({
+      checkPeriod: 86400000,
+    }),
+    cookie: {
+      secure: isProduction,
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000,
+      sameSite: "lax",
+    },
+  };
+  
+  app.use(session(sessionConfig));
 
   const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
   const clients = new Map<string, Set<WebSocket>>();
