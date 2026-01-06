@@ -193,11 +193,14 @@ export function LoginPage() {
   };
 
   const handleSocialLogin = (provider: string) => {
+    console.log("Social login clicked:", provider);
     if (provider === "Google") {
+      console.log("Redirecting to Google OAuth...");
       window.location.href = "/api/auth/google";
       return;
     }
     if (provider === "GitHub") {
+      console.log("Redirecting to GitHub OAuth...");
       window.location.href = "/api/auth/github";
       return;
     }
@@ -267,6 +270,7 @@ export function LoginPage() {
       <div className="space-y-4">
         {providers?.google && (
           <Button 
+            type="button"
             variant="outline" 
             className="w-full bg-zinc-900 border-zinc-700 text-white hover:bg-zinc-800 h-11"
             onClick={() => handleSocialLogin("Google")}
@@ -279,6 +283,7 @@ export function LoginPage() {
         
         {providers?.github && (
           <Button 
+            type="button"
             variant="outline" 
             className="w-full bg-zinc-900 border-zinc-700 text-white hover:bg-zinc-800 h-11"
             onClick={() => handleSocialLogin("GitHub")}
@@ -469,11 +474,14 @@ export function RegisterPage() {
   };
 
   const handleSocialLogin = (provider: string) => {
+    console.log("Social login clicked:", provider);
     if (provider === "Google") {
+      console.log("Redirecting to Google OAuth...");
       window.location.href = "/api/auth/google";
       return;
     }
     if (provider === "GitHub") {
+      console.log("Redirecting to GitHub OAuth...");
       window.location.href = "/api/auth/github";
       return;
     }
@@ -541,6 +549,7 @@ export function RegisterPage() {
       <div className="space-y-4">
         {providers?.google && (
           <Button 
+            type="button"
             variant="outline" 
             className="w-full bg-zinc-900 border-zinc-700 text-white hover:bg-zinc-800 h-11"
             onClick={() => handleSocialLogin("Google")}
@@ -553,6 +562,7 @@ export function RegisterPage() {
         
         {providers?.github && (
           <Button 
+            type="button"
             variant="outline" 
             className="w-full bg-zinc-900 border-zinc-700 text-white hover:bg-zinc-800 h-11"
             onClick={() => handleSocialLogin("GitHub")}
