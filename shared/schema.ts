@@ -1260,3 +1260,55 @@ export const cryptoPaymentConfirmations = pgTable("crypto_payment_confirmations"
 export const insertCryptoPaymentConfirmationSchema = createInsertSchema(cryptoPaymentConfirmations).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertCryptoPaymentConfirmation = z.infer<typeof insertCryptoPaymentConfirmationSchema>;
 export type CryptoPaymentConfirmation = typeof cryptoPaymentConfirmations.$inferSelect;
+
+// ============ KnowledgeBase Articles ============
+
+export const knowledgebaseArticles = pgTable("knowledgebase_articles", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  agentId: varchar("agent_id", { length: 32 }),
+  // Article content
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  tags: text("tags").array(), // Array of tags for categorization
+  category: text("category"), // Business type category
+  // Status
+  status: text("status").default("draft"), // draft, published
+  // Metadata
+  generatedByAi: boolean("generated_by_ai").default(false),
+  businessType: text("business_type"), // retail_physical, retail_digital, company_profile
+  businessCategory: text("business_category"), // e.g., fashion, electronics, hotel_resort
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertKnowledgebaseArticleSchema = createInsertSchema(knowledgebaseArticles).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertKnowledgebaseArticle = z.infer<typeof insertKnowledgebaseArticleSchema>;
+export type KnowledgebaseArticle = typeof knowledgebaseArticles.$inferSelect;
+
+// ============ KnowledgeBase Templates ============
+
+export const knowledgebaseTemplates = pgTable("knowledgebase_templates", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  // Template categorization
+  businessType: text("business_type").notNull(), // retail_physical, retail_digital, company_profile
+  category: text("category").notNull(), // e.g., fashion, electronics, architect, hotel_resort
+  templateName: text("template_name").notNull(), // Display name
+  // Template content
+  description: text("description"), // Brief description of what this template covers
+  suggestedTopics: text("suggested_topics").array(), // Array of suggested article topics
+  sampleQuestions: text("sample_questions").array(), // Sample FAQ questions
+  sampleContent: text("sample_content"), // Sample article content/structure
+  // Icon for UI
+  icon: text("icon").default("FileText"), // Lucide icon name
+  // Sort order
+  sortOrder: integer("sort_order").default(0),
+  // Active status
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertKnowledgebaseTemplateSchema = createInsertSchema(knowledgebaseTemplates).omit({ id: true, createdAt: true });
+export type InsertKnowledgebaseTemplate = z.infer<typeof insertKnowledgebaseTemplateSchema>;
+export type KnowledgebaseTemplate = typeof knowledgebaseTemplates.$inferSelect;

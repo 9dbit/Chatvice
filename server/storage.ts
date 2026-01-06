@@ -44,11 +44,14 @@ import {
   type AdminNotification, type InsertAdminNotification,
   type ChatSecuritySettings, type InsertChatSecuritySettings,
   type ChatSecurityAlert, type InsertChatSecurityAlert,
+  type KnowledgebaseArticle, type InsertKnowledgebaseArticle,
+  type KnowledgebaseTemplate, type InsertKnowledgebaseTemplate,
   merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings, storedFiles,
   workShifts, shiftAssignments, workReports, quickReplies, chatButtons, productCards, productCardButtons, welcomeBubbles, notificationSettings, productRecommendationSettings, productTriggers, supervisorInvitations,
   emailVerificationTokens, passwordResetTokens, promotions, promotionUsage,
   widgetSites, siteDomains, coinOrders, topupNominals, merchantDomains, paymentGateways,
   paymentTransactions, adminNotifications, chatSecuritySettings, chatSecurityAlerts,
+  knowledgebaseArticles, knowledgebaseTemplates,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -328,6 +331,21 @@ export interface IStorage {
   createChatSecurityAlert(data: InsertChatSecurityAlert): Promise<ChatSecurityAlert>;
   updateChatSecurityAlert(id: string, data: Partial<ChatSecurityAlert>): Promise<ChatSecurityAlert | undefined>;
   getChatSecurityAlertStats(merchantId: string): Promise<{ total: number; new: number; reviewed: number; dismissed: number; escalated: number }>;
+  
+  // KnowledgeBase Articles
+  getKnowledgebaseArticles(merchantId: string, status?: string): Promise<KnowledgebaseArticle[]>;
+  getKnowledgebaseArticle(id: string): Promise<KnowledgebaseArticle | undefined>;
+  createKnowledgebaseArticle(data: InsertKnowledgebaseArticle): Promise<KnowledgebaseArticle>;
+  updateKnowledgebaseArticle(id: string, data: Partial<KnowledgebaseArticle>): Promise<KnowledgebaseArticle | undefined>;
+  deleteKnowledgebaseArticle(id: string): Promise<boolean>;
+  
+  // KnowledgeBase Templates
+  getKnowledgebaseTemplates(businessType?: string): Promise<KnowledgebaseTemplate[]>;
+  getKnowledgebaseTemplate(id: string): Promise<KnowledgebaseTemplate | undefined>;
+  getKnowledgebaseTemplateByCategory(businessType: string, category: string): Promise<KnowledgebaseTemplate | undefined>;
+  createKnowledgebaseTemplate(data: InsertKnowledgebaseTemplate): Promise<KnowledgebaseTemplate>;
+  updateKnowledgebaseTemplate(id: string, data: Partial<KnowledgebaseTemplate>): Promise<KnowledgebaseTemplate | undefined>;
+  deleteKnowledgebaseTemplate(id: string): Promise<boolean>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -2184,6 +2202,106 @@ export class DatabaseStorage implements IStorage {
       dismissed: alerts.filter(a => a.status === 'dismissed').length,
       escalated: alerts.filter(a => a.status === 'escalated').length,
     };
+  }
+  
+  // KnowledgeBase Articles
+  async getKnowledgebaseArticles(merchantId: string, status?: string): Promise<KnowledgebaseArticle[]> {
+    if (status) {
+      return db.select().from(knowledgebaseArticles)
+        .where(and(
+          eq(knowledgebaseArticles.merchantId, merchantId),
+          eq(knowledgebaseArticles.status, status)
+        ))
+        .orderBy(desc(knowledgebaseArticles.createdAt));
+    }
+    return db.select().from(knowledgebaseArticles)
+      .where(eq(knowledgebaseArticles.merchantId, merchantId))
+      .orderBy(desc(knowledgebaseArticles.createdAt));
+  }
+  
+  async getKnowledgebaseArticle(id: string): Promise<KnowledgebaseArticle | undefined> {
+    const result = await db.select().from(knowledgebaseArticles)
+      .where(eq(knowledgebaseArticles.id, id));
+    return result[0];
+  }
+  
+  async createKnowledgebaseArticle(data: InsertKnowledgebaseArticle): Promise<KnowledgebaseArticle> {
+    const id = generateId("kba_");
+    const result = await db.insert(knowledgebaseArticles).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+  
+  async updateKnowledgebaseArticle(id: string, data: Partial<KnowledgebaseArticle>): Promise<KnowledgebaseArticle | undefined> {
+    const result = await db.update(knowledgebaseArticles)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(knowledgebaseArticles.id, id))
+      .returning();
+    return result[0];
+  }
+  
+  async deleteKnowledgebaseArticle(id: string): Promise<boolean> {
+    const result = await db.delete(knowledgebaseArticles)
+      .where(eq(knowledgebaseArticles.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+  
+  // KnowledgeBase Templates
+  async getKnowledgebaseTemplates(businessType?: string): Promise<KnowledgebaseTemplate[]> {
+    if (businessType) {
+      return db.select().from(knowledgebaseTemplates)
+        .where(and(
+          eq(knowledgebaseTemplates.businessType, businessType),
+          eq(knowledgebaseTemplates.isActive, true)
+        ))
+        .orderBy(knowledgebaseTemplates.sortOrder);
+    }
+    return db.select().from(knowledgebaseTemplates)
+      .where(eq(knowledgebaseTemplates.isActive, true))
+      .orderBy(knowledgebaseTemplates.sortOrder);
+  }
+  
+  async getKnowledgebaseTemplate(id: string): Promise<KnowledgebaseTemplate | undefined> {
+    const result = await db.select().from(knowledgebaseTemplates)
+      .where(eq(knowledgebaseTemplates.id, id));
+    return result[0];
+  }
+  
+  async getKnowledgebaseTemplateByCategory(businessType: string, category: string): Promise<KnowledgebaseTemplate | undefined> {
+    const result = await db.select().from(knowledgebaseTemplates)
+      .where(and(
+        eq(knowledgebaseTemplates.businessType, businessType),
+        eq(knowledgebaseTemplates.category, category)
+      ));
+    return result[0];
+  }
+  
+  async createKnowledgebaseTemplate(data: InsertKnowledgebaseTemplate): Promise<KnowledgebaseTemplate> {
+    const id = generateId("kbt_");
+    const result = await db.insert(knowledgebaseTemplates).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+  
+  async updateKnowledgebaseTemplate(id: string, data: Partial<KnowledgebaseTemplate>): Promise<KnowledgebaseTemplate | undefined> {
+    const result = await db.update(knowledgebaseTemplates)
+      .set(data)
+      .where(eq(knowledgebaseTemplates.id, id))
+      .returning();
+    return result[0];
+  }
+  
+  async deleteKnowledgebaseTemplate(id: string): Promise<boolean> {
+    const result = await db.delete(knowledgebaseTemplates)
+      .where(eq(knowledgebaseTemplates.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 }
 
