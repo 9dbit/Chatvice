@@ -794,7 +794,7 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                               {parsedContent?.filter(p => p.type === "button").map((btn, btnIndex) => (
                                 <button
                                   key={`btn-${btnIndex}`}
-                                  className="px-2 py-px text-[10px] leading-tight rounded border transition-all duration-200 bg-transparent hover:bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/50 hover:border-purple-500"
+                                  className="inline-flex items-center px-1.5 h-5 text-[10px] leading-none rounded border transition-all duration-200 bg-transparent hover:bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/50 hover:border-purple-500"
                                   onClick={() => sendMessage(btn.action || btn.content)}
                                   disabled={askMutation.isPending}
                                   data-testid={`button-quick-${btnIndex}`}
