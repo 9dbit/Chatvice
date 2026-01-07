@@ -790,16 +790,16 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                             return null;
                           })}
                           {hasButtons && (
-                            <div className="mt-2 flex flex-wrap gap-1.5">
+                            <div className="mt-2 flex flex-wrap gap-1">
                               {parsedContent?.filter(p => p.type === "button").map((btn, btnIndex) => (
                                 <button
                                   key={`btn-${btnIndex}`}
-                                  className="px-3 py-1.5 text-xs rounded-md border transition-all duration-200 bg-primary/10 hover:bg-primary/20 text-foreground dark:text-gray-200 border-primary/30 hover:border-primary/50"
+                                  className="px-2 py-0.5 text-[11px] rounded border transition-all duration-200 bg-transparent hover:bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/50 hover:border-purple-500"
                                   onClick={() => sendMessage(btn.action || btn.content)}
                                   disabled={askMutation.isPending}
                                   data-testid={`button-quick-${btnIndex}`}
                                 >
-                                  <ChevronRight className="w-3 h-3 mr-1 inline" />
+                                  <ChevronRight className="w-2.5 h-2.5 mr-0.5 inline" />
                                   {btn.content}
                                 </button>
                               ))}
