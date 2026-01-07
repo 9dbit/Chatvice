@@ -834,13 +834,14 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Ask me anything..."
-                className="flex-1 text-sm h-9"
+                className="flex-1 text-base h-10"
+                style={{ fontSize: '16px' }}
                 disabled={askMutation.isPending}
                 data-testid="input-help-question"
               />
               <Button 
                 size="icon" 
-                className="h-9 w-9 flex-shrink-0"
+                className="h-10 w-10 flex-shrink-0"
                 onClick={handleSend}
                 disabled={askMutation.isPending || !input.trim()}
                 data-testid="button-help-send"
