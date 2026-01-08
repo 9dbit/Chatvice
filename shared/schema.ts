@@ -1400,3 +1400,76 @@ export const customPlanInvoices = pgTable("custom_plan_invoices", {
 export const insertCustomPlanInvoiceSchema = createInsertSchema(customPlanInvoices).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertCustomPlanInvoice = z.infer<typeof insertCustomPlanInvoiceSchema>;
 export type CustomPlanInvoice = typeof customPlanInvoices.$inferSelect;
+
+// ============ Custom Plan Requests ============
+
+export const customPlanRequests = pgTable("custom_plan_requests", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }), // Optional, can be public submission
+  // Contact Information
+  companyName: text("company_name").notNull(),
+  contactName: text("contact_name").notNull(),
+  contactEmail: text("contact_email").notNull(),
+  contactPhone: text("contact_phone"),
+  // Current Plan Info
+  currentPlanId: text("current_plan_id"),
+  // Requirements Configuration
+  desiredConversations: integer("desired_conversations"), // Monthly conversation volume needed
+  desiredAgents: integer("desired_agents"), // Number of AI agents
+  desiredSupervisors: integer("desired_supervisors"), // Number of supervisors
+  desiredSources: integer("desired_sources"), // Knowledge base sources
+  desiredSuggestedQuestions: integer("desired_suggested_questions"),
+  // Additional requirements
+  integrationNeeds: text("integration_needs"), // CRM, API, webhook requirements
+  complianceNeeds: text("compliance_needs"), // GDPR, security requirements
+  additionalFeatures: text("additional_features").array(), // Feature checkboxes
+  additionalNotes: text("additional_notes"), // Free text
+  budgetRangeMin: integer("budget_range_min"), // Budget in IDR
+  budgetRangeMax: integer("budget_range_max"),
+  expectedTimeline: text("expected_timeline"), // When they want to start
+  // Admin Review
+  status: text("status").default("submitted"), // submitted, under_review, pricing_proposed, invoice_sent, closed, rejected
+  adminReviewerId: varchar("admin_reviewer_id", { length: 32 }),
+  adminNotes: text("admin_notes"),
+  // Pricing (calculated by admin)
+  proposedMonthlyPrice: integer("proposed_monthly_price"),
+  proposedAnnualPrice: integer("proposed_annual_price"),
+  benchmarkMultiplier: text("benchmark_multiplier"), // e.g., "1.5x Enterprise"
+  // Linked invoice (after admin sends)
+  linkedInvoiceId: varchar("linked_invoice_id", { length: 32 }),
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  reviewedAt: timestamp("reviewed_at"),
+});
+
+export const insertCustomPlanRequestSchema = createInsertSchema(customPlanRequests).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertCustomPlanRequest = z.infer<typeof insertCustomPlanRequestSchema>;
+export type CustomPlanRequest = typeof customPlanRequests.$inferSelect;
+
+// ============ Merchant Notifications ============
+
+export const merchantNotifications = pgTable("merchant_notifications", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  // Notification content
+  type: text("type").notNull(), // custom_plan_request, invoice, subscription, system
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  // Related entity
+  relatedEntityType: text("related_entity_type"), // custom_plan_request, invoice, etc.
+  relatedEntityId: varchar("related_entity_id", { length: 32 }),
+  // Action link
+  actionUrl: text("action_url"),
+  actionLabel: text("action_label"),
+  // Status
+  isRead: boolean("is_read").default(false),
+  readAt: timestamp("read_at"),
+  // Metadata
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMerchantNotificationSchema = createInsertSchema(merchantNotifications).omit({ id: true, createdAt: true });
+export type InsertMerchantNotification = z.infer<typeof insertMerchantNotificationSchema>;
+export type MerchantNotification = typeof merchantNotifications.$inferSelect;

@@ -49,12 +49,15 @@ import {
   type ProductCrawlSource, type InsertProductCrawlSource,
   type CrawledProduct, type InsertCrawledProduct,
   type CustomPlanInvoice, type InsertCustomPlanInvoice,
+  type CustomPlanRequest, type InsertCustomPlanRequest,
+  type MerchantNotification, type InsertMerchantNotification,
   merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings, storedFiles,
   workShifts, shiftAssignments, workReports, quickReplies, chatButtons, productCards, productCardButtons, welcomeBubbles, notificationSettings, productRecommendationSettings, productTriggers, supervisorInvitations,
   emailVerificationTokens, passwordResetTokens, promotions, promotionUsage,
   widgetSites, siteDomains, coinOrders, topupNominals, merchantDomains, paymentGateways,
   paymentTransactions, adminNotifications, chatSecuritySettings, chatSecurityAlerts,
   knowledgebaseArticles, knowledgebaseTemplates, productCrawlSources, crawledProducts, customPlanInvoices,
+  customPlanRequests, merchantNotifications,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -377,6 +380,22 @@ export interface IStorage {
   createCustomPlanInvoice(data: InsertCustomPlanInvoice): Promise<CustomPlanInvoice>;
   updateCustomPlanInvoice(id: string, data: Partial<CustomPlanInvoice>): Promise<CustomPlanInvoice | undefined>;
   generateCustomInvoiceNumber(): Promise<string>;
+  
+  // Custom Plan Requests
+  getCustomPlanRequests(status?: string): Promise<CustomPlanRequest[]>;
+  getCustomPlanRequestsByMerchant(merchantId: string): Promise<CustomPlanRequest[]>;
+  getCustomPlanRequest(id: string): Promise<CustomPlanRequest | undefined>;
+  createCustomPlanRequest(data: InsertCustomPlanRequest): Promise<CustomPlanRequest>;
+  updateCustomPlanRequest(id: string, data: Partial<CustomPlanRequest>): Promise<CustomPlanRequest | undefined>;
+  
+  // Merchant Notifications
+  getMerchantNotifications(merchantId: string, limit?: number): Promise<MerchantNotification[]>;
+  getUnreadMerchantNotifications(merchantId: string): Promise<MerchantNotification[]>;
+  getMerchantNotification(id: string): Promise<MerchantNotification | undefined>;
+  createMerchantNotification(data: InsertMerchantNotification): Promise<MerchantNotification>;
+  markNotificationAsRead(id: string): Promise<MerchantNotification | undefined>;
+  markAllNotificationsAsRead(merchantId: string): Promise<void>;
+  getUnreadNotificationCount(merchantId: string): Promise<number>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -2518,6 +2537,111 @@ export class DatabaseStorage implements IStorage {
     
     const nextNum = (result[0]?.count || 0) + 1;
     return `${prefix}-${String(nextNum).padStart(4, "0")}`;
+  }
+  
+  // Custom Plan Requests
+  async getCustomPlanRequests(status?: string): Promise<CustomPlanRequest[]> {
+    if (status) {
+      return db.select().from(customPlanRequests)
+        .where(eq(customPlanRequests.status, status))
+        .orderBy(desc(customPlanRequests.createdAt));
+    }
+    return db.select().from(customPlanRequests)
+      .orderBy(desc(customPlanRequests.createdAt));
+  }
+  
+  async getCustomPlanRequestsByMerchant(merchantId: string): Promise<CustomPlanRequest[]> {
+    return db.select().from(customPlanRequests)
+      .where(eq(customPlanRequests.merchantId, merchantId))
+      .orderBy(desc(customPlanRequests.createdAt));
+  }
+  
+  async getCustomPlanRequest(id: string): Promise<CustomPlanRequest | undefined> {
+    const result = await db.select().from(customPlanRequests)
+      .where(eq(customPlanRequests.id, id));
+    return result[0];
+  }
+  
+  async createCustomPlanRequest(data: InsertCustomPlanRequest): Promise<CustomPlanRequest> {
+    const id = generateId("cpr_");
+    const result = await db.insert(customPlanRequests).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+  
+  async updateCustomPlanRequest(id: string, data: Partial<CustomPlanRequest>): Promise<CustomPlanRequest | undefined> {
+    const result = await db.update(customPlanRequests)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(customPlanRequests.id, id))
+      .returning();
+    return result[0];
+  }
+  
+  // Merchant Notifications
+  async getMerchantNotifications(merchantId: string, limit?: number): Promise<MerchantNotification[]> {
+    const query = db.select().from(merchantNotifications)
+      .where(eq(merchantNotifications.merchantId, merchantId))
+      .orderBy(desc(merchantNotifications.createdAt));
+    
+    if (limit) {
+      return query.limit(limit);
+    }
+    return query;
+  }
+  
+  async getUnreadMerchantNotifications(merchantId: string): Promise<MerchantNotification[]> {
+    return db.select().from(merchantNotifications)
+      .where(and(
+        eq(merchantNotifications.merchantId, merchantId),
+        eq(merchantNotifications.isRead, false)
+      ))
+      .orderBy(desc(merchantNotifications.createdAt));
+  }
+  
+  async getMerchantNotification(id: string): Promise<MerchantNotification | undefined> {
+    const result = await db.select().from(merchantNotifications)
+      .where(eq(merchantNotifications.id, id));
+    return result[0];
+  }
+  
+  async createMerchantNotification(data: InsertMerchantNotification): Promise<MerchantNotification> {
+    const id = generateId("mn_");
+    const result = await db.insert(merchantNotifications).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+  
+  async markNotificationAsRead(id: string): Promise<MerchantNotification | undefined> {
+    const result = await db.update(merchantNotifications)
+      .set({ isRead: true, readAt: new Date() })
+      .where(eq(merchantNotifications.id, id))
+      .returning();
+    return result[0];
+  }
+  
+  async markAllNotificationsAsRead(merchantId: string): Promise<void> {
+    await db.update(merchantNotifications)
+      .set({ isRead: true, readAt: new Date() })
+      .where(and(
+        eq(merchantNotifications.merchantId, merchantId),
+        eq(merchantNotifications.isRead, false)
+      ));
+  }
+  
+  async getUnreadNotificationCount(merchantId: string): Promise<number> {
+    const result = await db.select({ count: count() }).from(merchantNotifications)
+      .where(and(
+        eq(merchantNotifications.merchantId, merchantId),
+        eq(merchantNotifications.isRead, false)
+      ));
+    return result[0]?.count || 0;
   }
 }
 
