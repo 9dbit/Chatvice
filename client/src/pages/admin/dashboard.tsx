@@ -8510,6 +8510,7 @@ interface CustomPlanRequest {
   complianceNeeds: string | null;
   additionalFeatures: string[] | null;
   additionalNotes: string | null;
+  message: string | null;
   budgetRangeMin: number | null;
   budgetRangeMax: number | null;
   expectedTimeline: string | null;
@@ -8859,6 +8860,19 @@ function CustomRequestsTab({ toast }: { toast: any }) {
                     <p className="font-medium">{selectedRequest.merchant?.companyName}</p>
                     <p className="text-sm text-muted-foreground">{selectedRequest.merchant?.email}</p>
                   </div>
+
+                  {selectedRequest.message && (
+                    <>
+                      <Separator />
+                      <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-lg p-3">
+                        <Label className="text-muted-foreground text-xs flex items-center gap-1 mb-2">
+                          <MessageSquare className="w-3 h-3" />
+                          Message from Merchant
+                        </Label>
+                        <p className="text-sm whitespace-pre-wrap">{selectedRequest.message}</p>
+                      </div>
+                    </>
+                  )}
 
                   <Separator />
 

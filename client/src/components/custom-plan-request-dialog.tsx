@@ -26,6 +26,7 @@ const customPlanRequestSchema = z.object({
   complianceNeeds: z.string().optional(),
   additionalFeatures: z.array(z.string()).optional(),
   additionalNotes: z.string().optional(),
+  message: z.string().max(500, "Maksimal 500 karakter").optional(),
   budgetRangeMin: z.string().optional(),
   budgetRangeMax: z.string().optional(),
   expectedTimeline: z.string().optional(),
@@ -80,6 +81,7 @@ export function CustomPlanRequestDialog({ trigger, onSuccess, skipAuthCheck = fa
       complianceNeeds: "",
       additionalFeatures: [],
       additionalNotes: "",
+      message: "",
       budgetRangeMin: "",
       budgetRangeMax: "",
       expectedTimeline: "",
@@ -180,6 +182,34 @@ export function CustomPlanRequestDialog({ trigger, onSuccess, skipAuthCheck = fa
         ) : (
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+              control={form.control}
+              name="message"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4" />
+                    Pesan untuk Tim Sales
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Textarea 
+                        placeholder="Jelaskan kebutuhan bisnis Anda, pertanyaan, atau informasi tambahan yang ingin disampaikan ke tim sales kami..."
+                        className="min-h-[100px] resize-none"
+                        maxLength={500}
+                        {...field}
+                        data-testid="textarea-message"
+                      />
+                      <div className="absolute bottom-2 right-2 text-xs text-muted-foreground">
+                        {field.value?.length || 0}/500
+                      </div>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}

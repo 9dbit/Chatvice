@@ -1424,6 +1424,7 @@ export const customPlanRequests = pgTable("custom_plan_requests", {
   complianceNeeds: text("compliance_needs"), // GDPR, security requirements
   additionalFeatures: text("additional_features").array(), // Feature checkboxes
   additionalNotes: text("additional_notes"), // Free text
+  message: text("message"), // Direct message from merchant (max 500 chars)
   budgetRangeMin: integer("budget_range_min"), // Budget in IDR
   budgetRangeMax: integer("budget_range_max"),
   expectedTimeline: text("expected_timeline"), // When they want to start

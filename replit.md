@@ -56,6 +56,12 @@ Chatvice is a monorepo application structured with `/client`, `/server`, and `/s
   - **Database Tables**: `productCrawlSources` (source URLs) and `crawledProducts` (extracted product data)
   - **Auto-Sync Markers**: Product catalog wrapped in `<!-- AUTO-SYNCED PRODUCT CATALOG START/END -->` markers
   - **Use Cases**: Product comparisons, intelligent recommendations, add-to-cart assistance, catalog browsing
+- **Custom Plan Request System**: In-app form for merchants to request custom plans with direct communication to sales team:
+  - **Access**: "Contact Sales" button on Custom plan card in merchant Plans page
+  - **Form Fields**: Desired conversations/agents/supervisors/sources, integration needs, compliance needs, additional features, budget range, timeline
+  - **Message Field**: Text area for direct message to sales team (max 500 characters with character counter)
+  - **Admin Review**: Custom Requests tab in Admin Panel displays all requests with message prominently highlighted in purple box
+  - **Notifications**: Both merchant and admin receive notifications when request is submitted
 
 **Data Model Highlights**:
 Core entities include Merchants, Supervisors, Sessions, Messages, Triggers, Knowledge Base content, Subscription Plans, and Agents. New tables support supervisor roles, shifts, product cards, quick replies, chat buttons, welcome bubbles, notification settings, widget sites, site domains, coin orders, and topup nominals.
