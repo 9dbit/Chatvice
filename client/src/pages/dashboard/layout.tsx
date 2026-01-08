@@ -4,6 +4,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AIHelpBubble } from "@/components/ai-help-bubble";
+import { MerchantNotificationCenter } from "@/components/merchant-notification-center";
 import { ChevronRight, Home, Loader2 } from "lucide-react";
 import DashboardOverview from "./overview";
 import SessionsPage from "./sessions";
@@ -119,7 +120,10 @@ export default function DashboardLayout() {
               <SidebarTrigger data-testid="button-sidebar-toggle" />
               <Breadcrumb location={location} />
             </div>
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              <MerchantNotificationCenter />
+              <ThemeToggle />
+            </div>
           </header>
           <main className="flex-1 overflow-auto p-3 sm:p-6 bg-background">
             <Switch>
