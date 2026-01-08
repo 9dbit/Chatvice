@@ -125,7 +125,7 @@ export default function SecurityPage() {
               If you discover a security vulnerability, please report it responsibly:
             </p>
             <ul>
-              <li>Email: security@chatvice.app</li>
+              <li>Email: hello@chatvice.app</li>
               <li>Please include details of the vulnerability</li>
               <li>Allow us time to address the issue before disclosure</li>
             </ul>

@@ -1372,7 +1372,7 @@ export default function BillingPage() {
                       onClick={() => {
                         const subject = encodeURIComponent("Custom Plan Inquiry");
                         const body = encodeURIComponent("Hi, I'm interested in discussing a custom plan for Chatvice.");
-                        window.location.href = `mailto:sales@chatvice.app?subject=${subject}&body=${body}`;
+                        window.location.href = `mailto:hello@chatvice.app?subject=${subject}&body=${body}`;
                       }}
                       data-testid="button-contact-sales-custom"
                     >

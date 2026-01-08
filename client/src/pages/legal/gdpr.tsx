@@ -109,12 +109,12 @@ export default function GDPRPage() {
               For GDPR-related inquiries, you can contact our Data Protection team at:
             </p>
             <ul>
-              <li>Email: dpo@chatvice.app</li>
+              <li>Email: hello@chatvice.app</li>
             </ul>
 
             <h2>Exercising Your Rights</h2>
             <p>
-              To exercise any of your GDPR rights, please contact us at privacy@chatvice.app. We will respond to your request within 30 days.
+              To exercise any of your GDPR rights, please contact us at hello@chatvice.app. We will respond to your request within 30 days.
             </p>
 
             <h2>Complaints</h2>
