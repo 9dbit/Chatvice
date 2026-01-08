@@ -701,6 +701,19 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // Trust proxy for production (required for secure cookies behind load balancer/reverse proxy)
   app.set("trust proxy", true);
   
+  // Canonical domain redirect: www to non-www (301 permanent redirect)
+  app.use((req, res, next) => {
+    const host = req.headers.host || "";
+    // Only redirect if www subdomain is detected
+    if (host.startsWith("www.")) {
+      const newHost = host.replace(/^www\./, "");
+      const protocol = req.headers["x-forwarded-proto"] || req.protocol || "https";
+      const newUrl = `${protocol}://${newHost}${req.originalUrl}`;
+      return res.redirect(301, newUrl);
+    }
+    next();
+  });
+  
   // Configure session with proper production settings
   const isProduction = process.env.NODE_ENV === "production";
   const sessionConfig: session.SessionOptions = {
