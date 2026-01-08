@@ -56,10 +56,16 @@ Chatvice is a monorepo application structured with `/client`, `/server`, and `/s
   - **Database Tables**: `productCrawlSources` (source URLs) and `crawledProducts` (extracted product data)
   - **Auto-Sync Markers**: Product catalog wrapped in `<!-- AUTO-SYNCED PRODUCT CATALOG START/END -->` markers
   - **Use Cases**: Product comparisons, intelligent recommendations, add-to-cart assistance, catalog browsing
-- **Custom Plan Request System**: In-app form for merchants to request custom plans with direct communication to sales team:
+- **Custom Plan Request System**: Interactive budget simulator for merchants to configure and request custom plans:
   - **Access**: "Contact Sales" button on Custom plan card in merchant Plans page
-  - **Form Fields**: Desired conversations/agents/supervisors/sources, integration needs, compliance needs, additional features, budget range, timeline
-  - **Message Field**: Text area for direct message to sales team (max 500 characters with character counter)
+  - **Budget Simulator UI**: 
+    - Real-time price calculation displayed in purple gradient banner
+    - Interactive sliders for Conversations (5K-200K), AI Agents (1-50), Supervisors (1-50), Knowledge Sources (10-Unlimited)
+    - Premium feature cards with checkboxes and individual pricing (+$20 to +$150)
+    - Features include: Custom Domain, Identity Verification, Priority Queue, Advanced Analytics, SLA Guarantee, Dedicated Support, Custom Integrations, White Label
+  - **Pricing Logic**: Base $5/1K conversations + $15/agent (after 3) + $10/supervisor (after 3) + $2/source (after 20) + premium features
+  - **Message Field**: Optional text area for direct message to sales team (max 500 characters)
+  - **Configuration Summary**: Visual recap of selected resources and premium features
   - **Admin Review**: Custom Requests tab in Admin Panel displays all requests with message prominently highlighted in purple box
   - **Notifications**: Both merchant and admin receive notifications when request is submitted
 

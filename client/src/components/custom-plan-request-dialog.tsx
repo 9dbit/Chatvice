@@ -1,57 +1,31 @@
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useState, useMemo } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, Settings, MessageSquare, Users, Database, Bot, HelpCircle, Send } from "lucide-react";
+import { Loader2, Settings, MessageSquare, Users, Database, Bot, Calculator, Send, Sparkles, Shield, Zap, HeadphonesIcon, Globe, BadgeCheck, BarChart3, Crown } from "lucide-react";
 import type { Merchant } from "@shared/schema";
 
-const customPlanRequestSchema = z.object({
-  desiredConversations: z.string().min(1, "Required"),
-  desiredAgents: z.string().min(1, "Required"),
-  desiredSupervisors: z.string().min(1, "Required"),
-  desiredSources: z.string().min(1, "Required"),
-  desiredSuggestedQuestions: z.string().min(1, "Required"),
-  integrationNeeds: z.string().optional(),
-  complianceNeeds: z.string().optional(),
-  additionalFeatures: z.array(z.string()).optional(),
-  additionalNotes: z.string().optional(),
-  message: z.string().max(500, "Maksimal 500 karakter").optional(),
-  budgetRangeMin: z.string().optional(),
-  budgetRangeMax: z.string().optional(),
-  expectedTimeline: z.string().optional(),
-});
+// Pricing constants (based on enterprise plan scaling)
+const BASE_PRICE_PER_1K_CONVERSATIONS = 5; // $5 per 1000 conversations
+const PRICE_PER_AGENT = 15; // $15 per additional agent
+const PRICE_PER_SUPERVISOR = 10; // $10 per additional supervisor
+const PRICE_PER_SOURCE = 2; // $2 per additional source
 
-type CustomPlanRequestFormData = z.infer<typeof customPlanRequestSchema>;
-
-const featureOptions = [
-  { id: "white_label", label: "White Label Solution" },
-  { id: "custom_integrations", label: "Custom Integrations (CRM, ERP)" },
-  { id: "api_access", label: "Advanced API Access" },
-  { id: "sla_guarantee", label: "SLA Guarantee" },
-  { id: "on_premise", label: "On-Premise Deployment" },
-  { id: "dedicated_support", label: "Dedicated Support Manager" },
-  { id: "custom_domain", label: "Custom Domain" },
-  { id: "identity_verification", label: "Identity Verification" },
-  { id: "priority_queue", label: "Priority Queue" },
-  { id: "advanced_analytics", label: "Advanced Analytics" },
-];
-
-const timelineOptions = [
-  { value: "immediate", label: "Segera (dalam 1 minggu)" },
-  { value: "1_month", label: "Dalam 1 bulan" },
-  { value: "3_months", label: "Dalam 3 bulan" },
-  { value: "exploring", label: "Masih eksplorasi" },
+const premiumFeatures = [
+  { id: "custom_domain", label: "Custom Domain", icon: Globe, price: 20 },
+  { id: "identity_verification", label: "Identity Verification", icon: BadgeCheck, price: 30 },
+  { id: "priority_queue", label: "Priority Queue", icon: Zap, price: 25 },
+  { id: "advanced_analytics", label: "Advanced Analytics", icon: BarChart3, price: 35 },
+  { id: "sla_guarantee", label: "SLA Guarantee", icon: Shield, price: 50 },
+  { id: "dedicated_support", label: "Dedicated Support Manager", icon: HeadphonesIcon, price: 100 },
+  { id: "custom_integrations", label: "Custom Integrations (CRM, ERP)", icon: Settings, price: 75 },
+  { id: "white_label", label: "White Label Solution", icon: Crown, price: 150 },
 ];
 
 interface CustomPlanRequestDialogProps {
@@ -64,41 +38,77 @@ export function CustomPlanRequestDialog({ trigger, onSuccess, skipAuthCheck = fa
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
   
+  // Budget simulator state
+  const [conversations, setConversations] = useState(10000);
+  const [agents, setAgents] = useState(5);
+  const [supervisors, setSupervisors] = useState(5);
+  const [sources, setSources] = useState(20);
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+  const [message, setMessage] = useState("");
+  
   const { data: merchant, isLoading: isMerchantLoading } = useQuery<Merchant>({
     queryKey: ["/api/merchant/me"],
     enabled: !skipAuthCheck,
   });
   
-  const form = useForm<CustomPlanRequestFormData>({
-    resolver: zodResolver(customPlanRequestSchema),
-    defaultValues: {
-      desiredConversations: "10000",
-      desiredAgents: "5",
-      desiredSupervisors: "10",
-      desiredSources: "20",
-      desiredSuggestedQuestions: "10",
-      integrationNeeds: "",
-      complianceNeeds: "",
-      additionalFeatures: [],
-      additionalNotes: "",
-      message: "",
-      budgetRangeMin: "",
-      budgetRangeMax: "",
-      expectedTimeline: "",
-    },
-  });
+  // Calculate estimated price
+  const estimatedPrice = useMemo(() => {
+    let price = 0;
+    
+    // Base price from conversations
+    price += Math.ceil(conversations / 1000) * BASE_PRICE_PER_1K_CONVERSATIONS;
+    
+    // Additional agents (first 3 included at base)
+    if (agents > 3) {
+      price += (agents - 3) * PRICE_PER_AGENT;
+    }
+    
+    // Additional supervisors (first 3 included at base)
+    if (supervisors > 3) {
+      price += (supervisors - 3) * PRICE_PER_SUPERVISOR;
+    }
+    
+    // Additional sources (first 20 included at base)
+    if (sources > 20) {
+      price += (sources - 20) * PRICE_PER_SOURCE;
+    }
+    
+    // Premium features
+    selectedFeatures.forEach(featureId => {
+      const feature = premiumFeatures.find(f => f.id === featureId);
+      if (feature) {
+        price += feature.price;
+      }
+    });
+    
+    // Minimum custom plan price
+    return Math.max(price, 199);
+  }, [conversations, agents, supervisors, sources, selectedFeatures]);
+  
+  const toggleFeature = (featureId: string) => {
+    setSelectedFeatures(prev => 
+      prev.includes(featureId) 
+        ? prev.filter(id => id !== featureId)
+        : [...prev, featureId]
+    );
+  };
   
   const submitMutation = useMutation({
-    mutationFn: async (data: CustomPlanRequestFormData) => {
+    mutationFn: async () => {
       const response = await apiRequest("POST", "/api/custom-plan-requests", {
-        ...data,
-        desiredConversations: parseInt(data.desiredConversations),
-        desiredAgents: parseInt(data.desiredAgents),
-        desiredSupervisors: parseInt(data.desiredSupervisors),
-        desiredSources: parseInt(data.desiredSources),
-        desiredSuggestedQuestions: parseInt(data.desiredSuggestedQuestions),
-        budgetRangeMin: data.budgetRangeMin ? parseInt(data.budgetRangeMin) : undefined,
-        budgetRangeMax: data.budgetRangeMax ? parseInt(data.budgetRangeMax) : undefined,
+        desiredConversations: conversations,
+        desiredAgents: agents,
+        desiredSupervisors: supervisors,
+        desiredSources: sources,
+        desiredSuggestedQuestions: 10,
+        additionalFeatures: selectedFeatures,
+        message: message,
+        budgetRangeMin: estimatedPrice,
+        budgetRangeMax: Math.round(estimatedPrice * 1.5),
+        integrationNeeds: selectedFeatures.includes("custom_integrations") ? "Custom integrations requested" : "",
+        complianceNeeds: selectedFeatures.includes("sla_guarantee") ? "SLA guarantee requested" : "",
+        additionalNotes: "",
+        expectedTimeline: "1_month",
       });
       return response.json();
     },
@@ -110,7 +120,13 @@ export function CustomPlanRequestDialog({ trigger, onSuccess, skipAuthCheck = fa
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-plan-requests"] });
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/notifications"] });
       setOpen(false);
-      form.reset();
+      // Reset form
+      setConversations(10000);
+      setAgents(5);
+      setSupervisors(5);
+      setSources(20);
+      setSelectedFeatures([]);
+      setMessage("");
       onSuccess?.();
     },
     onError: (error: any) => {
@@ -122,8 +138,12 @@ export function CustomPlanRequestDialog({ trigger, onSuccess, skipAuthCheck = fa
     },
   });
   
-  const onSubmit = (data: CustomPlanRequestFormData) => {
-    submitMutation.mutate(data);
+  const handleSubmit = () => {
+    submitMutation.mutate();
+  };
+  
+  const formatNumber = (num: number) => {
+    return num.toLocaleString('id-ID');
   };
   
   if (!merchant && !isMerchantLoading && !skipAuthCheck) {
@@ -167,11 +187,11 @@ export function CustomPlanRequestDialog({ trigger, onSuccess, skipAuthCheck = fa
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Settings className="w-5 h-5 text-purple-600" />
-            Konfigurasi Custom Plan
+            <Calculator className="w-5 h-5 text-purple-600" />
+            Budget Simulator
           </DialogTitle>
           <DialogDescription>
-            Tentukan kebutuhan bisnis Anda dan tim kami akan menyiapkan penawaran khusus.
+            Sesuaikan kebutuhan Anda dan lihat estimasi harga custom plan secara real-time.
           </DialogDescription>
         </DialogHeader>
         
@@ -180,304 +200,232 @@ export function CustomPlanRequestDialog({ trigger, onSuccess, skipAuthCheck = fa
             <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
           </div>
         ) : (
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="message"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4" />
-                    Pesan untuk Tim Sales
-                  </FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Textarea 
-                        placeholder="Jelaskan kebutuhan bisnis Anda, pertanyaan, atau informasi tambahan yang ingin disampaikan ke tim sales kami..."
-                        className="min-h-[100px] resize-none"
-                        maxLength={500}
-                        {...field}
-                        data-testid="textarea-message"
-                      />
-                      <div className="absolute bottom-2 right-2 text-xs text-muted-foreground">
-                        {field.value?.length || 0}/500
-                      </div>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="desiredConversations"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      <MessageSquare className="w-4 h-4" />
-                      Conversations per Bulan
-                    </FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        placeholder="10000" 
-                        {...field}
-                        data-testid="input-desired-conversations"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="desiredAgents"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      <Bot className="w-4 h-4" />
-                      Jumlah AI Agent
-                    </FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        placeholder="5" 
-                        {...field}
-                        data-testid="input-desired-agents"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="desiredSupervisors"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      <Users className="w-4 h-4" />
-                      Jumlah Supervisor
-                    </FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        placeholder="10" 
-                        {...field}
-                        data-testid="input-desired-supervisors"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="desiredSources"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      <Database className="w-4 h-4" />
-                      Knowledge Sources
-                    </FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        placeholder="20" 
-                        {...field}
-                        data-testid="input-desired-sources"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="desiredSuggestedQuestions"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      <HelpCircle className="w-4 h-4" />
-                      Suggested Questions
-                    </FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        placeholder="10" 
-                        {...field}
-                        data-testid="input-desired-questions"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="expectedTimeline"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Kapan Ingin Memulai?</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-timeline">
-                          <SelectValue placeholder="Pilih timeline" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {timelineOptions.map(option => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
-            <div className="space-y-4">
-              <Label>Fitur Tambahan yang Dibutuhkan</Label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {featureOptions.map(feature => (
-                  <FormField
-                    key={feature.id}
-                    control={form.control}
-                    name="additionalFeatures"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center gap-2 space-y-0">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value?.includes(feature.id)}
-                            onCheckedChange={(checked) => {
-                              const current = field.value || [];
-                              if (checked) {
-                                field.onChange([...current, feature.id]);
-                              } else {
-                                field.onChange(current.filter(v => v !== feature.id));
-                              }
-                            }}
-                            data-testid={`checkbox-feature-${feature.id}`}
-                          />
-                        </FormControl>
-                        <FormLabel className="text-sm font-normal cursor-pointer">
-                          {feature.label}
-                        </FormLabel>
-                      </FormItem>
-                    )}
-                  />
-                ))}
+          <div className="space-y-6">
+            {/* Price Display */}
+            <div className="bg-gradient-to-r from-purple-600 to-purple-800 rounded-xl p-6 text-white text-center">
+              <div className="text-sm opacity-80 mb-1">Estimasi Harga Bulanan</div>
+              <div className="text-4xl font-bold" data-testid="text-estimated-price">
+                ${formatNumber(estimatedPrice)}
+                <span className="text-lg font-normal opacity-80">/bulan</span>
+              </div>
+              <div className="text-xs opacity-60 mt-2">
+                *Harga final akan dikonfirmasi oleh tim sales
               </div>
             </div>
             
-            <FormField
-              control={form.control}
-              name="integrationNeeds"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Kebutuhan Integrasi (CRM, API, Webhook)</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Jelaskan integrasi yang dibutuhkan dengan sistem Anda..."
-                      className="min-h-[80px]"
-                      {...field}
-                      data-testid="textarea-integration-needs"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="complianceNeeds"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Kebutuhan Keamanan & Compliance</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="GDPR, ISO, regulasi khusus industri..."
-                      className="min-h-[60px]"
-                      {...field}
-                      data-testid="textarea-compliance-needs"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="budgetRangeMin"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Budget Min (IDR)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        placeholder="1000000"
-                        {...field}
-                        data-testid="input-budget-min"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            {/* Resource Sliders */}
+            <div className="space-y-6 bg-muted/30 rounded-lg p-4">
+              <h3 className="font-semibold flex items-center gap-2 text-sm">
+                <Sparkles className="w-4 h-4 text-purple-600" />
+                Kapasitas Resource
+              </h3>
               
-              <FormField
-                control={form.control}
-                name="budgetRangeMax"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Budget Max (IDR)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        placeholder="5000000"
-                        {...field}
-                        data-testid="input-budget-max"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Conversations */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-purple-600" />
+                    AI Conversations / bulan
+                  </Label>
+                  <span className="font-semibold text-purple-600" data-testid="text-conversations-value">
+                    {formatNumber(conversations)}
+                  </span>
+                </div>
+                <Slider
+                  value={[conversations]}
+                  onValueChange={([val]) => setConversations(val)}
+                  min={5000}
+                  max={200000}
+                  step={5000}
+                  className="cursor-pointer"
+                  data-testid="slider-conversations"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>5,000</span>
+                  <span>200,000</span>
+                </div>
+              </div>
+              
+              {/* AI Agents */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-2">
+                    <Bot className="w-4 h-4 text-purple-600" />
+                    AI Agents
+                  </Label>
+                  <span className="font-semibold text-purple-600" data-testid="text-agents-value">
+                    {agents}
+                  </span>
+                </div>
+                <Slider
+                  value={[agents]}
+                  onValueChange={([val]) => setAgents(val)}
+                  min={1}
+                  max={50}
+                  step={1}
+                  className="cursor-pointer"
+                  data-testid="slider-agents"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>1</span>
+                  <span>50</span>
+                </div>
+              </div>
+              
+              {/* Supervisors */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-purple-600" />
+                    Supervisors
+                  </Label>
+                  <span className="font-semibold text-purple-600" data-testid="text-supervisors-value">
+                    {supervisors}
+                  </span>
+                </div>
+                <Slider
+                  value={[supervisors]}
+                  onValueChange={([val]) => setSupervisors(val)}
+                  min={1}
+                  max={50}
+                  step={1}
+                  className="cursor-pointer"
+                  data-testid="slider-supervisors"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>1</span>
+                  <span>50</span>
+                </div>
+              </div>
+              
+              {/* Knowledge Sources */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-2">
+                    <Database className="w-4 h-4 text-purple-600" />
+                    Knowledge Sources
+                  </Label>
+                  <span className="font-semibold text-purple-600" data-testid="text-sources-value">
+                    {sources === 100 ? "Unlimited" : sources}
+                  </span>
+                </div>
+                <Slider
+                  value={[sources]}
+                  onValueChange={([val]) => setSources(val)}
+                  min={10}
+                  max={100}
+                  step={10}
+                  className="cursor-pointer"
+                  data-testid="slider-sources"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>10</span>
+                  <span>Unlimited</span>
+                </div>
+              </div>
             </div>
             
-            <FormField
-              control={form.control}
-              name="additionalNotes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Catatan Tambahan</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Informasi lain yang perlu kami ketahui..."
-                      className="min-h-[80px]"
-                      {...field}
-                      data-testid="textarea-additional-notes"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Premium Features */}
+            <div className="space-y-4">
+              <h3 className="font-semibold flex items-center gap-2 text-sm">
+                <Crown className="w-4 h-4 text-purple-600" />
+                Fitur Premium
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {premiumFeatures.map(feature => {
+                  const Icon = feature.icon;
+                  const isSelected = selectedFeatures.includes(feature.id);
+                  return (
+                    <div
+                      key={feature.id}
+                      onClick={() => toggleFeature(feature.id)}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                        isSelected 
+                          ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20' 
+                          : 'border-border hover:border-purple-300 hover:bg-muted/50'
+                      }`}
+                      data-testid={`feature-${feature.id}`}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleFeature(feature.id)}
+                        className="pointer-events-none"
+                      />
+                      <Icon className={`w-4 h-4 ${isSelected ? 'text-purple-600' : 'text-muted-foreground'}`} />
+                      <div className="flex-1">
+                        <div className={`text-sm font-medium ${isSelected ? 'text-purple-700 dark:text-purple-300' : ''}`}>
+                          {feature.label}
+                        </div>
+                      </div>
+                      <div className={`text-sm font-semibold ${isSelected ? 'text-purple-600' : 'text-muted-foreground'}`}>
+                        +${feature.price}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
             
+            {/* Message */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <MessageSquare className="w-4 h-4" />
+                Pesan untuk Tim Sales (Opsional)
+              </Label>
+              <div className="relative">
+                <Textarea 
+                  placeholder="Tambahkan catatan atau pertanyaan khusus untuk tim kami..."
+                  className="min-h-[80px] resize-none"
+                  maxLength={500}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  data-testid="textarea-message"
+                />
+                <div className="absolute bottom-2 right-2 text-xs text-muted-foreground">
+                  {message.length}/500
+                </div>
+              </div>
+            </div>
+            
+            {/* Summary */}
+            <div className="bg-muted/50 rounded-lg p-4 space-y-2 text-sm">
+              <div className="font-semibold mb-3">Ringkasan Konfigurasi:</div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Conversations:</span>
+                  <span className="font-medium">{formatNumber(conversations)}/bulan</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">AI Agents:</span>
+                  <span className="font-medium">{agents}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Supervisors:</span>
+                  <span className="font-medium">{supervisors}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Sources:</span>
+                  <span className="font-medium">{sources === 100 ? "Unlimited" : sources}</span>
+                </div>
+              </div>
+              {selectedFeatures.length > 0 && (
+                <div className="pt-2 border-t mt-2">
+                  <span className="text-muted-foreground">Fitur Premium:</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {selectedFeatures.map(id => {
+                      const feature = premiumFeatures.find(f => f.id === id);
+                      return feature ? (
+                        <span key={id} className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded text-xs">
+                          {feature.label}
+                        </span>
+                      ) : null;
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Actions */}
             <div className="flex justify-end gap-3 pt-4 border-t">
               <Button 
                 type="button" 
@@ -488,7 +436,7 @@ export function CustomPlanRequestDialog({ trigger, onSuccess, skipAuthCheck = fa
                 Batal
               </Button>
               <Button 
-                type="submit" 
+                onClick={handleSubmit}
                 disabled={submitMutation.isPending}
                 className="bg-purple-600 hover:bg-purple-700"
                 data-testid="button-submit-request"
@@ -501,8 +449,7 @@ export function CustomPlanRequestDialog({ trigger, onSuccess, skipAuthCheck = fa
                 Kirim Permintaan
               </Button>
             </div>
-          </form>
-        </Form>
+          </div>
         )}
       </DialogContent>
     </Dialog>
