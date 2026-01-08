@@ -56,14 +56,16 @@ const timelineOptions = [
 interface CustomPlanRequestDialogProps {
   trigger?: React.ReactNode;
   onSuccess?: () => void;
+  skipAuthCheck?: boolean;
 }
 
-export function CustomPlanRequestDialog({ trigger, onSuccess }: CustomPlanRequestDialogProps) {
+export function CustomPlanRequestDialog({ trigger, onSuccess, skipAuthCheck = false }: CustomPlanRequestDialogProps) {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
   
-  const { data: merchant } = useQuery<Merchant>({
+  const { data: merchant, isLoading: isMerchantLoading } = useQuery<Merchant>({
     queryKey: ["/api/merchant/me"],
+    enabled: !skipAuthCheck,
   });
   
   const form = useForm<CustomPlanRequestFormData>({
@@ -122,7 +124,7 @@ export function CustomPlanRequestDialog({ trigger, onSuccess }: CustomPlanReques
     submitMutation.mutate(data);
   };
   
-  if (!merchant) {
+  if (!merchant && !isMerchantLoading && !skipAuthCheck) {
     return (
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
@@ -171,6 +173,11 @@ export function CustomPlanRequestDialog({ trigger, onSuccess }: CustomPlanReques
           </DialogDescription>
         </DialogHeader>
         
+        {isMerchantLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
+          </div>
+        ) : (
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -466,6 +473,7 @@ export function CustomPlanRequestDialog({ trigger, onSuccess }: CustomPlanReques
             </div>
           </form>
         </Form>
+        )}
       </DialogContent>
     </Dialog>
   );

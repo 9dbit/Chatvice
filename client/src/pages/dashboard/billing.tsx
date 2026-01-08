@@ -28,6 +28,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { type SubscriptionPlanId } from "@shared/schema";
+import { CustomPlanRequestDialog } from "@/components/custom-plan-request-dialog";
 
 interface ActivePromotion {
   id: string;
@@ -1482,20 +1483,20 @@ export default function BillingPage() {
                 </CardContent>
                 <CardFooter className="pt-2">
                   {isCustom ? (
-                    <Button 
-                      variant="outline" 
-                      className="w-full" 
-                      size="sm" 
-                      onClick={() => {
-                        const subject = encodeURIComponent("Custom Plan Inquiry");
-                        const body = encodeURIComponent("Hi, I'm interested in discussing a custom plan for Chatvice.");
-                        window.location.href = `mailto:hello@chatvice.app?subject=${subject}&body=${body}`;
-                      }}
-                      data-testid="button-contact-sales-custom"
-                    >
-                      Contact Sales
-                      <ArrowUpRight className="w-3 h-3 ml-1" />
-                    </Button>
+                    <CustomPlanRequestDialog
+                      skipAuthCheck={true}
+                      trigger={
+                        <Button 
+                          variant="outline" 
+                          className="w-full" 
+                          size="sm"
+                          data-testid="button-contact-sales-custom"
+                        >
+                          Contact Sales
+                          <ArrowUpRight className="w-3 h-3 ml-1" />
+                        </Button>
+                      }
+                    />
                   ) : isCurrent ? (
                     <Button variant="outline" disabled className="w-full" size="sm" data-testid={`button-current-plan-${plan.id}`}>
                       Current Plan
