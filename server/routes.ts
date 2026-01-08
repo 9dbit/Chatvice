@@ -5540,6 +5540,308 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // ============ Custom Plan Invoices (Admin) ============
+  
+  // Get all custom plan invoices
+  app.get("/api/admin/custom-invoices", requireAdmin, async (req, res) => {
+    try {
+      const invoices = await storage.getCustomPlanInvoices();
+      res.json(invoices);
+    } catch (error) {
+      console.error("Error fetching custom invoices:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Create custom plan invoice and send to merchant
+  app.post("/api/admin/custom-invoices", requireAdmin, async (req, res) => {
+    try {
+      const { 
+        merchantId,
+        description,
+        conversationsLimit,
+        agentsLimit,
+        supervisorsLimit,
+        sourcesLimit,
+        suggestedQuestionsLimit,
+        amount,
+        currency = "IDR",
+        billingInterval = "monthly",
+        dueDate,
+      } = req.body;
+      
+      // Comprehensive validation
+      if (!merchantId) {
+        return res.status(400).json({ error: "Merchant ID is required" });
+      }
+      
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      if (!amount || typeof amount !== "number" || amount <= 0) {
+        return res.status(400).json({ error: "Valid positive amount is required" });
+      }
+      
+      if (!["monthly", "annual"].includes(billingInterval)) {
+        return res.status(400).json({ error: "Billing interval must be 'monthly' or 'annual'" });
+      }
+      
+      // Validate plan limits with sensible defaults (must be >= -1, where -1 means unlimited)
+      const validateLimit = (val: any, defaultVal: number): number => {
+        if (val === undefined || val === null || val === "") {
+          return defaultVal;
+        }
+        const num = parseInt(val);
+        if (isNaN(num) || num < -1) {
+          return defaultVal;
+        }
+        return num;
+      };
+      
+      const validatedConversationsLimit = validateLimit(conversationsLimit, 1000);
+      const validatedAgentsLimit = validateLimit(agentsLimit, 5);
+      const validatedSupervisorsLimit = validateLimit(supervisorsLimit, 10);
+      const validatedSourcesLimit = validateLimit(sourcesLimit, 10);
+      const validatedSuggestedQuestionsLimit = validateLimit(suggestedQuestionsLimit, 10);
+      
+      // Generate invoice number
+      const invoiceNumber = await storage.generateCustomInvoiceNumber();
+      
+      // Create the invoice with validated values
+      const invoice = await storage.createCustomPlanInvoice({
+        merchantId,
+        invoiceNumber,
+        description: description || `Custom Plan - ${billingInterval === "annual" ? "Annual" : "Monthly"}`,
+        conversationsLimit: validatedConversationsLimit,
+        agentsLimit: validatedAgentsLimit,
+        supervisorsLimit: validatedSupervisorsLimit,
+        sourcesLimit: validatedSourcesLimit,
+        suggestedQuestionsLimit: validatedSuggestedQuestionsLimit,
+        amount,
+        currency,
+        billingInterval,
+        status: "pending",
+        dueDate: dueDate ? new Date(dueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days default
+        createdBy: req.session.userId,
+      });
+      
+      // Also update the merchant's custom plan configuration (pending activation)
+      await storage.updateMerchant(merchantId, {
+        customConversationsLimit: validatedConversationsLimit,
+        customAgentsLimit: validatedAgentsLimit,
+        customSupervisorsLimit: validatedSupervisorsLimit,
+        customSourcesLimit: validatedSourcesLimit,
+        customSuggestedQuestionsLimit: validatedSuggestedQuestionsLimit,
+        customMonthlyPrice: billingInterval === "monthly" ? amount : undefined,
+        customAnnualPrice: billingInterval === "annual" ? amount : undefined,
+      });
+      
+      res.json({ 
+        success: true, 
+        invoice,
+        message: `Invoice ${invoiceNumber} created and visible in merchant's billing page` 
+      });
+    } catch (error) {
+      console.error("Error creating custom invoice:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Update custom plan invoice status
+  app.patch("/api/admin/custom-invoices/:invoiceId", requireAdmin, async (req, res) => {
+    try {
+      const { status } = req.body;
+      
+      const invoice = await storage.getCustomPlanInvoice(req.params.invoiceId);
+      if (!invoice) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+      
+      const updated = await storage.updateCustomPlanInvoice(invoice.id, { status });
+      res.json({ success: true, invoice: updated });
+    } catch (error) {
+      console.error("Error updating custom invoice:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Admin confirm invoice payment and activate custom plan
+  app.post("/api/admin/custom-invoices/:invoiceId/confirm", requireAdmin, async (req, res) => {
+    try {
+      const invoice = await storage.getCustomPlanInvoice(req.params.invoiceId);
+      if (!invoice) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+      
+      if (invoice.status !== "pending") {
+        return res.status(400).json({ error: `Invoice is already ${invoice.status}` });
+      }
+      
+      const merchant = await storage.getMerchant(invoice.merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      // Calculate subscription period end date
+      const now = new Date();
+      let periodEnd: Date;
+      if (invoice.billingInterval === "annual") {
+        periodEnd = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+      } else {
+        periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      }
+      
+      // Update invoice status
+      await storage.updateCustomPlanInvoice(invoice.id, {
+        status: "paid",
+        paidAt: now,
+      });
+      
+      // Activate custom plan for merchant
+      await storage.updateMerchant(invoice.merchantId, {
+        subscriptionPlanId: "custom" as any,
+        subscriptionStatus: "active",
+        subscriptionCurrentPeriodEnd: periodEnd,
+        customConversationsLimit: invoice.conversationsLimit,
+        customAgentsLimit: invoice.agentsLimit,
+        customSupervisorsLimit: invoice.supervisorsLimit,
+        customSourcesLimit: invoice.sourcesLimit,
+        customSuggestedQuestionsLimit: invoice.suggestedQuestionsLimit,
+        customMonthlyPrice: invoice.billingInterval === "monthly" ? invoice.amount : undefined,
+        customAnnualPrice: invoice.billingInterval === "annual" ? invoice.amount : undefined,
+      });
+      
+      console.log(`[Invoice Confirmed] ${invoice.invoiceNumber} - Merchant ${merchant.companyName} activated to custom plan`);
+      
+      res.json({ 
+        success: true, 
+        message: `Invoice ${invoice.invoiceNumber} confirmed. Custom plan activated for ${merchant.companyName} until ${periodEnd.toISOString().split('T')[0]}` 
+      });
+    } catch (error) {
+      console.error("Error confirming invoice:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // ============ Merchant Custom Invoices ============
+  
+  // Get merchant's custom plan invoices
+  app.get("/api/merchant/custom-invoices", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      const invoices = await storage.getCustomPlanInvoices(merchantId);
+      res.json(invoices);
+    } catch (error) {
+      console.error("Error fetching merchant invoices:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Get pending invoices for merchant
+  app.get("/api/merchant/custom-invoices/pending", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      const invoices = await storage.getPendingCustomPlanInvoices(merchantId);
+      res.json(invoices);
+    } catch (error) {
+      console.error("Error fetching pending invoices:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Pay custom plan invoice - creates payment and activates plan on success
+  app.post("/api/merchant/custom-invoices/:invoiceId/pay", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      const invoice = await storage.getCustomPlanInvoice(req.params.invoiceId);
+      
+      if (!invoice) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+      
+      if (invoice.merchantId !== merchantId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      
+      if (invoice.status !== "pending") {
+        return res.status(400).json({ error: `Invoice is already ${invoice.status}` });
+      }
+      
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      // Return payment info - merchant will be redirected to checkout
+      res.json({
+        success: true,
+        invoice,
+        paymentInfo: {
+          invoiceId: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          amount: invoice.amount,
+          currency: invoice.currency,
+          description: invoice.description,
+          // Custom plan configuration to be activated after payment
+          planConfig: {
+            conversationsLimit: invoice.conversationsLimit,
+            agentsLimit: invoice.agentsLimit,
+            supervisorsLimit: invoice.supervisorsLimit,
+            sourcesLimit: invoice.sourcesLimit,
+            suggestedQuestionsLimit: invoice.suggestedQuestionsLimit,
+            billingInterval: invoice.billingInterval,
+          }
+        }
+      });
+    } catch (error) {
+      console.error("Error processing invoice payment:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Submit payment confirmation (merchant submits proof, admin must approve)
+  app.post("/api/merchant/custom-invoices/:invoiceId/submit-payment", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      const { transactionId, paymentMethod, notes } = req.body;
+      
+      const invoice = await storage.getCustomPlanInvoice(req.params.invoiceId);
+      
+      if (!invoice) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+      
+      if (invoice.merchantId !== merchantId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      
+      if (invoice.status !== "pending") {
+        return res.status(400).json({ error: `Invoice is already ${invoice.status}` });
+      }
+      
+      // Update invoice to "awaiting_confirmation" (admin needs to confirm)
+      await storage.updateCustomPlanInvoice(invoice.id, {
+        status: "awaiting_confirmation",
+        transactionId: transactionId || null,
+        paymentMethod: paymentMethod || "manual_transfer",
+      });
+      
+      // Log the submission for admin review
+      console.log(`[Invoice Payment Submitted] ${invoice.invoiceNumber} - Merchant ${merchantId} submitted payment proof`);
+      
+      res.json({ 
+        success: true, 
+        message: "Payment submitted. Awaiting admin confirmation.",
+        invoiceNumber: invoice.invoiceNumber,
+      });
+    } catch (error) {
+      console.error("Error submitting invoice payment:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/admin/stats", requireAdmin, async (req, res) => {
     try {
       const merchants = await storage.getAllMerchants();

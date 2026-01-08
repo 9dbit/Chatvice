@@ -23,7 +23,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
-import { Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Lock, Loader2, CheckCircle2, Sparkles, Gift, Building2, ChevronDown, ChevronUp, QrCode, Timer, RefreshCw, Download, XCircle, Tag, Smartphone, Copy, ShieldCheck, FileText, ArrowRight } from "lucide-react";
+import { Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Lock, Loader2, CheckCircle2, Sparkles, Gift, Building2, ChevronDown, ChevronUp, QrCode, Timer, RefreshCw, Download, XCircle, Tag, Smartphone, Copy, ShieldCheck, FileText, ArrowRight, CreditCard } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
@@ -193,6 +193,32 @@ export default function BillingPage() {
     queryKey: ["/api/billing/transactions"],
   });
   
+  // Fetch custom plan invoices
+  interface CustomPlanInvoice {
+    id: string;
+    invoiceNumber: string;
+    description: string;
+    conversationsLimit: number;
+    agentsLimit: number;
+    supervisorsLimit: number;
+    sourcesLimit: number;
+    suggestedQuestionsLimit: number;
+    amount: number;
+    currency: string;
+    billingInterval: string;
+    status: string;
+    createdAt: string;
+    paidAt: string | null;
+    dueDate: string | null;
+  }
+  
+  const { data: customInvoices = [], isLoading: isLoadingInvoices, refetch: refetchInvoices } = useQuery<CustomPlanInvoice[]>({
+    queryKey: ["/api/merchant/custom-invoices"],
+  });
+  
+  const [showCustomInvoices, setShowCustomInvoices] = useState(true);
+  const [selectedInvoice, setSelectedInvoice] = useState<CustomPlanInvoice | null>(null);
+  const [invoicePaymentOpen, setInvoicePaymentOpen] = useState(false);
   const [showBillingHistory, setShowBillingHistory] = useState(false);
   
   const trialDays = (platformSettings as any)?.trial_days ? parseInt((platformSettings as any).trial_days) : 7;
@@ -1146,6 +1172,97 @@ export default function BillingPage() {
           </div>
         )}
 
+        {/* Custom Plan Invoices Section */}
+        {customInvoices.filter(inv => inv.status === 'pending').length > 0 && (
+          <Card className="mb-6 border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/20">
+            <CardHeader className="py-3 px-4">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-purple-600" />
+                <CardTitle className="text-sm text-purple-900 dark:text-purple-100">Invoices Menunggu Pembayaran</CardTitle>
+                <Badge variant="secondary" className="text-[10px] h-4 px-1.5 bg-purple-100 text-purple-700">
+                  {customInvoices.filter(inv => inv.status === 'pending').length}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0 pb-3 px-4">
+              <div className="space-y-3">
+                {isLoadingInvoices ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  </div>
+                ) : (
+                  customInvoices.filter(inv => inv.status === 'pending').map((invoice) => (
+                    <div 
+                      key={invoice.id}
+                      className="p-3 rounded-lg bg-white dark:bg-gray-900 border border-purple-200 dark:border-purple-800"
+                      data-testid={`invoice-${invoice.id}`}
+                    >
+                      <div className="flex items-center justify-between gap-3 mb-2">
+                        <div>
+                          <p className="text-sm font-semibold text-purple-900 dark:text-purple-100">
+                            {invoice.invoiceNumber}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {invoice.description} • {format(new Date(invoice.createdAt), 'dd MMM yyyy')}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-bold text-purple-600">
+                            Rp {invoice.amount.toLocaleString("id-ID")}
+                          </p>
+                          <Badge variant="secondary" className="text-[10px]">
+                            {invoice.billingInterval === "annual" ? "Per Tahun" : "Per Bulan"}
+                          </Badge>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs mb-3 py-2 px-2 bg-muted/30 rounded-md">
+                        <div>
+                          <span className="text-muted-foreground">Percakapan:</span>
+                          <span className="ml-1 font-medium">
+                            {invoice.conversationsLimit === -1 ? '∞' : invoice.conversationsLimit.toLocaleString()}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">AI Agent:</span>
+                          <span className="ml-1 font-medium">
+                            {invoice.agentsLimit === -1 ? '∞' : invoice.agentsLimit}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Supervisor:</span>
+                          <span className="ml-1 font-medium">
+                            {invoice.supervisorsLimit === -1 ? '∞' : invoice.supervisorsLimit}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Sources:</span>
+                          <span className="ml-1 font-medium">
+                            {invoice.sourcesLimit === -1 ? '∞' : invoice.sourcesLimit}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <Button 
+                        size="sm" 
+                        className="w-full bg-purple-600 hover:bg-purple-700"
+                        onClick={() => {
+                          setSelectedInvoice(invoice);
+                          setInvoicePaymentOpen(true);
+                        }}
+                        data-testid={`button-pay-invoice-${invoice.id}`}
+                      >
+                        <CreditCard className="w-4 h-4 mr-2" />
+                        Bayar Sekarang
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Billing History Section */}
         {billingHistory.length > 0 && (
           <Collapsible open={showBillingHistory} onOpenChange={setShowBillingHistory} className="mb-6">
@@ -1862,6 +1979,90 @@ export default function BillingPage() {
               {deleteAccountMutation.isPending ? "Deleting..." : "Delete"}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Invoice Payment Dialog */}
+      <Dialog open={invoicePaymentOpen} onOpenChange={setInvoicePaymentOpen}>
+        <DialogContent className="max-w-md" data-testid="dialog-invoice-payment">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-purple-600" />
+              Bayar Invoice Custom Plan
+            </DialogTitle>
+            <DialogDescription>
+              {selectedInvoice?.invoiceNumber}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedInvoice && (
+            <div className="py-4 space-y-4">
+              <div className="p-4 bg-purple-50/50 dark:bg-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                <div className="text-center mb-3">
+                  <p className="text-2xl font-bold text-purple-600">
+                    Rp {selectedInvoice.amount.toLocaleString("id-ID")}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedInvoice.billingInterval === "annual" ? "Per Tahun" : "Per Bulan"}
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="text-muted-foreground">Percakapan:</div>
+                  <div className="font-medium text-right">
+                    {selectedInvoice.conversationsLimit === -1 ? 'Unlimited' : selectedInvoice.conversationsLimit.toLocaleString()}
+                  </div>
+                  <div className="text-muted-foreground">AI Agent:</div>
+                  <div className="font-medium text-right">
+                    {selectedInvoice.agentsLimit === -1 ? 'Unlimited' : selectedInvoice.agentsLimit}
+                  </div>
+                  <div className="text-muted-foreground">Supervisor:</div>
+                  <div className="font-medium text-right">
+                    {selectedInvoice.supervisorsLimit === -1 ? 'Unlimited' : selectedInvoice.supervisorsLimit}
+                  </div>
+                  <div className="text-muted-foreground">Sources:</div>
+                  <div className="font-medium text-right">
+                    {selectedInvoice.sourcesLimit === -1 ? 'Unlimited' : selectedInvoice.sourcesLimit}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Metode Pembayaran:</p>
+                <p className="text-xs text-muted-foreground">
+                  Silakan hubungi tim kami untuk melakukan pembayaran invoice ini.
+                </p>
+                <div className="p-3 bg-muted/30 rounded-lg text-sm">
+                  <p className="font-medium">Transfer Bank / QRIS</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Email: <span className="font-medium">billing@chatvice.app</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    WhatsApp: <span className="font-medium">+62 812-xxxx-xxxx</span>
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => setInvoicePaymentOpen(false)}
+                >
+                  Tutup
+                </Button>
+                <Button 
+                  className="flex-1 bg-purple-600 hover:bg-purple-700"
+                  onClick={() => {
+                    window.open(`mailto:billing@chatvice.app?subject=Invoice Payment - ${selectedInvoice.invoiceNumber}&body=Saya ingin melakukan pembayaran untuk invoice ${selectedInvoice.invoiceNumber} dengan jumlah Rp ${selectedInvoice.amount.toLocaleString("id-ID")}`, '_blank');
+                  }}
+                  data-testid="button-contact-billing"
+                >
+                  Hubungi Billing
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

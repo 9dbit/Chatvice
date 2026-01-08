@@ -807,6 +807,8 @@ function MerchantsTab({
     customAnnualPrice: 0,
   });
   const [followUpMessage, setFollowUpMessage] = useState("");
+  const [invoiceBillingInterval, setInvoiceBillingInterval] = useState<"monthly" | "annual">("monthly");
+  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   
   const [newMerchant, setNewMerchant] = useState({
     companyName: "",
@@ -878,6 +880,77 @@ function MerchantsTab({
       });
     },
   });
+
+  const sendInvoiceMutation = useMutation({
+    mutationFn: async ({ 
+      merchantId, 
+      config, 
+      billingInterval 
+    }: { 
+      merchantId: string; 
+      config: typeof editCustomConfig;
+      billingInterval: "monthly" | "annual";
+    }) => {
+      const amount = billingInterval === "monthly" ? config.customMonthlyPrice : config.customAnnualPrice;
+      return apiRequest("POST", `/api/admin/custom-invoices`, {
+        merchantId,
+        description: `Custom Plan - ${billingInterval === "annual" ? "Annual" : "Monthly"}`,
+        conversationsLimit: config.customConversationsLimit,
+        agentsLimit: config.customAgentsLimit,
+        supervisorsLimit: config.customSupervisorsLimit,
+        sourcesLimit: config.customSourcesLimit,
+        suggestedQuestionsLimit: config.customSuggestedQuestionsLimit,
+        amount,
+        currency: "IDR",
+        billingInterval,
+      });
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: "Invoice Sent",
+        description: data.message || "Invoice has been created and is now visible in merchant's billing page.",
+      });
+      setInvoiceDialogOpen(false);
+      setEditDialogOpen(false);
+      refetchMerchants();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create invoice.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSendInvoice = () => {
+    if (selectedMerchant && editPlan === 'custom') {
+      const amount = invoiceBillingInterval === "monthly" 
+        ? editCustomConfig.customMonthlyPrice 
+        : editCustomConfig.customAnnualPrice;
+      
+      if (!amount || amount <= 0) {
+        toast({
+          title: "Invalid Price",
+          description: `Please set a valid ${invoiceBillingInterval} price before sending invoice.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setInvoiceDialogOpen(true);
+    }
+  };
+
+  const confirmSendInvoice = () => {
+    if (selectedMerchant) {
+      sendInvoiceMutation.mutate({
+        merchantId: selectedMerchant.id,
+        config: editCustomConfig,
+        billingInterval: invoiceBillingInterval,
+      });
+    }
+  };
 
   const handleEdit = (merchant: MerchantWithPlan) => {
     setSelectedMerchant(merchant);
@@ -1339,7 +1412,7 @@ function MerchantsTab({
                 </div>
                 <div className="grid grid-cols-2 gap-3 pt-2 border-t">
                   <div>
-                    <Label htmlFor="edit-monthly-price">Monthly Price ($)</Label>
+                    <Label htmlFor="edit-monthly-price">Monthly Price (IDR)</Label>
                     <Input
                       id="edit-monthly-price"
                       type="number"
@@ -1354,7 +1427,7 @@ function MerchantsTab({
                     />
                   </div>
                   <div>
-                    <Label htmlFor="edit-annual-price">Annual Price ($)</Label>
+                    <Label htmlFor="edit-annual-price">Annual Price (IDR)</Label>
                     <Input
                       id="edit-annual-price"
                       type="number"
@@ -1369,11 +1442,38 @@ function MerchantsTab({
                     />
                   </div>
                 </div>
+                
+                <div className="pt-3 border-t">
+                  <Label className="mb-2 block">Invoice Billing Interval</Label>
+                  <Select value={invoiceBillingInterval} onValueChange={(v) => setInvoiceBillingInterval(v as "monthly" | "annual")}>
+                    <SelectTrigger data-testid="select-invoice-billing-interval">
+                      <SelectValue placeholder="Select billing interval" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                      <SelectItem value="annual">Annual</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Invoice amount: Rp {(invoiceBillingInterval === "monthly" ? editCustomConfig.customMonthlyPrice : editCustomConfig.customAnnualPrice).toLocaleString("id-ID")}
+                  </p>
+                </div>
               </div>
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setEditDialogOpen(false)} data-testid="button-cancel-edit-merchant">Cancel</Button>
+            {editPlan === 'custom' && (
+              <Button 
+                variant="secondary" 
+                onClick={handleSendInvoice} 
+                disabled={sendInvoiceMutation.isPending}
+                data-testid="button-send-invoice"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                {sendInvoiceMutation.isPending ? "Sending..." : "Send Invoice to Merchant"}
+              </Button>
+            )}
             <Button onClick={confirmEdit} disabled={updatePlanMutation.isPending} data-testid="button-confirm-edit-merchant">
               {updatePlanMutation.isPending ? "Saving..." : "Save Changes"}
             </Button>
@@ -1393,6 +1493,51 @@ function MerchantsTab({
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} data-testid="button-cancel-delete-merchant">Cancel</Button>
             <Button variant="destructive" onClick={confirmDelete} disabled={deleteMerchantMutation.isPending} data-testid="button-confirm-delete-merchant">
               {deleteMerchantMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={invoiceDialogOpen} onOpenChange={setInvoiceDialogOpen}>
+        <DialogContent data-testid="dialog-send-invoice">
+          <DialogHeader>
+            <DialogTitle>Send Custom Plan Invoice</DialogTitle>
+            <DialogDescription>
+              Send invoice to {selectedMerchant?.companyName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3">
+            <div className="p-4 bg-muted/50 rounded-lg border space-y-2">
+              <h4 className="font-medium text-sm">Invoice Details</h4>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <span className="text-muted-foreground">Billing:</span>
+                <span className="font-medium">{invoiceBillingInterval === "annual" ? "Annual" : "Monthly"}</span>
+                <span className="text-muted-foreground">Amount:</span>
+                <span className="font-medium text-purple-600">
+                  Rp {(invoiceBillingInterval === "monthly" ? editCustomConfig.customMonthlyPrice : editCustomConfig.customAnnualPrice).toLocaleString("id-ID")}
+                </span>
+              </div>
+              <Separator className="my-2" />
+              <h4 className="font-medium text-sm">Plan Configuration</h4>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <span className="text-muted-foreground">Conversations:</span>
+                <span>{editCustomConfig.customConversationsLimit === -1 ? "Unlimited" : editCustomConfig.customConversationsLimit}</span>
+                <span className="text-muted-foreground">AI Agents:</span>
+                <span>{editCustomConfig.customAgentsLimit === -1 ? "Unlimited" : editCustomConfig.customAgentsLimit}</span>
+                <span className="text-muted-foreground">Supervisors:</span>
+                <span>{editCustomConfig.customSupervisorsLimit === -1 ? "Unlimited" : editCustomConfig.customSupervisorsLimit}</span>
+                <span className="text-muted-foreground">Sources:</span>
+                <span>{editCustomConfig.customSourcesLimit === -1 ? "Unlimited" : editCustomConfig.customSourcesLimit}</span>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              The invoice will appear in the merchant's billing page. Once paid, the custom plan will be activated automatically.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInvoiceDialogOpen(false)} data-testid="button-cancel-send-invoice">Cancel</Button>
+            <Button onClick={confirmSendInvoice} disabled={sendInvoiceMutation.isPending} data-testid="button-confirm-send-invoice">
+              {sendInvoiceMutation.isPending ? "Sending..." : "Send Invoice"}
             </Button>
           </DialogFooter>
         </DialogContent>

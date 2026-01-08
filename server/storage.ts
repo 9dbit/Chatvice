@@ -48,12 +48,13 @@ import {
   type KnowledgebaseTemplate, type InsertKnowledgebaseTemplate,
   type ProductCrawlSource, type InsertProductCrawlSource,
   type CrawledProduct, type InsertCrawledProduct,
+  type CustomPlanInvoice, type InsertCustomPlanInvoice,
   merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings, storedFiles,
   workShifts, shiftAssignments, workReports, quickReplies, chatButtons, productCards, productCardButtons, welcomeBubbles, notificationSettings, productRecommendationSettings, productTriggers, supervisorInvitations,
   emailVerificationTokens, passwordResetTokens, promotions, promotionUsage,
   widgetSites, siteDomains, coinOrders, topupNominals, merchantDomains, paymentGateways,
   paymentTransactions, adminNotifications, chatSecuritySettings, chatSecurityAlerts,
-  knowledgebaseArticles, knowledgebaseTemplates, productCrawlSources, crawledProducts,
+  knowledgebaseArticles, knowledgebaseTemplates, productCrawlSources, crawledProducts, customPlanInvoices,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -367,6 +368,15 @@ export interface IStorage {
   createKnowledgebaseTemplate(data: InsertKnowledgebaseTemplate): Promise<KnowledgebaseTemplate>;
   updateKnowledgebaseTemplate(id: string, data: Partial<KnowledgebaseTemplate>): Promise<KnowledgebaseTemplate | undefined>;
   deleteKnowledgebaseTemplate(id: string): Promise<boolean>;
+  
+  // Custom Plan Invoices
+  getCustomPlanInvoices(merchantId?: string): Promise<CustomPlanInvoice[]>;
+  getCustomPlanInvoice(id: string): Promise<CustomPlanInvoice | undefined>;
+  getCustomPlanInvoiceByNumber(invoiceNumber: string): Promise<CustomPlanInvoice | undefined>;
+  getPendingCustomPlanInvoices(merchantId: string): Promise<CustomPlanInvoice[]>;
+  createCustomPlanInvoice(data: InsertCustomPlanInvoice): Promise<CustomPlanInvoice>;
+  updateCustomPlanInvoice(id: string, data: Partial<CustomPlanInvoice>): Promise<CustomPlanInvoice | undefined>;
+  generateCustomInvoiceNumber(): Promise<string>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -2444,6 +2454,70 @@ export class DatabaseStorage implements IStorage {
     const result = await db.delete(knowledgebaseTemplates)
       .where(eq(knowledgebaseTemplates.id, id));
     return (result.rowCount ?? 0) > 0;
+  }
+  
+  // Custom Plan Invoices
+  async getCustomPlanInvoices(merchantId?: string): Promise<CustomPlanInvoice[]> {
+    if (merchantId) {
+      return db.select().from(customPlanInvoices)
+        .where(eq(customPlanInvoices.merchantId, merchantId))
+        .orderBy(desc(customPlanInvoices.createdAt));
+    }
+    return db.select().from(customPlanInvoices)
+      .orderBy(desc(customPlanInvoices.createdAt));
+  }
+  
+  async getCustomPlanInvoice(id: string): Promise<CustomPlanInvoice | undefined> {
+    const result = await db.select().from(customPlanInvoices)
+      .where(eq(customPlanInvoices.id, id));
+    return result[0];
+  }
+  
+  async getCustomPlanInvoiceByNumber(invoiceNumber: string): Promise<CustomPlanInvoice | undefined> {
+    const result = await db.select().from(customPlanInvoices)
+      .where(eq(customPlanInvoices.invoiceNumber, invoiceNumber));
+    return result[0];
+  }
+  
+  async getPendingCustomPlanInvoices(merchantId: string): Promise<CustomPlanInvoice[]> {
+    return db.select().from(customPlanInvoices)
+      .where(and(
+        eq(customPlanInvoices.merchantId, merchantId),
+        eq(customPlanInvoices.status, "pending")
+      ))
+      .orderBy(desc(customPlanInvoices.createdAt));
+  }
+  
+  async createCustomPlanInvoice(data: InsertCustomPlanInvoice): Promise<CustomPlanInvoice> {
+    const id = generateId("cpi_");
+    const result = await db.insert(customPlanInvoices).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+  
+  async updateCustomPlanInvoice(id: string, data: Partial<CustomPlanInvoice>): Promise<CustomPlanInvoice | undefined> {
+    const result = await db.update(customPlanInvoices)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(customPlanInvoices.id, id))
+      .returning();
+    return result[0];
+  }
+  
+  async generateCustomInvoiceNumber(): Promise<string> {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const prefix = `CPI-${year}${month}`;
+    
+    const result = await db.select({ count: count() }).from(customPlanInvoices)
+      .where(sql`${customPlanInvoices.invoiceNumber} LIKE ${prefix + "%"}`);
+    
+    const nextNum = (result[0]?.count || 0) + 1;
+    return `${prefix}-${String(nextNum).padStart(4, "0")}`;
   }
 }
 

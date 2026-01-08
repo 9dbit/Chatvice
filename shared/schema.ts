@@ -1365,3 +1365,38 @@ export const knowledgebaseTemplates = pgTable("knowledgebase_templates", {
 export const insertKnowledgebaseTemplateSchema = createInsertSchema(knowledgebaseTemplates).omit({ id: true, createdAt: true });
 export type InsertKnowledgebaseTemplate = z.infer<typeof insertKnowledgebaseTemplateSchema>;
 export type KnowledgebaseTemplate = typeof knowledgebaseTemplates.$inferSelect;
+
+// ============ Custom Plan Invoices ============
+
+export const customPlanInvoices = pgTable("custom_plan_invoices", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  // Invoice details
+  invoiceNumber: text("invoice_number").notNull().unique(),
+  description: text("description"),
+  // Custom plan configuration snapshot
+  conversationsLimit: integer("conversations_limit").notNull(),
+  agentsLimit: integer("agents_limit").notNull(),
+  supervisorsLimit: integer("supervisors_limit").notNull(),
+  sourcesLimit: integer("sources_limit").notNull(),
+  suggestedQuestionsLimit: integer("suggested_questions_limit").notNull(),
+  // Pricing
+  amount: integer("amount").notNull(), // in smallest currency unit
+  currency: text("currency").default("IDR"),
+  billingInterval: text("billing_interval").default("monthly"), // monthly or annual
+  // Payment info
+  paymentMethod: text("payment_method"), // kompaspay, paypal, crypto, bank_transfer
+  transactionId: text("transaction_id"),
+  // Status
+  status: text("status").default("pending"), // pending, paid, cancelled, expired
+  // Timestamps
+  dueDate: timestamp("due_date"),
+  paidAt: timestamp("paid_at"),
+  createdBy: varchar("created_by", { length: 32 }), // admin who created it
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertCustomPlanInvoiceSchema = createInsertSchema(customPlanInvoices).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertCustomPlanInvoice = z.infer<typeof insertCustomPlanInvoiceSchema>;
+export type CustomPlanInvoice = typeof customPlanInvoices.$inferSelect;
