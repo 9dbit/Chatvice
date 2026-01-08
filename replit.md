@@ -67,8 +67,8 @@ Core entities include Merchants, Supervisors, Sessions, Messages, Triggers, Know
 **Interactive AI Responses**: AI responses can include interactive buttons (`[BTN:Label:action text]`) and clickable links (`[LINK:Display Text:/path]`) which are parsed and rendered in both Chatvice Guide and the merchant embedded widget.
 
 ## Test Credentials
-- **Merchant Login**: internal@marketplayid.com
-- **Master Admin**: master@chatvice.app
+- **Merchant Login**: internal@marketplayid.com / #Marketadmin1
+- **Master Admin**: master@chatvice.app / chatvice2024
 
 ## External Dependencies
 -   **AI Services**: OpenAI API (GPT-4.1-mini, text-embedding-3-small).

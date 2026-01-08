@@ -387,3 +387,349 @@ export async function sendAdminPaymentNotificationEmail(data: AdminPaymentNotifi
     return false;
   }
 }
+
+interface InvoiceSentData {
+  merchantEmail: string;
+  merchantName: string;
+  invoiceNumber: string;
+  planName: string;
+  amount: number;
+  currency: string;
+  billingInterval: string;
+  dueDate: Date;
+  conversationsLimit: number;
+  agentsLimit: number;
+  supervisorsLimit: number;
+}
+
+export async function sendInvoiceEmail(data: InvoiceSentData): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getUncachableResendClient();
+    
+    const formatCurrency = (amount: number, currency: string) => {
+      if (currency === "IDR") {
+        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+      }
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(amount);
+    };
+    
+    const formatDate = (date: Date) => {
+      return new Intl.DateTimeFormat('id-ID', { 
+        year: 'numeric', month: 'long', day: 'numeric'
+      }).format(new Date(date));
+    };
+    
+    const baseUrl = process.env.REPLIT_DEPLOYMENT_ID 
+      ? 'https://chatvice.app'
+      : process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+        : 'http://localhost:5000';
+    const billingUrl = `${baseUrl}/dashboard/billing`;
+    
+    console.log('Sending invoice email:', { to: data.merchantEmail, invoice: data.invoiceNumber });
+    
+    const { error } = await client.emails.send({
+      from: fromEmail,
+      to: data.merchantEmail,
+      subject: `Invoice ${data.invoiceNumber} - Custom Plan | Chatvice`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f5;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+            <div style="background-color: #18181b; border-radius: 12px; padding: 40px;">
+              <div style="text-align: center; margin-bottom: 32px;">
+                <h1 style="color: #ffffff; margin: 0 0 8px 0; font-size: 24px;">Custom Plan Invoice</h1>
+                <p style="color: #a1a1aa; margin: 0; font-size: 16px;">Your custom plan invoice is ready</p>
+              </div>
+              
+              <p style="color: #a1a1aa; margin: 0 0 24px 0; font-size: 16px; line-height: 1.5;">
+                Hi ${data.merchantName},<br><br>
+                We've prepared a custom plan invoice based on your requirements. Please review the details below and complete the payment to activate your plan.
+              </p>
+              
+              <div style="background-color: #27272a; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Invoice Number</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right; font-weight: 600;">${data.invoiceNumber}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Plan</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${data.planName}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Billing</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${data.billingInterval === 'annual' ? 'Annual' : 'Monthly'}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Conversations</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${data.conversationsLimit === -1 ? 'Unlimited' : data.conversationsLimit.toLocaleString()}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">AI Agents</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${data.agentsLimit === -1 ? 'Unlimited' : data.agentsLimit}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Supervisors</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${data.supervisorsLimit === -1 ? 'Unlimited' : data.supervisorsLimit}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Due Date</td>
+                    <td style="color: #f59e0b; padding: 8px 0; font-size: 14px; text-align: right; font-weight: 600;">${formatDate(data.dueDate)}</td>
+                  </tr>
+                </table>
+              </div>
+              
+              <div style="background-color: #6b5dfc; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 24px;">
+                <p style="color: #ffffff; margin: 0 0 4px 0; font-size: 14px;">Total Amount</p>
+                <p style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700;">${formatCurrency(data.amount, data.currency)}</p>
+              </div>
+              
+              <div style="text-align: center;">
+                <a href="${billingUrl}" style="display: inline-block; background-color: #22c55e; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                  Pay Invoice Now
+                </a>
+              </div>
+              
+              <p style="color: #71717a; margin: 24px 0 0 0; font-size: 14px; text-align: center; line-height: 1.5;">
+                Log in to your Chatvice dashboard to complete the payment.<br>
+                If you have any questions, please contact our support team.
+              </p>
+            </div>
+            <p style="text-align: center; color: #71717a; margin: 24px 0 0 0; font-size: 12px;">
+              &copy; ${new Date().getFullYear()} Chatvice. All rights reserved.
+            </p>
+          </div>
+        </body>
+        </html>
+      `
+    });
+
+    if (error) {
+      console.error('Resend invoice email error:', error);
+      return false;
+    }
+    console.log('Invoice email sent successfully to:', data.merchantEmail);
+    return true;
+  } catch (error) {
+    console.error('Failed to send invoice email:', error);
+    return false;
+  }
+}
+
+interface SubscriptionActivatedData {
+  merchantEmail: string;
+  merchantName: string;
+  planName: string;
+  billingInterval: string;
+  expiresAt: Date;
+  conversationsLimit: number;
+  agentsLimit: number;
+  supervisorsLimit: number;
+}
+
+export async function sendSubscriptionActivatedEmail(data: SubscriptionActivatedData): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getUncachableResendClient();
+    
+    const formatDate = (date: Date) => {
+      return new Intl.DateTimeFormat('id-ID', { 
+        year: 'numeric', month: 'long', day: 'numeric'
+      }).format(new Date(date));
+    };
+    
+    const baseUrl = process.env.REPLIT_DEPLOYMENT_ID 
+      ? 'https://chatvice.app'
+      : process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+        : 'http://localhost:5000';
+    const dashboardUrl = `${baseUrl}/dashboard`;
+    
+    console.log('Sending subscription activated email:', { to: data.merchantEmail, plan: data.planName });
+    
+    const { error } = await client.emails.send({
+      from: fromEmail,
+      to: data.merchantEmail,
+      subject: `Subscription Activated - ${data.planName} | Chatvice`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f5;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+            <div style="background-color: #18181b; border-radius: 12px; padding: 40px;">
+              <div style="text-align: center; margin-bottom: 32px;">
+                <div style="width: 64px; height: 64px; background-color: #22c55e; border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;">
+                  <span style="font-size: 32px;">&#10003;</span>
+                </div>
+                <h1 style="color: #22c55e; margin: 0 0 8px 0; font-size: 24px;">Subscription Activated!</h1>
+                <p style="color: #a1a1aa; margin: 0; font-size: 16px;">Your ${data.planName} plan is now active</p>
+              </div>
+              
+              <p style="color: #a1a1aa; margin: 0 0 24px 0; font-size: 16px; line-height: 1.5;">
+                Hi ${data.merchantName},<br><br>
+                Great news! Your subscription has been successfully activated. Here are your plan details:
+              </p>
+              
+              <div style="background-color: #27272a; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Plan</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right; font-weight: 600;">${data.planName}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Billing Cycle</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${data.billingInterval === 'annual' ? 'Annual' : 'Monthly'}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Conversations</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${data.conversationsLimit === -1 ? 'Unlimited' : data.conversationsLimit.toLocaleString()}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">AI Agents</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${data.agentsLimit === -1 ? 'Unlimited' : data.agentsLimit}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Supervisors</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${data.supervisorsLimit === -1 ? 'Unlimited' : data.supervisorsLimit}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Valid Until</td>
+                    <td style="color: #22c55e; padding: 8px 0; font-size: 14px; text-align: right; font-weight: 600;">${formatDate(data.expiresAt)}</td>
+                  </tr>
+                </table>
+              </div>
+              
+              <div style="text-align: center;">
+                <a href="${dashboardUrl}" style="display: inline-block; background-color: #6b5dfc; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                  Go to Dashboard
+                </a>
+              </div>
+              
+              <p style="color: #71717a; margin: 24px 0 0 0; font-size: 14px; text-align: center; line-height: 1.5;">
+                Thank you for choosing Chatvice!<br>
+                Start automating your customer support today.
+              </p>
+            </div>
+            <p style="text-align: center; color: #71717a; margin: 24px 0 0 0; font-size: 12px;">
+              &copy; ${new Date().getFullYear()} Chatvice. All rights reserved.
+            </p>
+          </div>
+        </body>
+        </html>
+      `
+    });
+
+    if (error) {
+      console.error('Resend subscription activated email error:', error);
+      return false;
+    }
+    console.log('Subscription activated email sent successfully to:', data.merchantEmail);
+    return true;
+  } catch (error) {
+    console.error('Failed to send subscription activated email:', error);
+    return false;
+  }
+}
+
+interface SubscriptionExpiringData {
+  merchantEmail: string;
+  merchantName: string;
+  planName: string;
+  expiresAt: Date;
+  daysRemaining: number;
+}
+
+export async function sendSubscriptionExpiringEmail(data: SubscriptionExpiringData): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getUncachableResendClient();
+    
+    const formatDate = (date: Date) => {
+      return new Intl.DateTimeFormat('id-ID', { 
+        year: 'numeric', month: 'long', day: 'numeric'
+      }).format(new Date(date));
+    };
+    
+    const baseUrl = process.env.REPLIT_DEPLOYMENT_ID 
+      ? 'https://chatvice.app'
+      : process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+        : 'http://localhost:5000';
+    const billingUrl = `${baseUrl}/dashboard/billing`;
+    
+    console.log('Sending subscription expiring email:', { to: data.merchantEmail, daysRemaining: data.daysRemaining });
+    
+    const urgencyColor = data.daysRemaining <= 3 ? '#ef4444' : '#f59e0b';
+    
+    const { error } = await client.emails.send({
+      from: fromEmail,
+      to: data.merchantEmail,
+      subject: `Subscription Expiring in ${data.daysRemaining} Days | Chatvice`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f5;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+            <div style="background-color: #18181b; border-radius: 12px; padding: 40px;">
+              <div style="text-align: center; margin-bottom: 32px;">
+                <div style="width: 64px; height: 64px; background-color: ${urgencyColor}; border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;">
+                  <span style="font-size: 32px; color: #ffffff;">&#9888;</span>
+                </div>
+                <h1 style="color: ${urgencyColor}; margin: 0 0 8px 0; font-size: 24px;">Subscription Expiring Soon</h1>
+                <p style="color: #a1a1aa; margin: 0; font-size: 16px;">Only ${data.daysRemaining} day${data.daysRemaining > 1 ? 's' : ''} remaining</p>
+              </div>
+              
+              <p style="color: #a1a1aa; margin: 0 0 24px 0; font-size: 16px; line-height: 1.5;">
+                Hi ${data.merchantName},<br><br>
+                Your ${data.planName} subscription will expire on <strong style="color: #ffffff;">${formatDate(data.expiresAt)}</strong>. 
+                Renew now to keep your AI chatbot running and avoid service interruption.
+              </p>
+              
+              <div style="background-color: #27272a; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 24px;">
+                <p style="color: ${urgencyColor}; margin: 0; font-size: 14px; font-weight: 600;">
+                  Your chatbot will stop responding to customers after expiration
+                </p>
+              </div>
+              
+              <div style="text-align: center;">
+                <a href="${billingUrl}" style="display: inline-block; background-color: #22c55e; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                  Renew Subscription
+                </a>
+              </div>
+              
+              <p style="color: #71717a; margin: 24px 0 0 0; font-size: 14px; text-align: center; line-height: 1.5;">
+                If you have any questions, please contact our support team.
+              </p>
+            </div>
+            <p style="text-align: center; color: #71717a; margin: 24px 0 0 0; font-size: 12px;">
+              &copy; ${new Date().getFullYear()} Chatvice. All rights reserved.
+            </p>
+          </div>
+        </body>
+        </html>
+      `
+    });
+
+    if (error) {
+      console.error('Resend subscription expiring email error:', error);
+      return false;
+    }
+    console.log('Subscription expiring email sent successfully to:', data.merchantEmail);
+    return true;
+  } catch (error) {
+    console.error('Failed to send subscription expiring email:', error);
+    return false;
+  }
+}

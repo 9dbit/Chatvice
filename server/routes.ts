@@ -248,6 +248,59 @@ async function checkTriggers(merchantId: string, text: string): Promise<{ trigge
   return { triggered: false };
 }
 
+// Check if merchant subscription is expiring soon and send notification/email
+async function checkExpiringSubscription(merchant: any) {
+  if (!merchant.subscriptionCurrentPeriodEnd || merchant.subscriptionStatus !== "active") {
+    return; // No active subscription to check
+  }
+  
+  const now = new Date();
+  const expiresAt = new Date(merchant.subscriptionCurrentPeriodEnd);
+  const daysRemaining = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  
+  // Only notify if expiring within 7 days
+  if (daysRemaining > 7 || daysRemaining < 0) {
+    return;
+  }
+  
+  // Check if we already sent a notification for this expiring period (within last 24 hours)
+  const notifications = await storage.getMerchantNotifications(merchant.id, 10);
+  const recentExpiryNotification = notifications.find((n: any) => 
+    n.type === "subscription_expiring" && 
+    new Date(n.createdAt).getTime() > now.getTime() - 24 * 60 * 60 * 1000
+  );
+  
+  if (recentExpiryNotification) {
+    return; // Already notified within 24 hours
+  }
+  
+  // Get plan name
+  const planName = merchant.subscriptionPlanId === "custom" ? "Custom Plan" : 
+    merchant.subscriptionPlanId?.replace("_", " ").replace(/\b\w/g, (c: string) => c.toUpperCase()) || "Plan";
+  
+  // Create notification
+  await storage.createMerchantNotification({
+    merchantId: merchant.id,
+    type: "subscription_expiring",
+    title: `Langganan Segera Berakhir`,
+    message: `Langganan ${planName} Anda akan berakhir dalam ${daysRemaining} hari. Perpanjang sekarang untuk menghindari gangguan layanan.`,
+    data: { planName, expiresAt: expiresAt.toISOString(), daysRemaining, status: "expiring" },
+    isRead: false,
+  });
+  
+  // Send email notification (non-blocking)
+  const { sendSubscriptionExpiringEmail } = await import("./resendClient");
+  sendSubscriptionExpiringEmail({
+    merchantEmail: merchant.email,
+    merchantName: merchant.companyName || merchant.email.split("@")[0],
+    planName,
+    expiresAt,
+    daysRemaining,
+  }).catch(err => console.error("Failed to send subscription expiring email:", err));
+  
+  console.log(`[Subscription Expiring] Notification sent to ${merchant.email} - ${daysRemaining} days remaining`);
+}
+
 async function notifySupervisors(merchantId: string, sessionId: string) {
   const supervisors = await storage.getSupervisorsByMerchant(merchantId);
   for (const supervisor of supervisors) {
@@ -1043,6 +1096,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         req.session.userId = merchant.id;
         req.session.userType = "merchant";
         req.session.merchantId = merchant.id;
+        
+        // Check for expiring subscription and send notification if needed (non-blocking)
+        checkExpiringSubscription(merchant).catch(err => console.error("Failed to check expiring subscription:", err));
+        
         return res.json({ success: true, merchantId: merchant.id, type: "merchant" });
       }
 
@@ -5638,6 +5695,32 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         customAnnualPrice: billingInterval === "annual" ? amount : undefined,
       });
       
+      // Create notification for merchant
+      await storage.createMerchantNotification({
+        merchantId,
+        type: "invoice",
+        title: "Invoice Custom Plan Tersedia",
+        message: `Invoice ${invoiceNumber} telah dibuat. Silakan bayar untuk mengaktifkan custom plan Anda.`,
+        data: { invoiceId: invoice.id, invoiceNumber, amount, currency, billingInterval, status: "pending" },
+        isRead: false,
+      });
+      
+      // Send email notification to merchant
+      const { sendInvoiceEmail } = await import("./resendClient");
+      sendInvoiceEmail({
+        merchantEmail: merchant.email,
+        merchantName: merchant.companyName || merchant.email.split("@")[0],
+        invoiceNumber,
+        planName: description || "Custom Plan",
+        amount,
+        currency,
+        billingInterval,
+        dueDate: invoice.dueDate ? new Date(invoice.dueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        conversationsLimit: validatedConversationsLimit,
+        agentsLimit: validatedAgentsLimit,
+        supervisorsLimit: validatedSupervisorsLimit,
+      }).catch(err => console.error("Failed to send invoice email:", err));
+      
       res.json({ 
         success: true, 
         invoice,
@@ -5714,6 +5797,29 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       });
       
       console.log(`[Invoice Confirmed] ${invoice.invoiceNumber} - Merchant ${merchant.companyName} activated to custom plan`);
+      
+      // Create notification for merchant - subscription activated
+      await storage.createMerchantNotification({
+        merchantId: invoice.merchantId,
+        type: "subscription",
+        title: "Custom Plan Telah Aktif",
+        message: `Selamat! Custom plan Anda telah aktif hingga ${periodEnd.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}.`,
+        data: { planName: "Custom Plan", billingInterval: invoice.billingInterval, expiresAt: periodEnd.toISOString(), status: "active" },
+        isRead: false,
+      });
+      
+      // Send email notification for subscription activation
+      const { sendSubscriptionActivatedEmail } = await import("./resendClient");
+      sendSubscriptionActivatedEmail({
+        merchantEmail: merchant.email,
+        merchantName: merchant.companyName || merchant.email.split("@")[0],
+        planName: "Custom Plan",
+        billingInterval: invoice.billingInterval || "monthly",
+        expiresAt: periodEnd,
+        conversationsLimit: invoice.conversationsLimit || 1000,
+        agentsLimit: invoice.agentsLimit || 5,
+        supervisorsLimit: invoice.supervisorsLimit || 10,
+      }).catch(err => console.error("Failed to send subscription activated email:", err));
       
       res.json({ 
         success: true, 
