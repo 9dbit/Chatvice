@@ -91,7 +91,10 @@ export default function AboutPage() {
   useParallaxScroll();
   
   return (
-    <PublicPageLayout>
+    <PublicPageLayout
+      title="About Us - Our Mission & Team | Chatvice"
+      description="Learn about Chatvice, the AI customer service platform built in Indonesia. Meet our team and discover our mission to transform customer support with AI."
+    >
       <section className="bg-purple-600 text-white py-20">
         <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
           <Badge className="bg-white/20 text-white mb-4">

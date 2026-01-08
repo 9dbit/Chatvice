@@ -62,7 +62,10 @@ export default function ContactPage() {
   ];
 
   return (
-    <PublicPageLayout>
+    <PublicPageLayout
+      title="Contact Us - Get in Touch | Chatvice"
+      description="Have questions about Chatvice? Contact our team via email, live chat, or phone. We respond within 24 hours on business days."
+    >
       <section className="bg-purple-600 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <Badge className="bg-white/20 text-white mb-4">

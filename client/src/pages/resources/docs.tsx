@@ -36,7 +36,10 @@ export default function DocsPage() {
   ];
 
   return (
-    <PublicPageLayout>
+    <PublicPageLayout
+      title="Documentation - Developer Guides & API Reference | Chatvice"
+      description="Comprehensive documentation for Chatvice. Learn how to integrate, customize, and scale your AI customer service with our guides and API reference."
+    >
       <section className="bg-purple-600 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <Badge className="bg-white/20 text-white mb-4">

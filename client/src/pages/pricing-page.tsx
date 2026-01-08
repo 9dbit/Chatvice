@@ -215,7 +215,10 @@ export default function PricingPage() {
   ];
 
   return (
-    <PublicPageLayout>
+    <PublicPageLayout
+      title="Pricing - Plans & Pricing | Chatvice"
+      description="Choose the perfect Chatvice plan for your business. Start free with our 14-day trial. Flexible monthly and annual pricing for startups to enterprises."
+    >
       {/* Promotional Banner - Desktop: 1200x300px (4:1), Mobile: 426x182px */}
       {applicablePromo && (() => {
         const bannerMode = applicablePromo.bannerMode || "color";

@@ -148,7 +148,10 @@ export default function FeaturesPage() {
   useParallaxScroll();
   
   return (
-    <PublicPageLayout>
+    <PublicPageLayout
+      title="Features - AI Customer Service Platform | Chatvice"
+      description="Explore Chatvice features: LEXA1 AI engine, smart knowledge base, human escalation, multi-language support, embeddable widget, and powerful analytics dashboard."
+    >
       <section className="bg-purple-600 text-white py-20">
         <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
           <Badge className="bg-white/20 text-white mb-4">

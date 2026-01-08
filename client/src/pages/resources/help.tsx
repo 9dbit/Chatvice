@@ -76,7 +76,10 @@ export default function HelpCenterPage() {
   ];
 
   return (
-    <PublicPageLayout>
+    <PublicPageLayout
+      title="Help Center - Support & Guides | Chatvice"
+      description="Find answers to common questions, tutorials, and guides for using Chatvice. Get help with setup, billing, AI training, and more."
+    >
       <section className="bg-purple-600 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <Badge className="bg-white/20 text-white mb-4">

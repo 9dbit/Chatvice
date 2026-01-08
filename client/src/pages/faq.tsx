@@ -366,7 +366,10 @@ export default function FAQPage() {
   const totalQuestions = filteredCategories.reduce((acc, cat) => acc + cat.questions.length, 0);
 
   return (
-    <PublicPageLayout>
+    <PublicPageLayout
+      title="FAQ - Frequently Asked Questions | Chatvice"
+      description="Find answers to common questions about Chatvice AI customer service platform. Learn about LEXA1 AI engine, pricing, integrations, and how to get started."
+    >
       <section className="bg-purple-600 text-white py-16">
         <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
           <Badge className="bg-white/20 text-white mb-4">

@@ -288,7 +288,52 @@ interface PublicPageLayoutProps {
   description?: string;
 }
 
-export default function PublicPageLayout({ children }: PublicPageLayoutProps) {
+export default function PublicPageLayout({ children, title, description }: PublicPageLayoutProps) {
+  useEffect(() => {
+    const defaultTitle = "Chatvice - AI Customer Service Platform";
+    const defaultDescription = "AI-powered customer service chatbot platform. Automate support, reduce costs, and delight customers with intelligent AI agents.";
+    
+    // Set document title
+    document.title = title || defaultTitle;
+    
+    // Set meta description
+    let metaDescription = document.querySelector('meta[name="description"]');
+    if (!metaDescription) {
+      metaDescription = document.createElement("meta");
+      metaDescription.setAttribute("name", "description");
+      document.head.appendChild(metaDescription);
+    }
+    metaDescription.setAttribute("content", description || defaultDescription);
+    
+    // Set Open Graph tags
+    const ogTags: Record<string, string> = {
+      "og:title": title || defaultTitle,
+      "og:description": description || defaultDescription,
+      "og:type": "website",
+      "og:site_name": "Chatvice",
+    };
+    
+    Object.entries(ogTags).forEach(([property, content]) => {
+      let meta = document.querySelector(`meta[property="${property}"]`);
+      if (!meta) {
+        meta = document.createElement("meta");
+        meta.setAttribute("property", property);
+        document.head.appendChild(meta);
+      }
+      meta.setAttribute("content", content);
+    });
+    
+    // Set canonical URL
+    const currentUrl = window.location.origin + window.location.pathname;
+    let canonical = document.querySelector('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.setAttribute("rel", "canonical");
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute("href", currentUrl);
+  }, [title, description]);
+  
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <PublicNavbar />
