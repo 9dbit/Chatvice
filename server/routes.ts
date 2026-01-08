@@ -5842,6 +5842,353 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // ============ Custom Plan Requests ============
+  
+  // Merchant submits custom plan request
+  app.post("/api/custom-plan-requests", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      const merchant = await storage.getMerchant(merchantId);
+      
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      const {
+        desiredConversations,
+        desiredAgents,
+        desiredSupervisors,
+        desiredSources,
+        desiredSuggestedQuestions,
+        integrationNeeds,
+        complianceNeeds,
+        additionalFeatures,
+        additionalNotes,
+        budgetRangeMin,
+        budgetRangeMax,
+        expectedTimeline,
+      } = req.body;
+      
+      // Validate required fields
+      if (!desiredConversations || !desiredAgents) {
+        return res.status(400).json({ error: "Please specify desired conversations and agents" });
+      }
+      
+      const request = await storage.createCustomPlanRequest({
+        merchantId,
+        companyName: merchant.companyName,
+        contactName: merchant.picName || merchant.companyName,
+        contactEmail: merchant.email,
+        contactPhone: merchant.phone || null,
+        currentPlanId: merchant.subscriptionPlanId || "free",
+        desiredConversations: parseInt(desiredConversations) || 1000,
+        desiredAgents: parseInt(desiredAgents) || 5,
+        desiredSupervisors: parseInt(desiredSupervisors) || 10,
+        desiredSources: parseInt(desiredSources) || 10,
+        desiredSuggestedQuestions: parseInt(desiredSuggestedQuestions) || 10,
+        integrationNeeds: integrationNeeds || null,
+        complianceNeeds: complianceNeeds || null,
+        additionalFeatures: additionalFeatures || [],
+        additionalNotes: additionalNotes || null,
+        budgetRangeMin: budgetRangeMin ? parseInt(budgetRangeMin) : null,
+        budgetRangeMax: budgetRangeMax ? parseInt(budgetRangeMax) : null,
+        expectedTimeline: expectedTimeline || null,
+        status: "submitted",
+      });
+      
+      // Create notification for merchant
+      await storage.createMerchantNotification({
+        merchantId,
+        type: "custom_plan_request",
+        title: "Custom Plan Request Submitted",
+        message: "Your custom plan request has been submitted and is awaiting review.",
+        relatedEntityType: "custom_plan_request",
+        relatedEntityId: request.id,
+        actionUrl: "/dashboard/billing",
+        actionLabel: "View Status",
+      });
+      
+      // Create admin notification
+      await storage.createAdminNotification({
+        type: "custom_plan_request",
+        title: "New Custom Plan Request",
+        message: `${merchant.companyName} submitted a custom plan request`,
+        relatedEntityType: "custom_plan_request",
+        relatedEntityId: request.id,
+        actionUrl: `/admin?tab=custom-requests&requestId=${request.id}`,
+        priority: "high",
+      });
+      
+      console.log(`[Custom Plan Request] New request from ${merchant.companyName} (${merchantId})`);
+      
+      res.json({ success: true, request });
+    } catch (error) {
+      console.error("Error creating custom plan request:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Get merchant's custom plan requests
+  app.get("/api/merchant/custom-plan-requests", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      const requests = await storage.getCustomPlanRequestsByMerchant(merchantId);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching custom plan requests:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Get merchant notifications
+  app.get("/api/merchant/notifications", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+      const notifications = await storage.getMerchantNotifications(merchantId, limit);
+      res.json(notifications);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Get unread notification count
+  app.get("/api/merchant/notifications/unread-count", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      const count = await storage.getUnreadNotificationCount(merchantId);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error fetching unread count:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Mark notification as read
+  app.patch("/api/merchant/notifications/:notificationId/read", requireMerchant, async (req, res) => {
+    try {
+      const notification = await storage.markNotificationAsRead(req.params.notificationId);
+      res.json({ success: true, notification });
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Mark all notifications as read
+  app.post("/api/merchant/notifications/mark-all-read", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      await storage.markAllNotificationsAsRead(merchantId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Admin: Get all custom plan requests
+  app.get("/api/admin/custom-plan-requests", requireAdmin, async (req, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const requests = await storage.getCustomPlanRequests(status);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching custom plan requests:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Admin: Get single custom plan request
+  app.get("/api/admin/custom-plan-requests/:requestId", requireAdmin, async (req, res) => {
+    try {
+      const request = await storage.getCustomPlanRequest(req.params.requestId);
+      if (!request) {
+        return res.status(404).json({ error: "Request not found" });
+      }
+      res.json(request);
+    } catch (error) {
+      console.error("Error fetching custom plan request:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Admin: Update custom plan request (review, pricing, status)
+  app.patch("/api/admin/custom-plan-requests/:requestId", requireAdmin, async (req, res) => {
+    try {
+      const { status, adminNotes, proposedMonthlyPrice, proposedAnnualPrice, benchmarkMultiplier } = req.body;
+      
+      const request = await storage.getCustomPlanRequest(req.params.requestId);
+      if (!request) {
+        return res.status(404).json({ error: "Request not found" });
+      }
+      
+      const updateData: any = {
+        adminReviewerId: req.session.userId,
+      };
+      
+      if (status) updateData.status = status;
+      if (adminNotes !== undefined) updateData.adminNotes = adminNotes;
+      if (proposedMonthlyPrice !== undefined) updateData.proposedMonthlyPrice = parseInt(proposedMonthlyPrice);
+      if (proposedAnnualPrice !== undefined) updateData.proposedAnnualPrice = parseInt(proposedAnnualPrice);
+      if (benchmarkMultiplier !== undefined) updateData.benchmarkMultiplier = benchmarkMultiplier;
+      
+      if (status === "under_review" && !request.reviewedAt) {
+        updateData.reviewedAt = new Date();
+      }
+      
+      const updated = await storage.updateCustomPlanRequest(request.id, updateData);
+      
+      // Notify merchant of status change
+      if (request.merchantId && status && status !== request.status) {
+        const statusMessages: Record<string, string> = {
+          "under_review": "Your custom plan request is now under review.",
+          "pricing_proposed": "We've prepared a custom pricing proposal for you!",
+          "rejected": "Your custom plan request has been reviewed.",
+          "closed": "Your custom plan request has been closed.",
+        };
+        
+        if (statusMessages[status]) {
+          await storage.createMerchantNotification({
+            merchantId: request.merchantId,
+            type: "custom_plan_request",
+            title: "Custom Plan Request Update",
+            message: statusMessages[status],
+            relatedEntityType: "custom_plan_request",
+            relatedEntityId: request.id,
+            actionUrl: "/dashboard/billing",
+            actionLabel: "View Details",
+          });
+        }
+      }
+      
+      res.json({ success: true, request: updated });
+    } catch (error) {
+      console.error("Error updating custom plan request:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Admin: Convert custom plan request to invoice
+  app.post("/api/admin/custom-plan-requests/:requestId/send-invoice", requireAdmin, async (req, res) => {
+    try {
+      const { billingInterval } = req.body;
+      
+      const request = await storage.getCustomPlanRequest(req.params.requestId);
+      if (!request) {
+        return res.status(404).json({ error: "Request not found" });
+      }
+      
+      if (!request.merchantId) {
+        return res.status(400).json({ error: "Request must be linked to a merchant to send invoice" });
+      }
+      
+      if (!request.proposedMonthlyPrice && !request.proposedAnnualPrice) {
+        return res.status(400).json({ error: "Please set pricing before sending invoice" });
+      }
+      
+      const interval = billingInterval || "monthly";
+      const amount = interval === "annual" ? request.proposedAnnualPrice : request.proposedMonthlyPrice;
+      
+      if (!amount) {
+        return res.status(400).json({ error: `${interval} pricing not set` });
+      }
+      
+      // Generate invoice number
+      const invoiceNumber = await storage.generateCustomInvoiceNumber();
+      
+      // Create the invoice
+      const invoice = await storage.createCustomPlanInvoice({
+        merchantId: request.merchantId,
+        invoiceNumber,
+        description: `Custom Plan - ${interval === "annual" ? "Annual" : "Monthly"}`,
+        conversationsLimit: request.desiredConversations || 1000,
+        agentsLimit: request.desiredAgents || 5,
+        supervisorsLimit: request.desiredSupervisors || 10,
+        sourcesLimit: request.desiredSources || 10,
+        suggestedQuestionsLimit: request.desiredSuggestedQuestions || 10,
+        amount,
+        currency: "IDR",
+        billingInterval: interval,
+        status: "pending",
+        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        createdBy: req.session.userId,
+      });
+      
+      // Update request status and link invoice
+      await storage.updateCustomPlanRequest(request.id, {
+        status: "invoice_sent",
+        linkedInvoiceId: invoice.id,
+      });
+      
+      // Notify merchant
+      await storage.createMerchantNotification({
+        merchantId: request.merchantId,
+        type: "invoice",
+        title: "Custom Plan Invoice Ready",
+        message: `Invoice ${invoiceNumber} has been generated for your custom plan.`,
+        relatedEntityType: "invoice",
+        relatedEntityId: invoice.id,
+        actionUrl: "/dashboard/billing",
+        actionLabel: "View Invoice",
+      });
+      
+      console.log(`[Custom Plan Invoice] Created ${invoiceNumber} for request ${request.id}`);
+      
+      res.json({ success: true, invoice, request: { id: request.id, status: "invoice_sent" } });
+    } catch (error) {
+      console.error("Error sending invoice for custom plan request:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Admin: Calculate proportional pricing based on enterprise plan
+  app.post("/api/admin/calculate-custom-pricing", requireAdmin, async (req, res) => {
+    try {
+      const { desiredConversations, desiredAgents, desiredSupervisors, desiredSources, desiredSuggestedQuestions } = req.body;
+      
+      // Enterprise plan benchmarks
+      const enterpriseBenchmarks = {
+        conversations: 10000,
+        agents: 20,
+        supervisors: 50,
+        sources: 100,
+        suggestedQuestions: 50,
+        monthlyPrice: 4990000, // IDR 4.99M monthly
+        annualPrice: 49900000, // IDR 49.9M annual
+      };
+      
+      // Calculate multipliers for each dimension
+      const multipliers = {
+        conversations: (desiredConversations || 1000) / enterpriseBenchmarks.conversations,
+        agents: (desiredAgents || 5) / enterpriseBenchmarks.agents,
+        supervisors: (desiredSupervisors || 10) / enterpriseBenchmarks.supervisors,
+        sources: (desiredSources || 10) / enterpriseBenchmarks.sources,
+        suggestedQuestions: (desiredSuggestedQuestions || 10) / enterpriseBenchmarks.suggestedQuestions,
+      };
+      
+      // Use the maximum multiplier to determine pricing (most demanding resource)
+      const maxMultiplier = Math.max(...Object.values(multipliers));
+      const adjustedMultiplier = Math.max(0.1, Math.min(3.0, maxMultiplier)); // Cap between 10% and 300%
+      
+      const proposedMonthlyPrice = Math.round(enterpriseBenchmarks.monthlyPrice * adjustedMultiplier);
+      const proposedAnnualPrice = Math.round(enterpriseBenchmarks.annualPrice * adjustedMultiplier);
+      
+      res.json({
+        multipliers,
+        maxMultiplier: adjustedMultiplier,
+        benchmarkMultiplier: `${(adjustedMultiplier * 100).toFixed(0)}% of Enterprise`,
+        proposedMonthlyPrice,
+        proposedAnnualPrice,
+        enterpriseBenchmarks,
+      });
+    } catch (error) {
+      console.error("Error calculating custom pricing:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/admin/stats", requireAdmin, async (req, res) => {
     try {
       const merchants = await storage.getAllMerchants();
