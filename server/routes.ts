@@ -5913,10 +5913,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         type: "custom_plan_request",
         title: "New Custom Plan Request",
         message: `${merchant.companyName} submitted a custom plan request`,
-        relatedEntityType: "custom_plan_request",
-        relatedEntityId: request.id,
-        actionUrl: `/admin?tab=custom-requests&requestId=${request.id}`,
-        priority: "high",
+        data: {
+          relatedEntityType: "custom_plan_request",
+          relatedEntityId: request.id,
+          actionUrl: `/admin?tab=custom-requests&requestId=${request.id}`,
+          priority: "high",
+        },
       });
       
       console.log(`[Custom Plan Request] New request from ${merchant.companyName} (${merchantId})`);
@@ -5931,7 +5933,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   // Get merchant's custom plan requests
   app.get("/api/merchant/custom-plan-requests", requireMerchant, async (req, res) => {
     try {
-      const merchantId = req.session.userId;
+      const merchantId = req.session.userId!;
       const requests = await storage.getCustomPlanRequestsByMerchant(merchantId);
       res.json(requests);
     } catch (error) {
@@ -5943,7 +5945,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   // Get merchant notifications
   app.get("/api/merchant/notifications", requireMerchant, async (req, res) => {
     try {
-      const merchantId = req.session.userId;
+      const merchantId = req.session.userId!;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
       const notifications = await storage.getMerchantNotifications(merchantId, limit);
       res.json(notifications);
@@ -5956,7 +5958,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   // Get unread notification count
   app.get("/api/merchant/notifications/unread-count", requireMerchant, async (req, res) => {
     try {
-      const merchantId = req.session.userId;
+      const merchantId = req.session.userId!;
       const count = await storage.getUnreadNotificationCount(merchantId);
       res.json({ count });
     } catch (error) {
@@ -5979,7 +5981,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   // Mark all notifications as read
   app.post("/api/merchant/notifications/mark-all-read", requireMerchant, async (req, res) => {
     try {
-      const merchantId = req.session.userId;
+      const merchantId = req.session.userId!;
       await storage.markAllNotificationsAsRead(merchantId);
       res.json({ success: true });
     } catch (error) {

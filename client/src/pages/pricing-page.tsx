@@ -22,6 +22,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { CustomPlanRequestDialog } from "@/components/custom-plan-request-dialog";
 
 interface ActivePromotion {
   id: string;
@@ -395,16 +396,33 @@ export default function PricingPage() {
                   ))}
                 </ul>
 
-                <Link href={plan.monthlyPrice ? "/register" : "/contact"}>
-                  <Button 
-                    className={`w-full ${plan.popular ? "bg-purple-600 hover:bg-purple-700" : ""}`}
-                    variant={plan.popular ? "default" : "outline"}
-                    size="lg"
-                  >
-                    {plan.cta}
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </Link>
+                {plan.monthlyPrice ? (
+                  <Link href="/register">
+                    <Button 
+                      className={`w-full ${plan.popular ? "bg-purple-600 hover:bg-purple-700" : ""}`}
+                      variant={plan.popular ? "default" : "outline"}
+                      size="lg"
+                      data-testid={`button-plan-${plan.name.toLowerCase()}`}
+                    >
+                      {plan.cta}
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </Link>
+                ) : (
+                  <CustomPlanRequestDialog
+                    trigger={
+                      <Button 
+                        className="w-full"
+                        variant="outline"
+                        size="lg"
+                        data-testid="button-plan-custom"
+                      >
+                        {plan.cta}
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    }
+                  />
+                )}
               </Card>
             ))}
           </div>
