@@ -8565,7 +8565,20 @@ function CustomRequestsTab({ toast }: { toast: any }) {
 
   const createInvoiceMutation = useMutation({
     mutationFn: async (data: { merchantId: string; planName: string; monthlyPrice: number; annualPrice: number; billingInterval: string; conversationsLimit: number; agentsLimit: number; supervisorsLimit: number; sourcesLimit: number; suggestedQuestionsLimit: number; requestId: string }) => {
-      const invoiceResponse = await apiRequest("POST", "/api/admin/custom-invoices", data);
+      const amount = data.billingInterval === "annual" ? data.annualPrice : data.monthlyPrice;
+      const invoicePayload = {
+        merchantId: data.merchantId,
+        description: data.planName,
+        conversationsLimit: data.conversationsLimit,
+        agentsLimit: data.agentsLimit,
+        supervisorsLimit: data.supervisorsLimit,
+        sourcesLimit: data.sourcesLimit,
+        suggestedQuestionsLimit: data.suggestedQuestionsLimit,
+        amount,
+        currency: "USD",
+        billingInterval: data.billingInterval,
+      };
+      const invoiceResponse = await apiRequest("POST", "/api/admin/custom-invoices", invoicePayload);
       return { invoiceResponse, requestId: data.requestId };
     },
     onSuccess: async ({ requestId }) => {
