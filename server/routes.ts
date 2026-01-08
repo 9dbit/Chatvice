@@ -853,16 +853,35 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     try {
       const baseUrl = `https://${req.get("host")}`;
       
-      // Static pages
+      // Static pages - only public indexable pages (no login/register/dashboard)
       const staticPages = [
+        // Main pages
         { url: "/", priority: "1.0", changefreq: "weekly" },
-        { url: "/features", priority: "0.8", changefreq: "monthly" },
-        { url: "/pricing", priority: "0.8", changefreq: "monthly" },
-        { url: "/faq", priority: "0.7", changefreq: "monthly" },
+        { url: "/features", priority: "0.9", changefreq: "monthly" },
+        { url: "/pricing", priority: "0.9", changefreq: "monthly" },
+        { url: "/faq", priority: "0.8", changefreq: "monthly" },
+        // Resources
         { url: "/docs", priority: "0.8", changefreq: "weekly" },
         { url: "/blog", priority: "0.8", changefreq: "weekly" },
-        { url: "/login", priority: "0.5", changefreq: "yearly" },
-        { url: "/register", priority: "0.6", changefreq: "yearly" },
+        { url: "/help", priority: "0.7", changefreq: "monthly" },
+        { url: "/api-docs", priority: "0.6", changefreq: "monthly" },
+        { url: "/changelog", priority: "0.6", changefreq: "weekly" },
+        { url: "/integrations", priority: "0.7", changefreq: "monthly" },
+        // Company
+        { url: "/about", priority: "0.7", changefreq: "monthly" },
+        { url: "/contact", priority: "0.7", changefreq: "monthly" },
+        { url: "/careers", priority: "0.6", changefreq: "monthly" },
+        { url: "/press", priority: "0.5", changefreq: "monthly" },
+        { url: "/partners", priority: "0.6", changefreq: "monthly" },
+        { url: "/status", priority: "0.5", changefreq: "daily" },
+        // Legal
+        { url: "/privacy", priority: "0.4", changefreq: "yearly" },
+        { url: "/terms", priority: "0.4", changefreq: "yearly" },
+        { url: "/cookies", priority: "0.3", changefreq: "yearly" },
+        { url: "/gdpr", priority: "0.3", changefreq: "yearly" },
+        { url: "/security", priority: "0.4", changefreq: "yearly" },
+        // Demo
+        { url: "/demo", priority: "0.7", changefreq: "monthly" },
       ];
 
       const today = new Date().toISOString().split("T")[0];
@@ -904,6 +923,23 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       if (!robotsTxt || robotsTxt.trim() === "") {
         robotsTxt = `User-agent: *
 Allow: /
+
+# Private/Auth pages - do not index
+Disallow: /dashboard
+Disallow: /dashboard/*
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /supervisor
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /verify-email
+Disallow: /verify-supervisor
+Disallow: /select-agent
+Disallow: /widget/
+Disallow: /topup
+Disallow: /api/
 
 Sitemap: ${baseUrl}/sitemap.xml`;
       } else {
