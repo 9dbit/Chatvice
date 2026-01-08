@@ -127,7 +127,7 @@ export default function PressPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button className="bg-purple-600 hover:bg-purple-700">
-              press@chatvice.com
+              press@chatvice.app
             </Button>
             <Link href="/contact">
               <Button variant="outline">

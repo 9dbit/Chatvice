@@ -130,7 +130,7 @@ export default function TermsOfServicePage() {
 
             <h2>14. Contact</h2>
             <p>
-              Questions about these Terms should be sent to: legal@chatvice.com
+              Questions about these Terms should be sent to: legal@chatvice.app
             </p>
           </Card>
         </div>

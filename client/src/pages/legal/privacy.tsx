@@ -115,8 +115,8 @@ export default function PrivacyPolicyPage() {
               If you have questions about this Privacy Policy, please contact us at:
             </p>
             <ul>
-              <li>Email: privacy@chatvice.com</li>
-              <li>Website: chatvice.com/contact</li>
+              <li>Email: privacy@chatvice.app</li>
+              <li>Website: chatvice.app/contact</li>
             </ul>
           </Card>
         </div>

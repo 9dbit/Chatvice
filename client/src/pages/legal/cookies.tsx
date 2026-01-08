@@ -132,7 +132,7 @@ export default function CookiePolicyPage() {
 
             <h2>7. Contact Us</h2>
             <p>
-              If you have questions about our use of cookies, please contact us at privacy@chatvice.com.
+              If you have questions about our use of cookies, please contact us at privacy@chatvice.app.
             </p>
           </Card>
         </div>
