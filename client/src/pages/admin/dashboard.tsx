@@ -298,6 +298,7 @@ export default function AdminDashboard() {
     { id: "payment", label: "Payment Integration", icon: Zap },
     { id: "menuorder", label: "Menu Order", icon: Layers },
     { id: "crypto-payments", label: "Crypto Payments", icon: Bitcoin },
+    { id: "custom-requests", label: "Custom Requests", icon: Sparkles },
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
@@ -454,6 +455,8 @@ export default function AdminDashboard() {
             {activeTab === "menuorder" && <MenuOrderTab toast={toast} />}
             
             {activeTab === "crypto-payments" && <CryptoPaymentsTab toast={toast} />}
+            
+            {activeTab === "custom-requests" && <CustomRequestsTab toast={toast} />}
           </div>
         </div>
       </main>
@@ -8488,6 +8491,623 @@ function CryptoPaymentsTab({ toast }: { toast: any }) {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+interface CustomPlanRequest {
+  id: string;
+  merchantId: string;
+  status: string;
+  desiredConversations: number;
+  desiredAgents: number;
+  desiredSupervisors: number;
+  desiredSources: number;
+  desiredSuggestedQuestions: number;
+  integrationNeeds: string | null;
+  complianceNeeds: string | null;
+  additionalFeatures: string[] | null;
+  additionalNotes: string | null;
+  budgetRangeMin: number | null;
+  budgetRangeMax: number | null;
+  expectedTimeline: string | null;
+  adminNotes: string | null;
+  proposedPriceMonthly: number | null;
+  proposedPriceAnnual: number | null;
+  createdAt: string;
+  updatedAt: string;
+  merchant?: {
+    email: string;
+    companyName: string;
+  };
+}
+
+function CustomRequestsTab({ toast }: { toast: any }) {
+  const [selectedRequest, setSelectedRequest] = useState<CustomPlanRequest | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [adminNotes, setAdminNotes] = useState("");
+  const [proposedPriceMonthly, setProposedPriceMonthly] = useState("");
+  const [proposedPriceAnnual, setProposedPriceAnnual] = useState("");
+  const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
+  const [invoiceData, setInvoiceData] = useState({
+    planName: "Custom",
+    monthlyPrice: 0,
+    annualPrice: 0,
+    conversationsLimit: 10000,
+    agentsLimit: 5,
+    supervisorsLimit: 10,
+    sourcesLimit: 20,
+    suggestedQuestionsLimit: 10,
+    billingInterval: "monthly" as "monthly" | "annual",
+  });
+
+  const { data: requests = [], isLoading, refetch } = useQuery<CustomPlanRequest[]>({
+    queryKey: ["/api/admin/custom-plan-requests"],
+  });
+
+  const [invoiceError, setInvoiceError] = useState("");
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { status?: string; adminNotes?: string; proposedPriceMonthly?: number | null; proposedPriceAnnual?: number | null } }) => {
+      return apiRequest("PATCH", `/api/admin/custom-plan-requests/${id}`, data);
+    },
+    onSuccess: () => {
+      toast({ title: "Request updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/custom-plan-requests"] });
+      refetch();
+    },
+    onError: (error: any) => {
+      toast({ title: "Error updating request", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const createInvoiceMutation = useMutation({
+    mutationFn: async (data: { merchantId: string; planName: string; monthlyPrice: number; annualPrice: number; billingInterval: string; conversationsLimit: number; agentsLimit: number; supervisorsLimit: number; sourcesLimit: number; suggestedQuestionsLimit: number; requestId: string }) => {
+      const invoiceResponse = await apiRequest("POST", "/api/admin/custom-invoices", data);
+      return { invoiceResponse, requestId: data.requestId };
+    },
+    onSuccess: async ({ requestId }) => {
+      try {
+        await apiRequest("PATCH", `/api/admin/custom-plan-requests/${requestId}`, { status: "invoice_sent" });
+        toast({ title: "Invoice sent successfully" });
+      } catch {
+        toast({ title: "Invoice created but status update failed", description: "Please manually update the request status.", variant: "default" });
+      }
+      setShowInvoiceDialog(false);
+      setSelectedRequest(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/custom-plan-requests"] });
+      refetch();
+    },
+    onError: (error: any) => {
+      toast({ title: "Error sending invoice", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleSelectRequest = (request: CustomPlanRequest) => {
+    setSelectedRequest(request);
+    setAdminNotes(request.adminNotes || "");
+    setProposedPriceMonthly(request.proposedPriceMonthly?.toString() || "");
+    setProposedPriceAnnual(request.proposedPriceAnnual?.toString() || "");
+  };
+
+  const calculateProportionalPricing = (request: CustomPlanRequest) => {
+    const enterpriseMonthly = 499;
+    const enterpriseAnnual = 416;
+    const enterpriseLimits = {
+      conversations: 10000,
+      agents: 20,
+      supervisors: 50,
+      sources: 100,
+    };
+
+    const conversationMultiplier = request.desiredConversations / enterpriseLimits.conversations;
+    const agentMultiplier = request.desiredAgents / enterpriseLimits.agents;
+    const supervisorMultiplier = request.desiredSupervisors / enterpriseLimits.supervisors;
+    const sourceMultiplier = request.desiredSources / enterpriseLimits.sources;
+
+    const avgMultiplier = (conversationMultiplier + agentMultiplier + supervisorMultiplier + sourceMultiplier) / 4;
+    const cappedMultiplier = Math.max(0.1, Math.min(3.0, avgMultiplier));
+
+    const monthlyPrice = Math.round(enterpriseMonthly * cappedMultiplier);
+    const annualPrice = Math.round(enterpriseAnnual * cappedMultiplier);
+
+    setProposedPriceMonthly(monthlyPrice.toString());
+    setProposedPriceAnnual(annualPrice.toString());
+
+    return { monthlyPrice, annualPrice, multiplier: cappedMultiplier };
+  };
+
+  const handleSavePricing = () => {
+    if (!selectedRequest) return;
+    updateMutation.mutate({
+      id: selectedRequest.id,
+      data: {
+        status: "pricing_proposed",
+        adminNotes,
+        proposedPriceMonthly: parseInt(proposedPriceMonthly) || null,
+        proposedPriceAnnual: parseInt(proposedPriceAnnual) || null,
+      },
+    });
+  };
+
+  const handleSendInvoice = () => {
+    if (!selectedRequest) return;
+    setInvoiceData({
+      planName: "Custom",
+      monthlyPrice: parseInt(proposedPriceMonthly) || 0,
+      annualPrice: parseInt(proposedPriceAnnual) || 0,
+      conversationsLimit: selectedRequest.desiredConversations,
+      agentsLimit: selectedRequest.desiredAgents,
+      supervisorsLimit: selectedRequest.desiredSupervisors,
+      sourcesLimit: selectedRequest.desiredSources,
+      suggestedQuestionsLimit: selectedRequest.desiredSuggestedQuestions,
+      billingInterval: "monthly",
+    });
+    setShowInvoiceDialog(true);
+  };
+
+  const validateInvoice = () => {
+    if (!invoiceData.planName.trim()) {
+      return "Plan name is required";
+    }
+    if (typeof invoiceData.monthlyPrice !== "number" || isNaN(invoiceData.monthlyPrice) || invoiceData.monthlyPrice < 0) {
+      return "Monthly price must be a valid non-negative number";
+    }
+    if (typeof invoiceData.annualPrice !== "number" || isNaN(invoiceData.annualPrice) || invoiceData.annualPrice < 0) {
+      return "Annual price must be a valid non-negative number";
+    }
+    if (invoiceData.monthlyPrice === 0 && invoiceData.annualPrice === 0) {
+      return "At least one price (monthly or annual) must be greater than 0";
+    }
+    if (invoiceData.billingInterval === "monthly" && invoiceData.monthlyPrice <= 0) {
+      return "Monthly price must be greater than 0 when monthly billing is selected";
+    }
+    if (invoiceData.billingInterval === "annual" && invoiceData.annualPrice <= 0) {
+      return "Annual price must be greater than 0 when annual billing is selected";
+    }
+    if (invoiceData.conversationsLimit < 1) {
+      return "Conversations limit must be at least 1";
+    }
+    return "";
+  };
+
+  const confirmSendInvoice = () => {
+    if (!selectedRequest) return;
+    
+    const validationError = validateInvoice();
+    if (validationError) {
+      setInvoiceError(validationError);
+      return;
+    }
+    setInvoiceError("");
+    
+    createInvoiceMutation.mutate({
+      merchantId: selectedRequest.merchantId,
+      planName: invoiceData.planName,
+      monthlyPrice: invoiceData.monthlyPrice,
+      annualPrice: invoiceData.annualPrice,
+      billingInterval: invoiceData.billingInterval,
+      conversationsLimit: invoiceData.conversationsLimit,
+      agentsLimit: invoiceData.agentsLimit,
+      supervisorsLimit: invoiceData.supervisorsLimit,
+      sourcesLimit: invoiceData.sourcesLimit,
+      suggestedQuestionsLimit: invoiceData.suggestedQuestionsLimit,
+      requestId: selectedRequest.id,
+    });
+  };
+
+  const handleReject = (id: string) => {
+    updateMutation.mutate({
+      id,
+      data: { status: "rejected", adminNotes },
+    });
+    setSelectedRequest(null);
+  };
+
+  const filteredRequests = requests.filter((r) =>
+    filterStatus === "all" ? true : r.status === filterStatus
+  );
+
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, string> = {
+      submitted: "bg-blue-500/20 text-blue-700 dark:text-blue-400",
+      under_review: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400",
+      pricing_proposed: "bg-purple-500/20 text-purple-700 dark:text-purple-400",
+      invoice_sent: "bg-green-500/20 text-green-700 dark:text-green-400",
+      closed: "bg-gray-500/20 text-gray-700 dark:text-gray-400",
+      rejected: "bg-red-500/20 text-red-700 dark:text-red-400",
+    };
+    return <Badge className={variants[status] || ""}>{status.replace(/_/g, " ")}</Badge>;
+  };
+
+  const featureLabels: Record<string, string> = {
+    white_label: "White Label",
+    custom_integrations: "Custom Integrations",
+    api_access: "API Access",
+    sla_guarantee: "SLA Guarantee",
+    on_premise: "On-Premise",
+    dedicated_support: "Dedicated Support",
+    custom_domain: "Custom Domain",
+    identity_verification: "Identity Verification",
+    priority_queue: "Priority Queue",
+    advanced_analytics: "Advanced Analytics",
+  };
+
+  const timelineLabels: Record<string, string> = {
+    immediate: "Segera (dalam 1 minggu)",
+    "1_month": "Dalam 1 bulan",
+    "3_months": "Dalam 3 bulan",
+    exploring: "Masih eksplorasi",
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold" data-testid="text-custom-requests-title">Custom Plan Requests</h2>
+          <p className="text-muted-foreground">Review and process custom plan requests from merchants</p>
+        </div>
+
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-[180px]" data-testid="select-filter-status">
+            <Filter className="w-4 h-4 mr-2" />
+            <SelectValue placeholder="Filter by status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Requests</SelectItem>
+            <SelectItem value="submitted">Submitted</SelectItem>
+            <SelectItem value="under_review">Under Review</SelectItem>
+            <SelectItem value="pricing_proposed">Pricing Proposed</SelectItem>
+            <SelectItem value="invoice_sent">Invoice Sent</SelectItem>
+            <SelectItem value="closed">Closed</SelectItem>
+            <SelectItem value="rejected">Rejected</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Requests</CardTitle>
+            <CardDescription>
+              {filteredRequests.length} request{filteredRequests.length !== 1 ? "s" : ""} found
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin" />
+              </div>
+            ) : filteredRequests.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Sparkles className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p>No custom plan requests found</p>
+              </div>
+            ) : (
+              <ScrollArea className="h-[500px]">
+                <div className="space-y-3">
+                  {filteredRequests.map((request) => (
+                    <div
+                      key={request.id}
+                      onClick={() => handleSelectRequest(request)}
+                      className={`p-4 border rounded-lg cursor-pointer transition-colors hover-elevate ${
+                        selectedRequest?.id === request.id
+                          ? "border-purple-500 bg-purple-50/50 dark:bg-purple-950/20"
+                          : ""
+                      }`}
+                      data-testid={`request-item-${request.id}`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium truncate">
+                              {request.merchant?.companyName || "Unknown"}
+                            </span>
+                            {getStatusBadge(request.status)}
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {request.merchant?.email}
+                          </p>
+                          <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                            <span>{request.desiredConversations.toLocaleString()} conv/mo</span>
+                            <span>{request.desiredAgents} agents</span>
+                            <span>{request.desiredSupervisors} supervisors</span>
+                          </div>
+                        </div>
+                        <div className="text-right text-xs text-muted-foreground">
+                          {new Date(request.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Request Details</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!selectedRequest ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Eye className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p>Select a request to view details</p>
+              </div>
+            ) : (
+              <ScrollArea className="h-[500px]">
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-muted-foreground">Merchant</Label>
+                    <p className="font-medium">{selectedRequest.merchant?.companyName}</p>
+                    <p className="text-sm text-muted-foreground">{selectedRequest.merchant?.email}</p>
+                  </div>
+
+                  <Separator />
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Conversations</Label>
+                      <p className="font-medium">{selectedRequest.desiredConversations.toLocaleString()}/mo</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Agents</Label>
+                      <p className="font-medium">{selectedRequest.desiredAgents}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Supervisors</Label>
+                      <p className="font-medium">{selectedRequest.desiredSupervisors}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Sources</Label>
+                      <p className="font-medium">{selectedRequest.desiredSources}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Suggested Questions</Label>
+                      <p className="font-medium">{selectedRequest.desiredSuggestedQuestions}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Timeline</Label>
+                      <p className="font-medium">
+                        {selectedRequest.expectedTimeline
+                          ? timelineLabels[selectedRequest.expectedTimeline] || selectedRequest.expectedTimeline
+                          : "-"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {selectedRequest.budgetRangeMin || selectedRequest.budgetRangeMax ? (
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Budget Range</Label>
+                      <p className="font-medium">
+                        IDR {selectedRequest.budgetRangeMin?.toLocaleString() || "?"} - {selectedRequest.budgetRangeMax?.toLocaleString() || "?"}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {selectedRequest.additionalFeatures && selectedRequest.additionalFeatures.length > 0 && (
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Additional Features</Label>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {selectedRequest.additionalFeatures.map((f) => (
+                          <Badge key={f} variant="outline" className="text-xs">
+                            {featureLabels[f] || f}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedRequest.integrationNeeds && (
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Integration Needs</Label>
+                      <p className="text-sm">{selectedRequest.integrationNeeds}</p>
+                    </div>
+                  )}
+
+                  {selectedRequest.complianceNeeds && (
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Compliance Needs</Label>
+                      <p className="text-sm">{selectedRequest.complianceNeeds}</p>
+                    </div>
+                  )}
+
+                  {selectedRequest.additionalNotes && (
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Additional Notes</Label>
+                      <p className="text-sm">{selectedRequest.additionalNotes}</p>
+                    </div>
+                  )}
+
+                  <Separator />
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <Label>Proposed Pricing</Label>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => calculateProportionalPricing(selectedRequest)}
+                        data-testid="button-calculate-pricing"
+                      >
+                        <Target className="w-3 h-3 mr-1" />
+                        Auto Calculate
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">Monthly ($)</Label>
+                        <Input
+                          type="number"
+                          value={proposedPriceMonthly}
+                          onChange={(e) => setProposedPriceMonthly(e.target.value)}
+                          placeholder="0"
+                          data-testid="input-price-monthly"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Annual ($)</Label>
+                        <Input
+                          type="number"
+                          value={proposedPriceAnnual}
+                          onChange={(e) => setProposedPriceAnnual(e.target.value)}
+                          placeholder="0"
+                          data-testid="input-price-annual"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Admin Notes</Label>
+                    <Textarea
+                      value={adminNotes}
+                      onChange={(e) => setAdminNotes(e.target.value)}
+                      placeholder="Internal notes about this request..."
+                      className="mt-1"
+                      data-testid="textarea-admin-notes"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2 pt-2">
+                    <Button
+                      onClick={handleSavePricing}
+                      disabled={updateMutation.isPending}
+                      className="w-full"
+                      data-testid="button-save-pricing"
+                    >
+                      {updateMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Pricing
+                    </Button>
+                    <Button
+                      onClick={handleSendInvoice}
+                      disabled={!proposedPriceMonthly || createInvoiceMutation.isPending}
+                      variant="default"
+                      className="w-full bg-green-600 hover:bg-green-700"
+                      data-testid="button-send-invoice"
+                    >
+                      <Send className="w-4 h-4 mr-2" />
+                      Send Invoice
+                    </Button>
+                    <Button
+                      onClick={() => handleReject(selectedRequest.id)}
+                      disabled={updateMutation.isPending}
+                      variant="destructive"
+                      className="w-full"
+                      data-testid="button-reject-request"
+                    >
+                      <XCircle className="w-4 h-4 mr-2" />
+                      Reject Request
+                    </Button>
+                  </div>
+                </div>
+              </ScrollArea>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Dialog open={showInvoiceDialog} onOpenChange={setShowInvoiceDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Custom Plan Invoice</DialogTitle>
+            <DialogDescription>
+              Review and confirm the invoice details before sending to the merchant.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Plan Name</Label>
+                <Input
+                  value={invoiceData.planName}
+                  onChange={(e) => setInvoiceData({ ...invoiceData, planName: e.target.value })}
+                  data-testid="input-invoice-plan-name"
+                />
+              </div>
+              <div>
+                <Label>Billing Interval</Label>
+                <Select
+                  value={invoiceData.billingInterval}
+                  onValueChange={(v) => setInvoiceData({ ...invoiceData, billingInterval: v as "monthly" | "annual" })}
+                >
+                  <SelectTrigger data-testid="select-billing-interval">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="annual">Annual</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Monthly Price ($)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={invoiceData.monthlyPrice}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    setInvoiceData({ ...invoiceData, monthlyPrice: isNaN(val) ? 0 : Math.max(0, Math.round(val)) });
+                  }}
+                  data-testid="input-invoice-monthly"
+                />
+              </div>
+              <div>
+                <Label>Annual Price ($)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={invoiceData.annualPrice}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    setInvoiceData({ ...invoiceData, annualPrice: isNaN(val) ? 0 : Math.max(0, Math.round(val)) });
+                  }}
+                  data-testid="input-invoice-annual"
+                />
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>Conversations: <strong>{invoiceData.conversationsLimit.toLocaleString()}/mo</strong></div>
+              <div>Agents: <strong>{invoiceData.agentsLimit}</strong></div>
+              <div>Supervisors: <strong>{invoiceData.supervisorsLimit}</strong></div>
+              <div>Sources: <strong>{invoiceData.sourcesLimit}</strong></div>
+            </div>
+          </div>
+
+          {invoiceError && (
+            <div className="text-sm text-red-500 bg-red-50 dark:bg-red-950/30 p-2 rounded" data-testid="text-invoice-error">
+              {invoiceError}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowInvoiceDialog(false); setInvoiceError(""); }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmSendInvoice}
+              disabled={createInvoiceMutation.isPending}
+              className="bg-green-600 hover:bg-green-700"
+              data-testid="button-confirm-send-invoice"
+            >
+              {createInvoiceMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              <Send className="w-4 h-4 mr-2" />
+              Confirm & Send
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
