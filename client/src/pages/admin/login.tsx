@@ -23,7 +23,12 @@ export default function AdminLogin() {
 
   const loginMutation = useMutation<{ success: boolean; adminId: string; name: string }, Error, { email: string; password: string }>({
     mutationFn: async (data) => {
-      return apiRequest("POST", "/api/admin/login", data) as unknown as Promise<{ success: boolean; adminId: string; name: string }>;
+      const response = await apiRequest("POST", "/api/admin/login", data);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Login failed" }));
+        throw new Error(errorData.error || "Invalid credentials");
+      }
+      return response.json();
     },
     onSuccess: (data) => {
       localStorage.setItem("adminId", data.adminId);

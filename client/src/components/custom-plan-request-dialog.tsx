@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, Settings, MessageSquare, Users, Database, Bot, Calculator, Send, Sparkles, Shield, Zap, HeadphonesIcon, Globe, BadgeCheck, BarChart3, Crown } from "lucide-react";
+import { Loader2, Settings, MessageSquare, Users, Database, Bot, Calculator, Send, Sparkles, Shield, Zap, HeadphonesIcon, Globe, BadgeCheck, BarChart3, Crown, Check } from "lucide-react";
 import type { Merchant } from "@shared/schema";
 
 // Pricing constants (based on enterprise plan scaling)
@@ -16,15 +16,21 @@ const BASE_PRICE_PER_1K_CONVERSATIONS = 5; // $5 per 1000 conversations
 const PRICE_PER_AGENT = 15; // $15 per additional agent
 const PRICE_PER_SUPERVISOR = 10; // $10 per additional supervisor
 const PRICE_PER_SOURCE = 2; // $2 per additional source
+const INCLUDED_FEATURES_TOTAL = 335; // Total price of all included features
 
-const premiumFeatures = [
-  { id: "custom_domain", label: "Custom Domain", icon: Globe, price: 20 },
-  { id: "identity_verification", label: "Identity Verification", icon: BadgeCheck, price: 30 },
-  { id: "priority_queue", label: "Priority Queue", icon: Zap, price: 25 },
-  { id: "advanced_analytics", label: "Advanced Analytics", icon: BarChart3, price: 35 },
-  { id: "sla_guarantee", label: "SLA Guarantee", icon: Shield, price: 50 },
-  { id: "dedicated_support", label: "Dedicated Support Manager", icon: HeadphonesIcon, price: 100 },
-  { id: "custom_integrations", label: "Custom Integrations (CRM, ERP)", icon: Settings, price: 75 },
+// Features included by default (cannot be unchecked) - all except White Label
+const includedFeatures = [
+  { id: "custom_domain", label: "Custom Domain", icon: Globe },
+  { id: "identity_verification", label: "Identity Verification", icon: BadgeCheck },
+  { id: "priority_queue", label: "Priority Queue", icon: Zap },
+  { id: "advanced_analytics", label: "Advanced Analytics", icon: BarChart3 },
+  { id: "sla_guarantee", label: "SLA Guarantee", icon: Shield },
+  { id: "dedicated_support", label: "Dedicated Support", icon: HeadphonesIcon },
+  { id: "custom_integrations", label: "Custom Integrations", icon: Settings },
+];
+
+// Optional premium feature (can be added)
+const optionalFeatures = [
   { id: "white_label", label: "White Label Solution", icon: Crown, price: 150 },
 ];
 
@@ -43,7 +49,7 @@ export function CustomPlanRequestDialog({ trigger, onSuccess, skipAuthCheck = fa
   const [agents, setAgents] = useState(5);
   const [supervisors, setSupervisors] = useState(5);
   const [sources, setSources] = useState(20);
-  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+  const [addWhiteLabel, setAddWhiteLabel] = useState(false);
   const [message, setMessage] = useState("");
   
   const { data: merchant, isLoading: isMerchantLoading } = useQuery<Merchant>({
@@ -73,28 +79,25 @@ export function CustomPlanRequestDialog({ trigger, onSuccess, skipAuthCheck = fa
       price += (sources - 20) * PRICE_PER_SOURCE;
     }
     
-    // Premium features
-    selectedFeatures.forEach(featureId => {
-      const feature = premiumFeatures.find(f => f.id === featureId);
-      if (feature) {
-        price += feature.price;
-      }
-    });
+    // All included features are part of custom plan
+    price += INCLUDED_FEATURES_TOTAL;
+    
+    // Optional White Label
+    if (addWhiteLabel) {
+      price += 150;
+    }
     
     // Minimum custom plan price
-    return Math.max(price, 199);
-  }, [conversations, agents, supervisors, sources, selectedFeatures]);
-  
-  const toggleFeature = (featureId: string) => {
-    setSelectedFeatures(prev => 
-      prev.includes(featureId) 
-        ? prev.filter(id => id !== featureId)
-        : [...prev, featureId]
-    );
-  };
+    return Math.max(price, 499);
+  }, [conversations, agents, supervisors, sources, addWhiteLabel]);
   
   const submitMutation = useMutation({
     mutationFn: async () => {
+      const selectedFeatures = [...includedFeatures.map(f => f.id)];
+      if (addWhiteLabel) {
+        selectedFeatures.push("white_label");
+      }
+      
       const response = await apiRequest("POST", "/api/custom-plan-requests", {
         desiredConversations: conversations,
         desiredAgents: agents,
@@ -105,8 +108,8 @@ export function CustomPlanRequestDialog({ trigger, onSuccess, skipAuthCheck = fa
         message: message,
         budgetRangeMin: estimatedPrice,
         budgetRangeMax: Math.round(estimatedPrice * 1.5),
-        integrationNeeds: selectedFeatures.includes("custom_integrations") ? "Custom integrations requested" : "",
-        complianceNeeds: selectedFeatures.includes("sla_guarantee") ? "SLA guarantee requested" : "",
+        integrationNeeds: "Custom integrations included",
+        complianceNeeds: "SLA guarantee included",
         additionalNotes: "",
         expectedTimeline: "1_month",
       });
@@ -125,7 +128,7 @@ export function CustomPlanRequestDialog({ trigger, onSuccess, skipAuthCheck = fa
       setAgents(5);
       setSupervisors(5);
       setSources(20);
-      setSelectedFeatures([]);
+      setAddWhiteLabel(false);
       setMessage("");
       onSuccess?.();
     },
@@ -209,7 +212,7 @@ export function CustomPlanRequestDialog({ trigger, onSuccess, skipAuthCheck = fa
                 <span className="text-lg font-normal opacity-80">/bulan</span>
               </div>
               <div className="text-xs opacity-60 mt-2">
-                *Harga final akan dikonfirmasi oleh tim sales
+                *Termasuk semua fitur premium. Harga final akan dikonfirmasi oleh tim sales
               </div>
             </div>
             
@@ -222,10 +225,10 @@ export function CustomPlanRequestDialog({ trigger, onSuccess, skipAuthCheck = fa
               
               {/* Conversations */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4 text-purple-600" />
-                    AI Conversations / bulan
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <Label className="flex items-center gap-2 text-sm">
+                    <MessageSquare className="w-4 h-4 text-purple-600 shrink-0" />
+                    <span>Conversations/bulan</span>
                   </Label>
                   <span className="font-semibold text-purple-600" data-testid="text-conversations-value">
                     {formatNumber(conversations)}
@@ -241,17 +244,17 @@ export function CustomPlanRequestDialog({ trigger, onSuccess, skipAuthCheck = fa
                   data-testid="slider-conversations"
                 />
                 <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>5,000</span>
-                  <span>200,000</span>
+                  <span>5K</span>
+                  <span>200K</span>
                 </div>
               </div>
               
               {/* AI Agents */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="flex items-center gap-2">
-                    <Bot className="w-4 h-4 text-purple-600" />
-                    AI Agents
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <Label className="flex items-center gap-2 text-sm">
+                    <Bot className="w-4 h-4 text-purple-600 shrink-0" />
+                    <span>AI Agents</span>
                   </Label>
                   <span className="font-semibold text-purple-600" data-testid="text-agents-value">
                     {agents}
@@ -274,10 +277,10 @@ export function CustomPlanRequestDialog({ trigger, onSuccess, skipAuthCheck = fa
               
               {/* Supervisors */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="flex items-center gap-2">
-                    <Users className="w-4 h-4 text-purple-600" />
-                    Supervisors
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <Label className="flex items-center gap-2 text-sm">
+                    <Users className="w-4 h-4 text-purple-600 shrink-0" />
+                    <span>Supervisors</span>
                   </Label>
                   <span className="font-semibold text-purple-600" data-testid="text-supervisors-value">
                     {supervisors}
@@ -300,10 +303,10 @@ export function CustomPlanRequestDialog({ trigger, onSuccess, skipAuthCheck = fa
               
               {/* Knowledge Sources */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="flex items-center gap-2">
-                    <Database className="w-4 h-4 text-purple-600" />
-                    Knowledge Sources
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <Label className="flex items-center gap-2 text-sm">
+                    <Database className="w-4 h-4 text-purple-600 shrink-0" />
+                    <span>Knowledge Sources</span>
                   </Label>
                   <span className="font-semibold text-purple-600" data-testid="text-sources-value">
                     {sources === 100 ? "Unlimited" : sources}
@@ -325,45 +328,71 @@ export function CustomPlanRequestDialog({ trigger, onSuccess, skipAuthCheck = fa
               </div>
             </div>
             
-            {/* Premium Features */}
+            {/* Included Features (all checked, cannot uncheck) */}
             <div className="space-y-4">
               <h3 className="font-semibold flex items-center gap-2 text-sm">
                 <Crown className="w-4 h-4 text-purple-600" />
-                Fitur Premium
+                Fitur Premium Termasuk
+                <span className="text-xs font-normal text-muted-foreground ml-1">(sudah termasuk dalam paket)</span>
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {premiumFeatures.map(feature => {
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {includedFeatures.map(feature => {
                   const Icon = feature.icon;
-                  const isSelected = selectedFeatures.includes(feature.id);
                   return (
                     <div
                       key={feature.id}
-                      onClick={() => toggleFeature(feature.id)}
-                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                        isSelected 
-                          ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20' 
-                          : 'border-border hover:border-purple-300 hover:bg-muted/50'
-                      }`}
+                      className="flex items-center gap-2 p-2 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800"
                       data-testid={`feature-${feature.id}`}
                     >
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => toggleFeature(feature.id)}
-                        className="pointer-events-none"
-                      />
-                      <Icon className={`w-4 h-4 ${isSelected ? 'text-purple-600' : 'text-muted-foreground'}`} />
-                      <div className="flex-1">
-                        <div className={`text-sm font-medium ${isSelected ? 'text-purple-700 dark:text-purple-300' : ''}`}>
-                          {feature.label}
-                        </div>
+                      <div className="w-5 h-5 rounded-full bg-purple-600 flex items-center justify-center shrink-0">
+                        <Check className="w-3 h-3 text-white" />
                       </div>
-                      <div className={`text-sm font-semibold ${isSelected ? 'text-purple-600' : 'text-muted-foreground'}`}>
-                        +${feature.price}
-                      </div>
+                      <Icon className="w-4 h-4 text-purple-600 shrink-0" />
+                      <span className="text-sm font-medium text-purple-700 dark:text-purple-300 truncate">
+                        {feature.label}
+                      </span>
                     </div>
                   );
                 })}
               </div>
+            </div>
+            
+            {/* Optional White Label */}
+            <div className="space-y-3">
+              <h3 className="font-semibold flex items-center gap-2 text-sm">
+                <Sparkles className="w-4 h-4 text-purple-600" />
+                Fitur Tambahan (Opsional)
+              </h3>
+              {optionalFeatures.map(feature => {
+                const Icon = feature.icon;
+                return (
+                  <div
+                    key={feature.id}
+                    onClick={() => setAddWhiteLabel(!addWhiteLabel)}
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                      addWhiteLabel 
+                        ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20' 
+                        : 'border-border hover:border-purple-300 hover:bg-muted/50'
+                    }`}
+                    data-testid={`feature-${feature.id}`}
+                  >
+                    <Checkbox
+                      checked={addWhiteLabel}
+                      onCheckedChange={() => setAddWhiteLabel(!addWhiteLabel)}
+                      className="pointer-events-none"
+                    />
+                    <Icon className={`w-4 h-4 shrink-0 ${addWhiteLabel ? 'text-purple-600' : 'text-muted-foreground'}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-sm font-medium ${addWhiteLabel ? 'text-purple-700 dark:text-purple-300' : ''}`}>
+                        {feature.label}
+                      </div>
+                    </div>
+                    <div className={`text-sm font-semibold shrink-0 ${addWhiteLabel ? 'text-purple-600' : 'text-muted-foreground'}`}>
+                      +${feature.price}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
             
             {/* Message */}
@@ -387,42 +416,42 @@ export function CustomPlanRequestDialog({ trigger, onSuccess, skipAuthCheck = fa
               </div>
             </div>
             
-            {/* Summary */}
-            <div className="bg-muted/50 rounded-lg p-4 space-y-2 text-sm">
-              <div className="font-semibold mb-3">Ringkasan Konfigurasi:</div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Conversations:</span>
+            {/* Summary - Fixed mobile layout */}
+            <div className="bg-muted/50 rounded-lg p-4 space-y-3 text-sm">
+              <div className="font-semibold">Ringkasan Konfigurasi:</div>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Conversations</span>
                   <span className="font-medium">{formatNumber(conversations)}/bulan</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">AI Agents:</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">AI Agents</span>
                   <span className="font-medium">{agents}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Supervisors:</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Supervisors</span>
                   <span className="font-medium">{supervisors}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Sources:</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Sources</span>
                   <span className="font-medium">{sources === 100 ? "Unlimited" : sources}</span>
                 </div>
               </div>
-              {selectedFeatures.length > 0 && (
-                <div className="pt-2 border-t mt-2">
-                  <span className="text-muted-foreground">Fitur Premium:</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {selectedFeatures.map(id => {
-                      const feature = premiumFeatures.find(f => f.id === id);
-                      return feature ? (
-                        <span key={id} className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded text-xs">
-                          {feature.label}
-                        </span>
-                      ) : null;
-                    })}
-                  </div>
+              <div className="pt-2 border-t">
+                <span className="text-muted-foreground">Fitur Premium:</span>
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {includedFeatures.map(feature => (
+                    <span key={feature.id} className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded text-xs">
+                      {feature.label}
+                    </span>
+                  ))}
+                  {addWhiteLabel && (
+                    <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded text-xs">
+                      White Label
+                    </span>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
             
             {/* Actions */}

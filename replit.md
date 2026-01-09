@@ -64,6 +64,8 @@ Chatvice is a monorepo application structured with `/client`, `/server`, and `/s
     - Premium feature cards with checkboxes and individual pricing (+$20 to +$150)
     - Features include: Custom Domain, Identity Verification, Priority Queue, Advanced Analytics, SLA Guarantee, Dedicated Support, Custom Integrations, White Label
   - **Pricing Logic**: Base $5/1K conversations + $15/agent (after 3) + $10/supervisor (after 3) + $2/source (after 20) + premium features
+  - **Included Premium Features**: 7 features are pre-checked and included by default (Custom Domain, Identity Verification, Priority Queue, Advanced Analytics, SLA Guarantee, Dedicated Support, Custom Integrations) - cannot be unchecked
+  - **Optional Feature**: White Label Solution (+$150) is optional and can be added/removed
   - **Message Field**: Optional text area for direct message to sales team (max 500 characters)
   - **Configuration Summary**: Visual recap of selected resources and premium features
   - **Admin Review**: Custom Requests tab in Admin Panel displays all requests with message prominently highlighted in purple box
