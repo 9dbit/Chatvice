@@ -2178,7 +2178,104 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
   
-  // Submit payment confirmation (merchant submits proof, admin must approve)
+  // Submit payment confirmation with proof image (merchant submits proof, admin must approve)
+  app.post("/api/merchant/custom-invoices/:invoiceId/submit-proof", requireMerchant, upload.single("proof"), async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { transactionId, paymentMethod } = req.body;
+      
+      const invoice = await storage.getCustomPlanInvoice(req.params.invoiceId);
+      
+      if (!invoice) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+      
+      if (invoice.merchantId !== merchantId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      
+      if (invoice.status !== "pending") {
+        return res.status(400).json({ error: `Invoice is already ${invoice.status}` });
+      }
+      
+      // Handle proof image - try object storage first, then database fallback
+      let proofImageUrl = null;
+      if (req.file) {
+        const proofFilename = req.file.filename;
+        const localFilePath = path.join(uploadDir, proofFilename);
+        
+        try {
+          const objectStorage = new ObjectStorageService();
+          const fileBuffer = fs.readFileSync(localFilePath);
+          const extension = path.extname(proofFilename).toLowerCase();
+          const contentType = extension === '.png' ? 'image/png' : 
+                              extension === '.jpg' || extension === '.jpeg' ? 'image/jpeg' : 
+                              extension === '.gif' ? 'image/gif' : 'image/png';
+          
+          const uniqueKey = `custom-invoice-proofs/${merchantId}/${Date.now()}-${proofFilename}`;
+          await objectStorage.uploadFile(uniqueKey, fileBuffer, contentType);
+          proofImageUrl = `/api/media/object-storage/${encodeURIComponent(uniqueKey)}`;
+          
+          // Clean up local file
+          try { fs.unlinkSync(localFilePath); } catch (e) {}
+        } catch (storageError) {
+          console.log("Object storage failed for invoice proof, using database storage:", storageError);
+          // Database storage fallback
+          try {
+            const fileBuffer = fs.readFileSync(localFilePath);
+            const base64Data = fileBuffer.toString('base64');
+            const extension = path.extname(proofFilename).toLowerCase();
+            const mimeType = extension === '.png' ? 'image/png' : 
+                             extension === '.jpg' || extension === '.jpeg' ? 'image/jpeg' : 
+                             extension === '.gif' ? 'image/gif' : 'image/png';
+            
+            const mediaId = `inv_proof_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+            await storage.createMedia({
+              type: 'image',
+              url: `data:${mimeType};base64,${base64Data}`,
+              filename: proofFilename,
+              mimeType,
+              size: fileBuffer.length,
+              uploadedBy: merchantId,
+            });
+            
+            proofImageUrl = `/api/media/${mediaId}`;
+            try { fs.unlinkSync(localFilePath); } catch (e) {}
+          } catch (dbError) {
+            console.log("Database storage also failed, using local file path:", dbError);
+            proofImageUrl = `/uploads/${proofFilename}`;
+          }
+        }
+      }
+      
+      if (!proofImageUrl) {
+        return res.status(400).json({ error: "Proof of payment image is required" });
+      }
+      
+      // Update invoice to "awaiting_confirmation" with proof
+      await storage.updateCustomPlanInvoice(invoice.id, {
+        status: "awaiting_confirmation",
+        transactionId: transactionId || null,
+        paymentMethod: paymentMethod || "bank_transfer",
+        proofImageUrl,
+        proofSubmittedAt: new Date(),
+      });
+      
+      // Log the submission for admin review
+      console.log(`[Invoice Payment Proof Submitted] ${invoice.invoiceNumber} - Merchant ${merchantId} submitted payment proof`);
+      
+      res.json({ 
+        success: true, 
+        message: "Bukti pembayaran berhasil dikirim. Menunggu konfirmasi admin.",
+        invoiceNumber: invoice.invoiceNumber,
+      });
+    } catch (error) {
+      console.error("Error submitting invoice proof:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Submit payment confirmation without proof (for backward compatibility)
   app.post("/api/merchant/custom-invoices/:invoiceId/submit-payment", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.userId;

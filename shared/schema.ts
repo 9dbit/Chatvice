@@ -1432,8 +1432,10 @@ export const customPlanInvoices = pgTable("custom_plan_invoices", {
   // Payment info
   paymentMethod: text("payment_method"), // kompaspay, paypal, crypto, bank_transfer
   transactionId: text("transaction_id"),
+  proofImageUrl: text("proof_image_url"), // Proof of payment image URL
+  proofSubmittedAt: timestamp("proof_submitted_at"), // When proof was submitted
   // Status
-  status: text("status").default("pending"), // pending, paid, cancelled, expired
+  status: text("status").default("pending"), // pending, awaiting_confirmation, paid, cancelled, expired
   // Timestamps
   dueDate: timestamp("due_date"),
   paidAt: timestamp("paid_at"),

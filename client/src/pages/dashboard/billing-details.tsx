@@ -201,6 +201,64 @@ export default function BillingDetailsPage() {
   const [invoiceToCancel, setInvoiceToCancel] = useState<string | null>(null);
   const [showCancelInvoiceConfirm, setShowCancelInvoiceConfirm] = useState(false);
 
+  // State for proof upload
+  const [selectedProofInvoice, setSelectedProofInvoice] = useState<string | null>(null);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofPreview, setProofPreview] = useState<string | null>(null);
+  const proofInputRef = useRef<HTMLInputElement>(null);
+
+  // Submit proof mutation
+  const submitProofMutation = useMutation({
+    mutationFn: async ({ invoiceId, file }: { invoiceId: string; file: File }) => {
+      const formData = new FormData();
+      formData.append("proof", file);
+      formData.append("paymentMethod", "bank_transfer");
+      
+      const response = await fetch(`/api/merchant/custom-invoices/${invoiceId}/submit-proof`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to submit proof");
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Bukti Pembayaran Terkirim",
+        description: "Bukti pembayaran Anda sedang ditinjau oleh admin.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-invoices"] });
+      setSelectedProofInvoice(null);
+      setProofFile(null);
+      setProofPreview(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Gagal mengirim bukti pembayaran.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handle proof file selection
+  const handleProofFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setProofFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProofPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   // Format countdown
   const formatPendingCountdown = () => {
     const hours = Math.floor(pendingPaymentTimeRemaining / 3600);
@@ -626,37 +684,123 @@ export default function BillingDetailsPage() {
                       <div className="flex items-center gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
                         <Clock className="w-4 h-4 text-amber-600 flex-shrink-0" />
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Payment Under Review</p>
-                          <p className="text-xs text-amber-600 dark:text-amber-400">Your payment is currently under review. We are processing your custom plan.</p>
+                          <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Pembayaran Sedang Ditinjau</p>
+                          <p className="text-xs text-amber-600 dark:text-amber-400">Bukti pembayaran Anda sedang ditinjau oleh admin. Custom plan Anda akan segera aktif.</p>
+                        </div>
+                      </div>
+                    ) : selectedProofInvoice === invoice.id ? (
+                      /* Proof Upload Section */
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 p-3 rounded-md bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
+                          <AlertTriangle className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-purple-800 dark:text-purple-200">Menunggu Bukti Pembayaran</p>
+                            <p className="text-xs text-purple-600 dark:text-purple-400">Silakan upload bukti pembayaran untuk melanjutkan proses aktivasi.</p>
+                          </div>
+                        </div>
+                        
+                        {/* Upload area */}
+                        <div 
+                          className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-4 text-center cursor-pointer hover:bg-muted/30 transition-colors"
+                          onClick={() => proofInputRef.current?.click()}
+                          data-testid={`proof-upload-area-${invoice.id}`}
+                        >
+                          <input
+                            ref={proofInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleProofFileChange}
+                            className="hidden"
+                            data-testid={`proof-input-${invoice.id}`}
+                          />
+                          {proofPreview ? (
+                            <div className="space-y-2">
+                              <img src={proofPreview} alt="Proof preview" className="max-h-32 mx-auto rounded-md" />
+                              <p className="text-xs text-muted-foreground">{proofFile?.name}</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              <FileText className="w-8 h-8 mx-auto text-muted-foreground" />
+                              <p className="text-sm text-muted-foreground">Klik untuk upload bukti pembayaran</p>
+                              <p className="text-xs text-muted-foreground">Format: JPG, PNG (maks. 5MB)</p>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => {
+                              setSelectedProofInvoice(null);
+                              setProofFile(null);
+                              setProofPreview(null);
+                            }}
+                            data-testid={`button-cancel-proof-${invoice.id}`}
+                          >
+                            Batal
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="flex-1 bg-purple-600 hover:bg-purple-700"
+                            disabled={!proofFile || submitProofMutation.isPending}
+                            onClick={() => {
+                              if (proofFile) {
+                                submitProofMutation.mutate({ invoiceId: invoice.id, file: proofFile });
+                              }
+                            }}
+                            data-testid={`button-submit-proof-${invoice.id}`}
+                          >
+                            {submitProofMutation.isPending ? (
+                              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                            ) : (
+                              <FileText className="w-4 h-4 mr-1" />
+                            )}
+                            Kirim Bukti
+                          </Button>
                         </div>
                       </div>
                     ) : (
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() => {
-                            setInvoiceToCancel(invoice.id);
-                            setShowCancelInvoiceConfirm(true);
-                          }}
-                          disabled={cancelInvoiceMutation.isPending}
-                          data-testid={`button-cancel-invoice-${invoice.id}`}
-                        >
-                          <X className="w-4 h-4 mr-1" />
-                          Cancel
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="flex-1 bg-purple-600 hover:bg-purple-700"
-                          data-testid={`button-pay-invoice-${invoice.id}`}
-                          asChild
-                        >
-                          <Link href={`/dashboard/checkout?invoiceId=${invoice.id}&plan=custom`}>
-                            <CreditCard className="w-4 h-4 mr-1" />
-                            Pay Now
-                          </Link>
-                        </Button>
+                      /* Initial pending state - show proof upload prompt */
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Menunggu Bukti Pembayaran</p>
+                            <p className="text-xs text-amber-600 dark:text-amber-400">Silakan transfer ke rekening kami dan upload bukti pembayaran.</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => {
+                              setInvoiceToCancel(invoice.id);
+                              setShowCancelInvoiceConfirm(true);
+                            }}
+                            disabled={cancelInvoiceMutation.isPending}
+                            data-testid={`button-cancel-invoice-${invoice.id}`}
+                          >
+                            <X className="w-4 h-4 mr-1" />
+                            Batalkan
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="flex-1 bg-purple-600 hover:bg-purple-700"
+                            onClick={() => {
+                              setSelectedProofInvoice(invoice.id);
+                              setProofFile(null);
+                              setProofPreview(null);
+                            }}
+                            data-testid={`button-upload-proof-${invoice.id}`}
+                          >
+                            <FileText className="w-4 h-4 mr-1" />
+                            Upload Bukti
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </div>
