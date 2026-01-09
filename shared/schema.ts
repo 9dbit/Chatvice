@@ -1316,6 +1316,49 @@ export const insertCryptoPaymentConfirmationSchema = createInsertSchema(cryptoPa
 export type InsertCryptoPaymentConfirmation = z.infer<typeof insertCryptoPaymentConfirmationSchema>;
 export type CryptoPaymentConfirmation = typeof cryptoPaymentConfirmations.$inferSelect;
 
+// ============ Bank Transfer Payment Confirmations ============
+
+export const bankTransferConfirmations = pgTable("bank_transfer_confirmations", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  // Order details
+  planId: text("plan_id").notNull(),
+  planName: text("plan_name").notNull(),
+  billingInterval: text("billing_interval").notNull(), // monthly or annual
+  isUpgrade: boolean("is_upgrade").default(false),
+  isDowngrade: boolean("is_downgrade").default(false),
+  // Custom invoice link (for custom plans)
+  customInvoiceId: varchar("custom_invoice_id", { length: 32 }),
+  // Payment details
+  bankName: text("bank_name").notNull(), // BCA, Mandiri, BRI, etc.
+  accountNumber: text("account_number").notNull(), // Target bank account
+  accountName: text("account_name").notNull(), // Target account holder name
+  amountIdr: integer("amount_idr").notNull(), // Amount in IDR (including unique code)
+  amountUsd: integer("amount_usd"), // Original USD amount in cents (for reference)
+  uniqueCode: text("unique_code"), // Unique code for identification
+  senderBankName: text("sender_bank_name"), // Sender's bank name
+  senderAccountNumber: text("sender_account_number"), // Sender's account number
+  senderAccountName: text("sender_account_name"), // Sender's account name
+  transferDate: timestamp("transfer_date"), // When the transfer was made
+  // Proof of payment
+  proofImageUrl: text("proof_image_url"),
+  // Status
+  status: text("status").default("pending"), // pending, approved, rejected
+  reviewedBy: varchar("reviewed_by", { length: 32 }),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
+  // Contact info
+  merchantEmail: text("merchant_email").notNull(),
+  merchantCompanyName: text("merchant_company_name"),
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertBankTransferConfirmationSchema = createInsertSchema(bankTransferConfirmations).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertBankTransferConfirmation = z.infer<typeof insertBankTransferConfirmationSchema>;
+export type BankTransferConfirmation = typeof bankTransferConfirmations.$inferSelect;
+
 // ============ KnowledgeBase Articles ============
 
 export const knowledgebaseArticles = pgTable("knowledgebase_articles", {
