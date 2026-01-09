@@ -285,6 +285,8 @@ async function checkExpiringSubscription(merchant: any) {
     title: `Subscription Expiring Soon`,
     message: `Your ${planName} subscription will expire in ${daysRemaining} day${daysRemaining > 1 ? 's' : ''}. Renew now to avoid service interruption.`,
     metadata: { planName, expiresAt: expiresAt.toISOString(), daysRemaining, status: "expiring" },
+    actionUrl: "/dashboard/checkout?from=renewal",
+    actionLabel: "Renew Now",
     isRead: false,
   });
   
@@ -363,6 +365,8 @@ async function checkUnansweredChatSessions(merchant: any) {
           link: `/dashboard/chat/${session.id}`,
           status: "pending" 
         },
+        actionUrl: `/dashboard/chat/${session.id}`,
+        actionLabel: "View Chat",
         isRead: false,
       });
       
@@ -5261,6 +5265,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
               paymentMethod: 'crypto',
               status: "active" 
             },
+            actionUrl: "/dashboard/billing",
+            actionLabel: "View Billing",
             isRead: false,
           });
           
@@ -5640,6 +5646,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             title: "Plan Activated",
             message: `Your ${planName} plan (${billingText}) is now active until ${periodEnd.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}.`,
             metadata: { planId, planName, billingInterval, expiresAt: periodEnd.toISOString(), status: "active" },
+            actionUrl: "/dashboard/billing",
+            actionLabel: "View Billing",
             isRead: false,
           });
           
@@ -5972,6 +5980,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         title: "Custom Plan Invoice Available",
         message: `Invoice ${invoiceNumber} has been created. Please pay to activate your custom plan.`,
         metadata: { invoiceId: invoice.id, invoiceNumber, amount, currency, billingInterval, status: "pending" },
+        actionUrl: "/dashboard/billing",
+        actionLabel: "View Invoice",
         isRead: false,
       });
       
@@ -6075,6 +6085,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         title: "Custom Plan Activated",
         message: `Congratulations! Your custom plan is now active until ${periodEnd.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}.`,
         metadata: { planName: "Custom Plan", billingInterval: invoice.billingInterval, expiresAt: periodEnd.toISOString(), status: "active" },
+        actionUrl: "/dashboard/billing",
+        actionLabel: "View Billing",
         isRead: false,
       });
       

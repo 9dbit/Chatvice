@@ -93,10 +93,19 @@ export function MerchantNotificationCenter() {
   const unreadCount = unreadData?.count || 0;
   
   const getNotificationLink = (notification: MerchantNotification) => {
+    // Use actionUrl if explicitly set
+    if (notification.actionUrl) {
+      return notification.actionUrl;
+    }
+    
+    // Fallback based on notification type
     if (notification.type === "custom_plan_request" || notification.type === "invoice") {
       return "/dashboard/billing";
     }
-    if (notification.type === "subscription" || notification.type === "subscription_expiring") {
+    if (notification.type === "subscription_expiring") {
+      return "/dashboard/checkout?from=renewal"; // Direct to checkout for renewal
+    }
+    if (notification.type === "subscription") {
       return "/dashboard/billing";
     }
     if (notification.type === "chat_reminder" && notification.metadata?.link) {
