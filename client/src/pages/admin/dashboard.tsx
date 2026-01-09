@@ -118,6 +118,7 @@ import {
   Pencil,
   Bitcoin,
   Key,
+  Landmark,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -219,6 +220,13 @@ export default function AdminDashboard() {
     enabled: !!adminId,
   });
   const pendingCryptoPaymentsCount = cryptoPayments.filter(p => p.status === "pending").length;
+  
+  // Fetch pending bank transfer payments count for sidebar badge
+  const { data: bankTransferPayments = [] } = useQuery<{ status: string }[]>({
+    queryKey: ["/api/admin/bank-transfer-payments"],
+    enabled: !!adminId,
+  });
+  const pendingBankTransferPaymentsCount = bankTransferPayments.filter(p => p.status === "pending").length;
 
   const handleLogout = () => {
     localStorage.removeItem("adminId");
@@ -312,6 +320,7 @@ export default function AdminDashboard() {
     { id: "payment", label: "Payment Integration", icon: Zap },
     { id: "menuorder", label: "Menu Order", icon: Layers },
     { id: "crypto-payments", label: "Crypto Payments", icon: Bitcoin },
+    { id: "bank-transfers", label: "Bank Transfers", icon: Landmark },
     { id: "custom-requests", label: "Custom Requests", icon: Sparkles },
     { id: "settings", label: "Settings", icon: Settings },
   ];
@@ -333,6 +342,8 @@ export default function AdminDashboard() {
             badgeCount = pendingCustomRequestsCount;
           } else if (item.id === "crypto-payments") {
             badgeCount = pendingCryptoPaymentsCount;
+          } else if (item.id === "bank-transfers") {
+            badgeCount = pendingBankTransferPaymentsCount;
           }
           
           return (
@@ -488,6 +499,8 @@ export default function AdminDashboard() {
             {activeTab === "menuorder" && <MenuOrderTab toast={toast} />}
             
             {activeTab === "crypto-payments" && <CryptoPaymentsTab toast={toast} />}
+            
+            {activeTab === "bank-transfers" && <BankTransferPaymentsTab toast={toast} />}
             
             {activeTab === "custom-requests" && <CustomRequestsTab toast={toast} />}
           </div>
@@ -8497,6 +8510,418 @@ function CryptoPaymentsTab({ toast }: { toast: any }) {
                   />
                 </CardContent>
               </Card>
+
+              {selectedPayment.status === 'pending' && (
+                <div className="space-y-3">
+                  <div>
+                    <Label>Review Notes (Optional)</Label>
+                    <Textarea
+                      value={reviewNotes}
+                      onChange={(e) => setReviewNotes(e.target.value)}
+                      placeholder="Add any notes about this payment..."
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      className="flex-1 bg-green-600 hover:bg-green-700"
+                      onClick={() => handleApprove(selectedPayment.id)}
+                      disabled={actionLoading}
+                    >
+                      {actionLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                      Approve & Activate
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      className="flex-1"
+                      onClick={() => handleReject(selectedPayment.id)}
+                      disabled={actionLoading}
+                    >
+                      {actionLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <XCircle className="w-4 h-4 mr-2" />}
+                      Reject
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {selectedPayment.status !== 'pending' && selectedPayment.reviewNotes && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Review Notes</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm">{selectedPayment.reviewNotes}</p>
+                    {selectedPayment.reviewedAt && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Reviewed on {new Date(selectedPayment.reviewedAt).toLocaleString()}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+interface BankTransferPaymentConfirmation {
+  id: string;
+  merchantId: string;
+  merchantEmail: string;
+  merchantCompanyName: string;
+  planId: string;
+  planName: string;
+  billingInterval: string;
+  isUpgrade: boolean;
+  isDowngrade: boolean;
+  customInvoiceId: string | null;
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+  amountIdr: number;
+  amountUsd: number | null;
+  uniqueCode: string | null;
+  senderBankName: string | null;
+  senderAccountNumber: string | null;
+  senderAccountName: string | null;
+  transferDate: Date | null;
+  proofImageUrl: string;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewNotes: string | null;
+  reviewedBy: string | null;
+  reviewedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+function BankTransferPaymentsTab({ toast }: { toast: any }) {
+  const [selectedPayment, setSelectedPayment] = useState<BankTransferPaymentConfirmation | null>(null);
+  const [reviewNotes, setReviewNotes] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+
+  const { data: payments, isLoading, refetch } = useQuery<BankTransferPaymentConfirmation[]>({
+    queryKey: ['/api/admin/bank-transfer-payments'],
+  });
+
+  const handleApprove = async (id: string) => {
+    setActionLoading(true);
+    try {
+      await apiRequest('PATCH', `/api/admin/bank-transfer-payments/${id}`, {
+        status: 'approved',
+        reviewNotes,
+      });
+      toast({ title: "Payment Approved", description: "Subscription has been activated for the merchant." });
+      setSelectedPayment(null);
+      setReviewNotes("");
+      refetch();
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to approve payment", variant: "destructive" });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    setActionLoading(true);
+    try {
+      await apiRequest('PATCH', `/api/admin/bank-transfer-payments/${id}`, {
+        status: 'rejected',
+        reviewNotes,
+      });
+      toast({ title: "Payment Rejected", description: "Merchant has been notified." });
+      setSelectedPayment(null);
+      setReviewNotes("");
+      refetch();
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to reject payment", variant: "destructive" });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const filteredPayments = payments?.filter(p => filter === 'all' || p.status === filter) || [];
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">Pending</Badge>;
+      case 'approved':
+        return <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">Approved</Badge>;
+      case 'rejected':
+        return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/30">Rejected</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const pendingCount = payments?.filter(p => p.status === 'pending').length || 0;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <Landmark className="w-6 h-6 text-amber-500" />
+            Bank Transfer Payment Confirmations
+          </h2>
+          <p className="text-muted-foreground">Review and approve bank transfer payment submissions</p>
+        </div>
+        {pendingCount > 0 && (
+          <Badge className="bg-amber-500 text-white">{pendingCount} Pending</Badge>
+        )}
+      </div>
+
+      <div className="flex gap-2">
+        <Button 
+          variant={filter === 'all' ? 'default' : 'outline'} 
+          size="sm"
+          onClick={() => setFilter('all')}
+        >
+          All ({payments?.length || 0})
+        </Button>
+        <Button 
+          variant={filter === 'pending' ? 'default' : 'outline'} 
+          size="sm"
+          onClick={() => setFilter('pending')}
+        >
+          Pending ({pendingCount})
+        </Button>
+        <Button 
+          variant={filter === 'approved' ? 'default' : 'outline'} 
+          size="sm"
+          onClick={() => setFilter('approved')}
+        >
+          Approved ({payments?.filter(p => p.status === 'approved').length || 0})
+        </Button>
+        <Button 
+          variant={filter === 'rejected' ? 'default' : 'outline'} 
+          size="sm"
+          onClick={() => setFilter('rejected')}
+        >
+          Rejected ({payments?.filter(p => p.status === 'rejected').length || 0})
+        </Button>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-8 text-center">
+              <Loader2 className="w-8 h-8 mx-auto animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredPayments.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground">
+              <Landmark className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>No bank transfer payment confirmations found</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Order #</TableHead>
+                  <TableHead>Merchant</TableHead>
+                  <TableHead>Plan</TableHead>
+                  <TableHead>Bank</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredPayments.map((payment) => (
+                  <TableRow key={payment.id}>
+                    <TableCell>
+                      <div>
+                        <p className="font-mono text-xs font-medium">{payment.customInvoiceId || payment.id.slice(0, 15)}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{payment.merchantCompanyName}</p>
+                        <p className="text-xs text-muted-foreground">{payment.merchantEmail}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span>{payment.planName}</span>
+                        {payment.customInvoiceId && <Badge className="text-xs bg-purple-500/20 text-purple-600">Custom Invoice</Badge>}
+                        {payment.isUpgrade && <Badge className="text-xs bg-green-500/20 text-green-600">Upgrade</Badge>}
+                        {payment.isDowngrade && <Badge className="text-xs bg-amber-500/20 text-amber-600">Downgrade</Badge>}
+                      </div>
+                      <p className="text-xs text-muted-foreground">{payment.billingInterval}</p>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{payment.bankName}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <p className="font-medium">Rp {payment.amountIdr.toLocaleString('id-ID')}</p>
+                      {payment.amountUsd && <p className="text-xs text-muted-foreground">${(payment.amountUsd / 100).toFixed(2)} USD</p>}
+                    </TableCell>
+                    <TableCell>{getStatusBadge(payment.status)}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {new Date(payment.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button size="sm" variant="outline" onClick={() => {
+                        setSelectedPayment(payment);
+                        setReviewNotes(payment.reviewNotes || "");
+                      }}>
+                        <Eye className="w-4 h-4 mr-1" />
+                        Review
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!selectedPayment} onOpenChange={(open) => !open && setSelectedPayment(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Landmark className="w-5 h-5 text-amber-500" />
+              Review Bank Transfer Payment
+            </DialogTitle>
+            <DialogDescription>
+              Verify the transfer details and proof of payment
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedPayment && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted/50 border">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Order / Invoice Number</p>
+                    <p className="font-mono font-semibold">{selectedPayment.customInvoiceId || selectedPayment.id}</p>
+                  </div>
+                  <Badge variant={selectedPayment.status === 'pending' ? 'secondary' : selectedPayment.status === 'approved' ? 'default' : 'destructive'}>
+                    {selectedPayment.status.charAt(0).toUpperCase() + selectedPayment.status.slice(1)}
+                  </Badge>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Merchant</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="font-medium">{selectedPayment.merchantCompanyName}</p>
+                    <p className="text-sm text-muted-foreground">{selectedPayment.merchantEmail}</p>
+                    <p className="text-xs text-muted-foreground mt-1">ID: {selectedPayment.merchantId}</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Subscription</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-medium">{selectedPayment.planName}</p>
+                      {selectedPayment.customInvoiceId && <Badge className="text-xs bg-purple-500/20 text-purple-600">Custom Invoice</Badge>}
+                      {selectedPayment.isUpgrade && <Badge className="text-xs bg-green-500/20 text-green-600">Upgrade</Badge>}
+                      {selectedPayment.isDowngrade && <Badge className="text-xs bg-amber-500/20 text-amber-600">Downgrade</Badge>}
+                    </div>
+                    <p className="text-sm text-muted-foreground">{selectedPayment.billingInterval}</p>
+                    {selectedPayment.customInvoiceId && (
+                      <p className="text-xs text-purple-600 mt-1">Invoice ID: {selectedPayment.customInvoiceId}</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Transfer Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Destination Bank:</span>
+                      <p className="font-medium">{selectedPayment.bankName}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Account Number:</span>
+                      <p className="font-medium">{selectedPayment.accountNumber}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Account Name:</span>
+                      <p className="font-medium">{selectedPayment.accountName}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Amount:</span>
+                      <p className="font-medium">Rp {selectedPayment.amountIdr.toLocaleString('id-ID')}</p>
+                    </div>
+                    {selectedPayment.uniqueCode && (
+                      <div>
+                        <span className="text-muted-foreground">Unique Code:</span>
+                        <p className="font-medium">{selectedPayment.uniqueCode}</p>
+                      </div>
+                    )}
+                    {selectedPayment.amountUsd && (
+                      <div>
+                        <span className="text-muted-foreground">USD Equivalent:</span>
+                        <p className="font-medium">${(selectedPayment.amountUsd / 100).toFixed(2)}</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {selectedPayment.senderBankName && (
+                    <div className="pt-3 border-t">
+                      <p className="text-sm font-medium mb-2">Sender Information</p>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Sender Bank:</span>
+                          <p className="font-medium">{selectedPayment.senderBankName}</p>
+                        </div>
+                        {selectedPayment.senderAccountNumber && (
+                          <div>
+                            <span className="text-muted-foreground">Sender Account:</span>
+                            <p className="font-medium">{selectedPayment.senderAccountNumber}</p>
+                          </div>
+                        )}
+                        {selectedPayment.senderAccountName && (
+                          <div>
+                            <span className="text-muted-foreground">Sender Name:</span>
+                            <p className="font-medium">{selectedPayment.senderAccountName}</p>
+                          </div>
+                        )}
+                        {selectedPayment.transferDate && (
+                          <div>
+                            <span className="text-muted-foreground">Transfer Date:</span>
+                            <p className="font-medium">{new Date(selectedPayment.transferDate).toLocaleDateString('id-ID')}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {selectedPayment.proofImageUrl && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Proof of Payment</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <img 
+                      src={selectedPayment.proofImageUrl} 
+                      alt="Payment Proof" 
+                      className="max-w-full rounded-lg border"
+                    />
+                  </CardContent>
+                </Card>
+              )}
 
               {selectedPayment.status === 'pending' && (
                 <div className="space-y-3">
