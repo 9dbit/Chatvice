@@ -60,12 +60,14 @@ Chatvice is a monorepo application structured with `/client`, `/server`, and `/s
   - **Access**: "Contact Sales" button on Custom plan card in merchant Plans page
   - **Budget Simulator UI**: 
     - Real-time price calculation displayed in purple gradient banner
-    - Interactive sliders for Conversations (5K-200K), AI Agents (1-50), Supervisors (1-50), Knowledge Sources (10-Unlimited)
-    - Premium feature cards with checkboxes and individual pricing (+$20 to +$150)
-    - Features include: Custom Domain, Identity Verification, Priority Queue, Advanced Analytics, SLA Guarantee, Dedicated Support, Custom Integrations, White Label
-  - **Pricing Logic**: Base $5/1K conversations + $15/agent (after 3) + $10/supervisor (after 3) + $2/source (after 20) + premium features
-  - **Included Premium Features**: 7 features are pre-checked and included by default (Custom Domain, Identity Verification, Priority Queue, Advanced Analytics, SLA Guarantee, Dedicated Support, Custom Integrations) - cannot be unchecked
-  - **Optional Feature**: White Label Solution (+$150) is optional and can be added/removed
+    - Interactive sliders starting from Enterprise plan values
+    - Default values: 50K conversations, 10 AI Agents, 5 Supervisors, Unlimited Sources
+    - Premium features included: Custom Domain, Identity Verification, Priority Queue, Advanced Analytics, SLA Guarantee, Dedicated Support, Custom Integrations
+  - **Pricing Logic**: Enterprise base price ($499) + additional resources above Enterprise limits
+    - Additional conversations: $5/1K beyond 50K
+    - Additional AI Agents: $15/agent beyond 10
+    - Additional Supervisors: $10/supervisor beyond 5
+    - Knowledge Sources: Unlimited (no extra cost)
   - **Message Field**: Optional text area for direct message to sales team (max 500 characters)
   - **Configuration Summary**: Visual recap of selected resources and premium features
   - **Admin Review**: Custom Requests tab in Admin Panel displays all requests with message prominently highlighted in purple box

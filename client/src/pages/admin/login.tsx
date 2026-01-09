@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,24 +20,34 @@ export default function AdminLogin() {
   
   const chatviceLogo = resolvedTheme === "dark" ? chatviceLogoDark : chatviceLogoLight;
 
+  const [errorMessage, setErrorMessage] = useState("");
+
   const loginMutation = useMutation<{ success: boolean; adminId: string; name: string }, Error, { email: string; password: string }>({
     mutationFn: async (data) => {
-      const response = await apiRequest("POST", "/api/admin/login", data);
+      // Use fetch directly to bypass global 401 redirect handler
+      const response = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Login failed" }));
-        throw new Error(errorData.error || "Invalid credentials");
+        const errorData = await response.json().catch(() => ({ error: "Invalid email or password" }));
+        throw new Error(errorData.error || "Invalid email or password");
       }
       return response.json();
     },
     onSuccess: (data) => {
+      setErrorMessage("");
       localStorage.setItem("adminId", data.adminId);
       localStorage.setItem("userType", "admin");
       setLocation("/admin");
     },
     onError: (error: Error) => {
+      setErrorMessage(error.message || "Invalid email or password");
       toast({
         title: "Login failed",
-        description: error.message || "Invalid credentials",
+        description: error.message || "Invalid email or password",
         variant: "destructive",
       });
     },
@@ -89,6 +98,11 @@ export default function AdminLogin() {
                 data-testid="input-admin-password"
               />
             </div>
+            {errorMessage && (
+              <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-sm" data-testid="text-login-error">
+                {errorMessage}
+              </div>
+            )}
             <Button
               type="submit"
               className="w-full"
