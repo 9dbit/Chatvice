@@ -524,8 +524,8 @@ export default function BillingPage() {
     },
     onSuccess: () => {
       toast({
-        title: "Bukti Pembayaran Terkirim",
-        description: "Bukti pembayaran Anda sedang ditinjau oleh admin.",
+        title: "Payment Proof Submitted",
+        description: "Your payment proof is being reviewed by admin.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-invoices"] });
       setSelectedProofInvoice(null);
@@ -1322,8 +1322,8 @@ export default function BillingPage() {
                     <div className="flex items-center gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
                       <Timer className="w-4 h-4 text-amber-600 flex-shrink-0" />
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Pembayaran Sedang Ditinjau</p>
-                        <p className="text-xs text-amber-600 dark:text-amber-400">Bukti pembayaran Anda sedang ditinjau oleh admin. Custom plan Anda akan segera aktif.</p>
+                        <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Payment Under Review</p>
+                        <p className="text-xs text-amber-600 dark:text-amber-400">Your payment proof is being reviewed by admin. Your custom plan will be activated soon.</p>
                       </div>
                     </div>
                   ) : selectedProofInvoice === invoice.id ? (
@@ -1332,8 +1332,8 @@ export default function BillingPage() {
                       <div className="flex items-center gap-2 p-3 rounded-md bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
                         <AlertTriangle className="w-4 h-4 text-purple-600 flex-shrink-0" />
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-purple-800 dark:text-purple-200">Menunggu Bukti Pembayaran</p>
-                          <p className="text-xs text-purple-600 dark:text-purple-400">Silakan upload bukti pembayaran untuk melanjutkan proses aktivasi.</p>
+                          <p className="text-sm font-medium text-purple-800 dark:text-purple-200">Awaiting Payment Proof</p>
+                          <p className="text-xs text-purple-600 dark:text-purple-400">Please upload your payment proof to continue the activation process.</p>
                         </div>
                       </div>
                       
@@ -1359,8 +1359,8 @@ export default function BillingPage() {
                         ) : (
                           <div className="space-y-2">
                             <FileText className="w-8 h-8 mx-auto text-muted-foreground" />
-                            <p className="text-sm text-muted-foreground">Klik untuk upload bukti pembayaran</p>
-                            <p className="text-xs text-muted-foreground">Format: JPG, PNG (maks. 5MB)</p>
+                            <p className="text-sm text-muted-foreground">Click to upload payment proof</p>
+                            <p className="text-xs text-muted-foreground">Format: JPG, PNG (max. 5MB)</p>
                           </div>
                         )}
                       </div>
@@ -1377,7 +1377,7 @@ export default function BillingPage() {
                           }}
                           data-testid={`button-cancel-proof-${invoice.id}`}
                         >
-                          Batal
+                          Cancel
                         </Button>
                         <Button
                           size="sm"
@@ -1395,7 +1395,7 @@ export default function BillingPage() {
                           ) : (
                             <FileText className="w-4 h-4 mr-1" />
                           )}
-                          Kirim Bukti
+                          Submit Proof
                         </Button>
                       </div>
                     </div>
@@ -1405,8 +1405,8 @@ export default function BillingPage() {
                       <div className="flex items-center gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
                         <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Menunggu Bukti Pembayaran</p>
-                          <p className="text-xs text-amber-600 dark:text-amber-400">Silakan transfer ke rekening kami dan upload bukti pembayaran.</p>
+                          <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Awaiting Payment Proof</p>
+                          <p className="text-xs text-amber-600 dark:text-amber-400">Please transfer to our account and upload your payment proof.</p>
                         </div>
                       </div>
                       
@@ -1423,7 +1423,7 @@ export default function BillingPage() {
                           data-testid={`button-cancel-invoice-${invoice.id}`}
                         >
                           <X className="w-4 h-4 mr-2" />
-                          Batalkan
+                          Cancel
                         </Button>
                         <Button 
                           size="sm" 
@@ -1436,7 +1436,7 @@ export default function BillingPage() {
                           data-testid={`button-upload-proof-${invoice.id}`}
                         >
                           <FileText className="w-4 h-4 mr-2" />
-                          Upload Bukti
+                          Upload Proof
                         </Button>
                       </div>
                     </div>
