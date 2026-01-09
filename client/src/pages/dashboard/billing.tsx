@@ -1727,7 +1727,7 @@ export default function BillingPage() {
                 <CardContent className="space-y-4 flex-1">
                   <div>
                     {isCustom ? (
-                      <span className="text-2xl font-bold">Contact Us</span>
+                      <span className="text-2xl font-bold">Simulate Your Needs</span>
                     ) : isFree ? (
                       <span className="text-2xl font-bold">$0</span>
                     ) : (() => {
@@ -1843,7 +1843,7 @@ export default function BillingPage() {
                           size="sm"
                           data-testid="button-contact-sales-custom"
                         >
-                          Contact Sales
+                          Custom Request
                           <ArrowUpRight className="w-3 h-3 ml-1" />
                         </Button>
                       }
