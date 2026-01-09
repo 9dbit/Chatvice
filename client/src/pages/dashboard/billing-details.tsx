@@ -59,6 +59,27 @@ interface BillingHistory {
   description: string;
 }
 
+interface CustomPlanInvoice {
+  id: string;
+  invoiceNumber: string;
+  merchantId: string;
+  requestId: string;
+  amount: number;
+  currency: string;
+  status: string;
+  dueDate: string | null;
+  paidAt: string | null;
+  pdfUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+  conversationsLimit: number;
+  agentsLimit: number;
+  supervisorsLimit: number;
+  sourcesLimit: number;
+  billingCycle: string;
+  features: string[];
+}
+
 export default function BillingDetailsPage() {
   const merchantId = localStorage.getItem("merchantId") || "";
   const { toast } = useToast();
@@ -89,6 +110,14 @@ export default function BillingDetailsPage() {
     queryKey: ["/api/billing/pending-payment-details"],
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
+    staleTime: 0,
+  });
+
+  // Fetch custom plan invoices
+  const { data: customInvoices = [], isLoading: isLoadingInvoices } = useQuery<CustomPlanInvoice[]>({
+    queryKey: ["/api/merchant/custom-invoices"],
+    enabled: !!merchantId,
+    refetchOnMount: "always",
     staleTime: 0,
   });
 
@@ -500,6 +529,87 @@ export default function BillingDetailsPage() {
                   View Subscription Plans
                 </Link>
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Custom Plan Invoices Section */}
+      {customInvoices.filter(inv => inv.status === 'pending').length > 0 && (
+        <Card className="border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/20">
+          <CardHeader className="py-3 px-4">
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-purple-600" />
+              <CardTitle className="text-sm text-purple-900 dark:text-purple-100">Invoices Menunggu Pembayaran</CardTitle>
+              <Badge variant="secondary" className="text-[10px] h-4 px-1.5 bg-purple-100 text-purple-700">
+                {customInvoices.filter(inv => inv.status === 'pending').length}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0 pb-3 px-4">
+            <div className="space-y-3">
+              {isLoadingInvoices ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                </div>
+              ) : (
+                customInvoices.filter(inv => inv.status === 'pending').map((invoice) => (
+                  <div 
+                    key={invoice.id}
+                    className="p-3 rounded-lg bg-white dark:bg-gray-900 border border-purple-200 dark:border-purple-800"
+                    data-testid={`invoice-${invoice.id}`}
+                  >
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <div>
+                        <p className="font-medium text-sm">{invoice.invoiceNumber}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Custom Plan - {invoice.billingCycle === 'yearly' ? 'Tahunan' : 'Bulanan'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-purple-600">
+                          ${invoice.amount.toLocaleString()}
+                        </p>
+                        {invoice.dueDate && (
+                          <p className="text-xs text-muted-foreground">
+                            Jatuh tempo: {new Date(invoice.dueDate).toLocaleDateString('id-ID')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
+                      <Calendar className="w-3 h-3" />
+                      <span>Dibuat: {new Date(invoice.createdAt).toLocaleDateString('id-ID')}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      {invoice.pdfUrl && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs h-7"
+                          asChild
+                          data-testid={`button-download-invoice-${invoice.id}`}
+                        >
+                          <a href={invoice.pdfUrl} target="_blank" rel="noopener noreferrer">
+                            <Download className="w-3 h-3 mr-1" />
+                            Download PDF
+                          </a>
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        className="text-xs h-7 bg-purple-600 hover:bg-purple-700"
+                        data-testid={`button-pay-invoice-${invoice.id}`}
+                        asChild
+                      >
+                        <Link href={`/dashboard/checkout?invoiceId=${invoice.id}&plan=custom`}>
+                          Bayar Sekarang
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </CardContent>
         </Card>

@@ -213,9 +213,12 @@ export default function BillingPage() {
     dueDate: string | null;
   }
   
-  const { data: customInvoices = [], isLoading: isLoadingInvoices, refetch: refetchInvoices } = useQuery<CustomPlanInvoice[]>({
+  const { data: customInvoices = [], isLoading: isLoadingInvoices, refetch: refetchInvoices, error: invoiceError } = useQuery<CustomPlanInvoice[]>({
     queryKey: ["/api/merchant/custom-invoices"],
   });
+  
+  // Debug: Log invoice data
+  console.log("[Billing] Custom invoices loaded:", customInvoices.length, "Error:", invoiceError);
   
   const [showCustomInvoices, setShowCustomInvoices] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState<CustomPlanInvoice | null>(null);

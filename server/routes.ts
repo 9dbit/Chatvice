@@ -2061,6 +2061,124 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // NOTE: Custom invoice routes must be registered BEFORE /api/merchant/:merchantId to avoid route conflicts
+  // Get merchant's custom plan invoices
+  app.get("/api/merchant/custom-invoices", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      console.log("[Custom Invoices] Fetching invoices for merchant:", merchantId);
+      const invoices = await storage.getCustomPlanInvoices(merchantId);
+      console.log("[Custom Invoices] Found invoices:", invoices.length);
+      res.json(invoices);
+    } catch (error) {
+      console.error("Error fetching merchant invoices:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Get pending invoices for merchant
+  app.get("/api/merchant/custom-invoices/pending", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      const invoices = await storage.getPendingCustomPlanInvoices(merchantId);
+      res.json(invoices);
+    } catch (error) {
+      console.error("Error fetching pending invoices:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Pay custom plan invoice - creates payment and activates plan on success
+  app.post("/api/merchant/custom-invoices/:invoiceId/pay", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      const invoice = await storage.getCustomPlanInvoice(req.params.invoiceId);
+      
+      if (!invoice) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+      
+      if (invoice.merchantId !== merchantId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      
+      if (invoice.status !== "pending") {
+        return res.status(400).json({ error: `Invoice is already ${invoice.status}` });
+      }
+      
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      // Return payment info - merchant will be redirected to checkout
+      res.json({
+        success: true,
+        invoice,
+        paymentInfo: {
+          invoiceId: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          amount: invoice.amount,
+          currency: invoice.currency,
+          description: invoice.description,
+          // Custom plan configuration to be activated after payment
+          planConfig: {
+            conversationsLimit: invoice.conversationsLimit,
+            agentsLimit: invoice.agentsLimit,
+            supervisorsLimit: invoice.supervisorsLimit,
+            sourcesLimit: invoice.sourcesLimit,
+            suggestedQuestionsLimit: invoice.suggestedQuestionsLimit,
+            billingInterval: invoice.billingInterval,
+          }
+        }
+      });
+    } catch (error) {
+      console.error("Error processing invoice payment:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Submit payment confirmation (merchant submits proof, admin must approve)
+  app.post("/api/merchant/custom-invoices/:invoiceId/submit-payment", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      const { transactionId, paymentMethod, notes } = req.body;
+      
+      const invoice = await storage.getCustomPlanInvoice(req.params.invoiceId);
+      
+      if (!invoice) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+      
+      if (invoice.merchantId !== merchantId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      
+      if (invoice.status !== "pending") {
+        return res.status(400).json({ error: `Invoice is already ${invoice.status}` });
+      }
+      
+      // Update invoice to "awaiting_confirmation" (admin needs to confirm)
+      await storage.updateCustomPlanInvoice(invoice.id, {
+        status: "awaiting_confirmation",
+        transactionId: transactionId || null,
+        paymentMethod: paymentMethod || "manual_transfer",
+      });
+      
+      // Log the submission for admin review
+      console.log(`[Invoice Payment Submitted] ${invoice.invoiceNumber} - Merchant ${merchantId} submitted payment proof`);
+      
+      res.json({ 
+        success: true, 
+        message: "Payment submitted. Awaiting admin confirmation.",
+        invoiceNumber: invoice.invoiceNumber,
+      });
+    } catch (error) {
+      console.error("Error submitting invoice payment:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/merchant/:merchantId", requireAuth, async (req, res) => {
     try {
       if (req.session.userType === "merchant" && req.session.merchantId !== req.params.merchantId) {
@@ -5979,123 +6097,6 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       });
     } catch (error) {
       console.error("Error confirming invoice:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-  
-  // ============ Merchant Custom Invoices ============
-  
-  // Get merchant's custom plan invoices
-  app.get("/api/merchant/custom-invoices", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.userId;
-      const invoices = await storage.getCustomPlanInvoices(merchantId);
-      res.json(invoices);
-    } catch (error) {
-      console.error("Error fetching merchant invoices:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-  
-  // Get pending invoices for merchant
-  app.get("/api/merchant/custom-invoices/pending", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.userId;
-      const invoices = await storage.getPendingCustomPlanInvoices(merchantId);
-      res.json(invoices);
-    } catch (error) {
-      console.error("Error fetching pending invoices:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-  
-  // Pay custom plan invoice - creates payment and activates plan on success
-  app.post("/api/merchant/custom-invoices/:invoiceId/pay", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.userId;
-      const invoice = await storage.getCustomPlanInvoice(req.params.invoiceId);
-      
-      if (!invoice) {
-        return res.status(404).json({ error: "Invoice not found" });
-      }
-      
-      if (invoice.merchantId !== merchantId) {
-        return res.status(403).json({ error: "Unauthorized" });
-      }
-      
-      if (invoice.status !== "pending") {
-        return res.status(400).json({ error: `Invoice is already ${invoice.status}` });
-      }
-      
-      const merchant = await storage.getMerchant(merchantId);
-      if (!merchant) {
-        return res.status(404).json({ error: "Merchant not found" });
-      }
-      
-      // Return payment info - merchant will be redirected to checkout
-      res.json({
-        success: true,
-        invoice,
-        paymentInfo: {
-          invoiceId: invoice.id,
-          invoiceNumber: invoice.invoiceNumber,
-          amount: invoice.amount,
-          currency: invoice.currency,
-          description: invoice.description,
-          // Custom plan configuration to be activated after payment
-          planConfig: {
-            conversationsLimit: invoice.conversationsLimit,
-            agentsLimit: invoice.agentsLimit,
-            supervisorsLimit: invoice.supervisorsLimit,
-            sourcesLimit: invoice.sourcesLimit,
-            suggestedQuestionsLimit: invoice.suggestedQuestionsLimit,
-            billingInterval: invoice.billingInterval,
-          }
-        }
-      });
-    } catch (error) {
-      console.error("Error processing invoice payment:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-  
-  // Submit payment confirmation (merchant submits proof, admin must approve)
-  app.post("/api/merchant/custom-invoices/:invoiceId/submit-payment", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.userId;
-      const { transactionId, paymentMethod, notes } = req.body;
-      
-      const invoice = await storage.getCustomPlanInvoice(req.params.invoiceId);
-      
-      if (!invoice) {
-        return res.status(404).json({ error: "Invoice not found" });
-      }
-      
-      if (invoice.merchantId !== merchantId) {
-        return res.status(403).json({ error: "Unauthorized" });
-      }
-      
-      if (invoice.status !== "pending") {
-        return res.status(400).json({ error: `Invoice is already ${invoice.status}` });
-      }
-      
-      // Update invoice to "awaiting_confirmation" (admin needs to confirm)
-      await storage.updateCustomPlanInvoice(invoice.id, {
-        status: "awaiting_confirmation",
-        transactionId: transactionId || null,
-        paymentMethod: paymentMethod || "manual_transfer",
-      });
-      
-      // Log the submission for admin review
-      console.log(`[Invoice Payment Submitted] ${invoice.invoiceNumber} - Merchant ${merchantId} submitted payment proof`);
-      
-      res.json({ 
-        success: true, 
-        message: "Payment submitted. Awaiting admin confirmation.",
-        invoiceNumber: invoice.invoiceNumber,
-      });
-    } catch (error) {
-      console.error("Error submitting invoice payment:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
