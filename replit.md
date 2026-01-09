@@ -82,7 +82,7 @@ Core entities include Merchants, Supervisors, Sessions, Messages, Triggers, Know
 
 ## Test Credentials
 - **Merchant Login**: internal@marketplayid.com / #Marketadmin1
-- **Master Admin**: master@chatvice.app / chatvice2024
+- **Master Admin**: master@chatvice.app / #Chatadmin1
 
 ## External Dependencies
 -   **AI Services**: OpenAI API (GPT-4.1-mini, text-embedding-3-small).
