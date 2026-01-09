@@ -8329,6 +8329,7 @@ function CryptoPaymentsTab({ toast }: { toast: any }) {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Order #</TableHead>
                   <TableHead>Merchant</TableHead>
                   <TableHead>Plan</TableHead>
                   <TableHead>Crypto</TableHead>
@@ -8341,6 +8342,11 @@ function CryptoPaymentsTab({ toast }: { toast: any }) {
               <TableBody>
                 {filteredPayments.map((payment) => (
                   <TableRow key={payment.id}>
+                    <TableCell>
+                      <div>
+                        <p className="font-mono text-xs font-medium">{payment.customInvoiceId || payment.id.slice(0, 15)}</p>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div>
                         <p className="font-medium">{payment.merchantCompanyName}</p>
@@ -8399,6 +8405,19 @@ function CryptoPaymentsTab({ toast }: { toast: any }) {
 
           {selectedPayment && (
             <div className="space-y-4">
+              {/* Order/Invoice Number Banner */}
+              <div className="p-3 rounded-lg bg-muted/50 border">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Order / Invoice Number</p>
+                    <p className="font-mono font-semibold">{selectedPayment.customInvoiceId || selectedPayment.id}</p>
+                  </div>
+                  <Badge variant={selectedPayment.status === 'pending' ? 'secondary' : selectedPayment.status === 'approved' ? 'default' : 'destructive'}>
+                    {selectedPayment.status.charAt(0).toUpperCase() + selectedPayment.status.slice(1)}
+                  </Badge>
+                </div>
+              </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <Card>
                   <CardHeader className="pb-2">

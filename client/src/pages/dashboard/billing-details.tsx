@@ -530,119 +530,139 @@ export default function BillingDetailsPage() {
         </Card>
       ) : null}
 
-      {/* Custom Plan Invoices Section */}
+      {/* Custom Plan Invoices Section - Unified UI with Plans page */}
       {customInvoices.filter(inv => inv.status === 'pending' || inv.status === 'awaiting_confirmation').length > 0 && (
-        <Card className="border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/20">
-          <CardHeader className="py-3 px-4">
+        <Card className="border-amber-500/50 bg-amber-500/5">
+          <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-purple-600" />
-              <CardTitle className="text-sm text-purple-900 dark:text-purple-100">Invoices Menunggu Pembayaran</CardTitle>
-              <Badge variant="secondary" className="text-[10px] h-4 px-1.5 bg-purple-100 text-purple-700">
+              <Timer className="w-5 h-5 text-amber-500" />
+              <CardTitle className="text-base font-semibold text-amber-700 dark:text-amber-400">Awaiting Payment</CardTitle>
+              <Badge variant="secondary" className="text-[10px] h-4 px-1.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                 {customInvoices.filter(inv => inv.status === 'pending' || inv.status === 'awaiting_confirmation').length}
               </Badge>
             </div>
           </CardHeader>
-          <CardContent className="pt-0 pb-3 px-4">
-            <div className="space-y-3">
-              {isLoadingInvoices ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                </div>
-              ) : (
-                customInvoices.filter(inv => inv.status === 'pending' || inv.status === 'awaiting_confirmation').map((invoice) => {
-                  const isAwaitingConfirmation = invoice.status === 'awaiting_confirmation';
-                  return (
-                    <div 
-                      key={invoice.id}
-                      className={`p-3 rounded-lg bg-white dark:bg-gray-900 border ${isAwaitingConfirmation ? 'border-amber-300 dark:border-amber-700' : 'border-purple-200 dark:border-purple-800'}`}
-                      data-testid={`invoice-${invoice.id}`}
-                    >
-                      <div className="flex items-center justify-between gap-3 mb-2">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium text-sm">{invoice.invoiceNumber}</p>
-                            {isAwaitingConfirmation && (
-                              <Badge variant="secondary" className="text-[10px] h-4 px-1.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                                Awaiting Confirmation
-                              </Badge>
-                            )}
-                          </div>
+          <CardContent className="space-y-4">
+            {isLoadingInvoices ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="w-4 h-4 animate-spin" />
+              </div>
+            ) : (
+              customInvoices.filter(inv => inv.status === 'pending' || inv.status === 'awaiting_confirmation').map((invoice) => {
+                const exchangeRate = 16800;
+                const amountIDR = invoice.currency === 'USD' ? Math.round(invoice.amount * exchangeRate) : invoice.amount;
+                const isAwaitingConfirmation = invoice.status === 'awaiting_confirmation';
+                return (
+                  <div 
+                    key={invoice.id}
+                    className={`p-4 rounded-lg bg-white dark:bg-zinc-900 border ${isAwaitingConfirmation ? 'border-amber-300 dark:border-amber-700' : 'border-purple-200 dark:border-purple-800'}`}
+                    data-testid={`invoice-${invoice.id}`}
+                  >
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-purple-900 dark:text-purple-100">
+                            {invoice.invoiceNumber}
+                          </p>
+                          {isAwaitingConfirmation && (
+                            <Badge variant="secondary" className="text-[10px] h-4 px-1.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                              Awaiting Confirmation
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Custom Plan - {invoice.billingCycle === 'yearly' ? 'Annual' : 'Monthly'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-purple-600">
+                          {invoice.currency === 'USD' 
+                            ? `$${invoice.amount.toLocaleString()}` 
+                            : `Rp ${invoice.amount.toLocaleString("id-ID")}`}
+                        </p>
+                        {invoice.currency === 'USD' && (
                           <p className="text-xs text-muted-foreground">
-                            Custom Plan - {invoice.billingCycle === 'yearly' ? 'Tahunan' : 'Bulanan'}
+                            ≈ Rp {amountIDR.toLocaleString("id-ID")}
                           </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-purple-600">
-                            {invoice.currency === 'IDR' 
-                              ? `Rp ${invoice.amount.toLocaleString("id-ID")}` 
-                              : `$${invoice.amount.toLocaleString()}`}
-                          </p>
-                          {invoice.dueDate && (
-                            <p className="text-xs text-muted-foreground">
-                              Jatuh tempo: {new Date(invoice.dueDate).toLocaleDateString('id-ID')}
-                            </p>
-                          )}
-                        </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
-                        <Calendar className="w-3 h-3" />
-                        <span>Dibuat: {new Date(invoice.createdAt).toLocaleDateString('id-ID')}</span>
-                      </div>
-                      {isAwaitingConfirmation ? (
-                        <div className="flex items-center gap-2 p-2 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-                          <Clock className="w-4 h-4 text-amber-600" />
-                          <div className="flex-1">
-                            <p className="text-xs font-medium text-amber-800 dark:text-amber-200">Waiting for Confirmation</p>
-                            <p className="text-[10px] text-amber-600 dark:text-amber-400">Your payment is being reviewed by admin</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex gap-2">
-                          {invoice.pdfUrl && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-xs h-7"
-                              asChild
-                              data-testid={`button-download-invoice-${invoice.id}`}
-                            >
-                              <a href={invoice.pdfUrl} target="_blank" rel="noopener noreferrer">
-                                <Download className="w-3 h-3 mr-1" />
-                                Download PDF
-                              </a>
-                            </Button>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-xs h-7"
-                            onClick={() => {
-                              setInvoiceToCancel(invoice.id);
-                              setShowCancelInvoiceConfirm(true);
-                            }}
-                            disabled={cancelInvoiceMutation.isPending}
-                            data-testid={`button-cancel-invoice-${invoice.id}`}
-                          >
-                            <X className="w-3 h-3 mr-1" />
-                            Batalkan
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="text-xs h-7 bg-purple-600 hover:bg-purple-700"
-                            data-testid={`button-pay-invoice-${invoice.id}`}
-                            asChild
-                          >
-                            <Link href={`/dashboard/checkout?invoiceId=${invoice.id}&plan=custom`}>
-                              Bayar Sekarang
-                            </Link>
-                          </Button>
-                        </div>
-                      )}
                     </div>
-                  );
-                })
-              )}
-            </div>
+                    
+                    {/* Resource Limits Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs mb-3 py-2 px-2 bg-muted/30 rounded-md">
+                      <div>
+                        <span className="text-muted-foreground">Conversations:</span>
+                        <span className="ml-1 font-medium">
+                          {(invoice as any).conversationsLimit === -1 ? '∞' : ((invoice as any).conversationsLimit || 0).toLocaleString()}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">AI Agents:</span>
+                        <span className="ml-1 font-medium">
+                          {(invoice as any).agentsLimit === -1 ? '∞' : (invoice as any).agentsLimit || 0}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Supervisors:</span>
+                        <span className="ml-1 font-medium">
+                          {(invoice as any).supervisorsLimit === -1 ? '∞' : (invoice as any).supervisorsLimit || 0}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Sources:</span>
+                        <span className="ml-1 font-medium">
+                          {(invoice as any).knowledgeSourcesLimit === -1 ? '∞' : (invoice as any).knowledgeSourcesLimit || 0}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {invoice.dueDate && (
+                      <p className="text-xs text-muted-foreground mb-3">
+                        Due: {new Date(invoice.dueDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </p>
+                    )}
+                    
+                    {isAwaitingConfirmation ? (
+                      <div className="flex items-center gap-2 p-2 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                        <Clock className="w-4 h-4 text-amber-600" />
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-amber-800 dark:text-amber-200">Waiting for Confirmation</p>
+                          <p className="text-[10px] text-amber-600 dark:text-amber-400">Your payment is being reviewed by admin</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => {
+                            setInvoiceToCancel(invoice.id);
+                            setShowCancelInvoiceConfirm(true);
+                          }}
+                          disabled={cancelInvoiceMutation.isPending}
+                          data-testid={`button-cancel-invoice-${invoice.id}`}
+                        >
+                          <X className="w-4 h-4 mr-1" />
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="flex-1 bg-purple-600 hover:bg-purple-700"
+                          data-testid={`button-pay-invoice-${invoice.id}`}
+                          asChild
+                        >
+                          <Link href={`/dashboard/checkout?invoiceId=${invoice.id}&plan=custom`}>
+                            <CreditCard className="w-4 h-4 mr-1" />
+                            Pay Now
+                          </Link>
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </CardContent>
         </Card>
       )}
