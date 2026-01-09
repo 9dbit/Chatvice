@@ -159,6 +159,8 @@ export default function BillingPage() {
   const [isValidatingPromo, setIsValidatingPromo] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showCancelPendingConfirmDialog, setShowCancelPendingConfirmDialog] = useState(false);
+  const [pendingNewPurchase, setPendingNewPurchase] = useState<{ planId: string; isAnnual: boolean } | null>(null);
   
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -220,9 +222,6 @@ export default function BillingPage() {
   // Debug: Log invoice data
   console.log("[Billing] Custom invoices loaded:", customInvoices.length, "Error:", invoiceError);
   
-  const [showCustomInvoices, setShowCustomInvoices] = useState(true);
-  const [selectedInvoice, setSelectedInvoice] = useState<CustomPlanInvoice | null>(null);
-  const [invoicePaymentOpen, setInvoicePaymentOpen] = useState(false);
   const [showBillingHistory, setShowBillingHistory] = useState(false);
   
   const trialDays = (platformSettings as any)?.trial_days ? parseInt((platformSettings as any).trial_days) : 7;
@@ -595,20 +594,74 @@ export default function BillingPage() {
     },
   });
 
+  // Check if there's any pending payment (standard transaction or custom invoice)
+  const hasPendingPayments = pendingPaymentDetails?.hasPendingPayment || customInvoices.filter(inv => inv.status === 'pending').length > 0;
+  
   const handleUpgrade = async (planId: string) => {
     const plan = dbPlans.find((p: any) => p.id === planId);
-    if (plan) {
-      const promo = getPromoForPlan(planId);
-      const params = new URLSearchParams({
-        plan: planId,
-        interval: isAnnual ? 'annual' : 'monthly',
-        from: 'plans',
-      });
-      if (promo?.code) {
-        params.set('promo', promo.code);
-      }
-      window.location.href = `/dashboard/checkout?${params.toString()}`;
+    if (!plan) return;
+    
+    // Check if there's a pending payment - show confirmation dialog
+    if (hasPendingPayments) {
+      setPendingNewPurchase({ planId, isAnnual });
+      setShowCancelPendingConfirmDialog(true);
+      return;
     }
+    
+    // Proceed with checkout
+    proceedToCheckout(planId, isAnnual);
+  };
+  
+  const proceedToCheckout = (planId: string, annual: boolean) => {
+    const promo = getPromoForPlan(planId);
+    const params = new URLSearchParams({
+      plan: planId,
+      interval: annual ? 'annual' : 'monthly',
+      from: 'plans',
+    });
+    if (promo?.code) {
+      params.set('promo', promo.code);
+    }
+    window.location.href = `/dashboard/checkout?${params.toString()}`;
+  };
+  
+  const handleConfirmCancelAndProceed = async () => {
+    if (!pendingNewPurchase) return;
+    
+    const hasPendingInvoice = customInvoices.filter(inv => inv.status === 'pending').length > 0;
+    
+    // If there's a pending custom invoice, user must pay or contact support to cancel
+    // We cannot auto-cancel custom invoices as they require admin action
+    if (hasPendingInvoice) {
+      toast({
+        title: "Cannot proceed",
+        description: "Please complete or cancel your pending custom plan invoice first. Contact support if you need to cancel it.",
+        variant: "destructive",
+      });
+      setShowCancelPendingConfirmDialog(false);
+      setPendingNewPurchase(null);
+      return;
+    }
+    
+    // Cancel standard pending payment if exists
+    if (pendingPaymentDetails?.hasPendingPayment) {
+      try {
+        await cancelPendingPaymentMutation.mutateAsync();
+        // Refetch to update UI
+        refetchPendingPayment();
+      } catch (error) {
+        toast({
+          title: "Failed to cancel pending payment",
+          description: "Please try again or contact support.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
+    setShowCancelPendingConfirmDialog(false);
+    proceedToCheckout(pendingNewPurchase.planId, pendingNewPurchase.isAnnual);
+    setPendingNewPurchase(null);
   };
   
   // Proceed from checkout to payment
@@ -823,82 +876,74 @@ export default function BillingPage() {
         </Card>
       </div>
 
-      {/* Awaiting Payment Section - Comprehensive View */}
-      {pendingPaymentDetails?.hasPendingPayment && (
+      {/* Awaiting Payment Section - Unified View for all pending payments */}
+      {(pendingPaymentDetails?.hasPendingPayment || customInvoices.filter(inv => inv.status === 'pending').length > 0) && (
         <Card className="border-amber-500/50 bg-amber-500/5" data-testid="card-pending-transaction">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-2">
                 <Timer className="w-5 h-5 text-amber-500" />
-                <div>
-                  <CardTitle className="text-base font-semibold text-amber-700 dark:text-amber-400">
-                    Awaiting Payment
-                  </CardTitle>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {pendingPaymentDetails.planName} Plan - {pendingPaymentDetails.billingInterval === 'annual' ? 'Annual' : 'Monthly'}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {pendingPaymentDetails.paymentMethod && (
-                  <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400">
-                    {pendingPaymentDetails.paymentMethod === 'virtual_account' ? 'VA' : 
-                     pendingPaymentDetails.paymentMethod === 'bank_transfer' ? 'Transfer' : 
-                     pendingPaymentDetails.paymentMethod?.toUpperCase()}
-                  </Badge>
-                )}
-                {pendingPaymentTimeRemaining > 0 && (
-                  <Badge variant="secondary" className="font-mono text-amber-600 dark:text-amber-400">
-                    <Clock className="w-3 h-3 mr-1" />
-                    {formatPendingCountdown()}
-                  </Badge>
-                )}
+                <CardTitle className="text-base font-semibold text-amber-700 dark:text-amber-400">
+                  Awaiting Payment
+                </CardTitle>
+                <Badge variant="secondary" className="text-[10px] h-4 px-1.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                  {(pendingPaymentDetails?.hasPendingPayment ? 1 : 0) + customInvoices.filter(inv => inv.status === 'pending').length}
+                </Badge>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Payment Details Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Left: Payment Info */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Order ID</span>
-                  <div className="flex items-center gap-1">
-                    <code className="text-xs bg-muted px-2 py-1 rounded font-mono">
-                      {pendingPaymentDetails.orderId}
-                    </code>
-                    <Button 
-                      size="icon" 
-                      variant="ghost" 
-                      className="h-6 w-6"
-                      onClick={() => {
-                        navigator.clipboard.writeText(pendingPaymentDetails.orderId || '');
-                        toast({ title: "Copied!", description: "Order ID copied to clipboard" });
-                      }}
-                      data-testid="button-copy-order-id"
-                    >
-                      <Copy className="w-3 h-3" />
-                    </Button>
+            {/* Standard Pending Transaction */}
+            {pendingPaymentDetails?.hasPendingPayment && (
+              <div className="p-4 rounded-lg bg-white dark:bg-zinc-900 border border-amber-200 dark:border-amber-800" data-testid="pending-standard-payment">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div>
+                    <p className="text-sm font-semibold">
+                      {pendingPaymentDetails.planName} Plan - {pendingPaymentDetails.billingInterval === 'annual' ? 'Annual' : 'Monthly'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Order: {pendingPaymentDetails.orderId}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {pendingPaymentDetails.paymentMethod && (
+                      <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400">
+                        {pendingPaymentDetails.paymentMethod === 'virtual_account' ? 'VA' : 
+                         pendingPaymentDetails.paymentMethod === 'bank_transfer' ? 'Transfer' : 
+                         pendingPaymentDetails.paymentMethod?.toUpperCase()}
+                      </Badge>
+                    )}
+                    {pendingPaymentTimeRemaining > 0 && (
+                      <Badge variant="secondary" className="font-mono text-amber-600 dark:text-amber-400">
+                        <Clock className="w-3 h-3 mr-1" />
+                        {formatPendingCountdown()}
+                      </Badge>
+                    )}
                   </div>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Amount</span>
-                  <span className="text-lg font-bold text-amber-700 dark:text-amber-400">
-                    {pendingPaymentDetails.amountFormatted}
-                  </span>
-                </div>
-                {pendingPaymentDetails.expiryTime && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Expires</span>
-                    <span className="text-sm">
-                      {format(new Date(pendingPaymentDetails.expiryTime), 'dd MMM yyyy HH:mm')}
-                    </span>
-                  </div>
-                )}
-              </div>
 
-              {/* Right: Payment Method Specific Info */}
-              <div className="flex flex-col items-center justify-center p-4 bg-white dark:bg-zinc-800 rounded-lg border">
+                {/* Payment Details Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Left: Payment Info */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Amount</span>
+                      <span className="text-lg font-bold text-amber-700 dark:text-amber-400">
+                        {pendingPaymentDetails.amountFormatted}
+                      </span>
+                    </div>
+                    {pendingPaymentDetails.expiryTime && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">Expires</span>
+                        <span className="text-sm">
+                          {format(new Date(pendingPaymentDetails.expiryTime), 'dd MMM yyyy HH:mm')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right: Payment Method Specific Info */}
+                  <div className="flex flex-col items-center justify-center p-4 bg-muted/30 rounded-lg border">
                 {/* QRIS */}
                 {pendingPaymentDetails.paymentMethod === 'qris' && pendingPaymentDetails.qrisString && (
                   <div className="text-center space-y-2">
@@ -974,40 +1019,124 @@ export default function BillingPage() {
                       </p>
                     )}
                   </div>
-                )}
-              </div>
-            </div>
+                    )}
+                  </div>
+                </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-2 pt-2">
-              <Button 
-                variant="outline"
-                size="sm"
-                className="flex-1"
-                onClick={() => cancelPendingPaymentMutation.mutate()}
-                disabled={cancelPendingPaymentMutation.isPending}
-                data-testid="button-cancel-pending-payment"
-              >
-                {cancelPendingPaymentMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <XCircle className="w-4 h-4 mr-2" />
-                )}
-                Cancel Payment
-              </Button>
-              <Button 
-                size="sm" 
-                className="flex-1"
-                onClick={() => {
-                  refetchPendingPayment();
-                  toast({ title: "Refreshing...", description: "Checking payment status" });
-                }}
-                data-testid="button-refresh-payment-status"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Check Status
-              </Button>
-            </div>
+                {/* Action Buttons */}
+                <div className="flex gap-2 pt-2">
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => cancelPendingPaymentMutation.mutate()}
+                    disabled={cancelPendingPaymentMutation.isPending}
+                    data-testid="button-cancel-pending-payment"
+                  >
+                    {cancelPendingPaymentMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <XCircle className="w-4 h-4 mr-2" />
+                    )}
+                    Cancel Payment
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => {
+                      refetchPendingPayment();
+                      toast({ title: "Refreshing...", description: "Checking payment status" });
+                    }}
+                    data-testid="button-refresh-payment-status"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Check Status
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Custom Plan Invoices */}
+            {customInvoices.filter(inv => inv.status === 'pending').map((invoice) => {
+              const exchangeRate = (platformSettings as any)?.exchange_rate ? parseInt((platformSettings as any).exchange_rate) : 16000;
+              const amountIDR = invoice.currency === 'USD' ? Math.round(invoice.amount * exchangeRate) : invoice.amount;
+              return (
+                <div 
+                  key={invoice.id}
+                  className="p-4 rounded-lg bg-white dark:bg-zinc-900 border border-purple-200 dark:border-purple-800"
+                  data-testid={`invoice-${invoice.id}`}
+                >
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div>
+                      <p className="text-sm font-semibold text-purple-900 dark:text-purple-100">
+                        {invoice.invoiceNumber}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Custom Plan - {invoice.billingInterval === 'annual' ? 'Annual' : 'Monthly'}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-purple-600">
+                        {invoice.currency === 'USD' 
+                          ? `$${invoice.amount.toLocaleString()}` 
+                          : `Rp ${invoice.amount.toLocaleString("id-ID")}`}
+                      </p>
+                      {invoice.currency === 'USD' && (
+                        <p className="text-xs text-muted-foreground">
+                          ≈ Rp {amountIDR.toLocaleString("id-ID")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs mb-3 py-2 px-2 bg-muted/30 rounded-md">
+                    <div>
+                      <span className="text-muted-foreground">Conversations:</span>
+                      <span className="ml-1 font-medium">
+                        {invoice.conversationsLimit === -1 ? '∞' : invoice.conversationsLimit.toLocaleString()}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">AI Agents:</span>
+                      <span className="ml-1 font-medium">
+                        {invoice.agentsLimit === -1 ? '∞' : invoice.agentsLimit}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Supervisors:</span>
+                      <span className="ml-1 font-medium">
+                        {invoice.supervisorsLimit === -1 ? '∞' : invoice.supervisorsLimit}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Sources:</span>
+                      <span className="ml-1 font-medium">
+                        {invoice.sourcesLimit === -1 ? '∞' : invoice.sourcesLimit}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {invoice.dueDate && (
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Due: {format(new Date(invoice.dueDate), 'dd MMM yyyy')}
+                    </p>
+                  )}
+                  
+                  <Button 
+                    size="sm" 
+                    className="w-full bg-purple-600 hover:bg-purple-700"
+                    onClick={() => {
+                      // Navigate to checkout with invoice
+                      window.location.href = `/dashboard/checkout?plan=custom&interval=${invoice.billingInterval}&invoiceId=${invoice.id}`;
+                    }}
+                    data-testid={`button-pay-invoice-${invoice.id}`}
+                  >
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    Pay Now
+                  </Button>
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
       )}
@@ -1021,8 +1150,8 @@ export default function BillingPage() {
                 Choose the plan that best fits your needs
               </p>
             </div>
-            {/* View Awaiting Payment Button - Only show if pending payment exists */}
-            {pendingPaymentDetails?.hasPendingPayment && (
+            {/* View Awaiting Payment Button - Show if any pending payment exists */}
+            {(pendingPaymentDetails?.hasPendingPayment || customInvoices.filter(inv => inv.status === 'pending').length > 0) && (
               <Button
                 variant="outline"
                 size="sm"
@@ -1038,6 +1167,9 @@ export default function BillingPage() {
               >
                 <Timer className="w-4 h-4 mr-2" />
                 View Awaiting Payment
+                <Badge variant="secondary" className="ml-2 text-[10px] h-4 px-1.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                  {(pendingPaymentDetails?.hasPendingPayment ? 1 : 0) + customInvoices.filter(inv => inv.status === 'pending').length}
+                </Badge>
               </Button>
             )}
           </div>
@@ -1174,97 +1306,6 @@ export default function BillingPage() {
             </div>
             {promoError && <span className="text-xs text-red-500">{promoError}</span>}
           </div>
-        )}
-
-        {/* Custom Plan Invoices Section */}
-        {customInvoices.filter(inv => inv.status === 'pending').length > 0 && (
-          <Card className="mb-6 border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/20">
-            <CardHeader className="py-3 px-4">
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-purple-600" />
-                <CardTitle className="text-sm text-purple-900 dark:text-purple-100">Invoices Menunggu Pembayaran</CardTitle>
-                <Badge variant="secondary" className="text-[10px] h-4 px-1.5 bg-purple-100 text-purple-700">
-                  {customInvoices.filter(inv => inv.status === 'pending').length}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0 pb-3 px-4">
-              <div className="space-y-3">
-                {isLoadingInvoices ? (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  </div>
-                ) : (
-                  customInvoices.filter(inv => inv.status === 'pending').map((invoice) => (
-                    <div 
-                      key={invoice.id}
-                      className="p-3 rounded-lg bg-white dark:bg-gray-900 border border-purple-200 dark:border-purple-800"
-                      data-testid={`invoice-${invoice.id}`}
-                    >
-                      <div className="flex items-center justify-between gap-3 mb-2">
-                        <div>
-                          <p className="text-sm font-semibold text-purple-900 dark:text-purple-100">
-                            {invoice.invoiceNumber}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {invoice.description} • {format(new Date(invoice.createdAt), 'dd MMM yyyy')}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-lg font-bold text-purple-600">
-                            Rp {invoice.amount.toLocaleString("id-ID")}
-                          </p>
-                          <Badge variant="secondary" className="text-[10px]">
-                            {invoice.billingInterval === "annual" ? "Per Tahun" : "Per Bulan"}
-                          </Badge>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs mb-3 py-2 px-2 bg-muted/30 rounded-md">
-                        <div>
-                          <span className="text-muted-foreground">Percakapan:</span>
-                          <span className="ml-1 font-medium">
-                            {invoice.conversationsLimit === -1 ? '∞' : invoice.conversationsLimit.toLocaleString()}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">AI Agent:</span>
-                          <span className="ml-1 font-medium">
-                            {invoice.agentsLimit === -1 ? '∞' : invoice.agentsLimit}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Supervisor:</span>
-                          <span className="ml-1 font-medium">
-                            {invoice.supervisorsLimit === -1 ? '∞' : invoice.supervisorsLimit}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Sources:</span>
-                          <span className="ml-1 font-medium">
-                            {invoice.sourcesLimit === -1 ? '∞' : invoice.sourcesLimit}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <Button 
-                        size="sm" 
-                        className="w-full bg-purple-600 hover:bg-purple-700"
-                        onClick={() => {
-                          setSelectedInvoice(invoice);
-                          setInvoicePaymentOpen(true);
-                        }}
-                        data-testid={`button-pay-invoice-${invoice.id}`}
-                      >
-                        <CreditCard className="w-4 h-4 mr-2" />
-                        Bayar Sekarang
-                      </Button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
         )}
 
         {/* Billing History Section */}
@@ -1986,87 +2027,71 @@ export default function BillingPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Invoice Payment Dialog */}
-      <Dialog open={invoicePaymentOpen} onOpenChange={setInvoicePaymentOpen}>
-        <DialogContent className="max-w-md" data-testid="dialog-invoice-payment">
+      {/* Cancel Pending Payment Confirmation Dialog */}
+      <Dialog open={showCancelPendingConfirmDialog} onOpenChange={setShowCancelPendingConfirmDialog}>
+        <DialogContent data-testid="dialog-cancel-pending-confirm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-purple-600" />
-              Bayar Invoice Custom Plan
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              Pending Payment Exists
             </DialogTitle>
             <DialogDescription>
-              {selectedInvoice?.invoiceNumber}
+              {customInvoices.filter(inv => inv.status === 'pending').length > 0 
+                ? "You have a pending custom plan invoice. Please complete the payment or contact support to cancel it before making a new purchase."
+                : "You already have a pending payment. To proceed with a new order, your existing pending payment must be cancelled first."}
             </DialogDescription>
           </DialogHeader>
-          
-          {selectedInvoice && (
-            <div className="py-4 space-y-4">
-              <div className="p-4 bg-purple-50/50 dark:bg-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-800">
-                <div className="text-center mb-3">
-                  <p className="text-2xl font-bold text-purple-600">
-                    Rp {selectedInvoice.amount.toLocaleString("id-ID")}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedInvoice.billingInterval === "annual" ? "Per Tahun" : "Per Bulan"}
-                  </p>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="text-muted-foreground">Percakapan:</div>
-                  <div className="font-medium text-right">
-                    {selectedInvoice.conversationsLimit === -1 ? 'Unlimited' : selectedInvoice.conversationsLimit.toLocaleString()}
-                  </div>
-                  <div className="text-muted-foreground">AI Agent:</div>
-                  <div className="font-medium text-right">
-                    {selectedInvoice.agentsLimit === -1 ? 'Unlimited' : selectedInvoice.agentsLimit}
-                  </div>
-                  <div className="text-muted-foreground">Supervisor:</div>
-                  <div className="font-medium text-right">
-                    {selectedInvoice.supervisorsLimit === -1 ? 'Unlimited' : selectedInvoice.supervisorsLimit}
-                  </div>
-                  <div className="text-muted-foreground">Sources:</div>
-                  <div className="font-medium text-right">
-                    {selectedInvoice.sourcesLimit === -1 ? 'Unlimited' : selectedInvoice.sourcesLimit}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Metode Pembayaran:</p>
-                <p className="text-xs text-muted-foreground">
-                  Silakan hubungi tim kami untuk melakukan pembayaran invoice ini.
-                </p>
-                <div className="p-3 bg-muted/30 rounded-lg text-sm">
-                  <p className="font-medium">Transfer Bank / QRIS</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Email: <span className="font-medium">billing@chatvice.app</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    WhatsApp: <span className="font-medium">+62 812-xxxx-xxxx</span>
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => setInvoicePaymentOpen(false)}
-                >
-                  Tutup
-                </Button>
-                <Button 
-                  className="flex-1 bg-purple-600 hover:bg-purple-700"
-                  onClick={() => {
-                    window.open(`mailto:billing@chatvice.app?subject=Invoice Payment - ${selectedInvoice.invoiceNumber}&body=Saya ingin melakukan pembayaran untuk invoice ${selectedInvoice.invoiceNumber} dengan jumlah Rp ${selectedInvoice.amount.toLocaleString("id-ID")}`, '_blank');
-                  }}
-                  data-testid="button-contact-billing"
-                >
-                  Hubungi Billing
-                </Button>
-              </div>
+          <div className="py-2">
+            <div className="bg-amber-50 dark:bg-amber-950/20 p-3 rounded-lg border border-amber-200 dark:border-amber-800 mb-4">
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                {pendingPaymentDetails?.hasPendingPayment && (
+                  <>Pending: {pendingPaymentDetails.planName} Plan - {pendingPaymentDetails.amountFormatted}</>
+                )}
+                {customInvoices.filter(inv => inv.status === 'pending').length > 0 && (
+                  <>{pendingPaymentDetails?.hasPendingPayment && <br />}Pending: Custom Plan Invoice</>
+                )}
+              </p>
             </div>
-          )}
+            {customInvoices.filter(inv => inv.status === 'pending').length > 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Custom plan invoices cannot be auto-cancelled. Please pay the invoice or contact support at billing@chatvice.app
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Would you like to cancel the pending payment and proceed with the new order?
+              </p>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              className="flex-1" 
+              onClick={() => {
+                setShowCancelPendingConfirmDialog(false);
+                setPendingNewPurchase(null);
+              }}
+              data-testid="button-keep-pending"
+            >
+              {customInvoices.filter(inv => inv.status === 'pending').length > 0 ? "Close" : "No, Keep Pending"}
+            </Button>
+            {customInvoices.filter(inv => inv.status === 'pending').length === 0 && (
+              <Button 
+                className="flex-1"
+                onClick={handleConfirmCancelAndProceed}
+                disabled={cancelPendingPaymentMutation.isPending}
+                data-testid="button-cancel-and-proceed"
+              >
+                {cancelPendingPaymentMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Cancelling...
+                  </>
+                ) : (
+                  "Yes, Cancel & Proceed"
+                )}
+              </Button>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
