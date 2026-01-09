@@ -6354,7 +6354,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       // Generate invoice number
       const invoiceNumber = await storage.generateCustomInvoiceNumber();
       
-      // Create the invoice
+      // Create the invoice - amount is in USD (from budget calculator)
       const invoice = await storage.createCustomPlanInvoice({
         merchantId: request.merchantId,
         invoiceNumber,
@@ -6365,7 +6365,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         sourcesLimit: request.desiredSources || 10,
         suggestedQuestionsLimit: request.desiredSuggestedQuestions || 10,
         amount,
-        currency: "IDR",
+        currency: "USD",  // All plan prices are stored in USD
         billingInterval: interval,
         status: "pending",
         dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),

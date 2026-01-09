@@ -256,6 +256,9 @@ const PAYMENT_METHODS: PaymentMethodOption[] = [
   { id: 'crypto', name: 'Cryptocurrency', description: 'Pay with BTC, ETH, SOL, BNB, USDT, XRP', icon: Bitcoin, available: true, provider: 'Manual' },
 ];
 
+// Kompas Pay QRIS maximum limit per transaction
+const QRIS_MAX_LIMIT_IDR = 10000000;
+
 // Kompas Pay VA uses numeric bank codes - Active banks per Kompas Pay credential
 // Note: BNI (009) temporarily removed due to "BNIVA param error" from gateway
 const VA_BANKS = [
@@ -1185,6 +1188,14 @@ export default function CheckoutPage() {
   const needsBankSelection = selectedPaymentMethod === 'virtual_account' || selectedPaymentMethod === 'bank_transfer';
   const bankList = selectedPaymentMethod === 'virtual_account' ? VA_BANKS : TRANSFER_BANKS;
   
+  // Check if QRIS is available (amount must be <= 10 million IDR)
+  const isQrisOverLimit = finalPrice > QRIS_MAX_LIMIT_IDR;
+  
+  // Effective payment method - auto-switch from QRIS if amount exceeds limit
+  const effectivePaymentMethod = selectedPaymentMethod === 'qris' && isQrisOverLimit 
+    ? 'virtual_account' 
+    : selectedPaymentMethod;
+  
   // For resume mode, use resume data values
   // For custom plan with invoice, use invoice billing interval
   const displayAmount = isResumeMode && qrisData ? qrisData.amount : finalPrice;
@@ -1320,15 +1331,22 @@ export default function CheckoutPage() {
               <div className="p-4">
                 <h3 className="text-sm font-medium mb-3">Payment Method</h3>
                 <div className="space-y-2">
-                  {PAYMENT_METHODS.filter(m => m.available).map((method) => (
+                  {PAYMENT_METHODS.filter(m => m.available).map((method) => {
+                    // Disable QRIS if amount exceeds 10 million IDR limit
+                    const isDisabled = method.id === 'qris' && isQrisOverLimit;
+                    
+                    return (
                     <div key={method.id}>
                       <div
-                        className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                          selectedPaymentMethod === method.id
-                            ? 'border-primary bg-primary/5'
-                            : 'border-border hover:border-primary/50'
+                        className={`p-3 rounded-lg border transition-all ${
+                          isDisabled 
+                            ? 'border-border bg-muted/30 cursor-not-allowed opacity-60'
+                            : selectedPaymentMethod === method.id
+                              ? 'border-primary bg-primary/5 cursor-pointer'
+                              : 'border-border hover:border-primary/50 cursor-pointer'
                         }`}
                         onClick={() => {
+                          if (isDisabled) return;
                           setSelectedPaymentMethod(method.id);
                           if (method.id !== 'virtual_account' && method.id !== 'bank_transfer') {
                             setSelectedBank('');
@@ -1337,10 +1355,14 @@ export default function CheckoutPage() {
                         data-testid={`payment-method-${method.id}`}
                       >
                         <div className="flex items-center gap-3">
-                          <method.icon className={`w-5 h-5 ${selectedPaymentMethod === method.id ? 'text-primary' : 'text-muted-foreground'}`} />
+                          <method.icon className={`w-5 h-5 ${isDisabled ? 'text-muted-foreground/50' : selectedPaymentMethod === method.id ? 'text-primary' : 'text-muted-foreground'}`} />
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium">{method.name}</p>
-                            <p className="text-[10px] text-muted-foreground">{method.description}</p>
+                            <p className={`text-sm font-medium ${isDisabled ? 'text-muted-foreground' : ''}`}>{method.name}</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {isDisabled 
+                                ? `Max Rp ${QRIS_MAX_LIMIT_IDR.toLocaleString('id-ID')} per transaction`
+                                : method.description}
+                            </p>
                           </div>
                           <span className="text-[10px] text-muted-foreground">{method.provider}</span>
                         </div>
@@ -1521,7 +1543,8 @@ export default function CheckoutPage() {
                         )}
                       </AnimatePresence>
                     </div>
-                  ))}
+                    );
+                  })}
                   
                   <div className="pt-2 mt-2 border-t border-border/50">
                     <p className="text-[10px] text-muted-foreground mb-2">Coming Soon</p>
