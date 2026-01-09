@@ -326,13 +326,13 @@ async function checkUnansweredChatSessions(merchant: any) {
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
     
-    // Count consecutive customer messages without supervisor response
+    // Count consecutive customer messages without human response (supervisor or agent)
     for (const msg of sortedMessages) {
       if (msg.senderType === 'customer') {
         unansweredCount++;
         oldestUnansweredTime = new Date(msg.timestamp);
-      } else if (msg.senderType === 'supervisor') {
-        // Found a supervisor response, stop counting
+      } else if (msg.senderType === 'supervisor' || msg.senderType === 'agent') {
+        // Found a human response (supervisor or agent), stop counting
         break;
       }
       // AI messages don't count as responses for this check

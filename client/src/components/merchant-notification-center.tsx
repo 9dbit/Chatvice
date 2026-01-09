@@ -97,7 +97,7 @@ export function MerchantNotificationCenter() {
       return "/dashboard/billing";
     }
     if (notification.type === "subscription" || notification.type === "subscription_expiring") {
-      return "/dashboard/plans";
+      return "/dashboard/billing";
     }
     if (notification.type === "chat_reminder" && notification.metadata?.link) {
       return notification.metadata.link;
