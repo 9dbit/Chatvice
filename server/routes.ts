@@ -1939,6 +1939,55 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // NOTE: Notification routes must be registered BEFORE /api/merchant/:merchantId to avoid route conflicts
+  // Get merchant notifications
+  app.get("/api/merchant/notifications", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId!;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+      const notifications = await storage.getMerchantNotifications(merchantId, limit);
+      res.json(notifications);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Get unread notification count
+  app.get("/api/merchant/notifications/unread-count", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId!;
+      const count = await storage.getUnreadNotificationCount(merchantId);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error fetching unread count:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Mark notification as read
+  app.patch("/api/merchant/notifications/:notificationId/read", requireMerchant, async (req, res) => {
+    try {
+      const notification = await storage.markNotificationAsRead(req.params.notificationId);
+      res.json({ success: true, notification });
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Mark all notifications as read
+  app.post("/api/merchant/notifications/mark-all-read", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId!;
+      await storage.markAllNotificationsAsRead(merchantId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/merchant/:merchantId", requireAuth, async (req, res) => {
     try {
       if (req.session.userType === "merchant" && req.session.merchantId !== req.params.merchantId) {
@@ -6046,54 +6095,6 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       res.json(requests);
     } catch (error) {
       console.error("Error fetching custom plan requests:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-  
-  // Get merchant notifications
-  app.get("/api/merchant/notifications", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.userId!;
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
-      const notifications = await storage.getMerchantNotifications(merchantId, limit);
-      res.json(notifications);
-    } catch (error) {
-      console.error("Error fetching notifications:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-  
-  // Get unread notification count
-  app.get("/api/merchant/notifications/unread-count", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.userId!;
-      const count = await storage.getUnreadNotificationCount(merchantId);
-      res.json({ count });
-    } catch (error) {
-      console.error("Error fetching unread count:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-  
-  // Mark notification as read
-  app.patch("/api/merchant/notifications/:notificationId/read", requireMerchant, async (req, res) => {
-    try {
-      const notification = await storage.markNotificationAsRead(req.params.notificationId);
-      res.json({ success: true, notification });
-    } catch (error) {
-      console.error("Error marking notification as read:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-  
-  // Mark all notifications as read
-  app.post("/api/merchant/notifications/mark-all-read", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.userId!;
-      await storage.markAllNotificationsAsRead(merchantId);
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error marking all notifications as read:", error);
       res.status(500).json({ error: "Server error" });
     }
   });

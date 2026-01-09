@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { formatDistanceToNow } from "date-fns";
-import { id as idLocale } from "date-fns/locale";
 
 interface MerchantNotification {
   id: string;
@@ -28,8 +27,13 @@ interface MerchantNotification {
   type: string;
   title: string;
   message: string;
-  data: any;
+  relatedEntityType?: string;
+  relatedEntityId?: string;
+  actionUrl?: string;
+  actionLabel?: string;
   isRead: boolean;
+  readAt?: string;
+  metadata?: any;
   createdAt: string;
 }
 
@@ -124,7 +128,7 @@ export function MerchantNotificationCenter() {
         data-testid="popover-notifications"
       >
         <div className="flex items-center justify-between px-4 py-3 border-b">
-          <h3 className="font-semibold" data-testid="text-notifications-title">Notifikasi</h3>
+          <h3 className="font-semibold" data-testid="text-notifications-title">Notifications</h3>
           {unreadCount > 0 && (
             <Button 
               variant="ghost" 
@@ -134,7 +138,7 @@ export function MerchantNotificationCenter() {
               data-testid="button-mark-all-read"
             >
               <Check className="w-3 h-3 mr-1" />
-              Tandai Semua Dibaca
+              Mark All as Read
             </Button>
           )}
         </div>
@@ -143,19 +147,19 @@ export function MerchantNotificationCenter() {
           {isLoading ? (
             <div className="flex items-center justify-center py-8 text-muted-foreground">
               <Clock className="w-4 h-4 mr-2 animate-spin" />
-              Memuat...
+              Loading...
             </div>
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
               <Bell className="w-8 h-8 mb-2 opacity-50" />
-              <p className="text-sm">Tidak ada notifikasi</p>
+              <p className="text-sm">No notifications</p>
             </div>
           ) : (
             <div className="divide-y">
               {notifications.map(notification => {
                 const Icon = notificationIcons[notification.type] || notificationIcons.default;
                 const link = getNotificationLink(notification);
-                const status = notification.data?.status;
+                const status = notification.metadata?.status;
                 
                 const content = (
                   <div 
@@ -195,8 +199,7 @@ export function MerchantNotificationCenter() {
                         )}
                         <span className="text-[10px] text-muted-foreground">
                           {formatDistanceToNow(new Date(notification.createdAt), { 
-                            addSuffix: true,
-                            locale: idLocale 
+                            addSuffix: true 
                           })}
                         </span>
                       </div>
@@ -230,7 +233,7 @@ export function MerchantNotificationCenter() {
               className="w-full text-sm justify-center"
               data-testid="button-view-all-notifications"
             >
-              Lihat Semua di Billing
+              View All in Billing
             </Button>
           </Link>
         </div>
