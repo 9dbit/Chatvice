@@ -22,7 +22,7 @@ import { extractFAQContent } from "./crawler";
 import { createQRISPayment, createVAPayment, createBankTransferPayment, createPaymentLinkPayment, checkPaymentStatus, isKompasPayConfigured, convertToIDR, formatIDR } from "./kompasPayClient";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient } from "./resendClient";
-import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations } from "@shared/schema";
+import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
 import crypto from "crypto";
@@ -5335,6 +5335,19 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                 paidAt: new Date(),
               });
               
+              // Sync custom plan request status to closed
+              const [linkedRequest] = await db
+                .select()
+                .from(customPlanRequests)
+                .where(eq(customPlanRequests.linkedInvoiceId, customInvoice.id));
+              
+              if (linkedRequest) {
+                await storage.updateCustomPlanRequest(linkedRequest.id, {
+                  status: 'closed',
+                });
+                console.log(`[Crypto Payment] Synced custom plan request ${linkedRequest.id} status to closed`);
+              }
+              
               // Update merchant subscription with custom plan limits
               await storage.updateMerchantSubscription(confirmation.merchantId, {
                 subscriptionPlanId: 'custom',
@@ -5429,6 +5442,34 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             });
           } catch (emailError) {
             console.error('Failed to send approval email:', emailError);
+          }
+        }
+      }
+      
+      // If rejected, sync custom plan request status
+      if (status === 'rejected') {
+        const [confirmation] = await db
+          .select()
+          .from(cryptoPaymentConfirmations)
+          .where(eq(cryptoPaymentConfirmations.id, id));
+        
+        if (confirmation?.customInvoiceId) {
+          // Update invoice status to cancelled
+          await storage.updateCustomPlanInvoice(confirmation.customInvoiceId, {
+            status: 'cancelled',
+          });
+          
+          // Sync custom plan request status to rejected
+          const [linkedRequest] = await db
+            .select()
+            .from(customPlanRequests)
+            .where(eq(customPlanRequests.linkedInvoiceId, confirmation.customInvoiceId));
+          
+          if (linkedRequest) {
+            await storage.updateCustomPlanRequest(linkedRequest.id, {
+              status: 'rejected',
+            });
+            console.log(`[Crypto Payment] Synced custom plan request ${linkedRequest.id} status to rejected`);
           }
         }
       }
@@ -5652,6 +5693,19 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                 paidAt: new Date(),
               });
               
+              // Sync custom plan request status to closed
+              const [linkedRequest] = await db
+                .select()
+                .from(customPlanRequests)
+                .where(eq(customPlanRequests.linkedInvoiceId, customInvoice.id));
+              
+              if (linkedRequest) {
+                await storage.updateCustomPlanRequest(linkedRequest.id, {
+                  status: 'closed',
+                });
+                console.log(`[Bank Transfer] Synced custom plan request ${linkedRequest.id} status to closed`);
+              }
+              
               // Update merchant subscription with custom plan limits
               await storage.updateMerchantSubscription(confirmation.merchantId, {
                 subscriptionPlanId: 'custom',
@@ -5746,6 +5800,34 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             });
           } catch (emailError) {
             console.error('Failed to send approval email:', emailError);
+          }
+        }
+      }
+      
+      // If rejected, sync custom plan request status
+      if (status === 'rejected') {
+        const [confirmation] = await db
+          .select()
+          .from(bankTransferConfirmations)
+          .where(eq(bankTransferConfirmations.id, id));
+        
+        if (confirmation?.customInvoiceId) {
+          // Update invoice status to cancelled
+          await storage.updateCustomPlanInvoice(confirmation.customInvoiceId, {
+            status: 'cancelled',
+          });
+          
+          // Sync custom plan request status to rejected
+          const [linkedRequest] = await db
+            .select()
+            .from(customPlanRequests)
+            .where(eq(customPlanRequests.linkedInvoiceId, confirmation.customInvoiceId));
+          
+          if (linkedRequest) {
+            await storage.updateCustomPlanRequest(linkedRequest.id, {
+              status: 'rejected',
+            });
+            console.log(`[Bank Transfer] Synced custom plan request ${linkedRequest.id} status to rejected`);
           }
         }
       }
