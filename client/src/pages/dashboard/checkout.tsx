@@ -339,6 +339,30 @@ export default function CheckoutPage() {
     queryKey: ["/api/promotions/active"],
   });
   
+  // Fetch pending custom plan invoice when accessing custom plan checkout
+  interface CustomPlanInvoice {
+    id: string;
+    invoiceNumber: string;
+    amount: number;
+    currency: string;
+    billingInterval: string;
+    status: string;
+    conversationsLimit: number;
+    agentsLimit: number;
+    supervisorsLimit: number;
+    sourcesLimit: number;
+  }
+  
+  const { data: pendingInvoices = [], isLoading: invoicesLoading } = useQuery<CustomPlanInvoice[]>({
+    queryKey: ["/api/merchant/custom-invoices/pending"],
+    enabled: planId === "custom",
+  });
+  
+  // Get the first pending invoice for custom plan pricing
+  const pendingCustomInvoice = planId === "custom" && pendingInvoices.length > 0 
+    ? pendingInvoices.find(inv => inv.billingInterval === billingInterval) || pendingInvoices[0]
+    : null;
+  
   // Fetch crypto prices when dialog opens
   interface CryptoPricesResponse {
     prices: Record<string, number>;
@@ -407,7 +431,7 @@ export default function CheckoutPage() {
     retry: false,
   });
   
-  const isInitialLoading = billingLoading || exchangeLoading || plansLoading || (isResumeMode && resumeLoading);
+  const isInitialLoading = billingLoading || exchangeLoading || plansLoading || (isResumeMode && resumeLoading) || (planId === "custom" && invoicesLoading);
 
   const selectedPlan = dbPlans.find((p: any) => p.id === planId);
   
@@ -1076,13 +1100,44 @@ export default function CheckoutPage() {
       </div>
     );
   }
+  
+  // Custom plan requires a pending invoice
+  if (!isResumeMode && planId === "custom" && pendingInvoices.length === 0) {
+    return (
+      <div className="max-w-lg mx-auto py-6 px-4 md:py-8 space-y-4">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleBack} data-testid="button-back">
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <h1 className="text-base font-semibold">Custom Plan</h1>
+        </div>
+        <Card>
+          <CardContent className="py-10 text-center space-y-3">
+            <AlertTriangle className="w-10 h-10 mx-auto text-amber-500" />
+            <h2 className="text-base font-semibold">No Invoice Available</h2>
+            <p className="text-[11px] text-muted-foreground">Custom plan requires an invoice from our sales team. Please check your billing page or contact sales.</p>
+            <Button size="sm" onClick={() => navigate('/dashboard/billing')} data-testid="button-go-to-billing">
+              View Billing
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const exchangeRate = exchangeRateData?.rate || 16500;
   const exchangeSource = exchangeRateData?.source || "Default";
+  
+  // For custom plans with pending invoice, use invoice amount (already in IDR)
+  // Otherwise use plan's USD price converted to IDR
+  const isCustomPlanWithInvoice = planId === "custom" && pendingCustomInvoice;
   const priceUSD = selectedPlan ? (isAnnual ? (selectedPlan.annualPrice || 0) : (selectedPlan.monthlyPrice || 0)) : 0;
-  const priceIDR = Math.round(priceUSD * exchangeRate);
+  const priceIDR = isCustomPlanWithInvoice 
+    ? pendingCustomInvoice.amount  // Invoice amount is already in IDR
+    : Math.round(priceUSD * exchangeRate);
   const promo = selectedPlan ? getPromoForPlan(selectedPlan.id) : null;
-  const discountPercent = promo?.discountPercent || 0;
+  // Don't apply promo discount for custom plan invoices (price is already finalized)
+  const discountPercent = isCustomPlanWithInvoice ? 0 : (promo?.discountPercent || 0);
   const discountAmount = Math.round(priceIDR * discountPercent / 100);
   
   const creditAmountIDR = prorationInfo?.prorationApplied && prorationInfo?.creditAmount 
@@ -1092,10 +1147,13 @@ export default function CheckoutPage() {
   const finalPrice = Math.max(0, priceIDR - discountAmount - creditAmountIDR);
   
   // Use authoritative proration finalAmount when available (already a net value, no discount re-apply)
+  // For custom plan invoices, convert IDR back to USD for consistency
   // Otherwise calculate from catalog price with discount
-  const finalPriceUSD = prorationInfo?.prorationApplied 
-    ? Math.max(0, prorationInfo.finalAmount)
-    : Math.max(0, priceUSD - (priceUSD * discountPercent / 100));
+  const finalPriceUSD = isCustomPlanWithInvoice
+    ? finalPrice / exchangeRate  // Convert IDR to USD for crypto payments
+    : prorationInfo?.prorationApplied 
+      ? Math.max(0, prorationInfo.finalAmount)
+      : Math.max(0, priceUSD - (priceUSD * discountPercent / 100));
 
   // Detect if this is a downgrade by comparing plan prices
   // Use monthly prices for fair comparison regardless of billing interval
@@ -1122,9 +1180,14 @@ export default function CheckoutPage() {
   const bankList = selectedPaymentMethod === 'virtual_account' ? VA_BANKS : TRANSFER_BANKS;
   
   // For resume mode, use resume data values
+  // For custom plan with invoice, use invoice billing interval
   const displayAmount = isResumeMode && qrisData ? qrisData.amount : finalPrice;
   const displayPlanName = isResumeMode && qrisData ? qrisData.planName : selectedPlan?.name || '';
-  const displayBillingInterval = isResumeMode && qrisData ? qrisData.billingInterval : (isAnnual ? 'annual' : 'monthly');
+  const displayBillingInterval = isResumeMode && qrisData 
+    ? qrisData.billingInterval 
+    : isCustomPlanWithInvoice 
+      ? pendingCustomInvoice.billingInterval 
+      : (isAnnual ? 'annual' : 'monthly');
 
   return (
     <div className="max-w-4xl mx-auto py-6 px-4 md:py-8 space-y-4">
