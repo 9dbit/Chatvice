@@ -623,11 +623,11 @@ export default function BillingDetailsPage() {
                     )}
                     
                     {isAwaitingConfirmation ? (
-                      <div className="flex items-center gap-2 p-2 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-                        <Clock className="w-4 h-4 text-amber-600" />
+                      <div className="flex items-center gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                        <Clock className="w-4 h-4 text-amber-600 flex-shrink-0" />
                         <div className="flex-1">
-                          <p className="text-xs font-medium text-amber-800 dark:text-amber-200">Waiting for Confirmation</p>
-                          <p className="text-[10px] text-amber-600 dark:text-amber-400">Your payment is being reviewed by admin</p>
+                          <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Payment Under Review</p>
+                          <p className="text-xs text-amber-600 dark:text-amber-400">Your payment is currently under review. We are processing your custom plan.</p>
                         </div>
                       </div>
                     ) : (
