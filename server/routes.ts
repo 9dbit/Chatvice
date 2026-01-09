@@ -6851,7 +6851,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         status: "submitted",
       });
       
-      // Create notification for merchant
+      // Create notification for merchant (no action button - doesn't lead to related info)
       await storage.createMerchantNotification({
         merchantId,
         type: "custom_plan_request",
@@ -6859,8 +6859,6 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         message: "Your custom plan request has been submitted and is awaiting review.",
         relatedEntityType: "custom_plan_request",
         relatedEntityId: request.id,
-        actionUrl: "/dashboard/billing",
-        actionLabel: "View Status",
       });
       
       // Create admin notification
