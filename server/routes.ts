@@ -4401,19 +4401,18 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       }
       
       // Calculate final price with discount and proration credit
-      // For custom plans with invoice, use invoice amount directly (already in IDR, no discounts)
-      let finalPriceIDR: number;
+      // ALL plan prices (including custom invoices) are stored in USD
+      // For Indonesian payment methods (QRIS, VA, Bank Transfer): convert to IDR
+      // For international methods (PayPal, Credit Card): keep in USD
       let finalPriceUSD: number;
       
       if (isCustomPlanWithInvoice && customInvoice) {
-        // Custom plan: use invoice amount (already in IDR), no promo discounts
-        finalPriceIDR = customInvoice.amount;
-        finalPriceUSD = customInvoice.amount / exchangeRate;
-        // Override billing interval with invoice's billing interval
+        // Custom plan: use invoice amount (in USD), no promo discounts
+        finalPriceUSD = customInvoice.amount;
         console.log('Custom plan checkout using invoice amount:', {
           invoiceId: customInvoice.id,
           invoiceNumber: customInvoice.invoiceNumber,
-          invoiceAmount: customInvoice.amount,
+          invoiceAmountUSD: customInvoice.amount,
           invoiceBillingInterval: customInvoice.billingInterval,
         });
       } else {
@@ -4421,12 +4420,13 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         const discountAmount = basePriceUSD * (discountPercent / 100);
         const priceAfterDiscount = Math.max(0, basePriceUSD - discountAmount);
         finalPriceUSD = Math.max(0, priceAfterDiscount - prorationCredit);
-        const priceIDR = Math.round(finalPriceUSD * exchangeRate);
-        
-        // Minimum amount for Kompas Pay is 10,000 IDR
-        const MIN_PAYMENT_AMOUNT = 10000;
-        finalPriceIDR = Math.max(priceIDR, MIN_PAYMENT_AMOUNT);
       }
+      
+      // Convert USD to IDR for Indonesian payment methods
+      const priceIDR = Math.round(finalPriceUSD * exchangeRate);
+      // Minimum amount for Kompas Pay is 10,000 IDR
+      const MIN_PAYMENT_AMOUNT = 10000;
+      const finalPriceIDR = Math.max(priceIDR, MIN_PAYMENT_AMOUNT);
       
       console.log('Checkout-v2 pricing:', {
         planId,

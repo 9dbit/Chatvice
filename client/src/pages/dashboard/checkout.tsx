@@ -1128,32 +1128,38 @@ export default function CheckoutPage() {
   const exchangeRate = exchangeRateData?.rate || 16500;
   const exchangeSource = exchangeRateData?.source || "Default";
   
-  // For custom plans with pending invoice, use invoice amount (already in IDR)
-  // Otherwise use plan's USD price converted to IDR
+  // ALL plan prices (including custom invoices) are stored in USD
+  // Convert to IDR for display (Indonesian payment methods)
   const isCustomPlanWithInvoice = planId === "custom" && pendingCustomInvoice;
-  const priceUSD = selectedPlan ? (isAnnual ? (selectedPlan.annualPrice || 0) : (selectedPlan.monthlyPrice || 0)) : 0;
-  const priceIDR = isCustomPlanWithInvoice 
-    ? pendingCustomInvoice.amount  // Invoice amount is already in IDR
-    : Math.round(priceUSD * exchangeRate);
+  
+  // For custom plans, use invoice amount (in USD). For standard plans, use plan prices
+  const priceUSD = isCustomPlanWithInvoice 
+    ? pendingCustomInvoice.amount  // Invoice amount is in USD
+    : selectedPlan ? (isAnnual ? (selectedPlan.annualPrice || 0) : (selectedPlan.monthlyPrice || 0)) : 0;
+  
   const promo = selectedPlan ? getPromoForPlan(selectedPlan.id) : null;
-  // Don't apply promo discount for custom plan invoices (price is already finalized)
+  // Don't apply promo discount for custom plan invoices (price is already finalized by sales)
   const discountPercent = isCustomPlanWithInvoice ? 0 : (promo?.discountPercent || 0);
-  const discountAmount = Math.round(priceIDR * discountPercent / 100);
+  
+  // Calculate USD price after discount
+  const priceAfterDiscountUSD = Math.max(0, priceUSD - (priceUSD * discountPercent / 100));
+  
+  // Convert to IDR for Indonesian payment methods
+  const priceIDR = Math.round(priceAfterDiscountUSD * exchangeRate);
+  const discountAmountIDR = Math.round((priceUSD * discountPercent / 100) * exchangeRate);
   
   const creditAmountIDR = prorationInfo?.prorationApplied && prorationInfo?.creditAmount 
     ? Math.round(prorationInfo.creditAmount * exchangeRate) 
     : 0;
   
-  const finalPrice = Math.max(0, priceIDR - discountAmount - creditAmountIDR);
+  const finalPrice = Math.max(0, priceIDR - creditAmountIDR);
   
-  // Use authoritative proration finalAmount when available (already a net value, no discount re-apply)
-  // For custom plan invoices, convert IDR back to USD for consistency
-  // Otherwise calculate from catalog price with discount
+  // USD amount for crypto/PayPal payments
   const finalPriceUSD = isCustomPlanWithInvoice
-    ? finalPrice / exchangeRate  // Convert IDR to USD for crypto payments
+    ? priceUSD  // Custom invoice amount in USD
     : prorationInfo?.prorationApplied 
       ? Math.max(0, prorationInfo.finalAmount)
-      : Math.max(0, priceUSD - (priceUSD * discountPercent / 100));
+      : priceAfterDiscountUSD;
 
   // Detect if this is a downgrade by comparing plan prices
   // Use monthly prices for fair comparison regardless of billing interval
@@ -1239,7 +1245,7 @@ export default function CheckoutPage() {
                     {discountPercent > 0 && (
                       <div className="flex justify-between text-xs text-green-600">
                         <span>Promo discount ({discountPercent}%)</span>
-                        <span>- Rp {discountAmount.toLocaleString('id-ID')}</span>
+                        <span>- Rp {discountAmountIDR.toLocaleString('id-ID')}</span>
                       </div>
                     )}
                     {creditAmountIDR > 0 && (
