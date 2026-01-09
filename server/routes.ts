@@ -5105,12 +5105,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       
       const file = req.file;
       const uploadType = req.body.type || 'general';
+      const fileBuffer = fs.readFileSync(file.path);
       
       // Try to upload to object storage first
       const objectStorage = new ObjectStorageService();
       if (objectStorage.isConfigured()) {
         try {
-          const fileBuffer = fs.readFileSync(file.path);
           const uniqueFilename = `${uploadType}_${Date.now()}_${file.filename}`;
           const fileUrl = await objectStorage.uploadFile(fileBuffer, uniqueFilename, file.mimetype);
           
@@ -5119,11 +5119,32 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           
           return res.json({ url: fileUrl });
         } catch (storageError) {
-          console.error('Object storage upload failed, using local:', storageError);
+          console.error('Object storage upload failed, trying database:', storageError);
         }
       }
       
-      // Fall back to local file storage
+      // Fall back to database storage (persists across deploys)
+      try {
+        const fileId = `upload_${uploadType}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const base64Content = fileBuffer.toString('base64');
+        
+        await storage.storeFile({
+          id: fileId,
+          filename: file.originalname,
+          mimeType: file.mimetype,
+          content: base64Content,
+        });
+        
+        // Remove local file after successful database storage
+        fs.unlinkSync(file.path);
+        
+        const fileUrl = `/db-files/${fileId}`;
+        return res.json({ url: fileUrl });
+      } catch (dbError) {
+        console.error('Database storage failed, using local:', dbError);
+      }
+      
+      // Last resort: local file storage (may not persist across deploys)
       const fileUrl = `/uploads/${file.filename}`;
       res.json({ url: fileUrl });
     } catch (error: any) {
