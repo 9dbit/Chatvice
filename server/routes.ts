@@ -22,7 +22,7 @@ import { extractFAQContent } from "./crawler";
 import { createQRISPayment, createVAPayment, createBankTransferPayment, createPaymentLinkPayment, checkPaymentStatus, isKompasPayConfigured, convertToIDR, formatIDR } from "./kompasPayClient";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient } from "./resendClient";
-import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations } from "@shared/schema";
+import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
 import crypto from "crypto";
@@ -5437,6 +5437,380 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     } catch (error: any) {
       console.error('Update crypto payment error:', error);
       res.status(500).json({ error: error.message || "Failed to update crypto payment" });
+    }
+  });
+
+  // ============ Bank Transfer Payment Confirmations ============
+
+  // POST /api/billing/bank-transfer-confirm - Submit bank transfer payment confirmation
+  app.post("/api/billing/bank-transfer-confirm", requireMerchant, upload.single("proof"), async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      const { planId, planName, billingInterval, bankName, accountNumber, accountName, 
+              amountIdr, amountUsd, uniqueCode, senderBankName, senderAccountNumber, 
+              senderAccountName, transferDate, invoiceId, isUpgrade, isDowngrade } = req.body;
+      
+      // Handle proof image - try object storage first, then database fallback
+      let proofImageUrl = null;
+      if (req.file) {
+        const proofFilename = req.file.filename;
+        const localFilePath = path.join(uploadDir, proofFilename);
+        
+        try {
+          const objectStorage = new ObjectStorageService();
+          const fileBuffer = fs.readFileSync(localFilePath);
+          const extension = path.extname(proofFilename).toLowerCase();
+          const contentType = extension === '.png' ? 'image/png' : 
+                              extension === '.jpg' || extension === '.jpeg' ? 'image/jpeg' : 
+                              extension === '.gif' ? 'image/gif' : 'image/png';
+          
+          const uniqueKey = `bank-transfer-proofs/${merchantId}/${Date.now()}-${proofFilename}`;
+          await objectStorage.uploadFile(uniqueKey, fileBuffer, contentType);
+          proofImageUrl = `/api/media/object-storage/${encodeURIComponent(uniqueKey)}`;
+          
+          // Clean up local file
+          try { fs.unlinkSync(localFilePath); } catch (e) {}
+        } catch (storageError) {
+          console.log("Object storage failed for bank transfer proof, using database storage:", storageError);
+          // Database storage fallback
+          try {
+            const fileBuffer = fs.readFileSync(localFilePath);
+            const base64Data = fileBuffer.toString('base64');
+            const extension = path.extname(proofFilename).toLowerCase();
+            const mimeType = extension === '.png' ? 'image/png' : 
+                             extension === '.jpg' || extension === '.jpeg' ? 'image/jpeg' : 
+                             extension === '.gif' ? 'image/gif' : 'image/png';
+            
+            const mediaId = `bt_proof_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+            await storage.createMedia({
+              type: 'image',
+              url: `data:${mimeType};base64,${base64Data}`,
+              filename: proofFilename,
+              mimeType,
+              size: fileBuffer.length,
+              uploadedBy: merchantId,
+            }, mediaId);
+            
+            proofImageUrl = `/api/media/${mediaId}`;
+            try { fs.unlinkSync(localFilePath); } catch (e) {}
+          } catch (dbError) {
+            console.error("Database storage also failed:", dbError);
+            proofImageUrl = `/uploads/${proofFilename}`;
+          }
+        }
+      }
+      
+      // Create confirmation record
+      const confirmationId = `btc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      
+      await db.insert(bankTransferConfirmations).values({
+        id: confirmationId,
+        merchantId,
+        planId,
+        planName: planName || planId,
+        billingInterval: billingInterval || 'monthly',
+        isUpgrade: Boolean(isUpgrade),
+        isDowngrade: Boolean(isDowngrade),
+        customInvoiceId: invoiceId || null,
+        bankName: bankName || 'Unknown',
+        accountNumber: accountNumber || '',
+        accountName: accountName || '',
+        amountIdr: parseInt(amountIdr) || 0,
+        amountUsd: amountUsd ? parseInt(amountUsd) : null,
+        uniqueCode: uniqueCode || null,
+        senderBankName: senderBankName || null,
+        senderAccountNumber: senderAccountNumber || null,
+        senderAccountName: senderAccountName || null,
+        transferDate: transferDate ? new Date(transferDate) : null,
+        proofImageUrl,
+        status: 'pending',
+        merchantEmail: merchant.email,
+        merchantCompanyName: merchant.companyName,
+      });
+      
+      // If this is for a custom invoice, update the invoice status
+      if (invoiceId) {
+        await storage.updateCustomPlanInvoice(invoiceId, {
+          status: 'awaiting_confirmation',
+        });
+      }
+      
+      // Send email notification to admin
+      try {
+        const { Resend } = await import('resend');
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        
+        await resend.emails.send({
+          from: 'Chatvice <noreply@chatvice.app>',
+          to: 'hello@chatvice.app',
+          subject: `[Bank Transfer] ${merchant.companyName} - ${bankName} Rp ${parseInt(amountIdr).toLocaleString('id-ID')}`,
+          html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #d97706;">New Bank Transfer Payment</h2>
+              <p>A merchant has submitted proof of bank transfer payment:</p>
+              
+              <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <p><strong>Merchant:</strong> ${merchant.companyName} (${merchant.email})</p>
+                <p><strong>Plan:</strong> ${planName || planId}</p>
+                <p><strong>Billing:</strong> ${billingInterval}</p>
+                <p><strong>Amount:</strong> Rp ${parseInt(amountIdr).toLocaleString('id-ID')}</p>
+                <p><strong>Bank:</strong> ${bankName}</p>
+                <p><strong>Target Account:</strong> ${accountNumber} (${accountName})</p>
+                ${senderBankName ? `<p><strong>Sender Bank:</strong> ${senderBankName}</p>` : ''}
+                ${senderAccountNumber ? `<p><strong>Sender Account:</strong> ${senderAccountNumber} (${senderAccountName || 'N/A'})</p>` : ''}
+                ${uniqueCode ? `<p><strong>Unique Code:</strong> ${uniqueCode}</p>` : ''}
+              </div>
+              
+              ${proofImageUrl ? `<p><strong>Proof of Payment:</strong> <a href="https://chatvice.app${proofImageUrl}">View Image</a></p>` : ''}
+              
+              <div style="margin-top: 30px; text-align: center;">
+                <a href="https://chatvice.app/admin" style="background: #d97706; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">
+                  Review Payment
+                </a>
+              </div>
+            </div>
+          `,
+        });
+      } catch (emailError) {
+        console.error('Failed to send bank transfer notification email:', emailError);
+      }
+      
+      res.json({ 
+        success: true, 
+        confirmationId,
+        message: "Konfirmasi pembayaran berhasil dikirim. Tim kami akan memverifikasi pembayaran Anda dalam 1x24 jam."
+      });
+    } catch (error: any) {
+      console.error('Bank transfer confirmation error:', error);
+      res.status(500).json({ error: error.message || "Failed to submit confirmation" });
+    }
+  });
+  
+  // GET /api/admin/bank-transfer-payments - Get all bank transfer payment confirmations (admin only)
+  app.get("/api/admin/bank-transfer-payments", requireAdmin, async (req, res) => {
+    try {
+      const confirmations = await db
+        .select()
+        .from(bankTransferConfirmations)
+        .orderBy(desc(bankTransferConfirmations.createdAt));
+      
+      res.json(confirmations);
+    } catch (error: any) {
+      console.error('Get bank transfer payments error:', error);
+      res.status(500).json({ error: error.message || "Failed to get bank transfer payments" });
+    }
+  });
+  
+  // PATCH /api/admin/bank-transfer-payments/:id - Update bank transfer payment status (admin only)
+  app.patch("/api/admin/bank-transfer-payments/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, reviewNotes } = req.body;
+      
+      if (!['pending', 'approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: "Invalid status" });
+      }
+      
+      await db
+        .update(bankTransferConfirmations)
+        .set({
+          status,
+          reviewNotes,
+          reviewedBy: req.session.adminId,
+          reviewedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(bankTransferConfirmations.id, id));
+      
+      // If approved, activate the subscription
+      if (status === 'approved') {
+        const [confirmation] = await db
+          .select()
+          .from(bankTransferConfirmations)
+          .where(eq(bankTransferConfirmations.id, id));
+        
+        if (confirmation) {
+          const periodEnd = confirmation.billingInterval === 'annual' 
+            ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+            : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+          
+          // Check if this is a custom plan with an invoice
+          let customInvoice = null;
+          if (confirmation.customInvoiceId) {
+            customInvoice = await storage.getCustomPlanInvoice(confirmation.customInvoiceId);
+            if (customInvoice) {
+              // Update invoice status to paid
+              await storage.updateCustomPlanInvoice(customInvoice.id, {
+                status: 'paid',
+                paymentMethod: 'bank_transfer',
+                transactionId: `bank_${id}`,
+                paidAt: new Date(),
+              });
+              
+              // Update merchant subscription with custom plan limits
+              await storage.updateMerchantSubscription(confirmation.merchantId, {
+                subscriptionPlanId: 'custom',
+                subscriptionStatus: 'active',
+                paymentProvider: 'bank_transfer',
+                paymentSubscriptionId: `bank_${id}`,
+                currentPeriodEnd: periodEnd,
+                billingInterval: confirmation.billingInterval,
+                conversationsUsed: 0,
+                conversationsResetAt: new Date(),
+                // Custom plan limits from invoice
+                conversationsLimit: customInvoice.conversationsLimit,
+                agentsLimit: customInvoice.agentsLimit,
+                supervisorsLimit: customInvoice.supervisorsLimit,
+                sourcesLimit: customInvoice.sourcesLimit,
+                suggestedQuestionsLimit: customInvoice.suggestedQuestionsLimit,
+                // Clear any scheduled plan change
+                scheduledPlanId: null,
+                scheduledBillingInterval: null,
+                scheduledPlanActivatesAt: null,
+                scheduledPlanTransactionId: null,
+              });
+            }
+          }
+          
+          // If not a custom invoice, use standard plan subscription update
+          if (!customInvoice) {
+            await storage.updateMerchantSubscription(confirmation.merchantId, {
+              subscriptionPlanId: confirmation.planId,
+              subscriptionStatus: 'active',
+              paymentProvider: 'bank_transfer',
+              paymentSubscriptionId: `bank_${id}`,
+              currentPeriodEnd: periodEnd,
+              billingInterval: confirmation.billingInterval,
+              conversationsUsed: 0,
+              conversationsResetAt: new Date(),
+              // Clear any scheduled plan change
+              scheduledPlanId: null,
+              scheduledBillingInterval: null,
+              scheduledPlanActivatesAt: null,
+              scheduledPlanTransactionId: null,
+            });
+          }
+          
+          // Create notification for bank transfer payment approval
+          const billingText = confirmation.billingInterval === 'annual' ? 'Annual' : 'Monthly';
+          await storage.createMerchantNotification({
+            merchantId: confirmation.merchantId,
+            type: "subscription",
+            title: "Bank Transfer Payment Confirmed",
+            message: `Pembayaran bank transfer untuk ${confirmation.planName} (${billingText}) telah diverifikasi. Paket aktif hingga ${periodEnd.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}.`,
+            metadata: { 
+              planId: confirmation.planId, 
+              planName: confirmation.planName, 
+              billingInterval: confirmation.billingInterval, 
+              expiresAt: periodEnd.toISOString(), 
+              paymentMethod: 'bank_transfer',
+              status: "active" 
+            },
+            actionUrl: "/dashboard/billing",
+            actionLabel: "View Billing",
+            isRead: false,
+          });
+          
+          // Send approval email to merchant
+          try {
+            const { Resend } = await import('resend');
+            const resend = new Resend(process.env.RESEND_API_KEY);
+            
+            await resend.emails.send({
+              from: 'Chatvice <noreply@chatvice.app>',
+              to: confirmation.merchantEmail,
+              subject: 'Pembayaran Dikonfirmasi - Langganan Anda Aktif!',
+              html: `
+                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2 style="color: #7c3aed;">Pembayaran Dikonfirmasi!</h2>
+                  <p>Kabar baik! Pembayaran bank transfer Anda telah diverifikasi dan langganan Anda sekarang aktif.</p>
+                  
+                  <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <p><strong>Paket:</strong> ${confirmation.planName}</p>
+                    <p><strong>Billing:</strong> ${confirmation.billingInterval}</p>
+                    <p><strong>Berlaku Hingga:</strong> ${periodEnd.toLocaleDateString('id-ID')}</p>
+                  </div>
+                  
+                  <div style="margin-top: 30px; text-align: center;">
+                    <a href="https://chatvice.app/dashboard" style="background: #7c3aed; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; display: inline-block;">
+                      Buka Dashboard
+                    </a>
+                  </div>
+                </div>
+              `,
+            });
+          } catch (emailError) {
+            console.error('Failed to send approval email:', emailError);
+          }
+        }
+      }
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Update bank transfer payment error:', error);
+      res.status(500).json({ error: error.message || "Failed to update bank transfer payment" });
+    }
+  });
+  
+  // GET /api/billing/payment-confirmation-status - Check if merchant has pending payment confirmations
+  app.get("/api/billing/payment-confirmation-status", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      
+      // Check for pending crypto payment confirmations
+      const [cryptoConfirmation] = await db
+        .select()
+        .from(cryptoPaymentConfirmations)
+        .where(eq(cryptoPaymentConfirmations.merchantId, merchantId))
+        .orderBy(desc(cryptoPaymentConfirmations.createdAt))
+        .limit(1);
+      
+      // Check for pending bank transfer confirmations
+      const [bankTransferConfirmation] = await db
+        .select()
+        .from(bankTransferConfirmations)
+        .where(eq(bankTransferConfirmations.merchantId, merchantId))
+        .orderBy(desc(bankTransferConfirmations.createdAt))
+        .limit(1);
+      
+      const hasPendingCrypto = cryptoConfirmation?.status === 'pending';
+      const hasPendingBankTransfer = bankTransferConfirmation?.status === 'pending';
+      
+      res.json({
+        hasPendingConfirmation: hasPendingCrypto || hasPendingBankTransfer,
+        cryptoConfirmation: hasPendingCrypto ? {
+          id: cryptoConfirmation.id,
+          status: cryptoConfirmation.status,
+          planId: cryptoConfirmation.planId,
+          planName: cryptoConfirmation.planName,
+          billingInterval: cryptoConfirmation.billingInterval,
+          cryptocurrency: cryptoConfirmation.cryptocurrency,
+          amountCrypto: cryptoConfirmation.amountCrypto,
+          amountUsd: cryptoConfirmation.amountUsd,
+          customInvoiceId: cryptoConfirmation.customInvoiceId,
+          createdAt: cryptoConfirmation.createdAt,
+        } : null,
+        bankTransferConfirmation: hasPendingBankTransfer ? {
+          id: bankTransferConfirmation.id,
+          status: bankTransferConfirmation.status,
+          planId: bankTransferConfirmation.planId,
+          planName: bankTransferConfirmation.planName,
+          billingInterval: bankTransferConfirmation.billingInterval,
+          bankName: bankTransferConfirmation.bankName,
+          amountIdr: bankTransferConfirmation.amountIdr,
+          amountUsd: bankTransferConfirmation.amountUsd,
+          customInvoiceId: bankTransferConfirmation.customInvoiceId,
+          createdAt: bankTransferConfirmation.createdAt,
+        } : null,
+      });
+    } catch (error: any) {
+      console.error('Get payment confirmation status error:', error);
+      res.status(500).json({ error: error.message || "Failed to get confirmation status" });
     }
   });
 
