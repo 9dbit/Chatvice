@@ -174,6 +174,39 @@ export default function BillingPage() {
     queryKey: ["/api/billing/pending-payment-details"],
   });
   
+  // Fetch payment confirmation status (for crypto/bank transfer awaiting review)
+  interface PaymentConfirmationStatus {
+    hasPendingConfirmation: boolean;
+    cryptoConfirmation: {
+      id: string;
+      status: string;
+      planId: string;
+      planName: string;
+      billingInterval: string;
+      cryptocurrency: string;
+      amountCrypto: string;
+      amountUsd: number;
+      customInvoiceId?: string;
+      createdAt: string;
+    } | null;
+    bankTransferConfirmation: {
+      id: string;
+      status: string;
+      planId: string;
+      planName: string;
+      billingInterval: string;
+      bankName: string;
+      amountIdr: number;
+      amountUsd?: number;
+      customInvoiceId?: string;
+      createdAt: string;
+    } | null;
+  }
+  
+  const { data: paymentConfirmationStatus } = useQuery<PaymentConfirmationStatus>({
+    queryKey: ["/api/billing/payment-confirmation-status"],
+  });
+  
   const [showAwaitingPayment, setShowAwaitingPayment] = useState(false);
   const [pendingPaymentTimeRemaining, setPendingPaymentTimeRemaining] = useState<number>(0);
   
@@ -908,7 +941,7 @@ export default function BillingPage() {
       </div>
 
       {/* Awaiting Payment Section - Unified View for all pending payments */}
-      {(pendingPaymentDetails?.hasPendingPayment || customInvoices.filter(inv => inv.status === 'pending').length > 0) && (
+      {(pendingPaymentDetails?.hasPendingPayment || customInvoices.filter(inv => inv.status === 'pending').length > 0 || paymentConfirmationStatus?.hasPendingConfirmation) && (
         <Card className="border-amber-500/50 bg-amber-500/5" data-testid="card-pending-transaction">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -918,12 +951,78 @@ export default function BillingPage() {
                   Awaiting Payment
                 </CardTitle>
                 <Badge variant="secondary" className="text-[10px] h-4 px-1.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                  {(pendingPaymentDetails?.hasPendingPayment ? 1 : 0) + customInvoices.filter(inv => inv.status === 'pending').length}
+                  {(pendingPaymentDetails?.hasPendingPayment ? 1 : 0) + customInvoices.filter(inv => inv.status === 'pending').length + (paymentConfirmationStatus?.hasPendingConfirmation ? 1 : 0)}
                 </Badge>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Crypto Payment Under Review */}
+            {paymentConfirmationStatus?.cryptoConfirmation && (
+              <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700" data-testid="pending-crypto-confirmation">
+                <div className="flex items-center gap-2 mb-3">
+                  <Timer className="w-5 h-5 text-amber-600" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Payment Under Review</p>
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      Your {paymentConfirmationStatus.cryptoConfirmation.cryptocurrency} payment is currently under review. We are processing your {paymentConfirmationStatus.cryptoConfirmation.planName} plan.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-muted-foreground">Plan:</span>
+                    <span className="ml-1 font-medium">{paymentConfirmationStatus.cryptoConfirmation.planName}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Billing:</span>
+                    <span className="ml-1 font-medium">{paymentConfirmationStatus.cryptoConfirmation.billingInterval === 'annual' ? 'Annual' : 'Monthly'}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Amount:</span>
+                    <span className="ml-1 font-medium">{paymentConfirmationStatus.cryptoConfirmation.amountCrypto} {paymentConfirmationStatus.cryptoConfirmation.cryptocurrency}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">USD Value:</span>
+                    <span className="ml-1 font-medium">${(paymentConfirmationStatus.cryptoConfirmation.amountUsd / 100).toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Bank Transfer Payment Under Review */}
+            {paymentConfirmationStatus?.bankTransferConfirmation && (
+              <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700" data-testid="pending-bank-transfer-confirmation">
+                <div className="flex items-center gap-2 mb-3">
+                  <Timer className="w-5 h-5 text-amber-600" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Payment Under Review</p>
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      Your bank transfer payment is currently under review. We are processing your {paymentConfirmationStatus.bankTransferConfirmation.planName} plan.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-muted-foreground">Plan:</span>
+                    <span className="ml-1 font-medium">{paymentConfirmationStatus.bankTransferConfirmation.planName}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Billing:</span>
+                    <span className="ml-1 font-medium">{paymentConfirmationStatus.bankTransferConfirmation.billingInterval === 'annual' ? 'Annual' : 'Monthly'}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Bank:</span>
+                    <span className="ml-1 font-medium">{paymentConfirmationStatus.bankTransferConfirmation.bankName}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Amount:</span>
+                    <span className="ml-1 font-medium">Rp {paymentConfirmationStatus.bankTransferConfirmation.amountIdr.toLocaleString('id-ID')}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {/* Standard Pending Transaction */}
             {pendingPaymentDetails?.hasPendingPayment && (
               <div className="p-4 rounded-lg bg-white dark:bg-zinc-900 border border-amber-200 dark:border-amber-800" data-testid="pending-standard-payment">
@@ -1215,7 +1314,7 @@ export default function BillingPage() {
               </p>
             </div>
             {/* View Awaiting Payment Button - Show if any pending payment exists */}
-            {(pendingPaymentDetails?.hasPendingPayment || customInvoices.filter(inv => inv.status === 'pending' || inv.status === 'awaiting_confirmation').length > 0) && (
+            {(pendingPaymentDetails?.hasPendingPayment || customInvoices.filter(inv => inv.status === 'pending' || inv.status === 'awaiting_confirmation').length > 0 || paymentConfirmationStatus?.hasPendingConfirmation) && (
               <Button
                 variant="outline"
                 size="sm"
@@ -1232,7 +1331,7 @@ export default function BillingPage() {
                 <Timer className="w-4 h-4 mr-2" />
                 View Awaiting Payment
                 <Badge variant="secondary" className="ml-2 text-[10px] h-4 px-1.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                  {(pendingPaymentDetails?.hasPendingPayment ? 1 : 0) + customInvoices.filter(inv => inv.status === 'pending' || inv.status === 'awaiting_confirmation').length}
+                  {(pendingPaymentDetails?.hasPendingPayment ? 1 : 0) + customInvoices.filter(inv => inv.status === 'pending' || inv.status === 'awaiting_confirmation').length + (paymentConfirmationStatus?.hasPendingConfirmation ? 1 : 0)}
                 </Badge>
               </Button>
             )}
