@@ -16,7 +16,8 @@ import {
   Clock, 
   AlertCircle, 
   ExternalLink,
-  Check 
+  Check,
+  MessageSquare
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { formatDistanceToNow } from "date-fns";
@@ -41,6 +42,8 @@ const notificationIcons: Record<string, any> = {
   custom_plan_request: FileText,
   invoice: FileText,
   subscription: CheckCircle,
+  subscription_expiring: Clock,
+  chat_reminder: MessageSquare,
   alert: AlertCircle,
   default: Bell,
 };
@@ -92,6 +95,12 @@ export function MerchantNotificationCenter() {
   const getNotificationLink = (notification: MerchantNotification) => {
     if (notification.type === "custom_plan_request" || notification.type === "invoice") {
       return "/dashboard/billing";
+    }
+    if (notification.type === "subscription" || notification.type === "subscription_expiring") {
+      return "/dashboard/plans";
+    }
+    if (notification.type === "chat_reminder" && notification.metadata?.link) {
+      return notification.metadata.link;
     }
     return null;
   };

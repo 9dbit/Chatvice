@@ -168,6 +168,23 @@ export class PaymentWebhookHandler {
     
     console.log(`Payment transaction recorded: ${transaction.invoiceNumber}`);
     
+    // Create notification for payment receipt
+    const formattedAmount = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+    await storage.createMerchantNotification({
+      merchantId,
+      type: "invoice",
+      title: "Payment Received",
+      message: `Payment of ${formattedAmount} for ${planName} plan has been received. Invoice: ${transaction.invoiceNumber}`,
+      metadata: { 
+        invoiceNumber: transaction.invoiceNumber, 
+        amount, 
+        planName, 
+        paymentMethod: payment_method || 'QRIS',
+        status: "paid" 
+      },
+      isRead: false,
+    });
+    
     // Handle scheduled downgrades vs immediate upgrades/new subscriptions
     if (isDowngrade && scheduledActivationDate) {
       await this.scheduleSubscriptionDowngrade(merchantId, planId, billingInterval, transaction_id, scheduledActivationDate);
@@ -273,6 +290,18 @@ export class PaymentWebhookHandler {
       scheduledPlanTransactionId: null,
     });
 
+    // Create notification for plan activation
+    const planName = plan?.name || subscriptionPlans[planId]?.name || planId;
+    const billingText = billingInterval === 'annual' ? 'Annual' : 'Monthly';
+    await storage.createMerchantNotification({
+      merchantId,
+      type: "subscription",
+      title: "Plan Activated",
+      message: `Your ${planName} plan (${billingText}) is now active until ${periodEnd.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}.`,
+      metadata: { planId, planName, billingInterval, expiresAt: periodEnd.toISOString(), status: "active" },
+      isRead: false,
+    });
+
     console.log(`Subscription activated for merchant ${merchantId}: ${planId} (${billingInterval})`);
   }
 
@@ -298,6 +327,18 @@ export class PaymentWebhookHandler {
       scheduledBillingInterval: billingInterval,
       scheduledPlanActivatesAt: activationDate,
       scheduledPlanTransactionId: transactionId,
+    });
+
+    // Create notification for scheduled plan change
+    const planName = plan?.name || subscriptionPlans[planId]?.name || planId;
+    const billingText = billingInterval === 'annual' ? 'Annual' : 'Monthly';
+    await storage.createMerchantNotification({
+      merchantId,
+      type: "subscription",
+      title: "Plan Change Scheduled",
+      message: `Your plan will change to ${planName} (${billingText}) on ${activationDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}.`,
+      metadata: { planId, planName, billingInterval, activatesAt: activationDate.toISOString(), status: "scheduled" },
+      isRead: false,
     });
 
     console.log(`Subscription downgrade scheduled for merchant ${merchantId}: ${planId} (${billingInterval}) activates on ${activationDate.toISOString()}`);

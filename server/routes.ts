@@ -282,9 +282,9 @@ async function checkExpiringSubscription(merchant: any) {
   await storage.createMerchantNotification({
     merchantId: merchant.id,
     type: "subscription_expiring",
-    title: `Langganan Segera Berakhir`,
-    message: `Langganan ${planName} Anda akan berakhir dalam ${daysRemaining} hari. Perpanjang sekarang untuk menghindari gangguan layanan.`,
-    data: { planName, expiresAt: expiresAt.toISOString(), daysRemaining, status: "expiring" },
+    title: `Subscription Expiring Soon`,
+    message: `Your ${planName} subscription will expire in ${daysRemaining} day${daysRemaining > 1 ? 's' : ''}. Renew now to avoid service interruption.`,
+    metadata: { planName, expiresAt: expiresAt.toISOString(), daysRemaining, status: "expiring" },
     isRead: false,
   });
   
@@ -299,6 +299,76 @@ async function checkExpiringSubscription(merchant: any) {
   }).catch(err => console.error("Failed to send subscription expiring email:", err));
   
   console.log(`[Subscription Expiring] Notification sent to ${merchant.email} - ${daysRemaining} days remaining`);
+}
+
+// Check for chat sessions with 10+ unanswered customer messages in 24 hours
+async function checkUnansweredChatSessions(merchant: any) {
+  const now = new Date();
+  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  
+  // Get all active sessions for this merchant
+  const sessions = await storage.getSessionsByMerchant(merchant.id);
+  
+  for (const session of sessions) {
+    // Skip if session is closed or already handled
+    if (session.status === 'closed') continue;
+    
+    // Get messages for this session
+    const messages = await storage.getMessagesBySession(session.id);
+    if (messages.length === 0) continue;
+    
+    // Count consecutive unanswered customer messages at the end
+    let unansweredCount = 0;
+    let oldestUnansweredTime: Date | null = null;
+    
+    // Sort messages by timestamp descending to check from most recent
+    const sortedMessages = [...messages].sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+    
+    // Count consecutive customer messages without supervisor response
+    for (const msg of sortedMessages) {
+      if (msg.senderType === 'customer') {
+        unansweredCount++;
+        oldestUnansweredTime = new Date(msg.timestamp);
+      } else if (msg.senderType === 'supervisor') {
+        // Found a supervisor response, stop counting
+        break;
+      }
+      // AI messages don't count as responses for this check
+    }
+    
+    // Check if 10+ unanswered messages and oldest is older than 24 hours
+    if (unansweredCount >= 10 && oldestUnansweredTime && oldestUnansweredTime < twentyFourHoursAgo) {
+      // Check if we already sent a notification for this session recently
+      const notifications = await storage.getMerchantNotifications(merchant.id, 20);
+      const recentNotification = notifications.find((n: any) => 
+        n.type === "chat_reminder" && 
+        n.metadata?.sessionId === session.id &&
+        new Date(n.createdAt).getTime() > now.getTime() - 24 * 60 * 60 * 1000
+      );
+      
+      if (recentNotification) continue; // Already notified within 24 hours
+      
+      // Create notification with link to chat session
+      await storage.createMerchantNotification({
+        merchantId: merchant.id,
+        type: "chat_reminder",
+        title: "Unanswered Messages Need Attention",
+        message: `Chat session with ${session.customerName || 'a customer'} has ${unansweredCount} unanswered messages waiting for over 24 hours.`,
+        metadata: { 
+          sessionId: session.id, 
+          customerName: session.customerName || 'Customer',
+          unansweredCount,
+          link: `/dashboard/chat/${session.id}`,
+          status: "pending" 
+        },
+        isRead: false,
+      });
+      
+      console.log(`[Chat Reminder] Notification sent to ${merchant.email} for session ${session.id} - ${unansweredCount} unanswered messages`);
+    }
+  }
 }
 
 async function notifySupervisors(merchantId: string, sessionId: string) {
@@ -1099,6 +1169,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         
         // Check for expiring subscription and send notification if needed (non-blocking)
         checkExpiringSubscription(merchant).catch(err => console.error("Failed to check expiring subscription:", err));
+        
+        // Check for unanswered chat sessions (non-blocking)
+        checkUnansweredChatSessions(merchant).catch(err => console.error("Failed to check unanswered chat sessions:", err));
         
         return res.json({ success: true, merchantId: merchant.id, type: "merchant" });
       }
@@ -5055,6 +5128,24 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             scheduledPlanTransactionId: null,
           });
           
+          // Create notification for crypto payment approval
+          const billingText = confirmation.billingInterval === 'annual' ? 'Annual' : 'Monthly';
+          await storage.createMerchantNotification({
+            merchantId: confirmation.merchantId,
+            type: "subscription",
+            title: "Crypto Payment Confirmed",
+            message: `Your crypto payment for ${confirmation.planName} (${billingText}) has been verified. Plan active until ${periodEnd.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}.`,
+            metadata: { 
+              planId: confirmation.planId, 
+              planName: confirmation.planName, 
+              billingInterval: confirmation.billingInterval, 
+              expiresAt: periodEnd.toISOString(), 
+              paymentMethod: 'crypto',
+              status: "active" 
+            },
+            isRead: false,
+          });
+          
           // Send approval email to merchant
           try {
             const { Resend } = await import('resend');
@@ -5422,6 +5513,18 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             conversationsResetAt: new Date(),
           });
           
+          // Create notification for plan activation via billing sync
+          const planName = subscriptionPlans[planId]?.name || planId;
+          const billingText = billingInterval === 'annual' ? 'Annual' : 'Monthly';
+          await storage.createMerchantNotification({
+            merchantId,
+            type: "subscription",
+            title: "Plan Activated",
+            message: `Your ${planName} plan (${billingText}) is now active until ${periodEnd.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}.`,
+            metadata: { planId, planName, billingInterval, expiresAt: periodEnd.toISOString(), status: "active" },
+            isRead: false,
+          });
+          
           return res.json({ 
             synced: true, 
             planId,
@@ -5748,9 +5851,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       await storage.createMerchantNotification({
         merchantId,
         type: "invoice",
-        title: "Invoice Custom Plan Tersedia",
-        message: `Invoice ${invoiceNumber} telah dibuat. Silakan bayar untuk mengaktifkan custom plan Anda.`,
-        data: { invoiceId: invoice.id, invoiceNumber, amount, currency, billingInterval, status: "pending" },
+        title: "Custom Plan Invoice Available",
+        message: `Invoice ${invoiceNumber} has been created. Please pay to activate your custom plan.`,
+        metadata: { invoiceId: invoice.id, invoiceNumber, amount, currency, billingInterval, status: "pending" },
         isRead: false,
       });
       
@@ -5851,9 +5954,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       await storage.createMerchantNotification({
         merchantId: invoice.merchantId,
         type: "subscription",
-        title: "Custom Plan Telah Aktif",
-        message: `Selamat! Custom plan Anda telah aktif hingga ${periodEnd.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}.`,
-        data: { planName: "Custom Plan", billingInterval: invoice.billingInterval, expiresAt: periodEnd.toISOString(), status: "active" },
+        title: "Custom Plan Activated",
+        message: `Congratulations! Your custom plan is now active until ${periodEnd.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}.`,
+        metadata: { planName: "Custom Plan", billingInterval: invoice.billingInterval, expiresAt: periodEnd.toISOString(), status: "active" },
         isRead: false,
       });
       
