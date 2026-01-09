@@ -2092,6 +2092,42 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
   
+  // Cancel custom plan invoice
+  app.post("/api/merchant/custom-invoices/:invoiceId/cancel", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      const invoice = await storage.getCustomPlanInvoice(req.params.invoiceId);
+      
+      if (!invoice) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+      
+      if (invoice.merchantId !== merchantId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      
+      if (invoice.status !== "pending") {
+        return res.status(400).json({ error: `Cannot cancel invoice with status: ${invoice.status}` });
+      }
+      
+      // Update invoice status to cancelled
+      await storage.updateCustomPlanInvoice(invoice.id, {
+        status: "cancelled",
+      });
+      
+      console.log(`[Invoice Cancelled] ${invoice.invoiceNumber} - Cancelled by merchant ${merchantId}`);
+      
+      res.json({ 
+        success: true, 
+        message: "Invoice cancelled successfully",
+        invoiceNumber: invoice.invoiceNumber,
+      });
+    } catch (error) {
+      console.error("Error cancelling invoice:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
   // Pay custom plan invoice - creates payment and activates plan on success
   app.post("/api/merchant/custom-invoices/:invoiceId/pay", requireMerchant, async (req, res) => {
     try {

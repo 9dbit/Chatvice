@@ -16,7 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Receipt, Mail, Building2, CreditCard, History, FileText, Calendar, Zap, ArrowRight, Timer, Clock, Copy, XCircle, RefreshCw, Loader2, Eye, Download } from "lucide-react";
+import { Receipt, Mail, Building2, CreditCard, History, FileText, Calendar, Zap, ArrowRight, Timer, Clock, Copy, XCircle, RefreshCw, Loader2, Eye, Download, X, AlertTriangle } from "lucide-react";
 import type { Merchant } from "@shared/schema";
 import chatviceLightLogo from "@assets/Chatvice-02_1767458901049.png";
 import gpnLogo from "@assets/IMG_1410_1767458901049.png";
@@ -173,6 +173,33 @@ export default function BillingDetailsPage() {
       });
     },
   });
+
+  // Cancel custom invoice mutation
+  const cancelInvoiceMutation = useMutation({
+    mutationFn: async (invoiceId: string) => {
+      return apiRequest("POST", `/api/merchant/custom-invoices/${invoiceId}/cancel`, {});
+    },
+    onSuccess: () => {
+      toast({
+        title: "Invoice Cancelled",
+        description: "Your custom plan invoice has been cancelled.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-invoices"] });
+      setShowCancelInvoiceConfirm(false);
+      setInvoiceToCancel(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to cancel invoice. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // State for cancel invoice confirmation
+  const [invoiceToCancel, setInvoiceToCancel] = useState<string | null>(null);
+  const [showCancelInvoiceConfirm, setShowCancelInvoiceConfirm] = useState(false);
 
   // Format countdown
   const formatPendingCountdown = () => {
@@ -598,6 +625,20 @@ export default function BillingDetailsPage() {
                       )}
                       <Button
                         size="sm"
+                        variant="outline"
+                        className="text-xs h-7"
+                        onClick={() => {
+                          setInvoiceToCancel(invoice.id);
+                          setShowCancelInvoiceConfirm(true);
+                        }}
+                        disabled={cancelInvoiceMutation.isPending}
+                        data-testid={`button-cancel-invoice-${invoice.id}`}
+                      >
+                        <X className="w-3 h-3 mr-1" />
+                        Batalkan
+                      </Button>
+                      <Button
+                        size="sm"
                         className="text-xs h-7 bg-purple-600 hover:bg-purple-700"
                         data-testid={`button-pay-invoice-${invoice.id}`}
                         asChild
@@ -959,6 +1000,54 @@ export default function BillingDetailsPage() {
                 <Download className="w-4 h-4 mr-2" />
               )}
               Save to Gallery
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Custom Invoice Confirmation Dialog */}
+      <Dialog open={showCancelInvoiceConfirm} onOpenChange={setShowCancelInvoiceConfirm}>
+        <DialogContent data-testid="dialog-cancel-invoice-confirm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              Batalkan Invoice?
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Apakah Anda yakin ingin membatalkan invoice custom plan ini? Tindakan ini tidak dapat dibatalkan.
+          </p>
+          <div className="flex gap-3 pt-2">
+            <Button 
+              variant="outline" 
+              className="flex-1" 
+              onClick={() => {
+                setShowCancelInvoiceConfirm(false);
+                setInvoiceToCancel(null);
+              }}
+              data-testid="button-cancel-invoice-no"
+            >
+              Tidak, Simpan Invoice
+            </Button>
+            <Button 
+              variant="destructive"
+              className="flex-1"
+              onClick={() => {
+                if (invoiceToCancel) {
+                  cancelInvoiceMutation.mutate(invoiceToCancel);
+                }
+              }}
+              disabled={cancelInvoiceMutation.isPending}
+              data-testid="button-cancel-invoice-yes"
+            >
+              {cancelInvoiceMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Membatalkan...
+                </>
+              ) : (
+                "Ya, Batalkan Invoice"
+              )}
             </Button>
           </div>
         </DialogContent>

@@ -23,7 +23,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
-import { Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Lock, Loader2, CheckCircle2, Sparkles, Gift, Building2, ChevronDown, ChevronUp, QrCode, Timer, RefreshCw, Download, XCircle, Tag, Smartphone, Copy, ShieldCheck, FileText, ArrowRight, CreditCard } from "lucide-react";
+import { Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Lock, Loader2, CheckCircle2, Sparkles, Gift, Building2, ChevronDown, ChevronUp, QrCode, Timer, RefreshCw, Download, XCircle, Tag, Smartphone, Copy, ShieldCheck, FileText, ArrowRight, CreditCard, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
@@ -436,6 +436,33 @@ export default function BillingPage() {
     },
   });
 
+  // Cancel custom invoice mutation
+  const cancelInvoiceMutation = useMutation({
+    mutationFn: async (invoiceId: string) => {
+      return apiRequest("POST", `/api/merchant/custom-invoices/${invoiceId}/cancel`, {});
+    },
+    onSuccess: () => {
+      toast({
+        title: "Invoice Cancelled",
+        description: "Your custom plan invoice has been cancelled.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-invoices"] });
+      setShowCancelInvoiceConfirm(false);
+      setInvoiceToCancel(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to cancel invoice. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // State for cancel invoice confirmation
+  const [invoiceToCancel, setInvoiceToCancel] = useState<string | null>(null);
+  const [showCancelInvoiceConfirm, setShowCancelInvoiceConfirm] = useState(false);
+
   // Format countdown for pending payment
   const formatPendingCountdown = () => {
     const minutes = Math.floor(pendingPaymentTimeRemaining / 60);
@@ -628,19 +655,23 @@ export default function BillingPage() {
   const handleConfirmCancelAndProceed = async () => {
     if (!pendingNewPurchase) return;
     
-    const hasPendingInvoice = customInvoices.filter(inv => inv.status === 'pending').length > 0;
+    const pendingInvoices = customInvoices.filter(inv => inv.status === 'pending');
     
-    // If there's a pending custom invoice, user must pay or contact support to cancel
-    // We cannot auto-cancel custom invoices as they require admin action
-    if (hasPendingInvoice) {
-      toast({
-        title: "Cannot proceed",
-        description: "Please complete or cancel your pending custom plan invoice first. Contact support if you need to cancel it.",
-        variant: "destructive",
-      });
-      setShowCancelPendingConfirmDialog(false);
-      setPendingNewPurchase(null);
-      return;
+    // Cancel pending custom invoices first
+    if (pendingInvoices.length > 0) {
+      try {
+        // Cancel all pending invoices
+        for (const invoice of pendingInvoices) {
+          await cancelInvoiceMutation.mutateAsync(invoice.id);
+        }
+      } catch (error) {
+        toast({
+          title: "Failed to cancel invoice",
+          description: "Please try again or contact support.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
     
     // Cancel standard pending payment if exists
@@ -1122,18 +1153,33 @@ export default function BillingPage() {
                     </p>
                   )}
                   
-                  <Button 
-                    size="sm" 
-                    className="w-full bg-purple-600 hover:bg-purple-700"
-                    onClick={() => {
-                      // Navigate to checkout with invoice
-                      window.location.href = `/dashboard/checkout?plan=custom&interval=${invoice.billingInterval}&invoiceId=${invoice.id}`;
-                    }}
-                    data-testid={`button-pay-invoice-${invoice.id}`}
-                  >
-                    <CreditCard className="w-4 h-4 mr-2" />
-                    Pay Now
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        setInvoiceToCancel(invoice.id);
+                        setShowCancelInvoiceConfirm(true);
+                      }}
+                      disabled={cancelInvoiceMutation.isPending}
+                      data-testid={`button-cancel-invoice-${invoice.id}`}
+                    >
+                      <X className="w-4 h-4 mr-2" />
+                      Cancel
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      className="flex-1 bg-purple-600 hover:bg-purple-700"
+                      onClick={() => {
+                        window.location.href = `/dashboard/checkout?plan=custom&interval=${invoice.billingInterval}&invoiceId=${invoice.id}`;
+                      }}
+                      data-testid={`button-pay-invoice-${invoice.id}`}
+                    >
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      Pay Now
+                    </Button>
+                  </div>
                 </div>
               );
             })}
@@ -2027,6 +2073,54 @@ export default function BillingPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Cancel Custom Invoice Confirmation Dialog */}
+      <Dialog open={showCancelInvoiceConfirm} onOpenChange={setShowCancelInvoiceConfirm}>
+        <DialogContent data-testid="dialog-cancel-invoice-confirm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              Cancel Invoice?
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to cancel this custom plan invoice? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 pt-2">
+            <Button 
+              variant="outline" 
+              className="flex-1" 
+              onClick={() => {
+                setShowCancelInvoiceConfirm(false);
+                setInvoiceToCancel(null);
+              }}
+              data-testid="button-cancel-invoice-no"
+            >
+              No, Keep Invoice
+            </Button>
+            <Button 
+              variant="destructive"
+              className="flex-1"
+              onClick={() => {
+                if (invoiceToCancel) {
+                  cancelInvoiceMutation.mutate(invoiceToCancel);
+                }
+              }}
+              disabled={cancelInvoiceMutation.isPending}
+              data-testid="button-cancel-invoice-yes"
+            >
+              {cancelInvoiceMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Cancelling...
+                </>
+              ) : (
+                "Yes, Cancel Invoice"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Cancel Pending Payment Confirmation Dialog */}
       <Dialog open={showCancelPendingConfirmDialog} onOpenChange={setShowCancelPendingConfirmDialog}>
         <DialogContent data-testid="dialog-cancel-pending-confirm">
@@ -2036,9 +2130,7 @@ export default function BillingPage() {
               Pending Payment Exists
             </DialogTitle>
             <DialogDescription>
-              {customInvoices.filter(inv => inv.status === 'pending').length > 0 
-                ? "You have a pending custom plan invoice. Please complete the payment or contact support to cancel it before making a new purchase."
-                : "You already have a pending payment. To proceed with a new order, your existing pending payment must be cancelled first."}
+              You already have a pending payment. To proceed with a new order, your existing pending payment must be cancelled first.
             </DialogDescription>
           </DialogHeader>
           <div className="py-2">
@@ -2052,15 +2144,9 @@ export default function BillingPage() {
                 )}
               </p>
             </div>
-            {customInvoices.filter(inv => inv.status === 'pending').length > 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Custom plan invoices cannot be auto-cancelled. Please pay the invoice or contact support at billing@chatvice.app
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Would you like to cancel the pending payment and proceed with the new order?
-              </p>
-            )}
+            <p className="text-sm text-muted-foreground">
+              Would you like to cancel the pending payment and proceed with the new order?
+            </p>
           </div>
           <div className="flex gap-3">
             <Button 
@@ -2072,25 +2158,23 @@ export default function BillingPage() {
               }}
               data-testid="button-keep-pending"
             >
-              {customInvoices.filter(inv => inv.status === 'pending').length > 0 ? "Close" : "No, Keep Pending"}
+              No, Keep Pending
             </Button>
-            {customInvoices.filter(inv => inv.status === 'pending').length === 0 && (
-              <Button 
-                className="flex-1"
-                onClick={handleConfirmCancelAndProceed}
-                disabled={cancelPendingPaymentMutation.isPending}
-                data-testid="button-cancel-and-proceed"
-              >
-                {cancelPendingPaymentMutation.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Cancelling...
-                  </>
-                ) : (
-                  "Yes, Cancel & Proceed"
-                )}
-              </Button>
-            )}
+            <Button 
+              className="flex-1"
+              onClick={handleConfirmCancelAndProceed}
+              disabled={cancelPendingPaymentMutation.isPending || cancelInvoiceMutation.isPending}
+              data-testid="button-cancel-and-proceed"
+            >
+              {(cancelPendingPaymentMutation.isPending || cancelInvoiceMutation.isPending) ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Cancelling...
+                </>
+              ) : (
+                "Yes, Cancel & Proceed"
+              )}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
