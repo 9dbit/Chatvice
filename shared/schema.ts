@@ -1288,6 +1288,8 @@ export const cryptoPaymentConfirmations = pgTable("crypto_payment_confirmations"
   billingInterval: text("billing_interval").notNull(), // monthly or annual
   isUpgrade: boolean("is_upgrade").default(false),
   isDowngrade: boolean("is_downgrade").default(false),
+  // Custom invoice link (for custom plans)
+  customInvoiceId: varchar("custom_invoice_id", { length: 32 }),
   // Payment details
   cryptocurrency: text("cryptocurrency").notNull(), // BTC, ETH, etc.
   network: text("network").notNull(), // Bitcoin, ERC-20, etc.

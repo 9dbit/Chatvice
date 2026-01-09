@@ -1088,20 +1088,28 @@ export default function BillingPage() {
             )}
 
             {/* Custom Plan Invoices */}
-            {customInvoices.filter(inv => inv.status === 'pending').map((invoice) => {
+            {customInvoices.filter(inv => inv.status === 'pending' || inv.status === 'awaiting_confirmation').map((invoice) => {
               const exchangeRate = (platformSettings as any)?.exchange_rate ? parseInt((platformSettings as any).exchange_rate) : 16000;
               const amountIDR = invoice.currency === 'USD' ? Math.round(invoice.amount * exchangeRate) : invoice.amount;
+              const isAwaitingConfirmation = invoice.status === 'awaiting_confirmation';
               return (
                 <div 
                   key={invoice.id}
-                  className="p-4 rounded-lg bg-white dark:bg-zinc-900 border border-purple-200 dark:border-purple-800"
+                  className={`p-4 rounded-lg bg-white dark:bg-zinc-900 border ${isAwaitingConfirmation ? 'border-amber-300 dark:border-amber-700' : 'border-purple-200 dark:border-purple-800'}`}
                   data-testid={`invoice-${invoice.id}`}
                 >
                   <div className="flex items-center justify-between gap-3 mb-3">
                     <div>
-                      <p className="text-sm font-semibold text-purple-900 dark:text-purple-100">
-                        {invoice.invoiceNumber}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-purple-900 dark:text-purple-100">
+                          {invoice.invoiceNumber}
+                        </p>
+                        {isAwaitingConfirmation && (
+                          <Badge variant="secondary" className="text-[10px] h-4 px-1.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                            Awaiting Confirmation
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground">
                         Custom Plan - {invoice.billingInterval === 'annual' ? 'Annual' : 'Monthly'}
                       </p>
@@ -1153,33 +1161,43 @@ export default function BillingPage() {
                     </p>
                   )}
                   
-                  <div className="flex gap-2">
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => {
-                        setInvoiceToCancel(invoice.id);
-                        setShowCancelInvoiceConfirm(true);
-                      }}
-                      disabled={cancelInvoiceMutation.isPending}
-                      data-testid={`button-cancel-invoice-${invoice.id}`}
-                    >
-                      <X className="w-4 h-4 mr-2" />
-                      Cancel
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      className="flex-1 bg-purple-600 hover:bg-purple-700"
-                      onClick={() => {
-                        window.location.href = `/dashboard/checkout?plan=custom&interval=${invoice.billingInterval}&invoiceId=${invoice.id}`;
-                      }}
-                      data-testid={`button-pay-invoice-${invoice.id}`}
-                    >
-                      <CreditCard className="w-4 h-4 mr-2" />
-                      Pay Now
-                    </Button>
-                  </div>
+                  {isAwaitingConfirmation ? (
+                    <div className="flex items-center gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                      <Timer className="w-4 h-4 text-amber-600" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Waiting for Confirmation</p>
+                        <p className="text-xs text-amber-600 dark:text-amber-400">Your payment is being reviewed by admin</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => {
+                          setInvoiceToCancel(invoice.id);
+                          setShowCancelInvoiceConfirm(true);
+                        }}
+                        disabled={cancelInvoiceMutation.isPending}
+                        data-testid={`button-cancel-invoice-${invoice.id}`}
+                      >
+                        <X className="w-4 h-4 mr-2" />
+                        Cancel
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        className="flex-1 bg-purple-600 hover:bg-purple-700"
+                        onClick={() => {
+                          window.location.href = `/dashboard/checkout?plan=custom&interval=${invoice.billingInterval}&invoiceId=${invoice.id}`;
+                        }}
+                        data-testid={`button-pay-invoice-${invoice.id}`}
+                      >
+                        <CreditCard className="w-4 h-4 mr-2" />
+                        Pay Now
+                      </Button>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -1197,7 +1215,7 @@ export default function BillingPage() {
               </p>
             </div>
             {/* View Awaiting Payment Button - Show if any pending payment exists */}
-            {(pendingPaymentDetails?.hasPendingPayment || customInvoices.filter(inv => inv.status === 'pending').length > 0) && (
+            {(pendingPaymentDetails?.hasPendingPayment || customInvoices.filter(inv => inv.status === 'pending' || inv.status === 'awaiting_confirmation').length > 0) && (
               <Button
                 variant="outline"
                 size="sm"
@@ -1214,7 +1232,7 @@ export default function BillingPage() {
                 <Timer className="w-4 h-4 mr-2" />
                 View Awaiting Payment
                 <Badge variant="secondary" className="ml-2 text-[10px] h-4 px-1.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                  {(pendingPaymentDetails?.hasPendingPayment ? 1 : 0) + customInvoices.filter(inv => inv.status === 'pending').length}
+                  {(pendingPaymentDetails?.hasPendingPayment ? 1 : 0) + customInvoices.filter(inv => inv.status === 'pending' || inv.status === 'awaiting_confirmation').length}
                 </Badge>
               </Button>
             )}

@@ -8156,6 +8156,7 @@ interface CryptoPaymentConfirmation {
   billingInterval: string;
   isUpgrade: boolean;
   isDowngrade: boolean;
+  customInvoiceId: string | null;
   cryptocurrency: string;
   network: string;
   amountUsd: number;
@@ -8314,8 +8315,9 @@ function CryptoPaymentsTab({ toast }: { toast: any }) {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span>{payment.planName}</span>
+                        {payment.customInvoiceId && <Badge className="text-xs bg-purple-500/20 text-purple-600">Custom Invoice</Badge>}
                         {payment.isUpgrade && <Badge className="text-xs bg-green-500/20 text-green-600">Upgrade</Badge>}
                         {payment.isDowngrade && <Badge className="text-xs bg-amber-500/20 text-amber-600">Downgrade</Badge>}
                       </div>
@@ -8381,12 +8383,16 @@ function CryptoPaymentsTab({ toast }: { toast: any }) {
                     <CardTitle className="text-sm">Subscription</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium">{selectedPayment.planName}</p>
+                      {selectedPayment.customInvoiceId && <Badge className="text-xs bg-purple-500/20 text-purple-600">Custom Invoice</Badge>}
                       {selectedPayment.isUpgrade && <Badge className="text-xs bg-green-500/20 text-green-600">Upgrade</Badge>}
                       {selectedPayment.isDowngrade && <Badge className="text-xs bg-amber-500/20 text-amber-600">Downgrade</Badge>}
                     </div>
                     <p className="text-sm text-muted-foreground">{selectedPayment.billingInterval}</p>
+                    {selectedPayment.customInvoiceId && (
+                      <p className="text-xs text-purple-600 mt-1">Invoice ID: {selectedPayment.customInvoiceId}</p>
+                    )}
                   </CardContent>
                 </Card>
               </div>

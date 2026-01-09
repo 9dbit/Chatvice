@@ -2969,7 +2969,17 @@ export default function CheckoutPage() {
                       walletAddress: selectedCrypto.address,
                       transactionHash: cryptoTxHash.trim(),
                       proofImageUrl: uploadData.url,
+                      invoiceId: pendingCustomInvoice?.id || null,
                     });
+                    
+                    // If this is a custom plan with invoice, also update the invoice status
+                    if (isCustomPlanWithInvoice && pendingCustomInvoice) {
+                      await apiRequest('POST', `/api/merchant/custom-invoices/${pendingCustomInvoice.id}/submit-payment`, {
+                        transactionId: cryptoTxHash.trim(),
+                        paymentMethod: 'crypto',
+                        notes: `Crypto payment: ${selectedCrypto.symbol} on ${selectedCrypto.network}`,
+                      });
+                    }
                     
                     toast({ 
                       title: "Payment Submitted!", 

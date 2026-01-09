@@ -5155,6 +5155,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         walletAddress,
         transactionHash,
         proofImageUrl,
+        invoiceId,
       } = req.body;
       
       // Validate required fields
@@ -5173,6 +5174,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         billingInterval: billingInterval || 'monthly',
         isUpgrade: Boolean(isUpgrade),
         isDowngrade: Boolean(isDowngrade),
+        customInvoiceId: invoiceId || null,
         cryptocurrency,
         network: network || cryptocurrency,
         amountUsd: amountUsd || 0,
@@ -5299,21 +5301,62 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
             : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
           
-          await storage.updateMerchantSubscription(confirmation.merchantId, {
-            subscriptionPlanId: confirmation.planId,
-            subscriptionStatus: 'active',
-            paymentProvider: 'crypto',
-            paymentSubscriptionId: `crypto_${id}`,
-            currentPeriodEnd: periodEnd,
-            billingInterval: confirmation.billingInterval,
-            conversationsUsed: 0,
-            conversationsResetAt: new Date(),
-            // Clear any scheduled plan change
-            scheduledPlanId: null,
-            scheduledBillingInterval: null,
-            scheduledPlanActivatesAt: null,
-            scheduledPlanTransactionId: null,
-          });
+          // Check if this is a custom plan with an invoice
+          let customInvoice = null;
+          if (confirmation.customInvoiceId) {
+            customInvoice = await storage.getCustomPlanInvoice(confirmation.customInvoiceId);
+            if (customInvoice) {
+              // Update invoice status to paid
+              await storage.updateCustomPlanInvoice(customInvoice.id, {
+                status: 'paid',
+                paymentMethod: 'crypto',
+                transactionId: confirmation.transactionHash,
+                paidAt: new Date(),
+              });
+              
+              // Update merchant subscription with custom plan limits
+              await storage.updateMerchantSubscription(confirmation.merchantId, {
+                subscriptionPlanId: 'custom',
+                subscriptionStatus: 'active',
+                paymentProvider: 'crypto',
+                paymentSubscriptionId: `crypto_${id}`,
+                currentPeriodEnd: periodEnd,
+                billingInterval: confirmation.billingInterval,
+                conversationsUsed: 0,
+                conversationsResetAt: new Date(),
+                // Custom plan limits from invoice
+                conversationsLimit: customInvoice.conversationsLimit,
+                agentsLimit: customInvoice.agentsLimit,
+                supervisorsLimit: customInvoice.supervisorsLimit,
+                sourcesLimit: customInvoice.sourcesLimit,
+                suggestedQuestionsLimit: customInvoice.suggestedQuestionsLimit,
+                // Clear any scheduled plan change
+                scheduledPlanId: null,
+                scheduledBillingInterval: null,
+                scheduledPlanActivatesAt: null,
+                scheduledPlanTransactionId: null,
+              });
+            }
+          }
+          
+          // If not a custom invoice, use standard plan subscription update
+          if (!customInvoice) {
+            await storage.updateMerchantSubscription(confirmation.merchantId, {
+              subscriptionPlanId: confirmation.planId,
+              subscriptionStatus: 'active',
+              paymentProvider: 'crypto',
+              paymentSubscriptionId: `crypto_${id}`,
+              currentPeriodEnd: periodEnd,
+              billingInterval: confirmation.billingInterval,
+              conversationsUsed: 0,
+              conversationsResetAt: new Date(),
+              // Clear any scheduled plan change
+              scheduledPlanId: null,
+              scheduledBillingInterval: null,
+              scheduledPlanActivatesAt: null,
+              scheduledPlanTransactionId: null,
+            });
+          }
           
           // Create notification for crypto payment approval
           const billingText = confirmation.billingInterval === 'annual' ? 'Annual' : 'Monthly';
