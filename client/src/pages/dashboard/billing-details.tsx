@@ -528,38 +528,7 @@ export default function BillingDetailsPage() {
             </div>
           </CardContent>
         </Card>
-      ) : (
-        <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-primary/20">
-          <CardContent className="py-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Zap className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <p className="font-medium">
-                    Manage your payments and subscriptions
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    View transaction status or upgrade plan
-                  </p>
-                </div>
-              </div>
-              <Button 
-                size="default"
-                className="shrink-0 min-w-[180px]"
-                asChild
-                data-testid="button-checkout"
-              >
-                <Link href="/dashboard/checkout?from=billing">
-                  <ArrowRight className="w-4 h-4 mr-2" />
-                  View Subscription Plans
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      ) : null}
 
       {/* Custom Plan Invoices Section */}
       {customInvoices.filter(inv => inv.status === 'pending').length > 0 && (
@@ -595,7 +564,9 @@ export default function BillingDetailsPage() {
                       </div>
                       <div className="text-right">
                         <p className="font-semibold text-purple-600">
-                          ${invoice.amount.toLocaleString()}
+                          {invoice.currency === 'IDR' 
+                            ? `Rp ${invoice.amount.toLocaleString("id-ID")}` 
+                            : `$${invoice.amount.toLocaleString()}`}
                         </p>
                         {invoice.dueDate && (
                           <p className="text-xs text-muted-foreground">
