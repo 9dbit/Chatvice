@@ -362,7 +362,7 @@ export default function AdminDashboard() {
               data-testid={`nav-${item.id}`}
             >
               <item.icon className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate flex-1">{item.label}</span>
+              <span className="truncate flex-1 text-left">{item.label}</span>
               {badgeCount > 0 && (
                 <span className={`min-w-5 h-5 flex items-center justify-center text-xs font-medium rounded-full ${
                   activeTab === item.id 
