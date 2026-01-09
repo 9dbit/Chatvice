@@ -4321,7 +4321,19 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const savedRate = await storage.getPlatformSetting("exchange_rate");
       const exchangeRate = savedRate ? parseInt(savedRate) : 16500;
       
-      // Calculate base price in USD
+      // For custom plans, fetch pending invoice and use invoice amount (already in IDR)
+      let customInvoice = null;
+      let isCustomPlanWithInvoice = false;
+      if (planId === 'custom') {
+        const pendingInvoices = await storage.getPendingCustomPlanInvoices(merchant.id);
+        customInvoice = pendingInvoices[0]; // Get the first pending invoice
+        if (!customInvoice) {
+          return res.status(400).json({ error: "Custom plan requires a pending invoice. Please contact sales or check your billing page." });
+        }
+        isCustomPlanWithInvoice = true;
+      }
+      
+      // Calculate base price in USD (for custom plans, we'll use invoice amount directly in IDR)
       const basePriceUSD = billingInterval === 'annual' ? (plan.annualPrice || 0) : (plan.monthlyPrice || 0);
       
       // Apply promo discount if valid
@@ -4389,29 +4401,46 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       }
       
       // Calculate final price with discount and proration credit
-      const discountAmount = basePriceUSD * (discountPercent / 100);
-      const priceAfterDiscount = Math.max(0, basePriceUSD - discountAmount);
-      const finalPriceUSD = Math.max(0, priceAfterDiscount - prorationCredit);
-      const priceIDR = Math.round(finalPriceUSD * exchangeRate);
+      // For custom plans with invoice, use invoice amount directly (already in IDR, no discounts)
+      let finalPriceIDR: number;
+      let finalPriceUSD: number;
       
-      // Minimum amount for Kompas Pay is 10,000 IDR
-      const MIN_PAYMENT_AMOUNT = 10000;
-      const finalPriceIDR = Math.max(priceIDR, MIN_PAYMENT_AMOUNT);
+      if (isCustomPlanWithInvoice && customInvoice) {
+        // Custom plan: use invoice amount (already in IDR), no promo discounts
+        finalPriceIDR = customInvoice.amount;
+        finalPriceUSD = customInvoice.amount / exchangeRate;
+        // Override billing interval with invoice's billing interval
+        console.log('Custom plan checkout using invoice amount:', {
+          invoiceId: customInvoice.id,
+          invoiceNumber: customInvoice.invoiceNumber,
+          invoiceAmount: customInvoice.amount,
+          invoiceBillingInterval: customInvoice.billingInterval,
+        });
+      } else {
+        // Standard plan: calculate with discounts and proration
+        const discountAmount = basePriceUSD * (discountPercent / 100);
+        const priceAfterDiscount = Math.max(0, basePriceUSD - discountAmount);
+        finalPriceUSD = Math.max(0, priceAfterDiscount - prorationCredit);
+        const priceIDR = Math.round(finalPriceUSD * exchangeRate);
+        
+        // Minimum amount for Kompas Pay is 10,000 IDR
+        const MIN_PAYMENT_AMOUNT = 10000;
+        finalPriceIDR = Math.max(priceIDR, MIN_PAYMENT_AMOUNT);
+      }
       
       console.log('Checkout-v2 pricing:', {
         planId,
         billingInterval,
+        isCustomPlanWithInvoice,
+        customInvoiceId: customInvoice?.id,
         basePriceUSD,
         discountPercent,
-        discountAmount,
         prorationCredit,
         isUpgrade,
         isDowngrade,
         scheduledActivationDate: scheduledActivationDate?.toISOString(),
-        priceAfterDiscount,
         finalPriceUSD,
         exchangeRate,
-        priceIDR,
         finalPriceIDR,
         appliedPromoCode,
       });
