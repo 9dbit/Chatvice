@@ -410,6 +410,7 @@ export default function PricingPage() {
                   </Link>
                 ) : (
                   <CustomPlanRequestDialog
+                    skipAuthCheck
                     trigger={
                       <Button 
                         className="w-full"
