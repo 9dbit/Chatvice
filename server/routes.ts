@@ -6328,7 +6328,24 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     try {
       const status = req.query.status as string | undefined;
       const requests = await storage.getCustomPlanRequests(status);
-      res.json(requests);
+      
+      // Enrich requests with merchant data
+      const enrichedRequests = await Promise.all(
+        requests.map(async (request) => {
+          const merchant = request.merchantId 
+            ? await storage.getMerchant(request.merchantId) 
+            : null;
+          return {
+            ...request,
+            merchant: merchant ? {
+              email: merchant.email,
+              companyName: merchant.companyName || 'Unknown Company',
+            } : null,
+          };
+        })
+      );
+      
+      res.json(enrichedRequests);
     } catch (error) {
       console.error("Error fetching custom plan requests:", error);
       res.status(500).json({ error: "Server error" });

@@ -206,6 +206,20 @@ export default function AdminDashboard() {
     enabled: !!adminId,
   });
 
+  // Fetch pending custom requests count for sidebar badge
+  const { data: customRequests = [] } = useQuery<{ status: string }[]>({
+    queryKey: ["/api/admin/custom-plan-requests"],
+    enabled: !!adminId,
+  });
+  const pendingCustomRequestsCount = customRequests.filter(r => r.status === "pending" || r.status === "under_review").length;
+
+  // Fetch pending crypto payments count for sidebar badge
+  const { data: cryptoPayments = [] } = useQuery<{ status: string }[]>({
+    queryKey: ["/api/admin/crypto-payments"],
+    enabled: !!adminId,
+  });
+  const pendingCryptoPaymentsCount = cryptoPayments.filter(p => p.status === "pending").length;
+
   const handleLogout = () => {
     localStorage.removeItem("adminId");
     localStorage.removeItem("userType");
@@ -312,25 +326,44 @@ export default function AdminDashboard() {
       </div>
       
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {sidebarItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handleTabChange(item.id);
-            }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors relative ${
-              activeTab === item.id
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-            data-testid={`nav-${item.id}`}
-          >
-            <item.icon className="w-4 h-4 flex-shrink-0" />
-            <span className="truncate">{item.label}</span>
-          </button>
-        ))}
+        {sidebarItems.map((item) => {
+          // Get badge count for specific items
+          let badgeCount = 0;
+          if (item.id === "custom-requests") {
+            badgeCount = pendingCustomRequestsCount;
+          } else if (item.id === "crypto-payments") {
+            badgeCount = pendingCryptoPaymentsCount;
+          }
+          
+          return (
+            <button
+              key={item.id}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleTabChange(item.id);
+              }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors relative ${
+                activeTab === item.id
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+              data-testid={`nav-${item.id}`}
+            >
+              <item.icon className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate flex-1">{item.label}</span>
+              {badgeCount > 0 && (
+                <span className={`min-w-5 h-5 flex items-center justify-center text-xs font-medium rounded-full ${
+                  activeTab === item.id 
+                    ? "bg-primary-foreground/20 text-primary-foreground" 
+                    : "bg-amber-500 text-white"
+                }`}>
+                  {badgeCount > 99 ? "99+" : badgeCount}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </nav>
       
       <div className="p-3 border-t space-y-3">
