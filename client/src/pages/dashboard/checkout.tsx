@@ -1236,6 +1236,11 @@ export default function CheckoutPage() {
                       billingStatus.planId !== 'free' && 
                       selectedPlanMonthlyPriceUSD < currentPlanMonthlyPriceUSD;
   
+  const isUpgrade = billingStatus?.status === 'active' && 
+                    billingStatus?.planId && 
+                    selectedPlan?.id !== billingStatus?.planId && 
+                    !isDowngrade;
+  
   // Format the current period end date for display
   const periodEndDate = billingStatus?.currentPeriodEnd || billingStatus?.periodEnd;
   const currentPeriodEndFormatted = periodEndDate 
@@ -2193,14 +2198,20 @@ export default function CheckoutPage() {
                   <Crown className="w-4 h-4 text-purple-500" />
                   Plan
                 </span>
-                <span className="text-base font-semibold">{selectedPlan?.name || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-purple-400" />
-                  Billing
-                </span>
-                <Badge variant="secondary" className="text-xs">{isAnnual ? 'Annual' : 'Monthly'}</Badge>
+                <div className="flex items-center gap-2">
+                  <span className="text-base font-semibold">{selectedPlan?.name || 'Custom'}</span>
+                  <Badge variant="secondary" className="text-xs">{isAnnual ? 'Annual' : 'Monthly'}</Badge>
+                  {isUpgrade && (
+                    <Badge className="text-xs bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+                      Upgrade
+                    </Badge>
+                  )}
+                  {isDowngrade && (
+                    <Badge className="text-xs bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30">
+                      Downgrade
+                    </Badge>
+                  )}
+                </div>
               </div>
               <div className="h-px bg-border/50 my-2" />
               {finalPrice === 0 && finalPriceUSD === 0 && selectedPlan ? (
