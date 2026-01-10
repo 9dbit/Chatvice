@@ -99,7 +99,10 @@ export function MerchantNotificationCenter() {
     }
     
     // Fallback based on notification type
-    if (notification.type === "custom_plan_request" || notification.type === "invoice") {
+    if (notification.type === "custom_plan_request") {
+      return "/dashboard/billing?showCustomRequest=true";
+    }
+    if (notification.type === "invoice") {
       return "/dashboard/billing";
     }
     if (notification.type === "subscription_expiring") {
