@@ -1260,7 +1260,7 @@ export default function CheckoutPage() {
   const displayPlanName = isResumeMode && qrisData ? qrisData.planName : selectedPlan?.name || '';
   const displayBillingInterval = isResumeMode && qrisData 
     ? qrisData.billingInterval 
-    : isCustomPlanWithInvoice 
+    : isCustomPlanWithInvoice && pendingCustomInvoice
       ? pendingCustomInvoice.billingInterval 
       : (isAnnual ? 'annual' : 'monthly');
 
@@ -1289,8 +1289,16 @@ export default function CheckoutPage() {
                   <Crown className="w-5 h-5 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-sm font-semibold">{selectedPlan.name}</h2>
-                  <p className="text-xs text-muted-foreground">Chatvice Subscription</p>
+                  <h2 className="text-sm font-semibold">
+                    {isInvoiceMode && invoiceData 
+                      ? 'Custom Plan' 
+                      : selectedPlan?.name || 'Custom Plan'}
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    {isInvoiceMode && invoiceData 
+                      ? invoiceData.invoiceNumber 
+                      : 'Chatvice Subscription'}
+                  </p>
                 </div>
               </div>
               
@@ -2885,14 +2893,18 @@ export default function CheckoutPage() {
             </DialogDescription>
           </DialogHeader>
           
-          {selectedCrypto && selectedPlan && (
+          {selectedCrypto && (selectedPlan || isInvoiceMode) && (
             <div className="space-y-4">
               {/* Order Summary */}
               <div className="p-3 rounded-lg bg-muted/30 border border-border/50 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Plan</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">{selectedPlan.name} ({isAnnual ? 'Annual' : 'Monthly'})</span>
+                    <span className="font-medium">
+                      {isInvoiceMode && invoiceData 
+                        ? `Custom Plan (${invoiceData.billingInterval === 'yearly' ? 'Annual' : 'Monthly'})`
+                        : `${selectedPlan?.name || 'Custom Plan'} (${isAnnual ? 'Annual' : 'Monthly'})`}
+                    </span>
                     {billingStatus?.status === 'active' && billingStatus?.planId && selectedPlan?.id !== billingStatus?.planId && (
                       isDowngrade ? (
                         <Badge variant="secondary" className="text-xs bg-amber-500/20 text-amber-600">Downgrade</Badge>
@@ -2985,7 +2997,8 @@ export default function CheckoutPage() {
                 className="w-full crypto-purple-btn"
                 disabled={!cryptoTxHash.trim() || !cryptoProofFile || submittingCryptoPayment}
                 onClick={async () => {
-                  if (!cryptoTxHash.trim() || !cryptoProofFile || !selectedCrypto || !selectedPlan) return;
+                  if (!cryptoTxHash.trim() || !cryptoProofFile || !selectedCrypto) return;
+                  if (!isInvoiceMode && !selectedPlan) return;
                   
                   setSubmittingCryptoPayment(true);
                   try {
@@ -3014,10 +3027,16 @@ export default function CheckoutPage() {
                     }
                     
                     // Submit payment confirmation
+                    const planIdForSubmit = isInvoiceMode ? 'custom' : (selectedPlan?.id || 'custom');
+                    const planNameForSubmit = isInvoiceMode ? 'Custom Plan' : (selectedPlan?.name || 'Custom Plan');
+                    const billingIntervalForSubmit = isInvoiceMode && invoiceData 
+                      ? invoiceData.billingInterval 
+                      : (isAnnual ? 'annual' : 'monthly');
+                    
                     const response = await apiRequest('POST', '/api/crypto-payment/confirm', {
-                      planId: selectedPlan.id,
-                      planName: selectedPlan.name,
-                      billingInterval: isAnnual ? 'annual' : 'monthly',
+                      planId: planIdForSubmit,
+                      planName: planNameForSubmit,
+                      billingInterval: billingIntervalForSubmit,
                       isUpgrade: billingStatus?.status === 'active' && billingStatus?.planId && selectedPlan?.id !== billingStatus?.planId && !isDowngrade,
                       isDowngrade: isDowngrade,
                       cryptocurrency: selectedCrypto.symbol,
