@@ -16,7 +16,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Receipt, Mail, Building2, CreditCard, History, FileText, Calendar, Zap, ArrowRight, Timer, Clock, Copy, XCircle, RefreshCw, Loader2, Eye, Download, X, AlertTriangle, Wallet } from "lucide-react";
+import { Receipt, Mail, Building2, CreditCard, History, FileText, Calendar, Zap, ArrowRight, Timer, Clock, Copy, XCircle, RefreshCw, Loader2, Eye, Download, X, AlertTriangle, Wallet, MessageSquare, Users, Bot, BookOpen, HelpCircle } from "lucide-react";
+import { DialogDescription } from "@/components/ui/dialog";
+import { format } from "date-fns";
 import type { Merchant } from "@shared/schema";
 import chatviceLightLogo from "@assets/Chatvice-02_1767458901049.png";
 import gpnLogo from "@assets/IMG_1410_1767458901049.png";
@@ -86,6 +88,25 @@ interface CustomPlanInvoice {
   bankCode?: string | null;
 }
 
+// Custom Plan Request interface
+interface CustomPlanRequest {
+  id: string;
+  status: string;
+  desiredConversations: number;
+  desiredAgents: number;
+  desiredSupervisors: number;
+  desiredSources: number;
+  desiredSuggestedQuestions: number;
+  message?: string;
+  createdAt: string;
+  updatedAt: string;
+  linkedInvoiceId?: string;
+  adminNotes?: string;
+  proposedPrice?: number;
+  proposedPriceCurrency?: string;
+  proposedBillingInterval?: string;
+}
+
 // Bank transfer account info
 const BANK_TRANSFER_INFO = {
   bankName: "BCA",
@@ -141,6 +162,22 @@ export default function BillingDetailsPage() {
     refetchOnMount: "always",
     staleTime: 0,
   });
+
+  // Fetch custom plan requests (for showing "Submission Under Review" status)
+  const { data: customRequests = [] } = useQuery<CustomPlanRequest[]>({
+    queryKey: ["/api/merchant/custom-plan-requests"],
+    enabled: !!merchantId,
+    refetchOnMount: "always",
+    staleTime: 0,
+  });
+
+  // Get the most recent pending/under-review request
+  const pendingCustomRequest = customRequests.find(r => 
+    r.status === "submitted" || r.status === "under_review" || r.status === "pricing_proposed"
+  );
+
+  // State for custom request details dialog
+  const [showCustomRequestDetails, setShowCustomRequestDetails] = useState(false);
 
   // Pending payment countdown timer
   useEffect(() => {
@@ -658,6 +695,62 @@ export default function BillingDetailsPage() {
           </CardContent>
         </Card>
       ) : null}
+
+      {/* Pending Custom Plan Request Status */}
+      {pendingCustomRequest && (
+        <Card className="bg-purple-50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800" data-testid="card-pending-custom-request">
+          <CardContent className="pt-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center shrink-0">
+                  <Clock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-purple-900 dark:text-purple-100">Custom Plan Request</p>
+                    <Badge 
+                      variant="secondary" 
+                      className={
+                        pendingCustomRequest.status === "submitted" 
+                          ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+                          : pendingCustomRequest.status === "under_review"
+                          ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
+                          : "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300"
+                      }
+                    >
+                      {pendingCustomRequest.status === "submitted" ? "Submitted" : 
+                       pendingCustomRequest.status === "under_review" ? "Under Review" : 
+                       pendingCustomRequest.status === "pricing_proposed" ? "Pricing Proposed" : 
+                       pendingCustomRequest.status}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-purple-700 dark:text-purple-300">
+                    {pendingCustomRequest.status === "submitted" 
+                      ? "Your custom plan request has been submitted. Our team will review it shortly."
+                      : pendingCustomRequest.status === "under_review"
+                      ? "Our team is reviewing your custom plan requirements."
+                      : pendingCustomRequest.status === "pricing_proposed"
+                      ? "We've proposed pricing for your custom plan. Please check your invoices."
+                      : "Your request is being processed."}
+                  </p>
+                  <p className="text-xs text-purple-600 dark:text-purple-400">
+                    Submitted on {format(new Date(pendingCustomRequest.createdAt), "MMM dd, yyyy 'at' h:mm a")}
+                  </p>
+                </div>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowCustomRequestDetails(true)}
+                className="border-purple-200 text-purple-700 hover:bg-purple-100 dark:border-purple-700 dark:text-purple-300 dark:hover:bg-purple-900/50 shrink-0"
+                data-testid="button-view-custom-request-details"
+              >
+                View Details
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Custom Plan Invoices Section - Unified UI with Plans page */}
       {customInvoices.filter(inv => inv.status === 'pending' || inv.status === 'awaiting_confirmation').length > 0 && (
@@ -1563,6 +1656,89 @@ export default function BillingDetailsPage() {
                   )}
                 </>
               )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Custom Plan Request Details Dialog */}
+      <Dialog open={showCustomRequestDetails} onOpenChange={setShowCustomRequestDetails}>
+        <DialogContent className="sm:max-w-md" data-testid="dialog-custom-request-details">
+          <DialogHeader>
+            <DialogTitle className="text-purple-900 dark:text-purple-100">
+              Custom Plan Request Details
+            </DialogTitle>
+            <DialogDescription>
+              Review the details of your custom plan request.
+            </DialogDescription>
+          </DialogHeader>
+          {pendingCustomRequest && (
+            <div className="space-y-4 py-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Status:</span>
+                <Badge 
+                  variant="secondary"
+                  className={
+                    pendingCustomRequest.status === "submitted" 
+                      ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+                      : pendingCustomRequest.status === "under_review"
+                      ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
+                      : "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300"
+                  }
+                >
+                  {pendingCustomRequest.status === "submitted" ? "Submitted" : 
+                   pendingCustomRequest.status === "under_review" ? "Under Review" : 
+                   pendingCustomRequest.status === "pricing_proposed" ? "Pricing Proposed" : 
+                   pendingCustomRequest.status}
+                </Badge>
+              </div>
+              
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-muted-foreground">Requested Resources:</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center gap-2 p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg">
+                    <MessageSquare className="w-4 h-4 text-purple-500" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Conversations</p>
+                      <p className="font-medium">{pendingCustomRequest.desiredConversations.toLocaleString()}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg">
+                    <Bot className="w-4 h-4 text-purple-500" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">AI Agents</p>
+                      <p className="font-medium">{pendingCustomRequest.desiredAgents}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg">
+                    <Users className="w-4 h-4 text-purple-500" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Supervisors</p>
+                      <p className="font-medium">{pendingCustomRequest.desiredSupervisors}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg">
+                    <BookOpen className="w-4 h-4 text-purple-500" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Knowledge Sources</p>
+                      <p className="font-medium">{pendingCustomRequest.desiredSources === -1 ? "Unlimited" : pendingCustomRequest.desiredSources}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {pendingCustomRequest.message && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Your Message:</p>
+                  <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
+                    <p className="text-sm">{pendingCustomRequest.message}</p>
+                  </div>
+                </div>
+              )}
+              
+              <p className="text-xs text-muted-foreground">
+                Submitted on {format(new Date(pendingCustomRequest.createdAt), "MMM dd, yyyy 'at' h:mm a")}
+              </p>
             </div>
           )}
         </DialogContent>

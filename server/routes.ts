@@ -2016,7 +2016,22 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
-  // NOTE: Notification routes must be registered BEFORE /api/merchant/:merchantId to avoid route conflicts
+  // NOTE: Notification routes and custom-plan-requests must be registered BEFORE /api/merchant/:merchantId to avoid route conflicts
+  
+  // Get merchant's custom plan requests
+  app.get("/api/merchant/custom-plan-requests", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      console.log(`[Custom Plan Requests] Fetching for merchant: ${merchantId}`);
+      const requests = await storage.getCustomPlanRequestsByMerchant(merchantId);
+      console.log(`[Custom Plan Requests] Found ${requests.length} requests`);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching custom plan requests:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
   // Get merchant notifications
   app.get("/api/merchant/notifications", requireMerchant, async (req, res) => {
     try {
@@ -6956,18 +6971,6 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       res.json({ success: true, request });
     } catch (error) {
       console.error("Error creating custom plan request:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-  
-  // Get merchant's custom plan requests
-  app.get("/api/merchant/custom-plan-requests", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const requests = await storage.getCustomPlanRequestsByMerchant(merchantId);
-      res.json(requests);
-    } catch (error) {
-      console.error("Error fetching custom plan requests:", error);
       res.status(500).json({ error: "Server error" });
     }
   });

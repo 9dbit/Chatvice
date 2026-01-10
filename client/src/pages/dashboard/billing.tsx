@@ -277,7 +277,7 @@ export default function BillingPage() {
   
   // Get the most recent pending/under-review request
   const pendingCustomRequest = customRequests.find(r => 
-    r.status === "pending" || r.status === "under_review" || r.status === "pricing_proposed"
+    r.status === "submitted" || r.status === "under_review" || r.status === "pricing_proposed"
   );
   
   const [showBillingHistory, setShowBillingHistory] = useState(false);
@@ -1938,21 +1938,21 @@ export default function BillingPage() {
                     <Badge 
                       variant="secondary" 
                       className={
-                        pendingCustomRequest.status === "pending" 
+                        pendingCustomRequest.status === "submitted" 
                           ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
                           : pendingCustomRequest.status === "under_review"
                           ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
                           : "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300"
                       }
                     >
-                      {pendingCustomRequest.status === "pending" ? "Submitted" : 
+                      {pendingCustomRequest.status === "submitted" ? "Submitted" : 
                        pendingCustomRequest.status === "under_review" ? "Under Review" : 
                        pendingCustomRequest.status === "pricing_proposed" ? "Pricing Proposed" : 
                        pendingCustomRequest.status}
                     </Badge>
                   </div>
                   <p className="text-sm text-purple-700 dark:text-purple-300">
-                    {pendingCustomRequest.status === "pending" 
+                    {pendingCustomRequest.status === "submitted" 
                       ? "Your custom plan request has been submitted. Our team will review it shortly."
                       : pendingCustomRequest.status === "under_review"
                       ? "Our team is reviewing your custom plan requirements."
@@ -2550,14 +2550,14 @@ export default function BillingPage() {
                 <Badge 
                   variant="secondary" 
                   className={
-                    pendingCustomRequest.status === "pending" 
+                    pendingCustomRequest.status === "submitted" 
                       ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
                       : pendingCustomRequest.status === "under_review"
                       ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
                       : "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300"
                   }
                 >
-                  {pendingCustomRequest.status === "pending" ? "Submitted" : 
+                  {pendingCustomRequest.status === "submitted" ? "Submitted" : 
                    pendingCustomRequest.status === "under_review" ? "Under Review" : 
                    pendingCustomRequest.status === "pricing_proposed" ? "Pricing Proposed" : 
                    pendingCustomRequest.status}
