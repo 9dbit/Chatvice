@@ -9239,11 +9239,21 @@ function CustomRequestsTab({ toast }: { toast: any }) {
     exploring: "Masih eksplorasi",
   };
 
+  // Count unprocessed requests (submitted status = new, not yet reviewed)
+  const unprocessedCount = requests.filter(r => r.status === "submitted").length;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold" data-testid="text-custom-requests-title">Custom Plan Requests</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold" data-testid="text-custom-requests-title">Custom Plan Requests</h2>
+            {unprocessedCount > 0 && (
+              <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 text-xs font-bold text-white bg-red-500 rounded-full animate-pulse" data-testid="badge-unprocessed-count">
+                {unprocessedCount}
+              </span>
+            )}
+          </div>
           <p className="text-muted-foreground">Review and process custom plan requests from merchants</p>
         </div>
 
@@ -9254,7 +9264,16 @@ function CustomRequestsTab({ toast }: { toast: any }) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Requests</SelectItem>
-            <SelectItem value="submitted">Submitted</SelectItem>
+            <SelectItem value="submitted">
+              <span className="flex items-center gap-2">
+                Submitted
+                {unprocessedCount > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-[10px] font-bold text-white bg-red-500 rounded-full">
+                    {unprocessedCount}
+                  </span>
+                )}
+              </span>
+            </SelectItem>
             <SelectItem value="under_review">Under Review</SelectItem>
             <SelectItem value="pricing_proposed">Pricing Proposed</SelectItem>
             <SelectItem value="invoice_sent">Invoice Sent</SelectItem>
