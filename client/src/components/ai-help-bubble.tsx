@@ -779,7 +779,7 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                                   href={part.url}
                                   target={isExternal ? "_blank" : "_self"}
                                   rel={isExternal ? "noopener noreferrer" : undefined}
-                                  className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
+                                  className="inline-flex items-center gap-1 text-purple-600 dark:text-fuchsia-400 hover:underline font-medium"
                                   data-testid={`link-feature-${partIndex}`}
                                 >
                                   {part.content}
@@ -794,7 +794,7 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                               {parsedContent?.filter(p => p.type === "button").map((btn, btnIndex) => (
                                 <button
                                   key={`btn-${btnIndex}`}
-                                  className="inline-flex items-center px-1.5 h-5 text-[10px] leading-none rounded-md border transition-all duration-200 bg-transparent hover:bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/50 hover:border-purple-500"
+                                  className="inline-flex items-center px-2 h-6 text-[12px] leading-none rounded-md border transition-all duration-200 bg-transparent hover:bg-purple-500/10 dark:hover:bg-fuchsia-500/10 text-purple-600 dark:text-fuchsia-400 border-purple-500/50 dark:border-fuchsia-500/50 hover:border-purple-500 dark:hover:border-fuchsia-400"
                                   onClick={() => sendMessage(btn.action || btn.content)}
                                   disabled={askMutation.isPending}
                                   data-testid={`button-quick-${btnIndex}`}
