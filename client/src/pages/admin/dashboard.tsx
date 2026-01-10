@@ -212,7 +212,7 @@ export default function AdminDashboard() {
     queryKey: ["/api/admin/custom-plan-requests"],
     enabled: !!adminId,
   });
-  const pendingCustomRequestsCount = customRequests.filter(r => r.status === "pending" || r.status === "under_review").length;
+  const pendingCustomRequestsCount = customRequests.filter(r => r.status === "submitted" || r.status === "under_review").length;
 
   // Fetch pending crypto payments count for sidebar badge
   const { data: cryptoPayments = [] } = useQuery<{ status: string }[]>({
