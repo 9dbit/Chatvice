@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
+import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -134,6 +135,7 @@ interface PendingPaymentDetails {
 
 export default function BillingPage() {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [isAnnual, setIsAnnual] = useState(false);
   const [qrisPaymentOpen, setQrisPaymentOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
@@ -1435,13 +1437,13 @@ export default function BillingPage() {
                       </div>
                     </div>
                   ) : (
-                    /* Initial pending state - show proof upload prompt */
+                    /* Initial pending state - show pay now prompt */
                     <div className="space-y-3">
-                      <div className="flex items-center gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-                        <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                      <div className="flex items-center gap-2 p-3 rounded-md bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
+                        <CreditCard className="w-4 h-4 text-purple-600 flex-shrink-0" />
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Awaiting Payment Proof</p>
-                          <p className="text-xs text-amber-600 dark:text-amber-400">Please transfer to our account and upload your payment proof.</p>
+                          <p className="text-sm font-medium text-purple-800 dark:text-purple-200">Ready to Pay</p>
+                          <p className="text-xs text-purple-600 dark:text-purple-400">Select your preferred payment method to complete your subscription.</p>
                         </div>
                       </div>
                       
@@ -1464,14 +1466,12 @@ export default function BillingPage() {
                           size="sm" 
                           className="flex-1 bg-purple-600 hover:bg-purple-700"
                           onClick={() => {
-                            setSelectedProofInvoice(invoice.id);
-                            setProofFile(null);
-                            setProofPreview(null);
+                            navigate(`/dashboard/checkout?invoiceId=${invoice.id}`);
                           }}
-                          data-testid={`button-upload-proof-${invoice.id}`}
+                          data-testid={`button-pay-now-${invoice.id}`}
                         >
-                          <FileText className="w-4 h-4 mr-2" />
-                          Upload Proof
+                          <CreditCard className="w-4 h-4 mr-2" />
+                          Pay Now
                         </Button>
                       </div>
                     </div>
