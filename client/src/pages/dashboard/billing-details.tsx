@@ -16,7 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Receipt, Mail, Building2, CreditCard, History, FileText, Calendar, Zap, ArrowRight, Timer, Clock, Copy, XCircle, RefreshCw, Loader2, Eye, Download, X, AlertTriangle } from "lucide-react";
+import { Receipt, Mail, Building2, CreditCard, History, FileText, Calendar, Zap, ArrowRight, Timer, Clock, Copy, XCircle, RefreshCw, Loader2, Eye, Download, X, AlertTriangle, Wallet } from "lucide-react";
 import type { Merchant } from "@shared/schema";
 import chatviceLightLogo from "@assets/Chatvice-02_1767458901049.png";
 import gpnLogo from "@assets/IMG_1410_1767458901049.png";
@@ -78,7 +78,28 @@ interface CustomPlanInvoice {
   sourcesLimit: number;
   billingCycle: string;
   features: string[];
+  paymentMethod?: string | null;
+  transactionId?: string | null;
+  expiryTime?: string | null;
+  qrisString?: string | null;
+  vaNumber?: string | null;
+  bankCode?: string | null;
 }
+
+// Bank transfer account info
+const BANK_TRANSFER_INFO = {
+  bankName: "BCA",
+  bankCode: "BCA",
+  accountNumber: "8465075678",
+  accountName: "PT Chatvice Technology Indonesia",
+};
+
+// Crypto wallet addresses
+const CRYPTO_WALLETS = {
+  btc: { address: "bc1q9mk7032hjfu0fu9cnk0c3tgk7z5vxswaz3avy6", network: "Bitcoin Network" },
+  eth: { address: "0xD395A9CFC24848828b731d42eb1c9242D5BD9cA7", network: "ERC-20" },
+  usdt: { address: "0xD395A9CFC24848828b731d42eb1c9242D5BD9cA7", network: "TRC-20 / ERC-20" },
+};
 
 export default function BillingDetailsPage() {
   const merchantId = localStorage.getItem("merchantId") || "";
@@ -201,6 +222,14 @@ export default function BillingDetailsPage() {
   const [invoiceToCancel, setInvoiceToCancel] = useState<string | null>(null);
   const [showCancelInvoiceConfirm, setShowCancelInvoiceConfirm] = useState(false);
 
+  // State for invoice payment flow
+  const [showPaymentMethodDialog, setShowPaymentMethodDialog] = useState(false);
+  const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<CustomPlanInvoice | null>(null);
+  const [showInvoiceDetailsDialog, setShowInvoiceDetailsDialog] = useState(false);
+  const [invoiceDetailsView, setInvoiceDetailsView] = useState<CustomPlanInvoice | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
+  const [showUploadProofView, setShowUploadProofView] = useState(false);
+
   // State for proof upload
   const [selectedProofInvoice, setSelectedProofInvoice] = useState<string | null>(null);
   const [proofFile, setProofFile] = useState<File | null>(null);
@@ -236,11 +265,53 @@ export default function BillingDetailsPage() {
       setSelectedProofInvoice(null);
       setProofFile(null);
       setProofPreview(null);
+      // Close invoice details dialog if open
+      setShowInvoiceDetailsDialog(false);
+      setShowUploadProofView(false);
+      setInvoiceDetailsView(null);
     },
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Gagal mengirim bukti pembayaran.",
+        description: error.message || "Failed to submit payment proof.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Select payment method mutation
+  const selectPaymentMethodMutation = useMutation({
+    mutationFn: async ({ invoiceId, paymentMethod }: { invoiceId: string; paymentMethod: string }) => {
+      const response = await apiRequest("POST", `/api/merchant/custom-invoices/${invoiceId}/select-payment-method`, { paymentMethod });
+      return response.json() as Promise<{ success: boolean; paymentMethod: string; invoiceNumber: string }>;
+    },
+    onSuccess: (data) => {
+      // Invalidate and refetch invoices to get fresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-invoices"] });
+      setShowPaymentMethodDialog(false);
+      
+      // Update invoice view with selected payment method from response
+      if (selectedInvoiceForPayment) {
+        const updatedInvoice = {
+          ...selectedInvoiceForPayment,
+          paymentMethod: data.paymentMethod || selectedPaymentMethod
+        };
+        setInvoiceDetailsView(updatedInvoice);
+        setShowInvoiceDetailsDialog(true);
+      }
+      
+      setSelectedPaymentMethod(null);
+      setSelectedInvoiceForPayment(null);
+      
+      toast({
+        title: "Payment Method Selected",
+        description: "Please complete your payment using the selected method.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to select payment method. Please try again.",
         variant: "destructive",
       });
     },
@@ -681,6 +752,7 @@ export default function BillingDetailsPage() {
                     )}
                     
                     {isAwaitingConfirmation ? (
+                      /* Status: awaiting_confirmation - Payment proof submitted, under review */
                       <div className="flex items-center gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
                         <Clock className="w-4 h-4 text-amber-600 flex-shrink-0" />
                         <div className="flex-1">
@@ -688,87 +760,14 @@ export default function BillingDetailsPage() {
                           <p className="text-xs text-amber-600 dark:text-amber-400">Your payment proof is being reviewed by admin. Your custom plan will be activated soon.</p>
                         </div>
                       </div>
-                    ) : selectedProofInvoice === invoice.id ? (
-                      /* Proof Upload Section */
+                    ) : !invoice.paymentMethod ? (
+                      /* Status: pending, no payment method - Show Pay Now button */
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 p-3 rounded-md bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
-                          <AlertTriangle className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                          <CreditCard className="w-4 h-4 text-purple-600 flex-shrink-0" />
                           <div className="flex-1">
-                            <p className="text-sm font-medium text-purple-800 dark:text-purple-200">Awaiting Payment Proof</p>
-                            <p className="text-xs text-purple-600 dark:text-purple-400">Please upload your payment proof to continue the activation process.</p>
-                          </div>
-                        </div>
-                        
-                        {/* Upload area */}
-                        <div 
-                          className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-4 text-center cursor-pointer hover:bg-muted/30 transition-colors"
-                          onClick={() => proofInputRef.current?.click()}
-                          data-testid={`proof-upload-area-${invoice.id}`}
-                        >
-                          <input
-                            ref={proofInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={handleProofFileChange}
-                            className="hidden"
-                            data-testid={`proof-input-${invoice.id}`}
-                          />
-                          {proofPreview ? (
-                            <div className="space-y-2">
-                              <img src={proofPreview} alt="Proof preview" className="max-h-32 mx-auto rounded-md" />
-                              <p className="text-xs text-muted-foreground">{proofFile?.name}</p>
-                            </div>
-                          ) : (
-                            <div className="space-y-2">
-                              <FileText className="w-8 h-8 mx-auto text-muted-foreground" />
-                              <p className="text-sm text-muted-foreground">Click to upload payment proof</p>
-                              <p className="text-xs text-muted-foreground">Format: JPG, PNG (max. 5MB)</p>
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="flex-1"
-                            onClick={() => {
-                              setSelectedProofInvoice(null);
-                              setProofFile(null);
-                              setProofPreview(null);
-                            }}
-                            data-testid={`button-cancel-proof-${invoice.id}`}
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="flex-1 bg-purple-600 hover:bg-purple-700"
-                            disabled={!proofFile || submitProofMutation.isPending}
-                            onClick={() => {
-                              if (proofFile) {
-                                submitProofMutation.mutate({ invoiceId: invoice.id, file: proofFile });
-                              }
-                            }}
-                            data-testid={`button-submit-proof-${invoice.id}`}
-                          >
-                            {submitProofMutation.isPending ? (
-                              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                            ) : (
-                              <FileText className="w-4 h-4 mr-1" />
-                            )}
-                            Submit Proof
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      /* Initial pending state - show proof upload prompt */
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-                          <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Awaiting Payment Proof</p>
-                            <p className="text-xs text-amber-600 dark:text-amber-400">Please transfer to our account and upload your payment proof.</p>
+                            <p className="text-sm font-medium text-purple-800 dark:text-purple-200">Ready to Pay</p>
+                            <p className="text-xs text-purple-600 dark:text-purple-400">Select your preferred payment method to complete your subscription.</p>
                           </div>
                         </div>
                         
@@ -791,14 +790,64 @@ export default function BillingDetailsPage() {
                             size="sm"
                             className="flex-1 bg-purple-600 hover:bg-purple-700"
                             onClick={() => {
-                              setSelectedProofInvoice(invoice.id);
-                              setProofFile(null);
-                              setProofPreview(null);
+                              setSelectedInvoiceForPayment(invoice);
+                              setSelectedPaymentMethod(null);
+                              setShowPaymentMethodDialog(true);
                             }}
-                            data-testid={`button-upload-proof-${invoice.id}`}
+                            data-testid={`button-pay-now-${invoice.id}`}
                           >
-                            <FileText className="w-4 h-4 mr-1" />
-                            Upload Proof
+                            <CreditCard className="w-4 h-4 mr-1" />
+                            Pay Now
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Status: pending with payment method selected - Show View Invoice button */
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 p-3 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                              Payment Pending - {invoice.paymentMethod === 'crypto' ? 'Cryptocurrency' : 
+                                invoice.paymentMethod === 'bank_transfer' ? 'Bank Transfer' :
+                                invoice.paymentMethod === 'qris' ? 'QRIS' :
+                                invoice.paymentMethod === 'virtual_account' ? 'Virtual Account' : invoice.paymentMethod}
+                            </p>
+                            <p className="text-xs text-amber-600 dark:text-amber-400">
+                              {invoice.paymentMethod === 'crypto' || invoice.paymentMethod === 'bank_transfer' 
+                                ? 'Complete your transfer and upload payment proof.'
+                                : 'Complete your payment before expiry time.'}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => {
+                              setInvoiceToCancel(invoice.id);
+                              setShowCancelInvoiceConfirm(true);
+                            }}
+                            disabled={cancelInvoiceMutation.isPending}
+                            data-testid={`button-cancel-invoice-${invoice.id}`}
+                          >
+                            <X className="w-4 h-4 mr-1" />
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="flex-1 bg-purple-600 hover:bg-purple-700"
+                            onClick={() => {
+                              setInvoiceDetailsView(invoice);
+                              setShowUploadProofView(false);
+                              setShowInvoiceDetailsDialog(true);
+                            }}
+                            data-testid={`button-view-invoice-${invoice.id}`}
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            View Invoice
                           </Button>
                         </div>
                       </div>
@@ -1166,11 +1215,11 @@ export default function BillingDetailsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-amber-500" />
-              Batalkan Invoice?
+              Cancel Invoice?
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Apakah Anda yakin ingin membatalkan invoice custom plan ini? Tindakan ini tidak dapat dibatalkan.
+            Are you sure you want to cancel this custom plan invoice? This action cannot be undone.
           </p>
           <div className="flex gap-3 pt-2">
             <Button 
@@ -1182,7 +1231,7 @@ export default function BillingDetailsPage() {
               }}
               data-testid="button-cancel-invoice-no"
             >
-              Tidak, Simpan Invoice
+              No, Keep Invoice
             </Button>
             <Button 
               variant="destructive"
@@ -1198,13 +1247,325 @@ export default function BillingDetailsPage() {
               {cancelInvoiceMutation.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Membatalkan...
+                  Cancelling...
                 </>
               ) : (
-                "Ya, Batalkan Invoice"
+                "Yes, Cancel Invoice"
               )}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Method Selection Dialog */}
+      <Dialog open={showPaymentMethodDialog} onOpenChange={setShowPaymentMethodDialog}>
+        <DialogContent className="max-w-md" data-testid="dialog-select-payment-method">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-purple-600" />
+              Select Payment Method
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedInvoiceForPayment && (
+            <div className="space-y-4">
+              {/* Invoice Summary */}
+              <div className="bg-muted/50 rounded-lg p-3">
+                <p className="text-sm font-medium">{selectedInvoiceForPayment.invoiceNumber}</p>
+                <p className="text-lg font-bold text-purple-600">
+                  {selectedInvoiceForPayment.currency === 'USD' 
+                    ? `$${selectedInvoiceForPayment.amount.toLocaleString()}` 
+                    : `Rp ${selectedInvoiceForPayment.amount.toLocaleString("id-ID")}`}
+                </p>
+              </div>
+
+              {/* Payment Method Options */}
+              <div className="space-y-2">
+                {[
+                  { id: 'qris', name: 'QRIS', description: 'E-wallet & Mobile Banking', icon: '📱' },
+                  { id: 'virtual_account', name: 'Virtual Account', description: 'Bank Transfer via VA', icon: '🏦' },
+                  { id: 'bank_transfer', name: 'Bank Transfer', description: 'Manual transfer to bank account', icon: '💳' },
+                  { id: 'crypto', name: 'Cryptocurrency', description: 'BTC, ETH, USDT', icon: '₿' },
+                ].map((method) => (
+                  <button
+                    key={method.id}
+                    onClick={() => setSelectedPaymentMethod(method.id)}
+                    className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
+                      selectedPaymentMethod === method.id 
+                        ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20' 
+                        : 'border-muted hover:border-purple-300'
+                    }`}
+                    data-testid={`button-select-method-${method.id}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{method.icon}</span>
+                      <div>
+                        <p className="font-medium">{method.name}</p>
+                        <p className="text-xs text-muted-foreground">{method.description}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <Button 
+                className="w-full bg-purple-600 hover:bg-purple-700"
+                disabled={!selectedPaymentMethod || selectPaymentMethodMutation.isPending}
+                onClick={() => {
+                  if (selectedInvoiceForPayment && selectedPaymentMethod) {
+                    selectPaymentMethodMutation.mutate({
+                      invoiceId: selectedInvoiceForPayment.id,
+                      paymentMethod: selectedPaymentMethod,
+                    });
+                  }
+                }}
+                data-testid="button-confirm-payment-method"
+              >
+                {selectPaymentMethodMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : null}
+                Continue
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Invoice Details Dialog - Shows payment info based on method */}
+      <Dialog open={showInvoiceDetailsDialog} onOpenChange={(open) => {
+        setShowInvoiceDetailsDialog(open);
+        if (!open) {
+          setShowUploadProofView(false);
+          setProofFile(null);
+          setProofPreview(null);
+        }
+      }}>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto" data-testid="dialog-invoice-details">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="w-5 h-5 text-purple-600" />
+              Invoice Details
+            </DialogTitle>
+          </DialogHeader>
+          
+          {invoiceDetailsView && (
+            <div className="space-y-4">
+              {/* Invoice Summary */}
+              <div className="bg-muted/50 rounded-lg p-4">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <p className="text-sm font-medium">{invoiceDetailsView.invoiceNumber}</p>
+                    <p className="text-xs text-muted-foreground">Custom Plan - {invoiceDetailsView.billingCycle === 'yearly' ? 'Annual' : 'Monthly'}</p>
+                  </div>
+                  <p className="text-lg font-bold text-purple-600">
+                    {invoiceDetailsView.currency === 'USD' 
+                      ? `$${invoiceDetailsView.amount.toLocaleString()}` 
+                      : `Rp ${invoiceDetailsView.amount.toLocaleString("id-ID")}`}
+                  </p>
+                </div>
+                {invoiceDetailsView.currency === 'USD' && (
+                  <p className="text-xs text-muted-foreground text-right">
+                    ≈ Rp {Math.round(invoiceDetailsView.amount * 16800).toLocaleString("id-ID")}
+                  </p>
+                )}
+              </div>
+
+              {/* Payment Information based on method */}
+              {invoiceDetailsView.paymentMethod === 'bank_transfer' && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 border border-amber-200 dark:border-amber-800">
+                  <h4 className="font-semibold mb-3 flex items-center gap-2">
+                    <Building2 className="w-4 h-4" />
+                    Bank Transfer Details
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Bank</span>
+                      <span className="font-medium">{BANK_TRANSFER_INFO.bankName}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Account Number</span>
+                      <div className="flex items-center gap-1">
+                        <span className="font-mono font-medium">{BANK_TRANSFER_INFO.accountNumber}</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(BANK_TRANSFER_INFO.accountNumber);
+                            toast({ title: "Copied!", description: "Account number copied" });
+                          }}
+                          className="text-purple-600 hover:text-purple-800"
+                          data-testid="button-copy-bank-account"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Account Name</span>
+                      <span className="font-medium text-right text-xs">{BANK_TRANSFER_INFO.accountName}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {invoiceDetailsView.paymentMethod === 'crypto' && (
+                <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
+                  <h4 className="font-semibold mb-3 flex items-center gap-2">
+                    <Wallet className="w-4 h-4" />
+                    Cryptocurrency Payment
+                  </h4>
+                  <div className="space-y-3">
+                    {Object.entries(CRYPTO_WALLETS).map(([coin, info]) => (
+                      <div key={coin} className="bg-white dark:bg-zinc-800 rounded-md p-2">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="font-medium text-sm">{coin.toUpperCase()}</span>
+                          <span className="text-xs text-muted-foreground">{info.network}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="font-mono text-xs break-all flex-1">{info.address}</span>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(info.address);
+                              toast({ title: "Copied!", description: `${coin.toUpperCase()} address copied` });
+                            }}
+                            className="text-purple-600 hover:text-purple-800 flex-shrink-0"
+                            data-testid={`button-copy-${coin}-address`}
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {invoiceDetailsView.paymentMethod === 'qris' && (
+                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800 text-center">
+                  <h4 className="font-semibold mb-2">QRIS Payment</h4>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Payment via QRIS will be generated. Please use any e-wallet or mobile banking app to scan.
+                  </p>
+                  {invoiceDetailsView.qrisString ? (
+                    <div className="bg-white rounded-lg p-4 inline-block">
+                      <QRCodeSVG value={invoiceDetailsView.qrisString} size={180} level="M" />
+                    </div>
+                  ) : (
+                    <p className="text-amber-600 text-sm">QRIS code will be generated after payment initiation.</p>
+                  )}
+                </div>
+              )}
+
+              {invoiceDetailsView.paymentMethod === 'virtual_account' && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800 text-center">
+                  <h4 className="font-semibold mb-2">Virtual Account</h4>
+                  {invoiceDetailsView.vaNumber ? (
+                    <>
+                      <p className="text-2xl font-mono font-bold mb-2">{invoiceDetailsView.vaNumber}</p>
+                      <p className="text-sm text-muted-foreground">Bank: {getBankName(invoiceDetailsView.bankCode || '')}</p>
+                    </>
+                  ) : (
+                    <p className="text-amber-600 text-sm">Virtual Account number will be generated after payment initiation.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Upload Proof Section - Only for bank_transfer and crypto */}
+              {(invoiceDetailsView.paymentMethod === 'bank_transfer' || invoiceDetailsView.paymentMethod === 'crypto') && (
+                <>
+                  {showUploadProofView ? (
+                    <div className="space-y-3">
+                      <p className="text-sm font-medium">Upload Payment Proof</p>
+                      <div 
+                        className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-4 text-center cursor-pointer hover:bg-muted/30 transition-colors"
+                        onClick={() => proofInputRef.current?.click()}
+                        data-testid="proof-upload-area-dialog"
+                      >
+                        <input
+                          ref={proofInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleProofFileChange}
+                          className="hidden"
+                          data-testid="proof-input-dialog"
+                        />
+                        {proofPreview ? (
+                          <div className="space-y-2">
+                            <img src={proofPreview} alt="Proof preview" className="max-h-32 mx-auto rounded-md" />
+                            <p className="text-xs text-muted-foreground">{proofFile?.name}</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <FileText className="w-8 h-8 mx-auto text-muted-foreground" />
+                            <p className="text-sm text-muted-foreground">Click to upload payment proof</p>
+                            <p className="text-xs text-muted-foreground">Format: JPG, PNG (max. 5MB)</p>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => {
+                            setShowUploadProofView(false);
+                            setProofFile(null);
+                            setProofPreview(null);
+                          }}
+                          data-testid="button-cancel-proof-dialog"
+                        >
+                          Back
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="flex-1 bg-purple-600 hover:bg-purple-700"
+                          disabled={!proofFile || submitProofMutation.isPending}
+                          onClick={() => {
+                            if (proofFile && invoiceDetailsView) {
+                              submitProofMutation.mutate({ invoiceId: invoiceDetailsView.id, file: proofFile });
+                            }
+                          }}
+                          data-testid="button-submit-proof-dialog"
+                        >
+                          {submitProofMutation.isPending ? (
+                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          ) : (
+                            <FileText className="w-4 h-4 mr-1" />
+                          )}
+                          Submit Proof
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => {
+                          setInvoiceToCancel(invoiceDetailsView.id);
+                          setShowInvoiceDetailsDialog(false);
+                          setShowCancelInvoiceConfirm(true);
+                        }}
+                        data-testid="button-cancel-from-details"
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="flex-1 bg-purple-600 hover:bg-purple-700"
+                        onClick={() => setShowUploadProofView(true)}
+                        data-testid="button-upload-proof-from-details"
+                      >
+                        <FileText className="w-4 h-4 mr-1" />
+                        Upload Proof
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

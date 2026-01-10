@@ -2128,6 +2128,49 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
   
+  // Select payment method for custom plan invoice
+  app.post("/api/merchant/custom-invoices/:invoiceId/select-payment-method", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      const { paymentMethod } = req.body;
+      const invoice = await storage.getCustomPlanInvoice(req.params.invoiceId);
+      
+      if (!invoice) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+      
+      if (invoice.merchantId !== merchantId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      
+      if (invoice.status !== "pending") {
+        return res.status(400).json({ error: `Cannot update invoice with status: ${invoice.status}` });
+      }
+      
+      const validMethods = ['qris', 'virtual_account', 'bank_transfer', 'crypto'];
+      if (!paymentMethod || !validMethods.includes(paymentMethod)) {
+        return res.status(400).json({ error: "Invalid payment method" });
+      }
+      
+      // Update invoice with selected payment method
+      await storage.updateCustomPlanInvoice(invoice.id, {
+        paymentMethod,
+      });
+      
+      console.log(`[Invoice Payment Method Selected] ${invoice.invoiceNumber} - Method: ${paymentMethod}`);
+      
+      res.json({ 
+        success: true, 
+        message: "Payment method selected",
+        invoiceNumber: invoice.invoiceNumber,
+        paymentMethod,
+      });
+    } catch (error) {
+      console.error("Error selecting payment method:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
   // Pay custom plan invoice - creates payment and activates plan on success
   app.post("/api/merchant/custom-invoices/:invoiceId/pay", requireMerchant, async (req, res) => {
     try {
