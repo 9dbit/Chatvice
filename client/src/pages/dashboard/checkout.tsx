@@ -318,6 +318,8 @@ export default function CheckoutPage() {
   const [selectedCrypto, setSelectedCrypto] = useState<CryptoCoin | null>(null);
   const [showCryptoDialog, setShowCryptoDialog] = useState(false);
   const [showConfirmPaymentDialog, setShowConfirmPaymentDialog] = useState(false);
+  const [showPendingPaymentWarning, setShowPendingPaymentWarning] = useState(false);
+  const [cancellingPending, setCancellingPending] = useState(false);
   const [cryptoTxHash, setCryptoTxHash] = useState("");
   const [cryptoProofFile, setCryptoProofFile] = useState<File | null>(null);
   const [cryptoProofPreview, setCryptoProofPreview] = useState<string | null>(null);
@@ -675,6 +677,18 @@ export default function CheckoutPage() {
     }, 3000);
   };
 
+  // Check if there's an existing pending payment that's different from current checkout
+  const hasExistingPendingPayment = billingStatus?.pendingTransaction?.transactionId && 
+    billingStatus?.pendingTransaction?.status === 'PENDING';
+  
+  // Check if there are pending custom invoices (excluding current invoice being paid)
+  const hasPendingCustomInvoices = pendingInvoices.filter(inv => 
+    inv.status === 'pending' && (!isInvoiceMode || inv.id !== invoiceId)
+  ).length > 0;
+  
+  // Combined check for any pending payment
+  const hasAnyPendingPayment = hasExistingPendingPayment || hasPendingCustomInvoices;
+
   const handleProceedToPayment = () => {
     // For invoice mode, we need invoice data; for standard plans, we need selectedPlan
     if (!isInvoiceMode && !selectedPlan) return;
@@ -683,6 +697,12 @@ export default function CheckoutPage() {
     
     if ((selectedPaymentMethod === 'virtual_account' || selectedPaymentMethod === 'bank_transfer') && !selectedBank) {
       toast({ title: "Error", description: "Please select a bank", variant: "destructive" });
+      return;
+    }
+    
+    // Check for existing pending payment - show warning dialog
+    if (hasExistingPendingPayment && paymentStep === 'select_method') {
+      setShowPendingPaymentWarning(true);
       return;
     }
     
@@ -712,6 +732,53 @@ export default function CheckoutPage() {
         bankCode: selectedBank || undefined,
         promoCode: promoCode || undefined,
       });
+    }
+  };
+  
+  // Handle cancelling existing payment and proceeding with new order
+  const handleCancelAndProceed = async () => {
+    setCancellingPending(true);
+    try {
+      const response = await fetch('/api/billing/cancel-pending', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (response.ok) {
+        // Invalidate billing status to refresh pending payment info
+        await queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
+        setShowPendingPaymentWarning(false);
+        toast({ title: "Previous order cancelled", description: "Proceeding with new order" });
+        
+        // Now proceed with the actual payment
+        if (selectedPaymentMethod === 'crypto') {
+          setPaymentStep('crypto');
+        } else {
+          setPaymentStep('loading');
+          if (isInvoiceMode && invoiceData) {
+            checkoutMutation.mutate({
+              planId: 'custom',
+              billingInterval: invoiceData.billingInterval || 'monthly',
+              paymentMethod: selectedPaymentMethod,
+              bankCode: selectedBank || undefined,
+              invoiceId: invoiceData.id,
+            });
+          } else if (selectedPlan) {
+            checkoutMutation.mutate({
+              planId: selectedPlan.id,
+              billingInterval: isAnnual ? 'annual' : 'monthly',
+              paymentMethod: selectedPaymentMethod,
+              bankCode: selectedBank || undefined,
+              promoCode: promoCode || undefined,
+            });
+          }
+        }
+      } else {
+        toast({ title: "Error", description: "Failed to cancel previous order", variant: "destructive" });
+      }
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to cancel previous order", variant: "destructive" });
+    } finally {
+      setCancellingPending(false);
     }
   };
 
@@ -2884,6 +2951,89 @@ export default function CheckoutPage() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Pending Payment Warning Dialog */}
+      <Dialog open={showPendingPaymentWarning} onOpenChange={setShowPendingPaymentWarning}>
+        <DialogContent className="max-w-md backdrop-blur-xl bg-background/95 dark:bg-background/95 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+              <AlertTriangle className="w-5 h-5" />
+              Pending Payment Exists
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              You have an existing payment that hasn't been completed yet.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Existing Payment Info */}
+            {billingStatus?.pendingTransaction && (
+              <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Order</span>
+                    <span className="font-mono text-xs">{billingStatus.pendingTransaction.orderId}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Plan</span>
+                    <span className="font-medium">{billingStatus.pendingTransaction.planName || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Amount</span>
+                    <span className="font-medium">{billingStatus.pendingTransaction.amountFormatted || `Rp ${billingStatus.pendingTransaction.amount?.toLocaleString('id-ID')}`}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="p-3 rounded-lg bg-muted/50 border">
+              <p className="text-sm text-muted-foreground">
+                Please complete your first order payment or cancel it to proceed with the new order. You can only have one pending payment at a time.
+              </p>
+            </div>
+            
+            <div className="flex flex-col gap-2">
+              <Button
+                variant="default"
+                className="w-full"
+                onClick={() => {
+                  setShowPendingPaymentWarning(false);
+                  // Navigate to billing to complete existing payment
+                  navigate('/dashboard/billing');
+                }}
+                data-testid="button-complete-existing-payment"
+              >
+                <CreditCard className="w-4 h-4 mr-2" />
+                Complete Existing Payment
+              </Button>
+              
+              <Button
+                variant="outline"
+                className="w-full border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
+                onClick={handleCancelAndProceed}
+                disabled={cancellingPending}
+                data-testid="button-cancel-and-proceed"
+              >
+                {cancellingPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <XCircle className="w-4 h-4 mr-2" />
+                )}
+                Cancel & Create New Order
+              </Button>
+              
+              <Button
+                variant="ghost"
+                className="w-full"
+                onClick={() => setShowPendingPaymentWarning(false)}
+                data-testid="button-cancel-dialog"
+              >
+                Go Back
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
