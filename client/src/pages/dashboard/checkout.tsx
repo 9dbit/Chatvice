@@ -1203,15 +1203,18 @@ export default function CheckoutPage() {
   const discountPercent = isCustomPlanWithInvoice ? 0 : (promo?.discountPercent || 0);
   
   // Calculate USD price after discount
-  const priceAfterDiscountUSD = Math.max(0, priceUSD - (priceUSD * discountPercent / 100));
+  const discountAmountUSD = priceUSD * discountPercent / 100;
+  const priceAfterDiscountUSD = Math.max(0, priceUSD - discountAmountUSD);
   
-  // Convert to IDR for Indonesian payment methods
-  const priceIDR = Math.round(priceAfterDiscountUSD * exchangeRate);
-  const discountAmountIDR = Math.round((priceUSD * discountPercent / 100) * exchangeRate);
-  
-  const creditAmountIDR = prorationInfo?.prorationApplied && prorationInfo?.creditAmount 
-    ? Math.round(prorationInfo.creditAmount * exchangeRate) 
+  // Credit amount in USD (for proration)
+  const creditAmountUSD = prorationInfo?.prorationApplied && prorationInfo?.creditAmount 
+    ? prorationInfo.creditAmount 
     : 0;
+  
+  // Convert to IDR for Indonesian payment methods (QRIS, VA, Bank Transfer)
+  const priceIDR = Math.round(priceAfterDiscountUSD * exchangeRate);
+  const discountAmountIDR = Math.round(discountAmountUSD * exchangeRate);
+  const creditAmountIDR = Math.round(creditAmountUSD * exchangeRate);
   
   const finalPrice = Math.max(0, priceIDR - creditAmountIDR);
   
@@ -1306,29 +1309,29 @@ export default function CheckoutPage() {
                 <div className="p-3 flex items-center justify-between">
                   <div>
                     <p className="text-xs text-muted-foreground">Starting today</p>
-                    <p className="text-sm font-bold">Rp {finalPrice.toLocaleString('id-ID')}/{isAnnual ? 'year' : 'month'}</p>
+                    <p className="text-sm font-bold">${finalPriceUSD.toFixed(2)}/{isAnnual ? 'year' : 'month'}</p>
                   </div>
                   <Badge variant="secondary" className="text-[10px] h-5 px-2">
                     {isAnnual ? 'Annual' : 'Monthly'}
                   </Badge>
                 </div>
                 
-                {(discountPercent > 0 || creditAmountIDR > 0) && (
+                {(discountPercent > 0 || creditAmountUSD > 0) && (
                   <div className="px-3 pb-3 space-y-1">
                     <div className="flex justify-between text-xs">
                       <span className="text-muted-foreground">Normal price</span>
-                      <span>Rp {priceIDR.toLocaleString('id-ID')}</span>
+                      <span>${priceUSD.toFixed(2)}</span>
                     </div>
                     {discountPercent > 0 && (
                       <div className="flex justify-between text-xs text-green-600">
                         <span>Promo discount ({discountPercent}%)</span>
-                        <span>- Rp {discountAmountIDR.toLocaleString('id-ID')}</span>
+                        <span>- ${discountAmountUSD.toFixed(2)}</span>
                       </div>
                     )}
-                    {creditAmountIDR > 0 && (
+                    {creditAmountUSD > 0 && (
                       <div className="flex justify-between text-xs text-blue-600">
                         <span>Credit from previous plan</span>
-                        <span>- Rp {creditAmountIDR.toLocaleString('id-ID')}</span>
+                        <span>- ${creditAmountUSD.toFixed(2)}</span>
                       </div>
                     )}
                   </div>
@@ -1356,7 +1359,7 @@ export default function CheckoutPage() {
                 </p>
                 <div className="flex items-center gap-1 text-muted-foreground/80 pt-0.5">
                   <Info className="w-2.5 h-2.5" />
-                  <span>Rate: Rp {exchangeRate.toLocaleString('id-ID')}/USD • {exchangeSource}</span>
+                  <span>All prices shown in USD</span>
                 </div>
               </div>
 
@@ -1385,7 +1388,7 @@ export default function CheckoutPage() {
                   <ArrowRight className="w-4 h-4 mr-2" />
                 )}
                 <span className="text-sm">
-                  {selectedPaymentMethod === 'payment_link' ? 'Use share buttons on the right' : selectedPaymentMethod === 'paypal' ? 'Use PayPal button on the right' : `Subscribe • Rp ${finalPrice.toLocaleString('id-ID')}`}
+                  {selectedPaymentMethod === 'payment_link' ? 'Use share buttons on the right' : selectedPaymentMethod === 'paypal' ? 'Use PayPal button on the right' : `Subscribe • $${finalPriceUSD.toFixed(2)}`}
                 </span>
               </Button>
             </div>
@@ -1508,7 +1511,7 @@ export default function CheckoutPage() {
                                   size="sm"
                                   className="h-10 flex-col gap-1 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/40 border-green-200 dark:border-green-800"
                                   onClick={() => {
-                                    const text = `Checkout ${selectedPlan?.name || 'Plan'} - Rp ${finalPrice.toLocaleString('id-ID')}`;
+                                    const text = `Checkout ${selectedPlan?.name || 'Plan'} - $${finalPriceUSD.toFixed(2)}`;
                                     window.open(`https://wa.me/?text=${encodeURIComponent(text + '\n' + window.location.href)}`, '_blank');
                                   }}
                                   data-testid="button-share-whatsapp"
@@ -1522,7 +1525,7 @@ export default function CheckoutPage() {
                                   size="sm"
                                   className="h-10 flex-col gap-1 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 border-blue-200 dark:border-blue-800"
                                   onClick={() => {
-                                    const text = `Checkout ${selectedPlan?.name || 'Plan'} - Rp ${finalPrice.toLocaleString('id-ID')}`;
+                                    const text = `Checkout ${selectedPlan?.name || 'Plan'} - $${finalPriceUSD.toFixed(2)}`;
                                     window.open(`https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(text)}`, '_blank');
                                   }}
                                   data-testid="button-share-telegram"
@@ -1655,7 +1658,7 @@ export default function CheckoutPage() {
               </p>
               <div className="flex items-center gap-1 text-muted-foreground/80 pt-0.5">
                 <Info className="w-2.5 h-2.5" />
-                <span>Rate: Rp {exchangeRate.toLocaleString('id-ID')}/USD • {exchangeSource}</span>
+                <span>All prices shown in USD</span>
               </div>
             </div>
 
@@ -1684,7 +1687,7 @@ export default function CheckoutPage() {
                 <ArrowRight className="w-4 h-4 mr-2" />
               )}
               <span className="text-sm">
-                {selectedPaymentMethod === 'payment_link' ? 'Use share buttons above' : selectedPaymentMethod === 'paypal' ? 'Use PayPal button above' : `Subscribe • Rp ${finalPrice.toLocaleString('id-ID')}`}
+                {selectedPaymentMethod === 'payment_link' ? 'Use share buttons above' : selectedPaymentMethod === 'paypal' ? 'Use PayPal button above' : `Subscribe • $${finalPriceUSD.toFixed(2)}`}
               </span>
             </Button>
           </div>
