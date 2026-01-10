@@ -290,9 +290,11 @@ export default function CheckoutPage() {
   const promoCode = urlParams.get('promo') || '';
   const resumeTransactionId = urlParams.get('resume');
   const fromPage = urlParams.get('from') || 'plans';
+  const invoiceId = urlParams.get('invoiceId'); // Custom plan invoice ID for direct invoice checkout
   
   const isAnnual = billingInterval === 'annual';
   const isResumeMode = Boolean(resumeTransactionId);
+  const isInvoiceMode = Boolean(invoiceId); // Check if this is an invoice checkout
   
   // Smart back button navigation
   const handleBack = () => {
@@ -354,17 +356,31 @@ export default function CheckoutPage() {
     agentsLimit: number;
     supervisorsLimit: number;
     sourcesLimit: number;
+    paymentMethod?: string;
   }
   
   const { data: pendingInvoices = [], isLoading: invoicesLoading } = useQuery<CustomPlanInvoice[]>({
     queryKey: ["/api/merchant/custom-invoices/pending"],
-    enabled: planId === "custom",
+    enabled: planId === "custom" && !isInvoiceMode,
+  });
+  
+  // Fetch specific invoice by ID when in invoice mode
+  const { data: invoiceData, isLoading: invoiceLoading } = useQuery<CustomPlanInvoice>({
+    queryKey: ["/api/merchant/custom-invoices", invoiceId],
+    queryFn: async () => {
+      const response = await fetch(`/api/merchant/custom-invoices/${invoiceId}`, { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to fetch invoice');
+      return response.json();
+    },
+    enabled: isInvoiceMode,
   });
   
   // Get the first pending invoice for custom plan pricing
-  const pendingCustomInvoice = planId === "custom" && pendingInvoices.length > 0 
-    ? pendingInvoices.find(inv => inv.billingInterval === billingInterval) || pendingInvoices[0]
-    : null;
+  const pendingCustomInvoice = isInvoiceMode 
+    ? invoiceData
+    : (planId === "custom" && pendingInvoices.length > 0 
+        ? pendingInvoices.find(inv => inv.billingInterval === billingInterval) || pendingInvoices[0]
+        : null);
   
   // Fetch crypto prices when dialog opens
   interface CryptoPricesResponse {
@@ -434,7 +450,7 @@ export default function CheckoutPage() {
     retry: false,
   });
   
-  const isInitialLoading = billingLoading || exchangeLoading || plansLoading || (isResumeMode && resumeLoading) || (planId === "custom" && invoicesLoading);
+  const isInitialLoading = billingLoading || exchangeLoading || plansLoading || (isResumeMode && resumeLoading) || (planId === "custom" && invoicesLoading) || (isInvoiceMode && invoiceLoading);
 
   const selectedPlan = dbPlans.find((p: any) => p.id === planId);
   
@@ -574,7 +590,7 @@ export default function CheckoutPage() {
   }, []);
 
   const checkoutMutation = useMutation({
-    mutationFn: async (params: { planId: string; billingInterval: string; paymentMethod: PaymentMethod; bankCode?: string; senderName?: string; senderBank?: string; promoCode?: string }) => {
+    mutationFn: async (params: { planId: string; billingInterval: string; paymentMethod: PaymentMethod; bankCode?: string; senderName?: string; senderBank?: string; promoCode?: string; invoiceId?: string }) => {
       const response = await apiRequest("POST", "/api/billing/checkout-v2", params);
       return response.json();
     },
@@ -660,7 +676,10 @@ export default function CheckoutPage() {
   };
 
   const handleProceedToPayment = () => {
-    if (!selectedPlan || !termsAccepted) return;
+    // For invoice mode, we need invoice data; for standard plans, we need selectedPlan
+    if (!isInvoiceMode && !selectedPlan) return;
+    if (isInvoiceMode && !invoiceData) return;
+    if (!termsAccepted) return;
     
     if ((selectedPaymentMethod === 'virtual_account' || selectedPaymentMethod === 'bank_transfer') && !selectedBank) {
       toast({ title: "Error", description: "Please select a bank", variant: "destructive" });
@@ -674,13 +693,26 @@ export default function CheckoutPage() {
     }
     
     setPaymentStep('loading');
-    checkoutMutation.mutate({
-      planId: selectedPlan.id,
-      billingInterval: isAnnual ? 'annual' : 'monthly',
-      paymentMethod: selectedPaymentMethod,
-      bankCode: selectedBank || undefined,
-      promoCode: promoCode || undefined,
-    });
+    
+    // For invoice mode, use the standard checkout with invoiceId
+    if (isInvoiceMode && invoiceData) {
+      checkoutMutation.mutate({
+        planId: 'custom',  // Custom plan for invoice checkout
+        billingInterval: invoiceData.billingInterval || 'monthly',
+        paymentMethod: selectedPaymentMethod,
+        bankCode: selectedBank || undefined,
+        invoiceId: invoiceData.id,  // Pass specific invoice ID
+      });
+    } else if (selectedPlan) {
+      // Standard plan checkout
+      checkoutMutation.mutate({
+        planId: selectedPlan.id,
+        billingInterval: isAnnual ? 'annual' : 'monthly',
+        paymentMethod: selectedPaymentMethod,
+        bankCode: selectedBank || undefined,
+        promoCode: promoCode || undefined,
+      });
+    }
   };
 
   const handleRetryPayment = () => {
@@ -1085,8 +1117,8 @@ export default function CheckoutPage() {
     );
   }
   
-  // In resume mode, we don't need planId - show payment directly
-  if (!isResumeMode && (!planId || !selectedPlan)) {
+  // In resume mode or invoice mode, we don't need planId - show payment directly
+  if (!isResumeMode && !isInvoiceMode && (!planId || !selectedPlan)) {
     return (
       <div className="max-w-lg mx-auto py-6 px-4 md:py-8 space-y-4">
         <Card>
@@ -1127,18 +1159,44 @@ export default function CheckoutPage() {
       </div>
     );
   }
+  
+  // Invoice mode requires valid invoice
+  if (isInvoiceMode && !invoiceData) {
+    return (
+      <div className="max-w-lg mx-auto py-6 px-4 md:py-8 space-y-4">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleBack} data-testid="button-back">
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <h1 className="text-base font-semibold">Invoice Payment</h1>
+        </div>
+        <Card>
+          <CardContent className="py-10 text-center space-y-3">
+            <AlertTriangle className="w-10 h-10 mx-auto text-amber-500" />
+            <h2 className="text-base font-semibold">Invoice Not Found</h2>
+            <p className="text-[11px] text-muted-foreground">The invoice could not be found or is no longer available.</p>
+            <Button size="sm" onClick={() => navigate('/dashboard/billing')} data-testid="button-go-to-billing">
+              View Billing
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const exchangeRate = exchangeRateData?.rate || 16500;
   const exchangeSource = exchangeRateData?.source || "Default";
   
   // ALL plan prices (including custom invoices) are stored in USD
   // Convert to IDR for display (Indonesian payment methods)
-  const isCustomPlanWithInvoice = planId === "custom" && pendingCustomInvoice;
+  const isCustomPlanWithInvoice = (planId === "custom" && pendingCustomInvoice) || isInvoiceMode;
   
-  // For custom plans, use invoice amount (in USD). For standard plans, use plan prices
-  const priceUSD = isCustomPlanWithInvoice 
-    ? pendingCustomInvoice.amount  // Invoice amount is in USD
-    : selectedPlan ? (isAnnual ? (selectedPlan.annualPrice || 0) : (selectedPlan.monthlyPrice || 0)) : 0;
+  // For invoice mode or custom plans, use invoice amount (in USD). For standard plans, use plan prices
+  const priceUSD = isInvoiceMode && invoiceData
+    ? invoiceData.amount  // Invoice amount is in USD
+    : (planId === "custom" && pendingCustomInvoice)
+      ? pendingCustomInvoice.amount  // Invoice amount is in USD
+      : selectedPlan ? (isAnnual ? (selectedPlan.annualPrice || 0) : (selectedPlan.monthlyPrice || 0)) : 0;
   
   const promo = selectedPlan ? getPromoForPlan(selectedPlan.id) : null;
   // Don't apply promo discount for custom plan invoices (price is already finalized by sales)

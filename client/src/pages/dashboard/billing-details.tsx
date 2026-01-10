@@ -790,9 +790,8 @@ export default function BillingDetailsPage() {
                             size="sm"
                             className="flex-1 bg-purple-600 hover:bg-purple-700"
                             onClick={() => {
-                              setSelectedInvoiceForPayment(invoice);
-                              setSelectedPaymentMethod(null);
-                              setShowPaymentMethodDialog(true);
+                              // Redirect to checkout page with invoice ID
+                              navigate(`/dashboard/checkout?invoiceId=${invoice.id}&from=billing`);
                             }}
                             data-testid={`button-pay-now-${invoice.id}`}
                           >

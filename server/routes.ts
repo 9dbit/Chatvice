@@ -2092,6 +2092,27 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
   
+  // Get specific custom plan invoice by ID
+  app.get("/api/merchant/custom-invoices/:invoiceId", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const invoice = await storage.getCustomPlanInvoice(req.params.invoiceId);
+      
+      if (!invoice) {
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+      
+      if (invoice.merchantId !== merchantId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+      
+      res.json(invoice);
+    } catch (error) {
+      console.error("Error fetching invoice:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
   // Cancel custom plan invoice
   app.post("/api/merchant/custom-invoices/:invoiceId/cancel", requireMerchant, async (req, res) => {
     try {
@@ -4473,7 +4494,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   // Checkout with payment method selection
   app.post("/api/billing/checkout-v2", requireMerchant, async (req, res) => {
     try {
-      const { planId, billingInterval, paymentMethod, bankCode, promoCode } = req.body;
+      const { planId, billingInterval, paymentMethod, bankCode, promoCode, invoiceId } = req.body;
       const merchant = await storage.getMerchant(req.session.merchantId!);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
@@ -4498,11 +4519,24 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const exchangeRate = savedRate ? parseInt(savedRate) : 16500;
       
       // For custom plans, fetch pending invoice and use invoice amount (already in IDR)
+      // Invoice checkout requires both planId === 'custom' AND invoiceId
       let customInvoice = null;
       let isCustomPlanWithInvoice = false;
       if (planId === 'custom') {
-        const pendingInvoices = await storage.getPendingCustomPlanInvoices(merchant.id);
-        customInvoice = pendingInvoices[0]; // Get the first pending invoice
+        // If invoiceId is provided, fetch that specific invoice
+        if (invoiceId) {
+          customInvoice = await storage.getCustomPlanInvoice(invoiceId);
+          if (!customInvoice || customInvoice.merchantId !== merchant.id) {
+            return res.status(404).json({ error: "Invoice not found" });
+          }
+          if (customInvoice.status !== 'pending') {
+            return res.status(400).json({ error: `Invoice is already ${customInvoice.status}` });
+          }
+        } else {
+          // Fallback to first pending invoice for backward compatibility
+          const pendingInvoices = await storage.getPendingCustomPlanInvoices(merchant.id);
+          customInvoice = pendingInvoices[0];
+        }
         if (!customInvoice) {
           return res.status(400).json({ error: "Custom plan requires a pending invoice. Please contact sales or check your billing page." });
         }
