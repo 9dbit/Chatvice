@@ -829,16 +829,26 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // Trust proxy for production (required for secure cookies behind load balancer/reverse proxy)
   app.set("trust proxy", true);
   
-  // Canonical domain redirect: www to non-www (301 permanent redirect)
+  // Canonical domain redirect: Enforce https://chatvice.app (no www, always HTTPS)
+  // This handles both www→non-www and http→https redirects with 301 permanent
   app.use((req, res, next) => {
     const host = req.headers.host || "";
-    // Only redirect if www subdomain is detected
-    if (host.startsWith("www.")) {
+    const forwardedProto = req.headers["x-forwarded-proto"] as string;
+    const isHttps = forwardedProto === "https" || req.secure;
+    const hasWww = host.startsWith("www.");
+    
+    // Skip redirect for local development
+    if (host.includes("localhost") || host.includes("127.0.0.1") || host.includes(".replit.dev") || host.includes(".replit.app")) {
+      return next();
+    }
+    
+    // Redirect if www or not https
+    if (hasWww || !isHttps) {
       const newHost = host.replace(/^www\./, "");
-      const protocol = req.headers["x-forwarded-proto"] || req.protocol || "https";
-      const newUrl = `${protocol}://${newHost}${req.originalUrl}`;
+      const newUrl = `https://${newHost}${req.originalUrl}`;
       return res.redirect(301, newUrl);
     }
+    
     next();
   });
   
