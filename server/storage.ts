@@ -946,46 +946,41 @@ export class DatabaseStorage implements IStorage {
     return result.available;
   }
   
-  // Returns detailed availability info including whether it can be reclaimed
-  async checkDomainAvailability(domain: string): Promise<{ available: boolean; canReclaim: boolean; existingRegistrationId?: string }> {
+  // Returns detailed availability info - domains remain protected even after trial expires
+  // Users must subscribe to access their domain again, not free re-registration
+  async checkDomainAvailability(domain: string): Promise<{ available: boolean; canReclaim: boolean; existingRegistrationId?: string; requiresSubscription: boolean }> {
     const existing = await this.getDomainRegistration(domain);
     if (!existing) {
-      return { available: true, canReclaim: false };
+      return { available: true, canReclaim: false, requiresSubscription: false };
     }
     
-    // Check if the merchant who owns this domain has an expired trial or inactive subscription
+    // Domain is registered - check if user needs to subscribe to access it
     const merchant = await this.getMerchant(existing.merchantId);
     if (!merchant) {
-      // Merchant doesn't exist anymore, domain can be reclaimed
-      return { available: true, canReclaim: true, existingRegistrationId: existing.id };
+      // Merchant account deleted - domain requires subscription to reclaim
+      return { available: false, canReclaim: false, existingRegistrationId: existing.id, requiresSubscription: true };
     }
     
-    // Define active subscription statuses that block domain reclaim
-    const activeStatuses = ["active", "trial", "past_due"];
+    // Check subscription status - all cases require subscription message
+    const activeStatuses = ["active", "past_due"];
     
-    // Check if merchant has an active subscription
     if (activeStatuses.includes(merchant.subscriptionStatus || "")) {
-      // For trial status, only allow reclaim if trial has definitively expired
-      if (merchant.subscriptionStatus === "trial") {
-        // Require trialEndsAt to be defined AND in the past
-        if (merchant.trialEndsAt && new Date(merchant.trialEndsAt) < new Date()) {
-          return { available: true, canReclaim: true, existingRegistrationId: existing.id };
-        }
-        // Trial is still active or trialEndsAt not set - domain not available
-        return { available: false, canReclaim: false };
+      // Active subscription - domain not available
+      return { available: false, canReclaim: false, requiresSubscription: false };
+    }
+    
+    // Trial status
+    if (merchant.subscriptionStatus === "trial") {
+      if (merchant.trialEndsAt && new Date(merchant.trialEndsAt) < new Date()) {
+        // Trial expired - must subscribe to use domain again
+        return { available: false, canReclaim: false, existingRegistrationId: existing.id, requiresSubscription: true };
       }
-      // Other active statuses (active, past_due) - domain not available
-      return { available: false, canReclaim: false };
+      // Trial still active - domain not available
+      return { available: false, canReclaim: false, requiresSubscription: false };
     }
     
-    // Subscription is definitively inactive (cancelled, expired, or unknown status)
-    const inactiveStatuses = ["cancelled", "expired"];
-    if (inactiveStatuses.includes(merchant.subscriptionStatus || "")) {
-      return { available: true, canReclaim: true, existingRegistrationId: existing.id };
-    }
-    
-    // Unknown status - err on side of caution, don't allow reclaim
-    return { available: false, canReclaim: false };
+    // Subscription cancelled or expired - must subscribe to use domain again
+    return { available: false, canReclaim: false, existingRegistrationId: existing.id, requiresSubscription: true };
   }
   
   // Atomically reclaim and reassign domain registration using transaction
