@@ -942,8 +942,77 @@ export class DatabaseStorage implements IStorage {
   }
 
   async isDomainAvailable(domain: string): Promise<boolean> {
+    const result = await this.checkDomainAvailability(domain);
+    return result.available;
+  }
+  
+  // Returns detailed availability info including whether it can be reclaimed
+  async checkDomainAvailability(domain: string): Promise<{ available: boolean; canReclaim: boolean; existingRegistrationId?: string }> {
     const existing = await this.getDomainRegistration(domain);
-    return !existing;
+    if (!existing) {
+      return { available: true, canReclaim: false };
+    }
+    
+    // Check if the merchant who owns this domain has an expired trial or inactive subscription
+    const merchant = await this.getMerchant(existing.merchantId);
+    if (!merchant) {
+      // Merchant doesn't exist anymore, domain can be reclaimed
+      return { available: true, canReclaim: true, existingRegistrationId: existing.id };
+    }
+    
+    // Define active subscription statuses that block domain reclaim
+    const activeStatuses = ["active", "trial", "past_due"];
+    
+    // Check if merchant has an active subscription
+    if (activeStatuses.includes(merchant.subscriptionStatus || "")) {
+      // For trial status, only allow reclaim if trial has definitively expired
+      if (merchant.subscriptionStatus === "trial") {
+        // Require trialEndsAt to be defined AND in the past
+        if (merchant.trialEndsAt && new Date(merchant.trialEndsAt) < new Date()) {
+          return { available: true, canReclaim: true, existingRegistrationId: existing.id };
+        }
+        // Trial is still active or trialEndsAt not set - domain not available
+        return { available: false, canReclaim: false };
+      }
+      // Other active statuses (active, past_due) - domain not available
+      return { available: false, canReclaim: false };
+    }
+    
+    // Subscription is definitively inactive (cancelled, expired, or unknown status)
+    const inactiveStatuses = ["cancelled", "expired"];
+    if (inactiveStatuses.includes(merchant.subscriptionStatus || "")) {
+      return { available: true, canReclaim: true, existingRegistrationId: existing.id };
+    }
+    
+    // Unknown status - err on side of caution, don't allow reclaim
+    return { available: false, canReclaim: false };
+  }
+  
+  // Atomically reclaim and reassign domain registration using transaction
+  async reclaimDomainRegistration(oldRegistrationId: string, newData: InsertDomainRegistration): Promise<DomainRegistration> {
+    const id = `dr_${randomBytes(8).toString("hex")}`;
+    const normalizedDomain = this.normalizeDomain(newData.domain);
+    
+    // Use transaction to ensure atomic delete + create
+    const result = await db.transaction(async (tx) => {
+      // Delete old registration
+      await tx.delete(domainRegistrations).where(eq(domainRegistrations.id, oldRegistrationId));
+      
+      // Create new registration
+      const [newReg] = await tx.insert(domainRegistrations).values({
+        ...newData,
+        id,
+        domain: normalizedDomain,
+      }).returning();
+      
+      return newReg;
+    });
+    
+    return result;
+  }
+  
+  async deleteDomainRegistration(id: string): Promise<void> {
+    await db.delete(domainRegistrations).where(eq(domainRegistrations.id, id));
   }
 
   // Helper to normalize domain (remove protocol, www, trailing slashes)

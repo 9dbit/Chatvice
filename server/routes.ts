@@ -1117,9 +1117,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(400).json({ error: "Email already registered" });
       }
       
-      // Check if domain is already registered
-      const domainAvailable = await storage.isDomainAvailable(data.officialDomain);
-      if (!domainAvailable) {
+      // Check if domain is already registered (allows reclaim if trial expired)
+      const domainCheck = await storage.checkDomainAvailability(data.officialDomain);
+      if (!domainCheck.available) {
         return res.status(400).json({ 
           error: "This domain is already registered. Please subscribe to access Chatvice features.",
           errorCode: "DOMAIN_ALREADY_REGISTERED",
@@ -1147,13 +1147,22 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         profileCompleted: true, // Manual registration completes profile
       });
       
-      // Register the domain to prevent duplicate signups
-      await storage.createDomainRegistration({
-        merchantId: merchant.id,
-        domain: data.officialDomain,
-        websiteName: data.officialWebsiteName,
-        source: "manual",
-      });
+      // Register the domain (atomically reclaim if needed)
+      if (domainCheck.canReclaim && domainCheck.existingRegistrationId) {
+        await storage.reclaimDomainRegistration(domainCheck.existingRegistrationId, {
+          merchantId: merchant.id,
+          domain: data.officialDomain,
+          websiteName: data.officialWebsiteName,
+          source: "manual",
+        });
+      } else {
+        await storage.createDomainRegistration({
+          merchantId: merchant.id,
+          domain: data.officialDomain,
+          websiteName: data.officialWebsiteName,
+          source: "manual",
+        });
+      }
       
       // Create email verification token (expires in 24 hours)
       const verificationToken = crypto.randomBytes(32).toString("hex");
@@ -1441,9 +1450,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(400).json({ error: "Profile already completed" });
       }
 
-      // Check if domain is already registered
-      const domainAvailable = await storage.isDomainAvailable(data.officialDomain);
-      if (!domainAvailable) {
+      // Check if domain is already registered (allows reclaim if trial expired)
+      const domainCheck = await storage.checkDomainAvailability(data.officialDomain);
+      if (!domainCheck.available) {
         return res.status(400).json({ 
           error: "This domain is already registered. Please subscribe to access Chatvice features.",
           errorCode: "DOMAIN_ALREADY_REGISTERED",
@@ -1460,13 +1469,22 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         profileCompleted: true,
       });
 
-      // Register the domain
-      await storage.createDomainRegistration({
-        merchantId: merchant.id,
-        domain: data.officialDomain,
-        websiteName: data.officialWebsiteName,
-        source: "oauth",
-      });
+      // Register the domain (atomically reclaim if needed)
+      if (domainCheck.canReclaim && domainCheck.existingRegistrationId) {
+        await storage.reclaimDomainRegistration(domainCheck.existingRegistrationId, {
+          merchantId: merchant.id,
+          domain: data.officialDomain,
+          websiteName: data.officialWebsiteName,
+          source: "oauth",
+        });
+      } else {
+        await storage.createDomainRegistration({
+          merchantId: merchant.id,
+          domain: data.officialDomain,
+          websiteName: data.officialWebsiteName,
+          source: "oauth",
+        });
+      }
 
       res.json({ 
         success: true, 
