@@ -1575,8 +1575,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           console.error("Session save error:", err);
           return res.redirect("/login?error=session_error");
         }
-        console.log("Session saved successfully, redirecting to /dashboard");
-        res.redirect("/dashboard");
+        console.log("Session saved successfully, redirecting to /oauth-callback");
+        res.redirect("/oauth-callback");
       });
     } catch (error) {
       console.error("Google OAuth callback error:", error);
@@ -1765,7 +1765,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           console.error("GitHub session save error:", err);
           return res.redirect("/login?error=session_error");
         }
-        res.redirect("/dashboard");
+        res.redirect("/oauth-callback");
       });
     } catch (error) {
       console.error("GitHub OAuth callback error:", error);
