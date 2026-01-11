@@ -1,56 +1,55 @@
 # Chatvice.app Robots.txt
-# Allow all major search engine and social media crawlers
+# Last updated: 2026-01-11
+# Allow all public pages for search engine indexing
 
-# Google Crawlers
-User-agent: Googlebot
-Allow: /
-Disallow: /dashboard
-Disallow: /supervisor
-Disallow: /admin
-Disallow: /api/
-
-User-agent: Googlebot-Image
-Allow: /
-
-User-agent: Googlebot-Video
-Allow: /
-
-# Meta/Facebook Crawlers
-User-agent: facebookexternalhit
-Allow: /
-
-User-agent: Facebot
-Allow: /
-
-# Other Major Search Engines
-User-agent: Bingbot
-Allow: /
-Disallow: /dashboard
-Disallow: /supervisor
-Disallow: /admin
-Disallow: /api/
-
-User-agent: Slurp
-Allow: /
-Disallow: /dashboard
-Disallow: /supervisor
-Disallow: /admin
-Disallow: /api/
-
-User-agent: DuckDuckBot
-Allow: /
-Disallow: /dashboard
-Disallow: /supervisor
-Disallow: /admin
-Disallow: /api/
-
-# Default rule for all other crawlers
 User-agent: *
 Allow: /
+Allow: /docs
+Allow: /docs/
+Allow: /features
+Allow: /pricing
+Allow: /about
+Allow: /faq
+Allow: /blog
+Allow: /integrations
+Allow: /privacy
+Allow: /terms
+Allow: /cookies
+Allow: /gdpr
+Allow: /security
+Allow: /careers
+Allow: /press
+Allow: /partners
+Allow: /contact
+Allow: /status
+Allow: /help
+Allow: /changelog
+Allow: /api-docs
+
+# Block private/authenticated areas
 Disallow: /dashboard
+Disallow: /dashboard/
 Disallow: /supervisor
+Disallow: /supervisor/
 Disallow: /admin
+Disallow: /admin/
 Disallow: /api/
+Disallow: /login
+Disallow: /register
+Disallow: /oauth-callback
+Disallow: /verify-email
+Disallow: /verify-supervisor
+Disallow: /reset-password
+Disallow: /forgot-password
+Disallow: /select-agent
+Disallow: /widget
+Disallow: /widget/
+Disallow: /topup
+
+# Allow favicon and assets for all crawlers
+Allow: /favicon.ico
+Allow: /favicon.png
+Allow: /og/
 
 # Sitemap location
 Sitemap: https://chatvice.app/sitemap.xml
