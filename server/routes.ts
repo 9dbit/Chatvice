@@ -1111,7 +1111,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const domainAvailable = await storage.isDomainAvailable(data.officialDomain);
       if (!domainAvailable) {
         return res.status(400).json({ 
-          error: "Domain anda telah terdaftar, untuk akses feature chatvice lakukan subscribe",
+          error: "This domain is already registered. Please subscribe to access Chatvice features.",
           errorCode: "DOMAIN_ALREADY_REGISTERED",
           redirectToPlans: true
         });
@@ -1435,7 +1435,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const domainAvailable = await storage.isDomainAvailable(data.officialDomain);
       if (!domainAvailable) {
         return res.status(400).json({ 
-          error: "Domain anda telah terdaftar, untuk akses feature chatvice lakukan subscribe",
+          error: "This domain is already registered. Please subscribe to access Chatvice features.",
           errorCode: "DOMAIN_ALREADY_REGISTERED",
           redirectToPlans: true
         });

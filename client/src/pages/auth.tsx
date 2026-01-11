@@ -446,8 +446,8 @@ export function RegisterPage() {
       // Handle domain already registered - show special error with subscribe button
       if (error.errorCode === "DOMAIN_ALREADY_REGISTERED") {
         toast({
-          title: "Domain sudah terdaftar",
-          description: error.error || "Domain anda telah terdaftar, untuk akses feature chatvice lakukan subscribe",
+          title: "Domain Already Registered",
+          description: error.error || "This domain is already registered. Please subscribe to access Chatvice features.",
           variant: "destructive",
           action: (
             <Button size="sm" variant="outline" onClick={() => setLocation("/dashboard/plans")}>

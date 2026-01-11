@@ -61,7 +61,7 @@ export default function CompleteProfilePage() {
       if (error.errorCode === "DOMAIN_ALREADY_REGISTERED") {
         setDomainError(error.error);
         toast({
-          title: "Domain sudah terdaftar",
+          title: "Domain Already Registered",
           description: error.error,
           variant: "destructive",
           action: (
@@ -119,7 +119,7 @@ export default function CompleteProfilePage() {
               <div className="flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-white text-sm font-medium">Domain sudah terdaftar</p>
+                  <p className="text-white text-sm font-medium">Domain Already Registered</p>
                   <p className="text-zinc-400 text-sm mt-1">{domainError}</p>
                   <Button 
                     size="sm" 
