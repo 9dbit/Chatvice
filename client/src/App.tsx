@@ -45,6 +45,7 @@ import HelpCenterPage from "@/pages/resources/help";
 import TopupPage from "@/pages/topup-page";
 import DemoWidgetPage from "@/pages/demo-widget";
 import OAuthCallback from "@/pages/oauth-callback";
+import CompleteProfilePage from "@/pages/complete-profile";
 import { DynamicHead } from "@/components/dynamic-head";
 import { AIHelpBubble } from "@/components/ai-help-bubble";
 
@@ -73,6 +74,7 @@ function GlobalHelpBubble() {
     '/reset-password',
     '/forgot-password',
     '/oauth-callback',
+    '/complete-profile',
     '/topup',
     '/demo',
   ];
@@ -95,6 +97,7 @@ function Router() {
       <Route path="/verify-email" component={VerifyEmailPage} />
       <Route path="/verify-supervisor" component={VerifySupervisorPage} />
       <Route path="/oauth-callback" component={OAuthCallback} />
+      <Route path="/complete-profile" component={CompleteProfilePage} />
       <Route path="/select-agent" component={SelectAgentPage} />
       <Route path="/dashboard" component={DashboardLayout} />
       <Route path="/dashboard/:page*" component={DashboardLayout} />

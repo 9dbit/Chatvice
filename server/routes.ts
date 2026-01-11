@@ -9,6 +9,7 @@ import {
   loginSchema,
   merchantConfigSchema,
   agentWidgetSettingsSchema,
+  completeProfileSchema,
 } from "@shared/schema";
 import OpenAI from "openai";
 import bcrypt from "bcryptjs";
@@ -1106,11 +1107,21 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(400).json({ error: "Email already registered" });
       }
       
+      // Check if domain is already registered
+      const domainAvailable = await storage.isDomainAvailable(data.officialDomain);
+      if (!domainAvailable) {
+        return res.status(400).json({ 
+          error: "Domain anda telah terdaftar, untuk akses feature chatvice lakukan subscribe",
+          errorCode: "DOMAIN_ALREADY_REGISTERED",
+          redirectToPlans: true
+        });
+      }
+      
       const hashedPassword = await hashPassword(data.password);
       
-      // Get configurable trial days from platform settings (default 14 days)
+      // Get configurable trial days from platform settings (default 7 days)
       const trialDaysSetting = await storage.getPlatformSetting("trial_days");
-      const trialDays = trialDaysSetting ? parseInt(trialDaysSetting) : 14;
+      const trialDays = trialDaysSetting ? parseInt(trialDaysSetting) : 7;
       
       const trialEndsAt = new Date();
       trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
@@ -1123,6 +1134,15 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         trialEndsAt,
         conversationsUsed: 0,
         isEmailVerified: false,
+        profileCompleted: true, // Manual registration completes profile
+      });
+      
+      // Register the domain to prevent duplicate signups
+      await storage.createDomainRegistration({
+        merchantId: merchant.id,
+        domain: data.officialDomain,
+        websiteName: data.officialWebsiteName,
+        source: "manual",
       });
       
       // Create email verification token (expires in 24 hours)
@@ -1369,16 +1389,96 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     });
   });
 
-  app.get("/api/auth/me", (req, res) => {
+  app.get("/api/auth/me", async (req, res) => {
     if (req.session?.userId) {
+      // Include profileCompleted for OAuth redirect handling
+      if (req.session.userType === "merchant") {
+        const merchant = await storage.getMerchant(req.session.userId);
+        return res.json({
+          authenticated: true,
+          userId: req.session.userId,
+          userType: req.session.userType,
+          merchantId: req.session.merchantId,
+          profileCompleted: merchant?.profileCompleted ?? false,
+        });
+      }
       return res.json({
         authenticated: true,
         userId: req.session.userId,
         userType: req.session.userType,
         merchantId: req.session.merchantId,
+        profileCompleted: true, // Supervisors always have complete profile
       });
     }
     res.json({ authenticated: false });
+  });
+
+  // Complete profile for OAuth users (after initial signup)
+  app.post("/api/auth/complete-profile", async (req, res) => {
+    try {
+      if (!req.session?.userId || req.session.userType !== "merchant") {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const data = completeProfileSchema.parse(req.body);
+      const merchant = await storage.getMerchant(req.session.userId);
+      
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      if (merchant.profileCompleted) {
+        return res.status(400).json({ error: "Profile already completed" });
+      }
+
+      // Check if domain is already registered
+      const domainAvailable = await storage.isDomainAvailable(data.officialDomain);
+      if (!domainAvailable) {
+        return res.status(400).json({ 
+          error: "Domain anda telah terdaftar, untuk akses feature chatvice lakukan subscribe",
+          errorCode: "DOMAIN_ALREADY_REGISTERED",
+          redirectToPlans: true
+        });
+      }
+
+      // Update merchant profile
+      await storage.updateMerchant(merchant.id, {
+        username: data.username,
+        companyName: data.companyName,
+        officialWebsiteName: data.officialWebsiteName,
+        officialDomain: data.officialDomain,
+        profileCompleted: true,
+      });
+
+      // Register the domain
+      await storage.createDomainRegistration({
+        merchantId: merchant.id,
+        domain: data.officialDomain,
+        websiteName: data.officialWebsiteName,
+        source: "oauth",
+      });
+
+      res.json({ 
+        success: true, 
+        message: "Profile completed successfully"
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || "Invalid request" });
+    }
+  });
+
+  // Check domain availability
+  app.get("/api/auth/check-domain", async (req, res) => {
+    try {
+      const domain = req.query.domain as string;
+      if (!domain) {
+        return res.status(400).json({ error: "Domain is required" });
+      }
+      const available = await storage.isDomainAvailable(domain);
+      res.json({ available });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || "Invalid request" });
+    }
   });
 
   // Check which OAuth providers are configured

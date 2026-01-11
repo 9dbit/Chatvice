@@ -23,6 +23,9 @@ const registerSchema = z.object({
   email: z.string().email("Please enter a valid email"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   companyName: z.string().min(2, "Company name must be at least 2 characters"),
+  username: z.string().min(3, "Username must be at least 3 characters").max(50).regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
+  officialWebsiteName: z.string().min(2, "Website name must be at least 2 characters").max(100),
+  officialDomain: z.string().min(3, "Please enter a valid domain").max(255),
   websiteUrl: z.string().optional(),
   picName: z.string().optional(),
   phone: z.string().optional(),
@@ -396,7 +399,7 @@ export function RegisterPage() {
     queryKey: ["/api/auth/providers"],
   });
   
-  const trialDays = (platformSettings as any)?.trial_days ? parseInt((platformSettings as any).trial_days) : 14;
+  const trialDays = (platformSettings as any)?.trial_days ? parseInt((platformSettings as any).trial_days) : 7;
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -404,6 +407,9 @@ export function RegisterPage() {
       email: "",
       password: "",
       companyName: "",
+      username: "",
+      officialWebsiteName: "",
+      officialDomain: "",
       websiteUrl: "",
       picName: "",
       phone: "",
@@ -437,6 +443,20 @@ export function RegisterPage() {
       }
     },
     onError: (error: any) => {
+      // Handle domain already registered - show special error with subscribe button
+      if (error.errorCode === "DOMAIN_ALREADY_REGISTERED") {
+        toast({
+          title: "Domain sudah terdaftar",
+          description: error.error || "Domain anda telah terdaftar, untuk akses feature chatvice lakukan subscribe",
+          variant: "destructive",
+          action: (
+            <Button size="sm" variant="outline" onClick={() => setLocation("/dashboard/plans")}>
+              Subscribe Now
+            </Button>
+          ),
+        });
+        return;
+      }
       toast({
         title: "Registration failed",
         description: error.error || error.message || "Something went wrong. Please try again.",
@@ -597,6 +617,60 @@ export function RegisterPage() {
                       placeholder="Your Company"
                       className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-11"
                       data-testid="input-register-company"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="username"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-zinc-300">Username</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="your_username"
+                      className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-11"
+                      data-testid="input-register-username"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="officialWebsiteName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-zinc-300">Official Website Name</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="My Business Website"
+                      className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-11"
+                      data-testid="input-register-website-name"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="officialDomain"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-zinc-300">Official Domain URL</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="example.com or www.example.com"
+                      className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-11"
+                      data-testid="input-register-domain"
                       {...field}
                     />
                   </FormControl>

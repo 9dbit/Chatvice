@@ -21,9 +21,12 @@ export default function OAuthCallback() {
 
         if (data.authenticated && data.merchantId) {
           localStorage.setItem("merchantId", data.merchantId);
-          localStorage.setItem("userType", data.type || "merchant");
+          localStorage.setItem("userType", data.userType || "merchant");
           
-          if (data.hasActiveAgent) {
+          // Check if profile is completed (required for OAuth users)
+          if (data.userType === "merchant" && !data.profileCompleted) {
+            setLocation("/complete-profile");
+          } else if (data.hasActiveAgent) {
             setLocation("/dashboard");
           } else {
             setLocation("/select-agent");

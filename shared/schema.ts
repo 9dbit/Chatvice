@@ -291,6 +291,17 @@ export const registerMerchantSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   companyName: z.string().min(2),
+  username: z.string().min(3).max(50).regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
+  officialWebsiteName: z.string().min(2).max(100),
+  officialDomain: z.string().min(3).max(255).transform(val => {
+    // Normalize domain: lowercase, strip protocol/www/port/paths
+    let normalized = val.toLowerCase().trim();
+    normalized = normalized.replace(/^https?:\/\//, '');
+    normalized = normalized.replace(/^www\./, '');
+    normalized = normalized.split('/')[0];
+    normalized = normalized.split(':')[0];
+    return normalized;
+  }),
   websiteUrl: z.string().optional(),
   picName: z.string().optional(),
   phone: z.string().optional(),
@@ -305,6 +316,23 @@ export const loginSchema = z.object({
   password: z.string().min(1),
 });
 export type LoginRequest = z.infer<typeof loginSchema>;
+
+// Schema for OAuth users to complete their profile
+export const completeProfileSchema = z.object({
+  username: z.string().min(3).max(50).regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
+  companyName: z.string().min(2).max(100),
+  officialWebsiteName: z.string().min(2).max(100),
+  officialDomain: z.string().min(3).max(255).transform(val => {
+    // Normalize domain: lowercase, strip protocol/www/port/paths
+    let normalized = val.toLowerCase().trim();
+    normalized = normalized.replace(/^https?:\/\//, '');
+    normalized = normalized.replace(/^www\./, '');
+    normalized = normalized.split('/')[0];
+    normalized = normalized.split(':')[0];
+    return normalized;
+  }),
+});
+export type CompleteProfileRequest = z.infer<typeof completeProfileSchema>;
 
 export const admins = pgTable("admins", {
   id: varchar("id", { length: 32 }).primaryKey(),
