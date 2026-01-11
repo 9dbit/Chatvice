@@ -51,7 +51,8 @@ import {
   type CustomPlanInvoice, type InsertCustomPlanInvoice,
   type CustomPlanRequest, type InsertCustomPlanRequest,
   type MerchantNotification, type InsertMerchantNotification,
-  merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings, storedFiles,
+  type DomainRegistration, type InsertDomainRegistration,
+  merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings, storedFiles, domainRegistrations,
   workShifts, shiftAssignments, workReports, quickReplies, chatButtons, productCards, productCardButtons, welcomeBubbles, notificationSettings, productRecommendationSettings, productTriggers, supervisorInvitations,
   emailVerificationTokens, passwordResetTokens, promotions, promotionUsage,
   widgetSites, siteDomains, coinOrders, topupNominals, merchantDomains, paymentGateways,
@@ -258,6 +259,12 @@ export interface IStorage {
   setPlatformSetting(key: string, value: string): Promise<void>;
   getAllPlatformSettings(): Promise<Record<string, string>>;
   recalculateTrialExpiryForActiveMerchants(trialDays: number): Promise<number>;
+  
+  // Domain Registrations (prevent duplicate domain signups)
+  getDomainRegistration(domain: string): Promise<DomainRegistration | undefined>;
+  getDomainRegistrationsByMerchant(merchantId: string): Promise<DomainRegistration[]>;
+  createDomainRegistration(data: InsertDomainRegistration): Promise<DomainRegistration>;
+  isDomainAvailable(domain: string): Promise<boolean>;
   
   // Email Verification Tokens
   createEmailVerificationToken(data: InsertEmailVerificationToken): Promise<EmailVerificationToken>;
@@ -910,6 +917,47 @@ export class DatabaseStorage implements IStorage {
     }
     
     return updatedCount;
+  }
+
+  // Domain Registration methods
+  async getDomainRegistration(domain: string): Promise<DomainRegistration | undefined> {
+    const normalizedDomain = this.normalizeDomain(domain);
+    const [result] = await db.select().from(domainRegistrations).where(eq(domainRegistrations.domain, normalizedDomain));
+    return result;
+  }
+
+  async getDomainRegistrationsByMerchant(merchantId: string): Promise<DomainRegistration[]> {
+    return db.select().from(domainRegistrations).where(eq(domainRegistrations.merchantId, merchantId));
+  }
+
+  async createDomainRegistration(data: InsertDomainRegistration): Promise<DomainRegistration> {
+    const id = `dr_${randomBytes(8).toString("hex")}`;
+    const normalizedDomain = this.normalizeDomain(data.domain);
+    const [result] = await db.insert(domainRegistrations).values({
+      ...data,
+      id,
+      domain: normalizedDomain,
+    }).returning();
+    return result;
+  }
+
+  async isDomainAvailable(domain: string): Promise<boolean> {
+    const existing = await this.getDomainRegistration(domain);
+    return !existing;
+  }
+
+  // Helper to normalize domain (remove protocol, www, trailing slashes)
+  private normalizeDomain(domain: string): string {
+    let normalized = domain.toLowerCase().trim();
+    // Remove protocol
+    normalized = normalized.replace(/^https?:\/\//, '');
+    // Remove www.
+    normalized = normalized.replace(/^www\./, '');
+    // Remove trailing slashes and paths
+    normalized = normalized.split('/')[0];
+    // Remove port
+    normalized = normalized.split(':')[0];
+    return normalized;
   }
 
   async getAllMerchants(): Promise<Merchant[]> {
