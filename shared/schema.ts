@@ -7,6 +7,11 @@ export const merchants = pgTable("merchants", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   companyName: text("company_name").notNull(),
+  // New required registration fields
+  username: text("username"),
+  officialWebsiteName: text("official_website_name"),
+  officialDomain: text("official_domain"),
+  profileCompleted: boolean("profile_completed").default(false),
   iconUrl: text("icon_url").default(""),
   iconSize: integer("icon_size").default(70),
   iconWidth: integer("icon_width"),
@@ -104,6 +109,20 @@ export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 export const insertMerchantSchema = createInsertSchema(merchants).omit({ id: true });
 export type InsertMerchant = z.infer<typeof insertMerchantSchema>;
 export type Merchant = typeof merchants.$inferSelect;
+
+// Domain registrations - track all registered domains to prevent duplicates
+export const domainRegistrations = pgTable("domain_registrations", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  domain: text("domain").notNull().unique(), // Normalized domain (lowercase, no protocol/www)
+  websiteName: text("website_name").notNull(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  registeredAt: timestamp("registered_at").defaultNow(),
+  source: text("source").default("manual"), // manual, google_oauth, github_oauth
+});
+
+export const insertDomainRegistrationSchema = createInsertSchema(domainRegistrations).omit({ id: true, registeredAt: true });
+export type InsertDomainRegistration = z.infer<typeof insertDomainRegistrationSchema>;
+export type DomainRegistration = typeof domainRegistrations.$inferSelect;
 
 export const supervisors = pgTable("supervisors", {
   id: varchar("id", { length: 32 }).primaryKey(),
