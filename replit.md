@@ -24,13 +24,14 @@ Chatvice is a monorepo application structured with `/client`, `/server`, and `/s
 - **Product Offer Messages**: Both supervisors and AI can recommend products to customers, displayed as rich cards.
 - **Supervisor Panel**: Real-time interface for handling escalated conversations and team activity monitoring, with restricted access to relevant features.
 - **Admin Menu Order Configuration**: Allows drag-and-drop reordering and enabling/disabling of merchant sidebar menu items, saved globally. Merchant sidebar organized into collapsible dropdowns: Widget Setting (widget, welcome bubble, product cards), Message Setting (quick replies, chat buttons, triggers), Management (supervisors, team activity, work scheduler, integrations, plans, billing). Static purple Chat Sessions button at bottom with escalation indicator.
-- **Authentication & Authorization**: Session-based authentication with bcrypt, supporting Merchant and Supervisor roles with role-based permissions.
+- **Authentication & Authorization**: Session-based authentication with bcrypt, supporting Merchant and Supervisor roles with role-based permissions. OAuth via Google and GitHub with automatic profile completion flow.
+- **Domain Registration System**: Enforces unique business domains during registration to prevent duplicate trial abuse. Includes automatic domain normalization (lowercase, strips protocol/www/port/paths) and Indonesian error messaging for duplicates. OAuth users must complete profile with username, website name, and domain before accessing dashboard.
 - **Real-time Communication**: WebSocket architecture for instant message delivery and updates.
 - **Per-Agent Knowledge Base & System Prompt**: Knowledge base content and customizable AI system prompts are scoped to individual AI agents.
 - **Widget Identity Verification**: Secure customer authentication for embedded widgets using JWT tokens for Pro/Enterprise plans.
 - **Work Scheduler**: Shift management system for supervisors and AI agents.
 - **Landing Page Customization**: Admin Panel allows non-technical customization of the public landing page.
-- **Configurable Trial Period**: Admin-configurable trial days that dynamically update for active trial merchants.
+- **Configurable Trial Period**: Admin-configurable trial days that dynamically update for active trial merchants. Default trial period is 7 days.
 - **Chatvice Guide Configuration**: Admin dashboard tab for managing the AI help widget across landing page and merchant dashboard, including AI agent settings, welcome messages, and live preview.
 - **Promotional Discount System**: Comprehensive promo code system with admin CRUD, plan targeting, usage limits, and integration into pricing and billing pages.
 - **Chatvice Top Up v2 (Multi-Tenant Payment System)**: Multi-tenant coin top-up system for widget-embedded game/app monetization with JWT-based SSO, a defined payment flow, and API endpoints.
