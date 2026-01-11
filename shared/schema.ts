@@ -6,12 +6,13 @@ export const merchants = pgTable("merchants", {
   id: varchar("id", { length: 32 }).primaryKey(),
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
-  companyName: text("company_name").notNull(),
-  // New required registration fields
   username: text("username"),
+  companyName: text("company_name"),
   officialWebsiteName: text("official_website_name"),
   officialDomain: text("official_domain"),
   profileCompleted: boolean("profile_completed").default(false),
+  profileStep: integer("profile_step").default(0),
+  phoneCountryCode: text("phone_country_code"),
   iconUrl: text("icon_url").default(""),
   iconSize: integer("icon_size").default(70),
   iconWidth: integer("icon_width"),
@@ -287,14 +288,41 @@ export const merchantConfigSchema = z.object({
 });
 export type MerchantConfig = z.infer<typeof merchantConfigSchema>;
 
+// Simplified registration - only username, email, password
 export const registerMerchantSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
-  companyName: z.string().min(2),
   username: z.string().min(3).max(50).regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
-  officialWebsiteName: z.string().min(2).max(100),
+  email: z.string().email(),
+  password: z.string().min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number"),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+export type RegisterMerchantRequest = z.infer<typeof registerMerchantSchema>;
+
+// Profile wizard step schemas
+export const profileStep1Schema = z.object({
+  companyName: z.string().min(2, "Company name must be at least 2 characters").max(100),
+  officialWebsiteName: z.string().min(2, "Website name must be at least 2 characters").max(100),
+  websiteUrl: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
+});
+export type ProfileStep1Data = z.infer<typeof profileStep1Schema>;
+
+export const profileStep2Schema = z.object({
+  picName: z.string().min(2, "Contact name must be at least 2 characters").max(100),
+  phoneCountryCode: z.string().min(1, "Please select a country code"),
+  phone: z.string().min(5, "Phone number must be at least 5 digits").max(20),
+  country: z.string().min(2, "Please select a country"),
+  city: z.string().optional(),
+  region: z.string().optional(),
+});
+export type ProfileStep2Data = z.infer<typeof profileStep2Schema>;
+
+export const profileStep3Schema = z.object({
   officialDomain: z.string().min(3).max(255).transform(val => {
-    // Normalize domain: lowercase, strip protocol/www/port/paths
     let normalized = val.toLowerCase().trim();
     normalized = normalized.replace(/^https?:\/\//, '');
     normalized = normalized.replace(/^www\./, '');
@@ -302,14 +330,8 @@ export const registerMerchantSchema = z.object({
     normalized = normalized.split(':')[0];
     return normalized;
   }),
-  websiteUrl: z.string().optional(),
-  picName: z.string().optional(),
-  phone: z.string().optional(),
-  country: z.string().optional(),
-  city: z.string().optional(),
-  region: z.string().optional(),
 });
-export type RegisterMerchantRequest = z.infer<typeof registerMerchantSchema>;
+export type ProfileStep3Data = z.infer<typeof profileStep3Schema>;
 
 export const loginSchema = z.object({
   email: z.string().email(),

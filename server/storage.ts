@@ -79,6 +79,7 @@ export interface AnalyticsData {
 export interface IStorage {
   getMerchant(id: string): Promise<Merchant | undefined>;
   getMerchantByEmail(email: string): Promise<Merchant | undefined>;
+  getMerchantByUsername(username: string): Promise<Merchant | undefined>;
   getMerchantByGoogleId(googleId: string): Promise<Merchant | undefined>;
   getMerchantByGithubId(githubId: string): Promise<Merchant | undefined>;
   createMerchant(merchant: InsertMerchant): Promise<Merchant>;
@@ -417,6 +418,11 @@ export class DatabaseStorage implements IStorage {
 
   async getMerchantByEmail(email: string): Promise<Merchant | undefined> {
     const result = await db.select().from(merchants).where(eq(merchants.email, email));
+    return result[0];
+  }
+
+  async getMerchantByUsername(username: string): Promise<Merchant | undefined> {
+    const result = await db.select().from(merchants).where(eq(merchants.username, username));
     return result[0];
   }
 

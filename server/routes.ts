@@ -10,6 +10,9 @@ import {
   merchantConfigSchema,
   agentWidgetSettingsSchema,
   completeProfileSchema,
+  profileStep1Schema,
+  profileStep2Schema,
+  profileStep3Schema,
 } from "@shared/schema";
 import OpenAI from "openai";
 import bcrypt from "bcryptjs";
@@ -1109,22 +1112,24 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // Simplified registration - only username, email, password
   app.post("/api/auth/register", async (req, res) => {
     try {
       const data = registerMerchantSchema.parse(req.body);
       const existing = await storage.getMerchantByEmail(data.email);
       if (existing) {
-        return res.status(400).json({ error: "Email already registered" });
+        return res.status(400).json({ 
+          error: "This email is already registered. Please sign in or use a different email.",
+          errorCode: "EMAIL_ALREADY_REGISTERED"
+        });
       }
       
-      // Check if domain is already registered
-      const domainCheck = await storage.checkDomainAvailability(data.officialDomain);
-      if (!domainCheck.available) {
+      // Check if username is already taken
+      const existingUsername = await storage.getMerchantByUsername(data.username);
+      if (existingUsername) {
         return res.status(400).json({ 
-          error: "This domain is already registered. Please subscribe to access Chatvice features.",
-          errorCode: "DOMAIN_ALREADY_REGISTERED",
-          redirectToPlans: true,
-          requiresSubscription: domainCheck.requiresSubscription
+          error: "This username is already taken. Please choose a different one.",
+          errorCode: "USERNAME_TAKEN"
         });
       }
       
@@ -1138,22 +1143,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
       
       const merchant = await storage.createMerchant({
-        ...data,
+        email: data.email,
+        username: data.username,
         password: hashedPassword,
         subscriptionStatus: "trial",
         subscriptionPlanId: "starter",
         trialEndsAt,
         conversationsUsed: 0,
         isEmailVerified: false,
-        profileCompleted: true, // Manual registration completes profile
-      });
-      
-      // Register the domain
-      await storage.createDomainRegistration({
-        merchantId: merchant.id,
-        domain: data.officialDomain,
-        websiteName: data.officialWebsiteName,
-        source: "manual",
+        profileCompleted: false,
+        profileStep: 0,
       });
       
       // Create email verification token (expires in 24 hours)
@@ -1168,19 +1167,238 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       });
       
       // Send verification email (non-blocking)
-      sendVerificationEmail(data.email, verificationToken, data.companyName).catch((err) => {
+      sendVerificationEmail(data.email, verificationToken, data.username).catch((err) => {
         console.error("Failed to send verification email:", err);
       });
       
-      // Don't log user in yet - they need to verify email first
       res.json({ 
         success: true, 
         merchantId: merchant.id,
         requiresVerification: true,
-        message: "Account created. Please check your email to verify your account."
+        message: "Account created successfully! Please check your email to verify your account."
       });
     } catch (error: any) {
-      res.status(400).json({ error: error.message || "Invalid request" });
+      if (error.issues) {
+        const firstIssue = error.issues[0];
+        return res.status(400).json({ 
+          error: firstIssue.message,
+          field: firstIssue.path?.[0]
+        });
+      }
+      res.status(400).json({ error: error.message || "Something went wrong. Please try again." });
+    }
+  });
+
+  // Domain availability check endpoint
+  app.post("/api/domain/check", async (req, res) => {
+    try {
+      const { domain } = req.body;
+      if (!domain || typeof domain !== 'string') {
+        return res.status(400).json({ error: "Domain is required" });
+      }
+      
+      // Normalize domain
+      let normalized = domain.toLowerCase().trim();
+      normalized = normalized.replace(/^https?:\/\//, '');
+      normalized = normalized.replace(/^www\./, '');
+      normalized = normalized.split('/')[0];
+      normalized = normalized.split(':')[0];
+      
+      const domainCheck = await storage.checkDomainAvailability(normalized);
+      
+      if (domainCheck.available) {
+        return res.json({ 
+          available: true, 
+          domain: normalized,
+          message: "This domain is available!"
+        });
+      } else if (domainCheck.requiresSubscription) {
+        return res.json({ 
+          available: false, 
+          domain: normalized,
+          requiresSubscription: true,
+          message: "This domain is registered. Subscribe to access Chatvice features."
+        });
+      } else {
+        return res.json({ 
+          available: false, 
+          domain: normalized,
+          message: "This domain is already in use by another account."
+        });
+      }
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || "Failed to check domain" });
+    }
+  });
+
+  // Profile wizard step 1: Business info
+  app.post("/api/profile/step1", async (req, res) => {
+    try {
+      const merchantId = req.session?.merchantId;
+      if (!merchantId) {
+        return res.status(401).json({ error: "Please log in to continue" });
+      }
+      
+      const data = profileStep1Schema.parse(req.body);
+      
+      await storage.updateMerchant(merchantId, {
+        companyName: data.companyName,
+        officialWebsiteName: data.officialWebsiteName,
+        websiteUrl: data.websiteUrl || "",
+        profileStep: 1,
+      });
+      
+      res.json({ success: true, step: 1, message: "Business information saved" });
+    } catch (error: any) {
+      if (error.issues) {
+        const firstIssue = error.issues[0];
+        return res.status(400).json({ error: firstIssue.message, field: firstIssue.path?.[0] });
+      }
+      res.status(400).json({ error: error.message || "Failed to save business information" });
+    }
+  });
+
+  // Profile wizard step 2: Contact info
+  app.post("/api/profile/step2", async (req, res) => {
+    try {
+      const merchantId = req.session?.merchantId;
+      if (!merchantId) {
+        return res.status(401).json({ error: "Please log in to continue" });
+      }
+      
+      const data = profileStep2Schema.parse(req.body);
+      
+      await storage.updateMerchant(merchantId, {
+        picName: data.picName,
+        phoneCountryCode: data.phoneCountryCode,
+        phone: data.phone,
+        country: data.country,
+        city: data.city || "",
+        region: data.region || "",
+        profileStep: 2,
+      });
+      
+      res.json({ success: true, step: 2, message: "Contact information saved" });
+    } catch (error: any) {
+      if (error.issues) {
+        const firstIssue = error.issues[0];
+        return res.status(400).json({ error: firstIssue.message, field: firstIssue.path?.[0] });
+      }
+      res.status(400).json({ error: error.message || "Failed to save contact information" });
+    }
+  });
+
+  // Profile wizard step 3: Domain info
+  app.post("/api/profile/step3", async (req, res) => {
+    try {
+      const merchantId = req.session?.merchantId;
+      if (!merchantId) {
+        return res.status(401).json({ error: "Please log in to continue" });
+      }
+      
+      const data = profileStep3Schema.parse(req.body);
+      
+      // Check domain availability
+      const domainCheck = await storage.checkDomainAvailability(data.officialDomain);
+      if (!domainCheck.available) {
+        return res.status(400).json({ 
+          error: "This domain is already registered. Please use a different domain or subscribe to access.",
+          errorCode: "DOMAIN_ALREADY_REGISTERED",
+          field: "officialDomain"
+        });
+      }
+      
+      await storage.updateMerchant(merchantId, {
+        officialDomain: data.officialDomain,
+        profileStep: 3,
+      });
+      
+      res.json({ success: true, step: 3, message: "Domain information saved" });
+    } catch (error: any) {
+      if (error.issues) {
+        const firstIssue = error.issues[0];
+        return res.status(400).json({ error: firstIssue.message, field: firstIssue.path?.[0] });
+      }
+      res.status(400).json({ error: error.message || "Failed to save domain information" });
+    }
+  });
+
+  // Profile wizard complete - final step
+  app.post("/api/profile/complete", async (req, res) => {
+    try {
+      const merchantId = req.session?.merchantId;
+      if (!merchantId) {
+        return res.status(401).json({ error: "Please log in to continue" });
+      }
+      
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Account not found" });
+      }
+      
+      // Verify all steps are completed
+      if (!merchant.companyName || !merchant.officialWebsiteName) {
+        return res.status(400).json({ error: "Please complete business information first", step: 1 });
+      }
+      if (!merchant.picName || !merchant.phone || !merchant.country) {
+        return res.status(400).json({ error: "Please complete contact information first", step: 2 });
+      }
+      if (!merchant.officialDomain) {
+        return res.status(400).json({ error: "Please complete domain information first", step: 3 });
+      }
+      
+      // Register the domain
+      await storage.createDomainRegistration({
+        merchantId: merchant.id,
+        domain: merchant.officialDomain,
+        websiteName: merchant.officialWebsiteName,
+        source: "wizard",
+      });
+      
+      await storage.updateMerchant(merchantId, {
+        profileCompleted: true,
+        profileStep: 4,
+      });
+      
+      res.json({ success: true, message: "Profile completed successfully!" });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || "Failed to complete profile" });
+    }
+  });
+
+  // Get current profile data for wizard
+  app.get("/api/profile/current", async (req, res) => {
+    try {
+      const merchantId = req.session?.merchantId;
+      if (!merchantId) {
+        return res.status(401).json({ error: "Please log in to continue" });
+      }
+      
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Account not found" });
+      }
+      
+      res.json({
+        profileStep: merchant.profileStep || 0,
+        profileCompleted: merchant.profileCompleted,
+        data: {
+          username: merchant.username,
+          email: merchant.email,
+          companyName: merchant.companyName || "",
+          officialWebsiteName: merchant.officialWebsiteName || "",
+          websiteUrl: merchant.websiteUrl || "",
+          picName: merchant.picName || "",
+          phoneCountryCode: merchant.phoneCountryCode || "",
+          phone: merchant.phone || "",
+          country: merchant.country || "",
+          city: merchant.city || "",
+          region: merchant.region || "",
+          officialDomain: merchant.officialDomain || "",
+        }
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || "Failed to get profile data" });
     }
   });
 
@@ -1208,7 +1426,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         // Check for unanswered chat sessions (non-blocking)
         checkUnansweredChatSessions(merchant).catch(err => console.error("Failed to check unanswered chat sessions:", err));
         
-        return res.json({ success: true, merchantId: merchant.id, type: "merchant" });
+        const profileCompleted = merchant.profileStep === 4 || merchant.profileCompleted === true;
+        return res.json({ success: true, merchantId: merchant.id, type: "merchant", profileCompleted });
       }
 
       const supervisor = await storage.getSupervisorByEmail(data.email);
@@ -1405,12 +1624,13 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       // Include profileCompleted for OAuth redirect handling
       if (req.session.userType === "merchant") {
         const merchant = await storage.getMerchant(req.session.userId);
+        const profileCompleted = merchant?.profileStep === 4 || merchant?.profileCompleted === true;
         return res.json({
           authenticated: true,
           userId: req.session.userId,
           userType: req.session.userType,
           merchantId: req.session.merchantId,
-          profileCompleted: merchant?.profileCompleted ?? false,
+          profileCompleted,
         });
       }
       return res.json({

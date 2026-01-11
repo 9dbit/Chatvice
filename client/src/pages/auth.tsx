@@ -20,18 +20,17 @@ const loginSchema = z.object({
 });
 
 const registerSchema = z.object({
-  email: z.string().email("Please enter a valid email"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  companyName: z.string().min(2, "Company name must be at least 2 characters"),
   username: z.string().min(3, "Username must be at least 3 characters").max(50).regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
-  officialWebsiteName: z.string().min(2, "Website name must be at least 2 characters").max(100),
-  officialDomain: z.string().min(3, "Please enter a valid domain").max(255),
-  websiteUrl: z.string().optional(),
-  picName: z.string().optional(),
-  phone: z.string().optional(),
-  country: z.string().optional(),
-  city: z.string().optional(),
-  region: z.string().optional(),
+  email: z.string().email("Please enter a valid email"),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number"),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
 });
 
 const forgotPasswordSchema = z.object({
@@ -139,7 +138,7 @@ export function LoginPage() {
       }
       return responseData;
     },
-    onSuccess: (data: { success: boolean; merchantId: string; type: string }) => {
+    onSuccess: (data: { success: boolean; merchantId: string; type: string; profileCompleted?: boolean }) => {
       localStorage.setItem("merchantId", data.merchantId);
       localStorage.setItem("userType", data.type || "merchant");
       toast({
@@ -148,6 +147,8 @@ export function LoginPage() {
       });
       if (data.type === "supervisor") {
         setLocation("/supervisor");
+      } else if (data.profileCompleted === false) {
+        setLocation("/profile-wizard");
       } else {
         setLocation("/dashboard");
       }
@@ -404,18 +405,10 @@ export function RegisterPage() {
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
+      username: "",
       email: "",
       password: "",
-      companyName: "",
-      username: "",
-      officialWebsiteName: "",
-      officialDomain: "",
-      websiteUrl: "",
-      picName: "",
-      phone: "",
-      country: "",
-      city: "",
-      region: "",
+      confirmPassword: "",
     },
   });
 
@@ -442,28 +435,30 @@ export function RegisterPage() {
         localStorage.setItem("userType", "merchant");
         toast({
           title: "Account created!",
-          description: "Welcome to Chatvice. Let's set up your chatbot.",
+          description: "Welcome to Chatvice. Let's complete your profile.",
         });
-        setLocation("/dashboard");
+        setLocation("/profile-wizard");
       }
     },
     onError: (error: any) => {
-      // Handle domain already registered - show special error with subscribe button
-      if (error.errorCode === "DOMAIN_ALREADY_REGISTERED") {
+      if (error.errorCode === "EMAIL_ALREADY_REGISTERED") {
         toast({
-          title: "Domain Already Registered",
-          description: error.error || "This domain is already registered. Please subscribe to access Chatvice features.",
+          title: "Email Already Registered",
+          description: "This email is already registered. Please sign in or use a different email.",
           variant: "destructive",
-          action: (
-            <Button size="sm" variant="outline" onClick={() => setLocation("/dashboard/plans")}>
-              Subscribe Now
-            </Button>
-          ),
+        });
+        return;
+      }
+      if (error.errorCode === "USERNAME_TAKEN") {
+        toast({
+          title: "Username Not Available",
+          description: "This username is already taken. Please choose a different one.",
+          variant: "destructive",
         });
         return;
       }
       toast({
-        title: "Registration failed",
+        title: "Registration Failed",
         description: error.error || error.message || "Something went wrong. Please try again.",
         variant: "destructive",
       });
@@ -613,24 +608,6 @@ export function RegisterPage() {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="companyName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-zinc-300">Company Name</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Your Company"
-                      className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-11"
-                      data-testid="input-register-company"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
               name="username"
               render={({ field }) => (
                 <FormItem>
@@ -640,42 +617,6 @@ export function RegisterPage() {
                       placeholder="your_username"
                       className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-11"
                       data-testid="input-register-username"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="officialWebsiteName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-zinc-300">Official Website Name</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="My Business Website"
-                      className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-11"
-                      data-testid="input-register-website-name"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="officialDomain"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-zinc-300">Official Domain URL</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="example.com or www.example.com"
-                      className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-11"
-                      data-testid="input-register-domain"
                       {...field}
                     />
                   </FormControl>
@@ -712,7 +653,7 @@ export function RegisterPage() {
                     <div className="relative">
                       <Input
                         type={showPassword ? "text" : "password"}
-                        placeholder="At least 6 characters"
+                        placeholder="Min 8 characters with uppercase, lowercase & number"
                         className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-11 pr-10"
                         data-testid="input-register-password"
                         {...field}
@@ -730,116 +671,25 @@ export function RegisterPage() {
                 </FormItem>
               )}
             />
-            
-            <div className="pt-4 border-t border-zinc-800">
-              <p className="text-xs text-zinc-500 mb-3">Additional Information (Optional)</p>
-              <div className="grid grid-cols-2 gap-3">
-                <FormField
-                  control={form.control}
-                  name="picName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-zinc-300 text-xs">Contact Person</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Your name"
-                          className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-10 text-sm"
-                          data-testid="input-register-pic"
-                          {...field}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-zinc-300 text-xs">Phone</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="+62..."
-                          className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-10 text-sm"
-                          data-testid="input-register-phone"
-                          {...field}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <FormField
-                control={form.control}
-                name="websiteUrl"
-                render={({ field }) => (
-                  <FormItem className="mt-3">
-                    <FormLabel className="text-zinc-300 text-xs">Website URL</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="https://yourcompany.com"
-                        className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-10 text-sm"
-                        data-testid="input-register-website"
-                        {...field}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <div className="grid grid-cols-3 gap-3 mt-3">
-                <FormField
-                  control={form.control}
-                  name="city"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-zinc-300 text-xs">City</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Jakarta"
-                          className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-10 text-sm"
-                          data-testid="input-register-city"
-                          {...field}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="region"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-zinc-300 text-xs">Region</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="DKI"
-                          className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-10 text-sm"
-                          data-testid="input-register-region"
-                          {...field}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="country"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-zinc-300 text-xs">Country</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Indonesia"
-                          className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-10 text-sm"
-                          data-testid="input-register-country"
-                          {...field}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
+            <FormField
+              control={form.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-zinc-300">Confirm Password</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="password"
+                      placeholder="Re-enter your password"
+                      className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-11"
+                      data-testid="input-register-confirm-password"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             
             <Button
               type="submit"
