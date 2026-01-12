@@ -2859,6 +2859,40 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  app.post("/api/merchant/profile", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { 
+        companyName, 
+        officialWebsiteName,
+        websiteUrl,
+        picName,
+        phoneCountryCode,
+        phone,
+        country,
+        city,
+      } = req.body;
+      
+      const updateData: Record<string, any> = {};
+      if (companyName !== undefined) updateData.companyName = companyName;
+      if (officialWebsiteName !== undefined) updateData.officialWebsiteName = officialWebsiteName;
+      if (websiteUrl !== undefined) updateData.websiteUrl = websiteUrl;
+      if (picName !== undefined) updateData.picName = picName;
+      if (phoneCountryCode !== undefined) updateData.phoneCountryCode = phoneCountryCode;
+      if (phone !== undefined) updateData.phone = phone;
+      if (country !== undefined) updateData.country = country;
+      if (city !== undefined) updateData.city = city;
+      
+      const updated = await storage.updateMerchant(merchantId, updateData);
+      if (!updated) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // Legacy route for backward compatibility (deprecated)
   app.post("/api/merchant/allowed-domains", requireMerchant, async (req, res) => {
     try {

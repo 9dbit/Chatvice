@@ -43,6 +43,7 @@ import {
   Receipt,
   ShieldAlert,
   BookOpen,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -121,6 +122,7 @@ const iconMap: Record<string, any> = {
 
 const menuItemsMap: Record<string, MenuItem> = {
   "overview": { id: "overview", title: "Overview", url: "/dashboard", icon: LayoutDashboard, permission: "overview" },
+  "profile": { id: "profile", title: "Profile", url: "/dashboard/profile", icon: User, permission: "overview" },
   "agents": { id: "agents", title: "Agents", url: "/dashboard/agents", icon: Bot, permission: "agents" },
   "quick-replies": { id: "quick-replies", title: "Quick Replies", url: "/dashboard/quick-replies", icon: Reply, permission: "quickReplies" },
   "chat-buttons": { id: "chat-buttons", title: "Chat Buttons", url: "/dashboard/chat-buttons", icon: MousePointer2, permission: "widgetSettings" },
@@ -146,6 +148,7 @@ const menuItemsMap: Record<string, MenuItem> = {
 
 const defaultMainMenuItems: MenuItem[] = [
   menuItemsMap["overview"],
+  menuItemsMap["profile"],
   menuItemsMap["agents"],
   menuItemsMap["sources"],
   menuItemsMap["knowledge-base"],
@@ -180,6 +183,7 @@ const defaultManagementItems: MenuItem[] = [
 
 const defaultGroupForItem: Record<string, "main" | "widgetSetting" | "messageSetting" | "management"> = {
   "overview": "main",
+  "profile": "main",
   "agents": "main",
   "sources": "main",
   "knowledge-base": "main",
@@ -389,13 +393,11 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="p-4">
-        <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer" data-testid="link-sidebar-logo">
+        <Link href="/" className="flex flex-col gap-1 hover:opacity-80 transition-opacity cursor-pointer" data-testid="link-sidebar-logo">
           <img src={chatviceLogo} alt="Chatvice" className="h-8 w-auto" />
-          <div>
-            <p className="text-xs text-muted-foreground truncate max-w-[140px]">
-              {merchant?.companyName || "Dashboard"}
-            </p>
-          </div>
+          <p className="text-xs text-muted-foreground truncate max-w-full">
+            {merchant?.companyName || "Dashboard"}
+          </p>
         </Link>
       </SidebarHeader>
       <SidebarContent>

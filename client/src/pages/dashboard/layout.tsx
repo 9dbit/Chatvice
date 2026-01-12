@@ -30,10 +30,12 @@ import ChatButtonsPage from "./chat-buttons";
 import LivePreviewPage from "./live-preview";
 import CheckoutPage from "./checkout";
 import ChatMonitoringPage from "./chat-monitoring";
+import ProfilePage from "./profile";
 import type { Merchant } from "@shared/schema";
 
 const pageNames: Record<string, string> = {
   "": "Overview",
+  "profile": "Profile",
   "agents": "Agents",
   "sources": "Sources",
   "analytics": "Analytics",
@@ -128,6 +130,7 @@ export default function DashboardLayout() {
           <main className="flex-1 overflow-auto p-3 sm:p-6 bg-background">
             <Switch>
               <Route path="/dashboard" component={DashboardOverview} />
+              <Route path="/dashboard/profile" component={ProfilePage} />
               <Route path="/dashboard/agents" component={AgentsPage} />
               <Route path="/dashboard/sources" component={SourcesPage} />
               <Route path="/dashboard/analytics" component={AnalyticsPage} />
