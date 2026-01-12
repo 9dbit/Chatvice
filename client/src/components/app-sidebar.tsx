@@ -272,6 +272,7 @@ export function AppSidebar() {
     const enabledWidgetItems: MenuItem[] = [];
     const enabledMessageItems: MenuItem[] = [];
     const enabledManagementItems: MenuItem[] = [];
+    const configuredIds = new Set(menuConfig.map(c => c.id));
 
     for (const config of menuConfig) {
       if (!config.enabled) continue;
@@ -289,6 +290,28 @@ export function AppSidebar() {
         enabledMessageItems.push(menuItem);
       } else if (group === "management") {
         enabledManagementItems.push(menuItem);
+      }
+    }
+
+    // Add new menu items that exist in defaults but not in saved config
+    for (const item of defaultMainMenuItems) {
+      if (item.id && !configuredIds.has(item.id)) {
+        enabledMainItems.push(item);
+      }
+    }
+    for (const item of defaultWidgetSettingItems) {
+      if (item.id && !configuredIds.has(item.id)) {
+        enabledWidgetItems.push(item);
+      }
+    }
+    for (const item of defaultMessageSettingItems) {
+      if (item.id && !configuredIds.has(item.id)) {
+        enabledMessageItems.push(item);
+      }
+    }
+    for (const item of defaultManagementItems) {
+      if (item.id && !configuredIds.has(item.id)) {
+        enabledManagementItems.push(item);
       }
     }
 

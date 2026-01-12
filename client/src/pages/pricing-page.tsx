@@ -93,12 +93,60 @@ export default function PricingPage() {
   };
 
   // Map database plans to display format
+  const getDbPlan = (planId: string) => {
+    return dbPlans.find((p: any) => p.id === planId);
+  };
+  
   const getDbPlanPrice = (planId: string, priceType: 'monthly' | 'annual') => {
-    const dbPlan = dbPlans.find((p: any) => p.id === planId);
+    const dbPlan = getDbPlan(planId);
     if (dbPlan) {
       return priceType === 'monthly' ? dbPlan.monthlyPrice : dbPlan.annualPrice;
     }
     return null;
+  };
+
+  // Helper to format limit values
+  const formatLimit = (value: number | undefined, suffix: string = "") => {
+    if (value === undefined || value === null) return "0";
+    if (value === -1) return "Unlimited";
+    return value.toLocaleString() + suffix;
+  };
+
+  // Generate dynamic features from database plan
+  const generatePlanFeatures = (planId: string, defaults: { agents: number; supervisors: number; conversations: number; sources: number }) => {
+    const dbPlan = getDbPlan(planId);
+    
+    const agents = dbPlan?.agentsLimit ?? defaults.agents;
+    const supervisors = dbPlan?.supervisorsLimit ?? defaults.supervisors;
+    const conversations = dbPlan?.conversationsLimit ?? defaults.conversations;
+    const sources = dbPlan?.sourcesLimit ?? defaults.sources;
+    
+    return {
+      agents: agents === -1 ? "Unlimited" : agents,
+      supervisors: supervisors === -1 ? "Unlimited" : supervisors,
+      conversations: conversations === -1 ? "Unlimited" : conversations.toLocaleString(),
+      sources: sources === -1 ? "Unlimited" : sources,
+    };
+  };
+
+  const freeLimits = generatePlanFeatures('free', { agents: 1, supervisors: 1, conversations: 20, sources: 1 });
+  const starterLimits = generatePlanFeatures('starter', { agents: 1, supervisors: 1, conversations: 2000, sources: 5 });
+  const proLimits = generatePlanFeatures('pro', { agents: 3, supervisors: 3, conversations: 10000, sources: 20 });
+  const enterpriseLimits = generatePlanFeatures('enterprise', { agents: 10, supervisors: 5, conversations: 50000, sources: -1 });
+
+  // Get additional limits for comparison table
+  const getDbLimit = (planId: string, field: string, defaultVal: number) => {
+    const plan = getDbPlan(planId);
+    const value = plan?.[field] ?? defaultVal;
+    if (value === -1) return "Unlimited";
+    return typeof value === 'number' ? value.toLocaleString() : value;
+  };
+  
+  const getChatRetention = (planId: string, defaultHours: number) => {
+    const plan = getDbPlan(planId);
+    const hours = plan?.chatRetentionHours ?? defaultHours;
+    if (hours === -1) return "Unlimited";
+    return `${hours} hour${hours !== 1 ? 's' : ''}`;
   };
 
   const plans = [
@@ -108,10 +156,10 @@ export default function PricingPage() {
       monthlyPrice: getDbPlanPrice('starter', 'monthly') ?? 29,
       yearlyPrice: getDbPlanPrice('starter', 'annual') ?? 24,
       features: [
-        { text: "1 AI Agent", included: true },
-        { text: "1 Supervisor", included: true },
-        { text: "2,000 conversations/month", included: true },
-        { text: "5 Knowledge sources", included: true },
+        { text: `${starterLimits.agents} AI Agent${starterLimits.agents !== 1 ? 's' : ''}`, included: true },
+        { text: `${starterLimits.supervisors} Supervisor${starterLimits.supervisors !== 1 ? 's' : ''}`, included: true },
+        { text: `${starterLimits.conversations} conversations/month`, included: true },
+        { text: `${starterLimits.sources} Knowledge sources`, included: true },
         { text: "Widget customization", included: true },
         { text: "Email support", included: true },
         { text: "Basic analytics", included: true },
@@ -129,10 +177,10 @@ export default function PricingPage() {
       monthlyPrice: getDbPlanPrice('pro', 'monthly') ?? 99,
       yearlyPrice: getDbPlanPrice('pro', 'annual') ?? 83,
       features: [
-        { text: "3 AI Agents", included: true },
-        { text: "3 Supervisors", included: true },
-        { text: "10,000 conversations/month", included: true },
-        { text: "20 Knowledge sources", included: true },
+        { text: `${proLimits.agents} AI Agent${proLimits.agents !== 1 ? 's' : ''}`, included: true },
+        { text: `${proLimits.supervisors} Supervisor${proLimits.supervisors !== 1 ? 's' : ''}`, included: true },
+        { text: `${proLimits.conversations} conversations/month`, included: true },
+        { text: `${proLimits.sources} Knowledge sources`, included: true },
         { text: "Advanced analytics", included: true },
         { text: "Priority email support", included: true },
         { text: "Custom triggers", included: true },
@@ -150,10 +198,10 @@ export default function PricingPage() {
       monthlyPrice: getDbPlanPrice('enterprise', 'monthly') ?? 499,
       yearlyPrice: getDbPlanPrice('enterprise', 'annual') ?? 416,
       features: [
-        { text: "10 AI Agents", included: true },
-        { text: "5 Supervisors", included: true },
-        { text: "50,000 conversations/month", included: true },
-        { text: "Unlimited knowledge sources", included: true },
+        { text: `${enterpriseLimits.agents} AI Agent${enterpriseLimits.agents !== 1 && enterpriseLimits.agents !== "Unlimited" ? 's' : ''}`, included: true },
+        { text: `${enterpriseLimits.supervisors} Supervisor${enterpriseLimits.supervisors !== 1 && enterpriseLimits.supervisors !== "Unlimited" ? 's' : ''}`, included: true },
+        { text: `${enterpriseLimits.conversations} conversations/month`, included: true },
+        { text: `${enterpriseLimits.sources === "Unlimited" ? "Unlimited" : enterpriseLimits.sources} knowledge sources`, included: true },
         { text: "Advanced analytics", included: true },
         { text: "Dedicated support manager", included: true },
         { text: "Custom integrations", included: true },
@@ -451,12 +499,12 @@ export default function PricingPage() {
               </thead>
               <tbody>
                 {[
-                  { feature: "AI Agents", free: "1", starter: "1", pro: "3", enterprise: "10", custom: "Unlimited" },
-                  { feature: "Supervisors", free: "1", starter: "1", pro: "3", enterprise: "5", custom: "Unlimited" },
-                  { feature: "Monthly Conversations", free: "20", starter: "2,000", pro: "10,000", enterprise: "50,000", custom: "Unlimited" },
-                  { feature: "Knowledge Sources", free: "1", starter: "5", pro: "20", enterprise: "Unlimited", custom: "Unlimited" },
-                  { feature: "Chat History Retention", free: "1 hour", starter: "12 hours", pro: "24 hours", enterprise: "24 hours", custom: "24 hours" },
-                  { feature: "Suggested Questions", free: "0", starter: "5", pro: "5", enterprise: "5", custom: "Unlimited" },
+                  { feature: "AI Agents", free: String(freeLimits.agents), starter: String(starterLimits.agents), pro: String(proLimits.agents), enterprise: String(enterpriseLimits.agents), custom: "Unlimited" },
+                  { feature: "Supervisors", free: String(freeLimits.supervisors), starter: String(starterLimits.supervisors), pro: String(proLimits.supervisors), enterprise: String(enterpriseLimits.supervisors), custom: "Unlimited" },
+                  { feature: "Monthly Conversations", free: freeLimits.conversations, starter: starterLimits.conversations, pro: proLimits.conversations, enterprise: enterpriseLimits.conversations, custom: "Unlimited" },
+                  { feature: "Knowledge Sources", free: String(freeLimits.sources), starter: String(starterLimits.sources), pro: String(proLimits.sources), enterprise: String(enterpriseLimits.sources), custom: "Unlimited" },
+                  { feature: "Chat History Retention", free: getChatRetention('free', 1), starter: getChatRetention('starter', 12), pro: getChatRetention('pro', 24), enterprise: getChatRetention('enterprise', 24), custom: "Unlimited" },
+                  { feature: "Suggested Questions", free: getDbLimit('free', 'suggestedQuestionsLimit', 0), starter: getDbLimit('starter', 'suggestedQuestionsLimit', 5), pro: getDbLimit('pro', 'suggestedQuestionsLimit', 5), enterprise: getDbLimit('enterprise', 'suggestedQuestionsLimit', 5), custom: "Unlimited" },
                   { feature: "Widget Customization", free: "Basic", starter: true, pro: true, enterprise: true, custom: true },
                   { feature: "Remove Branding", free: false, starter: true, pro: true, enterprise: true, custom: true },
                   { feature: "Custom Triggers", free: false, starter: false, pro: true, enterprise: true, custom: true },
