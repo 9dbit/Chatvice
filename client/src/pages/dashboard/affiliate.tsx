@@ -23,7 +23,10 @@ import {
   CreditCard,
   Wallet,
   ArrowRight,
+  Building,
+  Crown,
 } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export default function AffiliateDashboardPage() {
   const { toast } = useToast();
@@ -236,6 +239,28 @@ export default function AffiliateDashboardPage() {
     totalEarnings: 0,
   };
 
+  const downlines = (dashboardData as any)?.downlines || [];
+
+  const getPlanBadge = (plan: string) => {
+    switch (plan?.toLowerCase()) {
+      case "starter":
+        return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">Starter</Badge>;
+      case "pro":
+        return <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">Pro</Badge>;
+      case "enterprise":
+        return <Badge className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">Enterprise</Badge>;
+      default:
+        return <Badge variant="secondary">Free</Badge>;
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    if (status === "subscribed") {
+      return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"><CheckCircle className="w-3 h-3 mr-1" />Subscribed</Badge>;
+    }
+    return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />Registered</Badge>;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -380,6 +405,78 @@ export default function AffiliateDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            Your Downlines
+          </CardTitle>
+          <CardDescription>
+            Merchants who signed up using your referral link
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {downlines.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p className="font-medium">No downlines yet</p>
+              <p className="text-sm">Share your referral link to start earning commissions</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Company</TableHead>
+                    <TableHead>Plan</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Joined</TableHead>
+                    <TableHead className="text-right">Earnings</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {downlines.map((downline: any) => (
+                    <TableRow key={downline.id} data-testid={`row-downline-${downline.id}`}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                            <Building className="w-4 h-4 text-muted-foreground" />
+                          </div>
+                          <div>
+                            <p className="font-medium">{downline.companyName}</p>
+                            <p className="text-xs text-muted-foreground">{downline.email}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          {getPlanBadge(downline.subscriptionPlan)}
+                          {downline.subscriptionPlan !== "free" && (
+                            <Crown className="w-3 h-3 text-yellow-500" />
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>{getStatusBadge(downline.status)}</TableCell>
+                      <TableCell>
+                        {downline.registeredAt 
+                          ? new Date(downline.registeredAt).toLocaleDateString()
+                          : "-"
+                        }
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className={downline.earnings > 0 ? "font-bold text-green-600" : "text-muted-foreground"}>
+                          ${downline.earnings?.toFixed(2) || "0.00"}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -7371,11 +7371,40 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const commissions = await storage.getAffiliateCommissions(affiliate.id);
       const payouts = await storage.getAffiliatePayouts(affiliate.id);
       
+      // Build downlines list with merchant and plan info
+      const downlines = await Promise.all(
+        referrals
+          .filter(r => r.referredMerchantId && (r.status === "registered" || r.status === "subscribed"))
+          .map(async (referral) => {
+            const merchant = referral.referredMerchantId 
+              ? await storage.getMerchant(referral.referredMerchantId) 
+              : null;
+            
+            // Calculate earnings from this downline
+            const downlineCommissions = commissions.filter(c => c.referralId === referral.id);
+            const totalEarned = downlineCommissions.reduce((sum, c) => sum + (c.amount || 0), 0);
+            
+            return {
+              id: referral.id,
+              merchantId: referral.referredMerchantId,
+              email: referral.referredEmail || merchant?.email || "Unknown",
+              companyName: merchant?.companyName || "Unknown",
+              subscriptionPlan: merchant?.subscriptionPlanId || "free",
+              subscriptionStatus: merchant?.subscriptionStatus || "inactive",
+              registeredAt: referral.registeredAt,
+              subscribedAt: referral.subscribedAt,
+              status: referral.status,
+              earnings: totalEarned,
+            };
+          })
+      );
+      
       res.json({
         affiliate,
         referrals,
         commissions,
         payouts,
+        downlines,
         stats: {
           totalClicks: referrals.filter(r => r.status === "clicked").length,
           totalSignups: referrals.filter(r => r.status === "registered" || r.status === "subscribed").length,

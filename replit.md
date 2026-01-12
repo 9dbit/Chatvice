@@ -16,115 +16,41 @@ Chatvice is a monorepo application structured with `/client`, `/server`, and `/s
 - **AI Integration**: OpenAI API (GPT-4.1-mini for chat, text-embedding-3-small for embeddings).
 
 **Key Features:**
-- **AI-Powered Chatbot**: Automates customer responses using semantic search from a per-agent knowledge base with conversation memory optimization. Supports multi-language and AI media analysis for images and documents.
+- **AI-Powered Chatbot**: Automates customer responses using semantic search from a per-agent knowledge base with conversation memory optimization. Supports multi-language and AI media analysis.
 - **Human Escalation**: Automatic or manual escalation to human supervisors based on triggers or customer requests.
-- **Configurable Chat Widget**: Embeddable, customizable widget with dynamic theming, real-time status, media upload, suggested questions, and programmatic control via a script embed method using `postMessage`. Features customer name collection form on first visit with profanity filtering (Indonesian and English), input validation, and AI-generated personalized greetings.
-- **AI Media Analysis**: AI analyzes uploaded images (OpenAI Vision) and documents (summarization for CSV, TXT) to provide contextual responses.
+- **Configurable Chat Widget**: Embeddable, customizable widget with dynamic theming, real-time status, media upload, suggested questions, and programmatic control. Includes customer name collection with profanity filtering, input validation, and AI-generated personalized greetings.
+- **AI Media Analysis**: AI analyzes uploaded images (OpenAI Vision) and documents (summarization) for contextual responses.
 - **Merchant Dashboard**: Provides analytics, knowledge base management (with web crawler), trigger configuration, supervisor management, subscription management, quick replies, product cards, and notification settings. Includes a draggable/hideable Chatvice Guide AI assistant.
-- **Product Offer Messages**: Both supervisors and AI can recommend products to customers, displayed as rich cards.
-- **Supervisor Panel**: Real-time interface for handling escalated conversations and team activity monitoring, with restricted access to relevant features.
-- **Admin Menu Order Configuration**: Allows drag-and-drop reordering and enabling/disabling of merchant sidebar menu items, saved globally. Merchant sidebar organized into collapsible dropdowns: Widget Setting (widget, welcome bubble, product cards), Message Setting (quick replies, chat buttons, triggers), Management (supervisors, team activity, work scheduler, integrations, plans, billing). Static purple Chat Sessions button at bottom with escalation indicator.
-- **Authentication & Authorization**: Session-based authentication with bcrypt, supporting Merchant and Supervisor roles with role-based permissions. OAuth via Google and GitHub with automatic profile completion flow.
-- **Simplified Registration Flow**: Registration form only requires username, email, password, and confirm password. Password validation requires minimum 8 characters with uppercase, lowercase, and number. After registration, email verification is required.
-- **Multi-Step Profile Wizard**: After email verification and login, new merchants are directed to a 4-step profile wizard:
-  - **Step 1 - Business Info**: Company name, official website name, website URL (optional)
-  - **Step 2 - Contact Info**: Contact person name, phone number with country code dropdown (20+ countries), country, city/region (optional)
-  - **Step 3 - Domain Setup**: Official domain with real-time availability check before submission
-  - **Step 4 - Review**: Summary of all entered information before completion
-  - **Profile Progress Tracking**: `profileStep` field tracks wizard progress (0=not started, 1-3=in progress, 4=complete)
-  - **Resume Capability**: Users can resume the wizard from where they left off
-- **Domain Registration System**: Enforces unique business domains during registration to prevent duplicate trial abuse. Includes automatic domain normalization (lowercase, strips protocol/www/port/paths) and Indonesian error messaging for duplicates. OAuth users must complete profile with username, website name, and domain before accessing dashboard.
+- **Product Offer Messages**: Supervisors and AI can recommend products as rich cards.
+- **Supervisor Panel**: Real-time interface for handling escalated conversations and team activity monitoring.
+- **Admin Menu Order Configuration**: Allows drag-and-drop reordering and enabling/disabling of merchant sidebar menu items, saved globally.
+- **Authentication & Authorization**: Session-based authentication with bcrypt, supporting Merchant and Supervisor roles with role-based permissions. OAuth via Google and GitHub.
+- **Simplified Registration Flow**: Requires username, email, password, and email verification.
+- **Multi-Step Profile Wizard**: Guides new merchants through business info, contact info, and domain setup with real-time availability check.
+- **Domain Registration System**: Enforces unique business domains, with automatic normalization and Indonesian error messaging.
 - **Real-time Communication**: WebSocket architecture for instant message delivery and updates.
 - **Per-Agent Knowledge Base & System Prompt**: Knowledge base content and customizable AI system prompts are scoped to individual AI agents.
 - **Widget Identity Verification**: Secure customer authentication for embedded widgets using JWT tokens for Pro/Enterprise plans.
 - **Work Scheduler**: Shift management system for supervisors and AI agents.
 - **Landing Page Customization**: Admin Panel allows non-technical customization of the public landing page.
-- **Configurable Trial Period**: Admin-configurable trial days that dynamically update for active trial merchants. Default trial period is 7 days.
-- **Extended Plan Features Configuration**: Admin can configure all plan feature limits via the Pricing tab in Master Control Panel:
-  - **Pricing**: Monthly and annual prices
-  - **Feature Limits**: Conversations, AI Agents, Supervisors, Knowledge Sources, Suggested Questions, Allowed Domains, Chat History (hours), BG Removal
-  - **Unlimited Support**: Use -1 for unlimited values
-  - **Real-time Sync**: Changes persist to platform_settings as JSON overrides with cache clearing for immediate effect
-- **Chatvice Guide Configuration**: Admin dashboard tab for managing the AI help widget across landing page and merchant dashboard, including AI agent settings, welcome messages, and live preview.
-- **Promotional Discount System**: Comprehensive promo code system with admin CRUD, plan targeting, usage limits, and integration into pricing and billing pages.
-- **Chatvice Top Up v2 (Multi-Tenant Payment System)**: Multi-tenant coin top-up system for widget-embedded game/app monetization with JWT-based SSO, a defined payment flow, and API endpoints.
-- **Chat Security Monitoring**: AI-powered monitoring of supervisor conversations to detect suspicious activities (financial fraud, data theft, external contact attempts, inappropriate content). Features configurable sensitivity (0-100), custom pattern detection, tolerance settings for jokes/off-topic messages, real-time alerts with severity levels (low/medium/high/critical), and email notifications to merchant admins. Uses Gemini 2.5 Flash for analysis. Default protection applies to new merchants immediately without manual configuration.
-- **Knowledge Base with Help Articles**: Unified knowledge management page at `/dashboard/knowledge` with two tabs:
-  - **Training Data Tab**: AI training content editor with web crawler, agent selector, suggested questions management
-  - **Help Articles Tab**: AI-generated help center articles based on business type templates
-    - **Business Types**: Retail Physical (10 categories), Retail Digital (6 categories), Company Profile (26 A-Z categories)
-    - **AI Generation**: GPT-4.1-mini generates articles with title, content, tags, and suggested topics
-    - **Article Management**: Create, edit, publish, archive articles with search and status filtering
-    - **Pre-seeded Templates**: 42 business type templates with suggested topics, sample questions, and content structure
-  - **Auto-Sync Feature**: Published articles are automatically synchronized to Training Data:
-    - When article status changes to "published", content is added to knowledge base
-    - When published article is updated, knowledge base is refreshed
-    - When published article is unpublished/deleted, knowledge base is updated
-    - Synced content is wrapped in markers for clean separation from manual training data
-    - AI embeddings are automatically reprocessed for semantic search
-- **Product Catalog Crawler**: AI-powered product scanning system for intelligent product recommendations:
-  - **Location**: Product Cards page in Merchant Dashboard
-  - **Workflow**: Add URL → AI scans with GPT-4.1-mini → Human review → Approve/Reject → Sync to AI
-  - **Human-in-the-Loop**: All crawled products require explicit approval before syncing to AI knowledge base
-  - **Extracted Data**: title, description, price, imageUrl, productUrl, category, brand, availability, rating, specifications, variants
-  - **Database Tables**: `productCrawlSources` (source URLs) and `crawledProducts` (extracted product data)
-  - **Auto-Sync Markers**: Product catalog wrapped in `<!-- AUTO-SYNCED PRODUCT CATALOG START/END -->` markers
-  - **Use Cases**: Product comparisons, intelligent recommendations, add-to-cart assistance, catalog browsing
-- **Custom Plan Request System**: Interactive budget simulator for merchants to configure and request custom plans:
-  - **Access**: "Contact Sales" button on Custom plan card in merchant Plans page
-  - **Budget Simulator UI**: 
-    - Real-time price calculation displayed in purple gradient banner
-    - Interactive sliders starting from Enterprise plan values
-    - Default values: 50K conversations, 10 AI Agents, 5 Supervisors, Unlimited Sources
-    - Premium features included: Custom Domain, Identity Verification, Priority Queue, Advanced Analytics, SLA Guarantee, Dedicated Support, Custom Integrations
-  - **Pricing Logic**: Enterprise base price ($499) + additional resources above Enterprise limits
-    - Additional conversations: $5/1K beyond 50K
-    - Additional AI Agents: $15/agent beyond 10
-    - Additional Supervisors: $10/supervisor beyond 5
-    - Knowledge Sources: Unlimited (no extra cost)
-  - **Message Field**: Optional text area for direct message to sales team (max 500 characters)
-  - **Configuration Summary**: Visual recap of selected resources and premium features
-  - **Admin Review**: Custom Requests tab in Admin Panel displays all requests with message prominently highlighted in purple box
-  - **Notifications**: Both merchant and admin receive notifications when request is submitted
+- **Configurable Trial Period**: Admin-configurable trial days that dynamically update for active trial merchants.
+- **Extended Plan Features Configuration**: Admin can configure all plan feature limits (conversations, AI agents, supervisors, knowledge sources, etc.) via the Master Control Panel, with real-time sync.
+- **Chatvice Guide Configuration**: Admin dashboard tab for managing the AI help widget across landing page and merchant dashboard.
+- **Promotional Discount System**: Comprehensive promo code system with admin CRUD, plan targeting, and usage limits.
+- **Chatvice Top Up v2 (Multi-Tenant Payment System)**: Multi-tenant coin top-up system for widget-embedded game/app monetization with JWT-based SSO.
+- **Chat Security Monitoring**: AI-powered monitoring of supervisor conversations to detect suspicious activities using Gemini 2.5 Flash. Features configurable sensitivity, custom pattern detection, tolerance settings, real-time alerts, and email notifications.
+- **Knowledge Base with Help Articles**: Unified knowledge management page with two tabs: Training Data (AI training content editor with web crawler) and Help Articles (AI-generated help center articles based on business type templates). Includes auto-sync to Training Data and automatic re-processing of AI embeddings.
+- **Product Catalog Crawler**: AI-powered product scanning system for intelligent product recommendations. Workflow includes adding URL, AI scanning, human review, and syncing to AI knowledge base.
+- **Custom Plan Request System**: Interactive budget simulator for merchants to configure and request custom plans, with real-time price calculation and admin review dashboard.
 
-**Data Model Highlights**:
-Core entities include Merchants, Supervisors, Sessions, Messages, Triggers, Knowledge Base content, Subscription Plans, and Agents. New tables support supervisor roles, shifts, product cards, quick replies, chat buttons, welcome bubbles, notification settings, widget sites, site domains, coin orders, and topup nominals.
-
-**Chat Widget Message Reconciliation**: Optimistic UI updates using `clientId` for immediate feedback, with server-side reconciliation based on `clientMessageId` and content/timestamp fallbacks.
-
-**AI Conversation Memory Optimization**: AI agents maintain conversation context by fetching the last 10 session messages from the database and using system prompts with CONVERSATION CONTEXT instructions.
-
-**Interactive AI Responses**: AI responses can include interactive buttons (`[BTN:Label:action text]`) and clickable links (`[LINK:Display Text:/path]`) which are parsed and rendered in both Chatvice Guide and the merchant embedded widget.
-
-## Test Credentials
-- **Merchant Login**: internal@marketplayid.com / #Marketadmin1
-- **Master Admin**: master@chatvice.app / #Chatadmin1
+**Data Model Highlights**: Core entities include Merchants, Supervisors, Sessions, Messages, Triggers, Knowledge Base content, Subscription Plans, and Agents.
+**Chat Widget Message Reconciliation**: Optimistic UI updates using `clientId` with server-side reconciliation.
+**AI Conversation Memory Optimization**: AI agents maintain conversation context by fetching the last 10 session messages and using system prompts.
+**Interactive AI Responses**: AI responses can include interactive buttons and clickable links.
 
 ## External Dependencies
 -   **AI Services**: OpenAI API (GPT-4.1-mini, text-embedding-3-small).
 -   **Database**: PostgreSQL.
 -   **UI Component Libraries**: Radix UI, Shadcn/ui.
--   **Payment Gateways**: Kompas Pay (Indonesian payment gateway), PayPal, Cryptocurrency (BTC, ETH, SOL, BNB, USDT, XRP with CoinGecko live pricing).
--   **Development Environment**: Replit Platform.
-
-## Cryptocurrency Payment UI
-The checkout page features a premium crypto payment interface with:
-- **6 Supported Coins**: Bitcoin (BTC), Ethereum (ETH), Solana (SOL), Binance Coin (BNB), Tether (USDT), XRP
-- **Live Pricing**: Real-time prices from CoinGecko API with 60-second cache and 3% transaction fee
-- **Premium Design**: Clean, simplified dialogs with purple gradient branding
-- **CSS Classes**: crypto-card, crypto-coin-btn, crypto-purple-btn, crypto-dialog-glass
-- **Responsive Grid**: 2-column (mobile) / 3-column (desktop) coin selection with hover effects
-
-## Crypto Payment Confirmation System
-A comprehensive payment verification workflow for cryptocurrency payments:
-- **User Flow**: After sending crypto payment, merchants click "Confirm Payment" to submit proof of payment
-- **Proof Submission**: Upload screenshot of transaction + enter transaction hash (TXID)
-- **Order Summary**: Shows plan, billing interval, crypto amount, and upgrade/downgrade badges
-- **Database Table**: `crypto_payment_confirmations` stores all payment submissions with status tracking
-- **Admin Review Dashboard**: Located at `/admin/crypto-payments` in admin sidebar with filter tabs (All/Pending/Approved/Rejected)
-- **Admin Actions**: Review proof image, approve (activates subscription) or reject payments
-- **Email Notifications**: 
-  - On submission: Email to hello@chatvice.app with payment details and proof image
-  - On approval: Confirmation email sent to merchant with subscription details
-- **Subscription Activation**: Upon approval, merchant subscription is automatically activated with correct billing interval
-- **Review Notes**: Admin can add notes during review process
+-   **Payment Gateways**: Kompas Pay, PayPal, Cryptocurrency (BTC, ETH, SOL, BNB, USDT, XRP with CoinGecko live pricing).
+-   **AI Models for Security**: Gemini 2.5 Flash.
