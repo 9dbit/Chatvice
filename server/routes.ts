@@ -22,7 +22,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { processKnowledgeBase, searchKnowledge } from "./embeddings";
-import { extractFAQContent } from "./crawler";
+import { extractFAQContent, syncKnowledgeFromUrl } from "./crawler";
 import { createQRISPayment, createVAPayment, createBankTransferPayment, createPaymentLinkPayment, checkPaymentStatus, isKompasPayConfigured, convertToIDR, formatIDR } from "./kompasPayClient";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient } from "./resendClient";
@@ -3746,6 +3746,45 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/knowledge/sync", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { url } = req.body;
+      
+      if (!url) {
+        return res.status(400).json({ error: "URL is required" });
+      }
+      
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      const agentId = merchant.activeAgentId;
+      if (!agentId) {
+        return res.status(400).json({ error: "No active agent selected" });
+      }
+      
+      const existingKnowledge = await storage.getKnowledgeByAgent(agentId);
+      const existingContent = existingKnowledge?.content || "";
+      
+      const result = await syncKnowledgeFromUrl(url, existingContent);
+      
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+      
+      res.json({ 
+        success: true, 
+        content: result.content,
+        changes: result.changes || [],
+      });
+    } catch (error) {
+      console.error("Knowledge sync error:", error);
+      res.status(500).json({ error: "Failed to sync knowledge from URL" });
     }
   });
 

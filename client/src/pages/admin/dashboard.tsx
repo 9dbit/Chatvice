@@ -377,17 +377,17 @@ export default function AdminDashboard() {
                 e.stopPropagation();
                 handleTabChange(item.id);
               }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors relative ${
+              className={`w-full flex items-center gap-3 px-3 py-3 min-h-[48px] rounded-md text-sm transition-colors relative ${
                 activeTab === item.id
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               }`}
               data-testid={`nav-${item.id}`}
             >
-              <item.icon className="w-4 h-4 flex-shrink-0" />
+              <item.icon className="w-5 h-5 flex-shrink-0" />
               <span className="truncate flex-1 text-left">{item.label}</span>
               {badgeCount > 0 && (
-                <span className={`min-w-5 h-5 flex items-center justify-center text-xs font-medium rounded-full ${
+                <span className={`min-w-6 h-6 flex items-center justify-center text-xs font-medium rounded-full ${
                   activeTab === item.id 
                     ? "bg-primary-foreground/20 text-primary-foreground" 
                     : "bg-amber-500 text-white"
@@ -400,18 +400,18 @@ export default function AdminDashboard() {
         })}
       </nav>
       
-      <div className="p-3 border-t space-y-3">
+      <div className="p-3 border-t space-y-2">
         <Link href="/" className="block">
-          <Button variant="ghost" className="w-full justify-start text-muted-foreground" data-testid="link-back-home">
-            <Home className="w-4 h-4 mr-2" />
+          <Button variant="ghost" className="w-full justify-start text-muted-foreground min-h-[44px]" data-testid="link-back-home">
+            <Home className="w-5 h-5 mr-2" />
             Back to Website
           </Button>
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-h-[44px]">
           <ThemeToggle />
         </div>
-        <Button variant="outline" onClick={handleLogout} className="w-full" data-testid="button-admin-logout">
-          <LogOut className="w-4 h-4 mr-2" />
+        <Button variant="outline" onClick={handleLogout} className="w-full min-h-[44px]" data-testid="button-admin-logout">
+          <LogOut className="w-5 h-5 mr-2" />
           Logout
         </Button>
       </div>

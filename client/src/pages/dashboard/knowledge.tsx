@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Save, Globe, Loader2, Plus, Bot, Send, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, Sparkles, HelpCircle, Edit2, GripVertical, MessageSquare, Lock, Crown, BookOpen, Eye, Search, Filter, FileText, Tag, Clock } from "lucide-react";
+import { Database, Save, Globe, Loader2, Plus, Bot, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, Sparkles, HelpCircle, Edit2, GripVertical, MessageSquare, Lock, Crown, BookOpen, Eye, Search, Filter, FileText, Tag, Clock } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
 import type { Merchant, CrawledLink, Agent, SuggestedQuestion, KnowledgebaseArticle } from "@shared/schema";
@@ -108,8 +108,6 @@ export default function KnowledgePage() {
   const [content, setContent] = useState("");
   const [crawlUrl, setCrawlUrl] = useState("");
   const [extractedContent, setExtractedContent] = useState("");
-  const [previewMessage, setPreviewMessage] = useState("");
-  const [previewMessages, setPreviewMessages] = useState<Array<{ from: string; content: string }>>([]);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [selectedImportAgent, setSelectedImportAgent] = useState<string | null>(null);
   const [isAddQuestionOpen, setIsAddQuestionOpen] = useState(false);
@@ -502,15 +500,6 @@ export default function KnowledgePage() {
     });
   };
 
-  const handleQuickQuestion = (question: string, preConfiguredAnswer?: string) => {
-    setPreviewMessages((prev) => [...prev, { from: "user", content: question }]);
-    if (preConfiguredAnswer) {
-      setPreviewMessages((prev) => [...prev, { from: "chatvice", content: preConfiguredAnswer }]);
-    } else {
-      testMutation.mutate(question);
-    }
-  };
-
   const handleSave = () => {
     saveMutation.mutate(content);
   };
@@ -536,48 +525,6 @@ export default function KnowledgePage() {
       title: "Content added",
       description: "The extracted content has been added to your knowledge base. Don't forget to save!",
     });
-  };
-
-  const testMutation = useMutation({
-    mutationFn: async (testMessage: string) => {
-      const sessionId = `test_${merchantId}_preview`;
-      const res = await apiRequest("POST", "/api/chat/ask", {
-        merchantId,
-        sessionId,
-        message: testMessage,
-      });
-      return res.json() as Promise<{ answer: string; mode: string }>;
-    },
-    onSuccess: (data) => {
-      setPreviewMessages((prev) => [
-        ...prev,
-        { from: "chatvice", content: data.answer },
-      ]);
-    },
-    onError: () => {
-      setPreviewMessages((prev) => [
-        ...prev,
-        { from: "chatvice", content: "Sorry, I couldn't process that. Please try again." },
-      ]);
-    },
-  });
-
-  const handleTestSend = () => {
-    if (!previewMessage.trim()) return;
-    setPreviewMessages((prev) => [...prev, { from: "user", content: previewMessage }]);
-    testMutation.mutate(previewMessage);
-    setPreviewMessage("");
-  };
-
-  const handleTestKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleTestSend();
-    }
-  };
-
-  const clearPreview = () => {
-    setPreviewMessages([]);
   };
 
   const formatDate = (date: Date | null) => {
@@ -613,9 +560,7 @@ export default function KnowledgePage() {
         </TabsList>
 
         <TabsContent value="training" className="mt-4">
-    <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 h-full">
-      {/* Left Column - Knowledge Editor */}
-      <div className="flex-1 space-y-4 sm:space-y-6 min-w-0">
+    <div className="space-y-4 sm:space-y-6 h-full">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div></div>
           {agents && agents.length > 0 && (
@@ -1059,150 +1004,6 @@ Example:
             )}
           </CardContent>
         </Card>
-      </div>
-
-      {/* Right Column - Live Widget Preview */}
-      <div className="w-full lg:w-[380px] lg:flex-shrink-0">
-        <div className="lg:sticky lg:top-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle>Live Preview</CardTitle>
-                {previewMessages.length > 0 && (
-                  <Button variant="ghost" size="sm" onClick={clearPreview} data-testid="button-clear-preview">
-                    Clear
-                  </Button>
-                )}
-              </div>
-              <CardDescription>
-                Test how Chatvice responds using your knowledge base.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div 
-                className="rounded-2xl border overflow-hidden bg-card shadow-lg"
-                style={{ borderColor: merchant?.primaryColor || "#6b5dfc" }}
-                data-testid="widget-preview-container"
-              >
-                {/* Widget Header */}
-                <div 
-                  className="p-3 flex items-center gap-3"
-                  style={{ backgroundColor: merchant?.primaryColor || "#6b5dfc" }}
-                >
-                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                    {merchant?.iconUrl ? (
-                      <img src={merchant.iconUrl} alt="Bot" className="w-6 h-6 rounded-full object-cover" />
-                    ) : (
-                      <Bot className="w-5 h-5 text-white" />
-                    )}
-                  </div>
-                  <div className="flex-1 text-white">
-                    <p className="font-medium text-sm">{merchant?.companyName || "Chatvice"}</p>
-                    <p className="text-xs text-white/80">Customer Support</p>
-                  </div>
-                </div>
-
-                {/* Chat Messages */}
-                <ScrollArea className="h-[320px] p-3 bg-background">
-                  <div className="space-y-3">
-                    {previewMessages.length === 0 && (
-                      <div className="flex gap-2">
-                        <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: merchant?.primaryColor || "#6b5dfc" }}>
-                          <Bot className="w-4 h-4 text-white" />
-                        </div>
-                        <div className="bg-muted rounded-lg p-2 max-w-[80%]">
-                          <p className="text-sm">{merchant?.welcomeMessage || "Hi! How can I help you today?"}</p>
-                        </div>
-                      </div>
-                    )}
-                    {previewMessages.map((msg, index) => (
-                      <div key={index} className={`flex gap-2 ${msg.from === "user" ? "justify-end" : ""}`}>
-                        {msg.from !== "user" && (
-                          <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: merchant?.primaryColor || "#6b5dfc" }}>
-                            <Bot className="w-4 h-4 text-white" />
-                          </div>
-                        )}
-                        <div className={`rounded-lg p-2 max-w-[80%] ${msg.from === "user" ? "text-white" : "bg-muted"}`} style={{ backgroundColor: msg.from === "user" ? (merchant?.primaryColor || "#6b5dfc") : undefined }}>
-                          <p className="text-sm">{msg.content}</p>
-                        </div>
-                      </div>
-                    ))}
-                    {testMutation.isPending && (
-                      <div className="flex gap-2">
-                        <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: merchant?.primaryColor || "#6b5dfc" }}>
-                          <Bot className="w-4 h-4 text-white" />
-                        </div>
-                        <div className="bg-muted rounded-lg p-2">
-                          <div className="flex gap-1">
-                            <span className="w-2 h-2 rounded-full bg-foreground/30 animate-bounce" style={{ animationDelay: "0ms" }} />
-                            <span className="w-2 h-2 rounded-full bg-foreground/30 animate-bounce" style={{ animationDelay: "150ms" }} />
-                            <span className="w-2 h-2 rounded-full bg-foreground/30 animate-bounce" style={{ animationDelay: "300ms" }} />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </ScrollArea>
-
-                {/* Quick Questions - Always visible */}
-                {suggestedQuestions.filter(q => q.isActive !== false).length > 0 && (
-                  <div className="px-3 pb-2 pt-0">
-                    <p className="text-[10px] text-muted-foreground mb-1.5">Quick questions:</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {suggestedQuestions.filter(q => q.isActive !== false).slice(0, 4).map((q) => (
-                        <button
-                          key={q.id}
-                          onClick={() => handleQuickQuestion(q.question, q.answer)}
-                          disabled={testMutation.isPending}
-                          className={`text-xs px-2.5 py-1 rounded-full border transition-colors truncate max-w-[150px] ${
-                            testMutation.isPending 
-                              ? "opacity-50 cursor-not-allowed" 
-                              : "hover-elevate"
-                          }`}
-                          style={{ 
-                            borderColor: merchant?.primaryColor || "#6b5dfc",
-                            color: merchant?.primaryColor || "#6b5dfc"
-                          }}
-                          data-testid={`quick-question-${q.id}`}
-                        >
-                          {q.question}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Input Area */}
-                <div className="p-3 border-t">
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Ask a question..."
-                      value={previewMessage}
-                      onChange={(e) => setPreviewMessage(e.target.value)}
-                      onKeyDown={handleTestKeyPress}
-                      disabled={testMutation.isPending}
-                      className="flex-1"
-                      data-testid="input-preview-message"
-                    />
-                    <Button 
-                      onClick={handleTestSend}
-                      disabled={testMutation.isPending || !previewMessage.trim()}
-                      size="icon"
-                      style={{ backgroundColor: merchant?.primaryColor || "#6b5dfc" }}
-                      data-testid="button-preview-send"
-                    >
-                      <Send className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground text-center mt-4">
-                Save your knowledge base changes to test with updated content.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
 
       {/* Import from Agent Dialog */}
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
