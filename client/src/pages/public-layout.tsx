@@ -54,6 +54,7 @@ export function PublicNavbar() {
   }, []);
 
   const navLinks = [
+    { label: "Home", href: "/" },
     { label: "Features", href: "/features" },
     { label: "Pricing", href: "/pricing" },
     { label: "API", href: "/api-docs" },

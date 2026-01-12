@@ -53,6 +53,9 @@ import {
   Camera,
   Video,
   User,
+  DollarSign,
+  Gift,
+  Wallet,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -264,6 +267,7 @@ function Navbar() {
   }, []);
 
   const navLinks = [
+    { label: "Home", href: "/" },
     { label: "Features", href: "/features" },
     { label: "Pricing", href: "/pricing" },
     { label: "API", href: "/api-docs" },
@@ -1794,6 +1798,72 @@ function PricingPreview() {
   );
 }
 
+function AffiliateSection() {
+  const affiliateFeatures = [
+    {
+      icon: DollarSign,
+      title: "20% Commission",
+      description: "Earn 20% of every subscription payment from your referrals for the first year.",
+    },
+    {
+      icon: Clock,
+      title: "30-Day Cookie",
+      description: "Your referrals are tracked for 30 days, giving you credit even if they sign up later.",
+    },
+    {
+      icon: Wallet,
+      title: "Monthly Payouts",
+      description: "Get paid monthly via PayPal or bank transfer. Minimum payout is $50.",
+    },
+    {
+      icon: Gift,
+      title: "Exclusive Bonuses",
+      description: "Top affiliates earn additional bonuses and access to exclusive promotions.",
+    },
+  ];
+
+  return (
+    <section className="py-20 md:py-32 bg-muted/30 parallax-section">
+      <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+        <div className="text-center mb-12 parallax-fade-in">
+          <Badge className="mb-4">
+            <Users className="w-3 h-3 mr-1" />
+            Affiliate Program
+          </Badge>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            Earn Money Sharing Chatvice
+          </h2>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Join our affiliate program and earn commissions for every customer you refer. 
+            Start earning passive income today.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10 parallax-fade-in">
+          {affiliateFeatures.map((feature, index) => (
+            <Card key={index} className="p-6 text-center">
+              <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mx-auto mb-4">
+                <feature.icon className="w-6 h-6 text-purple-600" />
+              </div>
+              <h3 className="font-bold mb-2">{feature.title}</h3>
+              <p className="text-sm text-muted-foreground">{feature.description}</p>
+            </Card>
+          ))}
+        </div>
+
+        <div className="text-center parallax-fade-in">
+          <Link href="/affiliate">
+            <Button size="lg" className="bg-purple-600 hover:bg-purple-700" data-testid="button-affiliate-cta">
+              Join Affiliate Program
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function CTASection() {
   return (
     <section className="py-20 md:py-32 bg-purple-600 text-white parallax-section">
@@ -1982,6 +2052,7 @@ export default function LandingPage() {
       <TimelineSection />
       <FeaturesPreview />
       <PricingPreview />
+      <AffiliateSection />
       <CTASection />
       <Footer />
     </div>
