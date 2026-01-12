@@ -1153,6 +1153,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         isEmailVerified: false,
         profileCompleted: false,
         profileStep: 0,
+        businessCategory: data.businessCategory,
+        staffCount: data.staffCount,
       });
       
       // Create email verification token (expires in 24 hours)

@@ -9,6 +9,7 @@ import { Bot, Eye, EyeOff, Mail, CheckCircle, XCircle, Loader2 } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { SiGoogle, SiGithub, SiLinkedin, SiFacebook } from "react-icons/si";
@@ -28,10 +29,41 @@ const registerSchema = z.object({
     .regex(/[a-z]/, "Password must contain at least one lowercase letter")
     .regex(/[0-9]/, "Password must contain at least one number"),
   confirmPassword: z.string().min(1, "Please confirm your password"),
+  businessCategory: z.string().min(1, "Please select a business category"),
+  staffCount: z.string().min(1, "Please select staff count"),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
 });
+
+const BUSINESS_CATEGORIES = [
+  "E-commerce / Retail",
+  "Technology / SaaS",
+  "Healthcare",
+  "Education",
+  "Finance / Banking",
+  "Travel / Hospitality",
+  "Real Estate",
+  "Food & Beverage",
+  "Manufacturing",
+  "Logistics / Transportation",
+  "Media / Entertainment",
+  "Professional Services",
+  "Non-profit / NGO",
+  "Government",
+  "Other",
+];
+
+const STAFF_COUNT_OPTIONS = [
+  "1-5",
+  "6-10",
+  "11-25",
+  "26-50",
+  "51-100",
+  "101-250",
+  "251-500",
+  "500+",
+];
 
 const forgotPasswordSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -409,6 +441,8 @@ export function RegisterPage() {
       email: "",
       password: "",
       confirmPassword: "",
+      businessCategory: "",
+      staffCount: "",
     },
   });
 
@@ -686,6 +720,60 @@ export function RegisterPage() {
                       {...field}
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="businessCategory"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-zinc-300">Business Category</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger 
+                        className="bg-zinc-900 border-zinc-700 text-white h-11"
+                        data-testid="select-business-category"
+                      >
+                        <SelectValue placeholder="Select your business category" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="bg-zinc-900 border-zinc-700">
+                      {BUSINESS_CATEGORIES.map((category) => (
+                        <SelectItem key={category} value={category} className="text-white">
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="staffCount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-zinc-300">Number of Staff</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger 
+                        className="bg-zinc-900 border-zinc-700 text-white h-11"
+                        data-testid="select-staff-count"
+                      >
+                        <SelectValue placeholder="Select staff count" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="bg-zinc-900 border-zinc-700">
+                      {STAFF_COUNT_OPTIONS.map((option) => (
+                        <SelectItem key={option} value={option} className="text-white">
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

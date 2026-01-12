@@ -76,6 +76,9 @@ export const merchants = pgTable("merchants", {
   // OAuth providers
   googleId: text("google_id"),
   githubId: text("github_id"),
+  // Business registration fields
+  businessCategory: text("business_category"),
+  staffCount: text("staff_count"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -297,6 +300,8 @@ export const registerMerchantSchema = z.object({
     .regex(/[a-z]/, "Password must contain at least one lowercase letter")
     .regex(/[0-9]/, "Password must contain at least one number"),
   confirmPassword: z.string(),
+  businessCategory: z.string().min(1, "Please select a business category"),
+  staffCount: z.string().min(1, "Please select staff count"),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
