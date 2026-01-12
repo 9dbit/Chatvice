@@ -1595,3 +1595,117 @@ export const merchantNotifications = pgTable("merchant_notifications", {
 export const insertMerchantNotificationSchema = createInsertSchema(merchantNotifications).omit({ id: true, createdAt: true });
 export type InsertMerchantNotification = z.infer<typeof insertMerchantNotificationSchema>;
 export type MerchantNotification = typeof merchantNotifications.$inferSelect;
+
+
+// ============ Affiliate Program ============
+
+export const affiliates = pgTable("affiliates", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(), // Must have Chatvice account
+  // Affiliate details
+  affiliateCode: text("affiliate_code").notNull().unique(), // Unique referral code
+  displayName: text("display_name"), // Public display name
+  payoutEmail: text("payout_email"), // Email for commission payouts
+  payoutMethod: text("payout_method").default("paypal"), // paypal, bank_transfer
+  bankName: text("bank_name"),
+  bankAccountNumber: text("bank_account_number"),
+  bankAccountName: text("bank_account_name"),
+  // Statistics (cached for performance)
+  totalReferrals: integer("total_referrals").default(0),
+  successfulReferrals: integer("successful_referrals").default(0),
+  totalEarnings: integer("total_earnings").default(0), // in cents
+  pendingEarnings: integer("pending_earnings").default(0),
+  paidEarnings: integer("paid_earnings").default(0),
+  // Settings
+  commissionRate: integer("commission_rate").default(20), // Default 20% commission
+  minimumPayout: integer("minimum_payout").default(5000), // Minimum payout in cents ($50)
+  // Status
+  status: text("status").default("pending"), // pending, approved, active, suspended
+  approvedAt: timestamp("approved_at"),
+  approvedBy: varchar("approved_by", { length: 32 }),
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertAffiliateSchema = createInsertSchema(affiliates).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertAffiliate = z.infer<typeof insertAffiliateSchema>;
+export type Affiliate = typeof affiliates.$inferSelect;
+
+export const affiliateReferrals = pgTable("affiliate_referrals", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  affiliateId: varchar("affiliate_id", { length: 32 }).notNull(),
+  // Referred merchant
+  referredMerchantId: varchar("referred_merchant_id", { length: 32 }),
+  referredEmail: text("referred_email"),
+  // Tracking
+  referralCode: text("referral_code").notNull(), // The code used
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  landingPage: text("landing_page"),
+  // Status
+  status: text("status").default("clicked"), // clicked, registered, subscribed, expired
+  // Attribution
+  clickedAt: timestamp("clicked_at").defaultNow(),
+  registeredAt: timestamp("registered_at"),
+  convertedAt: timestamp("converted_at"), // When they subscribed to a paid plan
+  // Cookie expiry for tracking
+  expiresAt: timestamp("expires_at"), // 30 days from click
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertAffiliateReferralSchema = createInsertSchema(affiliateReferrals).omit({ id: true, createdAt: true });
+export type InsertAffiliateReferral = z.infer<typeof insertAffiliateReferralSchema>;
+export type AffiliateReferral = typeof affiliateReferrals.$inferSelect;
+
+export const affiliateCommissions = pgTable("affiliate_commissions", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  affiliateId: varchar("affiliate_id", { length: 32 }).notNull(),
+  referralId: varchar("referral_id", { length: 32 }).notNull(),
+  // Transaction details
+  orderId: varchar("order_id", { length: 32 }), // Linked subscription order
+  orderAmount: integer("order_amount").notNull(), // Original order amount in cents
+  commissionRate: integer("commission_rate").notNull(), // Rate at time of conversion (%)
+  commissionAmount: integer("commission_amount").notNull(), // Calculated commission in cents
+  currency: text("currency").default("USD"),
+  // Status
+  status: text("status").default("pending"), // pending, approved, paid, cancelled
+  // Payout info
+  payoutId: varchar("payout_id", { length: 32 }),
+  paidAt: timestamp("paid_at"),
+  payoutMethod: text("payout_method"),
+  payoutReference: text("payout_reference"),
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  approvedAt: timestamp("approved_at"),
+});
+
+export const insertAffiliateCommissionSchema = createInsertSchema(affiliateCommissions).omit({ id: true, createdAt: true });
+export type InsertAffiliateCommission = z.infer<typeof insertAffiliateCommissionSchema>;
+export type AffiliateCommission = typeof affiliateCommissions.$inferSelect;
+
+export const affiliatePayouts = pgTable("affiliate_payouts", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  affiliateId: varchar("affiliate_id", { length: 32 }).notNull(),
+  // Payout details
+  amount: integer("amount").notNull(), // Total payout amount in cents
+  currency: text("currency").default("USD"),
+  payoutMethod: text("payout_method").notNull(), // paypal, bank_transfer
+  payoutDetails: jsonb("payout_details"), // Email/bank details at time of payout
+  // Status
+  status: text("status").default("pending"), // pending, processing, completed, failed
+  // Reference
+  transactionReference: text("transaction_reference"),
+  notes: text("notes"),
+  // Processed by
+  processedBy: varchar("processed_by", { length: 32 }),
+  processedAt: timestamp("processed_at"),
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertAffiliatePayoutSchema = createInsertSchema(affiliatePayouts).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertAffiliatePayout = z.infer<typeof insertAffiliatePayoutSchema>;
+export type AffiliatePayout = typeof affiliatePayouts.$inferSelect;
+

@@ -36,6 +36,7 @@ import BlogArticlePage from "@/pages/company/blog-article";
 import CareersPage from "@/pages/company/careers";
 import PressPage from "@/pages/company/press";
 import PartnersPage from "@/pages/company/partners";
+import AffiliatePage from "@/pages/company/affiliate";
 
 import ContactPage from "@/pages/resources/contact";
 import StatusPage from "@/pages/resources/status";
@@ -136,6 +137,7 @@ function Router() {
       <Route path="/careers" component={CareersPage} />
       <Route path="/press" component={PressPage} />
       <Route path="/partners" component={PartnersPage} />
+      <Route path="/affiliate" component={AffiliatePage} />
 
       <Route path="/contact" component={ContactPage} />
       <Route path="/status" component={StatusPage} />

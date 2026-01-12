@@ -7255,6 +7255,246 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // ============ Affiliate Program ============
+  
+  // Get affiliate program settings (public)
+  app.get("/api/affiliate/settings", async (req, res) => {
+    try {
+      const defaultCommissionRate = await storage.getPlatformSetting("affiliate_commission_rate") || "20";
+      const cookieDays = await storage.getPlatformSetting("affiliate_cookie_days") || "30";
+      const minimumPayout = await storage.getPlatformSetting("affiliate_minimum_payout") || "50";
+      const programEnabled = await storage.getPlatformSetting("affiliate_program_enabled") || "true";
+      
+      res.json({
+        defaultCommissionRate: parseInt(defaultCommissionRate),
+        cookieDays: parseInt(cookieDays),
+        minimumPayout: parseInt(minimumPayout),
+        programEnabled: programEnabled === "true",
+      });
+    } catch (error) {
+      console.error("Error getting affiliate settings:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Get current merchant's affiliate status
+  app.get("/api/affiliate/me", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      const affiliate = await storage.getAffiliateByMerchantId(merchantId);
+      
+      if (!affiliate) {
+        return res.json(null);
+      }
+      
+      res.json(affiliate);
+    } catch (error) {
+      console.error("Error getting affiliate:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Apply for affiliate program
+  app.post("/api/affiliate/apply", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      const merchant = await storage.getMerchant(merchantId);
+      
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      // Check if already an affiliate
+      const existingAffiliate = await storage.getAffiliateByMerchantId(merchantId);
+      if (existingAffiliate) {
+        return res.status(400).json({ error: "You have already applied for the affiliate program" });
+      }
+      
+      // Generate unique affiliate code
+      const generateCode = () => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let code = '';
+        for (let i = 0; i < 8; i++) {
+          code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
+      };
+      
+      let affiliateCode = generateCode();
+      // Ensure code is unique
+      let existingCode = await storage.getAffiliateByCode(affiliateCode);
+      while (existingCode) {
+        affiliateCode = generateCode();
+        existingCode = await storage.getAffiliateByCode(affiliateCode);
+      }
+      
+      // Get default commission rate
+      const defaultRate = await storage.getPlatformSetting("affiliate_commission_rate") || "20";
+      
+      const affiliate = await storage.createAffiliate({
+        merchantId,
+        affiliateCode,
+        displayName: merchant.companyName || merchant.username || merchant.email.split("@")[0],
+        payoutEmail: merchant.email,
+        commissionRate: parseInt(defaultRate),
+        status: "pending",
+      });
+      
+      // Create admin notification
+      await storage.createAdminNotification({
+        type: "affiliate_application",
+        title: "New Affiliate Application",
+        message: `${merchant.companyName || merchant.email} has applied to join the affiliate program.`,
+        relatedEntityType: "affiliate",
+        relatedEntityId: affiliate.id,
+        priority: "medium",
+      });
+      
+      res.json(affiliate);
+    } catch (error) {
+      console.error("Error applying for affiliate program:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Get affiliate dashboard data (for logged in affiliates)
+  app.get("/api/affiliate/dashboard", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      const affiliate = await storage.getAffiliateByMerchantId(merchantId);
+      
+      if (!affiliate || affiliate.status !== "active") {
+        return res.status(403).json({ error: "Not an active affiliate" });
+      }
+      
+      const referrals = await storage.getAffiliateReferrals(affiliate.id);
+      const commissions = await storage.getAffiliateCommissions(affiliate.id);
+      const payouts = await storage.getAffiliatePayouts(affiliate.id);
+      
+      res.json({
+        affiliate,
+        referrals,
+        commissions,
+        payouts,
+        stats: {
+          totalClicks: referrals.filter(r => r.status === "clicked").length,
+          totalSignups: referrals.filter(r => r.status === "registered" || r.status === "subscribed").length,
+          totalConversions: referrals.filter(r => r.status === "subscribed").length,
+          pendingEarnings: affiliate.pendingEarnings || 0,
+          paidEarnings: affiliate.paidEarnings || 0,
+          totalEarnings: affiliate.totalEarnings || 0,
+        },
+      });
+    } catch (error) {
+      console.error("Error getting affiliate dashboard:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Admin: Get all affiliates
+  app.get("/api/admin/affiliates", requireAdmin, async (req, res) => {
+    try {
+      const affiliates = await storage.getAllAffiliates();
+      
+      // Get merchant info for each affiliate
+      const affiliatesWithMerchants = await Promise.all(affiliates.map(async (aff) => {
+        const merchant = await storage.getMerchant(aff.merchantId);
+        return {
+          ...aff,
+          merchant: merchant ? {
+            email: merchant.email,
+            companyName: merchant.companyName,
+          } : null,
+        };
+      }));
+      
+      res.json(affiliatesWithMerchants);
+    } catch (error) {
+      console.error("Error getting affiliates:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Admin: Get affiliate stats
+  app.get("/api/admin/affiliates/stats", requireAdmin, async (req, res) => {
+    try {
+      const stats = await storage.getAffiliateStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error getting affiliate stats:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Admin: Approve or update affiliate
+  app.patch("/api/admin/affiliates/:affiliateId", requireAdmin, async (req, res) => {
+    try {
+      const { affiliateId } = req.params;
+      const { status, commissionRate } = req.body;
+      
+      const affiliate = await storage.getAffiliate(affiliateId);
+      if (!affiliate) {
+        return res.status(404).json({ error: "Affiliate not found" });
+      }
+      
+      const updateData: any = {};
+      if (status) {
+        updateData.status = status;
+        if (status === "active" && affiliate.status !== "active") {
+          updateData.approvedAt = new Date();
+          updateData.approvedBy = req.session.userId;
+        }
+      }
+      if (commissionRate !== undefined) {
+        updateData.commissionRate = commissionRate;
+      }
+      
+      const updated = await storage.updateAffiliate(affiliateId, updateData);
+      
+      // Send notification to merchant
+      if (status === "active" && affiliate.status !== "active") {
+        await storage.createMerchantNotification({
+          merchantId: affiliate.merchantId,
+          type: "affiliate",
+          title: "Affiliate Application Approved!",
+          message: "Congratulations! Your affiliate application has been approved. You can now start earning commissions.",
+          actionUrl: "/dashboard/affiliate",
+          actionLabel: "View Dashboard",
+        });
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating affiliate:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Admin: Update affiliate settings
+  app.post("/api/admin/affiliates/settings", requireAdmin, async (req, res) => {
+    try {
+      const { defaultCommissionRate, cookieDays, minimumPayout, programEnabled } = req.body;
+      
+      if (defaultCommissionRate !== undefined) {
+        await storage.setPlatformSetting("affiliate_commission_rate", defaultCommissionRate.toString());
+      }
+      if (cookieDays !== undefined) {
+        await storage.setPlatformSetting("affiliate_cookie_days", cookieDays.toString());
+      }
+      if (minimumPayout !== undefined) {
+        await storage.setPlatformSetting("affiliate_minimum_payout", minimumPayout.toString());
+      }
+      if (programEnabled !== undefined) {
+        await storage.setPlatformSetting("affiliate_program_enabled", programEnabled.toString());
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating affiliate settings:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // ============ Custom Plan Requests ============
   
   // Merchant submits custom plan request
@@ -7689,6 +7929,79 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       }
     } catch (error: any) {
       console.error("Payment test error:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error.message || "Connection test failed" 
+      });
+    }
+  });
+
+  // ============ PayPal Integration (Admin) ============
+  
+  // Get PayPal configuration status (never expose actual keys)
+  app.get("/api/admin/payment/paypal/config", requireAdmin, async (req, res) => {
+    try {
+      const hasClientId = !!process.env.PAYPAL_CLIENT_ID;
+      const hasClientSecret = !!process.env.PAYPAL_CLIENT_SECRET;
+      const isConfigured = hasClientId && hasClientSecret;
+      
+      // Get masked key preview (first 4 and last 4 chars only)
+      const maskKey = (key: string | undefined) => {
+        if (!key || key.length < 12) return null;
+        return `${key.substring(0, 4)}${"*".repeat(Math.min(key.length - 8, 20))}${key.substring(key.length - 4)}`;
+      };
+      
+      res.json({
+        isConfigured,
+        hasClientId,
+        hasClientSecret,
+        clientIdPreview: maskKey(process.env.PAYPAL_CLIENT_ID),
+      });
+    } catch (error) {
+      console.error("Get PayPal config error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Test PayPal connection
+  app.post("/api/admin/payment/paypal/test", requireAdmin, async (req, res) => {
+    try {
+      const clientId = process.env.PAYPAL_CLIENT_ID;
+      const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+      
+      if (!clientId || !clientSecret) {
+        return res.status(400).json({ 
+          success: false, 
+          error: "PayPal not configured. Please add PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET in Secrets." 
+        });
+      }
+      
+      // Test connection by getting an access token from PayPal
+      const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+      const response = await fetch('https://api-m.sandbox.paypal.com/v1/oauth2/token', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'grant_type=client_credentials',
+      });
+      
+      if (response.ok) {
+        await storage.setPlatformSetting("paypal_last_tested", new Date().toISOString());
+        res.json({ 
+          success: true, 
+          message: "PayPal connection successful! API credentials are valid.",
+        });
+      } else {
+        const error = await response.json();
+        res.json({ 
+          success: false, 
+          error: error.error_description || "PayPal connection test failed. Please verify your credentials." 
+        });
+      }
+    } catch (error: any) {
+      console.error("PayPal test error:", error);
       res.status(500).json({ 
         success: false, 
         error: error.message || "Connection test failed" 

@@ -52,13 +52,17 @@ import {
   type CustomPlanRequest, type InsertCustomPlanRequest,
   type MerchantNotification, type InsertMerchantNotification,
   type DomainRegistration, type InsertDomainRegistration,
+  type Affiliate, type InsertAffiliate,
+  type AffiliateReferral, type InsertAffiliateReferral,
+  type AffiliateCommission, type InsertAffiliateCommission,
+  type AffiliatePayout, type InsertAffiliatePayout,
   merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings, storedFiles, domainRegistrations,
   workShifts, shiftAssignments, workReports, quickReplies, chatButtons, productCards, productCardButtons, welcomeBubbles, notificationSettings, productRecommendationSettings, productTriggers, supervisorInvitations,
   emailVerificationTokens, passwordResetTokens, promotions, promotionUsage,
   widgetSites, siteDomains, coinOrders, topupNominals, merchantDomains, paymentGateways,
   paymentTransactions, adminNotifications, chatSecuritySettings, chatSecurityAlerts,
   knowledgebaseArticles, knowledgebaseTemplates, productCrawlSources, crawledProducts, customPlanInvoices,
-  customPlanRequests, merchantNotifications,
+  customPlanRequests, merchantNotifications, affiliates, affiliateReferrals, affiliateCommissions, affiliatePayouts,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
@@ -2760,6 +2764,165 @@ export class DatabaseStorage implements IStorage {
         eq(merchantNotifications.isRead, false)
       ));
     return result[0]?.count || 0;
+  }
+
+  // ============ Affiliate Program ============
+  
+  async getAffiliateByMerchantId(merchantId: string): Promise<Affiliate | undefined> {
+    const result = await db.select().from(affiliates)
+      .where(eq(affiliates.merchantId, merchantId));
+    return result[0];
+  }
+  
+  async getAffiliateByCode(code: string): Promise<Affiliate | undefined> {
+    const result = await db.select().from(affiliates)
+      .where(eq(affiliates.affiliateCode, code));
+    return result[0];
+  }
+  
+  async getAffiliate(id: string): Promise<Affiliate | undefined> {
+    const result = await db.select().from(affiliates)
+      .where(eq(affiliates.id, id));
+    return result[0];
+  }
+  
+  async getAllAffiliates(): Promise<Affiliate[]> {
+    return db.select().from(affiliates)
+      .orderBy(desc(affiliates.createdAt));
+  }
+  
+  async getActiveAffiliates(): Promise<Affiliate[]> {
+    return db.select().from(affiliates)
+      .where(eq(affiliates.status, "active"))
+      .orderBy(desc(affiliates.createdAt));
+  }
+  
+  async createAffiliate(data: InsertAffiliate): Promise<Affiliate> {
+    const id = generateId("aff_");
+    const result = await db.insert(affiliates).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+  
+  async updateAffiliate(id: string, data: Partial<Affiliate>): Promise<Affiliate | undefined> {
+    const result = await db.update(affiliates)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(affiliates.id, id))
+      .returning();
+    return result[0];
+  }
+  
+  // Affiliate Referrals
+  async createAffiliateReferral(data: InsertAffiliateReferral): Promise<AffiliateReferral> {
+    const id = generateId("ref_");
+    const result = await db.insert(affiliateReferrals).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+  
+  async getAffiliateReferrals(affiliateId: string): Promise<AffiliateReferral[]> {
+    return db.select().from(affiliateReferrals)
+      .where(eq(affiliateReferrals.affiliateId, affiliateId))
+      .orderBy(desc(affiliateReferrals.createdAt));
+  }
+  
+  async getReferralByMerchant(merchantId: string): Promise<AffiliateReferral | undefined> {
+    const result = await db.select().from(affiliateReferrals)
+      .where(eq(affiliateReferrals.referredMerchantId, merchantId));
+    return result[0];
+  }
+  
+  async updateAffiliateReferral(id: string, data: Partial<AffiliateReferral>): Promise<AffiliateReferral | undefined> {
+    const result = await db.update(affiliateReferrals)
+      .set(data)
+      .where(eq(affiliateReferrals.id, id))
+      .returning();
+    return result[0];
+  }
+  
+  // Affiliate Commissions
+  async createAffiliateCommission(data: InsertAffiliateCommission): Promise<AffiliateCommission> {
+    const id = generateId("com_");
+    const result = await db.insert(affiliateCommissions).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+  
+  async getAffiliateCommissions(affiliateId: string): Promise<AffiliateCommission[]> {
+    return db.select().from(affiliateCommissions)
+      .where(eq(affiliateCommissions.affiliateId, affiliateId))
+      .orderBy(desc(affiliateCommissions.createdAt));
+  }
+  
+  async getAllCommissions(): Promise<AffiliateCommission[]> {
+    return db.select().from(affiliateCommissions)
+      .orderBy(desc(affiliateCommissions.createdAt));
+  }
+  
+  async updateAffiliateCommission(id: string, data: Partial<AffiliateCommission>): Promise<AffiliateCommission | undefined> {
+    const result = await db.update(affiliateCommissions)
+      .set(data)
+      .where(eq(affiliateCommissions.id, id))
+      .returning();
+    return result[0];
+  }
+  
+  // Affiliate Payouts
+  async createAffiliatePayout(data: InsertAffiliatePayout): Promise<AffiliatePayout> {
+    const id = generateId("pay_");
+    const result = await db.insert(affiliatePayouts).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+  
+  async getAffiliatePayouts(affiliateId: string): Promise<AffiliatePayout[]> {
+    return db.select().from(affiliatePayouts)
+      .where(eq(affiliatePayouts.affiliateId, affiliateId))
+      .orderBy(desc(affiliatePayouts.createdAt));
+  }
+  
+  async getAllPayouts(): Promise<AffiliatePayout[]> {
+    return db.select().from(affiliatePayouts)
+      .orderBy(desc(affiliatePayouts.createdAt));
+  }
+  
+  async updateAffiliatePayout(id: string, data: Partial<AffiliatePayout>): Promise<AffiliatePayout | undefined> {
+    const result = await db.update(affiliatePayouts)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(affiliatePayouts.id, id))
+      .returning();
+    return result[0];
+  }
+  
+  // Affiliate Statistics
+  async getAffiliateStats(): Promise<{ totalAffiliates: number; activeAffiliates: number; totalReferrals: number; totalCommissions: number; pendingPayouts: number }> {
+    const [totalAffiliates] = await db.select({ count: count() }).from(affiliates);
+    const [activeAffiliates] = await db.select({ count: count() }).from(affiliates).where(eq(affiliates.status, "active"));
+    const [totalReferrals] = await db.select({ count: count() }).from(affiliateReferrals);
+    const [totalCommissions] = await db.select({ count: count() }).from(affiliateCommissions);
+    const [pendingPayouts] = await db.select({ count: count() }).from(affiliatePayouts).where(eq(affiliatePayouts.status, "pending"));
+    
+    return {
+      totalAffiliates: totalAffiliates?.count || 0,
+      activeAffiliates: activeAffiliates?.count || 0,
+      totalReferrals: totalReferrals?.count || 0,
+      totalCommissions: totalCommissions?.count || 0,
+      pendingPayouts: pendingPayouts?.count || 0,
+    };
   }
 }
 

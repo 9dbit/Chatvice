@@ -6519,6 +6519,138 @@ import type { GatewayStats } from "@shared/schema";
 
 const PAYMENT_METHODS = ["QRIS", "VA", "EWALLET", "BANK", "CARD", "CRYPTO"];
 
+function PayPalCredentialsCard({ toast }: { toast: any }) {
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const { data: config, isLoading } = useQuery<{ isConfigured: boolean; hasClientId: boolean; hasClientSecret: boolean; clientIdPreview?: string }>({
+    queryKey: ["/api/admin/payment/paypal/config"],
+  });
+
+  const handleTestConnection = async () => {
+    setIsTesting(true);
+    setTestResult(null);
+    try {
+      const response = await apiRequest("POST", "/api/admin/payment/paypal/test");
+      const result = await response.json();
+      if (response.ok) {
+        setTestResult({ success: true, message: result.message || "PayPal connection successful!" });
+        toast({ title: "Success", description: "PayPal connection verified." });
+      } else {
+        setTestResult({ success: false, message: result.error || "PayPal connection test failed." });
+        toast({ title: "Error", description: result.error || "PayPal connection test failed.", variant: "destructive" });
+      }
+    } catch (error: any) {
+      setTestResult({ success: false, message: error.message || "Connection test failed." });
+      toast({ title: "Error", description: "Failed to test PayPal connection.", variant: "destructive" });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  if (isLoading) {
+    return <Skeleton className="h-48" />;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Wallet className="w-5 h-5 text-blue-500" />
+              PayPal Integration
+            </CardTitle>
+            <CardDescription>PayPal API credentials for international payments</CardDescription>
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={handleTestConnection}
+            disabled={isTesting || !config?.isConfigured}
+            data-testid="button-test-paypal-connection"
+          >
+            {isTesting ? (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                Testing...
+              </>
+            ) : (
+              <>
+                <Zap className="w-4 h-4 mr-2" />
+                Test Connection
+              </>
+            )}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="p-4 border rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-sm font-medium">Client ID</p>
+              {config?.hasClientId ? (
+                <Badge variant="outline" className="bg-green-500/10 text-green-700 dark:text-green-400">
+                  <CheckCircle className="w-3 h-3 mr-1" /> Configured
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-red-500/10 text-red-700 dark:text-red-400">
+                  <XCircle className="w-3 h-3 mr-1" /> Not Set
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Environment variable: <code className="px-1 py-0.5 bg-muted rounded">PAYPAL_CLIENT_ID</code>
+            </p>
+            {config?.clientIdPreview && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Preview: <code className="px-1 py-0.5 bg-muted rounded">{config.clientIdPreview}</code>
+              </p>
+            )}
+          </div>
+          <div className="p-4 border rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-sm font-medium">Client Secret</p>
+              {config?.hasClientSecret ? (
+                <Badge variant="outline" className="bg-green-500/10 text-green-700 dark:text-green-400">
+                  <CheckCircle className="w-3 h-3 mr-1" /> Configured
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-red-500/10 text-red-700 dark:text-red-400">
+                  <XCircle className="w-3 h-3 mr-1" /> Not Set
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Environment variable: <code className="px-1 py-0.5 bg-muted rounded">PAYPAL_CLIENT_SECRET</code>
+            </p>
+          </div>
+        </div>
+
+        {testResult && (
+          <div className={`p-3 rounded-lg text-sm ${testResult.success ? 'bg-green-500/10 text-green-700 dark:text-green-400' : 'bg-red-500/10 text-red-700 dark:text-red-400'}`}>
+            <div className="flex items-center gap-2">
+              {testResult.success ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+              {testResult.message}
+            </div>
+          </div>
+        )}
+
+        <div className="p-4 bg-muted/50 rounded-lg">
+          <p className="text-sm font-medium mb-2">How to Configure PayPal</p>
+          <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+            <li>Go to <a href="https://developer.paypal.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">PayPal Developer Dashboard</a></li>
+            <li>Create or select an app to get your credentials</li>
+            <li>Open the <strong>Secrets</strong> tab in Replit</li>
+            <li>Add <code className="px-1 py-0.5 bg-background rounded">PAYPAL_CLIENT_ID</code> with your Client ID</li>
+            <li>Add <code className="px-1 py-0.5 bg-background rounded">PAYPAL_CLIENT_SECRET</code> with your Client Secret</li>
+            <li>Restart the application and test the connection</li>
+          </ol>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function GatewayCredentialsCard({ toast }: { toast: any }) {
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -6836,6 +6968,9 @@ function PaymentIntegrationTab({ toast }: { toast: any }) {
 
       {/* Gateway Credentials Configuration */}
       <GatewayCredentialsCard toast={toast} />
+      
+      {/* PayPal Integration */}
+      <PayPalCredentialsCard toast={toast} />
 
       {gateways && gateways.length === 0 ? (
         <Card>
