@@ -31,11 +31,13 @@ import LivePreviewPage from "./live-preview";
 import CheckoutPage from "./checkout";
 import ChatMonitoringPage from "./chat-monitoring";
 import ProfilePage from "./profile";
+import AffiliatePage from "./affiliate";
 import type { Merchant } from "@shared/schema";
 
 const pageNames: Record<string, string> = {
   "": "Overview",
   "profile": "Profile",
+  "affiliate": "Affiliate",
   "agents": "Agents",
   "sources": "Sources",
   "analytics": "Analytics",
@@ -131,6 +133,7 @@ export default function DashboardLayout() {
             <Switch>
               <Route path="/dashboard" component={DashboardOverview} />
               <Route path="/dashboard/profile" component={ProfilePage} />
+              <Route path="/dashboard/affiliate" component={AffiliatePage} />
               <Route path="/dashboard/agents" component={AgentsPage} />
               <Route path="/dashboard/sources" component={SourcesPage} />
               <Route path="/dashboard/analytics" component={AnalyticsPage} />

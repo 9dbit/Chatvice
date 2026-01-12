@@ -240,6 +240,13 @@ export default function AdminDashboard() {
     enabled: !!adminId,
   });
   const pendingBankTransferPaymentsCount = bankTransferPayments.filter(p => p.status === "pending").length;
+  
+  // Fetch pending affiliates count for sidebar badge
+  const { data: affiliatesData = [] } = useQuery<{ status: string }[]>({
+    queryKey: ["/api/admin/affiliates"],
+    enabled: !!adminId,
+  });
+  const pendingAffiliatesCount = affiliatesData.filter(a => a.status === "pending").length;
 
   const handleLogout = () => {
     localStorage.removeItem("adminId");
@@ -335,6 +342,7 @@ export default function AdminDashboard() {
     { id: "crypto-payments", label: "Crypto Payments", icon: Bitcoin },
     { id: "bank-transfers", label: "Bank Transfers", icon: Landmark },
     { id: "custom-requests", label: "Custom Requests", icon: Sparkles },
+    { id: "affiliates", label: "Affiliates", icon: Share2 },
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
@@ -357,6 +365,8 @@ export default function AdminDashboard() {
             badgeCount = pendingCryptoPaymentsCount;
           } else if (item.id === "bank-transfers") {
             badgeCount = pendingBankTransferPaymentsCount;
+          } else if (item.id === "affiliates") {
+            badgeCount = pendingAffiliatesCount;
           }
           
           return (
@@ -516,6 +526,8 @@ export default function AdminDashboard() {
             {activeTab === "bank-transfers" && <BankTransferPaymentsTab toast={toast} />}
             
             {activeTab === "custom-requests" && <CustomRequestsTab toast={toast} />}
+            
+            {activeTab === "affiliates" && <AffiliatesTab toast={toast} />}
           </div>
         </div>
       </main>
@@ -4735,6 +4747,12 @@ function PricingTab({ toast }: { toast: any }) {
   const [editAnnualPrice, setEditAnnualPrice] = useState(0);
   const [editConversationsLimit, setEditConversationsLimit] = useState(0);
   const [editAgentsLimit, setEditAgentsLimit] = useState(0);
+  const [editSupervisorsLimit, setEditSupervisorsLimit] = useState(0);
+  const [editSourcesLimit, setEditSourcesLimit] = useState(0);
+  const [editSuggestedQuestionsLimit, setEditSuggestedQuestionsLimit] = useState(0);
+  const [editDomainsLimit, setEditDomainsLimit] = useState(0);
+  const [editChatRetentionHours, setEditChatRetentionHours] = useState(0);
+  const [editBgRemovalLimit, setEditBgRemovalLimit] = useState(0);
   
   // Promotions state
   const [promoDialogOpen, setPromoDialogOpen] = useState(false);
@@ -4806,18 +4824,30 @@ function PricingTab({ toast }: { toast: any }) {
   });
   
   const updatePlanMutation = useMutation({
-    mutationFn: async ({ planId, monthlyPrice, annualPrice, conversationsLimit, agentsLimit }: { 
+    mutationFn: async ({ planId, monthlyPrice, annualPrice, conversationsLimit, agentsLimit, supervisorsLimit, sourcesLimit, suggestedQuestionsLimit, domainsLimit, chatRetentionHours, bgRemovalLimit }: { 
       planId: string; 
       monthlyPrice: number; 
       annualPrice: number;
       conversationsLimit: number;
       agentsLimit: number;
+      supervisorsLimit: number;
+      sourcesLimit: number;
+      suggestedQuestionsLimit: number;
+      domainsLimit: number;
+      chatRetentionHours: number;
+      bgRemovalLimit: number;
     }) => {
       return apiRequest("PUT", `/api/admin/subscription-plans/${planId}`, {
         monthlyPrice,
         annualPrice,
         conversationsLimit,
         agentsLimit,
+        supervisorsLimit,
+        sourcesLimit,
+        suggestedQuestionsLimit,
+        domainsLimit,
+        chatRetentionHours,
+        bgRemovalLimit,
       });
     },
     onSuccess: () => {
@@ -4843,6 +4873,12 @@ function PricingTab({ toast }: { toast: any }) {
     setEditAnnualPrice(plan.annualPrice);
     setEditConversationsLimit(plan.conversationsLimit);
     setEditAgentsLimit(plan.agentsLimit);
+    setEditSupervisorsLimit(plan.supervisorsLimit || 0);
+    setEditSourcesLimit(plan.sourcesLimit || 0);
+    setEditSuggestedQuestionsLimit(plan.suggestedQuestionsLimit || 0);
+    setEditDomainsLimit(plan.domainsLimit || 0);
+    setEditChatRetentionHours(plan.chatRetentionHours || 0);
+    setEditBgRemovalLimit(plan.bgRemovalLimit || 0);
     setEditPlanOpen(true);
   };
   
@@ -4854,6 +4890,12 @@ function PricingTab({ toast }: { toast: any }) {
         annualPrice: editAnnualPrice,
         conversationsLimit: editConversationsLimit,
         agentsLimit: editAgentsLimit,
+        supervisorsLimit: editSupervisorsLimit,
+        sourcesLimit: editSourcesLimit,
+        suggestedQuestionsLimit: editSuggestedQuestionsLimit,
+        domainsLimit: editDomainsLimit,
+        chatRetentionHours: editChatRetentionHours,
+        bgRemovalLimit: editBgRemovalLimit,
       });
     }
   };
@@ -5732,9 +5774,11 @@ function PricingTab({ toast }: { toast: any }) {
                 />
               </div>
             </div>
+            <Separator />
+            <p className="text-sm font-medium text-muted-foreground">Feature Limits</p>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Conversations Limit</Label>
+                <Label>Conversations/Month</Label>
                 <Input 
                   type="number" 
                   min="-1"
@@ -5747,10 +5791,10 @@ function PricingTab({ toast }: { toast: any }) {
                   className="mt-1" 
                   data-testid="input-edit-plan-conversations" 
                 />
-                <p className="text-xs text-muted-foreground mt-1">Use -1 for unlimited</p>
+                <p className="text-xs text-muted-foreground mt-1">-1 for unlimited</p>
               </div>
               <div>
-                <Label>Agents Limit</Label>
+                <Label>AI Agents</Label>
                 <Input 
                   type="number" 
                   min="-1"
@@ -5763,7 +5807,109 @@ function PricingTab({ toast }: { toast: any }) {
                   className="mt-1" 
                   data-testid="input-edit-plan-agents" 
                 />
-                <p className="text-xs text-muted-foreground mt-1">Use -1 for unlimited</p>
+                <p className="text-xs text-muted-foreground mt-1">-1 for unlimited</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Supervisors</Label>
+                <Input 
+                  type="number" 
+                  min="-1"
+                  value={editSupervisorsLimit} 
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '' || val === '-') return;
+                    setEditSupervisorsLimit(parseInt(val));
+                  }}
+                  className="mt-1" 
+                  data-testid="input-edit-plan-supervisors" 
+                />
+                <p className="text-xs text-muted-foreground mt-1">-1 for unlimited</p>
+              </div>
+              <div>
+                <Label>Knowledge Sources</Label>
+                <Input 
+                  type="number" 
+                  min="-1"
+                  value={editSourcesLimit} 
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '' || val === '-') return;
+                    setEditSourcesLimit(parseInt(val));
+                  }}
+                  className="mt-1" 
+                  data-testid="input-edit-plan-sources" 
+                />
+                <p className="text-xs text-muted-foreground mt-1">-1 for unlimited</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Suggested Questions</Label>
+                <Input 
+                  type="number" 
+                  min="-1"
+                  value={editSuggestedQuestionsLimit} 
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '' || val === '-') return;
+                    setEditSuggestedQuestionsLimit(parseInt(val));
+                  }}
+                  className="mt-1" 
+                  data-testid="input-edit-plan-suggested-questions" 
+                />
+                <p className="text-xs text-muted-foreground mt-1">-1 for unlimited</p>
+              </div>
+              <div>
+                <Label>Allowed Domains</Label>
+                <Input 
+                  type="number" 
+                  min="-1"
+                  value={editDomainsLimit} 
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '' || val === '-') return;
+                    setEditDomainsLimit(parseInt(val));
+                  }}
+                  className="mt-1" 
+                  data-testid="input-edit-plan-domains" 
+                />
+                <p className="text-xs text-muted-foreground mt-1">-1 for unlimited</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Chat History (hours)</Label>
+                <Input 
+                  type="number" 
+                  min="-1"
+                  value={editChatRetentionHours} 
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '' || val === '-') return;
+                    setEditChatRetentionHours(parseInt(val));
+                  }}
+                  className="mt-1" 
+                  data-testid="input-edit-plan-chat-retention" 
+                />
+                <p className="text-xs text-muted-foreground mt-1">-1 for unlimited</p>
+              </div>
+              <div>
+                <Label>BG Removal/Month</Label>
+                <Input 
+                  type="number" 
+                  min="-1"
+                  value={editBgRemovalLimit} 
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '' || val === '-') return;
+                    setEditBgRemovalLimit(parseInt(val));
+                  }}
+                  className="mt-1" 
+                  data-testid="input-edit-plan-bg-removal" 
+                />
+                <p className="text-xs text-muted-foreground mt-1">-1 for unlimited</p>
               </div>
             </div>
           </div>
@@ -9993,6 +10139,441 @@ function CustomRequestsTab({ toast }: { toast: any }) {
               {createInvoiceMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               <Send className="w-4 h-4 mr-2" />
               Confirm & Send
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+interface Affiliate {
+  id: string;
+  merchantId: string;
+  affiliateCode: string;
+  status: "pending" | "active" | "suspended";
+  commissionRate: number;
+  totalEarnings: number;
+  pendingEarnings: number;
+  paidEarnings: number;
+  createdAt: string;
+  approvedAt: string | null;
+  merchant?: {
+    email: string;
+    companyName: string;
+  };
+}
+
+function AffiliatesTab({ toast }: { toast: any }) {
+  const [selectedAffiliate, setSelectedAffiliate] = useState<Affiliate | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [commissionRate, setCommissionRate] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [globalCommissionRate, setGlobalCommissionRate] = useState("20");
+  const [cookieDays, setCookieDays] = useState("30");
+  const [minimumPayout, setMinimumPayout] = useState("50");
+  const [programEnabled, setProgramEnabled] = useState(true);
+
+  const { data: affiliates = [], isLoading, refetch } = useQuery<Affiliate[]>({
+    queryKey: ["/api/admin/affiliates"],
+  });
+
+  const { data: settings } = useQuery({
+    queryKey: ["/api/affiliate/settings"],
+  });
+
+  useEffect(() => {
+    if (settings) {
+      setGlobalCommissionRate((settings as any).defaultCommissionRate?.toString() || "20");
+      setCookieDays((settings as any).cookieDays?.toString() || "30");
+      setMinimumPayout((settings as any).minimumPayout?.toString() || "50");
+      setProgramEnabled((settings as any).programEnabled !== false);
+    }
+  }, [settings]);
+
+  const updateAffiliateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { status?: string; commissionRate?: number } }) => {
+      return apiRequest("PATCH", `/api/admin/affiliates/${id}`, data);
+    },
+    onSuccess: () => {
+      toast({ title: "Affiliate updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/affiliates"] });
+      refetch();
+      setSelectedAffiliate(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Error updating affiliate", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const saveSettingsMutation = useMutation({
+    mutationFn: async (data: { defaultCommissionRate?: number; cookieDays?: number; minimumPayout?: number; programEnabled?: boolean }) => {
+      return apiRequest("POST", "/api/admin/affiliates/settings", data);
+    },
+    onSuccess: () => {
+      toast({ title: "Settings saved successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/affiliate/settings"] });
+      setSettingsOpen(false);
+    },
+    onError: (error: any) => {
+      toast({ title: "Error saving settings", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleApprove = (affiliate: Affiliate) => {
+    updateAffiliateMutation.mutate({
+      id: affiliate.id,
+      data: { status: "active", commissionRate: parseInt(commissionRate) || affiliate.commissionRate },
+    });
+  };
+
+  const handleSuspend = (affiliate: Affiliate) => {
+    updateAffiliateMutation.mutate({
+      id: affiliate.id,
+      data: { status: "suspended" },
+    });
+  };
+
+  const handleReactivate = (affiliate: Affiliate) => {
+    updateAffiliateMutation.mutate({
+      id: affiliate.id,
+      data: { status: "active" },
+    });
+  };
+
+  const handleSaveSettings = () => {
+    saveSettingsMutation.mutate({
+      defaultCommissionRate: parseInt(globalCommissionRate) || 20,
+      cookieDays: parseInt(cookieDays) || 30,
+      minimumPayout: parseInt(minimumPayout) || 50,
+      programEnabled,
+    });
+  };
+
+  const filteredAffiliates = affiliates.filter((aff) => {
+    if (filterStatus === "all") return true;
+    return aff.status === filterStatus;
+  });
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "active":
+        return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"><CheckCircle className="w-3 h-3 mr-1" />Active</Badge>;
+      case "pending":
+        return <Badge className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
+      case "suspended":
+        return <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"><XCircle className="w-3 h-3 mr-1" />Suspended</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const pendingCount = affiliates.filter((a) => a.status === "pending").length;
+  const activeCount = affiliates.filter((a) => a.status === "active").length;
+  const totalEarnings = affiliates.reduce((sum, a) => sum + (a.totalEarnings || 0), 0);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold" data-testid="text-affiliates-title">Affiliate Management</h2>
+          <p className="text-muted-foreground">Manage affiliate applications and settings</p>
+        </div>
+        <Button onClick={() => setSettingsOpen(true)} variant="outline" data-testid="button-affiliate-settings">
+          <Settings className="w-4 h-4 mr-2" />
+          Program Settings
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
+              <Clock className="w-5 h-5 text-yellow-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{pendingCount}</p>
+              <p className="text-sm text-muted-foreground">Pending</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{activeCount}</p>
+              <p className="text-sm text-muted-foreground">Active</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+              <Users className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{affiliates.length}</p>
+              <p className="text-sm text-muted-foreground">Total</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+              <DollarSign className="w-5 h-5 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">${totalEarnings.toFixed(2)}</p>
+              <p className="text-sm text-muted-foreground">Total Earnings</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <CardTitle>Affiliates</CardTitle>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-[140px]" data-testid="select-filter-status">
+              <SelectValue placeholder="Filter" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="suspended">Suspended</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardHeader>
+        <CardContent>
+          {filteredAffiliates.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No affiliates found
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Merchant</TableHead>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Commission</TableHead>
+                  <TableHead>Earnings</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredAffiliates.map((affiliate) => (
+                  <TableRow key={affiliate.id} data-testid={`row-affiliate-${affiliate.id}`}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{affiliate.merchant?.companyName || "Unknown"}</p>
+                        <p className="text-sm text-muted-foreground">{affiliate.merchant?.email}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-mono">{affiliate.affiliateCode}</TableCell>
+                    <TableCell>{getStatusBadge(affiliate.status)}</TableCell>
+                    <TableCell>{affiliate.commissionRate}%</TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">${affiliate.totalEarnings?.toFixed(2) || "0.00"}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Pending: ${affiliate.pendingEarnings?.toFixed(2) || "0.00"}
+                        </p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {affiliate.status === "pending" && (
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => {
+                              setSelectedAffiliate(affiliate);
+                              setCommissionRate(affiliate.commissionRate.toString());
+                            }}
+                            data-testid={`button-review-${affiliate.id}`}
+                          >
+                            Review
+                          </Button>
+                        )}
+                        {affiliate.status === "active" && (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleSuspend(affiliate)}
+                            data-testid={`button-suspend-${affiliate.id}`}
+                          >
+                            Suspend
+                          </Button>
+                        )}
+                        {affiliate.status === "suspended" && (
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => handleReactivate(affiliate)}
+                            data-testid={`button-reactivate-${affiliate.id}`}
+                          >
+                            Reactivate
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!selectedAffiliate} onOpenChange={() => setSelectedAffiliate(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Review Affiliate Application</DialogTitle>
+            <DialogDescription>
+              Review and approve this affiliate application
+            </DialogDescription>
+          </DialogHeader>
+          {selectedAffiliate && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Merchant</Label>
+                  <p className="font-medium">{selectedAffiliate.merchant?.companyName || "Unknown"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Email</Label>
+                  <p className="font-medium">{selectedAffiliate.merchant?.email}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Affiliate Code</Label>
+                  <p className="font-mono font-medium">{selectedAffiliate.affiliateCode}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Applied On</Label>
+                  <p className="font-medium">{new Date(selectedAffiliate.createdAt).toLocaleDateString()}</p>
+                </div>
+              </div>
+              <Separator />
+              <div>
+                <Label htmlFor="commission-rate">Commission Rate (%)</Label>
+                <Input
+                  id="commission-rate"
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={commissionRate}
+                  onChange={(e) => setCommissionRate(e.target.value)}
+                  className="mt-1"
+                  data-testid="input-commission-rate"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Default rate: {globalCommissionRate}%
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectedAffiliate(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => selectedAffiliate && handleApprove(selectedAffiliate)}
+              disabled={updateAffiliateMutation.isPending}
+              className="bg-green-600 hover:bg-green-700"
+              data-testid="button-approve-affiliate"
+            >
+              {updateAffiliateMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Approve
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Affiliate Program Settings</DialogTitle>
+            <DialogDescription>
+              Configure global affiliate program settings
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Program Enabled</Label>
+                <p className="text-xs text-muted-foreground">Allow new affiliate applications</p>
+              </div>
+              <Switch
+                checked={programEnabled}
+                onCheckedChange={setProgramEnabled}
+                data-testid="switch-program-enabled"
+              />
+            </div>
+            <Separator />
+            <div>
+              <Label htmlFor="global-commission">Default Commission Rate (%)</Label>
+              <Input
+                id="global-commission"
+                type="number"
+                min="1"
+                max="100"
+                value={globalCommissionRate}
+                onChange={(e) => setGlobalCommissionRate(e.target.value)}
+                className="mt-1"
+                data-testid="input-global-commission"
+              />
+            </div>
+            <div>
+              <Label htmlFor="cookie-days">Cookie Duration (days)</Label>
+              <Input
+                id="cookie-days"
+                type="number"
+                min="1"
+                max="365"
+                value={cookieDays}
+                onChange={(e) => setCookieDays(e.target.value)}
+                className="mt-1"
+                data-testid="input-cookie-days"
+              />
+            </div>
+            <div>
+              <Label htmlFor="min-payout">Minimum Payout ($)</Label>
+              <Input
+                id="min-payout"
+                type="number"
+                min="1"
+                value={minimumPayout}
+                onChange={(e) => setMinimumPayout(e.target.value)}
+                className="mt-1"
+                data-testid="input-min-payout"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSettingsOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveSettings}
+              disabled={saveSettingsMutation.isPending}
+              data-testid="button-save-settings"
+            >
+              {saveSettingsMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              <Save className="w-4 h-4 mr-2" />
+              Save Settings
             </Button>
           </DialogFooter>
         </DialogContent>

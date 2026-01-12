@@ -44,6 +44,7 @@ import {
   ShieldAlert,
   BookOpen,
   User,
+  DollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -118,6 +119,7 @@ const iconMap: Record<string, any> = {
   CreditCard,
   Receipt,
   ShieldAlert,
+  DollarSign,
 };
 
 const menuItemsMap: Record<string, MenuItem> = {
@@ -144,11 +146,13 @@ const menuItemsMap: Record<string, MenuItem> = {
   "plans": { id: "plans", title: "Plans", url: "/dashboard/plans", icon: CreditCard, permission: "billing" },
   "billing": { id: "billing", title: "Billing", url: "/dashboard/billing", icon: Receipt, permission: "billing" },
   "chat-monitoring": { id: "chat-monitoring", title: "Chat Monitoring", url: "/dashboard/chat-monitoring", icon: ShieldAlert, permission: "settings" },
+  "affiliate": { id: "affiliate", title: "Affiliate", url: "/dashboard/affiliate", icon: DollarSign, permission: "overview" },
 };
 
 const defaultMainMenuItems: MenuItem[] = [
   menuItemsMap["overview"],
   menuItemsMap["profile"],
+  menuItemsMap["affiliate"],
   menuItemsMap["agents"],
   menuItemsMap["sources"],
   menuItemsMap["knowledge-base"],
@@ -184,6 +188,7 @@ const defaultManagementItems: MenuItem[] = [
 const defaultGroupForItem: Record<string, "main" | "widgetSetting" | "messageSetting" | "management"> = {
   "overview": "main",
   "profile": "main",
+  "affiliate": "main",
   "agents": "main",
   "sources": "main",
   "knowledge-base": "main",

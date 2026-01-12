@@ -8499,7 +8499,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   app.put("/api/admin/subscription-plans/:planId", requireAdmin, async (req, res) => {
     try {
       const { planId } = req.params;
-      const { monthlyPrice, annualPrice, conversationsLimit, agentsLimit, supervisorsLimit, sourcesLimit } = req.body;
+      const { monthlyPrice, annualPrice, conversationsLimit, agentsLimit, supervisorsLimit, sourcesLimit, suggestedQuestionsLimit, domainsLimit, chatRetentionHours, bgRemovalLimit } = req.body;
       
       // Get existing custom overrides
       const customPlansJson = await storage.getPlatformSetting("subscription_plans_custom") || "{}";
@@ -8519,6 +8519,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         ...(agentsLimit !== undefined && { agentsLimit }),
         ...(supervisorsLimit !== undefined && { supervisorsLimit }),
         ...(sourcesLimit !== undefined && { sourcesLimit }),
+        ...(suggestedQuestionsLimit !== undefined && { suggestedQuestionsLimit }),
+        ...(domainsLimit !== undefined && { domainsLimit }),
+        ...(chatRetentionHours !== undefined && { chatRetentionHours }),
+        ...(bgRemovalLimit !== undefined && { bgRemovalLimit }),
       };
       
       // Save back to platform settings

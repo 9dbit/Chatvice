@@ -40,6 +40,11 @@ Chatvice is a monorepo application structured with `/client`, `/server`, and `/s
 - **Work Scheduler**: Shift management system for supervisors and AI agents.
 - **Landing Page Customization**: Admin Panel allows non-technical customization of the public landing page.
 - **Configurable Trial Period**: Admin-configurable trial days that dynamically update for active trial merchants. Default trial period is 7 days.
+- **Extended Plan Features Configuration**: Admin can configure all plan feature limits via the Pricing tab in Master Control Panel:
+  - **Pricing**: Monthly and annual prices
+  - **Feature Limits**: Conversations, AI Agents, Supervisors, Knowledge Sources, Suggested Questions, Allowed Domains, Chat History (hours), BG Removal
+  - **Unlimited Support**: Use -1 for unlimited values
+  - **Real-time Sync**: Changes persist to platform_settings as JSON overrides with cache clearing for immediate effect
 - **Chatvice Guide Configuration**: Admin dashboard tab for managing the AI help widget across landing page and merchant dashboard, including AI agent settings, welcome messages, and live preview.
 - **Promotional Discount System**: Comprehensive promo code system with admin CRUD, plan targeting, usage limits, and integration into pricing and billing pages.
 - **Chatvice Top Up v2 (Multi-Tenant Payment System)**: Multi-tenant coin top-up system for widget-embedded game/app monetization with JWT-based SSO, a defined payment flow, and API endpoints.
