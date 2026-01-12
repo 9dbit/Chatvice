@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 
 interface LandingPageSettings {
   logoUrl?: string;
@@ -94,6 +95,7 @@ function updateFavicon(faviconUrl: string) {
 
 export function DynamicHead() {
   const lastFaviconUrl = useRef<string | null>(null);
+  const [location] = useLocation();
   
   const { data: settings, isError } = useQuery<LandingPageSettings>({
     queryKey: ["/api/landing-settings"],
@@ -129,12 +131,16 @@ export function DynamicHead() {
       updateOrCreateMeta('twitter:description', settings.metaDescription, true);
     }
 
-    if (settings.canonicalUrl) {
-      updateOrCreateLink('canonical', settings.canonicalUrl);
-      updateOrCreateMeta('og:url', settings.canonicalUrl);
-      updateOrCreateMeta('twitter:url', settings.canonicalUrl, true);
-    }
-  }, [settings, isError]);
+    // Use current page URL for canonical instead of settings.canonicalUrl
+    // Each page should have its own canonical URL
+    const baseUrl = settings.canonicalUrl?.replace(/\/$/, '') || 'https://chatvice.app';
+    const currentPath = location === '/' ? '' : location;
+    const pageCanonicalUrl = `${baseUrl}${currentPath}`;
+    
+    updateOrCreateLink('canonical', pageCanonicalUrl);
+    updateOrCreateMeta('og:url', pageCanonicalUrl);
+    updateOrCreateMeta('twitter:url', pageCanonicalUrl, true);
+  }, [settings, isError, location]);
 
   return null;
 }

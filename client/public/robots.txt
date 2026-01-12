@@ -1,32 +1,10 @@
 # Chatvice.app Robots.txt
-# Last updated: 2026-01-11
+# Last updated: 2026-01-12
 # Allow all public pages for search engine indexing
 
 User-agent: *
-Allow: /
-Allow: /docs
-Allow: /docs/
-Allow: /features
-Allow: /pricing
-Allow: /about
-Allow: /faq
-Allow: /blog
-Allow: /integrations
-Allow: /privacy
-Allow: /terms
-Allow: /cookies
-Allow: /gdpr
-Allow: /security
-Allow: /careers
-Allow: /press
-Allow: /partners
-Allow: /contact
-Allow: /status
-Allow: /help
-Allow: /changelog
-Allow: /api-docs
 
-# Block private/authenticated areas
+# Block private/authenticated areas first
 Disallow: /dashboard
 Disallow: /dashboard/
 Disallow: /supervisor
@@ -46,10 +24,8 @@ Disallow: /widget
 Disallow: /widget/
 Disallow: /topup
 
-# Allow favicon and assets for all crawlers
-Allow: /favicon.ico
-Allow: /favicon.png
-Allow: /og/
+# Allow everything else (public pages)
+Allow: /
 
 # Sitemap location
 Sitemap: https://chatvice.app/sitemap.xml
