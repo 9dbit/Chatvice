@@ -167,9 +167,22 @@ interface MerchantWithPlan {
   websiteUrl?: string;
   picName?: string;
   phone?: string;
+  phoneCountryCode?: string;
   country?: string;
   city?: string;
   region?: string;
+  businessCategory?: string;
+  staffCount?: string;
+  officialWebsiteName?: string;
+  officialDomain?: string;
+  paymentProvider?: string;
+  paymentCustomerId?: string;
+  paymentSubscriptionId?: string;
+  billingInterval?: string;
+  isEmailVerified?: boolean;
+  emailVerifiedAt?: string;
+  profileCompleted?: boolean;
+  username?: string;
   plan: {
     name: string;
     conversationsLimit: number;
@@ -845,6 +858,13 @@ function MerchantsTab({
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [followUpDialogOpen, setFollowUpDialogOpen] = useState(false);
   const [selectedMerchant, setSelectedMerchant] = useState<MerchantWithPlan | null>(null);
+  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
+  const [selectedDetailMerchant, setSelectedDetailMerchant] = useState<MerchantWithPlan | null>(null);
+  
+  const handleViewDetail = (merchant: MerchantWithPlan) => {
+    setSelectedDetailMerchant(merchant);
+    setDetailDrawerOpen(true);
+  };
   const [editPlan, setEditPlan] = useState("");
   const [editCustomConfig, setEditCustomConfig] = useState({
     customConversationsLimit: 1000,
@@ -1254,11 +1274,23 @@ function MerchantsTab({
                     return (
                       <TableRow key={merchant.id} data-testid={`row-merchant-${merchant.id}`}>
                         <TableCell>
-                          <p className="text-xs font-mono text-muted-foreground">{merchant.id.substring(0, 8)}...</p>
+                          <button 
+                            onClick={() => handleViewDetail(merchant)}
+                            className="text-xs font-mono text-primary hover:underline cursor-pointer"
+                            data-testid={`link-merchant-id-${merchant.id}`}
+                          >
+                            {merchant.id.substring(0, 8)}...
+                          </button>
                         </TableCell>
                         <TableCell>
                           <div>
-                            <p className="font-medium text-sm">{merchant.companyName || 'Unnamed'}</p>
+                            <button 
+                              onClick={() => handleViewDetail(merchant)}
+                              className="font-medium text-sm text-primary hover:underline cursor-pointer text-left"
+                              data-testid={`link-merchant-name-${merchant.id}`}
+                            >
+                              {merchant.companyName || 'Unnamed'}
+                            </button>
                             <p className="text-xs text-muted-foreground truncate max-w-[120px] md:max-w-none">{merchant.email}</p>
                             {merchant.websiteUrl && (
                               <a href={merchant.websiteUrl.startsWith('http') ? merchant.websiteUrl : `https://${merchant.websiteUrl}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline truncate block max-w-[120px] md:max-w-none">
@@ -1766,6 +1798,197 @@ function MerchantsTab({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Sheet open={detailDrawerOpen} onOpenChange={setDetailDrawerOpen}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto" data-testid="drawer-merchant-detail">
+          {selectedDetailMerchant && (
+            <div className="space-y-6 pt-6">
+              <div className="space-y-2">
+                <h2 className="text-xl font-semibold">{selectedDetailMerchant.companyName || 'Unnamed Merchant'}</h2>
+                <p className="text-sm text-muted-foreground font-mono">{selectedDetailMerchant.id}</p>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Business Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Username</p>
+                    <p className="font-medium">{selectedDetailMerchant.username || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Email</p>
+                    <p className="font-medium">{selectedDetailMerchant.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Website Name</p>
+                    <p className="font-medium">{selectedDetailMerchant.officialWebsiteName || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Website URL</p>
+                    {selectedDetailMerchant.websiteUrl ? (
+                      <a href={selectedDetailMerchant.websiteUrl.startsWith('http') ? selectedDetailMerchant.websiteUrl : `https://${selectedDetailMerchant.websiteUrl}`} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">
+                        {selectedDetailMerchant.websiteUrl}
+                      </a>
+                    ) : (
+                      <p className="font-medium">-</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Official Domain</p>
+                    <p className="font-medium">{selectedDetailMerchant.officialDomain || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Business Category</p>
+                    <p className="font-medium">{selectedDetailMerchant.businessCategory || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Staff Count</p>
+                    <p className="font-medium">{selectedDetailMerchant.staffCount || '-'}</p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Contact Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Contact Person (PIC)</p>
+                    <p className="font-medium">{selectedDetailMerchant.picName || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Phone</p>
+                    <p className="font-medium">
+                      {selectedDetailMerchant.phone 
+                        ? `${selectedDetailMerchant.phoneCountryCode || ''} ${selectedDetailMerchant.phone}`
+                        : '-'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Country</p>
+                    <p className="font-medium">{selectedDetailMerchant.country || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">City/Region</p>
+                    <p className="font-medium">
+                      {[selectedDetailMerchant.city, selectedDetailMerchant.region].filter(Boolean).join(', ') || '-'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Subscription & Payment</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Plan</p>
+                    <div className="mt-1">{getPlanBadge(selectedDetailMerchant.subscriptionPlanId)}</div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Status</p>
+                    <div className="mt-1">{getStatusBadge(selectedDetailMerchant.subscriptionStatus, selectedDetailMerchant)}</div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Billing Interval</p>
+                    <p className="font-medium capitalize">{selectedDetailMerchant.billingInterval || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Conversations Used</p>
+                    <p className="font-medium">
+                      {selectedDetailMerchant.conversationsUsed || 0} / {selectedDetailMerchant.plan.conversationsLimit === -1 ? '∞' : selectedDetailMerchant.plan.conversationsLimit}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Payment Provider</p>
+                    <p className="font-medium capitalize">{selectedDetailMerchant.paymentProvider || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Customer ID</p>
+                    <p className="font-medium font-mono text-xs truncate">{selectedDetailMerchant.paymentCustomerId || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Subscription ID</p>
+                    <p className="font-medium font-mono text-xs truncate">{selectedDetailMerchant.paymentSubscriptionId || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Trial Ends</p>
+                    <p className="font-medium">
+                      {selectedDetailMerchant.trialEndsAt 
+                        ? format(new Date(selectedDetailMerchant.trialEndsAt), 'MMM d, yyyy')
+                        : '-'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Current Period End</p>
+                    <p className="font-medium">
+                      {selectedDetailMerchant.currentPeriodEnd 
+                        ? format(new Date(selectedDetailMerchant.currentPeriodEnd), 'MMM d, yyyy')
+                        : '-'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Account Status</h3>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant={selectedDetailMerchant.isEmailVerified ? "default" : "secondary"}>
+                    {selectedDetailMerchant.isEmailVerified ? (
+                      <><CheckCircle className="w-3 h-3 mr-1" /> Email Verified</>
+                    ) : (
+                      "Email Not Verified"
+                    )}
+                  </Badge>
+                  <Badge variant={selectedDetailMerchant.profileCompleted ? "default" : "secondary"}>
+                    {selectedDetailMerchant.profileCompleted ? (
+                      <><CheckCircle className="w-3 h-3 mr-1" /> Profile Complete</>
+                    ) : (
+                      "Profile Incomplete"
+                    )}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Joined</p>
+                    <p className="font-medium">
+                      {selectedDetailMerchant.createdAt 
+                        ? format(new Date(selectedDetailMerchant.createdAt), 'MMM d, yyyy')
+                        : '-'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Email Verified At</p>
+                    <p className="font-medium">
+                      {selectedDetailMerchant.emailVerifiedAt 
+                        ? format(new Date(selectedDetailMerchant.emailVerifiedAt), 'MMM d, yyyy')
+                        : '-'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => handleEdit(selectedDetailMerchant)} className="flex-1" data-testid="button-drawer-edit">
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit Plan
+                </Button>
+                <Button variant="destructive" onClick={() => handleDelete(selectedDetailMerchant)} data-testid="button-drawer-delete">
+                  <Trash className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </>
   );
 }
