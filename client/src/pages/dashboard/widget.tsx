@@ -39,6 +39,7 @@ export default function WidgetPage() {
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [isRemovingBg, setIsRemovingBg] = useState(false);
   const [bgRemovalStatus, setBgRemovalStatus] = useState<{ used: number; limit: number } | null>(null);
+  const [previewWidgetOpen, setPreviewWidgetOpen] = useState(true);
   const [config, setConfig] = useState({
     iconUrl: "",
     iconSize: 70,
@@ -1135,11 +1136,11 @@ async function handleLogin() {
               <CardHeader>
                 <CardTitle className="text-lg">Live Preview</CardTitle>
                 <CardDescription>
-                  This is how your widget will appear on your website.
+                  Click the widget button to open/close. This shows how your widget will appear on your website.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="relative bg-muted/30 rounded-lg h-[650px] flex items-end justify-end p-4">
+                <div className="relative bg-muted/30 rounded-lg h-[650px] flex flex-col items-center justify-center p-4">
                   <div className="absolute top-4 left-4 right-4 h-8 bg-muted rounded flex items-center px-3">
                     <div className="flex gap-1.5">
                       <div className="w-2.5 h-2.5 rounded-full bg-destructive/50" />
@@ -1149,171 +1150,184 @@ async function handleLogin() {
                     <span className="text-xs text-muted-foreground ml-3">yourwebsite.com</span>
                   </div>
 
-                  <div
-                    className={`cursor-pointer flex items-center justify-center relative ${config.bubblePosition === "left" ? "mr-auto" : "ml-auto"} ${config.iconUrl ? "" : "rounded-full shadow-lg"}`}
-                    style={{
-                      width: config.iconUrl ? config.iconWidth : config.iconSize,
-                      height: config.iconUrl ? config.iconHeight : config.iconSize,
-                      backgroundColor: config.iconUrl ? "transparent" : config.primaryColor,
-                    }}
-                  >
-                    {config.iconUrl ? (
-                      <img
-                        src={config.iconUrl}
-                        alt="Chat icon"
-                        className="w-full h-full object-contain drop-shadow-lg"
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                        }}
-                      />
-                    ) : (
-                      <Bot className="w-1/2 h-1/2 text-white" />
-                    )}
-                    {!config.iconUrl && (
+                  {!previewWidgetOpen && (
+                    <div className="flex flex-col items-center gap-4">
                       <div
-                        className={`absolute bottom-1 right-1 w-3 h-3 rounded-full border-2 border-white ${
-                          config.online ? "bg-status-online" : "bg-status-offline"
-                        }`}
-                      />
-                    )}
-                  </div>
-
-                  <div 
-                    className={`absolute bottom-20 ${config.bubblePosition === "left" ? "left-4" : "right-4"} w-[300px] rounded-xl shadow-xl overflow-hidden border`}
-                    style={{
-                      backgroundColor: config.widgetTheme === "dark" ? "#1a1a2e" : "#ffffff",
-                      borderColor: config.widgetTheme === "dark" ? "#2d2d44" : "#e5e7eb",
-                    }}
-                  >
-                    <div
-                      className="p-3 flex items-center justify-between"
-                      style={{ backgroundColor: config.primaryColor }}
-                    >
-                      <div className="flex items-center gap-2">
-                        {config.agentPhotoUrl ? (
+                        className={`cursor-pointer flex items-center justify-center relative transition-transform hover:scale-105 ${config.iconUrl ? "" : "rounded-full shadow-lg"}`}
+                        style={{
+                          width: config.iconUrl ? config.iconWidth : config.iconSize,
+                          height: config.iconUrl ? config.iconHeight : config.iconSize,
+                          backgroundColor: config.iconUrl ? "transparent" : config.primaryColor,
+                        }}
+                        onClick={() => setPreviewWidgetOpen(true)}
+                        data-testid="button-preview-widget-open"
+                      >
+                        {config.iconUrl ? (
                           <img
-                            src={config.agentPhotoUrl}
-                            alt={config.agentName}
-                            className="w-9 h-9 rounded-full object-cover border-2 border-white/30"
+                            src={config.iconUrl}
+                            alt="Chat icon"
+                            className="w-full h-full object-contain drop-shadow-lg"
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
                           />
                         ) : (
-                          <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center border-2 border-white/30">
-                            <Bot className="w-5 h-5 text-white" />
-                          </div>
+                          <Bot className="w-1/2 h-1/2 text-white" />
                         )}
-                        <div className="text-white">
-                          <p className="text-sm font-semibold">{config.agentName}</p>
-                          <div className="flex items-center gap-1">
-                            <div className={`w-2 h-2 rounded-full ${config.online ? "bg-green-400" : "bg-gray-400"}`} />
-                            <p className="text-xs opacity-90">{config.online ? "Online" : "Offline"}</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button className="p-1.5 hover:bg-white/20 rounded-full transition-colors">
-                          <RefreshCw className="w-4 h-4 text-white" />
-                        </button>
-                        <button className="p-1.5 hover:bg-white/20 rounded-full transition-colors">
-                          <X className="w-4 h-4 text-white" />
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div 
-                      className="p-3 min-h-[100px]"
-                      style={{
-                        backgroundColor: config.widgetTheme === "dark" ? "#1a1a2e" : "#ffffff",
-                      }}
-                    >
-                      <div className="flex gap-2">
-                        {config.agentPhotoUrl ? (
-                          <img
-                            src={config.agentPhotoUrl}
-                            alt={config.agentName}
-                            className="w-7 h-7 rounded-full object-cover shrink-0"
-                          />
-                        ) : (
+                        {!config.iconUrl && (
                           <div
-                            className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
-                            style={{ backgroundColor: `${config.primaryColor}20` }}
-                          >
-                            <Bot className="w-4 h-4" style={{ color: config.primaryColor }} />
-                          </div>
+                            className={`absolute bottom-1 right-1 w-3 h-3 rounded-full border-2 border-white ${
+                              config.online ? "bg-status-online" : "bg-status-offline"
+                            }`}
+                          />
                         )}
-                        <div 
-                          className="rounded-lg rounded-tl-sm p-2.5 text-xs max-w-[200px]"
-                          style={{
-                            backgroundColor: config.widgetTheme === "dark" ? "#2d2d44" : "#f3f4f6",
-                            color: config.widgetTheme === "dark" ? "#e5e7eb" : "#374151",
-                          }}
-                        >
-                          {config.welcomeMessage}
-                        </div>
                       </div>
+                      <p className="text-sm text-muted-foreground">Click to open widget</p>
                     </div>
+                  )}
 
+                  {previewWidgetOpen && (
                     <div 
-                      className="p-2 border-t flex items-center gap-2"
+                      className="w-[320px] rounded-xl shadow-xl overflow-hidden border"
                       style={{
                         backgroundColor: config.widgetTheme === "dark" ? "#1a1a2e" : "#ffffff",
                         borderColor: config.widgetTheme === "dark" ? "#2d2d44" : "#e5e7eb",
                       }}
                     >
-                      <div className="flex gap-0.5">
-                        <button 
-                          className="p-1.5 rounded-full hover:bg-muted/50 transition-colors"
-                          style={{ color: config.widgetTheme === "dark" ? "#9ca3af" : "#6b7280" }}
-                          title="Upload photo"
-                        >
-                          <ImageIcon className="w-4 h-4" />
-                        </button>
-                        <button 
-                          className="p-1.5 rounded-full hover:bg-muted/50 transition-colors"
-                          style={{ color: config.widgetTheme === "dark" ? "#9ca3af" : "#6b7280" }}
-                          title="Upload video"
-                        >
-                          <Video className="w-4 h-4" />
-                        </button>
-                        <button 
-                          className="p-1.5 rounded-full hover:bg-muted/50 transition-colors"
-                          style={{ color: config.widgetTheme === "dark" ? "#9ca3af" : "#6b7280" }}
-                          title="Take photo"
-                        >
-                          <Camera className="w-4 h-4" />
-                        </button>
-                      </div>
-                      <div 
-                        className="flex-1 text-xs px-3 py-2 rounded-full"
-                        style={{
-                          backgroundColor: config.widgetTheme === "dark" ? "#2d2d44" : "#f3f4f6",
-                          color: "#9ca3af",
-                        }}
-                      >
-                        Type a message...
-                      </div>
-                      <button 
-                        className="p-2 rounded-full"
+                      <div
+                        className="p-3 flex items-center justify-between"
                         style={{ backgroundColor: config.primaryColor }}
                       >
-                        <Send className="w-4 h-4 text-white" />
-                      </button>
-                    </div>
-
-                    <div 
-                      className="py-1.5 text-center border-t"
-                      style={{
-                        backgroundColor: config.widgetTheme === "dark" ? "#151524" : "#f9fafb",
-                        borderColor: config.widgetTheme === "dark" ? "#2d2d44" : "#e5e7eb",
-                      }}
-                    >
-                      <span 
-                        className="text-[10px]"
-                        style={{ color: config.widgetTheme === "dark" ? "#6b7280" : "#9ca3af" }}
+                        <div className="flex items-center gap-2">
+                          {config.agentPhotoUrl ? (
+                            <img
+                              src={config.agentPhotoUrl}
+                              alt={config.agentName}
+                              className="w-9 h-9 rounded-full object-cover border-2 border-white/30"
+                            />
+                          ) : (
+                            <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center border-2 border-white/30">
+                              <Bot className="w-5 h-5 text-white" />
+                            </div>
+                          )}
+                          <div className="text-white">
+                            <p className="text-sm font-semibold">{config.agentName}</p>
+                            <div className="flex items-center gap-1">
+                              <div className={`w-2 h-2 rounded-full ${config.online ? "bg-green-400" : "bg-gray-400"}`} />
+                              <p className="text-xs opacity-90">{config.online ? "Online" : "Offline"}</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button className="p-1.5 hover:bg-white/20 rounded-full transition-colors">
+                            <RefreshCw className="w-4 h-4 text-white" />
+                          </button>
+                          <button 
+                            className="p-1.5 hover:bg-white/20 rounded-full transition-colors"
+                            onClick={() => setPreviewWidgetOpen(false)}
+                            data-testid="button-preview-widget-close"
+                          >
+                            <X className="w-4 h-4 text-white" />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div 
+                        className="p-3 min-h-[150px]"
+                        style={{
+                          backgroundColor: config.widgetTheme === "dark" ? "#1a1a2e" : "#ffffff",
+                        }}
                       >
-                        Powered by <span className="font-medium" style={{ color: config.primaryColor }}>Chatvice</span>
-                      </span>
+                        <div className="flex gap-2">
+                          {config.agentPhotoUrl ? (
+                            <img
+                              src={config.agentPhotoUrl}
+                              alt={config.agentName}
+                              className="w-7 h-7 rounded-full object-cover shrink-0"
+                            />
+                          ) : (
+                            <div
+                              className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+                              style={{ backgroundColor: `${config.primaryColor}20` }}
+                            >
+                              <Bot className="w-4 h-4" style={{ color: config.primaryColor }} />
+                            </div>
+                          )}
+                          <div 
+                            className="rounded-lg rounded-tl-sm p-2.5 text-xs max-w-[220px]"
+                            style={{
+                              backgroundColor: config.widgetTheme === "dark" ? "#2d2d44" : "#f3f4f6",
+                              color: config.widgetTheme === "dark" ? "#e5e7eb" : "#374151",
+                            }}
+                          >
+                            {config.welcomeMessage}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div 
+                        className="p-2 border-t flex items-center gap-2"
+                        style={{
+                          backgroundColor: config.widgetTheme === "dark" ? "#1a1a2e" : "#ffffff",
+                          borderColor: config.widgetTheme === "dark" ? "#2d2d44" : "#e5e7eb",
+                        }}
+                      >
+                        <div className="flex gap-0.5">
+                          <button 
+                            className="p-1.5 rounded-full hover:bg-muted/50 transition-colors"
+                            style={{ color: config.widgetTheme === "dark" ? "#9ca3af" : "#6b7280" }}
+                            title="Upload photo"
+                          >
+                            <ImageIcon className="w-4 h-4" />
+                          </button>
+                          <button 
+                            className="p-1.5 rounded-full hover:bg-muted/50 transition-colors"
+                            style={{ color: config.widgetTheme === "dark" ? "#9ca3af" : "#6b7280" }}
+                            title="Upload video"
+                          >
+                            <Video className="w-4 h-4" />
+                          </button>
+                          <button 
+                            className="p-1.5 rounded-full hover:bg-muted/50 transition-colors"
+                            style={{ color: config.widgetTheme === "dark" ? "#9ca3af" : "#6b7280" }}
+                            title="Take photo"
+                          >
+                            <Camera className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div 
+                          className="flex-1 text-xs px-3 py-2 rounded-full"
+                          style={{
+                            backgroundColor: config.widgetTheme === "dark" ? "#2d2d44" : "#f3f4f6",
+                            color: "#9ca3af",
+                          }}
+                        >
+                          Type a message...
+                        </div>
+                        <button 
+                          className="p-2 rounded-full"
+                          style={{ backgroundColor: config.primaryColor }}
+                        >
+                          <Send className="w-4 h-4 text-white" />
+                        </button>
+                      </div>
+
+                      <div 
+                        className="py-1.5 text-center border-t"
+                        style={{
+                          backgroundColor: config.widgetTheme === "dark" ? "#151524" : "#f9fafb",
+                          borderColor: config.widgetTheme === "dark" ? "#2d2d44" : "#e5e7eb",
+                        }}
+                      >
+                        <span 
+                          className="text-[10px]"
+                          style={{ color: config.widgetTheme === "dark" ? "#6b7280" : "#9ca3af" }}
+                        >
+                          Powered by <span className="font-medium" style={{ color: config.primaryColor }}>Chatvice</span>
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
