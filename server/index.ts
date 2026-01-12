@@ -7,6 +7,9 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { PaymentWebhookHandler, type PaymentWebhookPayload } from './kompasPayWebhook';
 import { isPaymentGatewayConfigured, getActiveGatewayName } from './kompasPayClient';
+import { storage } from './storage';
+import { extractFAQContent } from './crawler';
+import { processKnowledgeBase } from './embeddings';
 
 const app = express();
 
@@ -188,6 +191,98 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
+      
+      // Start background sync job for crawled links (every 60 minutes)
+      startBackgroundSync();
     },
   );
 })();
+
+// Background sync for crawled website sources
+async function syncCrawledLink(linkId: string): Promise<void> {
+  try {
+    const link = await storage.getCrawledLink(linkId);
+    if (!link || !link.isActive || link.status !== "completed") return;
+    
+    await storage.updateCrawledLink(linkId, { syncStatus: "syncing" });
+    
+    const result = await extractFAQContent(link.url);
+    
+    if (!result.success) {
+      await storage.updateCrawledLink(linkId, { syncStatus: "error" });
+      console.log(`[sync] Failed to sync ${link.url}: ${result.error}`);
+      return;
+    }
+    
+    const urlObj = new URL(link.url.startsWith('http') ? link.url : `https://${link.url}`);
+    const summarizedContent = result.content || "";
+    
+    await storage.updateCrawledLink(linkId, {
+      extractedContent: result.content,
+      summarizedContent,
+      lastSyncedAt: new Date(),
+      syncStatus: "idle",
+    });
+    
+    // Update the knowledge base if we have an agent
+    const agentId = link.agentId;
+    if (agentId && summarizedContent) {
+      const existingKnowledge = await storage.getKnowledgeByAgent(agentId);
+      const existingContent = existingKnowledge?.content || "";
+      
+      const urlMarker = `\n\n---\n[Source: ${urlObj.hostname}]\n`;
+      const newContent = existingContent.includes(`[Source: ${urlObj.hostname}]`) 
+        ? existingContent.replace(
+            new RegExp(`\\n\\n---\\n\\[Source: ${urlObj.hostname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\][\\s\\S]*?(?=\\n\\n---\\n\\[Source:|$)`, 'g'),
+            `${urlMarker}${summarizedContent}`
+          )
+        : existingContent + urlMarker + summarizedContent;
+      
+      await storage.setKnowledge(link.merchantId, newContent, agentId);
+      
+      processKnowledgeBase(link.merchantId, newContent, agentId).catch(err => {
+        console.error("[sync] Error processing knowledge embeddings:", err);
+      });
+    }
+    
+    console.log(`[sync] Successfully synced ${link.url}`);
+  } catch (error) {
+    console.error(`[sync] Error syncing link ${linkId}:`, error);
+    await storage.updateCrawledLink(linkId, { syncStatus: "error" }).catch(() => {});
+  }
+}
+
+async function runBackgroundSync(): Promise<void> {
+  try {
+    const linksToSync = await storage.getActiveCrawledLinksForSync();
+    
+    if (linksToSync.length === 0) return;
+    
+    console.log(`[sync] Starting background sync for ${linksToSync.length} sources`);
+    
+    // Process links sequentially to avoid rate limiting
+    for (const link of linksToSync) {
+      await syncCrawledLink(link.id);
+      // Small delay between syncs to be gentle on external servers
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+    
+    console.log(`[sync] Background sync completed`);
+  } catch (error) {
+    console.error("[sync] Background sync error:", error);
+  }
+}
+
+function startBackgroundSync(): void {
+  // Run initial sync after 5 minutes of startup
+  setTimeout(() => {
+    runBackgroundSync();
+  }, 5 * 60 * 1000);
+  
+  // Then run every 60 minutes
+  setInterval(() => {
+    runBackgroundSync();
+  }, 60 * 60 * 1000);
+  
+  console.log("[sync] Background sync scheduler started (60 min interval)");
+}

@@ -65,7 +65,7 @@ import {
   customPlanRequests, merchantNotifications, affiliates, affiliateReferrals, affiliateCommissions, affiliatePayouts,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, gte, and, sql, count, inArray } from "drizzle-orm";
+import { eq, desc, gte, and, or, lt, isNull, sql, count, inArray } from "drizzle-orm";
 import { randomBytes } from "crypto";
 
 export interface AnalyticsData {
@@ -127,9 +127,11 @@ export interface IStorage {
   updateChunkEmbedding(id: string, embedding: string): Promise<boolean>;
   
   getCrawledLinks(merchantId: string): Promise<CrawledLink[]>;
+  getCrawledLink(id: string): Promise<CrawledLink | undefined>;
   createCrawledLink(link: InsertCrawledLink): Promise<CrawledLink>;
   updateCrawledLink(id: string, data: Partial<CrawledLink>): Promise<CrawledLink | undefined>;
   deleteCrawledLink(id: string): Promise<boolean>;
+  getActiveCrawledLinksForSync(): Promise<CrawledLink[]>;
   
   deleteMerchant(id: string): Promise<boolean>;
   deleteSession(id: string): Promise<boolean>;
@@ -1102,10 +1104,14 @@ export class DatabaseStorage implements IStorage {
     const result = await db.insert(crawledLinks).values({
       id,
       merchantId: data.merchantId,
+      agentId: data.agentId || null,
       url: data.url,
       title: data.title || null,
       status: data.status || "pending",
       extractedContent: data.extractedContent || null,
+      syncStatus: data.syncStatus || "idle",
+      isActive: data.isActive ?? true,
+      summarizedContent: data.summarizedContent || null,
     }).returning();
     return result[0];
   }
@@ -1123,6 +1129,27 @@ export class DatabaseStorage implements IStorage {
       .where(eq(crawledLinks.id, id))
       .returning();
     return result.length > 0;
+  }
+
+  async getCrawledLink(id: string): Promise<CrawledLink | undefined> {
+    const result = await db.select().from(crawledLinks)
+      .where(eq(crawledLinks.id, id));
+    return result[0];
+  }
+
+  async getActiveCrawledLinksForSync(): Promise<CrawledLink[]> {
+    const sixtyMinutesAgo = new Date(Date.now() - 60 * 60 * 1000);
+    return db.select().from(crawledLinks)
+      .where(
+        and(
+          eq(crawledLinks.isActive, true),
+          eq(crawledLinks.status, "completed"),
+          or(
+            isNull(crawledLinks.lastSyncedAt),
+            lt(crawledLinks.lastSyncedAt, sixtyMinutesAgo)
+          )
+        )
+      );
   }
 
   async getAgents(merchantId: string): Promise<Agent[]> {

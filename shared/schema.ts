@@ -241,9 +241,14 @@ export const crawledLinks = pgTable("crawled_links", {
   status: text("status").default("pending"),
   extractedContent: text("extracted_content"),
   crawledAt: timestamp("crawled_at").defaultNow(),
+  lastSyncedAt: timestamp("last_synced_at"),
+  syncInterval: integer("sync_interval").default(60),
+  isActive: boolean("is_active").default(true),
+  syncStatus: text("sync_status").default("idle"),
+  summarizedContent: text("summarized_content"),
 });
 
-export const insertCrawledLinkSchema = createInsertSchema(crawledLinks).omit({ id: true, crawledAt: true });
+export const insertCrawledLinkSchema = createInsertSchema(crawledLinks).omit({ id: true, crawledAt: true, lastSyncedAt: true });
 export type InsertCrawledLink = z.infer<typeof insertCrawledLinkSchema>;
 export type CrawledLink = typeof crawledLinks.$inferSelect;
 

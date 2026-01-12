@@ -3679,10 +3679,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(400).json({ error: "URL is required" });
       }
       
+      const merchant = await storage.getMerchant(merchantId);
+      const agentId = merchant?.activeAgentId || undefined;
+      
       const crawledLink = await storage.createCrawledLink({
         merchantId,
+        agentId,
         url,
         status: "crawling",
+        syncStatus: "syncing",
+        isActive: true,
       });
       
       const result = await extractFAQContent(url);
@@ -3690,18 +3696,43 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!result.success) {
         await storage.updateCrawledLink(crawledLink.id, {
           status: "failed",
+          syncStatus: "error",
         });
         return res.status(400).json({ error: result.error });
       }
       
       const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
+      const summarizedContent = result.content || "";
+      
       await storage.updateCrawledLink(crawledLink.id, {
         status: "completed",
         title: urlObj.hostname,
         extractedContent: result.content,
+        summarizedContent,
+        lastSyncedAt: new Date(),
+        syncStatus: "idle",
       });
       
-      res.json({ success: true, content: result.content, linkId: crawledLink.id });
+      if (agentId && summarizedContent) {
+        const existingKnowledge = await storage.getKnowledgeByAgent(agentId);
+        const existingContent = existingKnowledge?.content || "";
+        
+        const urlMarker = `\n\n---\n[Source: ${urlObj.hostname}]\n`;
+        const newContent = existingContent.includes(`[Source: ${urlObj.hostname}]`) 
+          ? existingContent.replace(
+              new RegExp(`\\n\\n---\\n\\[Source: ${urlObj.hostname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\][\\s\\S]*?(?=\\n\\n---\\n\\[Source:|$)`, 'g'),
+              `${urlMarker}${summarizedContent}`
+            )
+          : existingContent + urlMarker + summarizedContent;
+        
+        await storage.setKnowledge(merchantId, newContent, agentId);
+        
+        processKnowledgeBase(merchantId, newContent, agentId).catch(err => {
+          console.error("Error processing knowledge embeddings:", err);
+        });
+      }
+      
+      res.json({ success: true, content: summarizedContent, linkId: crawledLink.id });
     } catch (error) {
       console.error("Crawl error:", error);
       res.status(500).json({ error: "Failed to extract content from URL" });
@@ -3746,6 +3777,68 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/knowledge/recrawl/:linkId", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { linkId } = req.params;
+      
+      const link = await storage.getCrawledLink(linkId);
+      if (!link || link.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Link not found" });
+      }
+      
+      await storage.updateCrawledLink(linkId, {
+        syncStatus: "syncing",
+      });
+      
+      const result = await extractFAQContent(link.url);
+      
+      if (!result.success) {
+        await storage.updateCrawledLink(linkId, {
+          status: "failed",
+          syncStatus: "error",
+        });
+        return res.status(400).json({ error: result.error });
+      }
+      
+      const urlObj = new URL(link.url.startsWith('http') ? link.url : `https://${link.url}`);
+      const summarizedContent = result.content || "";
+      
+      await storage.updateCrawledLink(linkId, {
+        status: "completed",
+        extractedContent: result.content,
+        summarizedContent,
+        lastSyncedAt: new Date(),
+        syncStatus: "idle",
+      });
+      
+      const agentId = link.agentId;
+      if (agentId && summarizedContent) {
+        const existingKnowledge = await storage.getKnowledgeByAgent(agentId);
+        const existingContent = existingKnowledge?.content || "";
+        
+        const urlMarker = `\n\n---\n[Source: ${urlObj.hostname}]\n`;
+        const newContent = existingContent.includes(`[Source: ${urlObj.hostname}]`) 
+          ? existingContent.replace(
+              new RegExp(`\\n\\n---\\n\\[Source: ${urlObj.hostname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\][\\s\\S]*?(?=\\n\\n---\\n\\[Source:|$)`, 'g'),
+              `${urlMarker}${summarizedContent}`
+            )
+          : existingContent + urlMarker + summarizedContent;
+        
+        await storage.setKnowledge(merchantId, newContent, agentId);
+        
+        processKnowledgeBase(merchantId, newContent, agentId).catch(err => {
+          console.error("Error processing knowledge embeddings:", err);
+        });
+      }
+      
+      res.json({ success: true, content: summarizedContent, lastSyncedAt: new Date() });
+    } catch (error) {
+      console.error("Recrawl error:", error);
+      res.status(500).json({ error: "Failed to recrawl URL" });
     }
   });
 

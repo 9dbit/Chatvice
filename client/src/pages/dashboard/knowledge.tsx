@@ -107,7 +107,6 @@ export default function KnowledgePage() {
   const { toast } = useToast();
   const [content, setContent] = useState("");
   const [crawlUrl, setCrawlUrl] = useState("");
-  const [extractedContent, setExtractedContent] = useState("");
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [selectedImportAgent, setSelectedImportAgent] = useState<string | null>(null);
   const [isAddQuestionOpen, setIsAddQuestionOpen] = useState(false);
@@ -335,19 +334,49 @@ export default function KnowledgePage() {
       const res = await apiRequest("POST", "/api/knowledge/crawl", { url });
       return res.json() as Promise<{ content: string; linkId: string }>;
     },
-    onSuccess: (data) => {
-      setExtractedContent(data.content);
+    onSuccess: () => {
+      setCrawlUrl("");
       queryClient.invalidateQueries({ queryKey: ["/api/knowledge/links", merchantId] });
+      queryClient.invalidateQueries({ queryKey: activeAgentId 
+        ? [`/api/knowledge/agent/${activeAgentId}`]
+        : [`/api/knowledge/${merchantId}`] 
+      });
       toast({
-        title: "Content extracted",
-        description: "Review the extracted content and add it to your knowledge base.",
+        title: "Website synced",
+        description: "Content has been extracted and added to your AI knowledge base.",
       });
     },
     onError: (error: Error) => {
       queryClient.invalidateQueries({ queryKey: ["/api/knowledge/links", merchantId] });
       toast({
-        title: "Extraction failed",
+        title: "Sync failed",
         description: error.message || "Failed to extract content from the URL.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const recrawlMutation = useMutation<{ content: string; lastSyncedAt: string }, Error, string>({
+    mutationFn: async (linkId: string) => {
+      const res = await apiRequest("POST", `/api/knowledge/recrawl/${linkId}`);
+      return res.json() as Promise<{ content: string; lastSyncedAt: string }>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge/links", merchantId] });
+      queryClient.invalidateQueries({ queryKey: activeAgentId 
+        ? [`/api/knowledge/agent/${activeAgentId}`]
+        : [`/api/knowledge/${merchantId}`] 
+      });
+      toast({
+        title: "Website updated",
+        description: "Content has been refreshed and synced to your AI knowledge base.",
+      });
+    },
+    onError: (error: Error) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge/links", merchantId] });
+      toast({
+        title: "Update failed",
+        description: error.message || "Failed to refresh content from the URL.",
         variant: "destructive",
       });
     },
@@ -516,17 +545,6 @@ export default function KnowledgePage() {
     crawlMutation.mutate(crawlUrl.trim());
   };
 
-  const handleAddExtracted = () => {
-    const separator = content.trim() ? "\n\n---\n\n" : "";
-    setContent(content + separator + extractedContent);
-    setExtractedContent("");
-    setCrawlUrl("");
-    toast({
-      title: "Content added",
-      description: "The extracted content has been added to your knowledge base. Don't forget to save!",
-    });
-  };
-
   const formatDate = (date: Date | null) => {
     if (!date) return "Unknown";
     return new Date(date).toLocaleDateString("en-US", {
@@ -688,10 +706,10 @@ Example:
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <Globe className="w-5 h-5 text-primary" />
-              <CardTitle>Import from Website</CardTitle>
+              <CardTitle>Sync Website Content</CardTitle>
             </div>
             <CardDescription>
-              Extract FAQs and policies from your website automatically.
+              Add a website URL to automatically extract and sync content to your AI knowledge base. Content will be refreshed every 60 minutes.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -711,27 +729,10 @@ Example:
                 {crawlMutation.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  "Extract"
+                  "Add Source"
                 )}
               </Button>
             </div>
-
-            {extractedContent && (
-              <div className="space-y-3">
-                <div className="max-h-48 overflow-auto p-3 rounded-md bg-muted text-sm">
-                  <pre className="whitespace-pre-wrap font-sans">{extractedContent}</pre>
-                </div>
-                <Button
-                  onClick={handleAddExtracted}
-                  variant="outline"
-                  className="w-full"
-                  data-testid="button-add-extracted"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add to Knowledge Base
-                </Button>
-              </div>
-            )}
           </CardContent>
         </Card>
 
@@ -739,11 +740,11 @@ Example:
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Link Sources</CardTitle>
-              <Badge variant="secondary">{crawledLinks.length} links</Badge>
+              <CardTitle className="text-lg">Active Sources</CardTitle>
+              <Badge variant="secondary">{crawledLinks.length} sources</Badge>
             </div>
             <CardDescription>
-              Websites that have been crawled for content.
+              Websites synced to your AI knowledge base. Auto-refreshed every 60 minutes.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -751,55 +752,89 @@ Example:
               <Skeleton className="h-24 w-full" />
             ) : crawledLinks.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
-                No websites crawled yet. Use the form above to import content.
+                No sources yet. Add a website URL above to start syncing.
               </p>
             ) : (
               <div className="space-y-2">
-                {crawledLinks.map((link) => (
-                  <div
-                    key={link.id}
-                    className="flex items-center justify-between p-3 rounded-lg border bg-card hover-elevate"
-                    data-testid={`crawled-link-${link.id}`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="flex-shrink-0">
-                        {link.status === "completed" ? (
-                          <Check className="w-4 h-4 text-green-500" />
-                        ) : link.status === "failed" ? (
-                          <X className="w-4 h-4 text-red-500" />
-                        ) : (
-                          <RefreshCw className="w-4 h-4 text-muted-foreground animate-spin" />
-                        )}
+                {crawledLinks.map((link) => {
+                  const isSyncing = link.syncStatus === "syncing" || recrawlMutation.isPending;
+                  const isActive = link.isActive && link.status === "completed";
+                  const lastSync = link.lastSyncedAt ? new Date(link.lastSyncedAt) : null;
+                  
+                  return (
+                    <div
+                      key={link.id}
+                      className="flex items-center justify-between p-3 rounded-lg border bg-card hover-elevate"
+                      data-testid={`crawled-link-${link.id}`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="flex-shrink-0 relative">
+                          {isSyncing ? (
+                            <RefreshCw className="w-4 h-4 text-primary animate-spin" />
+                          ) : link.status === "failed" ? (
+                            <X className="w-4 h-4 text-red-500" />
+                          ) : isActive ? (
+                            <div className="relative">
+                              <div className="w-3 h-3 bg-green-500 rounded-full" />
+                              <div className="absolute inset-0 w-3 h-3 bg-green-500 rounded-full animate-ping opacity-75" />
+                            </div>
+                          ) : (
+                            <div className="w-3 h-3 bg-muted-foreground rounded-full" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{link.url}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Clock className="w-3 h-3" />
+                            <span>
+                              {lastSync 
+                                ? `Last sync: ${formatDate(lastSync)}`
+                                : `Added: ${formatDate(link.crawledAt)}`
+                              }
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium truncate">{link.url}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDate(link.crawledAt)}
-                        </p>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => recrawlMutation.mutate(link.id)}
+                          disabled={isSyncing || recrawlMutation.isPending}
+                          data-testid={`button-recrawl-${link.id}`}
+                          className="text-xs"
+                        >
+                          {isSyncing ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <>
+                              <RefreshCw className="w-3 h-3 mr-1" />
+                              Update
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          asChild
+                        >
+                          <a href={link.url} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteLinkMutation.mutate(link.id)}
+                          disabled={deleteLinkMutation.isPending}
+                          data-testid={`button-delete-link-${link.id}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        asChild
-                      >
-                        <a href={link.url} target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deleteLinkMutation.mutate(link.id)}
-                        disabled={deleteLinkMutation.isPending}
-                        data-testid={`button-delete-link-${link.id}`}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
