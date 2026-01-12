@@ -23,7 +23,7 @@ import type { Source, Merchant } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 
 const sourceSchema = z.object({
-  type: z.enum(["file", "text", "website"]),
+  type: z.enum(["file", "text", "website", "google-doc", "google-sheet"]),
   name: z.string().min(1, "Name is required"),
   content: z.string().optional(),
   url: z.string().url().optional().or(z.literal("")),
@@ -118,34 +118,87 @@ export default function SourcesPage() {
     },
   });
 
+  const uploadFileMutation = useMutation({
+    mutationFn: async ({ file, name }: { file: File; name: string }) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("name", name);
+      const res = await fetch("/api/sources/upload", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Upload failed");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
+      form.reset();
+      setUploadedFileName("");
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      setIsDialogOpen(false);
+      toast({ title: "Source added", description: "Document uploaded successfully." });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const googleDocMutation = useMutation({
+    mutationFn: async ({ url, name }: { url: string; name: string }) => {
+      return apiRequest("POST", "/api/sources/google-doc", { url, name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
+      form.reset();
+      setIsDialogOpen(false);
+      toast({ title: "Source added", description: "Google Doc imported successfully." });
+    },
+    onError: () => {
+      toast({ title: "Import failed", description: "Could not import Google Doc. Make sure it's publicly accessible.", variant: "destructive" });
+    },
+  });
+
+  const googleSheetMutation = useMutation({
+    mutationFn: async ({ url, name }: { url: string; name: string }) => {
+      return apiRequest("POST", "/api/sources/google-sheet", { url, name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
+      form.reset();
+      setIsDialogOpen(false);
+      toast({ title: "Source added", description: "Google Sheet imported successfully." });
+    },
+    onError: () => {
+      toast({ title: "Import failed", description: "Could not import Google Sheet. Make sure it's publicly accessible.", variant: "destructive" });
+    },
+  });
+
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
   const onSubmit = (data: SourceFormData) => {
-    createMutation.mutate(data);
+    if (data.type === "file" && selectedFile) {
+      uploadFileMutation.mutate({ file: selectedFile, name: data.name || selectedFile.name.replace(/\.[^/.]+$/, "") });
+    } else if (data.type === "google-doc" && data.url) {
+      googleDocMutation.mutate({ url: data.url, name: data.name || "Google Doc" });
+    } else if (data.type === "google-sheet" && data.url) {
+      googleSheetMutation.mutate({ url: data.url, name: data.name || "Google Sheet" });
+    } else {
+      createMutation.mutate(data);
+    }
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setIsUploadingFile(true);
+    setSelectedFile(file);
     setUploadedFileName(file.name);
-
-    try {
-      const text = await file.text();
-      form.setValue("content", text);
-      form.setValue("name", file.name.replace(/\.[^/.]+$/, ""));
-      toast({
-        title: "File loaded",
-        description: `${file.name} has been loaded successfully.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error reading file",
-        description: "Could not read the file. Please try a different file.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUploadingFile(false);
-    }
+    form.setValue("name", file.name.replace(/\.[^/.]+$/, ""));
   };
 
   const handleDialogClose = (open: boolean) => {
@@ -153,11 +206,14 @@ export default function SourcesPage() {
     if (!open) {
       form.reset();
       setUploadedFileName("");
+      setSelectedFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     }
   };
+
+  const isSubmitting = createMutation.isPending || uploadFileMutation.isPending || googleDocMutation.isPending || googleSheetMutation.isPending;
 
   const toggleSourceSelection = (id: string) => {
     setSelectedSources(prev =>
@@ -243,13 +299,25 @@ export default function SourcesPage() {
                           <SelectItem value="file">
                             <div className="flex items-center gap-2">
                               <FileText className="w-4 h-4" />
-                              File (TXT/MD/CSV)
+                              Document (PDF/Word/Excel/TXT)
                             </div>
                           </SelectItem>
                           <SelectItem value="website">
                             <div className="flex items-center gap-2">
                               <Globe className="w-4 h-4" />
                               Website Link
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="google-doc">
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-4 h-4" />
+                              Google Docs
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="google-sheet">
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-4 h-4" />
+                              Google Sheets
                             </div>
                           </SelectItem>
                         </SelectContent>
@@ -323,7 +391,7 @@ export default function SourcesPage() {
                       <input
                         ref={fileInputRef}
                         type="file"
-                        accept=".txt,.md,.csv,.json,.xml,.html"
+                        accept=".pdf,.docx,.xlsx,.xls,.txt,.md,.csv,.json,.xml,.html"
                         onChange={handleFileUpload}
                         className="hidden"
                         data-testid="input-file-upload"
@@ -335,7 +403,7 @@ export default function SourcesPage() {
                         {isUploadingFile ? (
                           <div className="flex flex-col items-center gap-2">
                             <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-                            <p className="text-sm text-muted-foreground">Reading file...</p>
+                            <p className="text-sm text-muted-foreground">Processing file...</p>
                           </div>
                         ) : uploadedFileName ? (
                           <div className="flex flex-col items-center gap-2">
@@ -347,34 +415,40 @@ export default function SourcesPage() {
                           <div className="flex flex-col items-center gap-2">
                             <Upload className="w-8 h-8 text-muted-foreground" />
                             <p className="text-sm font-medium">Click to upload a file</p>
-                            <p className="text-xs text-muted-foreground">TXT, MD, CSV, JSON, XML, HTML supported</p>
+                            <p className="text-xs text-muted-foreground">PDF, Word (.docx), Excel (.xlsx), TXT, MD, CSV</p>
                           </div>
                         )}
                       </div>
-                      {uploadedFileName && (
-                        <FormField
-                          control={form.control}
-                          name="content"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Extracted Content Preview</FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  placeholder="File content will appear here..."
-                                  className="min-h-[100px] text-xs"
-                                  data-testid="input-file-content-preview"
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormDescription>
-                                You can edit the extracted content before saving.
-                              </FormDescription>
-                            </FormItem>
-                          )}
-                        />
-                      )}
                     </div>
                   </FormItem>
+                )}
+
+                {(form.watch("type") === "google-doc" || form.watch("type") === "google-sheet") && (
+                  <FormField
+                    control={form.control}
+                    name="url"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {form.watch("type") === "google-doc" ? "Google Docs URL" : "Google Sheets URL"}
+                        </FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="url"
+                            placeholder={form.watch("type") === "google-doc" 
+                              ? "https://docs.google.com/document/d/..." 
+                              : "https://docs.google.com/spreadsheets/d/..."}
+                            data-testid="input-google-url" 
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Document must be publicly accessible (set sharing to "Anyone with the link can view")
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 )}
 
                 <DialogFooter className="gap-2 sm:gap-0">
@@ -383,13 +457,13 @@ export default function SourcesPage() {
                   </Button>
                   <Button 
                     type="submit" 
-                    disabled={createMutation.isPending || (form.watch("type") === "file" && !uploadedFileName)}
+                    disabled={isSubmitting || (form.watch("type") === "file" && !uploadedFileName) || ((form.watch("type") === "google-doc" || form.watch("type") === "google-sheet") && !form.watch("url"))}
                     data-testid="button-submit-source"
                   >
-                    {createMutation.isPending ? (
+                    {isSubmitting ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Adding...
+                        {uploadFileMutation.isPending ? "Uploading..." : "Adding..."}
                       </>
                     ) : (
                       "Add Source"

@@ -14,10 +14,15 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Save, Globe, Loader2, Plus, Bot, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, Sparkles, HelpCircle, Edit2, GripVertical, MessageSquare, Lock, Crown, BookOpen, Eye, Search, Filter, FileText, Tag, Clock } from "lucide-react";
+import { Database, Save, Globe, Loader2, Plus, Bot, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, Sparkles, HelpCircle, Edit2, GripVertical, MessageSquare, Lock, Crown, BookOpen, Eye, Search, Filter, FileText, Tag, Clock, Upload, CheckCircle2, Type } from "lucide-react";
+import { useRef } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
-import type { Merchant, CrawledLink, Agent, SuggestedQuestion, KnowledgebaseArticle } from "@shared/schema";
+import type { Merchant, CrawledLink, Agent, SuggestedQuestion, KnowledgebaseArticle, Source } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 
 // Business type and category constants for Help Articles
@@ -122,6 +127,25 @@ export default function KnowledgePage() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState<KnowledgebaseArticle | null>(null);
   const [isViewOpen, setIsViewOpen] = useState(false);
+  
+  // Sources state
+  const [isSourceDialogOpen, setIsSourceDialogOpen] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const sourceSchema = z.object({
+    type: z.enum(["file", "text", "website", "google-doc", "google-sheet"]),
+    name: z.string().min(1, "Name is required"),
+    content: z.string().optional(),
+    url: z.string().url().optional().or(z.literal("")),
+  });
+  
+  const sourceForm = useForm<z.infer<typeof sourceSchema>>({
+    resolver: zodResolver(sourceSchema),
+    defaultValues: { type: "text", name: "", content: "", url: "" },
+  });
+  
   const [generateForm, setGenerateForm] = useState({
     businessType: "",
     category: "",
@@ -200,6 +224,12 @@ export default function KnowledgePage() {
 
   const { data: crawledLinks = [], isLoading: linksLoading } = useQuery<CrawledLink[]>({
     queryKey: ["/api/knowledge/links", merchantId],
+    enabled: !!merchantId,
+  });
+
+  // Sources query
+  const { data: sources = [], isLoading: sourcesLoading } = useQuery<Source[]>({
+    queryKey: ["/api/sources"],
     enabled: !!merchantId,
   });
 
@@ -286,6 +316,116 @@ export default function KnowledgePage() {
         description: "Failed to delete article. Please try again.",
         variant: "destructive",
       });
+    },
+  });
+
+  // Source mutations
+  const createSourceMutation = useMutation({
+    mutationFn: async (data: { type: string; name: string; content?: string; url?: string }) => {
+      return apiRequest("POST", "/api/sources", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
+      toast({ title: "Source added", description: "The source has been added to your knowledge base." });
+      setIsSourceDialogOpen(false);
+      sourceForm.reset();
+      setUploadedFileName("");
+      setSelectedFile(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to add source.", variant: "destructive" });
+    },
+  });
+
+  const uploadFileMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch("/api/sources/upload", { method: "POST", body: formData, credentials: "include" });
+      if (!response.ok) throw new Error((await response.json()).message || "Upload failed");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
+      toast({ title: "File uploaded", description: "The file has been uploaded and added to your knowledge base." });
+      setIsSourceDialogOpen(false);
+      sourceForm.reset();
+      setUploadedFileName("");
+      setSelectedFile(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Upload failed", description: error.message || "Failed to upload file.", variant: "destructive" });
+    },
+  });
+
+  const googleDocMutation = useMutation({
+    mutationFn: async (url: string) => {
+      const response = await apiRequest("POST", "/api/sources/google-doc", { url });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
+      toast({ title: "Google Doc imported", description: "The document has been added to your knowledge base." });
+      setIsSourceDialogOpen(false);
+      sourceForm.reset();
+    },
+    onError: (error: any) => {
+      toast({ title: "Import failed", description: error.message || "Failed to import Google Doc.", variant: "destructive" });
+    },
+  });
+
+  const googleSheetMutation = useMutation({
+    mutationFn: async (url: string) => {
+      const response = await apiRequest("POST", "/api/sources/google-sheet", { url });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
+      toast({ title: "Google Sheet imported", description: "The sheet has been added to your knowledge base." });
+      setIsSourceDialogOpen(false);
+      sourceForm.reset();
+    },
+    onError: (error: any) => {
+      toast({ title: "Import failed", description: error.message || "Failed to import Google Sheet.", variant: "destructive" });
+    },
+  });
+
+  const toggleSourceMutation = useMutation({
+    mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
+      return apiRequest("PUT", `/api/sources/${id}`, { enabled });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
+      toast({ title: "Source updated", description: "Source status has been updated." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to update source.", variant: "destructive" });
+    },
+  });
+
+  const deleteSourceMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/sources/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
+      toast({ title: "Source deleted", description: "The source has been removed." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to delete source.", variant: "destructive" });
+    },
+  });
+
+  const requestUpdateMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("POST", `/api/sources/${id}/update`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
+      toast({ title: "Update requested", description: "The source is being updated." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to request update.", variant: "destructive" });
     },
   });
 
@@ -533,6 +673,56 @@ export default function KnowledgePage() {
     saveMutation.mutate(content);
   };
 
+  const onSourceSubmit = async (data: z.infer<typeof sourceSchema>) => {
+    if (data.type === "file" && selectedFile) {
+      uploadFileMutation.mutate(selectedFile);
+    } else if (data.type === "google-doc" && data.url) {
+      googleDocMutation.mutate(data.url);
+    } else if (data.type === "google-sheet" && data.url) {
+      googleSheetMutation.mutate(data.url);
+    } else if (data.type === "text" || data.type === "website") {
+      createSourceMutation.mutate({
+        type: data.type,
+        name: data.name,
+        content: data.content,
+        url: data.url,
+      });
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setUploadedFileName(file.name);
+      sourceForm.setValue("name", file.name.replace(/\.[^/.]+$/, ""));
+    }
+  };
+
+  const handleSourceDialogClose = (open: boolean) => {
+    if (!open) {
+      setIsSourceDialogOpen(false);
+      sourceForm.reset();
+      setUploadedFileName("");
+      setSelectedFile(null);
+    } else {
+      setIsSourceDialogOpen(true);
+    }
+  };
+
+  const getSourceTypeIcon = (type: string) => {
+    switch (type) {
+      case "file": return <Upload className="w-4 h-4" />;
+      case "text": return <Type className="w-4 h-4" />;
+      case "website": return <Globe className="w-4 h-4" />;
+      case "google-doc": return <FileText className="w-4 h-4" />;
+      case "google-sheet": return <FileText className="w-4 h-4" />;
+      default: return <FileText className="w-4 h-4" />;
+    }
+  };
+
+  const isSourceSubmitting = createSourceMutation.isPending || uploadFileMutation.isPending || googleDocMutation.isPending || googleSheetMutation.isPending;
+
   const handleCrawl = () => {
     if (!crawlUrl.trim()) {
       toast({
@@ -566,14 +756,20 @@ export default function KnowledgePage() {
       </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsList className="grid w-full grid-cols-3 max-w-lg">
           <TabsTrigger value="training" className="flex items-center gap-2" data-testid="tab-training">
             <Database className="w-4 h-4" />
-            Training Data
+            <span className="hidden sm:inline">Training Data</span>
+            <span className="sm:hidden">Training</span>
+          </TabsTrigger>
+          <TabsTrigger value="sources" className="flex items-center gap-2" data-testid="tab-sources">
+            <FileText className="w-4 h-4" />
+            Sources
           </TabsTrigger>
           <TabsTrigger value="articles" className="flex items-center gap-2" data-testid="tab-articles">
             <BookOpen className="w-4 h-4" />
-            Help Articles
+            <span className="hidden sm:inline">Help Articles</span>
+            <span className="sm:hidden">Articles</span>
           </TabsTrigger>
         </TabsList>
 
@@ -1104,6 +1300,313 @@ Example:
         </DialogContent>
       </Dialog>
     </div>
+        </TabsContent>
+
+        {/* Sources Tab */}
+        <TabsContent value="sources" className="mt-4">
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Add documents, text snippets, and external sources to train your AI.
+                </p>
+              </div>
+              <Button onClick={() => setIsSourceDialogOpen(true)} data-testid="button-add-source">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Source
+              </Button>
+            </div>
+
+            {sourcesLoading ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i}>
+                    <CardHeader className="pb-2">
+                      <Skeleton className="h-5 w-3/4" />
+                    </CardHeader>
+                    <CardContent>
+                      <Skeleton className="h-4 w-full mb-2" />
+                      <Skeleton className="h-4 w-2/3" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : sources.length === 0 ? (
+              <Card className="text-center py-8">
+                <CardContent>
+                  <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="font-medium mb-2">No sources yet</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Add documents, text, or websites to train your AI chatbot.
+                  </p>
+                  <Button onClick={() => setIsSourceDialogOpen(true)} data-testid="button-add-first-source">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Your First Source
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {sources.map((source) => (
+                  <Card key={source.id} className={!source.enabled ? "opacity-60" : ""}>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          {getSourceTypeIcon(source.type)}
+                          <CardTitle className="text-base truncate">{source.name}</CardTitle>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {source.enabled && source.type === "website" && (
+                            <span className="relative flex h-2 w-2" title="Auto-sync active">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                            </span>
+                          )}
+                          {source.isSyncing && (
+                            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                          )}
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {source.type.replace("-", " ")}
+                      </Badge>
+                      {source.lastSyncedAt && (
+                        <p className="text-xs text-muted-foreground">
+                          Last synced: {formatDate(source.lastSyncedAt)}
+                        </p>
+                      )}
+                      {source.content && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {source.content.substring(0, 100)}...
+                        </p>
+                      )}
+                    </CardContent>
+                    <CardFooter className="flex items-center justify-between gap-2 pt-2">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={source.enabled}
+                          onCheckedChange={(checked) => toggleSourceMutation.mutate({ id: source.id, enabled: checked })}
+                          data-testid={`switch-source-${source.id}`}
+                        />
+                        <Label className="text-xs text-muted-foreground">
+                          {source.enabled ? "Active" : "Disabled"}
+                        </Label>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {source.type === "website" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => requestUpdateMutation.mutate(source.id)}
+                            disabled={requestUpdateMutation.isPending || source.isSyncing}
+                            title="Request update"
+                            data-testid={`button-update-source-${source.id}`}
+                          >
+                            <RefreshCw className={`w-4 h-4 ${source.isSyncing ? "animate-spin" : ""}`} />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            if (confirm("Delete this source?")) {
+                              deleteSourceMutation.mutate(source.id);
+                            }
+                          }}
+                          data-testid={`button-delete-source-${source.id}`}
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Add Source Dialog */}
+          <Dialog open={isSourceDialogOpen} onOpenChange={handleSourceDialogClose}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Add Knowledge Source</DialogTitle>
+                <DialogDescription>
+                  Add a document, text, or URL to train your AI chatbot.
+                </DialogDescription>
+              </DialogHeader>
+              <Form {...sourceForm}>
+                <form onSubmit={sourceForm.handleSubmit(onSourceSubmit)} className="space-y-4">
+                  <FormField
+                    control={sourceForm.control}
+                    name="type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Source Type</FormLabel>
+                        <Select onValueChange={(v) => { field.onChange(v); sourceForm.setValue("content", ""); sourceForm.setValue("url", ""); setUploadedFileName(""); setSelectedFile(null); }} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-source-type">
+                              <SelectValue placeholder="Select type..." />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="file">Upload File (PDF, Word, Excel)</SelectItem>
+                            <SelectItem value="text">Plain Text</SelectItem>
+                            <SelectItem value="website">Website URL</SelectItem>
+                            <SelectItem value="google-doc">Google Docs</SelectItem>
+                            <SelectItem value="google-sheet">Google Sheets</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={sourceForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Source name..." {...field} data-testid="input-source-name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {sourceForm.watch("type") === "file" && (
+                    <div className="space-y-2">
+                      <Label>File</Label>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileSelect}
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.md,.csv,.json,.xml,.html"
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => fileInputRef.current?.click()}
+                        data-testid="button-select-file"
+                      >
+                        {uploadedFileName ? (
+                          <span className="flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-green-500" />
+                            {uploadedFileName}
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-2">
+                            <Upload className="w-4 h-4" />
+                            Select File
+                          </span>
+                        )}
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        Supported: PDF, Word, Excel, TXT, MD, CSV, JSON, XML, HTML
+                      </p>
+                    </div>
+                  )}
+
+                  {sourceForm.watch("type") === "text" && (
+                    <FormField
+                      control={sourceForm.control}
+                      name="content"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Content</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Enter text content..."
+                              className="min-h-[120px]"
+                              {...field}
+                              data-testid="textarea-source-content"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  {sourceForm.watch("type") === "website" && (
+                    <FormField
+                      control={sourceForm.control}
+                      name="url"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Website URL</FormLabel>
+                          <FormControl>
+                            <Input placeholder="https://example.com" {...field} data-testid="input-source-url" />
+                          </FormControl>
+                          <FormDescription>The URL will be crawled and content extracted.</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  {sourceForm.watch("type") === "google-doc" && (
+                    <FormField
+                      control={sourceForm.control}
+                      name="url"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Google Docs URL</FormLabel>
+                          <FormControl>
+                            <Input placeholder="https://docs.google.com/document/d/..." {...field} data-testid="input-google-doc-url" />
+                          </FormControl>
+                          <FormDescription>Make sure the document is shared as "Anyone with the link can view".</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  {sourceForm.watch("type") === "google-sheet" && (
+                    <FormField
+                      control={sourceForm.control}
+                      name="url"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Google Sheets URL</FormLabel>
+                          <FormControl>
+                            <Input placeholder="https://docs.google.com/spreadsheets/d/..." {...field} data-testid="input-google-sheet-url" />
+                          </FormControl>
+                          <FormDescription>Make sure the sheet is shared as "Anyone with the link can view".</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  <DialogFooter className="gap-2 sm:gap-0">
+                    <Button type="button" variant="outline" onClick={() => handleSourceDialogClose(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={isSourceSubmitting || (sourceForm.watch("type") === "file" && !uploadedFileName) || ((sourceForm.watch("type") === "google-doc" || sourceForm.watch("type") === "google-sheet") && !sourceForm.watch("url"))}
+                      data-testid="button-submit-source"
+                    >
+                      {isSourceSubmitting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          {uploadFileMutation.isPending ? "Uploading..." : "Adding..."}
+                        </>
+                      ) : (
+                        "Add Source"
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* Help Articles Tab */}

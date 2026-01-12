@@ -22,7 +22,8 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { processKnowledgeBase, searchKnowledge } from "./embeddings";
-import { extractFAQContent, syncKnowledgeFromUrl } from "./crawler";
+import { extractFAQContent, syncKnowledgeFromUrl, fetchWebContent } from "./crawler";
+import { parseFile, fetchGoogleDoc, fetchGoogleSheet } from "./fileParser";
 import { createQRISPayment, createVAPayment, createBankTransferPayment, createPaymentLinkPayment, checkPaymentStatus, isKompasPayConfigured, convertToIDR, formatIDR } from "./kompasPayClient";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient } from "./resendClient";
@@ -10246,6 +10247,172 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       
       await storage.deleteSource(req.params.id);
       res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Upload file for source (PDF, DOCX, XLSX, etc.)
+  app.post("/api/sources/upload", requireMerchant, upload.single("file"), async (req, res) => {
+    try {
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      
+      const filePath = file.path;
+      const result = await parseFile(filePath, file.mimetype);
+      
+      // Clean up uploaded file after parsing
+      try {
+        fs.unlinkSync(filePath);
+      } catch (e) {
+        console.error("Failed to delete temp file:", e);
+      }
+      
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+      
+      const merchantId = req.session.merchantId!;
+      const name = req.body.name || file.originalname.replace(/\.[^/.]+$/, "");
+      
+      const source = await storage.createSource({
+        merchantId,
+        type: "file",
+        name,
+        content: result.content,
+        url: "",
+        charCount: result.content.length,
+      });
+      
+      res.json(source);
+    } catch (error: any) {
+      console.error("Source file upload error:", error);
+      res.status(500).json({ error: error.message || "Failed to upload file" });
+    }
+  });
+
+  // Import from Google Docs
+  app.post("/api/sources/google-doc", requireMerchant, async (req, res) => {
+    try {
+      const { url, name } = req.body;
+      
+      if (!url) {
+        return res.status(400).json({ error: "URL is required" });
+      }
+      
+      if (!url.includes("docs.google.com/document")) {
+        return res.status(400).json({ error: "Invalid Google Docs URL" });
+      }
+      
+      const result = await fetchGoogleDoc(url);
+      
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+      
+      const merchantId = req.session.merchantId!;
+      
+      const source = await storage.createSource({
+        merchantId,
+        type: "file",
+        name: name || "Google Doc",
+        content: result.content,
+        url,
+        charCount: result.content.length,
+      });
+      
+      res.json(source);
+    } catch (error: any) {
+      console.error("Google Docs import error:", error);
+      res.status(500).json({ error: error.message || "Failed to import from Google Docs" });
+    }
+  });
+
+  // Import from Google Sheets
+  app.post("/api/sources/google-sheet", requireMerchant, async (req, res) => {
+    try {
+      const { url, name } = req.body;
+      
+      if (!url) {
+        return res.status(400).json({ error: "URL is required" });
+      }
+      
+      if (!url.includes("docs.google.com/spreadsheets")) {
+        return res.status(400).json({ error: "Invalid Google Sheets URL" });
+      }
+      
+      const result = await fetchGoogleSheet(url);
+      
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+      
+      const merchantId = req.session.merchantId!;
+      
+      const source = await storage.createSource({
+        merchantId,
+        type: "file",
+        name: name || "Google Sheet",
+        content: result.content,
+        url,
+        charCount: result.content.length,
+      });
+      
+      res.json(source);
+    } catch (error: any) {
+      console.error("Google Sheets import error:", error);
+      res.status(500).json({ error: error.message || "Failed to import from Google Sheets" });
+    }
+  });
+
+  // Request update for website source (manual re-crawl)
+  app.post("/api/sources/:id/update", requireMerchant, async (req, res) => {
+    try {
+      const source = await storage.getSource(req.params.id);
+      if (!source || source.merchantId !== req.session.merchantId) {
+        return res.status(404).json({ error: "Source not found" });
+      }
+      
+      if (source.type !== "website") {
+        return res.status(400).json({ error: "Only website sources can be updated" });
+      }
+      
+      if (!source.url) {
+        return res.status(400).json({ error: "Source has no URL to crawl" });
+      }
+      
+      // Mark as syncing
+      await storage.updateSource(req.params.id, { isSyncing: true });
+      
+      // Start crawling in background
+      (async () => {
+        try {
+          const content = await fetchWebContent(source.url!);
+          if (content && content.trim()) {
+            await storage.updateSource(req.params.id, {
+              content,
+              charCount: content.length,
+              lastSyncedAt: new Date(),
+              isSyncing: false,
+              syncError: null,
+            });
+          } else {
+            await storage.updateSource(req.params.id, {
+              isSyncing: false,
+              syncError: "No content extracted from website",
+            });
+          }
+        } catch (error: any) {
+          await storage.updateSource(req.params.id, {
+            isSyncing: false,
+            syncError: error.message || "Crawling failed",
+          });
+        }
+      })();
+      
+      res.json({ success: true, message: "Update started" });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
     }
