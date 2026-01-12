@@ -444,7 +444,16 @@ export function RegisterPage() {
       businessCategory: "",
       staffCount: "",
     },
+    mode: "onChange",
   });
+
+  const watchedFields = form.watch();
+  const isFormComplete = watchedFields.username && 
+    watchedFields.email && 
+    watchedFields.password && 
+    watchedFields.confirmPassword && 
+    watchedFields.businessCategory && 
+    watchedFields.staffCount;
 
   const registerMutation = useMutation({
     mutationFn: async (data: RegisterFormData) => {
@@ -782,7 +791,7 @@ export function RegisterPage() {
             <Button
               type="submit"
               className="w-full h-11"
-              disabled={registerMutation.isPending}
+              disabled={registerMutation.isPending || !isFormComplete}
               data-testid="button-register-submit"
             >
               {registerMutation.isPending ? "Creating account..." : "Create Account"}
