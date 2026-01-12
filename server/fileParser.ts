@@ -2,10 +2,20 @@ import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
 import fs from 'fs';
 import path from 'path';
-import { createRequire } from 'module';
 
-const require = createRequire(import.meta.url);
-const pdfParse = require('pdf-parse');
+let pdfParse: any = null;
+
+async function loadPdfParse() {
+  if (!pdfParse) {
+    try {
+      const module = await import('pdf-parse');
+      pdfParse = module.default || module;
+    } catch (e) {
+      console.error('Failed to load pdf-parse:', e);
+    }
+  }
+  return pdfParse;
+}
 
 export interface ParseResult {
   success: boolean;
@@ -51,7 +61,12 @@ export async function parseFile(filePath: string, mimeType: string): Promise<Par
 
 async function parsePDF(buffer: Buffer): Promise<ParseResult> {
   try {
-    const data = await pdfParse(buffer);
+    const parser = await loadPdfParse();
+    if (!parser) {
+      return { success: false, content: '', error: 'PDF parser not available' };
+    }
+    
+    const data = await parser(buffer);
     const content = data.text.trim();
     
     if (!content) {
