@@ -52,7 +52,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useTheme } from "@/components/theme-provider";
-import chatviceLogoLight from "@assets/Chatvice-03_1764703438384.png";
+import chatviceLogoLight from "@assets/chatvice-logo-light.png";
 import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
 
 import { rolePermissions } from "@shared/schema";
@@ -421,8 +421,8 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="p-4">
-        <Link href="/" className="flex flex-col gap-2 hover:opacity-80 transition-opacity cursor-pointer" data-testid="link-sidebar-logo">
-          <img src={chatviceLogo} alt="Chatvice" className="h-8 w-auto object-contain" />
+        <Link href="/" className="flex flex-col items-start gap-2 hover:opacity-80 transition-opacity cursor-pointer" data-testid="link-sidebar-logo">
+          <img src={chatviceLogo} alt="Chatvice" className="h-8 w-auto object-contain object-left" />
           <p className="text-sm font-semibold truncate max-w-full">
             {merchant?.companyName || "Dashboard"}
           </p>
