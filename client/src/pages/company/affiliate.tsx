@@ -41,11 +41,11 @@ export default function AffiliatePage() {
     retry: false,
   });
 
-  const isLoggedIn = !merchantLoading && currentMerchant && !(currentMerchant as any).error;
+  const isLoggedIn = !merchantLoading && !!currentMerchant && !(currentMerchant as any).error;
 
   const { data: affiliate, isLoading: affiliateLoading } = useQuery({
     queryKey: ["/api/affiliate/me"],
-    enabled: isLoggedIn,
+    enabled: isLoggedIn === true,
   });
 
   const { data: affiliateSettings } = useQuery({
