@@ -421,9 +421,9 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="p-4">
-        <Link href="/" className="flex flex-col gap-1 hover:opacity-80 transition-opacity cursor-pointer" data-testid="link-sidebar-logo">
-          <img src={chatviceLogo} alt="Chatvice" className="h-8 w-auto" />
-          <p className="text-xs text-muted-foreground truncate max-w-full">
+        <Link href="/" className="flex flex-col gap-2 hover:opacity-80 transition-opacity cursor-pointer" data-testid="link-sidebar-logo">
+          <img src={chatviceLogo} alt="Chatvice" className="h-8 w-auto object-contain" />
+          <p className="text-sm font-semibold truncate max-w-full">
             {merchant?.companyName || "Dashboard"}
           </p>
         </Link>
