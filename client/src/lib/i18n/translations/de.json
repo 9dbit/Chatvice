@@ -1,0 +1,81 @@
+{
+  "nav": {
+    "home": "Startseite",
+    "features": "Funktionen",
+    "pricing": "Preise",
+    "api": "API",
+    "faq": "FAQ",
+    "about": "Über uns",
+    "signIn": "Anmelden",
+    "getStarted": "Kostenlos starten",
+    "dashboard": "Dashboard"
+  },
+  "hero": {
+    "badge": "KI-gestützter Kundensupport",
+    "title": "Transformieren Sie Ihren",
+    "titleHighlight": "Kundenservice",
+    "titleEnd": "mit KI",
+    "taglines": [
+      "Skalieren Sie Ihr Support-Team sofort —\nohne zusätzliche Einstellungen.",
+      "Liefern Sie perfekte, konsistente Antworten\njedes einzelne Mal.",
+      "Verändern Sie die Art und Weise,\nwie Sie mit Kunden verbinden, 24/7."
+    ],
+    "cta": "Kostenlose Testversion starten",
+    "ctaSecondary": "Demo ansehen"
+  },
+  "features": {
+    "badge": "Warum Chatvice wählen",
+    "title": "Alles, was Sie für den Kundensupport brauchen",
+    "subtitle": "Leistungsstarke Funktionen für außergewöhnlichen Kundenservice",
+    "aiPowered": {
+      "title": "KI-gestützte Antworten",
+      "description": "Intelligente KI, die Kontext versteht und Ihren Kunden genaue, hilfreiche Antworten liefert."
+    },
+    "multiLanguage": {
+      "title": "Mehrsprachige Unterstützung",
+      "description": "Kommunizieren Sie mit Kunden in ihrer bevorzugten Sprache mit automatischer Übersetzung."
+    },
+    "analytics": {
+      "title": "Erweiterte Analysen",
+      "description": "Verfolgen Sie Leistung, Kundenzufriedenheit und identifizieren Sie Verbesserungsbereiche."
+    },
+    "integration": {
+      "title": "Einfache Integration",
+      "description": "Einfacher Einbettungscode, um das Chat-Widget in wenigen Minuten zu jeder Website hinzuzufügen."
+    },
+    "escalation": {
+      "title": "Intelligente Eskalation",
+      "description": "Leiten Sie komplexe Probleme automatisch an menschliche Supervisoren weiter, wenn nötig."
+    },
+    "customization": {
+      "title": "Volle Anpassung",
+      "description": "Passen Sie es an Ihre Marke mit anpassbaren Farben, Themen und Nachrichten an."
+    }
+  },
+  "stats": {
+    "uptime": "99,9% Verfügbarkeit",
+    "responseTime": "<2s Antwortzeit",
+    "satisfaction": "98% Zufriedenheit",
+    "support": "24/7 Support"
+  },
+  "testimonials": {
+    "badge": "Kundenstimmen",
+    "title": "Was unsere Kunden sagen",
+    "subtitle": "Schließen Sie sich Tausenden von Unternehmen an, die bereits Chatvice nutzen"
+  },
+  "cta": {
+    "title": "Bereit, Ihren Kundensupport zu transformieren?",
+    "subtitle": "Starten Sie heute Ihre kostenlose Testversion und erleben Sie den Unterschied, den KI machen kann.",
+    "button": "Kostenlos starten",
+    "noCreditCard": "Keine Kreditkarte erforderlich"
+  },
+  "footer": {
+    "description": "KI-gestützte Kundenservice-Plattform für moderne Unternehmen.",
+    "product": "Produkt",
+    "company": "Unternehmen",
+    "legal": "Rechtliches",
+    "privacy": "Datenschutzrichtlinie",
+    "terms": "Nutzungsbedingungen",
+    "copyright": "© 2025 Chatvice. Alle Rechte vorbehalten."
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "nav": {
+    "home": "ホーム",
+    "features": "機能",
+    "pricing": "料金",
+    "api": "API",
+    "faq": "よくある質問",
+    "about": "会社概要",
+    "signIn": "ログイン",
+    "getStarted": "無料で始める",
+    "dashboard": "ダッシュボード"
+  },
+  "hero": {
+    "badge": "AI搭載カスタマーサポート",
+    "title": "AIで",
+    "titleHighlight": "カスタマーサービス",
+    "titleEnd": "を変革",
+    "taglines": [
+      "追加採用なしで\nサポートチームを即座に拡大。",
+      "毎回完璧で一貫した\n応答を提供。",
+      "24時間365日\n顧客とのつながり方を変革。"
+    ],
+    "cta": "無料トライアル開始",
+    "ctaSecondary": "デモを見る"
+  },
+  "features": {
+    "badge": "Chatviceを選ぶ理由",
+    "title": "カスタマーサポートに必要なすべて",
+    "subtitle": "優れたカスタマーサービスを提供するための強力な機能",
+    "aiPowered": {
+      "title": "AI搭載レスポンス",
+      "description": "コンテキストを理解し、顧客に正確で役立つ応答を提供するスマートAI。"
+    },
+    "multiLanguage": {
+      "title": "多言語サポート",
+      "description": "自動翻訳で顧客の好みの言語でコミュニケーション。"
+    },
+    "analytics": {
+      "title": "高度な分析",
+      "description": "パフォーマンス、顧客満足度を追跡し、改善点を特定。"
+    },
+    "integration": {
+      "title": "簡単統合",
+      "description": "シンプルな埋め込みコードで、数分でどのウェブサイトにもチャットウィジェットを追加。"
+    },
+    "escalation": {
+      "title": "スマートエスカレーション",
+      "description": "必要に応じて複雑な問題を自動的に人間のスーパーバイザーに転送。"
+    },
+    "customization": {
+      "title": "完全カスタマイズ",
+      "description": "カスタマイズ可能な色、テーマ、メッセージでブランドに合わせる。"
+    }
+  },
+  "stats": {
+    "uptime": "99.9% 稼働率",
+    "responseTime": "2秒以内の応答",
+    "satisfaction": "98% 満足度",
+    "support": "24時間サポート"
+  },
+  "testimonials": {
+    "badge": "お客様の声",
+    "title": "お客様からの評価",
+    "subtitle": "すでにChatviceを利用している数千の企業に参加しましょう"
+  },
+  "cta": {
+    "title": "カスタマーサポートを変革する準備はできましたか？",
+    "subtitle": "今すぐ無料トライアルを開始して、AIがもたらす違いを実感してください。",
+    "button": "無料で始める",
+    "noCreditCard": "クレジットカード不要"
+  },
+  "footer": {
+    "description": "現代のビジネス向けAIカスタマーサービスプラットフォーム。",
+    "product": "製品",
+    "company": "会社",
+    "legal": "法的情報",
+    "privacy": "プライバシーポリシー",
+    "terms": "利用規約",
+    "copyright": "© 2025 Chatvice. All rights reserved."
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "nav": {
+    "home": "Home",
+    "features": "Features",
+    "pricing": "Pricing",
+    "api": "API",
+    "faq": "FAQ",
+    "about": "About",
+    "signIn": "Sign in",
+    "getStarted": "Get Started Free",
+    "dashboard": "Dashboard"
+  },
+  "hero": {
+    "badge": "AI-Powered Customer Support",
+    "title": "Transform Your",
+    "titleHighlight": "Customer Service",
+    "titleEnd": "with AI",
+    "taglines": [
+      "Scale your support team instantly —\nno extra hires needed.",
+      "Deliver flawless, consistent responses\nevery single time.",
+      "Transform how you connect\nwith customers, 24/7."
+    ],
+    "cta": "Start Free Trial",
+    "ctaSecondary": "Watch Demo"
+  },
+  "features": {
+    "badge": "Why Choose Chatvice",
+    "title": "Everything You Need for Customer Support",
+    "subtitle": "Powerful features to help you provide exceptional customer service",
+    "aiPowered": {
+      "title": "AI-Powered Responses",
+      "description": "Smart AI that understands context and provides accurate, helpful responses to your customers."
+    },
+    "multiLanguage": {
+      "title": "Multi-Language Support",
+      "description": "Communicate with customers in their preferred language with automatic translation."
+    },
+    "analytics": {
+      "title": "Advanced Analytics",
+      "description": "Track performance, customer satisfaction, and identify areas for improvement."
+    },
+    "integration": {
+      "title": "Easy Integration",
+      "description": "Simple embed code to add the chat widget to any website in minutes."
+    },
+    "escalation": {
+      "title": "Smart Escalation",
+      "description": "Automatically route complex issues to human supervisors when needed."
+    },
+    "customization": {
+      "title": "Full Customization",
+      "description": "Match your brand with customizable colors, themes, and messaging."
+    }
+  },
+  "stats": {
+    "uptime": "99.9% Uptime",
+    "responseTime": "<2s Response",
+    "satisfaction": "98% Satisfaction",
+    "support": "24/7 Support"
+  },
+  "testimonials": {
+    "badge": "Testimonials",
+    "title": "What Our Customers Say",
+    "subtitle": "Join thousands of businesses already using Chatvice"
+  },
+  "cta": {
+    "title": "Ready to Transform Your Customer Support?",
+    "subtitle": "Start your free trial today and see the difference AI can make.",
+    "button": "Get Started Free",
+    "noCreditCard": "No credit card required"
+  },
+  "footer": {
+    "description": "AI-powered customer service platform for modern businesses.",
+    "product": "Product",
+    "company": "Company",
+    "legal": "Legal",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "copyright": "© 2025 Chatvice. All rights reserved."
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "nav": {
+    "home": "Beranda",
+    "features": "Fitur",
+    "pricing": "Harga",
+    "api": "API",
+    "faq": "FAQ",
+    "about": "Tentang",
+    "signIn": "Masuk",
+    "getStarted": "Mulai Gratis",
+    "dashboard": "Dashboard"
+  },
+  "hero": {
+    "badge": "Layanan Pelanggan Berbasis AI",
+    "title": "Transformasi",
+    "titleHighlight": "Layanan Pelanggan",
+    "titleEnd": "dengan AI",
+    "taglines": [
+      "Tingkatkan tim support Anda secara instan —\ntanpa perlu rekrut karyawan baru.",
+      "Berikan respons sempurna dan konsisten\nsetiap saat.",
+      "Ubah cara Anda terhubung\ndengan pelanggan, 24/7."
+    ],
+    "cta": "Coba Gratis",
+    "ctaSecondary": "Lihat Demo"
+  },
+  "features": {
+    "badge": "Mengapa Chatvice",
+    "title": "Semua yang Anda Butuhkan untuk Layanan Pelanggan",
+    "subtitle": "Fitur canggih untuk membantu Anda memberikan layanan pelanggan yang luar biasa",
+    "aiPowered": {
+      "title": "Respons Berbasis AI",
+      "description": "AI cerdas yang memahami konteks dan memberikan respons akurat kepada pelanggan Anda."
+    },
+    "multiLanguage": {
+      "title": "Dukungan Multi-Bahasa",
+      "description": "Berkomunikasi dengan pelanggan dalam bahasa pilihan mereka dengan terjemahan otomatis."
+    },
+    "analytics": {
+      "title": "Analitik Lanjutan",
+      "description": "Pantau performa, kepuasan pelanggan, dan identifikasi area yang perlu ditingkatkan."
+    },
+    "integration": {
+      "title": "Integrasi Mudah",
+      "description": "Kode embed sederhana untuk menambahkan widget chat ke situs web mana pun dalam hitungan menit."
+    },
+    "escalation": {
+      "title": "Eskalasi Cerdas",
+      "description": "Secara otomatis arahkan masalah kompleks ke supervisor manusia saat diperlukan."
+    },
+    "customization": {
+      "title": "Kustomisasi Penuh",
+      "description": "Sesuaikan dengan brand Anda dengan warna, tema, dan pesan yang dapat disesuaikan."
+    }
+  },
+  "stats": {
+    "uptime": "99.9% Uptime",
+    "responseTime": "<2 detik Respons",
+    "satisfaction": "98% Kepuasan",
+    "support": "Dukungan 24/7"
+  },
+  "testimonials": {
+    "badge": "Testimoni",
+    "title": "Apa Kata Pelanggan Kami",
+    "subtitle": "Bergabunglah dengan ribuan bisnis yang sudah menggunakan Chatvice"
+  },
+  "cta": {
+    "title": "Siap Transformasi Layanan Pelanggan Anda?",
+    "subtitle": "Mulai uji coba gratis hari ini dan lihat perbedaan yang dapat dibuat AI.",
+    "button": "Mulai Gratis",
+    "noCreditCard": "Tidak perlu kartu kredit"
+  },
+  "footer": {
+    "description": "Platform layanan pelanggan berbasis AI untuk bisnis modern.",
+    "product": "Produk",
+    "company": "Perusahaan",
+    "legal": "Legal",
+    "privacy": "Kebijakan Privasi",
+    "terms": "Syarat Layanan",
+    "copyright": "© 2025 Chatvice. Hak cipta dilindungi."
+  }
+}

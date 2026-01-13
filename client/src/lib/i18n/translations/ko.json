@@ -1,0 +1,81 @@
+{
+  "nav": {
+    "home": "홈",
+    "features": "기능",
+    "pricing": "가격",
+    "api": "API",
+    "faq": "FAQ",
+    "about": "소개",
+    "signIn": "로그인",
+    "getStarted": "무료 시작",
+    "dashboard": "대시보드"
+  },
+  "hero": {
+    "badge": "AI 기반 고객 지원",
+    "title": "AI로",
+    "titleHighlight": "고객 서비스",
+    "titleEnd": "를 혁신하세요",
+    "taglines": [
+      "추가 채용 없이\n지원 팀을 즉시 확장하세요.",
+      "매번 완벽하고 일관된\n응답을 제공하세요.",
+      "연중무휴 24시간\n고객과의 연결 방식을 혁신하세요."
+    ],
+    "cta": "무료 체험 시작",
+    "ctaSecondary": "데모 보기"
+  },
+  "features": {
+    "badge": "Chatvice를 선택하는 이유",
+    "title": "고객 지원에 필요한 모든 것",
+    "subtitle": "탁월한 고객 서비스를 제공하는 강력한 기능",
+    "aiPowered": {
+      "title": "AI 기반 응답",
+      "description": "맥락을 이해하고 고객에게 정확하고 유용한 응답을 제공하는 스마트 AI."
+    },
+    "multiLanguage": {
+      "title": "다국어 지원",
+      "description": "자동 번역으로 고객이 선호하는 언어로 소통하세요."
+    },
+    "analytics": {
+      "title": "고급 분석",
+      "description": "성과, 고객 만족도를 추적하고 개선 영역을 식별하세요."
+    },
+    "integration": {
+      "title": "쉬운 통합",
+      "description": "간단한 임베드 코드로 몇 분 만에 모든 웹사이트에 채팅 위젯을 추가하세요."
+    },
+    "escalation": {
+      "title": "스마트 에스컬레이션",
+      "description": "필요할 때 복잡한 문제를 자동으로 인간 관리자에게 전달합니다."
+    },
+    "customization": {
+      "title": "완전 맞춤화",
+      "description": "사용자 정의 가능한 색상, 테마 및 메시지로 브랜드에 맞게 조정하세요."
+    }
+  },
+  "stats": {
+    "uptime": "99.9% 가동률",
+    "responseTime": "2초 이내 응답",
+    "satisfaction": "98% 만족도",
+    "support": "24/7 지원"
+  },
+  "testimonials": {
+    "badge": "고객 후기",
+    "title": "고객들의 평가",
+    "subtitle": "이미 Chatvice를 사용하는 수천 개의 기업에 합류하세요"
+  },
+  "cta": {
+    "title": "고객 지원을 혁신할 준비가 되셨나요?",
+    "subtitle": "오늘 무료 체험을 시작하고 AI가 만드는 차이를 경험하세요.",
+    "button": "무료 시작",
+    "noCreditCard": "신용카드 불필요"
+  },
+  "footer": {
+    "description": "현대 비즈니스를 위한 AI 고객 서비스 플랫폼.",
+    "product": "제품",
+    "company": "회사",
+    "legal": "법적 정보",
+    "privacy": "개인정보 처리방침",
+    "terms": "서비스 약관",
+    "copyright": "© 2025 Chatvice. All rights reserved."
+  }
+}

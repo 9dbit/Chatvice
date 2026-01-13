@@ -1,0 +1,81 @@
+{
+  "nav": {
+    "home": "首页",
+    "features": "功能",
+    "pricing": "价格",
+    "api": "API",
+    "faq": "常见问题",
+    "about": "关于",
+    "signIn": "登录",
+    "getStarted": "免费开始",
+    "dashboard": "控制台"
+  },
+  "hero": {
+    "badge": "AI驱动的客户支持",
+    "title": "用AI改变您的",
+    "titleHighlight": "客户服务",
+    "titleEnd": "",
+    "taglines": [
+      "即时扩展您的支持团队 —\n无需额外招聘。",
+      "每次都提供完美、一致的响应。",
+      "改变您与客户联系的方式，\n全天候24/7。"
+    ],
+    "cta": "免费试用",
+    "ctaSecondary": "观看演示"
+  },
+  "features": {
+    "badge": "为什么选择Chatvice",
+    "title": "客户支持所需的一切",
+    "subtitle": "强大的功能帮助您提供卓越的客户服务",
+    "aiPowered": {
+      "title": "AI驱动响应",
+      "description": "智能AI理解上下文，为您的客户提供准确、有帮助的响应。"
+    },
+    "multiLanguage": {
+      "title": "多语言支持",
+      "description": "通过自动翻译，以客户首选的语言与他们沟通。"
+    },
+    "analytics": {
+      "title": "高级分析",
+      "description": "跟踪性能、客户满意度，并确定需要改进的领域。"
+    },
+    "integration": {
+      "title": "轻松集成",
+      "description": "简单的嵌入代码，几分钟内即可将聊天小部件添加到任何网站。"
+    },
+    "escalation": {
+      "title": "智能升级",
+      "description": "在需要时自动将复杂问题转交给人工主管。"
+    },
+    "customization": {
+      "title": "完全自定义",
+      "description": "通过可自定义的颜色、主题和消息来匹配您的品牌。"
+    }
+  },
+  "stats": {
+    "uptime": "99.9% 正常运行",
+    "responseTime": "<2秒响应",
+    "satisfaction": "98% 满意度",
+    "support": "24/7 支持"
+  },
+  "testimonials": {
+    "badge": "客户评价",
+    "title": "客户怎么说",
+    "subtitle": "加入数千家已经使用Chatvice的企业"
+  },
+  "cta": {
+    "title": "准备好改变您的客户服务了吗？",
+    "subtitle": "立即开始免费试用，体验AI带来的不同。",
+    "button": "免费开始",
+    "noCreditCard": "无需信用卡"
+  },
+  "footer": {
+    "description": "面向现代企业的AI客户服务平台。",
+    "product": "产品",
+    "company": "公司",
+    "legal": "法律",
+    "privacy": "隐私政策",
+    "terms": "服务条款",
+    "copyright": "© 2025 Chatvice. 保留所有权利。"
+  }
+}
