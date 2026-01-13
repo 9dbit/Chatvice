@@ -556,6 +556,24 @@ async function askChatvice(
     }
   }
 
+  // Fetch product catalog for context-aware recommendations
+  let productCatalogContext = "";
+  try {
+    const productSettings = await storage.getProductRecommendationSettings(merchantId);
+    if (productSettings?.aiAutoRecommendEnabled) {
+      const productCards = await storage.getProductCards(merchantId, activeAgentId);
+      const activeProducts = productCards.filter(p => p.isActive);
+      if (activeProducts.length > 0) {
+        productCatalogContext = activeProducts.map(p => {
+          const priceText = p.price ? `Rp ${p.price.toLocaleString()}` : "Harga tidak tersedia";
+          return `- ${p.title}: ${p.description || ''} (${priceText})`;
+        }).join('\n');
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching product catalog:", error);
+  }
+
   // Build system message with base behavior + custom instructions
   const systemMessage = `You are ${agentName}, a friendly and helpful AI Customer Service Agent for ${companyName}.
 You are professional yet approachable, and always aim to help customers effectively.
@@ -615,7 +633,36 @@ Jika customer bertanya tentang harga/pricing/paket dan ada info subscription pla
 [BTN:Tanya Detail:Jelaskan lebih detail fitur paket ini]
 
 PENTING: Gunakan harga PERSIS seperti yang ada di knowledge (dalam USD).
+${productCatalogContext ? `
+PRODUCT RECOMMENDATION (CONTEXT-AWARE):
+Kamu memiliki katalog produk berikut yang bisa direkomendasikan:
+${productCatalogContext}
 
+INSTRUKSI REKOMENDASI PRODUK:
+- JANGAN rekomendasikan produk hanya karena customer menyebut kata "produk" atau "beli"
+- Rekomendasikan produk HANYA jika percakapan KONTEKSNYA mengarah ke kebutuhan produk tertentu
+- Analisa konteks percakapan secara keseluruhan sebelum menawarkan produk
+- Jika customer sedang menanyakan masalah/keluhan, jangan langsung tawarkan produk
+- Jika customer sedang diskusi tentang kebutuhan dan produk kita relevan, BARU tawarkan
+
+KAPAN BOLEH REKOMENDASIKAN:
+- Customer bertanya tentang solusi untuk masalah yang produk kita bisa selesaikan
+- Customer menanyakan rekomendasi atau saran produk
+- Percakapan mengarah ke kebutuhan yang bisa dipenuhi produk kita
+- Customer bertanya harga atau ketersediaan produk spesifik
+
+CARA MENAWARKAN PRODUK (Gunakan kalimat NATURAL, pilih salah satu):
+- "Sepertinya ini cocok buat Kakak..."
+- "Sesuai permintaan Kakak, coba cek produk ini..."
+- "Coba cek produk ini Kak, kayaknya pas banget..."
+- "Boleh liat produk ini Kak, sesuai kebutuhan Kakak..."
+- "Ini ada rekomendasi yang pas untuk Kakak..."
+
+JIKA ingin merekomendasikan produk, WAJIB akhiri respons dengan tag:
+[RECOMMEND_PRODUCT]
+
+Tag ini akan memicu sistem untuk menampilkan kartu produk. Pastikan kalimat sebelum tag sudah natural dan mengajak.
+` : ""}
 Relevant Company Information:
 ${knowledgeContext || "No specific knowledge base configured yet."}
 
@@ -3306,12 +3353,17 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       });
 
       const result = await askChatvice(sessionId, merchantId, message);
+      
+      // Check if AI wants to recommend products (context-aware approach)
+      const hasProductRecommendTag = result.answer.includes("[RECOMMEND_PRODUCT]");
+      // Remove the tag from the displayed answer
+      const cleanAnswer = result.answer.replace(/\[RECOMMEND_PRODUCT\]/g, "").trim();
 
       const responseClientId = clientMessageId ? `response_${clientMessageId}` : undefined;
       await storage.createMessage({
         sessionId,
         from: result.mode === "HUMAN" ? "system" : "chatvice",
-        content: result.answer,
+        content: cleanAnswer,
         clientMessageId: responseClientId,
       });
 
@@ -3319,43 +3371,40 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
       broadcastToSession(sessionId, {
         type: "message",
-        message: { from: result.mode === "HUMAN" ? "system" : "chatvice", content: result.answer, clientMessageId: responseClientId },
+        message: { from: result.mode === "HUMAN" ? "system" : "chatvice", content: cleanAnswer, clientMessageId: responseClientId },
       });
 
       if (result.mode === "AI") {
         try {
           const settings = await storage.getProductRecommendationSettings(merchantId);
           if (settings?.aiAutoRecommendEnabled) {
-            const productTriggers = await storage.getProductTriggers(merchantId, merchant.activeAgentId || undefined);
-            const lowerMessage = message.toLowerCase();
-            const lowerAiResponse = result.answer.toLowerCase();
-            
             let matchedProductId: string | null = null;
-            for (const trigger of productTriggers) {
-              if (!trigger.isActive) continue;
-              const keywords = trigger.keywords.split(',').map(k => k.trim().toLowerCase());
-              if (keywords.some(keyword => keyword && (lowerMessage.includes(keyword) || lowerAiResponse.includes(keyword)))) {
-                matchedProductId = trigger.productCardId;
-                break;
+            
+            // Priority 1: AI context-aware recommendation via [RECOMMEND_PRODUCT] tag
+            if (hasProductRecommendTag) {
+              console.log(`[Product Trigger] AI decided to recommend product based on context`);
+              const productCards = await storage.getProductCards(merchantId, merchant.activeAgentId || undefined);
+              const activeCards = productCards.filter(c => c.isActive);
+              if (activeCards.length > 0) {
+                // Select best matching product based on conversation context
+                matchedProductId = activeCards[0].id;
+                console.log(`[Product Trigger] Context-based: Selected product "${activeCards[0].title}"`);
               }
             }
             
-            if (!matchedProductId && settings.aiContextTriggerEnabled && settings.triggerKeywords) {
-              const generalKeywords = settings.triggerKeywords.split(',').map(k => k.trim().toLowerCase());
-              const combinedText = lowerMessage + " " + lowerAiResponse;
-              console.log(`[Product Trigger] Checking keywords: ${generalKeywords.join(', ')}`);
-              console.log(`[Product Trigger] Combined text: ${combinedText.substring(0, 200)}...`);
+            // Priority 2: Specific product triggers (keyword -> specific product mapping)
+            if (!matchedProductId) {
+              const productTriggers = await storage.getProductTriggers(merchantId, merchant.activeAgentId || undefined);
+              const lowerMessage = message.toLowerCase();
+              const lowerAiResponse = cleanAnswer.toLowerCase();
               
-              const matchedKeyword = generalKeywords.find(keyword => keyword && combinedText.includes(keyword));
-              if (matchedKeyword) {
-                console.log(`[Product Trigger] Matched keyword: "${matchedKeyword}"`);
-                const productCards = await storage.getProductCards(merchantId, merchant.activeAgentId || undefined);
-                const activeCards = productCards.filter(c => c.isActive);
-                console.log(`[Product Trigger] Found ${activeCards.length} active product cards`);
-                if (activeCards.length > 0) {
-                  const maxProducts = settings.maxProductsPerRecommendation || 3;
-                  matchedProductId = activeCards[0].id;
-                  console.log(`[Product Trigger] Selected product card ID: ${matchedProductId}`);
+              for (const trigger of productTriggers) {
+                if (!trigger.isActive) continue;
+                const keywords = trigger.keywords.split(',').map(k => k.trim().toLowerCase());
+                if (keywords.some(keyword => keyword && (lowerMessage.includes(keyword) || lowerAiResponse.includes(keyword)))) {
+                  matchedProductId = trigger.productCardId;
+                  console.log(`[Product Trigger] Keyword-based: Matched specific product trigger`);
+                  break;
                 }
               }
             }
@@ -3373,17 +3422,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                   },
                 };
                 
-                // Get customer name for personalized message
-                const sessionData = await storage.getSession(sessionId);
-                const customerName = sessionData?.customerName || "Kak";
-                const personalizedMessage = `Berikut produk pilihan kami untuk ${customerName}, sepertinya terlihat cocok, boleh di cek dulu ya ${customerName}... 😊`;
-                
                 console.log(`[Product Trigger] Broadcasting product_offer for: "${productCard.title}" with sourceUrl: ${productCard.sourceUrl}`);
                 
                 await storage.createMessage({
                   sessionId,
                   from: "chatvice",
-                  content: personalizedMessage,
+                  content: "",
                   messageType: "product_offer",
                   payload,
                 });
@@ -3392,7 +3436,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                   type: "message",
                   message: { 
                     from: "chatvice", 
-                    content: personalizedMessage,
+                    content: "",
                     messageType: "product_offer",
                     payload,
                   },
@@ -3408,7 +3452,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       }
 
       res.json({ 
-        answer: result.answer, 
+        answer: cleanAnswer, 
         mode: result.mode,
         clientMessageId: clientMessageId,
         responseClientId: responseClientId,
