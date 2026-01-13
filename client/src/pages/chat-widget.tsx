@@ -819,16 +819,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         {showWelcomeBubble && welcomeBubble && welcomeBubble.isEnabled && (
           <div className="w-52 animate-in slide-in-from-bottom-5 fade-in duration-300" data-testid="welcome-bubble-container">
             {welcomeBubble.promoImageEnabled && welcomeBubble.promoImageUrl && (
-              <img 
-                src={welcomeBubble.promoImageUrl} 
-                alt="Promotion" 
-                className="w-full h-auto object-cover rounded-t-xl relative z-20"
-                style={{ marginBottom: '-16px' }}
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-                data-testid="img-welcome-promo"
-              />
+              <div className="relative z-20" style={{ marginBottom: '-16px' }}>
+                <img 
+                  src={welcomeBubble.promoImageUrl} 
+                  alt="Promotion" 
+                  className="w-full h-auto object-cover rounded-t-xl"
+                  onLoad={() => console.log('[Widget] Promo image loaded:', welcomeBubble.promoImageUrl)}
+                  onError={(e) => {
+                    console.error('[Widget] Promo image failed to load:', welcomeBubble.promoImageUrl);
+                    (e.target as HTMLImageElement).parentElement!.style.display = 'none';
+                  }}
+                  data-testid="img-welcome-promo"
+                />
+              </div>
             )}
             <div 
               className={`bg-card shadow-xl px-4 pt-6 pb-4 border border-border relative z-10 ${welcomeBubble.promoImageEnabled && welcomeBubble.promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}
@@ -1296,61 +1299,58 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                     );
                   })()}
                   {(msg as any).messageType === "product_offer" && (msg as any).payload?.productCard && (
-                    <div className="mt-2 bg-background rounded-xl border shadow-sm overflow-hidden max-w-[180px]">
-                      {(msg as any).payload.productCard.imageUrl ? (
-                        <div className="p-3" style={{ backgroundColor: `${primaryColor}10` }}>
-                          <img 
-                            src={(msg as any).payload.productCard.imageUrl} 
-                            alt={(msg as any).payload.productCard.title}
-                            className="w-full h-auto object-contain max-h-24"
-                          />
-                        </div>
-                      ) : (
-                        <div className="h-24 flex items-center justify-center" style={{ backgroundColor: `${primaryColor}10` }}>
-                          <ShoppingBag className="w-10 h-10 text-muted-foreground/50" />
-                        </div>
-                      )}
-                      <div className="p-2.5 space-y-1.5">
-                        <p className="font-semibold text-sm">{(msg as any).payload.productCard.title}</p>
-                        {(msg as any).payload.productCard.description ? (
-                          <p className="text-xs text-muted-foreground line-clamp-2">{(msg as any).payload.productCard.description}</p>
+                    <div className="mt-2 grid grid-cols-2 gap-2 max-w-[280px]">
+                      <div className="bg-background rounded-lg border shadow-sm overflow-hidden">
+                        {(msg as any).payload.productCard.imageUrl ? (
+                          <div className="aspect-square relative overflow-hidden" style={{ backgroundColor: `${primaryColor}10` }}>
+                            <img 
+                              src={(msg as any).payload.productCard.imageUrl} 
+                              alt={(msg as any).payload.productCard.title}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
                         ) : (
-                          <div className="space-y-1">
-                            <div className="h-2 bg-muted rounded w-full" />
-                            <div className="h-2 bg-muted rounded w-3/4" />
+                          <div className="aspect-square flex items-center justify-center" style={{ backgroundColor: `${primaryColor}10` }}>
+                            <ShoppingBag className="w-8 h-8 text-muted-foreground/50" />
                           </div>
                         )}
-                        {(msg as any).payload.productCard.price && (
-                          <p className="text-xs text-muted-foreground">{(msg as any).payload.productCard.price}</p>
-                        )}
-                        <div className="flex flex-col gap-1 pt-1">
-                          {(msg as any).payload.productCard.buttons?.map((btn: any) => (
-                            <button
-                              key={btn.id}
-                              className="w-full text-xs py-1.5 px-2 rounded border transition-colors hover:text-white"
-                              style={{ borderColor: primaryColor, color: primaryColor }}
-                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = primaryColor; e.currentTarget.style.color = 'white'; }}
-                              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = primaryColor; }}
-                              onClick={() => btn.url && window.open(btn.url, '_blank')}
-                              disabled={!btn.url}
-                              data-testid={`button-product-action-${btn.id}`}
-                            >
-                              {btn.label}
-                            </button>
-                          ))}
-                          {(msg as any).payload.productCard.sourceUrl && (
-                            <button
-                              className="w-full text-xs py-1.5 px-2 rounded border transition-colors hover:text-white flex items-center justify-center gap-1"
-                              style={{ borderColor: primaryColor, color: primaryColor }}
-                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = primaryColor; e.currentTarget.style.color = 'white'; }}
-                              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = primaryColor; }}
-                              onClick={() => window.open((msg as any).payload.productCard.sourceUrl, '_blank')}
-                              data-testid="button-visit-product-page"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                              Visit Product Page
-                            </button>
+                        <div className="p-2 space-y-1">
+                          <p className="font-semibold text-xs line-clamp-1">{(msg as any).payload.productCard.title}</p>
+                          {(msg as any).payload.productCard.description && (
+                            <p className="text-[10px] text-muted-foreground line-clamp-1">{(msg as any).payload.productCard.description}</p>
                           )}
+                          {(msg as any).payload.productCard.price && (
+                            <p className="text-xs font-medium" style={{ color: primaryColor }}>{(msg as any).payload.productCard.price}</p>
+                          )}
+                          <div className="flex flex-col gap-1 pt-1">
+                            {(msg as any).payload.productCard.buttons?.slice(0, 1).map((btn: any) => (
+                              <button
+                                key={btn.id}
+                                className="w-full text-[10px] py-1 px-1 rounded border transition-colors hover:text-white"
+                                style={{ borderColor: primaryColor, color: primaryColor }}
+                                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = primaryColor; e.currentTarget.style.color = 'white'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = primaryColor; }}
+                                onClick={() => btn.url && window.open(btn.url, '_blank')}
+                                disabled={!btn.url}
+                                data-testid={`button-product-action-${btn.id}`}
+                              >
+                                {btn.label}
+                              </button>
+                            ))}
+                            {(msg as any).payload.productCard.sourceUrl && (
+                              <button
+                                className="w-full text-[10px] py-1 px-1 rounded border transition-colors hover:text-white flex items-center justify-center gap-0.5"
+                                style={{ borderColor: primaryColor, color: primaryColor }}
+                                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = primaryColor; e.currentTarget.style.color = 'white'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = primaryColor; }}
+                                onClick={() => window.open((msg as any).payload.productCard.sourceUrl, '_blank')}
+                                data-testid="button-visit-product-page"
+                              >
+                                <ExternalLink className="w-2.5 h-2.5" />
+                                View
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>

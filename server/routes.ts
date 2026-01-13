@@ -3373,12 +3373,17 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                   },
                 };
                 
+                // Get customer name for personalized message
+                const sessionData = await storage.getSession(sessionId);
+                const customerName = sessionData?.customerName || "Kak";
+                const personalizedMessage = `Berikut produk pilihan kami untuk ${customerName}, sepertinya terlihat cocok, boleh di cek dulu ya ${customerName}... 😊`;
+                
                 console.log(`[Product Trigger] Broadcasting product_offer for: "${productCard.title}" with sourceUrl: ${productCard.sourceUrl}`);
                 
                 await storage.createMessage({
                   sessionId,
                   from: "chatvice",
-                  content: `Based on our conversation, I think you might be interested in this:`,
+                  content: personalizedMessage,
                   messageType: "product_offer",
                   payload,
                 });
@@ -3387,7 +3392,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                   type: "message",
                   message: { 
                     from: "chatvice", 
-                    content: `Based on our conversation, I think you might be interested in this:`,
+                    content: personalizedMessage,
                     messageType: "product_offer",
                     payload,
                   },
