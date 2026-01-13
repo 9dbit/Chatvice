@@ -835,7 +835,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             >
               <button
                 onClick={dismissWelcomeBubble}
-                className="absolute top-2 right-2 p-1 rounded-full hover:bg-muted z-30"
+                className="absolute top-2 p-1 rounded-full hover:bg-muted z-30"
+                style={{ right: '-2px' }}
                 data-testid="button-close-welcome-bubble"
               >
                 <X className="w-4 h-4 text-muted-foreground" />
@@ -844,7 +845,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 <p className="font-semibold text-base" data-testid="text-welcome-headline">
                   {welcomeBubble.headline}
                 </p>
-                <p className="text-sm text-muted-foreground mt-1" data-testid="text-welcome-message">
+                <p className="text-[11px] text-muted-foreground mt-1" data-testid="text-welcome-message">
                   {welcomeBubble.message}
                 </p>
               </div>
