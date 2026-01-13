@@ -46,8 +46,10 @@ export function LanguageSwitcher({
               className="flex items-center justify-between cursor-pointer"
               data-testid={`language-option-${lang.code}`}
             >
-              <div className="flex items-center gap-2">
-                <span className="text-lg">{lang.flag}</span>
+              <div className="flex items-center gap-3">
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300">
+                  {lang.flag}
+                </span>
                 <div className="flex flex-col">
                   <span className="font-medium">{lang.nativeName}</span>
                   <span className="text-xs text-muted-foreground">{lang.name}</span>
