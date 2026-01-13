@@ -819,12 +819,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         {showWelcomeBubble && welcomeBubble && welcomeBubble.isEnabled && (
           <div className="w-52 animate-in slide-in-from-bottom-5 fade-in duration-300" data-testid="welcome-bubble-container">
             {welcomeBubble.promoImageEnabled && welcomeBubble.promoImageUrl && (
-              <div className="relative z-20 flex justify-start" style={{ marginBottom: '-16px' }}>
+              <div className="relative z-20" style={{ marginBottom: '-16px' }}>
                 <img 
                   src={welcomeBubble.promoImageUrl} 
                   alt="Promotion" 
-                  className="h-auto object-contain rounded-lg"
-                  style={{ maxWidth: '33%' }}
+                  className="w-full h-auto object-contain rounded-t-xl"
                   onLoad={() => console.log('[Widget] Promo image loaded:', welcomeBubble.promoImageUrl)}
                   onError={(e) => {
                     console.error('[Widget] Promo image failed to load:', welcomeBubble.promoImageUrl);
