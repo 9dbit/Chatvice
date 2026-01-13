@@ -945,114 +945,98 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   }
 
   const ProductCarousel = ({ cards }: { cards: ProductCardWithButtons[] }) => {
-    const visibleCards = 1;
-    const maxIndex = Math.max(0, cards.length - visibleCards);
+    // Get customer name for personalized intro
+    const displayName = customerName || "Kak";
+    const displayCards = cards.slice(0, 2); // Limit to 2 cards max
     
     return (
       <div className="w-full mt-3" data-testid="product-carousel">
-        <div className="flex items-center gap-2 mb-2">
+        {/* Conversational intro */}
+        <p className="text-sm mb-2">
+          Hai {displayName}! Berikut produk pilihan yang mungkin cocok untuk kamu 😊
+        </p>
+        
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-3">
           <ShoppingBag className="w-4 h-4" style={{ color: primaryColor }} />
-          <span className="text-xs font-medium">Recommended Products</span>
-        </div>
-        <div className="relative">
-          <div className="overflow-hidden">
-            <div 
-              className="flex transition-transform duration-300 gap-2"
-              style={{ transform: `translateX(-${productCarouselIndex * 100}%)` }}
-            >
-              {cards.map((card) => (
-                <Card 
-                  key={card.id} 
-                  className="flex-shrink-0 w-full border-border"
-                  data-testid={`card-product-${card.id}`}
-                >
-                  {card.imageUrl && (
-                    <div className="aspect-video relative overflow-hidden rounded-t-lg">
-                      <img 
-                        src={card.imageUrl} 
-                        alt={card.title}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
-                  <CardContent className="p-3">
-                    <h4 className="font-semibold text-sm line-clamp-1">{card.title}</h4>
-                    {card.description && (
-                      <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{card.description}</p>
-                    )}
-                    {card.price && (
-                      <p className="font-bold text-sm mt-2" style={{ color: primaryColor }}>{card.price}</p>
-                    )}
-                    <div className="flex gap-1 mt-2">
-                      {card.buttons?.slice(0, 3).map((btn) => (
-                        <Button
-                          key={btn.id}
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 h-7 text-xs gap-1"
-                          onClick={() => btn.url && window.open(btn.url, "_blank")}
-                          data-testid={`button-product-${btn.id}`}
-                        >
-                          {btn.buttonType === "link" && <ExternalLink className="w-3 h-3" />}
-                          {btn.label}
-                        </Button>
-                      ))}
-                      {(!card.buttons || card.buttons.length === 0) && card.sourceUrl && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 h-7 text-xs gap-1"
-                          onClick={() => card.sourceUrl && window.open(card.sourceUrl, "_blank")}
-                          data-testid={`button-product-view-${card.id}`}
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          View
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-          
-          {cards.length > visibleCards && (
-            <>
-              <Button
-                size="icon"
-                variant="outline"
-                className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 h-6 w-6 rounded-full shadow-md"
-                onClick={() => setProductCarouselIndex(Math.max(0, productCarouselIndex - 1))}
-                disabled={productCarouselIndex === 0}
-                data-testid="button-carousel-prev"
-              >
-                <ChevronLeft className="w-3 h-3" />
-              </Button>
-              <Button
-                size="icon"
-                variant="outline"
-                className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 h-6 w-6 rounded-full shadow-md"
-                onClick={() => setProductCarouselIndex(Math.min(maxIndex, productCarouselIndex + 1))}
-                disabled={productCarouselIndex >= maxIndex}
-                data-testid="button-carousel-next"
-              >
-                <ChevronRight className="w-3 h-3" />
-              </Button>
-            </>
-          )}
+          <span className="text-xs font-medium">Berikut beberapa produk rekomendasi kami:</span>
         </div>
         
-        {cards.length > 1 && (
-          <div className="flex justify-center gap-1 mt-2">
-            {cards.map((_, idx) => (
-              <button
-                key={idx}
-                className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                  idx === productCarouselIndex ? "bg-primary" : "bg-muted"
-                }`}
-                onClick={() => setProductCarouselIndex(idx)}
-                data-testid={`button-carousel-dot-${idx}`}
-              />
+        {/* 2-column grid with square images */}
+        <div className="grid grid-cols-2 gap-2">
+          {displayCards.map((card) => (
+            <Card 
+              key={card.id} 
+              className="border-border overflow-hidden"
+              data-testid={`card-product-${card.id}`}
+            >
+              {card.imageUrl ? (
+                <div className="aspect-square relative bg-muted flex items-center justify-center">
+                  <img 
+                    src={card.imageUrl} 
+                    alt={card.title}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="aspect-square bg-muted flex items-center justify-center">
+                  <ShoppingBag className="w-8 h-8 text-muted-foreground/50" />
+                </div>
+              )}
+              <CardContent className="p-2">
+                <h4 className="font-semibold text-xs line-clamp-1">{card.title}</h4>
+                {card.description && (
+                  <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{card.description}</p>
+                )}
+                {card.price && (
+                  <p className="font-bold text-xs mt-1" style={{ color: primaryColor }}>{card.price}</p>
+                )}
+                <div className="flex flex-col gap-1 mt-2">
+                  {card.buttons?.slice(0, 1).map((btn) => (
+                    <Button
+                      key={btn.id}
+                      size="sm"
+                      variant="outline"
+                      className="w-full h-6 text-[10px] gap-1"
+                      onClick={() => btn.url && window.open(btn.url, "_blank")}
+                      data-testid={`button-product-${btn.id}`}
+                    >
+                      {btn.buttonType === "link" && <ExternalLink className="w-2.5 h-2.5" />}
+                      {btn.label}
+                    </Button>
+                  ))}
+                  {(!card.buttons || card.buttons.length === 0) && card.sourceUrl && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full h-6 text-[10px] gap-1"
+                      onClick={() => card.sourceUrl && window.open(card.sourceUrl, "_blank")}
+                      data-testid={`button-product-view-${card.id}`}
+                    >
+                      <ExternalLink className="w-2.5 h-2.5" />
+                      Lihat
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        
+        {/* Suggestion buttons below products */}
+        {displayCards.length > 0 && displayCards[0].buttons && displayCards[0].buttons.length > 1 && (
+          <div className="flex flex-wrap gap-1.5 mt-3">
+            {displayCards.flatMap(card => card.buttons || []).slice(0, 4).map((btn, idx) => (
+              <Button
+                key={`suggest-${btn.id}-${idx}`}
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={() => btn.url && window.open(btn.url, "_blank")}
+                data-testid={`button-suggest-${btn.id}`}
+              >
+                {btn.label}
+              </Button>
             ))}
           </div>
         )}
@@ -1298,63 +1282,86 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                       </div>
                     );
                   })()}
-                  {(msg as any).messageType === "product_offer" && (msg as any).payload?.productCard && (
-                    <div className="mt-2 grid grid-cols-2 gap-2 max-w-[280px]">
-                      <div className="bg-background rounded-lg border shadow-sm overflow-hidden">
-                        {(msg as any).payload.productCard.imageUrl ? (
-                          <div className="aspect-square relative overflow-hidden" style={{ backgroundColor: `${primaryColor}10` }}>
-                            <img 
-                              src={(msg as any).payload.productCard.imageUrl} 
-                              alt={(msg as any).payload.productCard.title}
-                              className="w-full h-full object-cover"
-                            />
+                  {(msg as any).messageType === "product_offer" && (msg as any).payload?.productCard && (() => {
+                    const productCard = (msg as any).payload.productCard;
+                    const displayName = customerName || "Kak";
+                    return (
+                      <div className="mt-2 max-w-[280px]">
+                        {/* Conversational intro */}
+                        <p className="text-sm mb-2">
+                          Hai {displayName}! Berikut produk pilihan yang mungkin cocok untuk kamu 😊
+                        </p>
+                        
+                        {/* Header */}
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <ShoppingBag className="w-3.5 h-3.5" style={{ color: primaryColor }} />
+                          <span className="text-[11px] font-medium">Berikut produk rekomendasi kami:</span>
+                        </div>
+                        
+                        {/* 2-column grid with square images */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="bg-background rounded-lg border shadow-sm overflow-hidden">
+                            {productCard.imageUrl ? (
+                              <div className="aspect-square bg-muted flex items-center justify-center">
+                                <img 
+                                  src={productCard.imageUrl} 
+                                  alt={productCard.title}
+                                  className="w-full h-full object-contain"
+                                />
+                              </div>
+                            ) : (
+                              <div className="aspect-square bg-muted flex items-center justify-center">
+                                <ShoppingBag className="w-8 h-8 text-muted-foreground/50" />
+                              </div>
+                            )}
+                            <div className="p-2 space-y-1">
+                              <p className="font-semibold text-xs line-clamp-1">{productCard.title}</p>
+                              {productCard.description && (
+                                <p className="text-[10px] text-muted-foreground line-clamp-1">{productCard.description}</p>
+                              )}
+                              {productCard.price && (
+                                <p className="text-xs font-medium" style={{ color: primaryColor }}>{productCard.price}</p>
+                              )}
+                              <div className="flex flex-col gap-1 pt-1">
+                                {productCard.sourceUrl && (
+                                  <button
+                                    className="w-full text-[10px] py-1 px-1 rounded border transition-colors hover:text-white flex items-center justify-center gap-0.5"
+                                    style={{ borderColor: primaryColor, color: primaryColor }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = primaryColor; e.currentTarget.style.color = 'white'; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = primaryColor; }}
+                                    onClick={() => window.open(productCard.sourceUrl, '_blank')}
+                                    data-testid="button-visit-product-page"
+                                  >
+                                    <ExternalLink className="w-2.5 h-2.5" />
+                                    Lihat
+                                  </button>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        ) : (
-                          <div className="aspect-square flex items-center justify-center" style={{ backgroundColor: `${primaryColor}10` }}>
-                            <ShoppingBag className="w-8 h-8 text-muted-foreground/50" />
-                          </div>
-                        )}
-                        <div className="p-2 space-y-1">
-                          <p className="font-semibold text-xs line-clamp-1">{(msg as any).payload.productCard.title}</p>
-                          {(msg as any).payload.productCard.description && (
-                            <p className="text-[10px] text-muted-foreground line-clamp-1">{(msg as any).payload.productCard.description}</p>
-                          )}
-                          {(msg as any).payload.productCard.price && (
-                            <p className="text-xs font-medium" style={{ color: primaryColor }}>{(msg as any).payload.productCard.price}</p>
-                          )}
-                          <div className="flex flex-col gap-1 pt-1">
-                            {(msg as any).payload.productCard.buttons?.slice(0, 1).map((btn: any) => (
+                        </div>
+                        
+                        {/* Suggestion buttons */}
+                        {productCard.buttons && productCard.buttons.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {productCard.buttons.slice(0, 3).map((btn: any, idx: number) => (
                               <button
-                                key={btn.id}
-                                className="w-full text-[10px] py-1 px-1 rounded border transition-colors hover:text-white"
+                                key={`suggest-${btn.id || idx}`}
+                                className="px-2 py-1 text-[10px] rounded border transition-colors hover:text-white"
                                 style={{ borderColor: primaryColor, color: primaryColor }}
                                 onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = primaryColor; e.currentTarget.style.color = 'white'; }}
                                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = primaryColor; }}
                                 onClick={() => btn.url && window.open(btn.url, '_blank')}
-                                disabled={!btn.url}
-                                data-testid={`button-product-action-${btn.id}`}
+                                data-testid={`button-suggest-${btn.id || idx}`}
                               >
                                 {btn.label}
                               </button>
                             ))}
-                            {(msg as any).payload.productCard.sourceUrl && (
-                              <button
-                                className="w-full text-[10px] py-1 px-1 rounded border transition-colors hover:text-white flex items-center justify-center gap-0.5"
-                                style={{ borderColor: primaryColor, color: primaryColor }}
-                                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = primaryColor; e.currentTarget.style.color = 'white'; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = primaryColor; }}
-                                onClick={() => window.open((msg as any).payload.productCard.sourceUrl, '_blank')}
-                                data-testid="button-visit-product-page"
-                              >
-                                <ExternalLink className="w-2.5 h-2.5" />
-                                View
-                              </button>
-                            )}
                           </div>
-                        </div>
+                        )}
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                   {(msg as any).messageType === "media" && (msg as any).payload && (
                     <div>
                       {(msg as any).payload.type === "photo" && (
