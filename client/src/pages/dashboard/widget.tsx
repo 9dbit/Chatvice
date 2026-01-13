@@ -25,6 +25,8 @@ import type { MerchantDomain } from "@shared/schema";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Merchant, Agent } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
+import ChatWidget from "@/pages/chat-widget";
+import { useMemo } from "react";
 
 export default function WidgetPage() {
   const merchantId = localStorage.getItem("merchantId") || "";
@@ -39,9 +41,18 @@ export default function WidgetPage() {
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [isRemovingBg, setIsRemovingBg] = useState(false);
   const [bgRemovalStatus, setBgRemovalStatus] = useState<{ used: number; limit: number } | null>(null);
-  const [previewWidgetOpen, setPreviewWidgetOpen] = useState(false);
-  const [previewHidden, setPreviewHidden] = useState(false);
-  const [previewVerticalOffset, setPreviewVerticalOffset] = useState(24);
+  const [previewKey, setPreviewKey] = useState(0);
+  const [previewSessionId, setPreviewSessionId] = useState(() => 
+    `widget_preview_${merchantId}_${Date.now()}`
+  );
+  const lastMerchantIdRef = useRef(merchantId);
+  
+  useEffect(() => {
+    if (previewKey > 0 || merchantId !== lastMerchantIdRef.current) {
+      setPreviewSessionId(`widget_preview_${merchantId}_${Date.now()}`);
+      lastMerchantIdRef.current = merchantId;
+    }
+  }, [previewKey, merchantId]);
   const [config, setConfig] = useState({
     iconUrl: "",
     iconSize: 70,
@@ -1140,46 +1151,22 @@ async function handleLogin() {
                   <div>
                     <CardTitle className="text-lg">Live Preview</CardTitle>
                     <CardDescription>
-                      Interactive preview of your widget. Use controls to adjust position.
+                      Real-time preview of your widget with all current settings
                     </CardDescription>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex flex-col items-center gap-1">
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="h-7 w-7"
-                        onClick={() => setPreviewVerticalOffset(Math.max(24, previewVerticalOffset - 20))}
-                        title="Move widget up"
-                        data-testid="button-preview-move-up"
-                      >
-                        <ChevronUp className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="h-7 w-7"
-                        onClick={() => setPreviewVerticalOffset(Math.min(200, previewVerticalOffset + 20))}
-                        title="Move widget down"
-                        data-testid="button-preview-move-down"
-                      >
-                        <ChevronDown className="w-4 h-4" />
-                      </Button>
-                    </div>
-                    <Button
-                      size="icon"
-                      variant={previewHidden ? "default" : "outline"}
-                      onClick={() => setPreviewHidden(!previewHidden)}
-                      title={previewHidden ? "Show widget" : "Hide widget"}
-                      data-testid="button-preview-toggle-visibility"
-                    >
-                      {previewHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                    </Button>
-                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPreviewKey(prev => prev + 1)}
+                    data-testid="button-refresh-preview"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Refresh
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="relative bg-muted/30 rounded-lg h-[650px] overflow-hidden">
+                <div className="relative bg-muted/30 rounded-lg h-[550px] overflow-visible">
                   <div className="absolute top-4 left-4 right-4 h-8 bg-muted rounded flex items-center px-3">
                     <div className="flex gap-1.5">
                       <div className="w-2.5 h-2.5 rounded-full bg-destructive/50" />
@@ -1189,234 +1176,13 @@ async function handleLogin() {
                     <span className="text-xs text-muted-foreground ml-3">yourwebsite.com</span>
                   </div>
 
-                  {previewHidden ? (
-                    <div 
-                      className="absolute"
-                      style={{ 
-                        bottom: `${previewVerticalOffset}px`, 
-                        [config.bubblePosition === "left" ? "left" : "right"]: "16px" 
-                      }}
-                    >
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        onClick={() => setPreviewHidden(false)}
-                        className="rounded-full w-10 h-10 shadow-lg bg-background/80 backdrop-blur-sm"
-                        title="Show widget"
-                        data-testid="button-preview-show-widget"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      {!previewWidgetOpen && (
-                        <div 
-                          className="absolute"
-                          style={{ 
-                            bottom: `${previewVerticalOffset}px`, 
-                            [config.bubblePosition === "left" ? "left" : "right"]: "16px" 
-                          }}
-                        >
-                          <div className="relative group">
-                            <div className={`absolute ${config.bubblePosition === "left" ? "-right-12" : "-left-12"} top-1/2 -translate-y-1/2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity`}>
-                              <button
-                                onClick={() => setPreviewHidden(true)}
-                                className="w-8 h-8 bg-muted/90 hover:bg-muted rounded-full shadow-md transition-colors flex items-center justify-center"
-                                title="Hide widget"
-                                data-testid="button-preview-hide"
-                              >
-                                <EyeOff className="w-4 h-4 text-muted-foreground" />
-                              </button>
-                              <button
-                                className="w-8 h-8 bg-muted/90 hover:bg-muted rounded-full shadow-md cursor-grab transition-colors flex items-center justify-center"
-                                title="Drag to reposition (use up/down buttons)"
-                                data-testid="button-preview-drag"
-                              >
-                                <GripVertical className="w-4 h-4 text-muted-foreground" />
-                              </button>
-                            </div>
-                            
-                            <div
-                              className={`cursor-pointer flex items-center justify-center relative transition-transform hover:scale-105 ${config.iconUrl ? "" : "rounded-full shadow-lg"}`}
-                              style={{
-                                width: config.iconUrl ? config.iconWidth : config.iconSize,
-                                height: config.iconUrl ? config.iconHeight : config.iconSize,
-                                backgroundColor: config.iconUrl ? "transparent" : config.primaryColor,
-                              }}
-                              onClick={() => setPreviewWidgetOpen(true)}
-                              data-testid="button-preview-widget-open"
-                            >
-                              {config.iconUrl ? (
-                                <img
-                                  src={config.iconUrl}
-                                  alt="Chat icon"
-                                  className="w-full h-full object-contain drop-shadow-lg"
-                                  onError={(e) => {
-                                    e.currentTarget.style.display = "none";
-                                  }}
-                                />
-                              ) : (
-                                <Bot className="w-1/2 h-1/2 text-white" />
-                              )}
-                              {!config.iconUrl && (
-                                <div
-                                  className={`absolute bottom-1 right-1 w-3 h-3 rounded-full border-2 border-white ${
-                                    config.online ? "bg-status-online" : "bg-status-offline"
-                                  }`}
-                                />
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {previewWidgetOpen && (
-                        <div 
-                          className="absolute w-[320px] rounded-xl shadow-xl overflow-hidden border"
-                          style={{
-                            bottom: `${previewVerticalOffset}px`,
-                            [config.bubblePosition === "left" ? "left" : "right"]: "16px",
-                            backgroundColor: config.widgetTheme === "dark" ? "#1a1a2e" : "#ffffff",
-                            borderColor: config.widgetTheme === "dark" ? "#2d2d44" : "#e5e7eb",
-                          }}
-                        >
-                          <div
-                            className="p-3 flex items-center justify-between"
-                            style={{ backgroundColor: config.primaryColor }}
-                          >
-                            <div className="flex items-center gap-2">
-                              {config.agentPhotoUrl ? (
-                                <img
-                                  src={config.agentPhotoUrl}
-                                  alt={config.agentName}
-                                  className="w-9 h-9 rounded-full object-cover border-2 border-white/30"
-                                />
-                              ) : (
-                                <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center border-2 border-white/30">
-                                  <Bot className="w-5 h-5 text-white" />
-                                </div>
-                              )}
-                              <div className="text-white">
-                                <p className="text-sm font-semibold">{config.agentName}</p>
-                                <div className="flex items-center gap-1">
-                                  <div className={`w-2 h-2 rounded-full ${config.online ? "bg-green-400" : "bg-gray-400"}`} />
-                                  <p className="text-xs opacity-90">{config.online ? "Online" : "Offline"}</p>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <button className="p-1.5 hover:bg-white/20 rounded-full transition-colors">
-                                <RefreshCw className="w-4 h-4 text-white" />
-                              </button>
-                              <button 
-                                className="p-1.5 hover:bg-white/20 rounded-full transition-colors"
-                                onClick={() => setPreviewWidgetOpen(false)}
-                                data-testid="button-preview-widget-close"
-                              >
-                                <X className="w-4 h-4 text-white" />
-                              </button>
-                            </div>
-                          </div>
-                          
-                          <div 
-                            className="p-3 min-h-[150px]"
-                            style={{
-                              backgroundColor: config.widgetTheme === "dark" ? "#1a1a2e" : "#ffffff",
-                            }}
-                          >
-                            <div className="flex gap-2">
-                              {config.agentPhotoUrl ? (
-                                <img
-                                  src={config.agentPhotoUrl}
-                                  alt={config.agentName}
-                                  className="w-7 h-7 rounded-full object-cover shrink-0"
-                                />
-                              ) : (
-                                <div
-                                  className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
-                                  style={{ backgroundColor: `${config.primaryColor}20` }}
-                                >
-                                  <Bot className="w-4 h-4" style={{ color: config.primaryColor }} />
-                                </div>
-                              )}
-                              <div 
-                                className="rounded-lg rounded-tl-sm p-2.5 text-xs max-w-[220px]"
-                                style={{
-                                  backgroundColor: config.widgetTheme === "dark" ? "#2d2d44" : "#f3f4f6",
-                                  color: config.widgetTheme === "dark" ? "#e5e7eb" : "#374151",
-                                }}
-                              >
-                                {config.welcomeMessage}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div 
-                            className="p-2 border-t flex items-center gap-2"
-                            style={{
-                              backgroundColor: config.widgetTheme === "dark" ? "#1a1a2e" : "#ffffff",
-                              borderColor: config.widgetTheme === "dark" ? "#2d2d44" : "#e5e7eb",
-                            }}
-                          >
-                            <div className="flex gap-0.5">
-                              <button 
-                                className="p-1.5 rounded-full hover:bg-muted/50 transition-colors"
-                                style={{ color: config.widgetTheme === "dark" ? "#9ca3af" : "#6b7280" }}
-                                title="Upload photo"
-                              >
-                                <ImageIcon className="w-4 h-4" />
-                              </button>
-                              <button 
-                                className="p-1.5 rounded-full hover:bg-muted/50 transition-colors"
-                                style={{ color: config.widgetTheme === "dark" ? "#9ca3af" : "#6b7280" }}
-                                title="Upload video"
-                              >
-                                <Video className="w-4 h-4" />
-                              </button>
-                              <button 
-                                className="p-1.5 rounded-full hover:bg-muted/50 transition-colors"
-                                style={{ color: config.widgetTheme === "dark" ? "#9ca3af" : "#6b7280" }}
-                                title="Take photo"
-                              >
-                                <Camera className="w-4 h-4" />
-                              </button>
-                            </div>
-                            <div 
-                              className="flex-1 text-xs px-3 py-2 rounded-full"
-                              style={{
-                                backgroundColor: config.widgetTheme === "dark" ? "#2d2d44" : "#f3f4f6",
-                                color: "#9ca3af",
-                              }}
-                            >
-                              Type a message...
-                            </div>
-                            <button 
-                              className="p-2 rounded-full"
-                              style={{ backgroundColor: config.primaryColor }}
-                            >
-                              <Send className="w-4 h-4 text-white" />
-                            </button>
-                          </div>
-
-                          <div 
-                            className="py-1.5 text-center border-t"
-                            style={{
-                              backgroundColor: config.widgetTheme === "dark" ? "#151524" : "#f9fafb",
-                              borderColor: config.widgetTheme === "dark" ? "#2d2d44" : "#e5e7eb",
-                            }}
-                          >
-                            <span 
-                              className="text-[10px]"
-                              style={{ color: config.widgetTheme === "dark" ? "#6b7280" : "#9ca3af" }}
-                            >
-                              Powered by <span className="font-medium" style={{ color: config.primaryColor }}>Chatvice</span>
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
+                  <ChatWidget
+                    key={previewKey}
+                    merchantId={merchantId}
+                    sessionId={previewSessionId}
+                    embedded={false}
+                    previewMode={true}
+                  />
                 </div>
               </CardContent>
             </Card>

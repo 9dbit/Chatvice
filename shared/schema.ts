@@ -949,6 +949,7 @@ export const welcomeBubbles = pgTable("welcome_bubbles", {
   buttonColor: text("button_color").default("#7c3aed"),
   promoImageEnabled: boolean("promo_image_enabled").default(false),
   promoImageUrl: text("promo_image_url").default(""),
+  reappearInterval: integer("reappear_interval").default(60),
   isEnabled: boolean("is_enabled").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

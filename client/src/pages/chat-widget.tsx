@@ -118,6 +118,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   // Customer name form state
   const customerNameKey = `chatvice_customer_name_${merchantId}_${sessionId}`;
   const [customerName, setCustomerName] = useState(() => {
+    if (previewMode) return "";
     try {
       return sessionStorage.getItem(customerNameKey) || "";
     } catch {
@@ -125,6 +126,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     }
   });
   const [hasSubmittedName, setHasSubmittedName] = useState(() => {
+    if (previewMode) return false;
     try {
       return sessionStorage.getItem(`${customerNameKey}_submitted`) === "true";
     } catch {
@@ -147,6 +149,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const inputRef = useRef<HTMLInputElement>(null);
   
   const [isWidgetHidden, setIsWidgetHidden] = useState(() => {
+    if (previewMode) return false;
     try {
       return localStorage.getItem(`chatvice_widget_hidden_${merchantId}`) === "true";
     } catch {
@@ -155,6 +158,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   });
   const [unreadCount, setUnreadCount] = useState(0);
   const [widgetPosition, setWidgetPosition] = useState(() => {
+    if (previewMode) return 20;
     try {
       const saved = localStorage.getItem(`chatvice_widget_position_${merchantId}`);
       return saved ? parseInt(saved, 10) : 20;
@@ -169,6 +173,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   
   const welcomeBubbleKey = `chatvice_welcome_bubble_dismissed_${merchantId}`;
   const [welcomeBubbleDismissedAt, setWelcomeBubbleDismissedAt] = useState<number | null>(() => {
+    if (previewMode) return null;
     try {
       const stored = sessionStorage.getItem(welcomeBubbleKey);
       return stored ? parseInt(stored, 10) : null;
@@ -180,12 +185,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const dismissWelcomeBubble = () => {
     const now = Date.now();
     setWelcomeBubbleDismissedAt(now);
-    try {
-      sessionStorage.setItem(welcomeBubbleKey, now.toString());
-    } catch {}
+    if (!previewMode) {
+      try {
+        sessionStorage.setItem(welcomeBubbleKey, now.toString());
+      } catch {}
+    }
   };
-
-  const showWelcomeBubble = welcomeBubbleDismissedAt === null;
 
   const { data: merchantConfig } = useQuery<MerchantConfig>({
     queryKey: ["/api/merchant/status", merchantId],
@@ -207,6 +212,34 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     queryKey: [`/api/widget/${merchantId}/welcome-bubble`],
     enabled: !!merchantId && !isOpen,
   });
+
+  const reappearIntervalMs = (welcomeBubble?.reappearInterval ?? 60) * 1000;
+  const showWelcomeBubble = welcomeBubbleDismissedAt === null || 
+    (Date.now() - welcomeBubbleDismissedAt >= reappearIntervalMs);
+
+  useEffect(() => {
+    if (welcomeBubbleDismissedAt !== null && reappearIntervalMs > 0) {
+      const timeRemaining = reappearIntervalMs - (Date.now() - welcomeBubbleDismissedAt);
+      if (timeRemaining > 0) {
+        const timer = setTimeout(() => {
+          setWelcomeBubbleDismissedAt(null);
+          if (!previewMode) {
+            try {
+              sessionStorage.removeItem(welcomeBubbleKey);
+            } catch {}
+          }
+        }, timeRemaining);
+        return () => clearTimeout(timer);
+      } else {
+        setWelcomeBubbleDismissedAt(null);
+        if (!previewMode) {
+          try {
+            sessionStorage.removeItem(welcomeBubbleKey);
+          } catch {}
+        }
+      }
+    }
+  }, [welcomeBubbleDismissedAt, reappearIntervalMs, welcomeBubbleKey, previewMode]);
 
   const { data: chatButtons = [] } = useQuery<ChatButton[]>({
     queryKey: [`/api/widget/${merchantId}/chat-buttons`],
@@ -465,10 +498,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         const finalName = data.sanitizedName || nameInputValue.trim();
         setCustomerName(finalName);
         setHasSubmittedName(true);
-        try {
-          sessionStorage.setItem(customerNameKey, finalName);
-          sessionStorage.setItem(`${customerNameKey}_submitted`, "true");
-        } catch {}
+        if (!previewMode) {
+          try {
+            sessionStorage.setItem(customerNameKey, finalName);
+            sessionStorage.setItem(`${customerNameKey}_submitted`, "true");
+          } catch {}
+        }
         
         // Add initial message from user and AI response
         const defaultMessage = "Halo kak, ada yang mau saya tanyakan";
@@ -522,10 +557,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const toggleWidgetHidden = useCallback(() => {
     const newValue = !isWidgetHidden;
     setIsWidgetHidden(newValue);
-    try {
-      localStorage.setItem(`chatvice_widget_hidden_${merchantId}`, String(newValue));
-    } catch {}
-  }, [isWidgetHidden, merchantId]);
+    if (!previewMode) {
+      try {
+        localStorage.setItem(`chatvice_widget_hidden_${merchantId}`, String(newValue));
+      } catch {}
+    }
+  }, [isWidgetHidden, merchantId, previewMode]);
 
   const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     setIsDragging(true);
@@ -546,11 +583,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const handleDragEnd = useCallback(() => {
     if (isDragging) {
       setIsDragging(false);
-      try {
-        localStorage.setItem(`chatvice_widget_position_${merchantId}`, String(widgetPosition));
-      } catch {}
+      if (!previewMode) {
+        try {
+          localStorage.setItem(`chatvice_widget_position_${merchantId}`, String(widgetPosition));
+        } catch {}
+      }
     }
-  }, [isDragging, widgetPosition, merchantId]);
+  }, [isDragging, widgetPosition, merchantId, previewMode]);
 
   useEffect(() => {
     if (isDragging) {

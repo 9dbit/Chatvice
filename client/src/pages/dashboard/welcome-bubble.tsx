@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { MessageCircle, X, Save, Eye, Loader2 } from "lucide-react";
+import { MessageCircle, X, Save, Eye, Loader2, Clock } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 import type { WelcomeBubble } from "@shared/schema";
 
 export default function WelcomeBubblePage() {
@@ -21,6 +22,7 @@ export default function WelcomeBubblePage() {
     buttonColor: "#7c3aed",
     promoImageEnabled: false,
     promoImageUrl: "",
+    reappearInterval: 60,
     isEnabled: true,
   });
 
@@ -37,6 +39,7 @@ export default function WelcomeBubblePage() {
         buttonColor: bubble.buttonColor || "#7c3aed",
         promoImageEnabled: bubble.promoImageEnabled ?? false,
         promoImageUrl: bubble.promoImageUrl || "",
+        reappearInterval: bubble.reappearInterval ?? 60,
         isEnabled: bubble.isEnabled ?? true,
       });
     }
@@ -147,6 +150,45 @@ export default function WelcomeBubblePage() {
                   onCheckedChange={(checked) => setForm({ ...form, isEnabled: checked })}
                   data-testid="switch-bubble-enabled"
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                Reappear Interval
+              </CardTitle>
+              <CardDescription>Time before bubble reappears after being closed</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Interval: {form.reappearInterval} seconds</Label>
+                  <span className="text-sm text-muted-foreground">
+                    {form.reappearInterval < 60 
+                      ? `${form.reappearInterval}s` 
+                      : form.reappearInterval < 3600 
+                        ? `${Math.floor(form.reappearInterval / 60)}m ${form.reappearInterval % 60}s`
+                        : `${Math.floor(form.reappearInterval / 3600)}h ${Math.floor((form.reappearInterval % 3600) / 60)}m`}
+                  </span>
+                </div>
+                <Slider
+                  value={[form.reappearInterval]}
+                  onValueChange={([value]) => setForm({ ...form, reappearInterval: value })}
+                  min={10}
+                  max={3600}
+                  step={10}
+                  className="w-full"
+                  data-testid="slider-reappear-interval"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>10s</span>
+                  <span>1 min</span>
+                  <span>30 min</span>
+                  <span>1 hour</span>
+                </div>
               </div>
             </CardContent>
           </Card>
