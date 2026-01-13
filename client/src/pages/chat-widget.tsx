@@ -262,6 +262,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     aiContextTriggerEnabled: boolean;
     maxProductsPerRecommendation: number;
     showPriceInRecommendation: boolean;
+    ctaButtonEnabled: boolean;
+    ctaButtonText: string;
+    ctaButtonColor: string;
   }
 
   const { data: productRecommendSettings } = useQuery<ProductRecommendationSettings>({
@@ -951,6 +954,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     const handleImageError = (cardId: string) => {
       setImageErrors(prev => ({ ...prev, [cardId]: true }));
     };
+
+    const ctaEnabled = productRecommendSettings?.ctaButtonEnabled !== false;
+    const ctaText = productRecommendSettings?.ctaButtonText || "View";
+    const ctaColor = productRecommendSettings?.ctaButtonColor || primaryColor;
     
     return (
       <div className="w-full mt-2" data-testid="product-carousel">
@@ -962,12 +969,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             return (
               <div 
                 key={card.id} 
-                className="rounded-lg overflow-hidden border border-border cursor-pointer hover-elevate bg-card"
-                onClick={() => card.sourceUrl && window.open(card.sourceUrl, "_blank")}
+                className="rounded-lg overflow-hidden border border-border bg-card"
                 data-testid={`card-product-${card.id}`}
               >
                 {/* Square IMAGE area - enforced square format */}
-                <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
+                <div 
+                  className="aspect-square bg-muted flex items-center justify-center overflow-hidden cursor-pointer hover-elevate"
+                  onClick={() => card.sourceUrl && window.open(card.sourceUrl, "_blank")}
+                >
                   {hasValidImage ? (
                     <img 
                       src={card.imageUrl || ""} 
@@ -988,6 +997,21 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   <h4 className="font-semibold text-xs line-clamp-2">{card.title}</h4>
                   {card.price && (
                     <p className="font-bold text-xs mt-1" style={{ color: primaryColor }}>{card.price}</p>
+                  )}
+                  {/* CTA Button */}
+                  {ctaEnabled && (
+                    <Button
+                      size="sm"
+                      className="w-full mt-2 h-7 text-[10px] font-medium"
+                      style={{ backgroundColor: ctaColor, color: "#fff" }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        card.sourceUrl && window.open(card.sourceUrl, "_blank");
+                      }}
+                      data-testid={`button-product-cta-${card.id}`}
+                    >
+                      {ctaText}
+                    </Button>
                   )}
                 </div>
               </div>
@@ -1443,7 +1467,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 key={sq.id}
                 variant="outline"
                 size="sm"
-                className="h-auto py-1 px-2.5 text-xs font-normal whitespace-normal text-left hover-elevate"
+                className="h-auto py-0.5 px-2 text-[10px] font-normal whitespace-normal text-left hover-elevate border-[#d946ef] text-[#d946ef]"
                 onClick={() => handleSuggestedQuestionClick(sq)}
                 disabled={sendMessageMutation.isPending || useSuggestedQuestionMutation.isPending}
                 data-testid={`button-suggested-question-${sq.id}`}

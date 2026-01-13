@@ -988,6 +988,9 @@ export const productRecommendationSettings = pgTable("product_recommendation_set
   supervisorCanRecommend: boolean("supervisor_can_recommend").default(true),
   maxProductsPerRecommendation: integer("max_products_per_recommendation").default(3),
   showPriceInRecommendation: boolean("show_price_in_recommendation").default(true),
+  ctaButtonEnabled: boolean("cta_button_enabled").default(true),
+  ctaButtonText: text("cta_button_text").default("View"),
+  ctaButtonColor: text("cta_button_color").default("#6b5dfc"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

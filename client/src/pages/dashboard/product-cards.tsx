@@ -34,6 +34,9 @@ type RecommendationSettings = {
   supervisorCanRecommend: boolean;
   maxProductsPerRecommendation: number;
   showPriceInRecommendation: boolean;
+  ctaButtonEnabled: boolean;
+  ctaButtonText: string;
+  ctaButtonColor: string;
 };
 
 export default function ProductCardsPage() {
@@ -62,6 +65,9 @@ export default function ProductCardsPage() {
     supervisorCanRecommend: true,
     maxProductsPerRecommendation: 3,
     showPriceInRecommendation: true,
+    ctaButtonEnabled: true,
+    ctaButtonText: "View",
+    ctaButtonColor: "#6b5dfc",
   });
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -967,6 +973,65 @@ export default function ProductCardsPage() {
                       onCheckedChange={(checked) => setRecommendSettings({ ...recommendSettings, showPriceInRecommendation: checked })}
                       data-testid="switch-show-price"
                     />
+                  </div>
+
+                  <div className="pt-4 border-t space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label className="flex items-center gap-2">
+                          <Eye className="w-4 h-4 text-purple-500" />
+                          CTA Button
+                        </Label>
+                        <p className="text-sm text-muted-foreground">
+                          Show button below product card text
+                        </p>
+                      </div>
+                      <Switch
+                        checked={recommendSettings.ctaButtonEnabled}
+                        onCheckedChange={(checked) => setRecommendSettings({ ...recommendSettings, ctaButtonEnabled: checked })}
+                        data-testid="switch-cta-button"
+                      />
+                    </div>
+
+                    {recommendSettings.ctaButtonEnabled && (
+                      <div className="space-y-3 pl-6">
+                        <div className="space-y-2">
+                          <Label>Button Text</Label>
+                          <Input
+                            value={recommendSettings.ctaButtonText}
+                            onChange={(e) => setRecommendSettings({ ...recommendSettings, ctaButtonText: e.target.value })}
+                            placeholder="View"
+                            maxLength={20}
+                            data-testid="input-cta-text"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Button Color</Label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={recommendSettings.ctaButtonColor}
+                              onChange={(e) => setRecommendSettings({ ...recommendSettings, ctaButtonColor: e.target.value })}
+                              className="w-10 h-10 rounded border cursor-pointer"
+                              data-testid="input-cta-color"
+                            />
+                            <Input
+                              value={recommendSettings.ctaButtonColor}
+                              onChange={(e) => setRecommendSettings({ ...recommendSettings, ctaButtonColor: e.target.value })}
+                              placeholder="#6b5dfc"
+                              className="flex-1"
+                              data-testid="input-cta-color-text"
+                            />
+                          </div>
+                          <div 
+                            className="mt-2 py-1.5 px-4 rounded text-center text-sm text-white font-medium"
+                            style={{ backgroundColor: recommendSettings.ctaButtonColor }}
+                          >
+                            {recommendSettings.ctaButtonText || "View"}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </TabsContent>
               </Tabs>
