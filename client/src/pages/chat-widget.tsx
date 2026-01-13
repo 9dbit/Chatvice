@@ -1325,10 +1325,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                             {productCard.buttons.slice(0, 3).map((btn: any, idx: number) => (
                               <button
                                 key={`suggest-${btn.id || idx}`}
-                                className="px-2 py-1 text-[10px] rounded border transition-colors hover:text-white"
-                                style={{ borderColor: primaryColor, color: primaryColor }}
-                                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = primaryColor; e.currentTarget.style.color = 'white'; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = primaryColor; }}
+                                className="px-2 py-0.5 text-[10px] rounded border transition-colors hover:text-white"
+                                style={{ borderColor: '#d946ef', color: '#d946ef' }}
+                                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#d946ef'; e.currentTarget.style.color = 'white'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#d946ef'; }}
                                 onClick={() => btn.url && window.open(btn.url, '_blank')}
                                 data-testid={`button-suggest-${btn.id || idx}`}
                               >
