@@ -11402,29 +11402,54 @@ ${log.extractedKnowledge}` : ''}
       // Fetch the page and extract Open Graph image
       const response = await fetch(url, {
         headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; Chatvice/1.0; +https://chatvice.com)"
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
       });
       const html = await response.text();
       
-      // Extract OG image
+      // Extract OG image (multiple patterns)
       const ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
-                          html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+                          html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i) ||
+                          html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i) ||
+                          html.match(/<img[^>]*class=["'][^"']*product[^"']*["'][^>]*src=["']([^"']+)["']/i) ||
+                          html.match(/<img[^>]*id=["'][^"']*product[^"']*["'][^>]*src=["']([^"']+)["']/i);
       
-      // Extract title
+      // Extract title (multiple patterns for product pages)
       const ogTitleMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i) ||
+                          html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:title["']/i) ||
+                          html.match(/<h1[^>]*class=["'][^"']*product[^"']*["'][^>]*>([^<]+)</i) ||
+                          html.match(/<h1[^>]*>([^<]+)</i) ||
                           html.match(/<title>([^<]+)<\/title>/i);
       
-      // Extract description
+      // Extract description (multiple patterns)
       const ogDescMatch = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i) ||
-                         html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
+                         html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:description["']/i) ||
+                         html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i) ||
+                         html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']description["']/i);
+      
+      // Extract price (multiple patterns for e-commerce sites)
+      const priceMatch = html.match(/<meta[^>]*property=["']product:price:amount["'][^>]*content=["']([^"']+)["']/i) ||
+                        html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']product:price:amount["']/i) ||
+                        html.match(/<span[^>]*class=["'][^"']*price[^"']*["'][^>]*>[^<]*?([Rr]p\.?\s*[\d.,]+|[\$€£]\s*[\d.,]+|[\d.,]+\s*[Rr]p)/i) ||
+                        html.match(/<div[^>]*class=["'][^"']*price[^"']*["'][^>]*>[^<]*?([Rr]p\.?\s*[\d.,]+|[\$€£]\s*[\d.,]+|[\d.,]+\s*[Rr]p)/i) ||
+                        html.match(/["']price["']\s*:\s*["']?([^"',}]+)/i);
+      
+      const title = ogTitleMatch ? ogTitleMatch[1].trim() : "";
+      const description = ogDescMatch ? ogDescMatch[1].trim() : "";
+      const imageUrl = ogImageMatch ? ogImageMatch[1] : "";
+      const price = priceMatch ? priceMatch[1].trim() : "";
+      
+      console.log(`[crawl-image] URL: ${url}, Found: title="${title}", desc="${description ? 'yes' : 'no'}", image="${imageUrl ? 'yes' : 'no'}", price="${price}"`);
       
       res.json({
-        imageUrl: ogImageMatch ? ogImageMatch[1] : "",
-        title: ogTitleMatch ? ogTitleMatch[1] : "",
-        description: ogDescMatch ? ogDescMatch[1] : "",
+        imageUrl,
+        title,
+        description,
+        price,
+        found: !!(title || description || imageUrl || price),
       });
     } catch (error) {
+      console.error("[crawl-image] Error:", error);
       res.status(500).json({ error: "Failed to crawl URL" });
     }
   });

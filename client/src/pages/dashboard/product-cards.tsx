@@ -242,14 +242,26 @@ export default function ProductCardsPage() {
       const res = await apiRequest("POST", "/api/product-cards/crawl-image", { url: form.sourceUrl });
       const data = await res.json();
       
-      setForm({
+      const newForm = {
         ...form,
         title: data.title || form.title,
         description: data.description || form.description,
         imageUrl: data.imageUrl || form.imageUrl,
-      });
+        price: data.price || form.price,
+      };
       
-      toast({ title: "Data fetched from URL successfully" });
+      setForm(newForm);
+      
+      if (data.found) {
+        const foundItems = [];
+        if (data.title) foundItems.push("title");
+        if (data.description) foundItems.push("description");
+        if (data.imageUrl) foundItems.push("image");
+        if (data.price) foundItems.push("price");
+        toast({ title: `Data fetched successfully: ${foundItems.join(", ")}` });
+      } else {
+        toast({ title: "URL fetched but no product data found. Please fill in manually.", variant: "destructive" });
+      }
     } catch {
       toast({ title: "Failed to fetch data from URL", variant: "destructive" });
     } finally {
