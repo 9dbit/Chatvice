@@ -292,17 +292,17 @@ export default function AgentsPage() {
                   <span className="hidden sm:inline">New AI Agent</span>
                 </Button>
               </DialogTrigger>
-            <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] flex flex-col">
-              <DialogHeader className="flex-shrink-0">
+            <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+              <DialogHeader className="flex-shrink-0 pr-8">
                 <DialogTitle>{editingAgent ? "Edit Agent" : "Create New Agent"}</DialogTitle>
                 <DialogDescription>
                   {editingAgent ? "Update your agent settings." : "Create a new AI agent for your chatbot."}
                 </DialogDescription>
               </DialogHeader>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
-                  <ScrollArea className="flex-1 pr-4">
-                  <div className="space-y-4">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                  <ScrollArea className="flex-1 pr-4 overflow-y-auto">
+                  <div className="space-y-4 pb-4">
                   <div className="flex justify-center mb-2">
                     <div className="relative">
                       <Avatar className="w-20 h-20">
@@ -317,12 +317,12 @@ export default function AgentsPage() {
                       </Avatar>
                       <button
                         type="button"
-                        className="absolute bottom-0 right-0 p-1.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+                        className="absolute -bottom-1 -right-1 p-2.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 touch-manipulation"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={uploadingPhoto}
                         data-testid="button-upload-agent-photo"
                       >
-                        <Camera className="w-3 h-3" />
+                        <Camera className="w-4 h-4" />
                       </button>
                       <input
                         ref={fileInputRef}
