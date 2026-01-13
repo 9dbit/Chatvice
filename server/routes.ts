@@ -3328,12 +3328,13 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           if (settings?.aiAutoRecommendEnabled) {
             const productTriggers = await storage.getProductTriggers(merchantId, merchant.activeAgentId || undefined);
             const lowerMessage = message.toLowerCase();
+            const lowerAiResponse = result.answer.toLowerCase();
             
             let matchedProductId: string | null = null;
             for (const trigger of productTriggers) {
               if (!trigger.isActive) continue;
               const keywords = trigger.keywords.split(',').map(k => k.trim().toLowerCase());
-              if (keywords.some(keyword => keyword && lowerMessage.includes(keyword))) {
+              if (keywords.some(keyword => keyword && (lowerMessage.includes(keyword) || lowerAiResponse.includes(keyword)))) {
                 matchedProductId = trigger.productCardId;
                 break;
               }
@@ -3341,10 +3342,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             
             if (!matchedProductId && settings.aiContextTriggerEnabled && settings.triggerKeywords) {
               const generalKeywords = settings.triggerKeywords.split(',').map(k => k.trim().toLowerCase());
-              if (generalKeywords.some(keyword => keyword && lowerMessage.includes(keyword))) {
+              const combinedText = lowerMessage + " " + lowerAiResponse;
+              if (generalKeywords.some(keyword => keyword && combinedText.includes(keyword))) {
                 const productCards = await storage.getProductCards(merchantId, merchant.activeAgentId || undefined);
                 const activeCards = productCards.filter(c => c.isActive);
                 if (activeCards.length > 0) {
+                  const maxProducts = settings.maxProductsPerRecommendation || 3;
                   matchedProductId = activeCards[0].id;
                 }
               }
