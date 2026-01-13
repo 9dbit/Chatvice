@@ -271,13 +271,14 @@ export default function WelcomeBubblePage() {
                   </div>
 
                   {form.promoImageUrl && (
-                    <div className="relative max-w-[200px]">
-                      <Label className="mb-2 block">Preview (Square Format)</Label>
-                      <div className="aspect-square bg-muted rounded-lg border overflow-hidden flex items-center justify-center">
+                    <div className="relative">
+                      <Label className="mb-2 block">Preview (Dynamic Size - max 1/3 bubble width)</Label>
+                      <p className="text-xs text-muted-foreground mb-2">Supports GIF, JPEG & PNG. Image will maintain aspect ratio.</p>
+                      <div className="bg-muted rounded-lg border overflow-hidden inline-block max-w-[120px]">
                         <img 
                           src={form.promoImageUrl} 
                           alt="Promo preview" 
-                          className="w-full h-full object-contain"
+                          className="max-w-full h-auto object-contain"
                           onError={(e) => {
                             (e.target as HTMLImageElement).style.display = 'none';
                           }}

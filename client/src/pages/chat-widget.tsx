@@ -819,11 +819,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         {showWelcomeBubble && welcomeBubble && welcomeBubble.isEnabled && (
           <div className="w-52 animate-in slide-in-from-bottom-5 fade-in duration-300" data-testid="welcome-bubble-container">
             {welcomeBubble.promoImageEnabled && welcomeBubble.promoImageUrl && (
-              <div className="relative z-20" style={{ marginBottom: '-16px' }}>
+              <div className="relative z-20 flex justify-start" style={{ marginBottom: '-16px' }}>
                 <img 
                   src={welcomeBubble.promoImageUrl} 
                   alt="Promotion" 
-                  className="w-full h-auto object-cover rounded-t-xl"
+                  className="h-auto object-contain rounded-lg"
+                  style={{ maxWidth: '33%' }}
                   onLoad={() => console.log('[Widget] Promo image loaded:', welcomeBubble.promoImageUrl)}
                   onError={(e) => {
                     console.error('[Widget] Promo image failed to load:', welcomeBubble.promoImageUrl);
@@ -946,42 +947,53 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
   const ProductCarousel = ({ cards }: { cards: ProductCardWithButtons[] }) => {
     const displayCards = cards.slice(0, 2); // Limit to 2 cards max
+    const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+    
+    const handleImageError = (cardId: string) => {
+      setImageErrors(prev => ({ ...prev, [cardId]: true }));
+    };
     
     return (
       <div className="w-full mt-2" data-testid="product-carousel">
         {/* Simple 2-column grid matching sketch design */}
         <div className="grid grid-cols-2 gap-2">
-          {displayCards.map((card) => (
-            <div 
-              key={card.id} 
-              className="rounded-lg overflow-hidden border border-border cursor-pointer hover-elevate"
-              onClick={() => card.sourceUrl && window.open(card.sourceUrl, "_blank")}
-              data-testid={`card-product-${card.id}`}
-            >
-              {/* Square IMAGE area */}
-              {card.imageUrl ? (
-                <div className="aspect-square bg-muted flex items-center justify-center">
-                  <img 
-                    src={card.imageUrl} 
-                    alt={card.title}
-                    className="w-full h-full object-contain"
-                  />
+          {displayCards.map((card) => {
+            const hasValidImage = card.imageUrl && !imageErrors[card.id];
+            
+            return (
+              <div 
+                key={card.id} 
+                className="rounded-lg overflow-hidden border border-border cursor-pointer hover-elevate bg-card"
+                onClick={() => card.sourceUrl && window.open(card.sourceUrl, "_blank")}
+                data-testid={`card-product-${card.id}`}
+              >
+                {/* Square IMAGE area - enforced square format */}
+                <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
+                  {hasValidImage ? (
+                    <img 
+                      src={card.imageUrl || ""} 
+                      alt={card.title}
+                      className="w-full h-full object-contain"
+                      onError={() => handleImageError(card.id)}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center text-muted-foreground/50">
+                      <ShoppingBag className="w-8 h-8" />
+                      <span className="text-[10px] mt-1">No Image</span>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="aspect-square bg-muted flex items-center justify-center">
-                  <ShoppingBag className="w-8 h-8 text-muted-foreground/50" />
+                
+                {/* TEXT area below image */}
+                <div className="p-2">
+                  <h4 className="font-semibold text-xs line-clamp-2">{card.title}</h4>
+                  {card.price && (
+                    <p className="font-bold text-xs mt-1" style={{ color: primaryColor }}>{card.price}</p>
+                  )}
                 </div>
-              )}
-              
-              {/* TEXT area below image */}
-              <div className="p-2 bg-card">
-                <h4 className="font-semibold text-xs line-clamp-2">{card.title}</h4>
-                {card.price && (
-                  <p className="font-bold text-xs mt-1" style={{ color: primaryColor }}>{card.price}</p>
-                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );
