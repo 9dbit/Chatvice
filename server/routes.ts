@@ -3343,18 +3343,27 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             if (!matchedProductId && settings.aiContextTriggerEnabled && settings.triggerKeywords) {
               const generalKeywords = settings.triggerKeywords.split(',').map(k => k.trim().toLowerCase());
               const combinedText = lowerMessage + " " + lowerAiResponse;
-              if (generalKeywords.some(keyword => keyword && combinedText.includes(keyword))) {
+              console.log(`[Product Trigger] Checking keywords: ${generalKeywords.join(', ')}`);
+              console.log(`[Product Trigger] Combined text: ${combinedText.substring(0, 200)}...`);
+              
+              const matchedKeyword = generalKeywords.find(keyword => keyword && combinedText.includes(keyword));
+              if (matchedKeyword) {
+                console.log(`[Product Trigger] Matched keyword: "${matchedKeyword}"`);
                 const productCards = await storage.getProductCards(merchantId, merchant.activeAgentId || undefined);
                 const activeCards = productCards.filter(c => c.isActive);
+                console.log(`[Product Trigger] Found ${activeCards.length} active product cards`);
                 if (activeCards.length > 0) {
                   const maxProducts = settings.maxProductsPerRecommendation || 3;
                   matchedProductId = activeCards[0].id;
+                  console.log(`[Product Trigger] Selected product card ID: ${matchedProductId}`);
                 }
               }
             }
             
             if (matchedProductId) {
               const productCard = await storage.getProductCard(matchedProductId);
+              console.log(`[Product Trigger] Fetched product card:`, productCard ? { id: productCard.id, title: productCard.title, isActive: productCard.isActive, sourceUrl: productCard.sourceUrl } : null);
+              
               if (productCard && productCard.isActive) {
                 const buttons = await storage.getProductCardButtons(matchedProductId);
                 const payload = {
@@ -3363,6 +3372,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                     buttons,
                   },
                 };
+                
+                console.log(`[Product Trigger] Broadcasting product_offer for: "${productCard.title}" with sourceUrl: ${productCard.sourceUrl}`);
                 
                 await storage.createMessage({
                   sessionId,
@@ -3381,6 +3392,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                     payload,
                   },
                 });
+                
+                console.log(`[Product Trigger] Product offer sent successfully!`);
               }
             }
           }
@@ -12106,7 +12119,7 @@ ${html.substring(0, 50000)}`;
       
       const validatedData = {
         aiAutoRecommendEnabled: parseResult.data.aiAutoRecommendEnabled ?? true,
-        triggerKeywords: parseResult.data.triggerKeywords || "product,recommend,buy,shop,item,catalog",
+        triggerKeywords: parseResult.data.triggerKeywords || "product,recommend,buy,shop,item,catalog,produk,beli,harga,barang,katalog",
         aiContextTriggerEnabled: parseResult.data.aiContextTriggerEnabled ?? true,
         supervisorCanRecommend: parseResult.data.supervisorCanRecommend ?? true,
         maxProductsPerRecommendation: parseResult.data.maxProductsPerRecommendation ?? 3,
@@ -12128,7 +12141,7 @@ ${html.substring(0, 50000)}`;
       const settings = await storage.getProductRecommendationSettings(merchantId);
       res.json({
         aiAutoRecommendEnabled: settings?.aiAutoRecommendEnabled ?? true,
-        triggerKeywords: settings?.triggerKeywords || "product,recommend,buy,shop,item,catalog",
+        triggerKeywords: settings?.triggerKeywords || "product,recommend,buy,shop,item,catalog,produk,beli,harga,barang,katalog",
         aiContextTriggerEnabled: settings?.aiContextTriggerEnabled ?? true,
         maxProductsPerRecommendation: settings?.maxProductsPerRecommendation ?? 3,
         showPriceInRecommendation: settings?.showPriceInRecommendation ?? true,

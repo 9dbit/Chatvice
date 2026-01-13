@@ -1323,35 +1323,35 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                         {(msg as any).payload.productCard.price && (
                           <p className="text-xs text-muted-foreground">{(msg as any).payload.productCard.price}</p>
                         )}
-                        {(msg as any).payload.productCard.buttons?.length > 0 ? (
-                          <div className="flex flex-col gap-1 pt-1">
-                            {(msg as any).payload.productCard.buttons.map((btn: any) => (
-                              <button
-                                key={btn.id}
-                                className="w-full text-xs py-1.5 px-2 rounded border transition-colors hover:text-white"
-                                style={{ borderColor: primaryColor, color: primaryColor }}
-                                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = primaryColor; e.currentTarget.style.color = 'white'; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = primaryColor; }}
-                                onClick={() => btn.url && window.open(btn.url, '_blank')}
-                                disabled={!btn.url}
-                                data-testid={`button-product-action-${btn.id}`}
-                              >
-                                {btn.label}
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <button
-                            className="w-full text-xs py-1.5 px-2 rounded border transition-colors hover:text-white mt-1"
-                            style={{ borderColor: primaryColor, color: primaryColor }}
-                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = primaryColor; e.currentTarget.style.color = 'white'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = primaryColor; }}
-                            onClick={() => (msg as any).payload.productCard.sourceUrl && window.open((msg as any).payload.productCard.sourceUrl, '_blank')}
-                            data-testid="button-select-product"
-                          >
-                            Select product
-                          </button>
-                        )}
+                        <div className="flex flex-col gap-1 pt-1">
+                          {(msg as any).payload.productCard.buttons?.map((btn: any) => (
+                            <button
+                              key={btn.id}
+                              className="w-full text-xs py-1.5 px-2 rounded border transition-colors hover:text-white"
+                              style={{ borderColor: primaryColor, color: primaryColor }}
+                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = primaryColor; e.currentTarget.style.color = 'white'; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = primaryColor; }}
+                              onClick={() => btn.url && window.open(btn.url, '_blank')}
+                              disabled={!btn.url}
+                              data-testid={`button-product-action-${btn.id}`}
+                            >
+                              {btn.label}
+                            </button>
+                          ))}
+                          {(msg as any).payload.productCard.sourceUrl && (
+                            <button
+                              className="w-full text-xs py-1.5 px-2 rounded border transition-colors hover:text-white flex items-center justify-center gap-1"
+                              style={{ borderColor: primaryColor, color: primaryColor }}
+                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = primaryColor; e.currentTarget.style.color = 'white'; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = primaryColor; }}
+                              onClick={() => window.open((msg as any).payload.productCard.sourceUrl, '_blank')}
+                              data-testid="button-visit-product-page"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              Visit Product Page
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}
