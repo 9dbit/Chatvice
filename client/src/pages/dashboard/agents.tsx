@@ -274,25 +274,35 @@ export default function AgentsPage() {
           <Badge variant="secondary" className="px-2 sm:px-3 py-1 text-xs sm:text-sm whitespace-nowrap">
             {currentCount} / {agentLimit === -1 ? "∞" : agentLimit}
           </Badge>
-          {!canAddMore ? (
-            <Button 
-              size="sm" 
-              className="sm:size-default" 
-              data-testid="button-new-agent"
-              onClick={() => setShowLimitPopup(true)}
-            >
-              <Plus className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">New AI Agent</span>
-            </Button>
-          ) : (
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="sm:size-default" data-testid="button-new-agent">
-                  <Plus className="w-4 h-4 sm:mr-2" />
-                  <span className="hidden sm:inline">New AI Agent</span>
-                </Button>
-              </DialogTrigger>
-            <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+          <Button 
+            size="sm" 
+            className="sm:size-default" 
+            data-testid="button-new-agent"
+            onClick={() => {
+              if (!canAddMore) {
+                setShowLimitPopup(true);
+              } else {
+                setEditingAgent(null);
+                form.reset();
+                setPhotoUrl("");
+                setIsDialogOpen(true);
+              }
+            }}
+          >
+            <Plus className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">New AI Agent</span>
+          </Button>
+        </div>
+      </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          handleCloseDialog();
+        } else {
+          setIsDialogOpen(true);
+        }
+      }}>
+        <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
               <DialogHeader className="flex-shrink-0 pr-8">
                 <DialogTitle>{editingAgent ? "Edit Agent" : "Create New Agent"}</DialogTitle>
                 <DialogDescription>
@@ -581,13 +591,10 @@ export default function AgentsPage() {
                       {createMutation.isPending || updateMutation.isPending ? "Saving..." : editingAgent ? "Update" : "Create"}
                     </Button>
                   </DialogFooter>
-                </form>
-              </Form>
-            </DialogContent>
-            </Dialog>
-          )}
-        </div>
-      </div>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
 
       {!canAddMore && (
         <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
