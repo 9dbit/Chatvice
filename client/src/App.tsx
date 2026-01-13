@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
+import { LanguageProvider } from "@/hooks/use-language";
 import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
 import { LoginPage, RegisterPage, ForgotPasswordPage, VerifyEmailPage, ResetPasswordPage } from "@/pages/auth";
@@ -157,13 +158,15 @@ function App() {
   return (
     <ThemeProvider defaultTheme="system" storageKey="chatvice-ui-theme">
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <DynamicHead />
-          <ScrollToTop />
-          <Toaster />
-          <Router />
-          <GlobalHelpBubble />
-        </TooltipProvider>
+        <LanguageProvider>
+          <TooltipProvider>
+            <DynamicHead />
+            <ScrollToTop />
+            <Toaster />
+            <Router />
+            <GlobalHelpBubble />
+          </TooltipProvider>
+        </LanguageProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );

@@ -60,6 +60,8 @@ import {
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useLanguage } from "@/hooks/use-language";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 interface LandingPageSettings {
   id: string;
@@ -226,6 +228,7 @@ function Navbar() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { resolvedTheme } = useTheme();
+  const { t } = useLanguage();
   const chatviceLogo = resolvedTheme === "dark" ? chatviceLogoDark : chatviceLogoLight;
 
   useEffect(() => {
@@ -267,12 +270,12 @@ function Navbar() {
   }, []);
 
   const navLinks = [
-    { label: "Home", href: "/" },
-    { label: "Features", href: "/features" },
-    { label: "Pricing", href: "/pricing" },
-    { label: "API", href: "/api-docs" },
-    { label: "FAQ", href: "/faq" },
-    { label: "About", href: "/about" },
+    { labelKey: "nav.home", href: "/" },
+    { labelKey: "nav.features", href: "/features" },
+    { labelKey: "nav.pricing", href: "/pricing" },
+    { labelKey: "nav.api", href: "/api-docs" },
+    { labelKey: "nav.faq", href: "/faq" },
+    { labelKey: "nav.about", href: "/about" },
   ];
 
   return (
@@ -290,29 +293,30 @@ function Navbar() {
                   key={link.href}
                   href={link.href} 
                   className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                  data-testid={`link-nav-${link.label.toLowerCase()}`}
+                  data-testid={`link-nav-${link.labelKey.split('.')[1]}`}
                 >
-                  {link.label}
+                  {t(link.labelKey)}
                 </Link>
               ))}
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <LanguageSwitcher />
               <ThemeToggle />
               {isCheckingAuth ? (
                 <div className="w-20 h-9 bg-muted animate-pulse rounded-md" />
               ) : isLoggedIn ? (
                 <Link href="/dashboard">
-                  <Button data-testid="button-dashboard">Dashboard</Button>
+                  <Button data-testid="button-dashboard">{t('nav.dashboard')}</Button>
                 </Link>
               ) : (
                 <div className="hidden sm:flex items-center gap-2">
                   <Link href="/login">
-                    <Button variant="ghost" data-testid="button-login">Sign in</Button>
+                    <Button variant="ghost" data-testid="button-login">{t('nav.signIn')}</Button>
                   </Link>
                   <Link href="/register">
                     <Button className="bg-purple-600 hover:bg-purple-700" data-testid="button-get-started">
-                      Get Started Free
+                      {t('nav.getStarted')}
                     </Button>
                   </Link>
                 </div>
@@ -339,15 +343,15 @@ function Navbar() {
                 className="text-lg font-medium py-3 border-b border-border"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                {link.label}
+                {t(link.labelKey)}
               </Link>
             ))}
             <div className="flex flex-col gap-3 pt-4">
               <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
-                <Button variant="outline" className="w-full">Sign in</Button>
+                <Button variant="outline" className="w-full">{t('nav.signIn')}</Button>
               </Link>
               <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
-                <Button className="w-full bg-purple-600 hover:bg-purple-700">Get Started Free</Button>
+                <Button className="w-full bg-purple-600 hover:bg-purple-700">{t('nav.getStarted')}</Button>
               </Link>
             </div>
           </div>
