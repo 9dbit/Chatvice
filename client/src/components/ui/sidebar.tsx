@@ -468,14 +468,31 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
     <li
       data-slot="sidebar-menu-item"
       data-sidebar="menu-item"
-      className={cn("group/menu-item relative", className)}
+      className={cn("group/menu-item relative isolate", className)}
       {...props}
     />
   )
 }
 
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex w-full items-center gap-3 overflow-hidden rounded-md px-3 py-3 text-left text-sm outline-hidden ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-12 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:min-w-[44px]! group-data-[collapsible=icon]:min-h-[44px]! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 touch-manipulation [&>a]:flex [&>a]:w-full [&>a]:items-center [&>a]:gap-3",
+  [
+    "peer/menu-button relative flex w-full items-center gap-3 overflow-visible rounded-md px-3 py-3 text-left text-sm outline-hidden ring-sidebar-ring",
+    "transition-[width,height,padding,background-color] duration-150",
+    "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+    "focus-visible:ring-2",
+    "active:bg-sidebar-accent active:text-sidebar-accent-foreground",
+    "disabled:pointer-events-none disabled:opacity-50",
+    "group-has-data-[sidebar=menu-action]/menu-item:pr-12",
+    "aria-disabled:pointer-events-none aria-disabled:opacity-50",
+    "data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground",
+    "data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground",
+    "group-data-[collapsible=icon]:min-w-[44px]! group-data-[collapsible=icon]:min-h-[44px]! group-data-[collapsible=icon]:p-2!",
+    "[&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
+    "touch-manipulation -webkit-tap-highlight-color-transparent",
+    "[&>a]:flex [&>a]:w-full [&>a]:items-center [&>a]:gap-3",
+    "before:content-[''] before:absolute before:-inset-1 before:rounded-lg before:z-[-1]",
+    "@media (pointer: coarse) { before:-inset-2 }",
+  ].join(" "),
   {
     variants: {
       variant: {

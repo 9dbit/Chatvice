@@ -200,6 +200,74 @@
       min-width: 44px;
     }
   }
+
+  /* iPad-specific sidebar touch improvements */
+  @media (pointer: coarse) and (min-width: 768px) {
+    /* Expand touch targets on sidebar menu items for iPad */
+    [data-sidebar="menu-item"] {
+      position: relative;
+      isolation: isolate;
+    }
+    
+    /* Expand hit area of sidebar menu buttons */
+    [data-sidebar="menu-button"] {
+      position: relative;
+      min-height: 48px;
+    }
+    
+    /* Create expanded touch target layer behind the button */
+    [data-sidebar="menu-button"]::before {
+      content: "";
+      position: absolute;
+      inset: -4px -2px;
+      border-radius: 8px;
+      z-index: -1;
+    }
+    
+    /* Ensure nested links inside menu buttons have proper touch targets */
+    [data-sidebar="menu-button"] > a {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      width: 100%;
+      padding: inherit;
+      margin: -12px -12px;
+      padding: 12px;
+    }
+    
+    /* Collapsible trigger touch area expansion */
+    [data-sidebar="group-label"] button,
+    [data-sidebar="group"] > button {
+      min-height: 44px;
+      min-width: 44px;
+      position: relative;
+    }
+    
+    /* Expand sidebar group label touch area */
+    [data-sidebar="group-label"] {
+      min-height: 44px;
+      padding-top: 8px;
+      padding-bottom: 8px;
+    }
+  }
+
+  /* Ensure no ghost touches on sidebar for all touch devices */
+  @media (pointer: coarse) {
+    [data-sidebar="sidebar"],
+    [data-sidebar="content"],
+    [data-sidebar="menu"] {
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      touch-action: pan-y;
+    }
+    
+    /* Prevent text selection on sidebar for cleaner touch interaction */
+    [data-sidebar="menu-button"],
+    [data-sidebar="group-label"] {
+      -webkit-user-select: none;
+      user-select: none;
+    }
+  }
 }
 
 /**
