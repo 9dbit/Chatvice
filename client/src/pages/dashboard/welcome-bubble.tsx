@@ -8,21 +8,20 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { MessageCircle, X, Save, Eye } from "lucide-react";
+import { MessageCircle, X, Save, Eye, ImageIcon, Upload, Loader2 } from "lucide-react";
 import type { WelcomeBubble } from "@shared/schema";
 
 export default function WelcomeBubblePage() {
   const { toast } = useToast();
   const [showPreview, setShowPreview] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
   const [form, setForm] = useState({
-    headline: "Hi!",
-    message: "Looking for something specific? We'll help you find it!",
-    button1Label: "Chat with us",
-    button1Url: "",
-    button1Color: "#E84E3C",
-    button2Label: "Product expert",
-    button2Url: "",
-    button2Color: "#1a1a1a",
+    headline: "Need help?",
+    message: "I can guide you through our features.",
+    buttonLabel: "Chat with us",
+    buttonColor: "#7c3aed",
+    promoImageEnabled: false,
+    promoImageUrl: "",
     isEnabled: true,
   });
 
@@ -33,14 +32,12 @@ export default function WelcomeBubblePage() {
   useEffect(() => {
     if (bubble) {
       setForm({
-        headline: bubble.headline || "Hi!",
-        message: bubble.message || "Looking for something specific? We'll help you find it!",
-        button1Label: bubble.button1Label || "Chat with us",
-        button1Url: bubble.button1Url || "",
-        button1Color: bubble.button1Color || "#E84E3C",
-        button2Label: bubble.button2Label || "Product expert",
-        button2Url: bubble.button2Url || "",
-        button2Color: bubble.button2Color || "#1a1a1a",
+        headline: bubble.headline || "Need help?",
+        message: bubble.message || "I can guide you through our features.",
+        buttonLabel: bubble.buttonLabel || "Chat with us",
+        buttonColor: bubble.buttonColor || "#7c3aed",
+        promoImageEnabled: bubble.promoImageEnabled ?? false,
+        promoImageUrl: bubble.promoImageUrl || "",
         isEnabled: bubble.isEnabled ?? true,
       });
     }
@@ -58,6 +55,42 @@ export default function WelcomeBubblePage() {
       toast({ title: "Failed to save welcome bubble", variant: "destructive" });
     },
   });
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({ title: "Please select an image file", variant: "destructive" });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Image must be less than 5MB", variant: "destructive" });
+      return;
+    }
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/upload/image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error('Upload failed');
+
+      const data = await response.json();
+      setForm({ ...form, promoImageUrl: data.url, promoImageEnabled: true });
+      toast({ title: "Image uploaded successfully" });
+    } catch {
+      toast({ title: "Failed to upload image", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -115,6 +148,78 @@ export default function WelcomeBubblePage() {
 
           <Card>
             <CardHeader>
+              <CardTitle>Promo Image</CardTitle>
+              <CardDescription>Add a promotional image above the bubble</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="promoEnabled">Enable Promo Image</Label>
+                  <p className="text-sm text-muted-foreground">Display image above the welcome bubble</p>
+                </div>
+                <Switch
+                  id="promoEnabled"
+                  checked={form.promoImageEnabled}
+                  onCheckedChange={(checked) => setForm({ ...form, promoImageEnabled: checked })}
+                  data-testid="switch-promo-enabled"
+                />
+              </div>
+              
+              {form.promoImageEnabled && (
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label>Upload Image</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        disabled={isUploading}
+                        className="flex-1"
+                        data-testid="input-promo-image-file"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="promoImageUrl">Or enter image URL</Label>
+                    <Input
+                      id="promoImageUrl"
+                      value={form.promoImageUrl}
+                      onChange={(e) => setForm({ ...form, promoImageUrl: e.target.value })}
+                      placeholder="https://..."
+                      data-testid="input-promo-image-url"
+                    />
+                  </div>
+
+                  {form.promoImageUrl && (
+                    <div className="relative">
+                      <img 
+                        src={form.promoImageUrl} 
+                        alt="Promo preview" 
+                        className="w-full max-w-[200px] rounded-lg border"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="absolute top-2 right-2"
+                        onClick={() => setForm({ ...form, promoImageUrl: "", promoImageEnabled: false })}
+                        data-testid="button-remove-promo-image"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Message Content</CardTitle>
               <CardDescription>Configure text displayed in the bubble</CardDescription>
             </CardHeader>
@@ -125,17 +230,17 @@ export default function WelcomeBubblePage() {
                   id="headline"
                   value={form.headline}
                   onChange={(e) => setForm({ ...form, headline: e.target.value })}
-                  placeholder="Hi!"
+                  placeholder="Need help?"
                   data-testid="input-headline"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="message">Pesan</Label>
+                <Label htmlFor="message">Message</Label>
                 <Textarea
                   id="message"
                   value={form.message}
                   onChange={(e) => setForm({ ...form, message: e.target.value })}
-                  placeholder="Looking for something specific? We'll help you find it!"
+                  placeholder="I can guide you through our features."
                   rows={3}
                   data-testid="input-message"
                 />
@@ -145,94 +250,35 @@ export default function WelcomeBubblePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Button 1</CardTitle>
-              <CardDescription>Primary button (usually to start chat)</CardDescription>
+              <CardTitle>Button</CardTitle>
+              <CardDescription>Configure the action button</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="button1Label">Button Label</Label>
+                <Label htmlFor="buttonLabel">Button Label</Label>
                 <Input
-                  id="button1Label"
-                  value={form.button1Label}
-                  onChange={(e) => setForm({ ...form, button1Label: e.target.value })}
+                  id="buttonLabel"
+                  value={form.buttonLabel}
+                  onChange={(e) => setForm({ ...form, buttonLabel: e.target.value })}
                   placeholder="Chat with us"
-                  data-testid="input-button1-label"
+                  data-testid="input-button-label"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="button1Url">URL (optional)</Label>
-                <Input
-                  id="button1Url"
-                  value={form.button1Url}
-                  onChange={(e) => setForm({ ...form, button1Url: e.target.value })}
-                  placeholder="https://..."
-                  data-testid="input-button1-url"
-                />
-                <p className="text-xs text-muted-foreground">Leave empty to open chat widget</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="button1Color">Button Color</Label>
+                <Label htmlFor="buttonColor">Button Color</Label>
                 <div className="flex gap-2">
                   <Input
-                    id="button1Color"
+                    id="buttonColor"
                     type="color"
-                    value={form.button1Color}
-                    onChange={(e) => setForm({ ...form, button1Color: e.target.value })}
+                    value={form.buttonColor}
+                    onChange={(e) => setForm({ ...form, buttonColor: e.target.value })}
                     className="w-12 h-10 p-1"
-                    data-testid="input-button1-color"
+                    data-testid="input-button-color"
                   />
                   <Input
-                    value={form.button1Color}
-                    onChange={(e) => setForm({ ...form, button1Color: e.target.value })}
-                    placeholder="#E84E3C"
-                    className="flex-1"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Button 2</CardTitle>
-              <CardDescription>Secondary button (optional)</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="button2Label">Button Label</Label>
-                <Input
-                  id="button2Label"
-                  value={form.button2Label}
-                  onChange={(e) => setForm({ ...form, button2Label: e.target.value })}
-                  placeholder="Product expert"
-                  data-testid="input-button2-label"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="button2Url">URL (optional)</Label>
-                <Input
-                  id="button2Url"
-                  value={form.button2Url}
-                  onChange={(e) => setForm({ ...form, button2Url: e.target.value })}
-                  placeholder="https://..."
-                  data-testid="input-button2-url"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="button2Color">Button Color</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="button2Color"
-                    type="color"
-                    value={form.button2Color}
-                    onChange={(e) => setForm({ ...form, button2Color: e.target.value })}
-                    className="w-12 h-10 p-1"
-                    data-testid="input-button2-color"
-                  />
-                  <Input
-                    value={form.button2Color}
-                    onChange={(e) => setForm({ ...form, button2Color: e.target.value })}
-                    placeholder="#1a1a1a"
+                    value={form.buttonColor}
+                    onChange={(e) => setForm({ ...form, buttonColor: e.target.value })}
+                    placeholder="#7c3aed"
                     className="flex-1"
                   />
                 </div>
@@ -260,31 +306,45 @@ export default function WelcomeBubblePage() {
             </CardHeader>
             <CardContent>
               {showPreview && (
-                <div className="relative bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg p-6 min-h-[400px]">
+                <div className="relative bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 rounded-lg p-6 min-h-[500px]">
                   {form.isEnabled && (
-                    <div className="absolute right-4 top-4 w-80 bg-white rounded-2xl shadow-2xl overflow-hidden">
-                      <div className="p-6">
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <h3 className="text-xl font-bold">{form.headline}</h3>
-                          <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 flex-shrink-0 -mr-2 -mt-1">
-                            <X className="w-5 h-5" />
-                          </button>
-                        </div>
-                        <p className="text-gray-600 mb-6">{form.message}</p>
-                        <div className="space-y-3">
+                    <div className="absolute right-4 bottom-20">
+                      <div className="w-52">
+                        {form.promoImageEnabled && form.promoImageUrl && (
+                          <img 
+                            src={form.promoImageUrl} 
+                            alt="Promotion" 
+                            className="w-full h-auto object-cover rounded-t-xl relative z-20"
+                            style={{ marginBottom: '-16px' }}
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                            data-testid="img-preview-promo"
+                          />
+                        )}
+                        <div className={`bg-card shadow-xl px-4 pt-6 pb-4 border border-border relative z-10 ${form.promoImageEnabled && form.promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}>
                           <button
-                            className="w-full py-3 px-4 rounded-lg text-white font-medium flex items-center justify-center gap-2"
-                            style={{ backgroundColor: form.button1Color }}
+                            className="absolute top-2 right-2 p-0 hover:opacity-70 transition-opacity"
+                            data-testid="button-preview-dismiss"
                           >
-                            {form.button1Label}
+                            <X className="w-4 h-4 text-muted-foreground" />
                           </button>
-                          <button
-                            className="w-full py-3 px-4 rounded-lg text-white font-medium flex items-center justify-center gap-2"
-                            style={{ backgroundColor: form.button2Color }}
+                          <div className="mb-2 pr-4">
+                            <p className="font-semibold text-base text-foreground">
+                              {form.headline || "Need help?"}
+                            </p>
+                          </div>
+                          <p className="text-xs text-muted-foreground leading-normal mb-3">
+                            {form.message || "I can guide you through our features."}
+                          </p>
+                          <Button
+                            size="default"
+                            className="w-full text-white"
+                            style={{ backgroundColor: form.buttonColor }}
+                            data-testid="button-preview-cta"
                           >
-                            <MessageCircle className="w-4 h-4" />
-                            {form.button2Label}
-                          </button>
+                            {form.buttonLabel || "Chat with us"}
+                          </Button>
                         </div>
                       </div>
                     </div>

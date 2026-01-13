@@ -11919,14 +11919,12 @@ ${html.substring(0, 50000)}`;
       const merchantId = req.session.merchantId!;
       const bubble = await storage.getWelcomeBubble(merchantId);
       res.json(bubble || {
-        headline: "Hi!",
-        message: "Looking for something specific? We'll help you find it!",
-        button1Label: "Chat with us",
-        button1Url: "",
-        button1Color: "#E84E3C",
-        button2Label: "Product expert",
-        button2Url: "",
-        button2Color: "#1a1a1a",
+        headline: "Need help?",
+        message: "I can guide you through our features.",
+        buttonLabel: "Chat with us",
+        buttonColor: "#7c3aed",
+        promoImageEnabled: false,
+        promoImageUrl: "",
         isEnabled: true,
       });
     } catch (error) {
