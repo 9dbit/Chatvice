@@ -8,12 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { MessageCircle, X, Save, Eye, ImageIcon, Upload, Loader2 } from "lucide-react";
+import { MessageCircle, X, Save, Eye, Loader2 } from "lucide-react";
 import type { WelcomeBubble } from "@shared/schema";
 
 export default function WelcomeBubblePage() {
   const { toast } = useToast();
-  const [showPreview, setShowPreview] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [form, setForm] = useState({
     headline: "Need help?",
@@ -60,8 +59,9 @@ export default function WelcomeBubblePage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      toast({ title: "Please select an image file", variant: "destructive" });
+    const allowedTypes = ['image/png', 'image/gif', 'image/jpeg', 'image/jpg', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({ title: "Please select a PNG, GIF, JPG, or WebP image", variant: "destructive" });
       return;
     }
 
@@ -73,20 +73,25 @@ export default function WelcomeBubblePage() {
     setIsUploading(true);
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('type', 'welcome_bubble_promo');
 
     try {
-      const response = await fetch('/api/upload/image', {
+      const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
+        credentials: 'include',
       });
 
-      if (!response.ok) throw new Error('Upload failed');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Upload failed');
+      }
 
       const data = await response.json();
       setForm({ ...form, promoImageUrl: data.url, promoImageEnabled: true });
       toast({ title: "Image uploaded successfully" });
-    } catch {
-      toast({ title: "Failed to upload image", variant: "destructive" });
+    } catch (error: any) {
+      toast({ title: error.message || "Failed to upload image", variant: "destructive" });
     } finally {
       setIsUploading(false);
     }
@@ -172,7 +177,7 @@ export default function WelcomeBubblePage() {
                     <div className="flex gap-2">
                       <Input
                         type="file"
-                        accept="image/*"
+                        accept="image/png,image/gif,image/jpeg,image/jpg,image/webp"
                         onChange={handleImageUpload}
                         disabled={isUploading}
                         className="flex-1"
@@ -286,80 +291,16 @@ export default function WelcomeBubblePage() {
             </CardContent>
           </Card>
         </div>
-
-        <div className="lg:sticky lg:top-6 space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Eye className="w-5 h-5" />
-                  Preview
-                </CardTitle>
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={() => setShowPreview(!showPreview)}
-                >
-                  {showPreview ? "Hide" : "Show"}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {showPreview && (
-                <div className="relative bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 rounded-lg p-6 min-h-[500px]">
-                  {form.isEnabled && (
-                    <div className="absolute right-4 bottom-20">
-                      <div className="w-52">
-                        {form.promoImageEnabled && form.promoImageUrl && (
-                          <img 
-                            src={form.promoImageUrl} 
-                            alt="Promotion" 
-                            className="w-full h-auto object-cover rounded-t-xl relative z-20"
-                            style={{ marginBottom: '-16px' }}
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                            }}
-                            data-testid="img-preview-promo"
-                          />
-                        )}
-                        <div className={`bg-card shadow-xl px-4 pt-6 pb-4 border border-border relative z-10 ${form.promoImageEnabled && form.promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}>
-                          <button
-                            className="absolute top-2 right-2 p-0 hover:opacity-70 transition-opacity"
-                            data-testid="button-preview-dismiss"
-                          >
-                            <X className="w-4 h-4 text-muted-foreground" />
-                          </button>
-                          <div className="mb-2 pr-4">
-                            <p className="font-semibold text-base text-foreground">
-                              {form.headline || "Need help?"}
-                            </p>
-                          </div>
-                          <p className="text-xs text-muted-foreground leading-normal mb-3">
-                            {form.message || "I can guide you through our features."}
-                          </p>
-                          <Button
-                            size="default"
-                            className="w-full text-white"
-                            style={{ backgroundColor: form.buttonColor }}
-                            data-testid="button-preview-cta"
-                          >
-                            {form.buttonLabel || "Chat with us"}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div className="absolute right-4 bottom-4">
-                    <div className="w-14 h-14 rounded-full bg-black flex items-center justify-center shadow-lg">
-                      <MessageCircle className="w-6 h-6 text-white" />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
       </div>
+
+      <Card className="mt-6">
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-3 text-muted-foreground">
+            <Eye className="w-5 h-5" />
+            <span>Preview your changes in the <a href="/dashboard/live-preview" className="text-primary underline">Live Preview</a> page to see how all settings work together.</span>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
