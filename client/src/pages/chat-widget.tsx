@@ -945,33 +945,22 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   }
 
   const ProductCarousel = ({ cards }: { cards: ProductCardWithButtons[] }) => {
-    // Get customer name for personalized intro
-    const displayName = customerName || "Kak";
     const displayCards = cards.slice(0, 2); // Limit to 2 cards max
     
     return (
-      <div className="w-full mt-3" data-testid="product-carousel">
-        {/* Conversational intro */}
-        <p className="text-sm mb-2">
-          Hai {displayName}! Berikut produk pilihan yang mungkin cocok untuk kamu 😊
-        </p>
-        
-        {/* Header */}
-        <div className="flex items-center gap-2 mb-3">
-          <ShoppingBag className="w-4 h-4" style={{ color: primaryColor }} />
-          <span className="text-xs font-medium">Berikut beberapa produk rekomendasi kami:</span>
-        </div>
-        
-        {/* 2-column grid with square images */}
+      <div className="w-full mt-2" data-testid="product-carousel">
+        {/* Simple 2-column grid matching sketch design */}
         <div className="grid grid-cols-2 gap-2">
           {displayCards.map((card) => (
-            <Card 
+            <div 
               key={card.id} 
-              className="border-border overflow-hidden"
+              className="rounded-lg overflow-hidden border border-border cursor-pointer hover-elevate"
+              onClick={() => card.sourceUrl && window.open(card.sourceUrl, "_blank")}
               data-testid={`card-product-${card.id}`}
             >
+              {/* Square IMAGE area */}
               {card.imageUrl ? (
-                <div className="aspect-square relative bg-muted flex items-center justify-center">
+                <div className="aspect-square bg-muted flex items-center justify-center">
                   <img 
                     src={card.imageUrl} 
                     alt={card.title}
@@ -983,63 +972,17 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   <ShoppingBag className="w-8 h-8 text-muted-foreground/50" />
                 </div>
               )}
-              <CardContent className="p-2">
-                <h4 className="font-semibold text-xs line-clamp-1">{card.title}</h4>
-                {card.description && (
-                  <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{card.description}</p>
-                )}
+              
+              {/* TEXT area below image */}
+              <div className="p-2 bg-card">
+                <h4 className="font-semibold text-xs line-clamp-2">{card.title}</h4>
                 {card.price && (
                   <p className="font-bold text-xs mt-1" style={{ color: primaryColor }}>{card.price}</p>
                 )}
-                <div className="flex flex-col gap-1 mt-2">
-                  {card.buttons?.slice(0, 1).map((btn) => (
-                    <Button
-                      key={btn.id}
-                      size="sm"
-                      variant="outline"
-                      className="w-full h-6 text-[10px] gap-1"
-                      onClick={() => btn.url && window.open(btn.url, "_blank")}
-                      data-testid={`button-product-${btn.id}`}
-                    >
-                      {btn.buttonType === "link" && <ExternalLink className="w-2.5 h-2.5" />}
-                      {btn.label}
-                    </Button>
-                  ))}
-                  {(!card.buttons || card.buttons.length === 0) && card.sourceUrl && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full h-6 text-[10px] gap-1"
-                      onClick={() => card.sourceUrl && window.open(card.sourceUrl, "_blank")}
-                      data-testid={`button-product-view-${card.id}`}
-                    >
-                      <ExternalLink className="w-2.5 h-2.5" />
-                      Lihat
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ))}
         </div>
-        
-        {/* Suggestion buttons below products */}
-        {displayCards.length > 0 && displayCards[0].buttons && displayCards[0].buttons.length > 1 && (
-          <div className="flex flex-wrap gap-1.5 mt-3">
-            {displayCards.flatMap(card => card.buttons || []).slice(0, 4).map((btn, idx) => (
-              <Button
-                key={`suggest-${btn.id}-${idx}`}
-                size="sm"
-                variant="outline"
-                className="h-7 text-xs"
-                onClick={() => btn.url && window.open(btn.url, "_blank")}
-                data-testid={`button-suggest-${btn.id}`}
-              >
-                {btn.label}
-              </Button>
-            ))}
-          </div>
-        )}
       </div>
     );
   };
