@@ -370,6 +370,7 @@ interface WidgetConfig {
 }
 
 function WidgetCustomizerSection() {
+  const { t } = useLanguage();
   const [config, setConfig] = useState<WidgetConfig>({
     isDark: false,
     brandColor: "#7c3aed",
@@ -393,26 +394,26 @@ function WidgetCustomizerSection() {
         <div className="text-left mb-16">
           <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
             <Settings className="w-3 h-3 mr-1" />
-            Widget Customization
+            {t('widgetCustomizer.badge')}
           </Badge>
           <h2 className="text-3xl md:text-5xl font-bold mb-4">
-            Design Your Perfect Chat Widget
+            {t('widgetCustomizer.title')}
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl">
-            Customize colors, themes, and avatar to match your brand identity. Try it live!
+            {t('widgetCustomizer.subtitle')}
           </p>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-12 items-start">
           <div className="space-y-8">
             <Card className="p-6">
-              <h3 className="font-bold text-lg mb-6">Appearance Settings</h3>
+              <h3 className="font-bold text-lg mb-6">{t('widgetCustomizer.appearance')}</h3>
               
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium">Theme Mode</p>
-                    <p className="text-sm text-muted-foreground">Switch between light and dark</p>
+                    <p className="font-medium">{t('widgetCustomizer.themeMode')}</p>
+                    <p className="text-sm text-muted-foreground">{t('widgetCustomizer.themeModeDesc')}</p>
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -420,20 +421,20 @@ function WidgetCustomizerSection() {
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${!config.isDark ? "bg-purple-600 text-white" : "bg-muted hover:bg-muted/80"}`}
                       data-testid="button-theme-light"
                     >
-                      Light
+                      {t('widgetCustomizer.light')}
                     </button>
                     <button
                       onClick={() => setConfig(c => ({ ...c, isDark: true }))}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${config.isDark ? "bg-purple-600 text-white" : "bg-muted hover:bg-muted/80"}`}
                       data-testid="button-theme-dark"
                     >
-                      Dark
+                      {t('widgetCustomizer.dark')}
                     </button>
                   </div>
                 </div>
 
                 <div>
-                  <p className="font-medium mb-3">Brand Color</p>
+                  <p className="font-medium mb-3">{t('widgetCustomizer.brandColor')}</p>
                   <div className="flex gap-2">
                     {colorPresets.map((color) => (
                       <button
@@ -449,7 +450,7 @@ function WidgetCustomizerSection() {
                 </div>
 
                 <div>
-                  <p className="font-medium mb-3">Header Color</p>
+                  <p className="font-medium mb-3">{t('widgetCustomizer.headerColor')}</p>
                   <div className="flex gap-2">
                     {colorPresets.map((color) => (
                       <button
@@ -465,7 +466,7 @@ function WidgetCustomizerSection() {
                 </div>
 
                 <div>
-                  <p className="font-medium mb-3">Button Color</p>
+                  <p className="font-medium mb-3">{t('widgetCustomizer.buttonColor')}</p>
                   <div className="flex gap-2">
                     {colorPresets.map((color) => (
                       <button
@@ -481,7 +482,7 @@ function WidgetCustomizerSection() {
                 </div>
 
                 <div>
-                  <p className="font-medium mb-3">Agent Avatar</p>
+                  <p className="font-medium mb-3">{t('widgetCustomizer.agentAvatar')}</p>
                   <div className="flex gap-4">
                     <button
                       onClick={() => setConfig(c => ({ ...c, avatar: maleAvatar }))}
@@ -1483,13 +1484,13 @@ function BenefitsSections() {
         <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
           <div className="text-center max-w-2xl mx-auto">
             <h2 className="text-2xl md:text-4xl font-bold mb-3">
-              We're here for you 24/7/365
+              {t('support247.title')}
             </h2>
             <p className="text-sm md:text-base text-muted-foreground mb-4 leading-relaxed">
-              You're looking for the best AI chat software to meet your needs. We're here to offer you more than just a product.
+              {t('support247.description1')}
             </p>
             <p className="text-sm md:text-base text-muted-foreground mb-6 leading-relaxed">
-              Chatvice® Product Experts are available for you 24/7/365 to provide real-time support and help you drive your business growth.
+              {t('support247.description2')}
             </p>
             <div className="flex justify-center gap-2 mb-6">
               {[1, 2, 3, 4, 5].map((i) => (
@@ -1504,7 +1505,7 @@ function BenefitsSections() {
             <Button asChild className="bg-purple-600 hover:bg-purple-700 text-sm" data-testid="button-chat-expert">
               <a href="mailto:hello@chatvice.app">
                 <MessageSquare className="w-4 h-4 mr-2" />
-                Chat with a Product Expert
+                {t('support247.chatExpert')}
               </a>
             </Button>
           </div>
@@ -1516,7 +1517,7 @@ function BenefitsSections() {
         <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
           <div className="text-center max-w-3xl mx-auto">
             <h2 className="text-2xl md:text-4xl font-bold mb-4 leading-tight">
-              Chatvice® is <span className="text-purple-600">intuitive customer service software</span>. Quick to set up, easy for your team to use and a go-to choice for your customers.
+              {t('intuitive.title')} <span className="text-purple-600">{t('intuitive.highlight')}</span>. {t('intuitive.description')}
             </h2>
           </div>
         </div>
@@ -1526,46 +1527,47 @@ function BenefitsSections() {
 }
 
 function TimelineSection() {
+  const { t } = useLanguage();
   const milestones = [
     {
-      date: "August 2025",
-      title: "Project Inception",
-      description: "Chatvice development begins with a vision to revolutionize customer service through AI.",
+      date: t('timeline.milestones.inception.date'),
+      title: t('timeline.milestones.inception.title'),
+      description: t('timeline.milestones.inception.description'),
       icon: Rocket,
       status: "completed"
     },
     {
-      date: "September 2025",
-      title: "Core Platform Built",
-      description: "Multi-tenant architecture, merchant dashboard, and supervisor panel completed.",
+      date: t('timeline.milestones.platform.date'),
+      title: t('timeline.milestones.platform.title'),
+      description: t('timeline.milestones.platform.description'),
       icon: Code,
       status: "completed"
     },
     {
-      date: "October 2025",
-      title: "AI Integration",
-      description: "OpenAI GPT-4 integration with vector embeddings for semantic knowledge search.",
+      date: t('timeline.milestones.ai.date'),
+      title: t('timeline.milestones.ai.title'),
+      description: t('timeline.milestones.ai.description'),
       icon: Brain,
       status: "completed"
     },
     {
-      date: "November 2025",
-      title: "Widget & Escalation",
-      description: "Embeddable chat widget with real-time human escalation and supervisor assignment.",
+      date: t('timeline.milestones.widget.date'),
+      title: t('timeline.milestones.widget.title'),
+      description: t('timeline.milestones.widget.description'),
       icon: MessageCircle,
       status: "completed"
     },
     {
-      date: "November 2025",
-      title: "Payment Integration",
-      description: "1-Pay Indonesian payment gateway with QRIS support for local transactions.",
+      date: t('timeline.milestones.payment.date'),
+      title: t('timeline.milestones.payment.title'),
+      description: t('timeline.milestones.payment.description'),
       icon: Target,
       status: "completed"
     },
     {
-      date: "December 9, 2025",
-      title: "LEXA1 Launch",
-      description: "Official launch of LEXA1 AI Engine - the next generation of intelligent customer service.",
+      date: t('timeline.milestones.launch.date'),
+      title: t('timeline.milestones.launch.title'),
+      description: t('timeline.milestones.launch.description'),
       icon: Award,
       status: "upcoming"
     },
@@ -1577,13 +1579,13 @@ function TimelineSection() {
         <div className="text-left mb-16 parallax-fade-in">
           <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
             <Calendar className="w-3 h-3 mr-1" />
-            Development Timeline
+            {t('timeline.badge')}
           </Badge>
           <h2 className="text-3xl md:text-5xl font-bold mb-4">
-            Building the Future of<br />Customer Service
+            {t('timeline.title')}<br />{t('timeline.titleLine2')}
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl">
-            Key milestones in our journey to launch LEXA1, the AI engine powering Chatvice.
+            {t('timeline.subtitle')}
           </p>
         </div>
 
@@ -1638,36 +1640,37 @@ function TimelineSection() {
 }
 
 function FeaturesPreview() {
+  const { t } = useLanguage();
   const features = [
     {
       icon: Brain,
-      title: "LEXA1 AI Engine",
-      description: "Advanced language model with reasoning capabilities for accurate, context-aware responses.",
+      title: t('features.lexa1.title'),
+      description: t('features.lexa1.description'),
     },
     {
       icon: Database,
-      title: "Smart Knowledge Base",
-      description: "Vector embeddings for semantic search. Import from websites, files, or manual input.",
+      title: t('features.knowledgeBase.title'),
+      description: t('features.knowledgeBase.description'),
     },
     {
       icon: HeadphonesIcon,
-      title: "Human Escalation",
-      description: "Seamless handoff to supervisors with round-robin assignment and real-time chat takeover.",
+      title: t('features.humanEscalation.title'),
+      description: t('features.humanEscalation.description'),
     },
     {
       icon: MessageCircle,
-      title: "Embeddable Widget",
-      description: "Beautiful, customizable chat widget that works on any website with simple embed code.",
+      title: t('features.widget.title'),
+      description: t('features.widget.description'),
     },
     {
       icon: Shield,
-      title: "Identity Verification",
-      description: "JWT-based customer authentication for secure, personalized conversations.",
+      title: t('features.verification.title'),
+      description: t('features.verification.description'),
     },
     {
       icon: Globe,
-      title: "Multi-Language Support",
-      description: "Automatic language detection with AI responses in customer's preferred language.",
+      title: t('features.multiLanguage.title'),
+      description: t('features.multiLanguage.description'),
     },
   ];
 
@@ -1677,13 +1680,13 @@ function FeaturesPreview() {
         <div className="text-left mb-16 parallax-fade-in">
           <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
             <Sparkles className="w-3 h-3 mr-1" />
-            Features
+            {t('nav.features')}
           </Badge>
           <h2 className="text-3xl md:text-5xl font-bold mb-4">
-            Everything You Need for<br />AI Customer Service
+            {t('features.title')}
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl">
-            Chatvice powered by LEXA1 gives you all the tools to build, deploy, and scale intelligent customer support.
+            {t('features.subtitle')}
           </p>
         </div>
 
@@ -1702,7 +1705,7 @@ function FeaturesPreview() {
         <div className="text-left mt-12 parallax-fade-in">
           <Link href="/features">
             <Button size="lg" variant="outline" className="border-purple-300 text-purple-600 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-950/30">
-              View All Features
+              {t('features.viewAll')}
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </Link>

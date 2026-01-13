@@ -1,81 +1,15 @@
 {
-  "nav": {
-    "home": "Trang chủ",
-    "features": "Tính năng",
-    "pricing": "Bảng giá",
-    "api": "API",
-    "faq": "Câu hỏi thường gặp",
-    "about": "Giới thiệu",
-    "signIn": "Đăng nhập",
-    "getStarted": "Bắt đầu miễn phí",
-    "dashboard": "Bảng điều khiển"
-  },
-  "hero": {
-    "badge": "Hỗ trợ khách hàng bằng AI",
-    "title": "Chuyển đổi",
-    "titleHighlight": "Dịch vụ khách hàng",
-    "titleEnd": "với AI",
-    "taglines": [
-      "Mở rộng đội ngũ hỗ trợ ngay lập tức —\nkhông cần tuyển thêm.",
-      "Cung cấp phản hồi hoàn hảo, nhất quán\nmọi lúc.",
-      "Thay đổi cách bạn kết nối\nvới khách hàng, 24/7."
-    ],
-    "cta": "Dùng thử miễn phí",
-    "ctaSecondary": "Xem Demo"
-  },
-  "features": {
-    "badge": "Tại sao chọn Chatvice",
-    "title": "Tất cả những gì bạn cần cho hỗ trợ khách hàng",
-    "subtitle": "Tính năng mạnh mẽ giúp bạn cung cấp dịch vụ khách hàng xuất sắc",
-    "aiPowered": {
-      "title": "Phản hồi bằng AI",
-      "description": "AI thông minh hiểu ngữ cảnh và cung cấp phản hồi chính xác, hữu ích cho khách hàng của bạn."
-    },
-    "multiLanguage": {
-      "title": "Hỗ trợ đa ngôn ngữ",
-      "description": "Giao tiếp với khách hàng bằng ngôn ngữ họ thích với dịch tự động."
-    },
-    "analytics": {
-      "title": "Phân tích nâng cao",
-      "description": "Theo dõi hiệu suất, sự hài lòng của khách hàng và xác định các lĩnh vực cần cải thiện."
-    },
-    "integration": {
-      "title": "Tích hợp dễ dàng",
-      "description": "Mã nhúng đơn giản để thêm widget chat vào bất kỳ trang web nào trong vài phút."
-    },
-    "escalation": {
-      "title": "Chuyển tiếp thông minh",
-      "description": "Tự động chuyển các vấn đề phức tạp đến người giám sát khi cần thiết."
-    },
-    "customization": {
-      "title": "Tùy chỉnh hoàn toàn",
-      "description": "Phù hợp với thương hiệu của bạn với màu sắc, chủ đề và tin nhắn có thể tùy chỉnh."
-    }
-  },
-  "stats": {
-    "uptime": "99.9% Hoạt động",
-    "responseTime": "Phản hồi <2 giây",
-    "satisfaction": "98% Hài lòng",
-    "support": "Hỗ trợ 24/7"
-  },
-  "testimonials": {
-    "badge": "Đánh giá",
-    "title": "Khách hàng nói gì",
-    "subtitle": "Tham gia cùng hàng nghìn doanh nghiệp đã sử dụng Chatvice"
-  },
-  "cta": {
-    "title": "Sẵn sàng chuyển đổi hỗ trợ khách hàng của bạn?",
-    "subtitle": "Bắt đầu dùng thử miễn phí hôm nay và trải nghiệm sự khác biệt AI mang lại.",
-    "button": "Bắt đầu miễn phí",
-    "noCreditCard": "Không cần thẻ tín dụng"
-  },
-  "footer": {
-    "description": "Nền tảng dịch vụ khách hàng AI cho doanh nghiệp hiện đại.",
-    "product": "Sản phẩm",
-    "company": "Công ty",
-    "legal": "Pháp lý",
-    "privacy": "Chính sách bảo mật",
-    "terms": "Điều khoản dịch vụ",
-    "copyright": "© 2025 Chatvice. Bảo lưu mọi quyền."
-  }
+  "nav": { "home": "Trang chủ", "features": "Tính năng", "pricing": "Bảng giá", "api": "API", "faq": "Câu hỏi thường gặp", "about": "Giới thiệu", "signIn": "Đăng nhập", "getStarted": "Bắt đầu miễn phí", "dashboard": "Bảng điều khiển" },
+  "hero": { "badge": "Hỗ trợ khách hàng bằng AI", "title": "Biến đổi", "titleHighlight": "Dịch vụ khách hàng", "titleEnd": "với AI", "taglines": ["Mở rộng đội ngũ hỗ trợ ngay lập tức —\nkhông cần tuyển thêm.", "Cung cấp phản hồi hoàn hảo và nhất quán\nmọi lúc.", "Thay đổi cách bạn kết nối\nvới khách hàng 24/7."], "cta": "Bắt đầu dùng thử", "ctaSecondary": "Xem demo" },
+  "features": { "badge": "Tại sao chọn Chatvice", "title": "Mọi thứ bạn cần cho dịch vụ khách hàng", "subtitle": "Các tính năng mạnh mẽ giúp bạn cung cấp dịch vụ khách hàng xuất sắc", "viewAll": "Xem tất cả tính năng", "aiPowered": { "title": "Phản hồi bằng AI", "description": "AI thông minh hiểu ngữ cảnh và cung cấp phản hồi chính xác cho khách hàng." }, "multiLanguage": { "title": "Hỗ trợ đa ngôn ngữ", "description": "Giao tiếp với khách hàng bằng ngôn ngữ họ thích với bản dịch tự động." }, "analytics": { "title": "Phân tích nâng cao", "description": "Theo dõi hiệu suất, sự hài lòng của khách hàng và xác định các lĩnh vực cần cải thiện." }, "integration": { "title": "Tích hợp dễ dàng", "description": "Mã nhúng đơn giản để thêm widget chat vào bất kỳ trang web nào trong vài phút." }, "escalation": { "title": "Chuyển tiếp thông minh", "description": "Tự động chuyển các vấn đề phức tạp đến người giám sát khi cần." }, "customization": { "title": "Tùy chỉnh hoàn toàn", "description": "Phù hợp với thương hiệu của bạn với màu sắc, chủ đề và tin nhắn có thể tùy chỉnh." }, "lexa1": { "title": "Công cụ AI LEXA1", "description": "Mô hình ngôn ngữ tiên tiến với khả năng lập luận." }, "knowledgeBase": { "title": "Cơ sở kiến thức thông minh", "description": "Nhúng vector cho tìm kiếm ngữ nghĩa." }, "humanEscalation": { "title": "Chuyển tiếp đến con người", "description": "Chuyển giao liền mạch đến người giám sát." }, "widget": { "title": "Widget có thể nhúng", "description": "Widget chat đẹp và có thể tùy chỉnh." }, "verification": { "title": "Xác minh danh tính", "description": "Xác thực khách hàng dựa trên JWT." } },
+  "widgetCustomizer": { "badge": "Tùy chỉnh Widget", "title": "Thiết kế Widget Chat hoàn hảo", "subtitle": "Tùy chỉnh màu sắc, chủ đề và avatar để phù hợp với thương hiệu. Thử ngay!", "appearance": "Cài đặt giao diện", "themeMode": "Chế độ chủ đề", "themeModeDesc": "Chuyển đổi giữa sáng và tối", "light": "Sáng", "dark": "Tối", "brandColor": "Màu thương hiệu", "headerColor": "Màu tiêu đề", "buttonColor": "Màu nút", "agentAvatar": "Ảnh đại diện nhân viên" },
+  "support247": { "title": "Chúng tôi ở đây 24/7/365", "description1": "Bạn đang tìm kiếm phần mềm chat AI tốt nhất. Chúng tôi cung cấp nhiều hơn một sản phẩm.", "description2": "Chuyên gia sản phẩm Chatvice® sẵn sàng 24/7/365 để hỗ trợ.", "chatExpert": "Chat với chuyên gia" },
+  "intuitive": { "title": "Chatvice® là", "highlight": "phần mềm dịch vụ khách hàng trực quan", "description": "Thiết lập nhanh, dễ sử dụng cho nhóm và là lựa chọn hàng đầu của khách hàng." },
+  "timeline": { "badge": "Lịch trình phát triển", "title": "Xây dựng tương lai của", "titleLine2": "Dịch vụ khách hàng", "subtitle": "Các cột mốc quan trọng trong hành trình ra mắt LEXA1.", "milestones": { "inception": { "date": "Tháng 8 2025", "title": "Khởi động dự án", "description": "Bắt đầu phát triển Chatvice." }, "platform": { "date": "Tháng 9 2025", "title": "Hoàn thành nền tảng", "description": "Kiến trúc đa người thuê hoàn thành." }, "ai": { "date": "Tháng 10 2025", "title": "Tích hợp AI", "description": "Tích hợp OpenAI GPT-4." }, "widget": { "date": "Tháng 11 2025", "title": "Widget & Chuyển tiếp", "description": "Widget chat có thể nhúng." }, "payment": { "date": "Tháng 11 2025", "title": "Tích hợp thanh toán", "description": "Cổng thanh toán Indonesia." }, "launch": { "date": "9 Tháng 12 2025", "title": "Ra mắt LEXA1", "description": "Ra mắt chính thức." } } },
+  "stats": { "uptime": "99.9% Hoạt động", "responseTime": "<2 giây", "satisfaction": "98% Hài lòng", "support": "Hỗ trợ 24/7" },
+  "testimonials": { "badge": "Đánh giá", "title": "Khách hàng nói gì", "subtitle": "Tham gia cùng hàng nghìn doanh nghiệp đang sử dụng Chatvice" },
+  "pricing": { "badge": "Giá đơn giản", "title": "Chọn gói của bạn", "subtitle": "Bắt đầu miễn phí và mở rộng khi phát triển. Không có phí ẩn.", "perMonth": "/tháng", "free": "Miễn phí", "freePlan": "Gói miễn phí", "starterPlan": "Gói Starter", "proPlan": "Gói Pro", "enterprisePlan": "Gói Enterprise", "customPlan": "Gói tùy chỉnh", "getStarted": "Bắt đầu", "contact": "Liên hệ", "trialDays": "ngày dùng thử", "popular": "Phổ biến nhất", "viewAllPlans": "Xem tất cả gói" },
+  "cta": { "title": "Sẵn sàng thay đổi dịch vụ khách hàng?", "subtitle": "Bắt đầu dùng thử miễn phí hôm nay.", "button": "Bắt đầu miễn phí", "noCreditCard": "Không cần thẻ tín dụng" },
+  "footer": { "description": "Nền tảng dịch vụ khách hàng AI cho doanh nghiệp hiện đại.", "product": "Sản phẩm", "company": "Công ty", "legal": "Pháp lý", "privacy": "Chính sách bảo mật", "terms": "Điều khoản dịch vụ", "copyright": "© 2025 Chatvice. Đã đăng ký bản quyền." },
+  "affiliate": { "badge": "Chương trình liên kết", "title": "Kiếm tiền khi chia sẻ", "subtitle": "Tham gia chương trình liên kết và nhận 20% hoa hồng.", "commission": "Hoa hồng 20%", "commissionDesc": "Kiếm từ mỗi giới thiệu thành công", "cookieDuration": "Cookie 30 ngày", "cookieDesc": "Giới thiệu được theo dõi 30 ngày", "minPayout": "Tối thiểu $50", "minPayoutDesc": "Ngưỡng thanh toán thấp", "joinNow": "Tham gia chương trình" }
 }

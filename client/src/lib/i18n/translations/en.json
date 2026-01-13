@@ -27,6 +27,7 @@
     "badge": "Why Choose Chatvice",
     "title": "Everything You Need for Customer Support",
     "subtitle": "Powerful features to help you provide exceptional customer service",
+    "viewAll": "View All Features",
     "aiPowered": {
       "title": "AI-Powered Responses",
       "description": "Smart AI that understands context and provides accurate, helpful responses to your customers."
@@ -50,6 +51,89 @@
     "customization": {
       "title": "Full Customization",
       "description": "Match your brand with customizable colors, themes, and messaging."
+    },
+    "lexa1": {
+      "title": "LEXA1 AI Engine",
+      "description": "Advanced language model with reasoning capabilities for accurate, context-aware responses."
+    },
+    "knowledgeBase": {
+      "title": "Smart Knowledge Base",
+      "description": "Vector embeddings for semantic search. Import from websites, files, or manual input."
+    },
+    "humanEscalation": {
+      "title": "Human Escalation",
+      "description": "Seamless handoff to supervisors with round-robin assignment and real-time chat takeover."
+    },
+    "widget": {
+      "title": "Embeddable Widget",
+      "description": "Beautiful, customizable chat widget that works on any website with simple embed code."
+    },
+    "verification": {
+      "title": "Identity Verification",
+      "description": "JWT-based customer authentication for secure, personalized conversations."
+    }
+  },
+  "widgetCustomizer": {
+    "badge": "Widget Customization",
+    "title": "Design Your Perfect Chat Widget",
+    "subtitle": "Customize colors, themes, and avatar to match your brand identity. Try it live!",
+    "appearance": "Appearance Settings",
+    "themeMode": "Theme Mode",
+    "themeModeDesc": "Switch between light and dark",
+    "light": "Light",
+    "dark": "Dark",
+    "brandColor": "Brand Color",
+    "headerColor": "Header Color",
+    "buttonColor": "Button Color",
+    "agentAvatar": "Agent Avatar"
+  },
+  "support247": {
+    "title": "We're here for you 24/7/365",
+    "description1": "You're looking for the best AI chat software to meet your needs. We're here to offer you more than just a product.",
+    "description2": "Chatvice® Product Experts are available for you 24/7/365 to provide real-time support and help you drive your business growth.",
+    "chatExpert": "Chat with a Product Expert"
+  },
+  "intuitive": {
+    "title": "Chatvice® is",
+    "highlight": "intuitive customer service software",
+    "description": "Quick to set up, easy for your team to use and a go-to choice for your customers."
+  },
+  "timeline": {
+    "badge": "Development Timeline",
+    "title": "Building the Future of",
+    "titleLine2": "Customer Service",
+    "subtitle": "Key milestones in our journey to launch LEXA1, the AI engine powering Chatvice.",
+    "milestones": {
+      "inception": {
+        "date": "August 2025",
+        "title": "Project Inception",
+        "description": "Chatvice development begins with a vision to revolutionize customer service through AI."
+      },
+      "platform": {
+        "date": "September 2025",
+        "title": "Core Platform Built",
+        "description": "Multi-tenant architecture, merchant dashboard, and supervisor panel completed."
+      },
+      "ai": {
+        "date": "October 2025",
+        "title": "AI Integration",
+        "description": "OpenAI GPT-4 integration with vector embeddings for semantic knowledge search."
+      },
+      "widget": {
+        "date": "November 2025",
+        "title": "Widget & Escalation",
+        "description": "Embeddable chat widget with real-time human escalation and supervisor assignment."
+      },
+      "payment": {
+        "date": "November 2025",
+        "title": "Payment Integration",
+        "description": "1-Pay Indonesian payment gateway with QRIS support for local transactions."
+      },
+      "launch": {
+        "date": "December 9, 2025",
+        "title": "LEXA1 Launch",
+        "description": "Official launch of LEXA1 AI Engine - the next generation of intelligent customer service."
+      }
     }
   },
   "stats": {
@@ -62,6 +146,23 @@
     "badge": "Testimonials",
     "title": "What Our Customers Say",
     "subtitle": "Join thousands of businesses already using Chatvice"
+  },
+  "pricing": {
+    "badge": "Simple Pricing",
+    "title": "Choose Your Plan",
+    "subtitle": "Start free and scale as you grow. No hidden fees.",
+    "perMonth": "/month",
+    "free": "Free",
+    "freePlan": "Free",
+    "starterPlan": "Starter",
+    "proPlan": "Pro",
+    "enterprisePlan": "Enterprise",
+    "customPlan": "Custom",
+    "getStarted": "Get Started",
+    "contact": "Contact Sales",
+    "trialDays": "day free trial",
+    "popular": "Most Popular",
+    "viewAllPlans": "View All Plans"
   },
   "cta": {
     "title": "Ready to Transform Your Customer Support?",
@@ -77,5 +178,17 @@
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
     "copyright": "© 2025 Chatvice. All rights reserved."
+  },
+  "affiliate": {
+    "badge": "Affiliate Program",
+    "title": "Earn While You Share",
+    "subtitle": "Join our affiliate program and earn 20% commission on every referral.",
+    "commission": "20% Commission",
+    "commissionDesc": "Earn on every successful referral",
+    "cookieDuration": "30-Day Cookie",
+    "cookieDesc": "Your referrals are tracked for 30 days",
+    "minPayout": "$50 Minimum",
+    "minPayoutDesc": "Low payout threshold",
+    "joinNow": "Join Affiliate Program"
   }
 }

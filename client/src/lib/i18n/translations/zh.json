@@ -12,70 +12,183 @@
   },
   "hero": {
     "badge": "AI驱动的客户支持",
-    "title": "用AI改变您的",
-    "titleHighlight": "客户服务",
+    "title": "用AI",
+    "titleHighlight": "转变您的客户服务",
     "titleEnd": "",
     "taglines": [
-      "即时扩展您的支持团队 —\n无需额外招聘。",
+      "即时扩展您的支持团队——\n无需额外招聘。",
       "每次都提供完美、一致的响应。",
-      "改变您与客户联系的方式，\n全天候24/7。"
+      "全天候24/7改变您与客户的连接方式。"
     ],
-    "cta": "免费试用",
+    "cta": "开始免费试用",
     "ctaSecondary": "观看演示"
   },
   "features": {
     "badge": "为什么选择Chatvice",
-    "title": "客户支持所需的一切",
+    "title": "客户服务所需的一切",
     "subtitle": "强大的功能帮助您提供卓越的客户服务",
+    "viewAll": "查看所有功能",
     "aiPowered": {
       "title": "AI驱动响应",
-      "description": "智能AI理解上下文，为您的客户提供准确、有帮助的响应。"
+      "description": "智能AI理解上下文，为客户提供准确、有帮助的响应。"
     },
     "multiLanguage": {
       "title": "多语言支持",
-      "description": "通过自动翻译，以客户首选的语言与他们沟通。"
+      "description": "通过自动翻译用客户偏好的语言与他们交流。"
     },
     "analytics": {
       "title": "高级分析",
-      "description": "跟踪性能、客户满意度，并确定需要改进的领域。"
+      "description": "跟踪性能、客户满意度，识别改进领域。"
     },
     "integration": {
       "title": "轻松集成",
-      "description": "简单的嵌入代码，几分钟内即可将聊天小部件添加到任何网站。"
+      "description": "简单的嵌入代码，几分钟内将聊天小部件添加到任何网站。"
     },
     "escalation": {
       "title": "智能升级",
-      "description": "在需要时自动将复杂问题转交给人工主管。"
+      "description": "需要时自动将复杂问题路由给人工主管。"
     },
     "customization": {
       "title": "完全自定义",
-      "description": "通过可自定义的颜色、主题和消息来匹配您的品牌。"
+      "description": "通过可自定义的颜色、主题和消息匹配您的品牌。"
+    },
+    "lexa1": {
+      "title": "LEXA1 AI引擎",
+      "description": "具有推理能力的高级语言模型，提供准确、上下文感知的响应。"
+    },
+    "knowledgeBase": {
+      "title": "智能知识库",
+      "description": "语义搜索的向量嵌入。从网站、文件或手动输入导入。"
+    },
+    "humanEscalation": {
+      "title": "人工升级",
+      "description": "无缝交接给主管，具有轮询分配和实时聊天接管。"
+    },
+    "widget": {
+      "title": "可嵌入小部件",
+      "description": "美观、可定制的聊天小部件，通过简单的嵌入代码在任何网站上工作。"
+    },
+    "verification": {
+      "title": "身份验证",
+      "description": "基于JWT的客户认证，实现安全、个性化的对话。"
+    }
+  },
+  "widgetCustomizer": {
+    "badge": "小部件自定义",
+    "title": "设计您完美的聊天小部件",
+    "subtitle": "自定义颜色、主题和头像以匹配您的品牌形象。立即试用！",
+    "appearance": "外观设置",
+    "themeMode": "主题模式",
+    "themeModeDesc": "在浅色和深色之间切换",
+    "light": "浅色",
+    "dark": "深色",
+    "brandColor": "品牌颜色",
+    "headerColor": "标题颜色",
+    "buttonColor": "按钮颜色",
+    "agentAvatar": "客服头像"
+  },
+  "support247": {
+    "title": "我们全天候24/7/365为您服务",
+    "description1": "您正在寻找满足需求的最佳AI聊天软件。我们在这里为您提供的不仅仅是产品。",
+    "description2": "Chatvice®产品专家全天候24/7/365为您提供实时支持，帮助推动业务增长。",
+    "chatExpert": "与产品专家聊天"
+  },
+  "intuitive": {
+    "title": "Chatvice®是",
+    "highlight": "直观的客户服务软件",
+    "description": "快速设置，团队易于使用，是客户的首选。"
+  },
+  "timeline": {
+    "badge": "开发时间线",
+    "title": "构建",
+    "titleLine2": "客户服务的未来",
+    "subtitle": "我们推出LEXA1的关键里程碑，这是驱动Chatvice的AI引擎。",
+    "milestones": {
+      "inception": {
+        "date": "2025年8月",
+        "title": "项目启动",
+        "description": "Chatvice开发开始，愿景是通过AI革新客户服务。"
+      },
+      "platform": {
+        "date": "2025年9月",
+        "title": "核心平台完成",
+        "description": "多租户架构、商家仪表板和主管面板完成。"
+      },
+      "ai": {
+        "date": "2025年10月",
+        "title": "AI集成",
+        "description": "OpenAI GPT-4集成，具有语义知识搜索的向量嵌入。"
+      },
+      "widget": {
+        "date": "2025年11月",
+        "title": "小部件和升级",
+        "description": "可嵌入聊天小部件，具有实时人工升级和主管分配。"
+      },
+      "payment": {
+        "date": "2025年11月",
+        "title": "支付集成",
+        "description": "1-Pay印尼支付网关，支持本地交易的QRIS。"
+      },
+      "launch": {
+        "date": "2025年12月9日",
+        "title": "LEXA1发布",
+        "description": "LEXA1 AI引擎正式发布 - 下一代智能客户服务。"
+      }
     }
   },
   "stats": {
-    "uptime": "99.9% 正常运行",
+    "uptime": "99.9%正常运行时间",
     "responseTime": "<2秒响应",
-    "satisfaction": "98% 满意度",
-    "support": "24/7 支持"
+    "satisfaction": "98%满意度",
+    "support": "24/7支持"
   },
   "testimonials": {
     "badge": "客户评价",
     "title": "客户怎么说",
-    "subtitle": "加入数千家已经使用Chatvice的企业"
+    "subtitle": "加入数千家已使用Chatvice的企业"
+  },
+  "pricing": {
+    "badge": "简单定价",
+    "title": "选择您的方案",
+    "subtitle": "免费开始，随业务增长扩展。无隐藏费用。",
+    "perMonth": "/月",
+    "free": "免费",
+    "freePlan": "免费版",
+    "starterPlan": "入门版",
+    "proPlan": "专业版",
+    "enterprisePlan": "企业版",
+    "customPlan": "定制版",
+    "getStarted": "开始使用",
+    "contact": "联系销售",
+    "trialDays": "天免费试用",
+    "popular": "最受欢迎",
+    "viewAllPlans": "查看所有方案"
   },
   "cta": {
-    "title": "准备好改变您的客户服务了吗？",
-    "subtitle": "立即开始免费试用，体验AI带来的不同。",
+    "title": "准备好转变您的客户支持了吗？",
+    "subtitle": "今天开始免费试用，体验AI带来的改变。",
     "button": "免费开始",
     "noCreditCard": "无需信用卡"
   },
   "footer": {
-    "description": "面向现代企业的AI客户服务平台。",
+    "description": "面向现代企业的AI驱动客户服务平台。",
     "product": "产品",
     "company": "公司",
     "legal": "法律",
     "privacy": "隐私政策",
     "terms": "服务条款",
     "copyright": "© 2025 Chatvice. 保留所有权利。"
+  },
+  "affiliate": {
+    "badge": "联盟计划",
+    "title": "分享赚钱",
+    "subtitle": "加入我们的联盟计划，每个推荐获得20%佣金。",
+    "commission": "20%佣金",
+    "commissionDesc": "每次成功推荐都能获得",
+    "cookieDuration": "30天Cookie",
+    "cookieDesc": "您的推荐跟踪30天",
+    "minPayout": "最低$50",
+    "minPayoutDesc": "低支付门槛",
+    "joinNow": "加入联盟计划"
   }
 }

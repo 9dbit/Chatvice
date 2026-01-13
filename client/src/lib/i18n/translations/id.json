@@ -27,6 +27,7 @@
     "badge": "Mengapa Chatvice",
     "title": "Semua yang Anda Butuhkan untuk Layanan Pelanggan",
     "subtitle": "Fitur canggih untuk membantu Anda memberikan layanan pelanggan yang luar biasa",
+    "viewAll": "Lihat Semua Fitur",
     "aiPowered": {
       "title": "Respons Berbasis AI",
       "description": "AI cerdas yang memahami konteks dan memberikan respons akurat kepada pelanggan Anda."
@@ -50,6 +51,89 @@
     "customization": {
       "title": "Kustomisasi Penuh",
       "description": "Sesuaikan dengan brand Anda dengan warna, tema, dan pesan yang dapat disesuaikan."
+    },
+    "lexa1": {
+      "title": "Mesin AI LEXA1",
+      "description": "Model bahasa canggih dengan kemampuan reasoning untuk respons akurat dan kontekstual."
+    },
+    "knowledgeBase": {
+      "title": "Basis Pengetahuan Cerdas",
+      "description": "Vector embeddings untuk pencarian semantik. Import dari website, file, atau input manual."
+    },
+    "humanEscalation": {
+      "title": "Eskalasi ke Manusia",
+      "description": "Handoff mulus ke supervisor dengan penugasan round-robin dan takeover chat real-time."
+    },
+    "widget": {
+      "title": "Widget Chat Embed",
+      "description": "Widget chat yang indah dan dapat dikustomisasi yang bekerja di website mana pun dengan kode embed sederhana."
+    },
+    "verification": {
+      "title": "Verifikasi Identitas",
+      "description": "Autentikasi pelanggan berbasis JWT untuk percakapan yang aman dan personal."
+    }
+  },
+  "widgetCustomizer": {
+    "badge": "Kustomisasi Widget",
+    "title": "Desain Widget Chat Sempurna Anda",
+    "subtitle": "Sesuaikan warna, tema, dan avatar agar sesuai dengan identitas brand Anda. Coba langsung!",
+    "appearance": "Pengaturan Tampilan",
+    "themeMode": "Mode Tema",
+    "themeModeDesc": "Beralih antara terang dan gelap",
+    "light": "Terang",
+    "dark": "Gelap",
+    "brandColor": "Warna Brand",
+    "headerColor": "Warna Header",
+    "buttonColor": "Warna Tombol",
+    "agentAvatar": "Avatar Agen"
+  },
+  "support247": {
+    "title": "Kami siap melayani Anda 24/7/365",
+    "description1": "Anda mencari software AI chat terbaik untuk memenuhi kebutuhan Anda. Kami hadir untuk menawarkan lebih dari sekadar produk.",
+    "description2": "Ahli Produk Chatvice® tersedia untuk Anda 24/7/365 untuk memberikan dukungan real-time dan membantu pertumbuhan bisnis Anda.",
+    "chatExpert": "Chat dengan Ahli Produk"
+  },
+  "intuitive": {
+    "title": "Chatvice® adalah",
+    "highlight": "software layanan pelanggan yang intuitif",
+    "description": "Cepat diatur, mudah digunakan tim Anda, dan pilihan utama pelanggan Anda."
+  },
+  "timeline": {
+    "badge": "Linimasa Pengembangan",
+    "title": "Membangun Masa Depan",
+    "titleLine2": "Layanan Pelanggan",
+    "subtitle": "Milestone penting dalam perjalanan kami meluncurkan LEXA1, mesin AI yang menggerakkan Chatvice.",
+    "milestones": {
+      "inception": {
+        "date": "Agustus 2025",
+        "title": "Awal Proyek",
+        "description": "Pengembangan Chatvice dimulai dengan visi merevolusi layanan pelanggan melalui AI."
+      },
+      "platform": {
+        "date": "September 2025",
+        "title": "Platform Inti Selesai",
+        "description": "Arsitektur multi-tenant, dashboard merchant, dan panel supervisor selesai."
+      },
+      "ai": {
+        "date": "Oktober 2025",
+        "title": "Integrasi AI",
+        "description": "Integrasi OpenAI GPT-4 dengan vector embeddings untuk pencarian pengetahuan semantik."
+      },
+      "widget": {
+        "date": "November 2025",
+        "title": "Widget & Eskalasi",
+        "description": "Widget chat embed dengan eskalasi manusia real-time dan penugasan supervisor."
+      },
+      "payment": {
+        "date": "November 2025",
+        "title": "Integrasi Pembayaran",
+        "description": "Gateway pembayaran Indonesia 1-Pay dengan dukungan QRIS untuk transaksi lokal."
+      },
+      "launch": {
+        "date": "9 Desember 2025",
+        "title": "Peluncuran LEXA1",
+        "description": "Peluncuran resmi Mesin AI LEXA1 - generasi berikutnya layanan pelanggan cerdas."
+      }
     }
   },
   "stats": {
@@ -62,6 +146,23 @@
     "badge": "Testimoni",
     "title": "Apa Kata Pelanggan Kami",
     "subtitle": "Bergabunglah dengan ribuan bisnis yang sudah menggunakan Chatvice"
+  },
+  "pricing": {
+    "badge": "Harga Sederhana",
+    "title": "Pilih Paket Anda",
+    "subtitle": "Mulai gratis dan berkembang sesuai kebutuhan. Tanpa biaya tersembunyi.",
+    "perMonth": "/bulan",
+    "free": "Gratis",
+    "freePlan": "Gratis",
+    "starterPlan": "Starter",
+    "proPlan": "Pro",
+    "enterprisePlan": "Enterprise",
+    "customPlan": "Custom",
+    "getStarted": "Mulai Sekarang",
+    "contact": "Hubungi Sales",
+    "trialDays": "hari uji coba gratis",
+    "popular": "Paling Populer",
+    "viewAllPlans": "Lihat Semua Paket"
   },
   "cta": {
     "title": "Siap Transformasi Layanan Pelanggan Anda?",
@@ -77,5 +178,17 @@
     "privacy": "Kebijakan Privasi",
     "terms": "Syarat Layanan",
     "copyright": "© 2025 Chatvice. Hak cipta dilindungi."
+  },
+  "affiliate": {
+    "badge": "Program Afiliasi",
+    "title": "Dapatkan Penghasilan Sambil Berbagi",
+    "subtitle": "Bergabunglah dengan program afiliasi kami dan dapatkan komisi 20% untuk setiap referral.",
+    "commission": "Komisi 20%",
+    "commissionDesc": "Dapatkan dari setiap referral sukses",
+    "cookieDuration": "Cookie 30 Hari",
+    "cookieDesc": "Referral Anda dilacak selama 30 hari",
+    "minPayout": "Minimum $50",
+    "minPayoutDesc": "Ambang batas pembayaran rendah",
+    "joinNow": "Gabung Program Afiliasi"
   }
 }

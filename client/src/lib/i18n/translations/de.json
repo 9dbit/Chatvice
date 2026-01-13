@@ -1,81 +1,15 @@
 {
-  "nav": {
-    "home": "Startseite",
-    "features": "Funktionen",
-    "pricing": "Preise",
-    "api": "API",
-    "faq": "FAQ",
-    "about": "Über uns",
-    "signIn": "Anmelden",
-    "getStarted": "Kostenlos starten",
-    "dashboard": "Dashboard"
-  },
-  "hero": {
-    "badge": "KI-gestützter Kundensupport",
-    "title": "Transformieren Sie Ihren",
-    "titleHighlight": "Kundenservice",
-    "titleEnd": "mit KI",
-    "taglines": [
-      "Skalieren Sie Ihr Support-Team sofort —\nohne zusätzliche Einstellungen.",
-      "Liefern Sie perfekte, konsistente Antworten\njedes einzelne Mal.",
-      "Verändern Sie die Art und Weise,\nwie Sie mit Kunden verbinden, 24/7."
-    ],
-    "cta": "Kostenlose Testversion starten",
-    "ctaSecondary": "Demo ansehen"
-  },
-  "features": {
-    "badge": "Warum Chatvice wählen",
-    "title": "Alles, was Sie für den Kundensupport brauchen",
-    "subtitle": "Leistungsstarke Funktionen für außergewöhnlichen Kundenservice",
-    "aiPowered": {
-      "title": "KI-gestützte Antworten",
-      "description": "Intelligente KI, die Kontext versteht und Ihren Kunden genaue, hilfreiche Antworten liefert."
-    },
-    "multiLanguage": {
-      "title": "Mehrsprachige Unterstützung",
-      "description": "Kommunizieren Sie mit Kunden in ihrer bevorzugten Sprache mit automatischer Übersetzung."
-    },
-    "analytics": {
-      "title": "Erweiterte Analysen",
-      "description": "Verfolgen Sie Leistung, Kundenzufriedenheit und identifizieren Sie Verbesserungsbereiche."
-    },
-    "integration": {
-      "title": "Einfache Integration",
-      "description": "Einfacher Einbettungscode, um das Chat-Widget in wenigen Minuten zu jeder Website hinzuzufügen."
-    },
-    "escalation": {
-      "title": "Intelligente Eskalation",
-      "description": "Leiten Sie komplexe Probleme automatisch an menschliche Supervisoren weiter, wenn nötig."
-    },
-    "customization": {
-      "title": "Volle Anpassung",
-      "description": "Passen Sie es an Ihre Marke mit anpassbaren Farben, Themen und Nachrichten an."
-    }
-  },
-  "stats": {
-    "uptime": "99,9% Verfügbarkeit",
-    "responseTime": "<2s Antwortzeit",
-    "satisfaction": "98% Zufriedenheit",
-    "support": "24/7 Support"
-  },
-  "testimonials": {
-    "badge": "Kundenstimmen",
-    "title": "Was unsere Kunden sagen",
-    "subtitle": "Schließen Sie sich Tausenden von Unternehmen an, die bereits Chatvice nutzen"
-  },
-  "cta": {
-    "title": "Bereit, Ihren Kundensupport zu transformieren?",
-    "subtitle": "Starten Sie heute Ihre kostenlose Testversion und erleben Sie den Unterschied, den KI machen kann.",
-    "button": "Kostenlos starten",
-    "noCreditCard": "Keine Kreditkarte erforderlich"
-  },
-  "footer": {
-    "description": "KI-gestützte Kundenservice-Plattform für moderne Unternehmen.",
-    "product": "Produkt",
-    "company": "Unternehmen",
-    "legal": "Rechtliches",
-    "privacy": "Datenschutzrichtlinie",
-    "terms": "Nutzungsbedingungen",
-    "copyright": "© 2025 Chatvice. Alle Rechte vorbehalten."
-  }
+  "nav": { "home": "Startseite", "features": "Funktionen", "pricing": "Preise", "api": "API", "faq": "FAQ", "about": "Über uns", "signIn": "Anmelden", "getStarted": "Kostenlos starten", "dashboard": "Dashboard" },
+  "hero": { "badge": "KI-gestützter Kundenservice", "title": "Transformieren Sie Ihren", "titleHighlight": "Kundenservice", "titleEnd": "mit KI", "taglines": ["Skalieren Sie Ihr Support-Team sofort —\nohne zusätzliche Einstellungen.", "Liefern Sie makellose, konsistente Antworten\njedes Mal.", "Verändern Sie die Art, wie Sie sich\nmit Kunden verbinden, 24/7."], "cta": "Kostenlos testen", "ctaSecondary": "Demo ansehen" },
+  "features": { "badge": "Warum Chatvice wählen", "title": "Alles was Sie für Kundenservice brauchen", "subtitle": "Leistungsstarke Funktionen für außergewöhnlichen Kundenservice", "viewAll": "Alle Funktionen anzeigen", "aiPowered": { "title": "KI-gestützte Antworten", "description": "Intelligente KI, die Kontext versteht und genaue Antworten liefert." }, "multiLanguage": { "title": "Mehrsprachiger Support", "description": "Kommunizieren Sie mit Kunden in ihrer bevorzugten Sprache." }, "analytics": { "title": "Erweiterte Analysen", "description": "Verfolgen Sie Leistung und Kundenzufriedenheit." }, "integration": { "title": "Einfache Integration", "description": "Einfacher Einbettungscode für jede Website." }, "escalation": { "title": "Intelligente Eskalation", "description": "Automatisches Routing komplexer Probleme an Supervisoren." }, "customization": { "title": "Volle Anpassung", "description": "Passen Sie Farben, Themen und Nachrichten an." }, "lexa1": { "title": "LEXA1 KI-Engine", "description": "Fortschrittliches Sprachmodell mit Reasoning-Fähigkeiten." }, "knowledgeBase": { "title": "Intelligente Wissensbasis", "description": "Vektor-Embeddings für semantische Suche." }, "humanEscalation": { "title": "Menschliche Eskalation", "description": "Nahtlose Übergabe an Supervisoren." }, "widget": { "title": "Einbettbares Widget", "description": "Schönes, anpassbares Chat-Widget." }, "verification": { "title": "Identitätsverifizierung", "description": "JWT-basierte Kundenauthentifizierung." } },
+  "widgetCustomizer": { "badge": "Widget-Anpassung", "title": "Gestalten Sie Ihr perfektes Chat-Widget", "subtitle": "Passen Sie Farben, Themen und Avatar an Ihre Marke an. Jetzt ausprobieren!", "appearance": "Erscheinungseinstellungen", "themeMode": "Themenmodus", "themeModeDesc": "Zwischen hell und dunkel wechseln", "light": "Hell", "dark": "Dunkel", "brandColor": "Markenfarbe", "headerColor": "Kopfzeilenfarbe", "buttonColor": "Schaltflächenfarbe", "agentAvatar": "Agenten-Avatar" },
+  "support247": { "title": "Wir sind 24/7/365 für Sie da", "description1": "Sie suchen die beste KI-Chat-Software. Wir bieten mehr als nur ein Produkt.", "description2": "Chatvice® Produktexperten stehen Ihnen 24/7/365 zur Verfügung.", "chatExpert": "Mit Experten chatten" },
+  "intuitive": { "title": "Chatvice® ist", "highlight": "intuitive Kundenservice-Software", "description": "Schnell einzurichten, einfach für Ihr Team und die erste Wahl Ihrer Kunden." },
+  "timeline": { "badge": "Entwicklungszeitplan", "title": "Die Zukunft des", "titleLine2": "Kundenservice bauen", "subtitle": "Wichtige Meilensteine auf dem Weg zum Launch von LEXA1.", "milestones": { "inception": { "date": "August 2025", "title": "Projektbeginn", "description": "Chatvice-Entwicklung beginnt." }, "platform": { "date": "September 2025", "title": "Kernplattform fertig", "description": "Multi-Tenant-Architektur abgeschlossen." }, "ai": { "date": "Oktober 2025", "title": "KI-Integration", "description": "OpenAI GPT-4 Integration." }, "widget": { "date": "November 2025", "title": "Widget & Eskalation", "description": "Einbettbares Chat-Widget." }, "payment": { "date": "November 2025", "title": "Zahlungsintegration", "description": "Indonesisches Zahlungsgateway." }, "launch": { "date": "9. Dezember 2025", "title": "LEXA1 Launch", "description": "Offizielle Einführung." } } },
+  "stats": { "uptime": "99,9% Verfügbarkeit", "responseTime": "<2s Antwort", "satisfaction": "98% Zufriedenheit", "support": "24/7 Support" },
+  "testimonials": { "badge": "Testimonials", "title": "Was unsere Kunden sagen", "subtitle": "Schließen Sie sich Tausenden von Unternehmen an" },
+  "pricing": { "badge": "Einfache Preise", "title": "Wählen Sie Ihren Plan", "subtitle": "Starten Sie kostenlos und skalieren Sie. Keine versteckten Gebühren.", "perMonth": "/Monat", "free": "Kostenlos", "freePlan": "Kostenloser Plan", "starterPlan": "Starter-Plan", "proPlan": "Pro-Plan", "enterprisePlan": "Enterprise-Plan", "customPlan": "Individueller Plan", "getStarted": "Loslegen", "contact": "Vertrieb kontaktieren", "trialDays": "Tage kostenlos testen", "popular": "Beliebteste", "viewAllPlans": "Alle Pläne anzeigen" },
+  "cta": { "title": "Bereit Ihren Kundenservice zu transformieren?", "subtitle": "Starten Sie heute Ihre kostenlose Testversion.", "button": "Kostenlos starten", "noCreditCard": "Keine Kreditkarte erforderlich" },
+  "footer": { "description": "KI-gestützte Kundenservice-Plattform für moderne Unternehmen.", "product": "Produkt", "company": "Unternehmen", "legal": "Rechtliches", "privacy": "Datenschutz", "terms": "Nutzungsbedingungen", "copyright": "© 2025 Chatvice. Alle Rechte vorbehalten." },
+  "affiliate": { "badge": "Partnerprogramm", "title": "Verdienen beim Teilen", "subtitle": "Treten Sie unserem Partnerprogramm bei und verdienen Sie 20% Provision.", "commission": "20% Provision", "commissionDesc": "Verdienen bei jeder erfolgreichen Empfehlung", "cookieDuration": "30-Tage-Cookie", "cookieDesc": "Empfehlungen werden 30 Tage verfolgt", "minPayout": "Mindestens $50", "minPayoutDesc": "Niedrige Auszahlungsschwelle", "joinNow": "Partnerprogramm beitreten" }
 }

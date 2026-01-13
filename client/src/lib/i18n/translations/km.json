@@ -1,81 +1,15 @@
 {
-  "nav": {
-    "home": "ទំព័រដើម",
-    "features": "មុខងារ",
-    "pricing": "តម្លៃ",
-    "api": "API",
-    "faq": "សំណួរញឹកញាប់",
-    "about": "អំពី",
-    "signIn": "ចូល",
-    "getStarted": "ចាប់ផ្តើមឥតគិតថ្លៃ",
-    "dashboard": "ផ្ទាំងគ្រប់គ្រង"
-  },
-  "hero": {
-    "badge": "ការគាំទ្រអតិថិជនដោយ AI",
-    "title": "បំលែង",
-    "titleHighlight": "សេវាកម្មអតិថិជន",
-    "titleEnd": "ជាមួយ AI",
-    "taglines": [
-      "ពង្រីកក្រុមគាំទ្ររបស់អ្នកភ្លាមៗ —\nមិនចាំបាច់ជួលបន្ថែម។",
-      "ផ្តល់ការឆ្លើយតបល្អឥតខ្ចោះ និងស្រប\nគ្រប់ពេល។",
-      "បំលែងវិធីដែលអ្នកភ្ជាប់\nជាមួយអតិថិជន ២៤/៧។"
-    ],
-    "cta": "ចាប់ផ្តើមសាកល្បងឥតគិតថ្លៃ",
-    "ctaSecondary": "មើលការបង្ហាញ"
-  },
-  "features": {
-    "badge": "ហេតុអ្វីជ្រើសរើស Chatvice",
-    "title": "អ្វីគ្រប់យ៉ាងដែលអ្នកត្រូវការសម្រាប់ការគាំទ្រអតិថិជន",
-    "subtitle": "មុខងារដ៏មានអានុភាពដើម្បីជួយអ្នកផ្តល់សេវាកម្មអតិថិជនល្អ",
-    "aiPowered": {
-      "title": "ការឆ្លើយតបដោយ AI",
-      "description": "AI ឆ្លាតវៃដែលយល់បរិបទ និងផ្តល់ការឆ្លើយតបត្រឹមត្រូវ និងមានប្រយោជន៍ដល់អតិថិជនរបស់អ្នក។"
-    },
-    "multiLanguage": {
-      "title": "គាំទ្រច្រើនភាសា",
-      "description": "ទំនាក់ទំនងជាមួយអតិថិជនជាភាសាដែលពួកគេចូលចិត្តជាមួយការបកប្រែស្វ័យប្រវត្តិ។"
-    },
-    "analytics": {
-      "title": "ការវិភាគកម្រិតខ្ពស់",
-      "description": "តាមដានប្រសិទ្ធភាព ការពេញចិត្តរបស់អតិថិជន និងកំណត់ផ្នែកដែលត្រូវកែលម្អ។"
-    },
-    "integration": {
-      "title": "ការរួមបញ្ចូលងាយស្រួល",
-      "description": "កូដបង្កប់សាមញ្ញដើម្បីបន្ថែមវីដជែតជជែកទៅគេហទំព័រណាមួយក្នុងរយៈពេលប៉ុន្មាននាទី។"
-    },
-    "escalation": {
-      "title": "ការលើកកម្ពស់ឆ្លាតវៃ",
-      "description": "បញ្ជូនបញ្ហាស្មុគស្មាញដោយស្វ័យប្រវត្តិទៅអ្នកត្រួតពិនិត្យមនុស្សនៅពេលចាំបាច់។"
-    },
-    "customization": {
-      "title": "ការប្ដូរតាមបំណងពេញលេញ",
-      "description": "ផ្គូផ្គងម៉ាកយីហោរបស់អ្នកជាមួយពណ៌ ស្បែក និងសារដែលអាចប្ដូរតាមបំណងបាន។"
-    }
-  },
-  "stats": {
-    "uptime": "99.9% ដំណើរការ",
-    "responseTime": "ឆ្លើយតប <2 វិនាទី",
-    "satisfaction": "98% ពេញចិត្ត",
-    "support": "គាំទ្រ 24/7"
-  },
-  "testimonials": {
-    "badge": "សក្ខីកម្ម",
-    "title": "អ្វីដែលអតិថិជនយើងនិយាយ",
-    "subtitle": "ចូលរួមជាមួយអាជីវកម្មរាប់ពាន់ដែលប្រើ Chatvice រួចហើយ"
-  },
-  "cta": {
-    "title": "រួចរាល់ដើម្បីបំលែងការគាំទ្រអតិថិជនរបស់អ្នក?",
-    "subtitle": "ចាប់ផ្តើមសាកល្បងឥតគិតថ្លៃថ្ងៃនេះ ហើយមើលភាពខុសគ្នាដែល AI អាចធ្វើបាន។",
-    "button": "ចាប់ផ្តើមឥតគិតថ្លៃ",
-    "noCreditCard": "មិនត្រូវការកាតឥណទាន"
-  },
-  "footer": {
-    "description": "វេទិកាសេវាកម្មអតិថិជន AI សម្រាប់អាជីវកម្មទំនើប។",
-    "product": "ផលិតផល",
-    "company": "ក្រុមហ៊ុន",
-    "legal": "ផ្លូវច្បាប់",
-    "privacy": "គោលការណ៍ឯកជនភាព",
-    "terms": "ល័ក្ខខ័ណ្ឌសេវាកម្ម",
-    "copyright": "© 2025 Chatvice។ រក្សាសិទ្ធិគ្រប់យ៉ាង។"
-  }
+  "nav": { "home": "ទំព័រដើម", "features": "មុខងារ", "pricing": "តម្លៃ", "api": "API", "faq": "សំណួរញឹកញាប់", "about": "អំពី", "signIn": "ចូល", "getStarted": "ចាប់ផ្តើមឥតគិតថ្លៃ", "dashboard": "ផ្ទាំងគ្រប់គ្រង" },
+  "hero": { "badge": "ការគាំទ្រអតិថិជនដោយ AI", "title": "ផ្លាស់ប្តូរ", "titleHighlight": "សេវាកម្មអតិថិជន", "titleEnd": "ជាមួយ AI", "taglines": ["ពង្រីកក្រុមគាំទ្រភ្លាមៗ —\nមិនចាំបាច់ជួល។", "ផ្តល់ការឆ្លើយតបល្អឥតខ្ចោះ\nរាល់ពេល។", "ផ្លាស់ប្តូរវិធីតភ្ជាប់\nជាមួយអតិថិជន 24/7។"], "cta": "ចាប់ផ្តើមសាកល្បង", "ctaSecondary": "មើលសាកល្បង" },
+  "features": { "badge": "ហេតុអ្វីជ្រើស Chatvice", "title": "អ្វីគ្រប់យ៉ាងសម្រាប់សេវាអតិថិជន", "subtitle": "មុខងារដ៏មានអានុភាពសម្រាប់សេវាកម្មអតិថិជនពិសេស", "viewAll": "មើលមុខងារទាំងអស់", "aiPowered": { "title": "ការឆ្លើយតបដោយ AI", "description": "AI ឆ្លាតវៃដែលយល់បរិបទ។" }, "multiLanguage": { "title": "គាំទ្រពហុភាសា", "description": "ទំនាក់ទំនងជាភាសារបស់អតិថិជន។" }, "analytics": { "title": "ការវិភាគកម្រិតខ្ពស់", "description": "តាមដានការអនុវត្តន៍និងការពេញចិត្ត។" }, "integration": { "title": "រួមបញ្ចូលងាយស្រួល", "description": "កូដបង្កប់សាមញ្ញសម្រាប់គេហទំព័រណាមួយ។" }, "escalation": { "title": "ការបង្កើនឆ្លាតវៃ", "description": "បញ្ជូនបញ្ហាស្មុគ្រស្មាញដោយស្វ័យប្រវត្តិ។" }, "customization": { "title": "ប្ដូរតាមបំណង", "description": "ប្ដូរពណ៌ ស្បែក និងសារ។" }, "lexa1": { "title": "ម៉ាស៊ីន AI LEXA1", "description": "គំរូភាសាកម្រិតខ្ពស់។" }, "knowledgeBase": { "title": "មូលដ្ឋានចំណេះដឹង", "description": "ការបង្កប់វ៉ិចទ័រសម្រាប់ការស្វែងរក។" }, "humanEscalation": { "title": "ការបង្កើនទៅមនុស្ស", "description": "ផ្ទេរយ៉ាងរលូន។" }, "widget": { "title": "ធាតុបង្កប់បាន", "description": "ធាតុជជែកស្អាត។" }, "verification": { "title": "ផ្ទៀងផ្ទាត់អត្តសញ្ញាណ", "description": "ការផ្ទៀងផ្ទាត់ JWT។" } },
+  "widgetCustomizer": { "badge": "ប្ដូរធាតុតាមបំណង", "title": "រចនាធាតុជជែកល្អឥតខ្ចោះ", "subtitle": "ប្ដូរពណ៌ ស្បែក និងរូបភាពឱ្យសមនឹងម៉ាកយីហោ!", "appearance": "ការកំណត់រូបរាង", "themeMode": "របៀបស្បែក", "themeModeDesc": "ប្ដូររវាងភ្លឺនិងងងឹត", "light": "ភ្លឺ", "dark": "ងងឹត", "brandColor": "ពណ៌ម៉ាក", "headerColor": "ពណ៌បឋមកថា", "buttonColor": "ពណ៌ប៊ូតុង", "agentAvatar": "រូបភាពភ្នាក់ងារ" },
+  "support247": { "title": "យើងនៅទីនេះ 24/7/365", "description1": "អ្នកកំពុងស្វែងរកកម្មវិធី AI ល្អបំផុត។ យើងផ្តល់ជូនច្រើនជាង។", "description2": "អ្នកជំនាញ Chatvice® មាន 24/7/365។", "chatExpert": "ជជែកជាមួយអ្នកជំនាញ" },
+  "intuitive": { "title": "Chatvice® គឺ", "highlight": "កម្មវិធីសេវាអតិថិជនងាយស្រួល", "description": "រៀបចំរហ័ស ងាយស្រួលប្រើសម្រាប់ក្រុមរបស់អ្នក។" },
+  "timeline": { "badge": "កាលវិភាគអភិវឌ្ឍន៍", "title": "សាងសង់អនាគត", "titleLine2": "សេវាកម្មអតិថិជន", "subtitle": "ព្រឹត្តិការណ៍សំខាន់ក្នុងការបើកដំណើរការ LEXA1។", "milestones": { "inception": { "date": "សីហា ២០២៥", "title": "ចាប់ផ្តើមគម្រោង", "description": "ចាប់ផ្តើមអភិវឌ្ឍន៍ Chatvice។" }, "platform": { "date": "កញ្ញា ២០២៥", "title": "វេទិកាស្នូល", "description": "ស្ថាបត្យកម្មពហុអ្នកជួលរួចរាល់។" }, "ai": { "date": "តុលា ២០២៥", "title": "រួមបញ្ចូល AI", "description": "រួមបញ្ចូល OpenAI GPT-4។" }, "widget": { "date": "វិច្ឆិកា ២០២៥", "title": "ធាតុ និងការបង្កើន", "description": "ធាតុជជែកបង្កប់បាន។" }, "payment": { "date": "វិច្ឆិកា ២០២៥", "title": "រួមបញ្ចូលការទូទាត់", "description": "ច្រកទូទាត់ឥណ្ឌូនេស៊ី។" }, "launch": { "date": "៩ ធ្នូ ២០២៥", "title": "បើកដំណើរការ LEXA1", "description": "បើកដំណើរការផ្លូវការ។" } } },
+  "stats": { "uptime": "99.9% ពេលវេលាដំណើរការ", "responseTime": "<២វិនាទី", "satisfaction": "98% ពេញចិត្ត", "support": "គាំទ្រ 24/7" },
+  "testimonials": { "badge": "សក្ខីកម្ម", "title": "អតិថិជនយើងនិយាយអ្វី", "subtitle": "ចូលរួមជាមួយអាជីវកម្មរាប់ពាន់" },
+  "pricing": { "badge": "តម្លៃសាមញ្ញ", "title": "ជ្រើសរើសផែនការ", "subtitle": "ចាប់ផ្តើមឥតគិតថ្លៃ។ គ្មានថ្លៃលាក់។", "perMonth": "/ខែ", "free": "ឥតគិតថ្លៃ", "freePlan": "ផែនការឥតគិតថ្លៃ", "starterPlan": "ផែនការចាប់ផ្តើម", "proPlan": "ផែនការ Pro", "enterprisePlan": "ផែនការសហគ្រាស", "customPlan": "ផែនការផ្ទាល់ខ្លួន", "getStarted": "ចាប់ផ្តើម", "contact": "ទំនាក់ទំនង", "trialDays": "ថ្ងៃសាកល្បង", "popular": "ពេញនិយម", "viewAllPlans": "មើលផែនការទាំងអស់" },
+  "cta": { "title": "ត្រៀមខ្លួនផ្លាស់ប្តូរសេវាកម្មអតិថិជន?", "subtitle": "ចាប់ផ្តើមសាកល្បងឥតគិតថ្លៃថ្ org។", "button": "ចាប់ផ្តើមឥតគិតថ្លៃ", "noCreditCard": "មិនត្រូវការកាតឥណទាន" },
+  "footer": { "description": "វេទិកាសេវាកម្មអតិថិជន AI សម្រាប់អាជីវកម្មសម័យទំនើប។", "product": "ផលិតផល", "company": "ក្រុមហ៊ុន", "legal": "ច្បាប់", "privacy": "គោលការណ៍ភាពឯកជន", "terms": "លក្ខខណ្ឌសេវាកម org", "copyright": "© 2025 Chatvice។ រក្សាសិទ្ធិគ្រប់យ៉ org។" },
+  "affiliate": { "badge": "កម្មវិធីសម្ព័ org org org org org", "title": "រកប្រាក់ពេលចែករំលែក", "subtitle": "ចូលរួមនិងទទួល org org org org org org org 20%។", "commission": "org org org org org org org org org org org org org org org org org org org org org org org 20%org", "commissionDesc": "org org org org org org org org org org org org org org org org org org org org", "cookieDuration": "org org org org org org org org 30 org org", "cookieDesc": "org org org org org org org org org org org org org org 30 org org", "minPayout": "org org org org org org org org org $50", "minPayoutDesc": "org org org org org org org org org org org org org org", "joinNow": "org org org org org org org org org org org org org org org org org org org" }
 }
