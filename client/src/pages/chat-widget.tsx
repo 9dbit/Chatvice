@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Bot, Send, X, Minimize2, Maximize2, HeadphonesIcon, User, ImageIcon, Video, FileText, Plus, Loader2, ChevronLeft, ChevronRight, ExternalLink, ShoppingBag, EyeOff, GripVertical } from "lucide-react";
+import { Bot, Send, X, Shrink, Square, HeadphonesIcon, User, ImageIcon, Video, FileText, Plus, Loader2, ChevronLeft, ChevronRight, ExternalLink, ShoppingBag, EyeOff, GripVertical } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Message, SuggestedQuestion, WelcomeBubble, ChatButton, ProductCard, ProductCardButton } from "@shared/schema";
@@ -1094,7 +1094,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </div>
         </div>
         <div className="flex gap-1">
-          {/* Fullscreen Toggle - Only show when not embedded */}
+          {/* Fullscreen Toggle - Single button, only show when not embedded */}
           {!embedded && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -1105,50 +1105,38 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   onClick={() => setIsFullscreen(!isFullscreen)}
                   data-testid="button-fullscreen-widget"
                 >
-                  {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                  {isFullscreen ? (
+                    // Fullscreen mode: show square icon to indicate current state
+                    <Square className="w-4 h-4" />
+                  ) : (
+                    // Standard mode: show arrows pointing inward (shrink arrows)
+                    <Shrink className="w-4 h-4" />
+                  )}
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                <p className="text-xs">{isFullscreen ? "Exit fullscreen" : "Fullscreen view"}</p>
+                <p className="text-xs">{isFullscreen ? "Standard view" : "Fullscreen view"}</p>
               </TooltipContent>
             </Tooltip>
           )}
           
+          {/* Close button - X icon */}
           {(!embedded || showCloseButton) && (
-            <>
-              {/* Minimize button - collapse to launcher bubble */}
-              <Button
-                size="icon"
-                variant="ghost"
-                className="text-white hover:bg-white/20"
-                onClick={() => {
-                  if (embedded && showCloseButton) {
-                    window.parent.postMessage({ type: "chatvice-close" }, "*");
-                  } else {
-                    handleWidgetClose();
-                  }
-                }}
-                data-testid="button-minimize-widget"
-              >
-                <Minimize2 className="w-4 h-4" />
-              </Button>
-              {/* Close button */}
-              <Button
-                size="icon"
-                variant="ghost"
-                className="text-white hover:bg-white/20"
-                onClick={() => {
-                  if (embedded && showCloseButton) {
-                    window.parent.postMessage({ type: "chatvice-close" }, "*");
-                  } else {
-                    handleWidgetClose();
-                  }
-                }}
-                data-testid="button-close-widget"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="text-white hover:bg-white/20"
+              onClick={() => {
+                if (embedded && showCloseButton) {
+                  window.parent.postMessage({ type: "chatvice-close" }, "*");
+                } else {
+                  handleWidgetClose();
+                }
+              }}
+              data-testid="button-close-widget"
+            >
+              <X className="w-4 h-4" />
+            </Button>
           )}
         </div>
       </div>
