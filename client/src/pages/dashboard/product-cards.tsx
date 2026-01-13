@@ -14,7 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Edit2, ExternalLink, Image, Link2, Loader2, Package, Settings, Bot, Users, ChevronDown, Sparkles, Zap, Globe, RefreshCw, Check, X, ShoppingCart, Eye, Database } from "lucide-react";
+import { Plus, Trash2, Edit2, ExternalLink, Image, Link2, Loader2, Package, Settings, Bot, Users, ChevronDown, Sparkles, Zap, Globe, RefreshCw, Check, X, ShoppingCart, Eye, Database, Upload } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import type { ProductCard, ProductCardButton, Agent, ProductRecommendationSetting, ProductCrawlSource, CrawledProduct } from "@shared/schema";
 
 type ProductCardFormData = {
@@ -62,6 +63,8 @@ export default function ProductCardsPage() {
     maxProductsPerRecommendation: 3,
     showPriceInRecommendation: true,
   });
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const { data: cards = [], isLoading } = useQuery<ProductCard[]>({
     queryKey: ["/api/product-cards"],
@@ -277,6 +280,61 @@ export default function ProductCardsPage() {
     }
   }
 
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ['image/png', 'image/gif', 'image/jpeg', 'image/jpg', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({ title: "Please select a PNG, GIF, JPG, or WebP image", variant: "destructive" });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Image must be less than 5MB", variant: "destructive" });
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress(0);
+    
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => Math.min(prev + 10, 90));
+    }, 100);
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', 'product_card');
+
+    try {
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Upload failed');
+      }
+
+      const data = await response.json();
+      setForm({ ...form, imageUrl: data.url });
+      toast({ title: "Image uploaded successfully" });
+    } catch (error: any) {
+      clearInterval(progressInterval);
+      toast({ title: error.message || "Failed to upload image", variant: "destructive" });
+    } finally {
+      setTimeout(() => {
+        setIsUploading(false);
+        setUploadProgress(0);
+      }, 500);
+    }
+  }
+
   function resetForm() {
     setForm({ title: "", description: "", imageUrl: "", sourceUrl: "", price: "" });
   }
@@ -395,30 +453,63 @@ export default function ProductCardsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="imageUrl">Image URL</Label>
-                  <Input
-                    id="imageUrl"
-                    value={form.imageUrl}
-                    onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-                    placeholder="https://example.com/image.jpg"
-                    data-testid="input-image-url"
-                  />
+                  <Label>Product Image</Label>
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      <Input
+                        type="file"
+                        accept="image/png,image/gif,image/jpeg,image/jpg,image/webp"
+                        onChange={handleImageUpload}
+                        className="flex-1"
+                        disabled={isUploading}
+                        data-testid="input-image-file"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        disabled={isUploading}
+                        onClick={() => (document.querySelector('[data-testid="input-image-file"]') as HTMLInputElement)?.click()}
+                        data-testid="button-upload-image"
+                      >
+                        <Upload className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    {isUploading && (
+                      <div className="space-y-1">
+                        <Progress value={uploadProgress} className="h-2" />
+                        <p className="text-xs text-muted-foreground text-center">Uploading... {uploadProgress}%</p>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>or enter URL:</span>
+                    </div>
+                    <Input
+                      id="imageUrl"
+                      value={form.imageUrl}
+                      onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
+                      placeholder="https://example.com/image.jpg"
+                      data-testid="input-image-url"
+                    />
+                  </div>
                 </div>
               </div>
               <div className="space-y-4">
-                <Label>Preview</Label>
-                <div className="rounded-lg border bg-card overflow-hidden">
+                <Label>Preview (Square Format)</Label>
+                <div className="rounded-lg border bg-card overflow-hidden max-w-[200px]">
                   {form.imageUrl ? (
-                    <img 
-                      src={form.imageUrl} 
-                      alt={form.title || "Preview"} 
-                      className="w-full h-40 object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = "https://via.placeholder.com/400x200?text=Invalid+Image+URL";
-                      }}
-                    />
+                    <div className="aspect-square bg-muted flex items-center justify-center">
+                      <img 
+                        src={form.imageUrl} 
+                        alt={form.title || "Preview"} 
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = "https://via.placeholder.com/200x200?text=Invalid+Image";
+                        }}
+                      />
+                    </div>
                   ) : (
-                    <div className="w-full h-40 bg-muted flex items-center justify-center">
+                    <div className="aspect-square bg-muted flex items-center justify-center">
                       <Image className="w-12 h-12 text-muted-foreground" />
                     </div>
                   )}

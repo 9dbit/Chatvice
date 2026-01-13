@@ -7,14 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { MessageCircle, X, Save, Eye, Loader2, Clock } from "lucide-react";
+import { MessageCircle, X, Save, Eye, Loader2, Clock, Upload } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import type { WelcomeBubble } from "@shared/schema";
 
 export default function WelcomeBubblePage() {
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [form, setForm] = useState({
     headline: "Need help?",
     message: "I can guide you through our features.",
@@ -74,6 +76,12 @@ export default function WelcomeBubblePage() {
     }
 
     setIsUploading(true);
+    setUploadProgress(0);
+    
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => Math.min(prev + 10, 90));
+    }, 100);
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('type', 'welcome_bubble_promo');
@@ -85,6 +93,9 @@ export default function WelcomeBubblePage() {
         credentials: 'include',
       });
 
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Upload failed');
@@ -94,9 +105,13 @@ export default function WelcomeBubblePage() {
       setForm({ ...form, promoImageUrl: data.url, promoImageEnabled: true });
       toast({ title: "Image uploaded successfully" });
     } catch (error: any) {
+      clearInterval(progressInterval);
       toast({ title: error.message || "Failed to upload image", variant: "destructive" });
     } finally {
-      setIsUploading(false);
+      setTimeout(() => {
+        setIsUploading(false);
+        setUploadProgress(0);
+      }, 500);
     }
   };
 
@@ -225,7 +240,23 @@ export default function WelcomeBubblePage() {
                         className="flex-1"
                         data-testid="input-promo-image-file"
                       />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        disabled={isUploading}
+                        onClick={() => (document.querySelector('[data-testid="input-promo-image-file"]') as HTMLInputElement)?.click()}
+                        data-testid="button-upload-promo"
+                      >
+                        <Upload className="w-4 h-4" />
+                      </Button>
                     </div>
+                    {isUploading && (
+                      <div className="space-y-1">
+                        <Progress value={uploadProgress} className="h-2" />
+                        <p className="text-xs text-muted-foreground text-center">Uploading... {uploadProgress}%</p>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="space-y-2">
@@ -240,19 +271,22 @@ export default function WelcomeBubblePage() {
                   </div>
 
                   {form.promoImageUrl && (
-                    <div className="relative">
-                      <img 
-                        src={form.promoImageUrl} 
-                        alt="Promo preview" 
-                        className="w-full max-w-[200px] rounded-lg border"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
-                        }}
-                      />
+                    <div className="relative max-w-[200px]">
+                      <Label className="mb-2 block">Preview (Square Format)</Label>
+                      <div className="aspect-square bg-muted rounded-lg border overflow-hidden flex items-center justify-center">
+                        <img 
+                          src={form.promoImageUrl} 
+                          alt="Promo preview" 
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      </div>
                       <Button
                         size="sm"
                         variant="destructive"
-                        className="absolute top-2 right-2"
+                        className="absolute top-8 right-2"
                         onClick={() => setForm({ ...form, promoImageUrl: "", promoImageEnabled: false })}
                         data-testid="button-remove-promo-image"
                       >
