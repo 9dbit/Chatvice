@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, boolean, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, integer, timestamp, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -178,7 +178,11 @@ export const sessions = pgTable("sessions", {
   status: text("status").default("active"),
   plannedClearAt: timestamp("planned_clear_at"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("sessions_merchant_id_idx").on(table.merchantId),
+  index("sessions_created_at_idx").on(table.createdAt),
+  index("sessions_status_idx").on(table.status),
+]);
 
 export const insertSessionSchema = createInsertSchema(sessions).omit({ lastActivity: true });
 export type InsertSession = z.infer<typeof insertSessionSchema>;
@@ -193,7 +197,10 @@ export const messages = pgTable("messages", {
   payload: jsonb("payload"),
   clientMessageId: varchar("client_message_id", { length: 64 }),
   timestamp: timestamp("timestamp").defaultNow(),
-});
+}, (table) => [
+  index("messages_session_id_idx").on(table.sessionId),
+  index("messages_timestamp_idx").on(table.timestamp),
+]);
 
 export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, timestamp: true });
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
@@ -214,7 +221,10 @@ export const knowledge = pgTable("knowledge", {
   merchantId: varchar("merchant_id", { length: 32 }).notNull(),
   agentId: varchar("agent_id", { length: 32 }),
   content: text("content").notNull(),
-});
+}, (table) => [
+  index("knowledge_merchant_id_idx").on(table.merchantId),
+  index("knowledge_agent_id_idx").on(table.agentId),
+]);
 
 export const insertKnowledgeSchema = createInsertSchema(knowledge).omit({ id: true });
 export type InsertKnowledge = z.infer<typeof insertKnowledgeSchema>;
@@ -226,7 +236,10 @@ export const knowledgeChunks = pgTable("knowledge_chunks", {
   agentId: varchar("agent_id", { length: 32 }),
   content: text("content").notNull(),
   embedding: text("embedding"),
-});
+}, (table) => [
+  index("knowledge_chunks_merchant_id_idx").on(table.merchantId),
+  index("knowledge_chunks_agent_id_idx").on(table.agentId),
+]);
 
 export const insertKnowledgeChunkSchema = createInsertSchema(knowledgeChunks).omit({ id: true });
 export type InsertKnowledgeChunk = z.infer<typeof insertKnowledgeChunkSchema>;

@@ -777,51 +777,50 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         className={`${positionClass} right-5 z-50 flex flex-col items-end gap-3`}
         style={{ bottom: previewMode ? "20px" : widgetPosition }}
       >
-        {showWelcomeBubble && welcomeBubble?.isEnabled && (
-          <div 
-            className="bg-card rounded-2xl shadow-xl p-4 w-72 border border-border animate-in slide-in-from-bottom-5 fade-in duration-300"
-            data-testid="welcome-bubble-container"
-          >
-            <button
-              onClick={dismissWelcomeBubble}
-              className="absolute top-2 right-2 p-1 rounded-full hover:bg-muted"
-              data-testid="button-close-welcome-bubble"
+        {showWelcomeBubble && welcomeBubble && welcomeBubble.isEnabled && (
+          <div className="w-52 animate-in slide-in-from-bottom-5 fade-in duration-300" data-testid="welcome-bubble-container">
+            {welcomeBubble.promoImageEnabled && welcomeBubble.promoImageUrl && (
+              <img 
+                src={welcomeBubble.promoImageUrl} 
+                alt="Promotion" 
+                className="w-full h-auto object-cover rounded-t-xl relative z-20"
+                style={{ marginBottom: '-16px' }}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+                data-testid="img-welcome-promo"
+              />
+            )}
+            <div 
+              className={`bg-card shadow-xl px-4 pt-6 pb-4 border border-border relative z-10 ${welcomeBubble.promoImageEnabled && welcomeBubble.promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}
             >
-              <X className="w-4 h-4 text-muted-foreground" />
-            </button>
-            <div className="mb-3">
-              <p className="font-semibold text-base" data-testid="text-welcome-headline">
-                {welcomeBubble.headline}
-              </p>
-              <p className="text-sm text-muted-foreground mt-1" data-testid="text-welcome-message">
-                {welcomeBubble.message}
-              </p>
-            </div>
-            <div className="flex gap-2">
+              <button
+                onClick={dismissWelcomeBubble}
+                className="absolute top-2 right-2 p-1 rounded-full hover:bg-muted z-30"
+                data-testid="button-close-welcome-bubble"
+              >
+                <X className="w-4 h-4 text-muted-foreground" />
+              </button>
+              <div className="mb-3 pr-4">
+                <p className="font-semibold text-base" data-testid="text-welcome-headline">
+                  {welcomeBubble.headline}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1" data-testid="text-welcome-message">
+                  {welcomeBubble.message}
+                </p>
+              </div>
               <Button
                 size="sm"
-                className="flex-1 text-white"
-                style={{ backgroundColor: welcomeBubble.button1Color || primaryColor }}
-                onClick={() => handleWelcomeBubbleButtonClick(welcomeBubble.button1Url || null)}
+                className="w-full text-white"
+                style={{ backgroundColor: welcomeBubble.buttonColor || primaryColor }}
+                onClick={() => {
+                  dismissWelcomeBubble();
+                  handleWidgetOpen();
+                }}
                 data-testid="button-welcome-primary"
               >
-                {welcomeBubble.button1Label}
+                {welcomeBubble.buttonLabel || "Chat with us"}
               </Button>
-              {welcomeBubble.button2Label && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1"
-                  style={{ 
-                    borderColor: welcomeBubble.button2Color || "#1a1a1a",
-                    color: welcomeBubble.button2Color || "#1a1a1a"
-                  }}
-                  onClick={() => handleWelcomeBubbleButtonClick(welcomeBubble.button2Url || null)}
-                  data-testid="button-welcome-secondary"
-                >
-                  {welcomeBubble.button2Label}
-                </Button>
-              )}
             </div>
           </div>
         )}
