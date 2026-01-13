@@ -259,6 +259,14 @@ export default function ProductCardsPage() {
         if (data.imageUrl) foundItems.push("image");
         if (data.price) foundItems.push("price");
         toast({ title: `Data fetched successfully: ${foundItems.join(", ")}` });
+      } else if (data.error === "spa_website") {
+        toast({ 
+          title: "Website SPA Detected", 
+          description: data.message || "Website menggunakan JavaScript. Silakan isi data secara manual.",
+          variant: "destructive" 
+        });
+      } else if (data.message) {
+        toast({ title: data.message, variant: "destructive" });
       } else {
         toast({ title: "URL fetched but no product data found. Please fill in manually.", variant: "destructive" });
       }

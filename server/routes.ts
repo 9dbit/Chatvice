@@ -11402,9 +11402,38 @@ ${log.extractedKnowledge}` : ''}
       // Fetch the page and extract Open Graph image
       const response = await fetch(url, {
         headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+          "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
         }
       });
+      
+      // Check for 404 or other error responses
+      if (!response.ok) {
+        console.log(`[crawl-image] URL ${url} returned status ${response.status}`);
+        // SPA websites often return 404 for client-side routes
+        if (response.status === 404) {
+          return res.json({
+            imageUrl: "",
+            title: "",
+            description: "",
+            price: "",
+            found: false,
+            error: "spa_website",
+            message: "Website menggunakan JavaScript untuk menampilkan konten. Data tidak dapat diambil otomatis. Silakan isi secara manual."
+          });
+        }
+        return res.json({
+          imageUrl: "",
+          title: "",
+          description: "",
+          price: "",
+          found: false,
+          error: "fetch_failed",
+          message: `Gagal mengakses URL (status: ${response.status})`
+        });
+      }
+      
       const html = await response.text();
       
       // Extract OG image (multiple patterns)
