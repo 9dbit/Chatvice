@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Bot, Send, X, Minimize2, HeadphonesIcon, User, ImageIcon, Video, FileText, Plus, Loader2, ChevronLeft, ChevronRight, ExternalLink, ShoppingBag, EyeOff, GripVertical } from "lucide-react";
+import { Bot, Send, X, Minimize2, Maximize2, HeadphonesIcon, User, ImageIcon, Video, FileText, Plus, Loader2, ChevronLeft, ChevronRight, ExternalLink, ShoppingBag, EyeOff, GripVertical } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Message, SuggestedQuestion, WelcomeBubble, ChatButton, ProductCard, ProductCardButton } from "@shared/schema";
@@ -111,6 +111,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const showCloseButton = urlParams.get("showClose") === "true";
   
   const [isOpen, setIsOpen] = useState(embedded);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [sessionId] = useState(() => initialSessionId || `sess_${Math.random().toString(36).substring(2, 12)}`);
   const [message, setMessage] = useState("");
   const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
@@ -362,6 +363,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     initAudio();
     setIsOpen(true);
   };
+  
+  // Centralized widget close handler - always resets fullscreen state
+  const handleWidgetClose = useCallback(() => {
+    setIsFullscreen(false);
+    setIsOpen(false);
+  }, []);
 
   const findMatchingButtons = (messageContent: string): ChatButton[] => {
     if (!chatButtons.length) return [];
@@ -1045,7 +1052,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       className={`${
         embedded 
           ? "w-full h-full" 
-          : `${positionClass} bottom-5 right-5 w-[360px] h-[520px] z-50 animate-in slide-in-from-bottom-5 fade-in duration-300`
+          : isFullscreen
+            ? "fixed inset-4 z-50 animate-in fade-in duration-300"
+            : `${positionClass} bottom-5 right-5 w-[360px] h-[520px] z-50 animate-in slide-in-from-bottom-5 fade-in duration-300`
       } bg-card rounded-2xl shadow-xl overflow-hidden flex flex-col border border-card-border`}
       style={{
         transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
@@ -1084,40 +1093,64 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             </div>
           </div>
         </div>
-        {(!embedded || showCloseButton) && (
-          <div className="flex gap-1">
-            <Button
-              size="icon"
-              variant="ghost"
-              className="text-white hover:bg-white/20"
-              onClick={() => {
-                if (embedded && showCloseButton) {
-                  window.parent.postMessage({ type: "chatvice-close" }, "*");
-                } else {
-                  setIsOpen(false);
-                }
-              }}
-              data-testid="button-minimize-widget"
-            >
-              <Minimize2 className="w-4 h-4" />
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="text-white hover:bg-white/20"
-              onClick={() => {
-                if (embedded && showCloseButton) {
-                  window.parent.postMessage({ type: "chatvice-close" }, "*");
-                } else {
-                  setIsOpen(false);
-                }
-              }}
-              data-testid="button-close-widget"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-        )}
+        <div className="flex gap-1">
+          {/* Fullscreen Toggle - Only show when not embedded */}
+          {!embedded && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="text-white hover:bg-white/20"
+                  onClick={() => setIsFullscreen(!isFullscreen)}
+                  data-testid="button-fullscreen-widget"
+                >
+                  {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p className="text-xs">{isFullscreen ? "Exit fullscreen" : "Fullscreen view"}</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+          
+          {(!embedded || showCloseButton) && (
+            <>
+              {/* Minimize button - collapse to launcher bubble */}
+              <Button
+                size="icon"
+                variant="ghost"
+                className="text-white hover:bg-white/20"
+                onClick={() => {
+                  if (embedded && showCloseButton) {
+                    window.parent.postMessage({ type: "chatvice-close" }, "*");
+                  } else {
+                    handleWidgetClose();
+                  }
+                }}
+                data-testid="button-minimize-widget"
+              >
+                <Minimize2 className="w-4 h-4" />
+              </Button>
+              {/* Close button */}
+              <Button
+                size="icon"
+                variant="ghost"
+                className="text-white hover:bg-white/20"
+                onClick={() => {
+                  if (embedded && showCloseButton) {
+                    window.parent.postMessage({ type: "chatvice-close" }, "*");
+                  } else {
+                    handleWidgetClose();
+                  }
+                }}
+                data-testid="button-close-widget"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Customer name form - shown for new customers */}

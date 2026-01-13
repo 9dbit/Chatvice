@@ -16,7 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Bot, Plus, Edit, Trash2, Sparkles, Crown, ArrowUpRight, Camera, Loader2, MessageSquare, AlertTriangle, Clock, Thermometer, UserCircle, Zap, Check } from "lucide-react";
+import { Bot, Plus, Edit, Trash2, Sparkles, Crown, ArrowUpRight, Camera, Loader2, MessageSquare, AlertTriangle, Clock, Thermometer, UserCircle, Zap, Check, FileText, MessageCircle } from "lucide-react";
 import { Link } from "wouter";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -658,9 +658,59 @@ export default function AgentsPage() {
                 />
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
-                <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 line-clamp-2">
+                <p className="text-xs sm:text-sm text-muted-foreground mb-3 line-clamp-2">
                   {agent.description || "No description provided."}
                 </p>
+                
+                {/* Agent Spec Quick View */}
+                <div className="flex flex-wrap gap-1.5 mb-3" data-testid={`agent-specs-${agent.id}`}>
+                  {/* Tone Style */}
+                  <Badge variant="outline" className="text-[10px] gap-1">
+                    {agent.toneStyle === 'casual' ? <MessageSquare className="w-2.5 h-2.5" /> : 
+                     agent.toneStyle === 'poetic' ? <Sparkles className="w-2.5 h-2.5" /> : 
+                     <UserCircle className="w-2.5 h-2.5" />}
+                    {(agent.toneStyle || 'formal').charAt(0).toUpperCase() + (agent.toneStyle || 'formal').slice(1)}
+                  </Badge>
+                  
+                  {/* Temperature */}
+                  <Badge variant="outline" className="text-[10px] gap-1">
+                    <Thermometer className="w-2.5 h-2.5" />
+                    {agent.temperature || '0.7'}
+                  </Badge>
+                  
+                  {/* Welcome Message */}
+                  {agent.welcomeMessageEnabled && (
+                    <Badge variant="outline" className="text-[10px] gap-1 text-green-600 dark:text-green-400 border-green-300 dark:border-green-700">
+                      <MessageCircle className="w-2.5 h-2.5" />
+                      Welcome
+                    </Badge>
+                  )}
+                  
+                  {/* Goodbye Message */}
+                  {agent.goodbyeMessageEnabled && (
+                    <Badge variant="outline" className="text-[10px] gap-1 text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700">
+                      <Clock className="w-2.5 h-2.5" />
+                      Goodbye
+                    </Badge>
+                  )}
+                  
+                  {/* Custom System Prompt */}
+                  {agent.systemPrompt && agent.systemPrompt.trim().length > 0 && (
+                    <Badge variant="outline" className="text-[10px] gap-1 text-purple-600 dark:text-purple-400 border-purple-300 dark:border-purple-700">
+                      <FileText className="w-2.5 h-2.5" />
+                      SOP
+                    </Badge>
+                  )}
+                  
+                  {/* Auto-Escalate */}
+                  {agent.autoEscalateAngry && (
+                    <Badge variant="outline" className="text-[10px] gap-1 text-red-600 dark:text-red-400 border-red-300 dark:border-red-700">
+                      <AlertTriangle className="w-2.5 h-2.5" />
+                      Escalate
+                    </Badge>
+                  )}
+                </div>
+                
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                   {!isActiveAgent && (
                     <Button
