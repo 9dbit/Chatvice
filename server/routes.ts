@@ -5843,7 +5843,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           id: fileId,
           filename: file.originalname,
           mimeType: file.mimetype,
+          size: file.size,
           content: base64Content,
+          category: uploadType,
         });
         
         // Remove local file after successful database storage
