@@ -1267,7 +1267,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                             {parsed.filter(p => p.type === "button").map((btn, btnIndex) => (
                               <button
                                 key={`btn-${btnIndex}`}
-                                className="px-3 py-1 text-xs rounded-md border transition-all duration-200 bg-white/60 dark:bg-white/10 backdrop-blur-sm border-gray-300 dark:border-gray-400 text-gray-700 dark:text-white shadow-sm hover:bg-white/80 dark:hover:bg-white/20"
+                                className="px-4 py-2 text-xs rounded-xl border-2 transition-all duration-200 bg-gradient-to-b from-white/80 to-white/60 dark:from-white/20 dark:to-white/10 backdrop-blur-sm border-gray-200 dark:border-gray-500 text-gray-700 dark:text-white shadow-[0_4px_12px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.5)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] hover:shadow-[0_2px_6px_rgba(0,0,0,0.1)] hover:translate-y-0.5 active:translate-y-1 active:shadow-none"
                                 onClick={() => sendButtonMessage(btn.action || btn.content)}
                                 disabled={sendMessageMutation.isPending}
                                 data-testid={`button-widget-quick-${btnIndex}`}
@@ -1346,7 +1346,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                             {productCard.buttons.slice(0, 3).map((btn: any, idx: number) => (
                               <button
                                 key={`suggest-${btn.id || idx}`}
-                                className="px-2 py-0.5 text-[10px] rounded border transition-colors bg-white/60 dark:bg-white/10 backdrop-blur-sm border-gray-300 dark:border-gray-400 text-gray-700 dark:text-white shadow-sm hover:bg-white/80 dark:hover:bg-white/20"
+                                className="px-3 py-1.5 text-[10px] rounded-xl border-2 transition-all duration-200 bg-gradient-to-b from-white/80 to-white/60 dark:from-white/20 dark:to-white/10 backdrop-blur-sm border-gray-200 dark:border-gray-500 text-gray-700 dark:text-white shadow-[0_4px_12px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.5)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] hover:shadow-[0_2px_6px_rgba(0,0,0,0.1)] hover:translate-y-0.5 active:translate-y-1 active:shadow-none"
                                 onClick={() => btn.url && window.open(btn.url, '_blank')}
                                 data-testid={`button-suggest-${btn.id || idx}`}
                               >
@@ -1485,7 +1485,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 key={sq.id}
                 variant="outline"
                 size="sm"
-                className="h-auto py-0.5 px-2 text-[10px] font-normal whitespace-normal text-left hover-elevate bg-white/60 dark:bg-white/10 backdrop-blur-sm border-gray-300 dark:border-gray-400 text-gray-700 dark:text-white shadow-sm"
+                className="h-auto py-1.5 px-3 text-[10px] font-normal whitespace-normal text-left rounded-xl border-2 transition-all duration-200 bg-gradient-to-b from-white/80 to-white/60 dark:from-white/20 dark:to-white/10 backdrop-blur-sm border-gray-200 dark:border-gray-500 text-gray-700 dark:text-white shadow-[0_4px_12px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.5)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] hover:shadow-[0_2px_6px_rgba(0,0,0,0.1)] hover:translate-y-0.5 active:translate-y-1 active:shadow-none"
                 onClick={() => handleSuggestedQuestionClick(sq)}
                 disabled={sendMessageMutation.isPending || useSuggestedQuestionMutation.isPending}
                 data-testid={`button-suggested-question-${sq.id}`}
