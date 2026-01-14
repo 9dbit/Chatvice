@@ -927,6 +927,7 @@ function StatsSection() {
 }
 
 function BenefitsSections() {
+  const { t } = useLanguage();
   const benefits = [
     { icon: TrendingUp, text: "Increase online sales" },
     { icon: Users, text: "Improve customer satisfaction" },
