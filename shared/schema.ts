@@ -79,6 +79,13 @@ export const merchants = pgTable("merchants", {
   // Business registration fields
   businessCategory: text("business_category"),
   staffCount: text("staff_count"),
+  // Social media links for widget
+  socialMediaEnabled: boolean("social_media_enabled").default(false),
+  socialInstagram: text("social_instagram"),
+  socialFacebook: text("social_facebook"),
+  socialTelegram: text("social_telegram"),
+  socialWhatsapp: text("social_whatsapp"),
+  socialDiscord: text("social_discord"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -173,6 +180,9 @@ export const sessions = pgTable("sessions", {
   agentId: varchar("agent_id", { length: 32 }),
   customerName: text("customer_name").default("Customer"),
   customerEmail: text("customer_email"),
+  customerPhone: text("customer_phone"),
+  bankRecords: jsonb("bank_records"), // {type: 'bank'|'ewallet'|'creditcard', name: string, number: string}[]
+  leadStatus: text("lead_status").default("new"), // new, contacted, qualified, converted, lost
   lastActivity: timestamp("last_activity").defaultNow(),
   needsSupervisorAttention: boolean("needs_supervisor_attention").default(false),
   status: text("status").default("active"),
@@ -293,6 +303,16 @@ export const chatResponseSchema = z.object({
 });
 export type ChatResponse = z.infer<typeof chatResponseSchema>;
 
+const safeUrlSchema = z.string().refine((url) => {
+  if (!url || url.trim() === "") return true;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" || parsed.protocol === "http:";
+  } catch {
+    return false;
+  }
+}, { message: "URL must start with http:// or https://" }).optional();
+
 export const merchantConfigSchema = z.object({
   iconUrl: z.string().optional(),
   iconSize: z.number().min(40).max(120).optional(),
@@ -307,6 +327,12 @@ export const merchantConfigSchema = z.object({
   widgetTheme: z.enum(["light", "dark"]).optional(),
   bubblePosition: z.enum(["left", "right"]).optional(),
   allowedDomains: z.string().optional(),
+  socialMediaEnabled: z.boolean().optional(),
+  socialInstagram: safeUrlSchema,
+  socialFacebook: safeUrlSchema,
+  socialTelegram: safeUrlSchema,
+  socialWhatsapp: safeUrlSchema,
+  socialDiscord: safeUrlSchema,
 });
 export type MerchantConfig = z.infer<typeof merchantConfigSchema>;
 
@@ -497,6 +523,10 @@ export const chatLogs = pgTable("chat_logs", {
   supervisorId: varchar("supervisor_id", { length: 32 }),
   customerName: text("customer_name"),
   customerEmail: text("customer_email"),
+  customerPhone: text("customer_phone"),
+  bankRecords: jsonb("bank_records"),
+  leadStatus: text("lead_status").default("new"),
+  locationData: jsonb("location_data"), // {latitude, longitude, city, country, source}[]
   summary: text("summary").notNull(),
   messageCount: integer("message_count").default(0),
   fullTranscript: text("full_transcript").notNull(),

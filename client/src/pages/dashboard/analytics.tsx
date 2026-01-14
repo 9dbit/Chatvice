@@ -19,6 +19,9 @@ import {
   Sparkles,
   Search,
   Lock,
+  MapPin,
+  Lightbulb,
+  Target,
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
 import type { Merchant } from "@shared/schema";
@@ -49,6 +52,22 @@ interface DetailedAnalytics {
   resolutionRate: number;
 }
 
+interface LocationPoint {
+  latitude: number;
+  longitude: number;
+  source: 'exif' | 'browser';
+  timestamp: string;
+  sessionId: string;
+  customerName: string;
+}
+
+interface LocationAnalytics {
+  totalLocations: number;
+  locationPoints: LocationPoint[];
+  sourceDistribution: { exif: number; browser: number };
+  recentLocations: LocationPoint[];
+}
+
 const CHART_COLORS = ["#6b5dfc", "#8b7dfc", "#ab9dfc", "#cbbdfc", "#ebddfc"];
 
 export default function AnalyticsPage() {
@@ -62,6 +81,11 @@ export default function AnalyticsPage() {
   const { data: analytics, isLoading } = useQuery<DetailedAnalytics>({
     queryKey: ["/api/analytics/detailed"],
     refetchInterval: 30000,
+  });
+
+  const { data: locationAnalytics } = useQuery<LocationAnalytics>({
+    queryKey: ["/api/analytics/locations"],
+    refetchInterval: 60000,
   });
 
   const plan = merchant ? subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free : subscriptionPlans.free;
@@ -233,6 +257,10 @@ export default function AnalyticsPage() {
             {!canViewChatTopics && <Lock className="w-3 h-3" />}
           </TabsTrigger>
           <TabsTrigger value="keywords">Popular Keywords</TabsTrigger>
+          <TabsTrigger value="locations" className="flex items-center gap-2">
+            <MapPin className="w-3 h-3" />
+            Locations
+          </TabsTrigger>
           <TabsTrigger value="performance">Response Times</TabsTrigger>
         </TabsList>
 
@@ -355,6 +383,155 @@ export default function AnalyticsPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="locations" className="mt-4">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="w-5 h-5" />
+                  Customer Locations
+                </CardTitle>
+                <CardDescription>
+                  Geographic data from uploaded images ({locationAnalytics?.totalLocations || 0} locations tracked)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {locationAnalytics && locationAnalytics.totalLocations > 0 ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
+                            <MapPin className="w-4 h-4 text-blue-500" />
+                          </div>
+                          <span className="text-sm text-muted-foreground">EXIF Data</span>
+                        </div>
+                        <p className="text-2xl font-bold">{locationAnalytics.sourceDistribution.exif}</p>
+                      </div>
+                      <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
+                            <Target className="w-4 h-4 text-green-500" />
+                          </div>
+                          <span className="text-sm text-muted-foreground">GPS Browser</span>
+                        </div>
+                        <p className="text-2xl font-bold">{locationAnalytics.sourceDistribution.browser}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium">Recent Locations</h4>
+                      <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                        {locationAnalytics.recentLocations.map((loc, idx) => (
+                          <a
+                            key={idx}
+                            href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-between p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-sm"
+                            data-testid={`location-point-${idx}`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <MapPin className="w-4 h-4 text-red-500" />
+                              <span>{loc.customerName || "Customer"}</span>
+                            </div>
+                            <Badge variant="outline" className="text-xs">
+                              {loc.source === 'exif' ? 'EXIF' : 'GPS'}
+                            </Badge>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                      <MapPin className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <h3 className="font-semibold mb-2">No location data yet</h3>
+                    <p className="text-sm text-muted-foreground text-center max-w-sm">
+                      Location data will appear when customers upload images with GPS metadata.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  AI Location Insights
+                </CardTitle>
+                <CardDescription>
+                  Smart analysis and action recommendations
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {locationAnalytics && locationAnalytics.totalLocations > 0 ? (
+                  <>
+                    <div className="p-4 rounded-lg bg-background/50 border">
+                      <div className="flex items-start gap-3">
+                        <Lightbulb className="w-5 h-5 text-yellow-500 mt-0.5" />
+                        <div>
+                          <h4 className="font-medium mb-1">Insight</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {locationAnalytics.sourceDistribution.exif > locationAnalytics.sourceDistribution.browser 
+                              ? "Most customers share photos with embedded location data (EXIF). This indicates they're using mobile devices with GPS enabled."
+                              : "Customers prefer sharing browser-based location. Consider prompting for image uploads to get more precise location data."}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="p-4 rounded-lg bg-background/50 border">
+                      <div className="flex items-start gap-3">
+                        <Target className="w-5 h-5 text-green-500 mt-0.5" />
+                        <div>
+                          <h4 className="font-medium mb-1">Action Suggestion</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {locationAnalytics.totalLocations < 10 
+                              ? "Encourage customers to share product photos to better understand your customer geography and optimize delivery/service areas."
+                              : locationAnalytics.totalLocations < 50
+                                ? "You're building a good location profile. Consider creating targeted promotions for your most active regions."
+                                : "Excellent geographic coverage! Use this data to optimize inventory distribution and create location-based marketing campaigns."}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="p-4 rounded-lg bg-background/50 border">
+                      <div className="flex items-start gap-3">
+                        <BarChart3 className="w-5 h-5 text-blue-500 mt-0.5" />
+                        <div>
+                          <h4 className="font-medium mb-1">Analytics Summary</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Tracked {locationAnalytics.totalLocations} customer locations. 
+                            {locationAnalytics.sourceDistribution.exif > 0 && ` ${Math.round((locationAnalytics.sourceDistribution.exif / locationAnalytics.totalLocations) * 100)}% from photo metadata.`}
+                            {locationAnalytics.sourceDistribution.browser > 0 && ` ${Math.round((locationAnalytics.sourceDistribution.browser / locationAnalytics.totalLocations) * 100)}% from browser GPS.`}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="p-4 rounded-lg bg-background/50 border">
+                    <div className="flex items-start gap-3">
+                      <Lightbulb className="w-5 h-5 text-yellow-500 mt-0.5" />
+                      <div>
+                        <h4 className="font-medium mb-1">Getting Started</h4>
+                        <p className="text-sm text-muted-foreground">
+                          When customers upload images in chat, location data will be extracted automatically from photo metadata (EXIF) or browser GPS. This helps you understand your customer geography.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="performance" className="mt-4">

@@ -29,7 +29,8 @@ import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./payp
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, isNotNull } from "drizzle-orm";
+import { messages, sessions, chatLogs } from "@shared/schema";
 import crypto from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
@@ -2830,6 +2831,18 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         }
       }
       
+      // Sanitize URLs - only allow http/https schemes
+      const sanitizeUrl = (url: string | null | undefined): string => {
+        if (!url) return "";
+        try {
+          const parsed = new URL(url);
+          if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+            return url;
+          }
+        } catch {}
+        return "";
+      };
+      
       res.json({
         iconUrl: merchant.iconUrl || "",
         iconSize: merchant.iconSize ?? 70,
@@ -2844,6 +2857,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         agentPhotoUrl: agentSettings.photoUrl || merchant.agentPhotoUrl || "",
         widgetTheme: agentSettings.widgetTheme || merchant.widgetTheme || "light",
         bubblePosition: agentSettings.bubblePosition || merchant.bubblePosition || "right",
+        socialMediaEnabled: merchant.socialMediaEnabled ?? false,
+        socialInstagram: sanitizeUrl(merchant.socialInstagram),
+        socialFacebook: sanitizeUrl(merchant.socialFacebook),
+        socialTelegram: sanitizeUrl(merchant.socialTelegram),
+        socialWhatsapp: sanitizeUrl(merchant.socialWhatsapp),
+        socialDiscord: sanitizeUrl(merchant.socialDiscord),
       });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -10936,6 +10955,83 @@ ${log.extractedKnowledge}` : ''}
       res.send(txtContent);
     } catch (error) {
       console.error("Error downloading chat log:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Update chat log lead status
+  app.patch("/api/chat-logs/:logId/lead-status", requireMerchantOrSupervisor, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { logId } = req.params;
+      const { leadStatus } = req.body;
+      
+      const validStatuses = ['new', 'contacted', 'qualified', 'converted', 'lost'];
+      if (!validStatuses.includes(leadStatus)) {
+        return res.status(400).json({ error: "Invalid lead status" });
+      }
+      
+      const logs = await storage.getChatLogs(merchantId);
+      const log = logs.find(l => l.id === logId);
+      
+      if (!log || log.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Chat log not found" });
+      }
+      
+      await db.update(chatLogs).set({ leadStatus }).where(eq(chatLogs.id, logId));
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating lead status:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Location analytics endpoint
+  app.get("/api/analytics/locations", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      
+      const messagesWithLocation = await db.select()
+        .from(messages)
+        .innerJoin(sessions, eq(messages.sessionId, sessions.id))
+        .where(and(
+          eq(sessions.merchantId, merchantId),
+          isNotNull(messages.locationData)
+        ))
+        .orderBy(desc(messages.timestamp))
+        .limit(100);
+      
+      const locationPoints = messagesWithLocation
+        .filter(m => m.messages.locationData)
+        .map(m => {
+          const locData = m.messages.locationData as any;
+          return {
+            latitude: locData.latitude,
+            longitude: locData.longitude,
+            source: locData.source,
+            timestamp: m.messages.timestamp,
+            sessionId: m.messages.sessionId,
+            customerName: m.sessions.customerName,
+          };
+        });
+      
+      const cityCount: Record<string, number> = {};
+      const sourceCount = { exif: 0, browser: 0 };
+      
+      locationPoints.forEach(point => {
+        if (point.source === 'exif') sourceCount.exif++;
+        else sourceCount.browser++;
+      });
+      
+      res.json({
+        totalLocations: locationPoints.length,
+        locationPoints: locationPoints.slice(0, 50),
+        sourceDistribution: sourceCount,
+        recentLocations: locationPoints.slice(0, 10),
+      });
+    } catch (error) {
+      console.error("Error fetching location analytics:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
