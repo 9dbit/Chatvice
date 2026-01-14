@@ -1055,7 +1055,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           : isFullscreen
             ? "fixed inset-4 z-50 animate-in fade-in duration-300"
             : `${positionClass} bottom-5 right-5 w-[360px] h-[520px] z-50 animate-in slide-in-from-bottom-5 fade-in duration-300`
-      } bg-card rounded-2xl shadow-xl overflow-hidden flex flex-col border border-card-border`}
+      } bg-white/70 dark:bg-gray-900/80 backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden flex flex-col border border-white/30 dark:border-gray-700/50`}
       style={{
         transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
       }}
