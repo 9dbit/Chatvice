@@ -1267,7 +1267,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                             {parsed.filter(p => p.type === "button").map((btn, btnIndex) => (
                               <button
                                 key={`btn-${btnIndex}`}
-                                className="px-3 py-1 text-xs rounded-md border transition-all duration-200 bg-transparent hover:bg-[#d946ef]/20 text-white border-[#d946ef] shadow-[0_2px_8px_rgba(217,70,239,0.3)]"
+                                className="px-3 py-1 text-xs rounded-md border transition-all duration-200 bg-white/60 dark:bg-white/10 backdrop-blur-sm border-gray-300 dark:border-gray-400 text-gray-700 dark:text-white shadow-sm hover:bg-white/80 dark:hover:bg-white/20"
                                 onClick={() => sendButtonMessage(btn.action || btn.content)}
                                 disabled={sendMessageMutation.isPending}
                                 data-testid={`button-widget-quick-${btnIndex}`}
@@ -1346,10 +1346,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                             {productCard.buttons.slice(0, 3).map((btn: any, idx: number) => (
                               <button
                                 key={`suggest-${btn.id || idx}`}
-                                className="px-2 py-0.5 text-[10px] rounded border transition-colors hover:text-white"
-                                style={{ borderColor: '#d946ef', color: '#d946ef' }}
-                                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#d946ef'; e.currentTarget.style.color = 'white'; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#d946ef'; }}
+                                className="px-2 py-0.5 text-[10px] rounded border transition-colors bg-white/60 dark:bg-white/10 backdrop-blur-sm border-gray-300 dark:border-gray-400 text-gray-700 dark:text-white shadow-sm hover:bg-white/80 dark:hover:bg-white/20"
                                 onClick={() => btn.url && window.open(btn.url, '_blank')}
                                 data-testid={`button-suggest-${btn.id || idx}`}
                               >
