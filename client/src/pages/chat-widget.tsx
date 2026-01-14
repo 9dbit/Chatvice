@@ -1488,7 +1488,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 key={sq.id}
                 variant="outline"
                 size="sm"
-                className="h-auto py-0.5 px-2 text-[10px] font-normal whitespace-normal text-left hover-elevate border-[#d946ef] text-[#d946ef]"
+                className="h-auto py-0.5 px-2 text-[10px] font-normal whitespace-normal text-left hover-elevate bg-white/60 dark:bg-white/10 backdrop-blur-sm border-gray-300 dark:border-gray-400 text-gray-700 dark:text-white shadow-sm"
                 onClick={() => handleSuggestedQuestionClick(sq)}
                 disabled={sendMessageMutation.isPending || useSuggestedQuestionMutation.isPending}
                 data-testid={`button-suggested-question-${sq.id}`}
