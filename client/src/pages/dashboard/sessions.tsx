@@ -15,7 +15,7 @@ import {
   MessageSquare, Bot, HeadphonesIcon, Send, Search, User, Download, 
   Hand, ArrowLeft, Clock, Edit, Check, X, Loader2, RefreshCw, AlertCircle,
   CheckCircle2, Circle, XCircle, Filter, ShoppingBag, Plus, ImageIcon, Video, FileText,
-  ExternalLink, Maximize2, Minimize2
+  ExternalLink, Maximize2, Minimize2, MapPin
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
@@ -984,33 +984,52 @@ export default function SessionsPage() {
                                   {(msg as any).messageType === "media" && (msg as any).payload && (
                                     <div>
                                       {(msg as any).payload.type === "photo" && (
-                                        <button 
-                                          onClick={() => setPreviewContent({
-                                            type: "photo",
-                                            url: (msg as any).payload.url,
-                                            filename: (msg as any).payload.filename
-                                          })}
-                                          className="block"
-                                          data-testid={`button-preview-photo-${msg.id}`}
-                                        >
-                                          <img 
-                                            src={(msg as any).payload.url} 
-                                            alt={(msg as any).payload.filename || "Image"}
-                                            className="max-w-[200px] max-h-[200px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity bg-muted"
-                                            onError={(e) => {
-                                              const target = e.currentTarget;
-                                              target.onerror = null;
-                                              target.style.display = 'none';
-                                              const parent = target.parentElement;
-                                              if (parent) {
-                                                const fallback = document.createElement('div');
-                                                fallback.className = 'w-[200px] h-[150px] rounded-lg bg-muted flex items-center justify-center';
-                                                fallback.innerHTML = '<span class="text-xs text-muted-foreground">Image unavailable</span>';
-                                                parent.appendChild(fallback);
-                                              }
-                                            }}
-                                          />
-                                        </button>
+                                        <div className="space-y-1">
+                                          <button 
+                                            onClick={() => setPreviewContent({
+                                              type: "photo",
+                                              url: (msg as any).payload.url,
+                                              filename: (msg as any).payload.filename
+                                            })}
+                                            className="block"
+                                            data-testid={`button-preview-photo-${msg.id}`}
+                                          >
+                                            <img 
+                                              src={(msg as any).payload.url} 
+                                              alt={(msg as any).payload.filename || "Image"}
+                                              className="max-w-[200px] max-h-[200px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity bg-muted"
+                                              onError={(e) => {
+                                                const target = e.currentTarget;
+                                                target.onerror = null;
+                                                target.style.display = 'none';
+                                                const parent = target.parentElement;
+                                                if (parent) {
+                                                  const fallback = document.createElement('div');
+                                                  fallback.className = 'w-[200px] h-[150px] rounded-lg bg-muted flex items-center justify-center';
+                                                  fallback.innerHTML = '<span class="text-xs text-muted-foreground">Image unavailable</span>';
+                                                  parent.appendChild(fallback);
+                                                }
+                                              }}
+                                            />
+                                          </button>
+                                          {(msg as any).locationData && 
+                                            typeof (msg as any).locationData.latitude === 'number' && 
+                                            typeof (msg as any).locationData.longitude === 'number' && (
+                                            <a
+                                              href={`https://www.google.com/maps?q=${(msg as any).locationData.latitude},${(msg as any).locationData.longitude}`}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="flex items-center gap-1 text-[10px] text-blue-500 hover:text-blue-600 hover:underline"
+                                              data-testid={`link-location-${msg.id}`}
+                                            >
+                                              <MapPin className="w-3 h-3" />
+                                              <span>
+                                                {Number((msg as any).locationData.latitude).toFixed(4)}, {Number((msg as any).locationData.longitude).toFixed(4)}
+                                                {" "}({(msg as any).locationData.source === 'exif' ? 'EXIF' : 'GPS'})
+                                              </span>
+                                            </a>
+                                          )}
+                                        </div>
                                       )}
                                       {(msg as any).payload.type === "video" && (
                                         <button 

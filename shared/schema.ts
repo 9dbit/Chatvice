@@ -196,6 +196,7 @@ export const messages = pgTable("messages", {
   messageType: text("message_type").default("text"),
   payload: jsonb("payload"),
   clientMessageId: varchar("client_message_id", { length: 64 }),
+  locationData: jsonb("location_data"),
   timestamp: timestamp("timestamp").defaultNow(),
 }, (table) => [
   index("messages_session_id_idx").on(table.sessionId),

@@ -3466,7 +3466,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   app.post("/api/chat/upload", upload.single("file"), async (req, res) => {
     try {
       const file = req.file;
-      const { merchantId, sessionId, type, fromSupervisor } = req.body;
+      const { merchantId, sessionId, type, fromSupervisor, locationData: locationDataStr } = req.body;
 
       if (!file) {
         return res.status(400).json({ error: "No file uploaded" });
@@ -3479,6 +3479,35 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const merchant = await storage.getMerchant(merchantId);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      let locationData = null;
+      if (locationDataStr) {
+        try {
+          const parsed = JSON.parse(locationDataStr);
+          if (
+            typeof parsed === 'object' &&
+            parsed !== null &&
+            typeof parsed.latitude === 'number' &&
+            typeof parsed.longitude === 'number' &&
+            parsed.latitude >= -90 && parsed.latitude <= 90 &&
+            parsed.longitude >= -180 && parsed.longitude <= 180 &&
+            ['exif', 'browser'].includes(parsed.source)
+          ) {
+            locationData = {
+              latitude: parsed.latitude,
+              longitude: parsed.longitude,
+              source: parsed.source,
+              accuracy: typeof parsed.accuracy === 'number' ? parsed.accuracy : undefined,
+              timestamp: typeof parsed.timestamp === 'number' ? parsed.timestamp : undefined,
+            };
+            console.log(`[Upload] Location data received:`, locationData);
+          } else {
+            console.warn("[Upload] Invalid location data format, ignoring");
+          }
+        } catch (e) {
+          console.error("[Upload] Failed to parse location data:", e);
+        }
       }
 
       const fileUrl = `/uploads/${file.filename}`;
@@ -3511,6 +3540,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           url: fileUrl,
           filename: file.originalname,
         },
+        locationData: locationData,
       });
 
       broadcastToSession(sessionId, {
@@ -3525,6 +3555,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             url: fileUrl,
             filename: file.originalname,
           },
+          locationData: locationData,
           timestamp: message.timestamp,
         },
       });

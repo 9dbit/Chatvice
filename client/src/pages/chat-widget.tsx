@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Bot, Send, X, Shrink, Square, HeadphonesIcon, User, ImageIcon, Video, FileText, Plus, Loader2, ChevronLeft, ChevronRight, ExternalLink, ShoppingBag, EyeOff, GripVertical } from "lucide-react";
+import { Bot, Send, X, Shrink, Square, HeadphonesIcon, User, ImageIcon, Video, FileText, Plus, Loader2, ChevronLeft, ChevronRight, ExternalLink, ShoppingBag, EyeOff, GripVertical, MapPin } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Message, SuggestedQuestion, WelcomeBubble, ChatButton, ProductCard, ProductCardButton } from "@shared/schema";
+import { getImageLocation, type LocationData } from "@/lib/location-utils";
 
 interface MerchantConfig {
   online: boolean;
@@ -622,11 +623,21 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     setIsUploadingMedia(true);
     
     try {
+      let locationData: LocationData | null = null;
+      
+      if (type === "photo") {
+        locationData = await getImageLocation(file);
+      }
+      
       const formData = new FormData();
       formData.append("file", file);
       formData.append("merchantId", merchantId);
       formData.append("sessionId", sessionId);
       formData.append("type", type);
+      
+      if (locationData) {
+        formData.append("locationData", JSON.stringify(locationData));
+      }
       
       const response = await fetch("/api/chat/upload", {
         method: "POST",
