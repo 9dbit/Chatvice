@@ -106,27 +106,29 @@ function useParallaxScroll() {
   }, []);
 }
 
-const heroTaglines = [
-  "Scale your support team instantly —\nno extra hires needed.",
-  "Deliver flawless, consistent responses\nevery single time.",
-  "Transform how you connect\nwith customers, 24/7.",
-];
-
 function FlippingHeroText() {
+  const { t } = useLanguage();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipping, setIsFlipping] = useState(false);
+
+  // Get taglines from translations
+  const taglines = [
+    t('hero.taglines.0') || "Scale your support team instantly —\nno extra hires needed.",
+    t('hero.taglines.1') || "Deliver flawless, consistent responses\nevery single time.",
+    t('hero.taglines.2') || "Transform how you connect\nwith customers, 24/7.",
+  ];
 
   useEffect(() => {
     const interval = setInterval(() => {
       setIsFlipping(true);
       setTimeout(() => {
-        setCurrentIndex((prev) => (prev + 1) % heroTaglines.length);
+        setCurrentIndex((prev) => (prev + 1) % taglines.length);
         setIsFlipping(false);
       }, 300);
     }, 3000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [taglines.length]);
 
   return (
     <p 
@@ -137,7 +139,7 @@ function FlippingHeroText() {
         transformOrigin: 'center center',
       }}
     >
-      {heroTaglines[currentIndex]}
+      {taglines[currentIndex]}
     </p>
   );
 }
@@ -685,6 +687,7 @@ function Lexa1ChatWidget({ config }: { config: WidgetConfig }) {
 }
 
 function HeroSection() {
+  const { t } = useLanguage();
   const { data: settings } = useQuery<LandingPageSettings>({
     queryKey: ["/api/landing-settings"],
   });
@@ -799,13 +802,13 @@ function HeroSection() {
               <div className="flex flex-col sm:flex-row gap-2">
                 <Link href="/register">
                   <Button size="lg" className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white px-6 md:px-8 font-semibold text-sm md:text-base" data-testid="button-hero-start">
-                    Start Building Free
+                    {t('hero.cta')}
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </Link>
                 <Link href="/features">
                   <Button size="lg" variant="outline" className="border-white/50 text-white hover:bg-white/10 backdrop-blur-sm px-6 md:px-8 text-sm md:text-base" data-testid="button-hero-features">
-                    Explore Features
+                    {t('hero.ctaSecondary')}
                   </Button>
                 </Link>
               </div>
@@ -821,13 +824,13 @@ function HeroSection() {
             <div className="text-left mb-10">
               <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
                 <Sparkles className="w-3 h-3 mr-1" />
-                Why Chatvice
+                {t('features.badge')}
               </Badge>
               <h2 className="text-3xl md:text-5xl font-bold mb-4" style={{ fontFamily: "'D-DIN', sans-serif" }}>
-                Powerful Features
+                {t('features.title')}
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl">
-                Everything you need to deliver exceptional customer service
+                {t('features.subtitle')}
               </p>
             </div>
 
