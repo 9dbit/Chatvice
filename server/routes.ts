@@ -904,6 +904,27 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     next();
   });
   
+  // CORS middleware for widget endpoints (accessed from external domains)
+  app.use((req, res, next) => {
+    // Apply CORS to all widget-related endpoints
+    if (req.path.startsWith("/api/widget/") || 
+        req.path.startsWith("/api/merchant/status/") ||
+        req.path.startsWith("/widget/") ||
+        req.path === "/api/messages" ||
+        req.path === "/api/chat") {
+      res.header("Access-Control-Allow-Origin", "*");
+      res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+      res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      res.header("Access-Control-Allow-Credentials", "true");
+      
+      // Handle preflight requests
+      if (req.method === "OPTIONS") {
+        return res.sendStatus(200);
+      }
+    }
+    next();
+  });
+  
   // Configure session with proper production settings
   const isProduction = process.env.NODE_ENV === "production";
   const sessionConfig: session.SessionOptions = {
@@ -9335,7 +9356,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   
   var iframe = document.createElement("iframe");
   iframe.src = baseUrl + "/widget/" + merchantId + "?session=" + sessionId + "&showClose=true";
-  iframe.style.cssText = "position:fixed;bottom:20px;right:20px;width:380px;height:550px;border:none;z-index:99999;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,0.15);display:none;";
+  
+  // Responsive sizing - detect mobile
+  var isMobile = window.innerWidth <= 480;
+  var widgetWidth = isMobile ? "100vw" : "380px";
+  var widgetHeight = isMobile ? "100vh" : "550px";
+  var widgetBottom = isMobile ? "0" : "20px";
+  var widgetRight = isMobile ? "0" : "20px";
+  var widgetRadius = isMobile ? "0" : "16px";
+  
+  iframe.style.cssText = "position:fixed;bottom:" + widgetBottom + ";right:" + widgetRight + ";width:" + widgetWidth + ";height:" + widgetHeight + ";max-height:100vh;max-width:100vw;border:none;z-index:99999;border-radius:" + widgetRadius + ";box-shadow:0 8px 30px rgba(0,0,0,0.15);display:none;";
   iframe.id = "chatvice-widget-frame";
   iframe.allow = "microphone; camera";
   
@@ -9370,8 +9400,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
     }
     
-    // Also update iframe position
-    iframe.style.cssText = "position:fixed;bottom:20px;" + positionStyle + "width:380px;height:550px;border:none;z-index:99999;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,0.15);display:" + (isOpen ? "block" : "none") + ";";
+    // Also update iframe position with responsive sizing
+    var iframePosStyle = isMobile 
+      ? "position:fixed;bottom:0;left:0;right:0;width:100vw;height:100vh;max-height:100vh;max-width:100vw;border:none;z-index:99999;border-radius:0;box-shadow:none;"
+      : "position:fixed;bottom:20px;" + positionStyle + "width:380px;height:550px;border:none;z-index:99999;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,0.15);";
+    iframe.style.cssText = iframePosStyle + "display:" + (isOpen ? "block" : "none") + ";";
   }
   
   // Initial default styles
@@ -9388,7 +9421,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   button.onmouseout = function() { button.style.transform = "scale(1)"; };
   
   function openWidget() {
-    iframe.style.display = "block";
+    // Apply responsive sizing when opening
+    var iframePosStyle = isMobile 
+      ? "position:fixed;bottom:0;left:0;right:0;width:100vw;height:100vh;max-height:100vh;max-width:100vw;border:none;z-index:99999;border-radius:0;box-shadow:none;"
+      : "position:fixed;bottom:20px;" + (bubblePosition === "left" ? "left:20px;right:auto;" : "right:20px;left:auto;") + "width:380px;height:550px;border:none;z-index:99999;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,0.15);";
+    iframe.style.cssText = iframePosStyle + "display:block;";
     button.style.display = "none";
     isOpen = true;
   }
