@@ -2858,6 +2858,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         widgetTheme: agentSettings.widgetTheme || merchant.widgetTheme || "light",
         bubblePosition: agentSettings.bubblePosition || merchant.bubblePosition || "right",
         socialMediaEnabled: merchant.socialMediaEnabled ?? false,
+        socialIconStyle: merchant.socialIconStyle || "colored",
         socialInstagram: sanitizeUrl(merchant.socialInstagram),
         socialFacebook: sanitizeUrl(merchant.socialFacebook),
         socialTelegram: sanitizeUrl(merchant.socialTelegram),

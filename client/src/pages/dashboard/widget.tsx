@@ -71,6 +71,7 @@ export default function WidgetPage() {
 
   const [socialConfig, setSocialConfig] = useState({
     socialMediaEnabled: false,
+    socialIconStyle: "colored" as "colored" | "silhouette",
     socialInstagram: "",
     socialFacebook: "",
     socialTelegram: "",
@@ -276,6 +277,7 @@ export default function WidgetPage() {
     if (merchant) {
       setSocialConfig({
         socialMediaEnabled: merchant.socialMediaEnabled || false,
+        socialIconStyle: (merchant.socialIconStyle as "colored" | "silhouette") || "colored",
         socialInstagram: merchant.socialInstagram || "",
         socialFacebook: merchant.socialFacebook || "",
         socialTelegram: merchant.socialTelegram || "",
@@ -553,7 +555,8 @@ export default function WidgetPage() {
 
   const socialMediaMutation = useMutation({
     mutationFn: async (data: { 
-      socialMediaEnabled?: boolean; 
+      socialMediaEnabled?: boolean;
+      socialIconStyle?: "colored" | "silhouette";
       socialInstagram?: string;
       socialFacebook?: string;
       socialTelegram?: string;
@@ -1530,6 +1533,25 @@ async function handleLogin() {
                   }}
                   data-testid="switch-social-enabled"
                 />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Label className="text-base font-medium">Icon Style</Label>
+                  <p className="text-sm text-muted-foreground">Choose colored or silhouette icons</p>
+                </div>
+                <Select
+                  value={socialConfig.socialIconStyle}
+                  onValueChange={(value: "colored" | "silhouette") => setSocialConfig({ ...socialConfig, socialIconStyle: value })}
+                >
+                  <SelectTrigger className="w-[140px]" data-testid="select-icon-style">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="colored">Colored</SelectItem>
+                    <SelectItem value="silhouette">Silhouette</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               
               <Separator />
