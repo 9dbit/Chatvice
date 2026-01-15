@@ -1241,8 +1241,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         
         return (
           <div 
-            className="relative backdrop-blur-lg"
+            className="absolute left-0 right-0 backdrop-blur-lg z-[5]"
             style={{ 
+              top: "48px",
               backgroundColor: `${primaryColor}40`,
               animation: socialPanelClosing 
                 ? 'slideUpSmooth 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards'
@@ -1273,14 +1274,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             `}</style>
             {/* Swipe handle pill */}
             <div 
-              className="flex justify-center pt-2 cursor-pointer"
+              className="flex justify-center pt-1 cursor-pointer"
               onClick={handleCloseSocialPanel}
             >
-              <div className="w-10 h-1.5 rounded-full bg-white/50" />
+              <div className="w-8 h-1 rounded-full bg-white/50" />
             </div>
             
-            {/* Social icons */}
-            <div className="px-4 pb-4 pt-3 flex items-center justify-center gap-3">
+            {/* Social icons - slimmer padding */}
+            <div className="px-3 pb-2 pt-1.5 flex items-center justify-center gap-2.5">
               {socialLinks.map(social => (
                 <a
                   key={social.icon}
