@@ -529,6 +529,33 @@ export default function WidgetPage() {
     },
   });
 
+  const socialMediaMutation = useMutation({
+    mutationFn: async (data: { 
+      socialMediaEnabled?: boolean; 
+      socialInstagram?: string;
+      socialFacebook?: string;
+      socialTelegram?: string;
+      socialWhatsapp?: string;
+      socialDiscord?: string;
+    }) => {
+      return apiRequest("POST", "/api/merchant/config", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
+      toast({
+        title: "Social media settings saved",
+        description: "Your changes have been applied.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to save",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const baseUrl = window.location.origin;
   
   const widgetEmbedCode = `<script>
@@ -1477,7 +1504,7 @@ async function handleLogin() {
                 <Switch
                   checked={merchant?.socialMediaEnabled || false}
                   onCheckedChange={(checked) => {
-                    saveMutation.mutate({ socialMediaEnabled: checked });
+                    socialMediaMutation.mutate({ socialMediaEnabled: checked });
                   }}
                   data-testid="switch-social-enabled"
                 />
@@ -1496,7 +1523,7 @@ async function handleLogin() {
                   <Input
                     placeholder="https://instagram.com/yourbrand"
                     value={merchant?.socialInstagram || ""}
-                    onChange={(e) => saveMutation.mutate({ socialInstagram: e.target.value })}
+                    onChange={(e) => socialMediaMutation.mutate({ socialInstagram: e.target.value })}
                     data-testid="input-social-instagram"
                   />
                 </div>
@@ -1511,7 +1538,7 @@ async function handleLogin() {
                   <Input
                     placeholder="https://facebook.com/yourbrand"
                     value={merchant?.socialFacebook || ""}
-                    onChange={(e) => saveMutation.mutate({ socialFacebook: e.target.value })}
+                    onChange={(e) => socialMediaMutation.mutate({ socialFacebook: e.target.value })}
                     data-testid="input-social-facebook"
                   />
                 </div>
@@ -1526,7 +1553,7 @@ async function handleLogin() {
                   <Input
                     placeholder="https://t.me/yourbrand"
                     value={merchant?.socialTelegram || ""}
-                    onChange={(e) => saveMutation.mutate({ socialTelegram: e.target.value })}
+                    onChange={(e) => socialMediaMutation.mutate({ socialTelegram: e.target.value })}
                     data-testid="input-social-telegram"
                   />
                 </div>
@@ -1541,7 +1568,7 @@ async function handleLogin() {
                   <Input
                     placeholder="https://wa.me/628123456789"
                     value={merchant?.socialWhatsapp || ""}
-                    onChange={(e) => saveMutation.mutate({ socialWhatsapp: e.target.value })}
+                    onChange={(e) => socialMediaMutation.mutate({ socialWhatsapp: e.target.value })}
                     data-testid="input-social-whatsapp"
                   />
                 </div>
@@ -1556,7 +1583,7 @@ async function handleLogin() {
                   <Input
                     placeholder="https://discord.gg/yourinvite"
                     value={merchant?.socialDiscord || ""}
-                    onChange={(e) => saveMutation.mutate({ socialDiscord: e.target.value })}
+                    onChange={(e) => socialMediaMutation.mutate({ socialDiscord: e.target.value })}
                     data-testid="input-social-discord"
                   />
                 </div>
