@@ -2345,10 +2345,19 @@ Sitemap: ${baseUrl}/sitemap.xml`;
               response.on("data", (chunk: string) => { data += chunk; });
               response.on("end", () => {
                 // Check if the page contains the widget embed with this merchant's ID
-                const hasWidget = data.includes(`chatvice.app/widget.js`) || 
-                                  data.includes(`data-merchant-id="${merchantId}"`) ||
-                                  data.includes(`merchantId: "${merchantId}"`) ||
-                                  data.includes(`merchantId:"${merchantId}"`);
+                // Support multiple embed code formats
+                const hasWidget = 
+                  // Current format: /api/widget/chatvice.js with script.id
+                  data.includes(`/api/widget/chatvice.js`) ||
+                  data.includes(`script.id="${merchantId}"`) ||
+                  data.includes(`script.id = "${merchantId}"`) ||
+                  // Legacy formats
+                  data.includes(`chatvice.app/widget.js`) || 
+                  data.includes(`data-merchant-id="${merchantId}"`) ||
+                  data.includes(`merchantId: "${merchantId}"`) ||
+                  data.includes(`merchantId:"${merchantId}"`) ||
+                  // iFrame embed format
+                  data.includes(`/widget/${merchantId}`);
                 resolve(hasWidget);
               });
             });
