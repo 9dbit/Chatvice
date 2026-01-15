@@ -1226,7 +1226,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         
         return (
           <div 
-            className="relative backdrop-blur-xl"
+            className="relative backdrop-blur-lg"
             style={{ 
               backgroundColor: `${primaryColor}99`,
               animation: 'slideDownSmooth 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards'
