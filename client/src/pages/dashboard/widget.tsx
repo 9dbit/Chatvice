@@ -69,6 +69,15 @@ export default function WidgetPage() {
     allowedDomains: "",
   });
 
+  const [socialConfig, setSocialConfig] = useState({
+    socialMediaEnabled: false,
+    socialInstagram: "",
+    socialFacebook: "",
+    socialTelegram: "",
+    socialWhatsapp: "",
+    socialDiscord: "",
+  });
+
   const { data: merchant, isLoading } = useQuery<Merchant>({
     queryKey: ["/api/merchant", merchantId],
     enabled: !!merchantId,
@@ -262,6 +271,19 @@ export default function WidgetPage() {
       });
     }
   }, [merchant, agentWidgetSettings]);
+
+  useEffect(() => {
+    if (merchant) {
+      setSocialConfig({
+        socialMediaEnabled: merchant.socialMediaEnabled || false,
+        socialInstagram: merchant.socialInstagram || "",
+        socialFacebook: merchant.socialFacebook || "",
+        socialTelegram: merchant.socialTelegram || "",
+        socialWhatsapp: merchant.socialWhatsapp || "",
+        socialDiscord: merchant.socialDiscord || "",
+      });
+    }
+  }, [merchant]);
 
   const handleAgentPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1502,9 +1524,9 @@ async function handleLogin() {
                   <p className="text-sm text-muted-foreground">Show social media links in your chat widget</p>
                 </div>
                 <Switch
-                  checked={merchant?.socialMediaEnabled || false}
+                  checked={socialConfig.socialMediaEnabled}
                   onCheckedChange={(checked) => {
-                    socialMediaMutation.mutate({ socialMediaEnabled: checked });
+                    setSocialConfig({ ...socialConfig, socialMediaEnabled: checked });
                   }}
                   data-testid="switch-social-enabled"
                 />
@@ -1522,8 +1544,8 @@ async function handleLogin() {
                   </Label>
                   <Input
                     placeholder="https://instagram.com/yourbrand"
-                    value={merchant?.socialInstagram || ""}
-                    onChange={(e) => socialMediaMutation.mutate({ socialInstagram: e.target.value })}
+                    value={socialConfig.socialInstagram}
+                    onChange={(e) => setSocialConfig({ ...socialConfig, socialInstagram: e.target.value })}
                     data-testid="input-social-instagram"
                   />
                 </div>
@@ -1537,8 +1559,8 @@ async function handleLogin() {
                   </Label>
                   <Input
                     placeholder="https://facebook.com/yourbrand"
-                    value={merchant?.socialFacebook || ""}
-                    onChange={(e) => socialMediaMutation.mutate({ socialFacebook: e.target.value })}
+                    value={socialConfig.socialFacebook}
+                    onChange={(e) => setSocialConfig({ ...socialConfig, socialFacebook: e.target.value })}
                     data-testid="input-social-facebook"
                   />
                 </div>
@@ -1552,8 +1574,8 @@ async function handleLogin() {
                   </Label>
                   <Input
                     placeholder="https://t.me/yourbrand"
-                    value={merchant?.socialTelegram || ""}
-                    onChange={(e) => socialMediaMutation.mutate({ socialTelegram: e.target.value })}
+                    value={socialConfig.socialTelegram}
+                    onChange={(e) => setSocialConfig({ ...socialConfig, socialTelegram: e.target.value })}
                     data-testid="input-social-telegram"
                   />
                 </div>
@@ -1567,8 +1589,8 @@ async function handleLogin() {
                   </Label>
                   <Input
                     placeholder="https://wa.me/628123456789"
-                    value={merchant?.socialWhatsapp || ""}
-                    onChange={(e) => socialMediaMutation.mutate({ socialWhatsapp: e.target.value })}
+                    value={socialConfig.socialWhatsapp}
+                    onChange={(e) => setSocialConfig({ ...socialConfig, socialWhatsapp: e.target.value })}
                     data-testid="input-social-whatsapp"
                   />
                 </div>
@@ -1582,8 +1604,8 @@ async function handleLogin() {
                   </Label>
                   <Input
                     placeholder="https://discord.gg/yourinvite"
-                    value={merchant?.socialDiscord || ""}
-                    onChange={(e) => socialMediaMutation.mutate({ socialDiscord: e.target.value })}
+                    value={socialConfig.socialDiscord}
+                    onChange={(e) => setSocialConfig({ ...socialConfig, socialDiscord: e.target.value })}
                     data-testid="input-social-discord"
                   />
                 </div>
@@ -1593,6 +1615,25 @@ async function handleLogin() {
                 <Shield className="w-4 h-4 flex-shrink-0" />
                 <span>Social media links will be displayed as icons in your chat widget header.</span>
               </div>
+              
+              <Button 
+                onClick={() => socialMediaMutation.mutate(socialConfig)}
+                disabled={socialMediaMutation.isPending}
+                className="w-full"
+                data-testid="button-save-social"
+              >
+                {socialMediaMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Social Media Settings
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
