@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -67,6 +67,11 @@ export default function LivePreviewPage() {
     }, 100);
   };
 
+  // Auto-refresh when entering the page
+  useEffect(() => {
+    handleRefresh();
+  }, []);
+
   if (agentsLoading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
@@ -85,6 +90,7 @@ export default function LivePreviewPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
+          <span className="text-xs text-muted-foreground hidden sm:inline">Refresh to see the change/update</span>
           <Button 
             variant="outline" 
             size="sm"
