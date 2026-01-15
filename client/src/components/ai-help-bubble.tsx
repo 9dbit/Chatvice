@@ -30,19 +30,22 @@ interface Message {
 }
 
 interface ParsedContent {
-  type: "text" | "button" | "link";
+  type: "text" | "button" | "link" | "action";
   content: string;
   action?: string;
   url?: string;
+  actionType?: string;
+  actionParams?: string;
 }
 
-// Parse AI response to extract buttons and links
+// Parse AI response to extract buttons, links, and actions
 function parseMessageContent(content: string): ParsedContent[] {
   const parts: ParsedContent[] = [];
   
   // Pattern for buttons: [BTN:Label:action] or [BTN:Label]
   // Pattern for links: [LINK:Text:/path] or [LINK:Text:https://...]
-  const regex = /\[BTN:([^\]:]+)(?::([^\]]+))?\]|\[LINK:([^\]:]+):([^\]]+)\]/g;
+  // Pattern for actions: [ACTION:action_type:params]
+  const regex = /\[BTN:([^\]:]+)(?::([^\]]+))?\]|\[LINK:([^\]:]+):([^\]]+)\]|\[ACTION:([^\]:]+):([^\]]+)\]/g;
   
   let lastIndex = 0;
   let match;
@@ -69,6 +72,14 @@ function parseMessageContent(content: string): ParsedContent[] {
         type: "link", 
         content: match[3], 
         url: match[4] 
+      });
+    } else if (match[5] && match[6]) {
+      // Action match: [ACTION:action_type:params]
+      parts.push({
+        type: "action",
+        content: `Execute: ${match[5]}`,
+        actionType: match[5],
+        actionParams: match[6]
       });
     }
     
@@ -373,6 +384,52 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
       }]);
     }
   });
+  
+  // Action mutation for performing dashboard actions via Chatvice Guide
+  const actionMutation = useMutation({
+    mutationFn: async ({ actionType, params }: { actionType: string; params: Record<string, string> }) => {
+      const response = await apiRequest("POST", "/api/help/action", { actionType, params });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        setMessages(prev => [...prev, { role: "assistant", content: `✅ ${data.message}` }]);
+      } else {
+        setMessages(prev => [...prev, { role: "assistant", content: `❌ ${data.error || 'Action failed'}` }]);
+      }
+    },
+    onError: (error: Error) => {
+      setMessages(prev => [...prev, { 
+        role: "assistant", 
+        content: `❌ Gagal melakukan aksi: ${error.message}` 
+      }]);
+    }
+  });
+  
+  // Handle action commands from AI responses
+  const handleAction = (actionType: string, actionParams: string) => {
+    if (actionMutation.isPending) return;
+    
+    // Parse action params (could be JSON or simple string)
+    let params: Record<string, string> = {};
+    try {
+      params = JSON.parse(actionParams);
+    } catch {
+      // Simple string param - use as main param based on action type
+      if (actionType === 'navigate') {
+        window.location.href = `/dashboard${actionParams}`;
+        return;
+      } else if (actionType === 'add_trigger') {
+        params = { keyword: actionParams };
+      } else if (actionType === 'add_knowledge') {
+        params = { content: actionParams };
+      } else {
+        params = { value: actionParams };
+      }
+    }
+    
+    actionMutation.mutate({ actionType, params });
+  };
 
   // Direct send function that takes message as parameter (for button clicks)
   const sendMessage = (messageText: string) => {
@@ -773,10 +830,11 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                             }
                             if (part.type === "link") {
                               const isExternal = part.url?.startsWith("http");
+                              const isDashboardLink = part.url?.startsWith("/") && !part.url?.startsWith("http");
                               return (
                                 <a
                                   key={partIndex}
-                                  href={part.url}
+                                  href={isDashboardLink ? `/dashboard${part.url}` : part.url}
                                   target={isExternal ? "_blank" : "_self"}
                                   rel={isExternal ? "noopener noreferrer" : undefined}
                                   className="inline-flex items-center gap-1 text-purple-600 dark:text-fuchsia-400 hover:underline font-medium"
@@ -789,6 +847,23 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                             }
                             return null;
                           })}
+                          {/* Action buttons */}
+                          {parsedContent?.some(p => p.type === "action") && (
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {parsedContent?.filter(p => p.type === "action").map((act, actIndex) => (
+                                <button
+                                  key={`act-${actIndex}`}
+                                  className="inline-flex items-center px-2 h-6 text-[12px] leading-none rounded-md border transition-all duration-200 bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/50 hover:border-green-500"
+                                  onClick={() => act.actionType && act.actionParams && handleAction(act.actionType, act.actionParams)}
+                                  disabled={actionMutation.isPending}
+                                  data-testid={`button-action-${actIndex}`}
+                                >
+                                  <Sparkles className="w-2.5 h-2.5 mr-0.5 inline" />
+                                  {act.actionType === 'navigate' ? 'Go' : act.actionType === 'add_trigger' ? 'Add Trigger' : act.actionType === 'add_knowledge' ? 'Add Knowledge' : 'Execute'}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                           {hasButtons && (
                             <div className="mt-2 flex flex-wrap gap-1">
                               {parsedContent?.filter(p => p.type === "button").map((btn, btnIndex) => (

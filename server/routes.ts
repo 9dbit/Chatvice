@@ -9892,8 +9892,10 @@ Use the knowledge base above to answer questions. If you don't have specific inf
       const { question, conversationHistory } = req.body;
       const merchantId = (req as any).merchant?.id;
       
-      // Fetch merchant billing information for contextual responses
+      // Comprehensive merchant data context
+      let merchantDataContext = "";
       let billingContext = "";
+      
       if (merchantId) {
         const merchant = await storage.getMerchant(merchantId);
         if (merchant) {
@@ -9918,7 +9920,7 @@ Use the knowledge base above to answer questions. If you don't have specific inf
           const planPriceIDR = Math.round(planPriceUSD * exchangeRate);
           
           billingContext = `
-===== MERCHANT BILLING DATA (REAL-TIME) =====
+===== BILLING & SUBSCRIPTION =====
 Status Langganan: ${status === 'active' ? 'Aktif' : status === 'trial' ? 'Trial' : status}
 Paket Saat Ini: ${planName}
 Billing Interval: ${billingInterval === 'annual' ? 'Tahunan' : 'Bulanan'}
@@ -9927,8 +9929,83 @@ ${currentPeriodEnd ? `Tanggal Perpanjangan: ${new Date(currentPeriodEnd).toLocal
 ${merchant.trialEndsAt && status === 'trial' ? `Trial Berakhir: ${new Date(merchant.trialEndsAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}
 ${pendingTransactionId ? `PEMBAYARAN PENDING: Ada transaksi yang belum selesai (ID: ${pendingTransactionId}). Customer bisa cek di halaman Billing.` : 'Tidak ada pembayaran pending.'}
 Percakapan Digunakan: ${merchant.conversationsUsed || 0}
-========================================
-`;
+==================================`;
+
+          // Fetch AI agents
+          const agents = await storage.getAgents(merchantId);
+          const agentsList = agents.map((a: any) => `- ${a.name} (ID: ${a.id}, Status: ${a.isActive !== false ? 'Aktif' : 'Tidak Aktif'}, Model: ${a.aiModel || 'GPT-4.1-mini'})`).join('\n');
+          
+          // Fetch supervisors
+          const supervisors = await storage.getSupervisorsByMerchant(merchantId);
+          const supervisorsList = supervisors.map((s: any) => `- ${s.name} (Email: ${s.email})`).join('\n');
+          
+          // Fetch today's session stats
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const allSessions = await storage.getSessionsByMerchant(merchantId);
+          const todaySessions = allSessions.filter((s: any) => s.createdAt && new Date(s.createdAt) >= today);
+          const activeSessions = allSessions.filter((s: any) => s.status === 'active');
+          const escalatedSessions = allSessions.filter((s: any) => s.escalatedAt !== null);
+          const todayEscalated = todaySessions.filter((s: any) => s.escalatedAt !== null);
+          
+          // Count messages today (limit to first 10 sessions for performance)
+          let todayMessagesCount = 0;
+          for (const session of todaySessions.slice(0, 10)) {
+            const messages = await storage.getMessages(session.id);
+            todayMessagesCount += messages.length;
+          }
+          if (todaySessions.length > 10) {
+            todayMessagesCount = Math.round(todayMessagesCount / 10 * todaySessions.length); // Estimate
+          }
+          
+          // Fetch triggers
+          const triggers = await storage.getTriggers(merchantId);
+          const triggersList = triggers.map((t: any) => `- "${t.keyword}" → ${t.action} (${t.isActive !== false ? 'Aktif' : 'Tidak Aktif'})`).join('\n');
+          
+          // Fetch knowledge sources
+          const knowledgeSources = await storage.getSources(merchantId);
+          const sourcesList = knowledgeSources.map((k: any) => `- ${k.name || k.type} (Tipe: ${k.type}, ${k.isActive !== false ? 'Aktif' : 'Tidak Aktif'})`).join('\n');
+          
+          // Fetch work shifts
+          const workShifts = await storage.getWorkShifts(merchantId);
+          const schedulesList = workShifts.map((ws: any) => {
+            return `- ${ws.name}: ${ws.startTime}-${ws.endTime} (${ws.daysOfWeek?.join(', ') || 'Setiap hari'})`;
+          }).join('\n');
+          
+          // Get available promo codes
+          const promoCodes = await storage.getPromotions();
+          const activePromos = promoCodes.filter((p: any) => p.isActive && (!p.expiresAt || new Date(p.expiresAt) > new Date()));
+          const promosList = activePromos.map((p: any) => `- ${p.code}: ${p.discountPercent}% off${p.targetPlans?.length ? ` (untuk paket: ${p.targetPlans.join(', ')})` : ''}`).join('\n');
+          
+          merchantDataContext = `
+===== MERCHANT DASHBOARD DATA (REAL-TIME) =====
+
+📊 STATISTIK HARI INI (${today.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}):
+- Total Chat Hari Ini: ${todaySessions.length} sesi
+- Total Pesan Hari Ini: ${todayMessagesCount} pesan
+- Sesi Aktif Sekarang: ${activeSessions.length}
+- Eskalasi Hari Ini: ${todayEscalated.length}
+- Total Sesi Dieskalasi: ${escalatedSessions.length}
+
+🤖 AI AGENTS (${agents.length} total):
+${agentsList || '- Belum ada agent'}
+
+👥 SUPERVISORS (${supervisors.length} total):
+${supervisorsList || '- Belum ada supervisor'}
+
+⚡ TRIGGERS (${triggers.length} total):
+${triggersList || '- Belum ada trigger'}
+
+📚 KNOWLEDGE SOURCES (${knowledgeSources.length} total):
+${sourcesList || '- Belum ada knowledge source'}
+
+📅 WORK SCHEDULES (${workShifts.length} total):
+${schedulesList || '- Belum ada jadwal kerja'}
+
+🎁 PROMO AKTIF:
+${promosList || '- Tidak ada promo aktif saat ini'}
+
+===============================================`;
         }
       }
       
@@ -9983,6 +10060,8 @@ TIPS:
 
 ${billingContext}
 
+${merchantDataContext}
+
 KNOWLEDGE BASE:
 ${knowledgeContext}
 
@@ -10003,6 +10082,13 @@ When offering choices or explaining features, use these special formats:
    [LINK:Display Text:/path]
    Example: "Lihat [LINK:halaman Agents:/agents] untuk mengelola AI agent."
 
+3. ACTION COMMANDS - For performing dashboard actions:
+   [ACTION:action_type:parameters]
+   Available actions:
+   - [ACTION:navigate:/path] - Navigate to a dashboard page
+   - [ACTION:add_trigger:keyword] - Add new escalation trigger
+   - [ACTION:add_knowledge:content] - Add knowledge to training data
+
 Dashboard pages to link:
 - /agents - Kelola AI agents
 - /sources - Knowledge sources
@@ -10012,17 +10098,52 @@ Dashboard pages to link:
 - /triggers - Escalation triggers
 - /widget - Widget settings
 - /supervisors - Supervisor management
+- /work-scheduler - Jadwal kerja supervisor/agent
 - /plans - Subscription plans
 - /billing - Billing info
 - /checkout - Halaman checkout pembayaran
 - /settings - Account settings
+- /notification-settings - Pengaturan notifikasi
+- /live-preview - Preview widget
+
+WORKFLOW GUIDANCE:
+Ketika merchant bertanya tentang cara melakukan sesuatu, berikan panduan step-by-step:
+
+1. SETUP CHATBOT PERTAMA KALI:
+   a. Buat AI Agent di [LINK:Agents:/agents]
+   b. Tambah Knowledge Source di [LINK:Sources:/sources]
+   c. Kustomisasi widget di [LINK:Widget:/widget]
+   d. Copy embed code dan pasang di website
+
+2. MENAMBAH SUPERVISOR:
+   a. Buka [LINK:Supervisors:/supervisors]
+   b. Klik "Add Supervisor"
+   c. Masukkan nama, email, dan password
+   d. Atur jadwal kerja di [LINK:Work Scheduler:/work-scheduler]
+
+3. MENGATUR ESKALASI:
+   a. Buka [LINK:Triggers:/triggers]
+   b. Tambah keyword yang memicu eskalasi (contoh: "refund", "manager")
+   c. Pilih action: escalate atau custom response
+
+4. MELATIH AI:
+   a. Buka [LINK:Knowledge Base:/knowledge]
+   b. Tambah konten training dengan topik dan jawaban
+   c. Atau crawl website di [LINK:Sources:/sources]
 
 BILLING GUIDANCE (IMPORTANT):
-- Ketika merchant bertanya tentang billing, tagihan, atau pembayaran, GUNAKAN data dari MERCHANT BILLING DATA di atas
+- Ketika merchant bertanya tentang billing, tagihan, atau pembayaran, GUNAKAN data dari BILLING & SUBSCRIPTION di atas
 - Jika ada PEMBAYARAN PENDING, beritahu merchant untuk menyelesaikan pembayaran di halaman Billing atau Checkout
 - Jika merchant bertanya "berapa yang harus saya bayar" atau "berapa tagihan saya", beri tahu nominal berdasarkan data billing
 - Arahkan merchant ke [LINK:halaman Billing:/billing] untuk detail tagihan dan pembayaran
 - Untuk pembayaran baru, arahkan ke [LINK:halaman Checkout:/checkout]
+
+DATA CONTEXT USAGE:
+- Ketika merchant bertanya "berapa chat hari ini?" atau "ada berapa sesi?", gunakan data dari STATISTIK HARI INI
+- Ketika merchant bertanya tentang agent atau supervisor, sebutkan nama dan jumlahnya dari data AI AGENTS dan SUPERVISORS
+- Ketika merchant bertanya tentang trigger, sebutkan daftar dari TRIGGERS
+- Ketika merchant bertanya tentang promo, sebutkan dari PROMO AKTIF
+- Ketika merchant bertanya tentang jadwal, gunakan data WORK SCHEDULES
 
 LANGUAGE MATCHING (CRITICAL):
 - WAJIB: Selalu jawab menggunakan bahasa yang SAMA dengan bahasa pesan TERAKHIR user
@@ -10034,6 +10155,7 @@ RULES:
 - Use buttons for 2-3 choices
 - Use links when mentioning specific pages
 - Max 3-4 buttons per response
+- SELALU gunakan data real-time dari MERCHANT DASHBOARD DATA untuk menjawab pertanyaan statistik
 
 Use the knowledge base above to answer questions. If they ask about something unrelated, gently redirect them to dashboard features.`;
       
@@ -10058,7 +10180,7 @@ Use the knowledge base above to answer questions. If they ask about something un
       const response = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
         messages,
-        max_tokens: 400,
+        max_tokens: 600,
         temperature,
       });
       
@@ -10066,6 +10188,101 @@ Use the knowledge base above to answer questions. If they ask about something un
     } catch (error) {
       console.error("Help ask error:", error);
       res.json({ answer: "I apologize, but I'm having trouble responding right now. Please try again later or contact support at support@chatvice.com." });
+    }
+  });
+
+  // Chatvice Guide action endpoints for modifying settings
+  app.post("/api/help/action", requireMerchant, async (req, res) => {
+    try {
+      const { actionType, params } = req.body;
+      const merchantId = (req as any).merchant?.id;
+      
+      if (!merchantId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      switch (actionType) {
+        case 'add_trigger': {
+          const { keyword, action = 'escalate' } = params;
+          if (!keyword) {
+            return res.status(400).json({ error: "Keyword is required" });
+          }
+          
+          const newTrigger = await storage.createTrigger({
+            merchantId,
+            keyword: keyword.toLowerCase()
+          });
+          
+          return res.json({ 
+            success: true, 
+            message: `Trigger "${keyword}" berhasil ditambahkan!`,
+            data: newTrigger
+          });
+        }
+        
+        case 'add_knowledge': {
+          const { topic, content } = params;
+          if (!content) {
+            return res.status(400).json({ error: "Content is required" });
+          }
+          
+          const newSource = await storage.createSource({
+            merchantId,
+            type: 'text',
+            name: topic || 'Knowledge from Guide',
+            content
+          });
+          
+          return res.json({ 
+            success: true, 
+            message: `Knowledge "${topic || 'New knowledge'}" berhasil ditambahkan! AI akan mempelajari konten ini.`,
+            data: newSource
+          });
+        }
+        
+        case 'update_widget': {
+          const { setting, value } = params;
+          if (!setting) {
+            return res.status(400).json({ error: "Setting is required" });
+          }
+          
+          // Get first agent for merchant
+          const agents = await storage.getAgents(merchantId);
+          if (agents.length === 0) {
+            return res.status(400).json({ error: "No agents found. Please create an agent first." });
+          }
+          
+          const agent = agents[0];
+          const updateData: any = {};
+          
+          switch (setting) {
+            case 'welcomeMessage':
+              updateData.welcomeMessage = value;
+              break;
+            case 'primaryColor':
+              updateData.primaryColor = value;
+              break;
+            case 'chatBubbleText':
+              updateData.chatBubbleText = value;
+              break;
+            default:
+              return res.status(400).json({ error: `Unknown setting: ${setting}` });
+          }
+          
+          await storage.updateAgent(agent.id, updateData);
+          
+          return res.json({ 
+            success: true, 
+            message: `Widget setting "${setting}" berhasil diupdate!`
+          });
+        }
+        
+        default:
+          return res.status(400).json({ error: `Unknown action type: ${actionType}` });
+      }
+    } catch (error) {
+      console.error("Help action error:", error);
+      res.status(500).json({ error: "Failed to perform action" });
     }
   });
 
