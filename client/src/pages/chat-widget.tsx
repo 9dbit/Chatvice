@@ -117,6 +117,8 @@ function parseMessageContent(content: string): ParsedPart[] {
 export default function ChatWidget({ merchantId, sessionId: initialSessionId, embedded = false, previewMode = false }: ChatWidgetProps) {
   const urlParams = new URLSearchParams(window.location.search);
   const showCloseButton = urlParams.get("showClose") === "true";
+  // Widget is externally embedded when showClose=true (external widget shows close button)
+  const isExternalEmbed = showCloseButton;
   
   const [isOpen, setIsOpen] = useState(embedded);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -1075,15 +1077,20 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     </div>
   );
 
-  return (
-    <div
-      className={`${
+  // External embed uses borderless design
+  const containerClasses = isExternalEmbed
+    ? "w-full h-full bg-background overflow-hidden flex flex-col"
+    : `${
         embedded 
           ? "w-full h-full" 
           : isFullscreen
             ? "fixed inset-4 z-50 animate-in fade-in duration-300"
             : `${positionClass} bottom-5 right-5 w-[360px] h-[520px] z-50 animate-in slide-in-from-bottom-5 fade-in duration-300`
-      } bg-white/25 dark:bg-gray-900/25 backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden flex flex-col border border-white/30 dark:border-gray-700/50`}
+      } bg-white/25 dark:bg-gray-900/25 backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden flex flex-col border border-white/30 dark:border-gray-700/50`;
+
+  return (
+    <div
+      className={containerClasses}
       style={{
         transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
       }}

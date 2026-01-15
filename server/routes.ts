@@ -9355,7 +9355,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   if (existingButton) existingButton.remove();
   
   var iframe = document.createElement("iframe");
-  iframe.src = baseUrl + "/widget/" + merchantId + "?session=" + sessionId + "&showClose=true";
+  iframe.src = baseUrl + "/widget/" + merchantId + "?session=" + sessionId + "&showClose=true&embedded=true";
   
   // Responsive sizing - detect mobile
   var isMobile = window.innerWidth <= 480;
@@ -9363,9 +9363,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   var widgetHeight = isMobile ? "100vh" : "550px";
   var widgetBottom = isMobile ? "0" : "20px";
   var widgetRight = isMobile ? "0" : "20px";
-  var widgetRadius = isMobile ? "0" : "16px";
   
-  iframe.style.cssText = "position:fixed;bottom:" + widgetBottom + ";right:" + widgetRight + ";width:" + widgetWidth + ";height:" + widgetHeight + ";max-height:100vh;max-width:100vw;border:none;z-index:99999;border-radius:" + widgetRadius + ";box-shadow:0 8px 30px rgba(0,0,0,0.15);display:none;";
+  // Borderless design - no border-radius, no box-shadow for clean integration
+  iframe.style.cssText = "position:fixed;bottom:" + widgetBottom + ";right:" + widgetRight + ";width:" + widgetWidth + ";height:" + widgetHeight + ";max-height:100vh;max-width:100vw;border:none;z-index:99999;display:none;background:transparent;";
   iframe.id = "chatvice-widget-frame";
   iframe.allow = "microphone; camera";
   
@@ -9381,7 +9381,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   
   function updateButtonStyles(config) {
     defaultColor = config.primaryColor || defaultColor;
+    // Use iconUrl from config - ensure full URL if relative path
     iconUrl = config.iconUrl || "";
+    if (iconUrl && !iconUrl.startsWith("http") && !iconUrl.startsWith("data:")) {
+      iconUrl = baseUrl + iconUrl;
+    }
+    // Add cache-busting to icon URL
+    if (iconUrl && !iconUrl.startsWith("data:")) {
+      var cacheBuster = iconUrl.indexOf("?") === -1 ? "?v=" : "&v=";
+      iconUrl = iconUrl + cacheBuster + Date.now();
+    }
     buttonWidth = iconUrl ? (config.iconWidth || 70) : (config.iconSize || 60);
     buttonHeight = iconUrl ? (config.iconHeight || 70) : (config.iconSize || 60);
     bubblePosition = config.bubblePosition || "right";
@@ -9400,10 +9409,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
     }
     
-    // Also update iframe position with responsive sizing
+    // Also update iframe position with responsive sizing - borderless design
     var iframePosStyle = isMobile 
-      ? "position:fixed;bottom:0;left:0;right:0;width:100vw;height:100vh;max-height:100vh;max-width:100vw;border:none;z-index:99999;border-radius:0;box-shadow:none;"
-      : "position:fixed;bottom:20px;" + positionStyle + "width:380px;height:550px;border:none;z-index:99999;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,0.15);";
+      ? "position:fixed;bottom:0;left:0;right:0;width:100vw;height:100vh;max-height:100vh;max-width:100vw;border:none;z-index:99999;background:transparent;"
+      : "position:fixed;bottom:20px;" + positionStyle + "width:380px;height:550px;border:none;z-index:99999;background:transparent;";
     iframe.style.cssText = iframePosStyle + "display:" + (isOpen ? "block" : "none") + ";";
   }
   
@@ -9411,20 +9420,34 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   button.style.cssText = "position:fixed;bottom:20px;right:20px;width:60px;height:60px;border-radius:50%;background:#6b5dfc;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:99999;box-shadow:0 4px 15px rgba(107,93,252,0.4);transition:transform 0.2s ease;";
   button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
   
-  // Fetch merchant config and apply custom styles
-  fetch(baseUrl + "/api/merchant/status/" + merchantId)
-    .then(function(response) { return response.json(); })
-    .then(function(config) { updateButtonStyles(config); })
-    .catch(function(err) { console.log("Chatvice: Could not load config, using defaults"); });
+  // Fetch merchant config and apply custom styles with retry
+  function fetchConfig(retryCount) {
+    retryCount = retryCount || 0;
+    fetch(baseUrl + "/api/merchant/status/" + merchantId + "?t=" + Date.now())
+      .then(function(response) { 
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        return response.json(); 
+      })
+      .then(function(config) { 
+        updateButtonStyles(config); 
+      })
+      .catch(function(err) { 
+        if (retryCount < 2) {
+          setTimeout(function() { fetchConfig(retryCount + 1); }, 1000);
+        }
+      });
+  }
+  fetchConfig(0);
   
   button.onmouseover = function() { button.style.transform = "scale(1.05)"; };
   button.onmouseout = function() { button.style.transform = "scale(1)"; };
   
   function openWidget() {
-    // Apply responsive sizing when opening
+    // Apply responsive sizing when opening - borderless design
+    var positionStyle = bubblePosition === "left" ? "left:20px;right:auto;" : "right:20px;left:auto;";
     var iframePosStyle = isMobile 
-      ? "position:fixed;bottom:0;left:0;right:0;width:100vw;height:100vh;max-height:100vh;max-width:100vw;border:none;z-index:99999;border-radius:0;box-shadow:none;"
-      : "position:fixed;bottom:20px;" + (bubblePosition === "left" ? "left:20px;right:auto;" : "right:20px;left:auto;") + "width:380px;height:550px;border:none;z-index:99999;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,0.15);";
+      ? "position:fixed;bottom:0;left:0;right:0;width:100vw;height:100vh;max-height:100vh;max-width:100vw;border:none;z-index:99999;background:transparent;"
+      : "position:fixed;bottom:20px;" + positionStyle + "width:380px;height:550px;border:none;z-index:99999;background:transparent;";
     iframe.style.cssText = iframePosStyle + "display:block;";
     button.style.display = "none";
     isOpen = true;
@@ -11077,16 +11100,18 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
 
   // Public endpoint for widget to start chat with customer name
   app.post("/api/widget/start-chat", async (req, res) => {
+    // CORS is handled by the middleware at line 907-926 for /api/widget/ routes
     try {
       const { merchantId, sessionId, customerName, initialMessage } = req.body;
       
+      // Return 200 with success:false for validation errors so widget can display user-friendly messages
       if (!merchantId || !sessionId || !customerName) {
-        return res.status(400).json({ success: false, error: "Missing required fields" });
+        return res.json({ success: false, error: "Please fill in all required fields" });
       }
 
       const merchant = await storage.getMerchant(merchantId);
       if (!merchant) {
-        return res.status(404).json({ success: false, error: "Merchant not found" });
+        return res.json({ success: false, error: "Chat service is not available. Please try again later." });
       }
 
       // Validate and sanitize customer name
@@ -11112,9 +11137,9 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       } else {
         // Security check: Verify session belongs to this merchant
         if (session.merchantId !== merchantId) {
-          return res.status(403).json({ 
+          return res.json({ 
             success: false, 
-            error: "Session does not belong to this merchant" 
+            error: "Chat session error. Please refresh and try again." 
           });
         }
         await storage.updateSession(sessionId, { 
@@ -11191,7 +11216,8 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
       });
     } catch (error) {
       console.error("Error starting chat:", error);
-      res.status(500).json({ success: false, error: "Server error" });
+      // Return 200 with success:false to prevent widget from showing generic error
+      res.json({ success: false, error: "Unable to start chat. Please try again." });
     }
   });
 
