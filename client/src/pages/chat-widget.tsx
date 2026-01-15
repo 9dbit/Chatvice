@@ -1226,19 +1226,34 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         
         return (
           <div 
-            className="relative animate-in slide-in-from-top-2 duration-200"
-            style={{ backgroundColor: primaryColor }}
+            className="relative backdrop-blur-xl"
+            style={{ 
+              backgroundColor: `${primaryColor}99`,
+              animation: 'slideDownSmooth 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+            }}
           >
+            <style>{`
+              @keyframes slideDownSmooth {
+                from {
+                  opacity: 0;
+                  transform: translateY(-100%);
+                }
+                to {
+                  opacity: 1;
+                  transform: translateY(0);
+                }
+              }
+            `}</style>
             {/* Swipe handle pill */}
             <div 
-              className="flex justify-center pt-1 cursor-pointer"
+              className="flex justify-center pt-2 cursor-pointer"
               onClick={() => setSocialIconsExpanded(false)}
             >
-              <div className="w-8 h-1 rounded-full bg-white/40" />
+              <div className="w-10 h-1.5 rounded-full bg-white/50" />
             </div>
             
             {/* Social icons */}
-            <div className="px-4 pb-3 pt-2 flex items-center justify-center gap-3">
+            <div className="px-4 pb-4 pt-3 flex items-center justify-center gap-3">
               {socialLinks.map(social => (
                 <a
                   key={social.icon}
