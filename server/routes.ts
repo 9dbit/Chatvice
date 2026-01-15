@@ -9391,8 +9391,14 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       var cacheBuster = iconUrl.indexOf("?") === -1 ? "?v=" : "&v=";
       iconUrl = iconUrl + cacheBuster + Date.now();
     }
-    buttonWidth = iconUrl ? (config.iconWidth || 70) : (config.iconSize || 60);
-    buttonHeight = iconUrl ? (config.iconHeight || 70) : (config.iconSize || 60);
+    // Support custom icon dimensions
+    if (config.useCustomIconDimensions && iconUrl) {
+      buttonWidth = config.iconWidth || 70;
+      buttonHeight = config.iconHeight || 70;
+    } else {
+      buttonWidth = iconUrl ? 70 : (config.iconSize || 60);
+      buttonHeight = iconUrl ? 70 : (config.iconSize || 60);
+    }
     bubblePosition = config.bubblePosition || "right";
     
     var positionStyle = bubblePosition === "left" 
