@@ -166,6 +166,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     }
   });
   const [socialIconsExpanded, setSocialIconsExpanded] = useState(true);
+  const [socialPanelClosing, setSocialPanelClosing] = useState(false);
+  
+  const handleCloseSocialPanel = () => {
+    setSocialPanelClosing(true);
+    setTimeout(() => {
+      setSocialIconsExpanded(false);
+      setSocialPanelClosing(false);
+    }, 400);
+  };
   const [unreadCount, setUnreadCount] = useState(0);
   const [widgetPosition, setWidgetPosition] = useState(() => {
     if (previewMode) return 20;
@@ -1142,7 +1151,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               size="icon"
               variant="ghost"
               className="text-white hover:bg-white/20 h-7 w-7"
-              onClick={() => setSocialIconsExpanded(!socialIconsExpanded)}
+              onClick={() => {
+                if (socialIconsExpanded) {
+                  handleCloseSocialPanel();
+                } else {
+                  setSocialIconsExpanded(true);
+                }
+              }}
               data-testid="button-toggle-social"
             >
               {socialIconsExpanded ? (
@@ -1200,7 +1215,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       </div>
       
       {/* Social Media Panel - drawer style below header */}
-      {merchantConfig?.socialMediaEnabled && socialIconsExpanded && (() => {
+      {merchantConfig?.socialMediaEnabled && (socialIconsExpanded || socialPanelClosing) && (() => {
         const validUrl = (url: string | undefined) => {
           if (!url) return null;
           try {
@@ -1228,8 +1243,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           <div 
             className="relative backdrop-blur-lg"
             style={{ 
-              backgroundColor: `${primaryColor}99`,
-              animation: 'slideDownSmooth 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+              backgroundColor: `${primaryColor}40`,
+              animation: socialPanelClosing 
+                ? 'slideUpSmooth 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+                : 'slideDownSmooth 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards'
             }}
           >
             <style>{`
@@ -1243,11 +1260,21 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   transform: translateY(0);
                 }
               }
+              @keyframes slideUpSmooth {
+                from {
+                  opacity: 1;
+                  transform: translateY(0);
+                }
+                to {
+                  opacity: 0;
+                  transform: translateY(-100%);
+                }
+              }
             `}</style>
             {/* Swipe handle pill */}
             <div 
               className="flex justify-center pt-2 cursor-pointer"
-              onClick={() => setSocialIconsExpanded(false)}
+              onClick={handleCloseSocialPanel}
             >
               <div className="w-10 h-1.5 rounded-full bg-white/50" />
             </div>
