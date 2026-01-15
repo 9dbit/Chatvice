@@ -9939,12 +9939,20 @@ Percakapan Digunakan: ${merchant.conversationsUsed || 0}
           const supervisors = await storage.getSupervisorsByMerchant(merchantId);
           const supervisorsList = supervisors.map((s: any) => `- ${s.name} (Email: ${s.email})`).join('\n');
           
-          // Fetch today's session stats
+          // Fetch today's session stats - use same logic as dashboard (getAnalytics)
+          const now = new Date();
           const today = new Date();
           today.setHours(0, 0, 0, 0);
+          const dayAgo = new Date(now);
+          dayAgo.setDate(dayAgo.getDate() - 1);
+          
           const allSessions = await storage.getSessionsByMerchant(merchantId);
           const todaySessions = allSessions.filter((s: any) => s.createdAt && new Date(s.createdAt) >= today);
-          const activeSessions = allSessions.filter((s: any) => s.status === 'active');
+          // Active sessions = sessions with lastActivity in last 24 hours (same as dashboard)
+          const activeSessions = allSessions.filter((s: any) => {
+            if (!s.lastActivity) return false;
+            return new Date(s.lastActivity) > dayAgo;
+          });
           const escalatedSessions = allSessions.filter((s: any) => s.escalatedAt !== null);
           const todayEscalated = todaySessions.filter((s: any) => s.escalatedAt !== null);
           
@@ -9983,7 +9991,7 @@ Percakapan Digunakan: ${merchant.conversationsUsed || 0}
 📊 STATISTIK HARI INI (${today.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}):
 - Total Chat Hari Ini: ${todaySessions.length} sesi
 - Total Pesan Hari Ini: ${todayMessagesCount} pesan
-- Sesi Aktif Sekarang: ${activeSessions.length}
+- Sesi Aktif (24 Jam Terakhir): ${activeSessions.length}
 - Eskalasi Hari Ini: ${todayEscalated.length}
 - Total Sesi Dieskalasi: ${escalatedSessions.length}
 
@@ -10157,7 +10165,24 @@ RULES:
 - Max 3-4 buttons per response
 - SELALU gunakan data real-time dari MERCHANT DASHBOARD DATA untuk menjawab pertanyaan statistik
 
-Use the knowledge base above to answer questions. If they ask about something unrelated, gently redirect them to dashboard features.`;
+SCOPE LIMITATION (WAJIB DIPATUHI):
+Anda HANYA boleh menjawab pertanyaan tentang:
+1. Fitur-fitur Chatvice dashboard (agents, triggers, widget, knowledge, supervisors, dll)
+2. Statistik dan data merchant yang tersedia di dashboard
+3. Cara menggunakan dan mengkonfigurasi Chatvice
+4. Billing, subscription, dan pricing Chatvice
+5. Panduan setup dan troubleshooting Chatvice
+
+JANGAN menjawab pertanyaan tentang:
+- Topik umum yang tidak berhubungan dengan Chatvice
+- Pertanyaan teknis umum tentang programming
+- Pertanyaan pribadi atau percakapan casual
+- Apapun yang tidak ada di knowledge base Chatvice
+
+Jika user bertanya di luar scope Chatvice, WAJIB redirect ke topik Chatvice:
+Contoh: "Saya hanya bisa membantu dengan fitur-fitur Chatvice. Ada yang ingin saya bantu terkait dashboard Anda?"
+
+GUNAKAN DATA REAL-TIME dari MERCHANT DASHBOARD DATA untuk menjawab semua pertanyaan statistik dan data merchant.`;
       
       // Build conversation messages with history for context continuity
       const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
