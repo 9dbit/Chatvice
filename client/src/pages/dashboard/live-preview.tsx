@@ -90,7 +90,7 @@ export default function LivePreviewPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
-          <span className="text-xs text-muted-foreground hidden sm:inline">Refresh to see the change/update</span>
+          <span className="text-xs text-muted-foreground hidden sm:inline">Refresh to see changes</span>
           <Button 
             variant="outline" 
             size="sm"
