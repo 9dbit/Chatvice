@@ -87,6 +87,13 @@ export const merchants = pgTable("merchants", {
   socialTelegram: text("social_telegram"),
   socialWhatsapp: text("social_whatsapp"),
   socialDiscord: text("social_discord"),
+  // Custom social icons
+  socialUseCustomIcons: boolean("social_use_custom_icons").default(false),
+  socialCustomInstagram: text("social_custom_instagram"),
+  socialCustomFacebook: text("social_custom_facebook"),
+  socialCustomTelegram: text("social_custom_telegram"),
+  socialCustomWhatsapp: text("social_custom_whatsapp"),
+  socialCustomDiscord: text("social_custom_discord"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
