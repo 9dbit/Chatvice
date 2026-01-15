@@ -35,7 +35,7 @@ Chatvice is a monorepo application structured with `/client`, `/server`, and `/s
 - **Landing Page Customization**: Admin Panel allows non-technical customization of the public landing page.
 - **Configurable Trial Period**: Admin-configurable trial days that dynamically update for active trial merchants.
 - **Extended Plan Features Configuration**: Admin can configure all plan feature limits (conversations, AI agents, supervisors, knowledge sources, etc.) via the Master Control Panel, with real-time sync.
-- **Chatvice Guide Configuration**: Admin dashboard tab for managing the AI help widget across landing page and merchant dashboard.
+- **Chatvice Guide Configuration**: Admin dashboard tab for managing the AI help widget across landing page and merchant dashboard. Enhanced with real-time merchant data access (agents, supervisors, sessions, triggers, knowledge sources, work schedules, promo codes), today's statistics (chat count, messages, escalations), workflow guidance for common tasks, and action capabilities (add triggers, add knowledge, update widget settings) via `/api/help/action` endpoint.
 - **Promotional Discount System**: Comprehensive promo code system with admin CRUD, plan targeting, and usage limits.
 - **Chatvice Top Up v2 (Multi-Tenant Payment System)**: Multi-tenant coin top-up system for widget-embedded game/app monetization with JWT-based SSO.
 - **Chat Security Monitoring**: AI-powered monitoring of supervisor conversations to detect suspicious activities using Gemini 2.5 Flash. Features configurable sensitivity, custom pattern detection, tolerance settings, real-time alerts, and email notifications.
