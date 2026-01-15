@@ -647,15 +647,16 @@ export default function WidgetPage() {
 
   const baseUrl = window.location.origin;
   
-  const widgetEmbedCode = `<script>
-(function(){if(!window.chatvice||window.chatvice("getState")!=="initialized"){window.chatvice=(...arguments)=>{if(!window.chatvice.q){window.chatvice.q=[]}window.chatvice.q.push(arguments)};window.chatvice=new Proxy(window.chatvice,{get(target,prop){if(prop==="q"){return target.q}return(...args)=>target(prop,...args)}})}const onLoad=function(){const script=document.createElement("script");script.src="${baseUrl}/api/widget/chatvice.js";script.id="${merchantId}";script.domain="${baseUrl.replace(/^https?:\/\//, '')}";document.body.appendChild(script)};if(document.readyState==="complete"){onLoad()}else{window.addEventListener("load",onLoad)}})();
-</script>`;
+  // Simple embed code - easy to copy and paste
+  const widgetEmbedCode = `<!-- Chatvice Chat Widget -->
+<script src="${baseUrl}/api/widget/chatvice.js?merchant=${merchantId}" async></script>`;
 
-  const iframeEmbedCode = `<iframe
-    src="${baseUrl}/widget/${merchantId}"
-    width="100%"
-    style="height: 100%; min-height: 700px"
-    frameborder="0"
+  // Full-page iframe embed code
+  const iframeEmbedCode = `<!-- Chatvice Chat Widget (iFrame) -->
+<iframe
+  src="${baseUrl}/widget/${merchantId}?showClose=true&embedded=true"
+  style="position:fixed;bottom:20px;right:20px;width:380px;height:550px;border:none;z-index:99999;"
+  allow="microphone; camera"
 ></iframe>`;
 
   // Code examples for different frameworks
