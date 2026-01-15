@@ -2805,6 +2805,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   });
 
   app.get("/api/merchant/status/:merchantId", async (req, res) => {
+    // Allow CORS for widget embed from any domain
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type");
+    
     try {
       const merchant = await storage.getMerchant(req.params.merchantId);
       if (!merchant) {
@@ -9308,10 +9313,13 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   });
 
   app.get("/api/widget/chatvice.js", async (req, res) => {
+    // Allow CORS for script loading from any domain
+    res.header("Access-Control-Allow-Origin", "*");
+    
     const merchantId = req.query.merchant || "demo";
-    const baseUrl = process.env.REPL_SLUG 
-      ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
-      : (req.headers.origin || `https://${req.headers.host}`);
+    // Always use the host where this script is served from, not the origin (which could be external domain)
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const baseUrl = `${protocol}://${req.headers.host}`;
     const script = `
 (function() {
   var merchantId = "${merchantId}";
