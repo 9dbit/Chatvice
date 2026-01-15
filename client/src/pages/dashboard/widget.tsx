@@ -791,9 +791,9 @@ async function handleLogin() {
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold">Widget Customization</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">External Widget</h1>
           <p className="text-sm text-muted-foreground hidden sm:block">
-            Customize your chat widget appearance and get embed codes.
+            Customize your external chat widget appearance and get embed codes.
           </p>
         </div>
         {agents.length > 0 && (
@@ -1493,12 +1493,12 @@ async function handleLogin() {
                       <MessageSquare className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                      <h4 className="font-semibold">Chat Widget</h4>
+                      <h4 className="font-semibold">External Widget</h4>
                       <Badge variant="secondary" className="text-xs">Recommended</Badge>
                     </div>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Embed a chat bubble on your website. Allows you to use all the advanced features of the agent.
+                    Embed a chat bubble on your external website. Allows you to use all the advanced features of the agent.
                   </p>
                 </div>
 
@@ -1531,10 +1531,10 @@ async function handleLogin() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Code className="w-5 h-5 text-primary" />
-                <CardTitle>Widget Setup</CardTitle>
+                <CardTitle>External Widget Setup</CardTitle>
               </div>
               <CardDescription>
-                Paste this code on your site (e.g., www.marketplayid.com) to install the chat widget and enable AI-powered support.
+                Paste this code on your external website to install the chat widget and enable AI-powered support.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

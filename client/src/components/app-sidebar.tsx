@@ -135,7 +135,7 @@ const menuItemsMap: Record<string, MenuItem> = {
   "notifications": { id: "notifications", title: "Notifications", url: "/dashboard/notification-settings", icon: Bell, permission: "notifications" },
   "live-preview": { id: "live-preview", title: "Live Preview", url: "/dashboard/live-preview", icon: Eye, permission: "livePreview" },
   "settings": { id: "settings", title: "Settings", url: "/dashboard/settings", icon: Settings, permission: "settings" },
-  "widget": { id: "widget", title: "Widget", url: "/dashboard/widget", icon: Palette, permission: "widgetSettings" },
+  "widget": { id: "widget", title: "External Widget", url: "/dashboard/widget", icon: Palette, permission: "widgetSettings" },
   "welcome-bubble": { id: "welcome-bubble", title: "Welcome Bubble", url: "/dashboard/welcome-bubble", icon: MessageCircle, permission: "widgetSettings" },
   "product-cards": { id: "product-cards", title: "Product Cards", url: "/dashboard/product-cards", icon: Package, permission: "productCards" },
   "supervisors": { id: "supervisors", title: "Supervisors", url: "/dashboard/supervisors", icon: Users, permission: "supervisors" },

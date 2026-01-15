@@ -45,7 +45,7 @@ const pageNames: Record<string, string> = {
   "chat-logs": "Chat Logs",
   "knowledge": "Knowledge Base",
   "triggers": "Triggers",
-  "widget": "Widget",
+  "widget": "External Widget",
   "supervisors": "Supervisors",
   "integrations": "Integrations",
   "plans": "Plans",
