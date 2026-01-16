@@ -9590,6 +9590,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   var reappearInterval = 60;
   var bubbleClosedTime = 0;
   var bubbleConfig = null;
+  var bubbleInitialized = false;
   var isMobile = window.innerWidth <= 768;
   
   // Sizes: desktop 196px, mobile 168px - button font +40%, social icons +30%
@@ -9605,8 +9606,13 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   
   function createWelcomeBubble(config, merchantConfig) {
     bubbleConfig = config;
+    
+    // Remove any existing bubble elements first (by ID to catch duplicates)
+    var existingBubbles = document.querySelectorAll("#chatvice-welcome-bubble");
+    existingBubbles.forEach(function(el) { el.remove(); });
     if (welcomeBubble) {
       welcomeBubble.remove();
+      welcomeBubble = null;
     }
     
     welcomeBubble = document.createElement("div");
@@ -9754,6 +9760,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   
   // Fetch welcome bubble settings and merchant config
   function initWelcomeBubble() {
+    // Prevent multiple initializations
+    if (bubbleInitialized) return;
+    bubbleInitialized = true;
+    
     Promise.all([
       fetch(baseUrl + "/api/widget/" + merchantId + "/welcome-bubble?t=" + Date.now()).then(function(r) { return r.json(); }),
       fetch(baseUrl + "/api/merchant/status/" + merchantId + "?t=" + Date.now()).then(function(r) { return r.json(); })
@@ -9776,6 +9786,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       }
     }).catch(function(err) {
       console.log("Could not load welcome bubble");
+      bubbleInitialized = false; // Allow retry on error
     });
   }
   
