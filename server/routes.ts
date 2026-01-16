@@ -9411,9 +9411,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       ? "left:20px;right:auto;" 
       : "right:20px;left:auto;";
     
+    // Align icon to container edge based on position
+    var alignStyle = bubblePosition === "left" ? "justify-content:flex-start;" : "justify-content:flex-end;";
+    
     if (iconUrl) {
-      // Custom icon - no background, no border-radius
-      button.style.cssText = "position:fixed;bottom:20px;" + positionStyle + "width:" + buttonWidth + "px;height:" + buttonHeight + "px;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:99999;transition:transform 0.2s ease;";
+      // Custom icon - no background, no border-radius, aligned to edge
+      button.style.cssText = "position:fixed;bottom:20px;" + positionStyle + "width:" + buttonWidth + "px;height:" + buttonHeight + "px;background:transparent;cursor:pointer;display:flex;align-items:flex-end;" + alignStyle + "z-index:99999;transition:transform 0.2s ease;";
       button.innerHTML = '<img src="' + iconUrl + '" style="width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.3));" />';
     } else {
       // Default chat bubble icon
