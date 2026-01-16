@@ -1112,12 +1112,17 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         ? `fixed inset-4 z-50 animate-in fade-in duration-300 rounded-xl overflow-hidden flex flex-col`
         : `${positionClass} bottom-5 right-5 w-[360px] h-[520px] z-50 animate-in slide-in-from-bottom-5 fade-in duration-300 rounded-xl overflow-hidden flex flex-col`;
   
-  // Frosted glass inline styles - ensures proper rendering in iframe
-  const frostedGlassStyle: React.CSSProperties = (isExternalEmbed || embedded) ? {
-    backgroundColor: isDarkMode ? 'rgba(20, 20, 20, 0.6)' : 'rgba(255, 255, 255, 0.4)',
-    backdropFilter: 'blur(24px)',
-    WebkitBackdropFilter: 'blur(24px)',
-  } : {};
+  // Frosted glass - for external embed, keep content transparent (frosted glass on iframe in parent page)
+  // For embedded mode, apply frosted glass inside
+  const frostedGlassStyle: React.CSSProperties = isExternalEmbed 
+    ? { backgroundColor: 'transparent' }
+    : embedded 
+      ? {
+          backgroundColor: isDarkMode ? 'rgba(20, 20, 20, 0.6)' : 'rgba(255, 255, 255, 0.4)',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+        } 
+      : {};
 
   return (
     <div
@@ -1211,7 +1216,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           
           return (
             <button
-              className="flex items-center gap-1 text-[14px] font-bold text-white hover:text-white transition-colors px-2 py-0.5 rounded-md border border-white/30"
+              className="flex items-center gap-1 text-[14px] font-bold text-white hover:text-white transition-colors px-2 py-px rounded-md border border-white/30"
               style={{ 
                 textShadow: '0 1px 3px rgba(0,0,0,0.3)',
                 boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
@@ -1736,7 +1741,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         </div>
       )}
 
-      <div className="p-4 border-t border-border">
+      <div className={`p-4 border-t ${isExternalEmbed ? 'border-white/10 bg-transparent' : 'border-border'}`}>
         <input
           type="file"
           ref={fileInputRef}
