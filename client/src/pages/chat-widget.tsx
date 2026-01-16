@@ -907,20 +907,25 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   {welcomeBubble.message}
                 </p>
               </div>
-              <Button
-                size="sm"
-                className="w-full text-white"
+              <button
+                type="button"
+                className="w-full h-8 px-3 text-sm font-medium text-white rounded-md transition-colors hover:opacity-90"
                 style={{ backgroundColor: welcomeBubble.buttonColor || primaryColor }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
+                  console.log('[Widget] Chat with us button clicked');
                   handleWidgetOpen();
-                  setTimeout(() => dismissWelcomeBubble(), 50);
+                  setTimeout(() => dismissWelcomeBubble(), 100);
                 }}
                 data-testid="button-welcome-primary"
               >
                 {welcomeBubble.buttonLabel || "Chat with us"}
-              </Button>
+              </button>
             </div>
           </div>
         )}
