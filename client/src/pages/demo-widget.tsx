@@ -1599,14 +1599,16 @@ export default function DemoWidgetPage() {
           {/* Content */}
           <div className="p-4 relative">
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
+                e.preventDefault();
                 dismissWelcomeBubble();
               }}
-              className="absolute top-2 right-2 p-1 hover:bg-muted rounded-full transition-colors"
+              className="absolute top-1 right-1 w-5 h-5 flex items-center justify-center hover:bg-muted rounded-full transition-colors z-10"
               data-testid="button-dismiss-welcome"
             >
-              <X className="w-4 h-4 text-muted-foreground" />
+              <X className="w-3 h-3 text-muted-foreground" />
             </button>
             <div className="mb-3">
               <p className="font-semibold text-base" data-testid="text-welcome-headline">
@@ -1617,27 +1619,41 @@ export default function DemoWidgetPage() {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button
-                size="sm"
-                className="flex-1 text-white"
+              <button
+                type="button"
+                className="flex-1 h-8 px-3 text-sm font-medium text-white rounded-md transition-colors hover:opacity-90"
                 style={{ backgroundColor: PRIMARY_COLOR }}
-                onClick={() => {
-                  dismissWelcomeBubble();
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  console.log('[DemoWidget] Top Up button clicked');
                   startChat();
+                  setTimeout(() => dismissWelcomeBubble(), 100);
                 }}
                 data-testid="button-welcome-primary"
               >
                 Top Up Sekarang
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="flex-1"
-                onClick={dismissWelcomeBubble}
+              </button>
+              <button
+                type="button"
+                className="flex-1 h-8 px-3 text-sm font-medium rounded-md border border-border bg-background hover:bg-muted transition-colors"
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  dismissWelcomeBubble();
+                }}
                 data-testid="button-welcome-secondary"
               >
                 Nanti Saja
-              </Button>
+              </button>
             </div>
           </div>
         </div>
