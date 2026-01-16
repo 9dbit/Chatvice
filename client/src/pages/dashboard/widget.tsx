@@ -1023,6 +1023,7 @@ async function handleLogin() {
 
                     {config.iconUrl ? (
                       <div className="space-y-4">
+                        <h4 className="text-sm font-medium mb-2">Desktop Dimensions</h4>
                         <div className="space-y-2">
                           <div className="flex justify-between">
                             <Label>Icon Width</Label>
@@ -1052,7 +1053,7 @@ async function handleLogin() {
                           />
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          Desktop: Adjust width and height independently for custom icons.
+                          Adjust width and height independently for custom icons.
                         </p>
                         
                         <div className="border-t pt-4 mt-4">

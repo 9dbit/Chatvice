@@ -9443,7 +9443,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     
     // Also update iframe position with responsive sizing - borderless design
     var iframePosStyle = isMobile 
-      ? "position:fixed;bottom:0;left:0;right:0;width:100vw;height:100vh;max-height:100vh;max-width:100vw;border:none;z-index:99999;background:transparent;"
+      ? "position:fixed;bottom:20px;left:0;right:20px;width:calc(100vw - 20px);height:calc(100vh - 20px);max-height:calc(100vh - 20px);max-width:calc(100vw - 20px);border:none;z-index:99999;background:transparent;"
       : "position:fixed;bottom:20px;" + positionStyle + "width:380px;height:550px;border:none;z-index:99999;background:transparent;";
     iframe.style.cssText = iframePosStyle + "display:" + (isOpen ? "block" : "none") + ";";
   }
@@ -9478,7 +9478,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     // Apply responsive sizing when opening - borderless design
     var positionStyle = bubblePosition === "left" ? "left:20px;right:auto;" : "right:20px;left:auto;";
     var iframePosStyle = isMobile 
-      ? "position:fixed;bottom:0;left:0;right:0;width:100vw;height:100vh;max-height:100vh;max-width:100vw;border:none;z-index:99999;background:transparent;"
+      ? "position:fixed;bottom:20px;left:0;right:20px;width:calc(100vw - 20px);height:calc(100vh - 20px);max-height:calc(100vh - 20px);max-width:calc(100vw - 20px);border:none;z-index:99999;background:transparent;"
       : "position:fixed;bottom:20px;" + positionStyle + "width:380px;height:550px;border:none;z-index:99999;background:transparent;";
     iframe.style.cssText = iframePosStyle + "display:block;";
     button.style.display = "none";
