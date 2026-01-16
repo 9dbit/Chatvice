@@ -62,6 +62,7 @@ export default function WidgetPage() {
     useCustomIconDimensions: false,
     mobileIconWidth: 60,
     mobileIconHeight: 60,
+    widgetOffset: 20,
     online: true,
     primaryColor: "#6b5dfc",
     welcomeMessage: "Hi! How can I help you today?",
@@ -265,6 +266,7 @@ export default function WidgetPage() {
         useCustomIconDimensions: (merchant as any).useCustomIconDimensions || false,
         mobileIconWidth: (merchant as any).mobileIconWidth || 60,
         mobileIconHeight: (merchant as any).mobileIconHeight || 60,
+        widgetOffset: (merchant as any).widgetOffset || 20,
         online: merchant.online ?? true,
         primaryColor: agentWidgetSettings.primaryColor || "#6b5dfc",
         welcomeMessage: agentWidgetSettings.widgetWelcomeMessage || "Hi! How can I help you today?",
@@ -283,6 +285,7 @@ export default function WidgetPage() {
         useCustomIconDimensions: (merchant as any).useCustomIconDimensions || false,
         mobileIconWidth: (merchant as any).mobileIconWidth || 60,
         mobileIconHeight: (merchant as any).mobileIconHeight || 60,
+        widgetOffset: (merchant as any).widgetOffset || 20,
         online: merchant.online ?? true,
         primaryColor: merchant.primaryColor || "#6b5dfc",
         welcomeMessage: merchant.welcomeMessage || "Hi! How can I help you today?",
@@ -552,6 +555,7 @@ export default function WidgetPage() {
         useCustomIconDimensions: config.useCustomIconDimensions,
         mobileIconWidth: config.mobileIconWidth,
         mobileIconHeight: config.mobileIconHeight,
+        widgetOffset: config.widgetOffset,
         online: config.online,
       };
       await apiRequest("POST", "/api/merchant/config", merchantIconConfig);
@@ -1021,82 +1025,7 @@ async function handleLogin() {
                       </div>
                     </div>
 
-                    {config.iconUrl ? (
-                      <div className="space-y-4">
-                        <h4 className="text-sm font-medium mb-2">Desktop Dimensions</h4>
-                        <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <Label>Icon Width</Label>
-                            <span className="text-sm text-muted-foreground">{config.iconWidth}px</span>
-                          </div>
-                          <Slider
-                            value={[config.iconWidth]}
-                            onValueChange={([value]) => setConfig({ ...config, iconWidth: value })}
-                            min={30}
-                            max={400}
-                            step={5}
-                            data-testid="slider-icon-width"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <Label>Icon Height</Label>
-                            <span className="text-sm text-muted-foreground">{config.iconHeight}px</span>
-                          </div>
-                          <Slider
-                            value={[config.iconHeight]}
-                            onValueChange={([value]) => setConfig({ ...config, iconHeight: value })}
-                            min={30}
-                            max={400}
-                            step={5}
-                            data-testid="slider-icon-height"
-                          />
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Adjust width and height independently for custom icons.
-                        </p>
-                        
-                        <div className="border-t pt-4 mt-4">
-                          <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
-                            <Smartphone className="w-4 h-4" />
-                            Mobile Dimensions
-                          </h4>
-                          <div className="space-y-4">
-                            <div className="space-y-2">
-                              <div className="flex justify-between">
-                                <Label>Mobile Icon Width</Label>
-                                <span className="text-sm text-muted-foreground">{config.mobileIconWidth}px</span>
-                              </div>
-                              <Slider
-                                value={[config.mobileIconWidth]}
-                                onValueChange={([value]) => setConfig({ ...config, mobileIconWidth: value })}
-                                min={30}
-                                max={200}
-                                step={5}
-                                data-testid="slider-mobile-icon-width"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <div className="flex justify-between">
-                                <Label>Mobile Icon Height</Label>
-                                <span className="text-sm text-muted-foreground">{config.mobileIconHeight}px</span>
-                              </div>
-                              <Slider
-                                value={[config.mobileIconHeight]}
-                                onValueChange={([value]) => setConfig({ ...config, mobileIconHeight: value })}
-                                min={30}
-                                max={200}
-                                step={5}
-                                data-testid="slider-mobile-icon-height"
-                              />
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                              Mobile: Separate dimensions for mobile devices (screens ≤768px).
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
+                    <div className="space-y-4">
                       <div className="space-y-2">
                         <div className="flex justify-between">
                           <Label>Icon Size</Label>
@@ -1104,14 +1033,42 @@ async function handleLogin() {
                         </div>
                         <Slider
                           value={[config.iconSize]}
-                          onValueChange={([value]) => setConfig({ ...config, iconSize: value })}
-                          min={50}
-                          max={100}
+                          onValueChange={([value]) => setConfig({ 
+                            ...config, 
+                            iconSize: value,
+                            iconWidth: value,
+                            iconHeight: value,
+                            mobileIconWidth: Math.min(value, 120),
+                            mobileIconHeight: Math.min(value, 120)
+                          })}
+                          min={config.iconUrl ? 30 : 50}
+                          max={config.iconUrl ? 200 : 100}
                           step={5}
                           data-testid="slider-icon-size"
                         />
+                        <p className="text-xs text-muted-foreground">
+                          Applies to both desktop and mobile (mobile auto-scales for smaller screens).
+                        </p>
                       </div>
-                    )}
+                      
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <Label>Widget Position (from edge)</Label>
+                          <span className="text-sm text-muted-foreground">{config.widgetOffset || 20}px</span>
+                        </div>
+                        <Slider
+                          value={[config.widgetOffset || 20]}
+                          onValueChange={([value]) => setConfig({ ...config, widgetOffset: value })}
+                          min={10}
+                          max={50}
+                          step={5}
+                          data-testid="slider-widget-offset"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Distance from screen edge (bottom and {config.bubblePosition === "left" ? "left" : "right"}).
+                        </p>
+                      </div>
+                    </div>
 
                     <div className="space-y-2">
                       <Label>Primary Color</Label>

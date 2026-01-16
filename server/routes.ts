@@ -2842,6 +2842,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           useCustomIconDimensions: false,
           mobileIconWidth: 60,
           mobileIconHeight: 60,
+          widgetOffset: 20,
           online: true,
           primaryColor: "#6b5dfc",
           welcomeMessage: "Hi! How can I help you today?",
@@ -2888,6 +2889,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         useCustomIconDimensions: merchant.useCustomIconDimensions ?? false,
         mobileIconWidth: merchant.mobileIconWidth ?? 60,
         mobileIconHeight: merchant.mobileIconHeight ?? 60,
+        widgetOffset: merchant.widgetOffset ?? 20,
         online: merchant.online ?? true,
         primaryColor: agentSettings.primaryColor || merchant.primaryColor || "#6b5dfc",
         welcomeMessage: agentSettings.widgetWelcomeMessage || merchant.welcomeMessage || "Hi! How can I help you today?",
@@ -9382,9 +9384,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   var buttonHeight = 60;
   var iconUrl = "";
   var bubblePosition = "right";
+  var widgetOffset = 20;
   
   function updateButtonStyles(config) {
     defaultColor = config.primaryColor || defaultColor;
+    widgetOffset = config.widgetOffset || 20;
     // Use iconUrl from config - ensure full URL if relative path
     iconUrl = config.iconUrl || "";
     if (iconUrl && !iconUrl.startsWith("http") && !iconUrl.startsWith("data:")) {
@@ -9398,21 +9402,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     // Re-check mobile at update time (in case orientation changed)
     var currentIsMobile = window.innerWidth <= 768;
     
-    // Support custom icon dimensions - separate for desktop and mobile
-    if (iconUrl) {
-      if (currentIsMobile) {
-        // Mobile: use mobile dimensions from config, fallback to desktop if not set
-        buttonWidth = config.mobileIconWidth || config.iconWidth || config.iconSize || 60;
-        buttonHeight = config.mobileIconHeight || config.iconHeight || config.iconSize || 60;
-      } else {
-        // Desktop: use desktop dimensions
-        buttonWidth = config.iconWidth || config.iconSize || 70;
-        buttonHeight = config.iconHeight || config.iconSize || 70;
-      }
-    } else {
-      buttonWidth = config.iconSize || 60;
-      buttonHeight = config.iconSize || 60;
-    }
+    // Support custom icon dimensions - single size for both desktop and mobile
+    buttonWidth = config.iconSize || 60;
+    buttonHeight = config.iconSize || 60;
     
     // Safety cap for mobile - prevent icon from being too large
     if (currentIsMobile) {
@@ -9424,8 +9416,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     bubblePosition = config.bubblePosition || "right";
     
     var positionStyle = bubblePosition === "left" 
-      ? "left:20px;right:auto;" 
-      : "right:20px;left:auto;";
+      ? "left:" + widgetOffset + "px;right:auto;" 
+      : "right:" + widgetOffset + "px;left:auto;";
     
     // Custom icon: anchor to corner, size grows inward and upward
     // Right position: anchor bottom-right, grow left+up. Left position: anchor bottom-left, grow right+up
@@ -9433,18 +9425,18 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     
     if (iconUrl) {
       // Custom icon - locked to corner, auto-crop to image content
-      button.style.cssText = "position:fixed;bottom:20px;" + positionStyle + "background:transparent;cursor:pointer;z-index:99999;transition:transform 0.2s ease;" + transformOrigin;
+      button.style.cssText = "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "background:transparent;cursor:pointer;z-index:99999;transition:transform 0.2s ease;" + transformOrigin;
       button.innerHTML = '<img src="' + iconUrl + '" style="display:block;max-width:' + buttonWidth + 'px;max-height:' + buttonHeight + 'px;width:auto;height:auto;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.3));" />';
     } else {
       // Default chat bubble icon
-      button.style.cssText = "position:fixed;bottom:20px;" + positionStyle + "width:" + buttonWidth + "px;height:" + buttonHeight + "px;border-radius:50%;background:" + defaultColor + ";cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:99999;box-shadow:0 4px 15px " + defaultColor + "66;transition:transform 0.2s ease;";
+      button.style.cssText = "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:" + buttonWidth + "px;height:" + buttonHeight + "px;border-radius:50%;background:" + defaultColor + ";cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:99999;box-shadow:0 4px 15px " + defaultColor + "66;transition:transform 0.2s ease;";
       button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
     }
     
     // Also update iframe position with responsive sizing - borderless design
     var iframePosStyle = isMobile 
-      ? "position:fixed;bottom:20px;left:0;right:20px;width:calc(100vw - 20px);height:calc(100vh - 20px);max-height:calc(100vh - 20px);max-width:calc(100vw - 20px);border:none;z-index:99999;background:transparent;"
-      : "position:fixed;bottom:20px;" + positionStyle + "width:380px;height:550px;border:none;z-index:99999;background:transparent;";
+      ? "position:fixed;bottom:" + widgetOffset + "px;left:0;right:" + widgetOffset + "px;width:calc(100vw - " + widgetOffset + "px);height:calc(100vh - " + widgetOffset + "px);max-height:calc(100vh - " + widgetOffset + "px);max-width:calc(100vw - " + widgetOffset + "px);border:none;z-index:99999;background:transparent;"
+      : "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:380px;height:550px;border:none;z-index:99999;background:transparent;";
     iframe.style.cssText = iframePosStyle + "display:" + (isOpen ? "block" : "none") + ";";
   }
   
@@ -9476,10 +9468,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   
   function openWidget() {
     // Apply responsive sizing when opening - borderless design
-    var positionStyle = bubblePosition === "left" ? "left:20px;right:auto;" : "right:20px;left:auto;";
+    var positionStyle = bubblePosition === "left" ? "left:" + widgetOffset + "px;right:auto;" : "right:" + widgetOffset + "px;left:auto;";
     var iframePosStyle = isMobile 
-      ? "position:fixed;bottom:20px;left:0;right:20px;width:calc(100vw - 20px);height:calc(100vh - 20px);max-height:calc(100vh - 20px);max-width:calc(100vw - 20px);border:none;z-index:99999;background:transparent;"
-      : "position:fixed;bottom:20px;" + positionStyle + "width:380px;height:550px;border:none;z-index:99999;background:transparent;";
+      ? "position:fixed;bottom:" + widgetOffset + "px;left:0;right:" + widgetOffset + "px;width:calc(100vw - " + widgetOffset + "px);height:calc(100vh - " + widgetOffset + "px);max-height:calc(100vh - " + widgetOffset + "px);max-width:calc(100vw - " + widgetOffset + "px);border:none;z-index:99999;background:transparent;"
+      : "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:380px;height:550px;border:none;z-index:99999;background:transparent;";
     iframe.style.cssText = iframePosStyle + "display:block;";
     button.style.display = "none";
     isOpen = true;
