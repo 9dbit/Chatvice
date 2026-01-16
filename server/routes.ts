@@ -9627,18 +9627,24 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     
     var contentHtml = "";
     
-    // Header bar (always visible, contains title and minimize/close buttons)
-    var headerBgColor = config.buttonColor || "#7c3aed";
-    contentHtml += '<div id="chatvice-bubble-header" style="display:flex;justify-content:space-between;align-items:center;padding:' + basePadding + 'px;background:' + headerBgColor + ';color:#fff;cursor:pointer;">';
-    contentHtml += '<div style="font-weight:600;font-size:' + headlineFontSize + 'px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (config.headline || "Need help?") + '</div>';
-    contentHtml += '<div style="display:flex;gap:6px;align-items:center;margin-left:6px;">';
-    contentHtml += '<button id="chatvice-minimize-btn" style="background:none;border:none;cursor:pointer;padding:2px;color:#fff;font-size:14px;line-height:1;opacity:0.9;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/></svg></button>';
-    contentHtml += '<button id="chatvice-close-btn" style="background:none;border:none;cursor:pointer;padding:2px;color:#fff;font-size:16px;line-height:1;opacity:0.9;">&times;</button>';
+    // Minimized state container (frosted glass dark theme) - hidden by default
+    contentHtml += '<div id="chatvice-minimized-state" style="display:none;padding:10px 14px;background:rgba(30,30,30,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.15);border-radius:8px;cursor:pointer;">';
+    contentHtml += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">';
+    contentHtml += '<span style="color:rgba(255,255,255,0.9);font-size:' + headlineFontSize + 'px;font-weight:500;">' + (config.headline || "Need help?") + '</span>';
+    contentHtml += '<button id="chatvice-eye-btn-minimized" style="background:none;border:none;cursor:pointer;padding:2px;color:rgba(255,255,255,0.8);line-height:1;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>';
     contentHtml += '</div>';
     contentHtml += '</div>';
     
-    // Collapsible content wrapper (includes promo image, message, buttons, social icons)
-    contentHtml += '<div id="chatvice-collapsible" style="transition:max-height 0.2s ease;overflow:hidden;">';
+    // Hidden state label (when eye is clicked to hide)
+    contentHtml += '<div id="chatvice-hidden-label" style="display:none;padding:8px 12px;background:rgba(30,30,30,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.15);border-radius:8px;cursor:pointer;">';
+    contentHtml += '<div style="display:flex;align-items:center;gap:6px;">';
+    contentHtml += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+    contentHtml += '<span style="color:rgba(255,255,255,0.7);font-size:11px;">Click to show</span>';
+    contentHtml += '</div>';
+    contentHtml += '</div>';
+    
+    // Full content wrapper (visible by default)
+    contentHtml += '<div id="chatvice-full-content">';
     
     // Promo image
     if (config.promoImageEnabled && config.promoImageUrl) {
@@ -9649,9 +9655,20 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       contentHtml += '<div style="width:100%;"><img src="' + promoUrl + '" style="width:100%;height:auto;display:block;" onerror="this.style.display=\\'none\\'" /></div>';
     }
     
+    // Title row with minimize/close buttons
+    contentHtml += '<div style="padding:' + basePadding + 'px;padding-bottom:0;">';
+    contentHtml += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">';
+    contentHtml += '<div style="font-weight:600;font-size:' + headlineFontSize + 'px;color:#1a1a1a;flex:1;">' + (config.headline || "Need help?") + '</div>';
+    contentHtml += '<div style="display:flex;gap:4px;align-items:center;margin-left:6px;">';
+    contentHtml += '<button id="chatvice-minimize-btn" title="Minimize" style="background:none;border:none;cursor:pointer;padding:2px;color:#999;font-size:14px;line-height:1;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/></svg></button>';
+    contentHtml += '<button id="chatvice-close-btn" title="Close" style="background:none;border:none;cursor:pointer;padding:2px;color:#999;font-size:16px;line-height:1;">&times;</button>';
+    contentHtml += '</div>';
+    contentHtml += '</div>';
+    contentHtml += '</div>';
+    
     // Message
     if (config.message) {
-      contentHtml += '<div style="padding:' + basePadding + 'px;font-size:' + messageFontSize + 'px;color:#666;">' + config.message + '</div>';
+      contentHtml += '<div style="padding:0 ' + basePadding + 'px ' + basePadding + 'px ' + basePadding + 'px;font-size:' + messageFontSize + 'px;color:#666;">' + config.message + '</div>';
     }
     
     // Buttons section
@@ -9700,7 +9717,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       }
     }
     
-    contentHtml += '</div>'; // close collapsible wrapper
+    contentHtml += '</div>'; // close full-content wrapper
     
     welcomeBubbleContent.innerHTML = contentHtml;
     welcomeBubble.appendChild(welcomeBubbleContent);
@@ -9709,11 +9726,6 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     var ctaBtn = welcomeBubbleContent.querySelector("#chatvice-cta-btn");
     if (ctaBtn) {
       ctaBtn.onclick = function() { openWidget(); hideWelcomeBubble(); };
-    }
-    
-    var headerBar = welcomeBubbleContent.querySelector("#chatvice-bubble-header");
-    if (headerBar) {
-      headerBar.onclick = function() { if (welcomeBubbleMinimized) toggleMinimize(); };
     }
     
     var minimizeBtn = welcomeBubbleContent.querySelector("#chatvice-minimize-btn");
@@ -9726,23 +9738,73 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       closeBtn.onclick = function(e) { e.stopPropagation(); hideWelcomeBubble(); };
     }
     
+    // Minimized state click handlers
+    var minimizedState = welcomeBubbleContent.querySelector("#chatvice-minimized-state");
+    if (minimizedState) {
+      minimizedState.onclick = function() { toggleMinimize(); };
+    }
+    
+    var eyeBtnMinimized = welcomeBubbleContent.querySelector("#chatvice-eye-btn-minimized");
+    if (eyeBtnMinimized) {
+      eyeBtnMinimized.onclick = function(e) { e.stopPropagation(); toggleHidden(); };
+    }
+    
+    // Hidden label click handler
+    var hiddenLabel = welcomeBubbleContent.querySelector("#chatvice-hidden-label");
+    if (hiddenLabel) {
+      hiddenLabel.onclick = function() { toggleHidden(); };
+    }
+    
     document.body.appendChild(welcomeBubble);
     welcomeBubbleVisible = true;
     welcomeBubbleMinimized = false;
   }
   
+  var welcomeBubbleHidden = false;
+  
   function toggleMinimize() {
     if (!welcomeBubble) return;
     welcomeBubbleMinimized = !welcomeBubbleMinimized;
     
-    var collapsible = document.getElementById("chatvice-collapsible");
-    var minimizeBtn = document.getElementById("chatvice-minimize-btn");
+    var fullContent = document.getElementById("chatvice-full-content");
+    var minimizedState = document.getElementById("chatvice-minimized-state");
+    var hiddenLabel = document.getElementById("chatvice-hidden-label");
+    
     if (welcomeBubbleMinimized) {
-      if (collapsible) { collapsible.style.maxHeight = "0"; collapsible.style.overflow = "hidden"; }
-      if (minimizeBtn) minimizeBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>';
+      // Show minimized frosted glass state
+      if (fullContent) fullContent.style.display = "none";
+      if (minimizedState) minimizedState.style.display = "block";
+      if (hiddenLabel) hiddenLabel.style.display = "none";
+      welcomeBubble.style.background = "transparent";
+      welcomeBubble.style.boxShadow = "none";
+      welcomeBubble.style.overflow = "visible";
     } else {
-      if (collapsible) { collapsible.style.maxHeight = "500px"; collapsible.style.overflow = "visible"; }
-      if (minimizeBtn) minimizeBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/></svg>';
+      // Show full content
+      if (fullContent) fullContent.style.display = "block";
+      if (minimizedState) minimizedState.style.display = "none";
+      if (hiddenLabel) hiddenLabel.style.display = "none";
+      welcomeBubble.style.background = "#fff";
+      welcomeBubble.style.boxShadow = "0 2px 14px rgba(0,0,0,0.15)";
+      welcomeBubble.style.overflow = "hidden";
+      welcomeBubbleHidden = false;
+    }
+  }
+  
+  function toggleHidden() {
+    if (!welcomeBubble) return;
+    welcomeBubbleHidden = !welcomeBubbleHidden;
+    
+    var minimizedState = document.getElementById("chatvice-minimized-state");
+    var hiddenLabel = document.getElementById("chatvice-hidden-label");
+    
+    if (welcomeBubbleHidden) {
+      // Show hidden label only
+      if (minimizedState) minimizedState.style.display = "none";
+      if (hiddenLabel) hiddenLabel.style.display = "block";
+    } else {
+      // Show minimized state
+      if (minimizedState) minimizedState.style.display = "block";
+      if (hiddenLabel) hiddenLabel.style.display = "none";
     }
   }
   
