@@ -9391,13 +9391,19 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       var cacheBuster = iconUrl.indexOf("?") === -1 ? "?v=" : "&v=";
       iconUrl = iconUrl + cacheBuster + Date.now();
     }
-    // Support custom icon dimensions
-    if (config.useCustomIconDimensions && iconUrl) {
-      buttonWidth = config.iconWidth || 70;
-      buttonHeight = config.iconHeight || 70;
+    // Support custom icon dimensions - always use config values for sync with dashboard
+    if (iconUrl) {
+      buttonWidth = config.iconWidth || config.iconSize || 70;
+      buttonHeight = config.iconHeight || config.iconSize || 70;
     } else {
-      buttonWidth = iconUrl ? 70 : (config.iconSize || 60);
-      buttonHeight = iconUrl ? 70 : (config.iconSize || 60);
+      buttonWidth = config.iconSize || 60;
+      buttonHeight = config.iconSize || 60;
+    }
+    // Responsive scaling for mobile - max 30% of screen width
+    if (isMobile) {
+      var maxMobileSize = Math.min(window.innerWidth * 0.25, 100);
+      buttonWidth = Math.min(buttonWidth, maxMobileSize);
+      buttonHeight = Math.min(buttonHeight, maxMobileSize);
     }
     bubblePosition = config.bubblePosition || "right";
     
