@@ -9368,6 +9368,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   var sessionId = "sess_" + Math.random().toString(36).substring(2, 12);
   var baseUrl = "${baseUrl}";
   var isOpen = false;
+  var isMaximized = false;
+  var widgetTheme = "light";
   
   // Cleanup existing widget for same merchant (allows re-initialization)
   var existingIframe = document.getElementById("chatvice-widget-frame");
@@ -9606,6 +9608,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return response.json(); 
       })
       .then(function(config) { 
+        widgetTheme = config.widgetTheme || "light";
         updateButtonStyles(config);
         applyAnimations(config);
       })
@@ -9620,15 +9623,62 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   button.onmouseover = function() { button.style.transform = "scale(1.05)"; };
   button.onmouseout = function() { button.style.transform = "scale(1)"; };
   
-  function openWidget() {
-    // Apply responsive sizing when opening - borderless design
+  // Widget sizing - desktop height +20% (550 -> 660), floating design with frosted glass
+  function getWidgetStyles() {
+    var currentIsMobile = window.innerWidth <= 480;
     var positionStyle = bubblePosition === "left" ? "left:" + widgetOffset + "px;right:auto;" : "right:" + widgetOffset + "px;left:auto;";
-    var iframePosStyle = isMobile 
-      ? "position:fixed;bottom:" + widgetOffset + "px;left:0;right:" + widgetOffset + "px;width:calc(100vw - " + widgetOffset + "px);height:calc(100vh - " + widgetOffset + "px);max-height:calc(100vh - " + widgetOffset + "px);max-width:calc(100vw - " + widgetOffset + "px);border:none;z-index:99999;background:transparent;"
-      : "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:380px;height:550px;border:none;z-index:99999;background:transparent;";
-    iframe.style.cssText = iframePosStyle + "display:block;";
+    
+    // Frosted glass transparent 50% background
+    var frostedBg = "background:rgba(255,255,255,0.5);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);";
+    if (widgetTheme === "dark") {
+      frostedBg = "background:rgba(30,30,30,0.5);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);";
+    }
+    
+    if (currentIsMobile) {
+      if (isMaximized) {
+        // Mobile maximized - full screen
+        return "position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;border:none;z-index:99999;" + frostedBg;
+      } else {
+        // Mobile normal - 90% of screen with rounded corners
+        return "position:fixed;bottom:" + widgetOffset + "px;left:" + widgetOffset + "px;right:" + widgetOffset + "px;width:calc(100vw - " + (widgetOffset * 2) + "px);height:calc(85vh - " + widgetOffset + "px);border-radius:16px;border:none;z-index:99999;" + frostedBg + "box-shadow:0 8px 32px rgba(0,0,0,0.2);";
+      }
+    } else {
+      if (isMaximized) {
+        // Desktop maximized - +20% from normal (660 * 1.2 = 792px)
+        return "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:456px;height:792px;border-radius:16px;border:none;z-index:99999;" + frostedBg + "box-shadow:0 8px 32px rgba(0,0,0,0.2);";
+      } else {
+        // Desktop normal - height +20% (550 -> 660px)
+        return "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:380px;height:660px;border-radius:16px;border:none;z-index:99999;" + frostedBg + "box-shadow:0 8px 32px rgba(0,0,0,0.2);";
+      }
+    }
+  }
+  
+  function openWidget() {
+    iframe.style.cssText = getWidgetStyles() + "display:block;";
     button.style.display = "none";
     isOpen = true;
+  }
+  
+  function maximizeWidget() {
+    isMaximized = true;
+    if (isOpen) {
+      iframe.style.cssText = getWidgetStyles() + "display:block;";
+    }
+  }
+  
+  function minimizeWidget() {
+    isMaximized = false;
+    if (isOpen) {
+      iframe.style.cssText = getWidgetStyles() + "display:block;";
+    }
+  }
+  
+  function toggleMaximize() {
+    if (isMaximized) {
+      minimizeWidget();
+    } else {
+      maximizeWidget();
+    }
   }
   
   function closeWidget() {
@@ -9651,6 +9701,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       closeWidget();
     } else if (event.data.type === "chatvice-open") {
       openWidget();
+    } else if (event.data.type === "chatvice-maximize") {
+      maximizeWidget();
+    } else if (event.data.type === "chatvice-minimize") {
+      minimizeWidget();
+    } else if (event.data.type === "chatvice-toggle-maximize") {
+      toggleMaximize();
     }
   });
   
@@ -9692,11 +9748,21 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       welcomeBubble = null;
     }
     
+    // Theme-aware colors - sync with widget theme
+    var isDark = widgetTheme === "dark";
+    var bubbleBg = isDark ? "rgba(30,30,30,0.5)" : "rgba(255,255,255,0.5)";
+    var bubbleBorder = isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.1)";
+    var titleColor = isDark ? "rgba(255,255,255,0.95)" : "#1a1a1a";
+    var messageColor = isDark ? "rgba(255,255,255,0.7)" : "#666";
+    var btnColor = isDark ? "rgba(255,255,255,0.6)" : "#999";
+    var borderColor = isDark ? "rgba(255,255,255,0.1)" : "#eee";
+    
     welcomeBubble = document.createElement("div");
     welcomeBubble.id = "chatvice-welcome-bubble";
     
     var posStyle = bubblePosition === "left" ? "left:" + widgetOffset + "px;right:auto;" : "right:" + widgetOffset + "px;left:auto;";
-    welcomeBubble.style.cssText = "position:fixed;bottom:" + (widgetOffset + buttonHeight + 10) + "px;" + posStyle + "width:" + bubbleWidth + "px;background:#fff;border-radius:8px;box-shadow:0 2px 14px rgba(0,0,0,0.15);z-index:99998;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;";
+    // Frosted glass 50% transparent with theme sync
+    welcomeBubble.style.cssText = "position:fixed;bottom:" + (widgetOffset + buttonHeight + 10) + "px;" + posStyle + "width:" + bubbleWidth + "px;background:" + bubbleBg + ";backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid " + bubbleBorder + ";border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.15);z-index:99998;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;";
     
     // Create content container
     welcomeBubbleContent = document.createElement("div");
@@ -9704,19 +9770,24 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     
     var contentHtml = "";
     
-    // Minimized state container (frosted glass dark theme) - hidden by default
-    contentHtml += '<div id="chatvice-minimized-state" style="display:none;padding:10px 14px;background:rgba(30,30,30,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.15);border-radius:8px;cursor:pointer;">';
+    // Minimized state container (frosted glass with theme sync) - hidden by default
+    var minBg = isDark ? "rgba(30,30,30,0.85)" : "rgba(255,255,255,0.85)";
+    var minBorder = isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.1)";
+    var minTextColor = isDark ? "rgba(255,255,255,0.9)" : "#1a1a1a";
+    contentHtml += '<div id="chatvice-minimized-state" style="display:none;padding:10px 14px;background:' + minBg + ';backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid ' + minBorder + ';border-radius:8px;cursor:pointer;">';
     contentHtml += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">';
-    contentHtml += '<span style="color:rgba(255,255,255,0.9);font-size:' + headlineFontSize + 'px;font-weight:500;">' + (config.headline || "Need help?") + '</span>';
-    contentHtml += '<button id="chatvice-eye-btn-minimized" style="background:none;border:none;cursor:pointer;padding:2px;color:rgba(255,255,255,0.8);line-height:1;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>';
+    contentHtml += '<span style="color:' + minTextColor + ';font-size:' + headlineFontSize + 'px;font-weight:500;">' + (config.headline || "Need help?") + '</span>';
+    contentHtml += '<button id="chatvice-eye-btn-minimized" style="background:none;border:none;cursor:pointer;padding:2px;color:' + btnColor + ';line-height:1;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>';
     contentHtml += '</div>';
     contentHtml += '</div>';
     
-    // Hidden state label (when eye is clicked to hide)
-    contentHtml += '<div id="chatvice-hidden-label" style="display:none;padding:8px 12px;background:rgba(30,30,30,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.15);border-radius:8px;cursor:pointer;">';
+    // Hidden state label (when eye is clicked to hide) - with theme sync
+    var hiddenBg = isDark ? "rgba(30,30,30,0.85)" : "rgba(255,255,255,0.85)";
+    var hiddenTextColor = isDark ? "rgba(255,255,255,0.7)" : "#666";
+    contentHtml += '<div id="chatvice-hidden-label" style="display:none;padding:8px 12px;background:' + hiddenBg + ';backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid ' + minBorder + ';border-radius:8px;cursor:pointer;">';
     contentHtml += '<div style="display:flex;align-items:center;gap:6px;">';
-    contentHtml += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
-    contentHtml += '<span style="color:rgba(255,255,255,0.7);font-size:11px;">Click to show</span>';
+    contentHtml += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + hiddenTextColor + '" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+    contentHtml += '<span style="color:' + hiddenTextColor + ';font-size:11px;">Click to show</span>';
     contentHtml += '</div>';
     contentHtml += '</div>';
     
@@ -9735,17 +9806,17 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     // Title row with minimize/close buttons
     contentHtml += '<div style="padding:' + basePadding + 'px;padding-bottom:0;">';
     contentHtml += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">';
-    contentHtml += '<div style="font-weight:600;font-size:' + headlineFontSize + 'px;color:#1a1a1a;flex:1;">' + (config.headline || "Need help?") + '</div>';
+    contentHtml += '<div style="font-weight:600;font-size:' + headlineFontSize + 'px;color:' + titleColor + ';flex:1;">' + (config.headline || "Need help?") + '</div>';
     contentHtml += '<div style="display:flex;gap:4px;align-items:center;margin-left:6px;">';
-    contentHtml += '<button id="chatvice-minimize-btn" title="Minimize" style="background:none;border:none;cursor:pointer;padding:2px;color:#999;font-size:14px;line-height:1;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/></svg></button>';
-    contentHtml += '<button id="chatvice-close-btn" title="Close" style="background:none;border:none;cursor:pointer;padding:2px;color:#999;font-size:16px;line-height:1;">&times;</button>';
+    contentHtml += '<button id="chatvice-minimize-btn" title="Minimize" style="background:none;border:none;cursor:pointer;padding:2px;color:' + btnColor + ';font-size:14px;line-height:1;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/></svg></button>';
+    contentHtml += '<button id="chatvice-close-btn" title="Close" style="background:none;border:none;cursor:pointer;padding:2px;color:' + btnColor + ';font-size:16px;line-height:1;">&times;</button>';
     contentHtml += '</div>';
     contentHtml += '</div>';
     contentHtml += '</div>';
     
     // Message
     if (config.message) {
-      contentHtml += '<div style="padding:0 ' + basePadding + 'px ' + basePadding + 'px ' + basePadding + 'px;font-size:' + messageFontSize + 'px;color:#666;">' + config.message + '</div>';
+      contentHtml += '<div style="padding:0 ' + basePadding + 'px ' + basePadding + 'px ' + basePadding + 'px;font-size:' + messageFontSize + 'px;color:' + messageColor + ';">' + config.message + '</div>';
     }
     
     // Buttons section
@@ -9790,7 +9861,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       });
       
       if (hasSocial) {
-        contentHtml += '<div style="padding:' + (basePadding - 2) + 'px ' + basePadding + 'px;border-top:1px solid #eee;display:flex;gap:6px;justify-content:center;">' + socialHtml + '</div>';
+        contentHtml += '<div style="padding:' + (basePadding - 2) + 'px ' + basePadding + 'px;border-top:1px solid ' + borderColor + ';display:flex;gap:6px;justify-content:center;">' + socialHtml + '</div>';
       }
     }
     
@@ -9941,6 +10012,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     close: closeWidget,
     toggle: function() { isOpen ? closeWidget() : openWidget(); },
     isOpen: function() { return isOpen; },
+    maximize: maximizeWidget,
+    minimize: minimizeWidget,
+    toggleMaximize: toggleMaximize,
+    isMaximized: function() { return isMaximized; },
     closeWelcomeBubble: hideWelcomeBubble,
     showWelcomeBubble: showWelcomeBubble,
     toggleBubbleMinimize: toggleMinimize
