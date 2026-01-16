@@ -1045,7 +1045,7 @@ async function handleLogin() {
                                 iconSize: value
                               })}
                               min={config.iconUrl ? 30 : 50}
-                              max={config.iconUrl ? 200 : 100}
+                              max={config.iconUrl ? 400 : 100}
                               step={5}
                               data-testid="slider-desktop-icon-width"
                             />
@@ -1062,7 +1062,7 @@ async function handleLogin() {
                                 iconHeight: value
                               })}
                               min={config.iconUrl ? 30 : 50}
-                              max={config.iconUrl ? 200 : 100}
+                              max={config.iconUrl ? 400 : 100}
                               step={5}
                               data-testid="slider-desktop-icon-height"
                             />

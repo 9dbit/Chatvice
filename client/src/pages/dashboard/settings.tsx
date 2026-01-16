@@ -34,8 +34,10 @@ import {
   Settings, Save, Key, Copy, Check, Camera, User, Moon, Sun, Monitor, 
   Shield, Globe, Clock, MessageSquare, AlertCircle, Sparkles, Lock,
   CheckCircle2, XCircle, Loader2, ExternalLink, Mail, Eye, EyeOff, Trash2,
-  Download, Server, RefreshCw
+  Download, Server, RefreshCw, Bell, Volume2, Upload, Play, AlertTriangle, UserPlus, Square
 } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import type { NotificationSetting } from "@shared/schema";
 import { useTheme } from "@/components/theme-provider";
 import type { Merchant } from "@shared/schema";
 
@@ -76,6 +78,27 @@ export default function SettingsPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   
   const [exportingData, setExportingData] = useState(false);
+  
+  const [isPlayingSound, setIsPlayingSound] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  const defaultSounds = [
+    { id: "default", name: "Default Chime", frequency: 800, duration: 150 },
+    { id: "chime", name: "Soft Chime", frequency: 600, duration: 200 },
+    { id: "bell", name: "Bell", frequency: 1000, duration: 300 },
+    { id: "alert", name: "Alert", frequency: 440, duration: 100 },
+    { id: "ping", name: "Ping", frequency: 1200, duration: 80 },
+    { id: "ding", name: "Ding Dong", frequency: 880, duration: 250 },
+    { id: "notify", name: "Notify", frequency: 523, duration: 180 },
+    { id: "pop", name: "Pop", frequency: 1400, duration: 60 },
+    { id: "beep", name: "Beep", frequency: 900, duration: 120 },
+    { id: "ring", name: "Ring", frequency: 700, duration: 400 },
+    { id: "buzz", name: "Buzz", frequency: 350, duration: 200 },
+    { id: "chirp", name: "Chirp", frequency: 1600, duration: 100 },
+    { id: "tone", name: "Tone", frequency: 550, duration: 350 },
+    { id: "urgent", name: "Urgent", frequency: 1100, duration: 150 },
+    { id: "gentle", name: "Gentle", frequency: 480, duration: 300 },
+  ];
 
   const { data: merchant, isLoading } = useQuery<Merchant>({
     queryKey: ["/api/merchant", merchantId],
@@ -84,9 +107,111 @@ export default function SettingsPage() {
 
   const isPro = merchant?.subscriptionPlanId === "pro" || merchant?.subscriptionPlanId === "enterprise" || merchant?.subscriptionPlanId === "custom";
 
+  const { data: notificationSettings, isLoading: isLoadingNotifications } = useQuery<NotificationSetting>({
+    queryKey: ["/api/notification-settings"],
+  });
+
+  const notificationUpdateMutation = useMutation({
+    mutationFn: async (data: Partial<NotificationSetting>) => {
+      return apiRequest("PUT", "/api/notification-settings", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notification-settings"] });
+      toast({ title: "Notification settings saved" });
+    },
+    onError: () => {
+      toast({ title: "Failed to save notification settings", variant: "destructive" });
+    },
+  });
+
+  const customSounds = (notificationSettings?.customSounds as any[]) || [];
+  const allSounds = [...defaultSounds.map(s => ({ id: s.id, name: s.name })), ...customSounds.map((s: any) => ({ id: s.url, name: s.name }))];
+
+  function playToneSound(frequency: number, duration: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+      try {
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = frequency;
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0.8, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + duration / 1000);
+        
+        oscillator.onended = () => {
+          audioContext.close();
+          resolve();
+        };
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  async function playSound(soundId: string) {
+    if (isPlayingSound) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      setIsPlayingSound(null);
+      return;
+    }
+
+    setIsPlayingSound(soundId);
+    
+    const customSound = customSounds.find((s: any) => s.url === soundId);
+    if (customSound) {
+      try {
+        const audio = new Audio(customSound.url);
+        audioRef.current = audio;
+        audio.onended = () => {
+          setIsPlayingSound(null);
+          audioRef.current = null;
+        };
+        audio.onerror = () => {
+          setIsPlayingSound(null);
+          audioRef.current = null;
+          toast({ title: "Could not play sound", variant: "destructive" });
+        };
+        await audio.play();
+      } catch (error) {
+        setIsPlayingSound(null);
+        toast({ title: "Could not play sound", variant: "destructive" });
+      }
+      return;
+    }
+
+    const defaultSound = defaultSounds.find(s => s.id === soundId);
+    if (defaultSound) {
+      try {
+        await playToneSound(defaultSound.frequency, defaultSound.duration);
+        setIsPlayingSound(null);
+      } catch (error) {
+        setIsPlayingSound(null);
+        toast({ title: "Could not play sound. Please interact with the page first.", variant: "destructive" });
+      }
+    } else {
+      setIsPlayingSound(null);
+      toast({ title: "Sound not found", variant: "destructive" });
+    }
+  }
+
+  function handleNotificationUpdate(key: string, value: any) {
+    notificationUpdateMutation.mutate({ [key]: value });
+  }
+
   useEffect(() => {
     if (merchant) {
-      setCompanyName(merchant.companyName);
+      setCompanyName(merchant.companyName || "");
       setProfilePhotoUrl(merchant.profilePhotoUrl || "");
       setChatTimeout(merchant.chatTimeout || 300);
       setRateLimitMessages(merchant.rateLimitMessages || 30);
@@ -419,7 +544,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full max-w-xl grid-cols-4">
+        <TabsList className="grid w-full max-w-2xl grid-cols-5">
           <TabsTrigger value="profile" data-testid="tab-profile">
             <User className="w-4 h-4 mr-2" />
             Profile
@@ -427,6 +552,10 @@ export default function SettingsPage() {
           <TabsTrigger value="chat" data-testid="tab-chat">
             <MessageSquare className="w-4 h-4 mr-2" />
             Chat
+          </TabsTrigger>
+          <TabsTrigger value="notifications" data-testid="tab-notifications">
+            <Bell className="w-4 h-4 mr-2" />
+            Notifications
           </TabsTrigger>
           <TabsTrigger value="security" data-testid="tab-security">
             <Shield className="w-4 h-4 mr-2" />
@@ -763,6 +892,201 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="notifications" className="space-y-6">
+          {isLoadingNotifications ? (
+            <div className="animate-pulse space-y-4">
+              <div className="h-8 bg-muted rounded w-1/4" />
+              <div className="h-32 bg-muted rounded" />
+            </div>
+          ) : (
+            <div className="grid gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <UserPlus className="w-5 h-5 text-green-500" />
+                    New Incoming Chat
+                  </CardTitle>
+                  <CardDescription>Notification when a new customer starts a chat</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="incomingEnabled">Enable Notification</Label>
+                    <Switch
+                      id="incomingEnabled"
+                      checked={notificationSettings?.incomingChatEnabled ?? true}
+                      onCheckedChange={(checked) => handleNotificationUpdate("incomingChatEnabled", checked)}
+                      data-testid="switch-incoming-enabled"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Select Sound</Label>
+                    <div className="flex gap-2">
+                      <Select 
+                        value={notificationSettings?.incomingChatSound || "default"}
+                        onValueChange={(value) => handleNotificationUpdate("incomingChatSound", value)}
+                      >
+                        <SelectTrigger className="flex-1" data-testid="select-incoming-sound">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {allSounds.map((sound) => (
+                            <SelectItem key={sound.id} value={sound.id}>{sound.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button 
+                        size="icon" 
+                        variant="outline"
+                        onClick={() => playSound(notificationSettings?.incomingChatSound || "default")}
+                        data-testid="button-play-incoming"
+                      >
+                        {isPlayingSound === (notificationSettings?.incomingChatSound || "default") ? (
+                          <Square className="w-4 h-4" />
+                        ) : (
+                          <Play className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-blue-500" />
+                    Chat Reply
+                  </CardTitle>
+                  <CardDescription>Notification when there's a new message from customer</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="replyEnabled">Enable Notification</Label>
+                    <Switch
+                      id="replyEnabled"
+                      checked={notificationSettings?.chatReplyEnabled ?? true}
+                      onCheckedChange={(checked) => handleNotificationUpdate("chatReplyEnabled", checked)}
+                      data-testid="switch-reply-enabled"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Select Sound</Label>
+                    <div className="flex gap-2">
+                      <Select 
+                        value={notificationSettings?.chatReplySound || "default"}
+                        onValueChange={(value) => handleNotificationUpdate("chatReplySound", value)}
+                      >
+                        <SelectTrigger className="flex-1" data-testid="select-reply-sound">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {allSounds.map((sound) => (
+                            <SelectItem key={sound.id} value={sound.id}>{sound.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button 
+                        size="icon" 
+                        variant="outline"
+                        onClick={() => playSound(notificationSettings?.chatReplySound || "default")}
+                        data-testid="button-play-reply"
+                      >
+                        {isPlayingSound === (notificationSettings?.chatReplySound || "default") ? (
+                          <Square className="w-4 h-4" />
+                        ) : (
+                          <Play className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-red-500" />
+                    Angry Customer
+                  </CardTitle>
+                  <CardDescription>Notification when the system detects an angry or frustrated customer</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="angryEnabled">Enable Notification</Label>
+                    <Switch
+                      id="angryEnabled"
+                      checked={notificationSettings?.angryCustomerEnabled ?? true}
+                      onCheckedChange={(checked) => handleNotificationUpdate("angryCustomerEnabled", checked)}
+                      data-testid="switch-angry-enabled"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Select Sound</Label>
+                    <div className="flex gap-2">
+                      <Select 
+                        value={notificationSettings?.angryCustomerSound || "alert"}
+                        onValueChange={(value) => handleNotificationUpdate("angryCustomerSound", value)}
+                      >
+                        <SelectTrigger className="flex-1" data-testid="select-angry-sound">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {allSounds.map((sound) => (
+                            <SelectItem key={sound.id} value={sound.id}>{sound.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button 
+                        size="icon" 
+                        variant="outline"
+                        onClick={() => playSound(notificationSettings?.angryCustomerSound || "alert")}
+                        data-testid="button-play-angry"
+                      >
+                        {isPlayingSound === (notificationSettings?.angryCustomerSound || "alert") ? (
+                          <Square className="w-4 h-4" />
+                        ) : (
+                          <Play className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Volume2 className="w-5 h-5" />
+                    Sound Options
+                  </CardTitle>
+                  <CardDescription>15 built-in alert sounds available</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
+                    {defaultSounds.map((sound) => (
+                      <Button
+                        key={sound.id}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => playSound(sound.id)}
+                        className="flex items-center gap-1"
+                        data-testid={`button-preview-${sound.id}`}
+                      >
+                        {isPlayingSound === sound.id ? (
+                          <Square className="w-3 h-3" />
+                        ) : (
+                          <Play className="w-3 h-3" />
+                        )}
+                        <span className="text-xs truncate">{sound.name}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="security" className="space-y-6">

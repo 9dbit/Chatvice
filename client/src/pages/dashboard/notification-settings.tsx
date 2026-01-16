@@ -17,6 +17,16 @@ const defaultSounds = [
   { id: "bell", name: "Bell", frequency: 1000, duration: 300 },
   { id: "alert", name: "Alert", frequency: 440, duration: 100 },
   { id: "ping", name: "Ping", frequency: 1200, duration: 80 },
+  { id: "ding", name: "Ding Dong", frequency: 880, duration: 250 },
+  { id: "notify", name: "Notify", frequency: 523, duration: 180 },
+  { id: "pop", name: "Pop", frequency: 1400, duration: 60 },
+  { id: "beep", name: "Beep", frequency: 900, duration: 120 },
+  { id: "ring", name: "Ring", frequency: 700, duration: 400 },
+  { id: "buzz", name: "Buzz", frequency: 350, duration: 200 },
+  { id: "chirp", name: "Chirp", frequency: 1600, duration: 100 },
+  { id: "tone", name: "Tone", frequency: 550, duration: 350 },
+  { id: "urgent", name: "Urgent", frequency: 1100, duration: 150 },
+  { id: "gentle", name: "Gentle", frequency: 480, duration: 300 },
 ];
 
 function playToneSound(frequency: number, duration: number): Promise<void> {
@@ -32,7 +42,7 @@ function playToneSound(frequency: number, duration: number): Promise<void> {
       oscillator.frequency.value = frequency;
       oscillator.type = 'sine';
       
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.setValueAtTime(0.8, audioContext.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
       
       oscillator.start(audioContext.currentTime);

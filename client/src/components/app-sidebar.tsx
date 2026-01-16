@@ -156,7 +156,6 @@ const defaultMainMenuItems: MenuItem[] = [
   menuItemsMap["knowledge-base"],
   menuItemsMap["analytics"],
   menuItemsMap["chat-logs"],
-  menuItemsMap["notifications"],
   menuItemsMap["live-preview"],
   menuItemsMap["settings"],
 ];
