@@ -1232,10 +1232,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           
           return (
             <button
-              className="flex items-center gap-1 text-[14px] font-bold text-white hover:text-white transition-colors px-2 py-px rounded-md border border-white/30"
+              className="flex items-center gap-1 text-[13px] font-bold text-white hover:text-white transition-colors px-1.5 py-0 rounded border border-white/30 leading-tight"
               style={{ 
                 textShadow: '0 1px 3px rgba(0,0,0,0.3)',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+                boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                height: '22px'
               }}
               onClick={() => {
                 if (socialIconsExpanded) {
