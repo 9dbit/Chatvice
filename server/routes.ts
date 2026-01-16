@@ -2843,6 +2843,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           mobileIconWidth: 60,
           mobileIconHeight: 60,
           widgetOffset: 20,
+          iconAnimationVertical: false,
+          iconAnimationHorizontal: false,
+          iconAnimationZoom: false,
+          iconAnimationRotation: false,
+          iconAnimationSpeed: 3,
           online: true,
           primaryColor: "#6b5dfc",
           welcomeMessage: "Hi! How can I help you today?",
@@ -2890,6 +2895,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         mobileIconWidth: merchant.mobileIconWidth ?? 60,
         mobileIconHeight: merchant.mobileIconHeight ?? 60,
         widgetOffset: merchant.widgetOffset ?? 20,
+        iconAnimationVertical: merchant.iconAnimationVertical ?? false,
+        iconAnimationHorizontal: merchant.iconAnimationHorizontal ?? false,
+        iconAnimationZoom: merchant.iconAnimationZoom ?? false,
+        iconAnimationRotation: merchant.iconAnimationRotation ?? false,
+        iconAnimationSpeed: merchant.iconAnimationSpeed ?? 3,
         online: merchant.online ?? true,
         primaryColor: agentSettings.primaryColor || merchant.primaryColor || "#6b5dfc",
         welcomeMessage: agentSettings.widgetWelcomeMessage || merchant.welcomeMessage || "Hi! How can I help you today?",
@@ -9444,6 +9454,69 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   button.style.cssText = "position:fixed;bottom:20px;right:20px;width:60px;height:60px;border-radius:50%;background:#6b5dfc;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:99999;box-shadow:0 4px 15px rgba(107,93,252,0.4);transition:transform 0.2s ease;";
   button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
   
+  // Animation styles
+  var animationStyleTag = document.createElement("style");
+  animationStyleTag.id = "chatvice-animation-styles";
+  document.head.appendChild(animationStyleTag);
+  
+  function applyAnimations(config) {
+    var animations = [];
+    var speed = config.iconAnimationSpeed || 3;
+    var duration = (11 - speed) * 0.5 + 1; // speed 1 = 6s, speed 10 = 1.5s
+    
+    if (config.iconAnimationVertical) {
+      animations.push("chatvice-bounce-vertical " + duration + "s ease-in-out infinite");
+    }
+    if (config.iconAnimationHorizontal) {
+      animations.push("chatvice-bounce-horizontal " + duration + "s ease-in-out infinite");
+    }
+    if (config.iconAnimationZoom) {
+      animations.push("chatvice-pulse-zoom " + duration + "s ease-in-out infinite");
+    }
+    if (config.iconAnimationRotation) {
+      animations.push("chatvice-rotate " + (duration * 2) + "s linear infinite");
+    }
+    
+    var keyframes = \`
+      @keyframes chatvice-bounce-vertical {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-15px); }
+      }
+      @keyframes chatvice-bounce-horizontal {
+        0%, 100% { transform: translateX(0); }
+        50% { transform: translateX(15px); }
+      }
+      @keyframes chatvice-pulse-zoom {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.15); }
+      }
+      @keyframes chatvice-rotate {
+        0% { transform: rotate(0deg); }
+        25% { transform: rotate(15deg); }
+        75% { transform: rotate(-15deg); }
+        100% { transform: rotate(0deg); }
+      }
+      @keyframes chatvice-combined-animation {
+        0% { transform: translateY(0) translateX(0) scale(1) rotate(0deg); }
+        25% { transform: translateY(-7px) translateX(7px) scale(1.07) rotate(8deg); }
+        50% { transform: translateY(-15px) translateX(15px) scale(1.15) rotate(0deg); }
+        75% { transform: translateY(-7px) translateX(7px) scale(1.07) rotate(-8deg); }
+        100% { transform: translateY(0) translateX(0) scale(1) rotate(0deg); }
+      }
+    \`;
+    
+    animationStyleTag.textContent = keyframes;
+    
+    // Apply combined animation if multiple are selected
+    if (animations.length > 1) {
+      button.style.animation = "chatvice-combined-animation " + duration + "s ease-in-out infinite";
+    } else if (animations.length === 1) {
+      button.style.animation = animations[0];
+    } else {
+      button.style.animation = "none";
+    }
+  }
+  
   // Fetch merchant config and apply custom styles with retry
   function fetchConfig(retryCount) {
     retryCount = retryCount || 0;
@@ -9453,7 +9526,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return response.json(); 
       })
       .then(function(config) { 
-        updateButtonStyles(config); 
+        updateButtonStyles(config);
+        applyAnimations(config);
       })
       .catch(function(err) { 
         if (retryCount < 2) {

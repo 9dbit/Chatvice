@@ -20,7 +20,7 @@ import {
   Loader2, Camera, RefreshCw, X, Send, Paperclip, Smile, ImageIcon, Video,
   Globe, MessageSquare, Frame, Shield, Key, Eye, EyeOff, Crown, Lock, ArrowUpRight, ChevronDown,
   Plus, Trash2, CheckCircle, AlertCircle, ExternalLink, GripVertical, ChevronUp, ChevronDown as ChevronDownIcon,
-  Smartphone, Monitor
+  Smartphone, Monitor, Sparkles, ArrowUpDown, ArrowLeftRight, ZoomIn, RotateCw
 } from "lucide-react";
 import type { MerchantDomain } from "@shared/schema";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -63,6 +63,11 @@ export default function WidgetPage() {
     mobileIconWidth: 60,
     mobileIconHeight: 60,
     widgetOffset: 20,
+    iconAnimationVertical: false,
+    iconAnimationHorizontal: false,
+    iconAnimationZoom: false,
+    iconAnimationRotation: false,
+    iconAnimationSpeed: 3,
     online: true,
     primaryColor: "#6b5dfc",
     welcomeMessage: "Hi! How can I help you today?",
@@ -267,6 +272,11 @@ export default function WidgetPage() {
         mobileIconWidth: (merchant as any).mobileIconWidth || 60,
         mobileIconHeight: (merchant as any).mobileIconHeight || 60,
         widgetOffset: (merchant as any).widgetOffset || 20,
+        iconAnimationVertical: (merchant as any).iconAnimationVertical || false,
+        iconAnimationHorizontal: (merchant as any).iconAnimationHorizontal || false,
+        iconAnimationZoom: (merchant as any).iconAnimationZoom || false,
+        iconAnimationRotation: (merchant as any).iconAnimationRotation || false,
+        iconAnimationSpeed: (merchant as any).iconAnimationSpeed || 3,
         online: merchant.online ?? true,
         primaryColor: agentWidgetSettings.primaryColor || "#6b5dfc",
         welcomeMessage: agentWidgetSettings.widgetWelcomeMessage || "Hi! How can I help you today?",
@@ -286,6 +296,11 @@ export default function WidgetPage() {
         mobileIconWidth: (merchant as any).mobileIconWidth || 60,
         mobileIconHeight: (merchant as any).mobileIconHeight || 60,
         widgetOffset: (merchant as any).widgetOffset || 20,
+        iconAnimationVertical: (merchant as any).iconAnimationVertical || false,
+        iconAnimationHorizontal: (merchant as any).iconAnimationHorizontal || false,
+        iconAnimationZoom: (merchant as any).iconAnimationZoom || false,
+        iconAnimationRotation: (merchant as any).iconAnimationRotation || false,
+        iconAnimationSpeed: (merchant as any).iconAnimationSpeed || 3,
         online: merchant.online ?? true,
         primaryColor: merchant.primaryColor || "#6b5dfc",
         welcomeMessage: merchant.welcomeMessage || "Hi! How can I help you today?",
@@ -556,6 +571,11 @@ export default function WidgetPage() {
         mobileIconWidth: config.mobileIconWidth,
         mobileIconHeight: config.mobileIconHeight,
         widgetOffset: config.widgetOffset,
+        iconAnimationVertical: config.iconAnimationVertical,
+        iconAnimationHorizontal: config.iconAnimationHorizontal,
+        iconAnimationZoom: config.iconAnimationZoom,
+        iconAnimationRotation: config.iconAnimationRotation,
+        iconAnimationSpeed: config.iconAnimationSpeed,
         online: config.online,
       };
       await apiRequest("POST", "/api/merchant/config", merchantIconConfig);
@@ -1132,6 +1152,92 @@ async function handleLogin() {
                         <p className="text-xs text-muted-foreground">
                           Distance from screen edge (bottom and {config.bubblePosition === "left" ? "left" : "right"}).
                         </p>
+                      </div>
+
+                      {/* Icon Animation Settings */}
+                      <div className="space-y-4 pt-4 border-t">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-primary" />
+                          <Label className="text-base font-semibold">Icon Animations</Label>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Add eye-catching animations to your widget icon. You can combine multiple animations.
+                        </p>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="flex items-center justify-between p-3 border rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+                              <span className="text-sm">Up & Down</span>
+                            </div>
+                            <Switch
+                              checked={config.iconAnimationVertical}
+                              onCheckedChange={(checked) => setConfig({ ...config, iconAnimationVertical: checked })}
+                              data-testid="switch-animation-vertical"
+                            />
+                          </div>
+                          
+                          <div className="flex items-center justify-between p-3 border rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <ArrowLeftRight className="w-4 h-4 text-muted-foreground" />
+                              <span className="text-sm">Left & Right</span>
+                            </div>
+                            <Switch
+                              checked={config.iconAnimationHorizontal}
+                              onCheckedChange={(checked) => setConfig({ ...config, iconAnimationHorizontal: checked })}
+                              data-testid="switch-animation-horizontal"
+                            />
+                          </div>
+                          
+                          <div className="flex items-center justify-between p-3 border rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <ZoomIn className="w-4 h-4 text-muted-foreground" />
+                              <span className="text-sm">Zoom In/Out</span>
+                            </div>
+                            <Switch
+                              checked={config.iconAnimationZoom}
+                              onCheckedChange={(checked) => setConfig({ ...config, iconAnimationZoom: checked })}
+                              data-testid="switch-animation-zoom"
+                            />
+                          </div>
+                          
+                          <div className="flex items-center justify-between p-3 border rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <RotateCw className="w-4 h-4 text-muted-foreground" />
+                              <span className="text-sm">Rotation</span>
+                            </div>
+                            <Switch
+                              checked={config.iconAnimationRotation}
+                              onCheckedChange={(checked) => setConfig({ ...config, iconAnimationRotation: checked })}
+                              data-testid="switch-animation-rotation"
+                            />
+                          </div>
+                        </div>
+                        
+                        {(config.iconAnimationVertical || config.iconAnimationHorizontal || config.iconAnimationZoom || config.iconAnimationRotation) && (
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <Label className="text-sm">Animation Speed</Label>
+                              <span className="text-sm text-muted-foreground">
+                                {config.iconAnimationSpeed === 1 ? "Very Slow" : 
+                                 config.iconAnimationSpeed <= 3 ? "Slow" : 
+                                 config.iconAnimationSpeed <= 5 ? "Medium" : 
+                                 config.iconAnimationSpeed <= 7 ? "Fast" : "Very Fast"}
+                              </span>
+                            </div>
+                            <Slider
+                              value={[config.iconAnimationSpeed]}
+                              onValueChange={([value]) => setConfig({ ...config, iconAnimationSpeed: value })}
+                              min={1}
+                              max={10}
+                              step={1}
+                              data-testid="slider-animation-speed"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Lower values = slower, smoother animations.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
 
