@@ -2926,6 +2926,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const merchantId = req.session.merchantId!;
       const { merchantId: _, ...config } = req.body;
       
+      console.log("Config save request:", JSON.stringify(config, null, 2));
+      
       const validConfig = merchantConfigSchema.parse(config);
       
       const merchant = await storage.getMerchant(merchantId);
@@ -2940,6 +2942,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       res.json({ success: true, config: updated });
     } catch (error: any) {
       console.error("Config save error:", error);
+      if (error.name === "ZodError") {
+        return res.status(400).json({ error: "Validation failed", details: error.errors });
+      }
       res.status(400).json({ error: error.message || "Invalid request" });
     }
   });
