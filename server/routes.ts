@@ -9621,12 +9621,24 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     var posStyle = bubblePosition === "left" ? "left:" + widgetOffset + "px;right:auto;" : "right:" + widgetOffset + "px;left:auto;";
     welcomeBubble.style.cssText = "position:fixed;bottom:" + (widgetOffset + buttonHeight + 10) + "px;" + posStyle + "width:" + bubbleWidth + "px;background:#fff;border-radius:8px;box-shadow:0 2px 14px rgba(0,0,0,0.15);z-index:99998;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;";
     
-    // Create content container (collapsible)
+    // Create content container
     welcomeBubbleContent = document.createElement("div");
     welcomeBubbleContent.id = "chatvice-bubble-content";
-    welcomeBubbleContent.style.cssText = "transition:max-height 0.2s ease,opacity 0.2s ease;overflow:hidden;";
     
     var contentHtml = "";
+    
+    // Header bar (always visible, contains title and minimize/close buttons)
+    var headerBgColor = config.buttonColor || "#7c3aed";
+    contentHtml += '<div id="chatvice-bubble-header" style="display:flex;justify-content:space-between;align-items:center;padding:' + basePadding + 'px;background:' + headerBgColor + ';color:#fff;cursor:pointer;">';
+    contentHtml += '<div style="font-weight:600;font-size:' + headlineFontSize + 'px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (config.headline || "Need help?") + '</div>';
+    contentHtml += '<div style="display:flex;gap:6px;align-items:center;margin-left:6px;">';
+    contentHtml += '<button id="chatvice-minimize-btn" style="background:none;border:none;cursor:pointer;padding:2px;color:#fff;font-size:14px;line-height:1;opacity:0.9;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/></svg></button>';
+    contentHtml += '<button id="chatvice-close-btn" style="background:none;border:none;cursor:pointer;padding:2px;color:#fff;font-size:16px;line-height:1;opacity:0.9;">&times;</button>';
+    contentHtml += '</div>';
+    contentHtml += '</div>';
+    
+    // Collapsible content wrapper (includes promo image, message, buttons, social icons)
+    contentHtml += '<div id="chatvice-collapsible" style="transition:max-height 0.2s ease;overflow:hidden;">';
     
     // Promo image
     if (config.promoImageEnabled && config.promoImageUrl) {
@@ -9637,23 +9649,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       contentHtml += '<div style="width:100%;"><img src="' + promoUrl + '" style="width:100%;height:auto;display:block;" onerror="this.style.display=\\'none\\'" /></div>';
     }
     
-    // Title row with minimize/close buttons (original design)
-    contentHtml += '<div style="padding:' + basePadding + 'px;padding-bottom:0;">';
-    contentHtml += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">';
-    contentHtml += '<div style="font-weight:600;font-size:' + headlineFontSize + 'px;color:#1a1a1a;flex:1;">' + (config.headline || "Need help?") + '</div>';
-    contentHtml += '<div style="display:flex;gap:4px;align-items:center;margin-left:6px;">';
-    contentHtml += '<button id="chatvice-minimize-btn" style="background:none;border:none;cursor:pointer;padding:2px;color:#999;font-size:14px;line-height:1;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/></svg></button>';
-    contentHtml += '<button id="chatvice-close-btn" style="background:none;border:none;cursor:pointer;padding:2px;color:#999;font-size:16px;line-height:1;">&times;</button>';
-    contentHtml += '</div>';
-    contentHtml += '</div>';
-    contentHtml += '</div>';
-    
-    // Collapsible content wrapper
-    contentHtml += '<div id="chatvice-collapsible">';
-    
     // Message
     if (config.message) {
-      contentHtml += '<div style="padding:0 ' + basePadding + 'px ' + basePadding + 'px ' + basePadding + 'px;font-size:' + messageFontSize + 'px;color:#666;">' + config.message + '</div>';
+      contentHtml += '<div style="padding:' + basePadding + 'px;font-size:' + messageFontSize + 'px;color:#666;">' + config.message + '</div>';
     }
     
     // Buttons section
@@ -9711,6 +9709,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     var ctaBtn = welcomeBubbleContent.querySelector("#chatvice-cta-btn");
     if (ctaBtn) {
       ctaBtn.onclick = function() { openWidget(); hideWelcomeBubble(); };
+    }
+    
+    var headerBar = welcomeBubbleContent.querySelector("#chatvice-bubble-header");
+    if (headerBar) {
+      headerBar.onclick = function() { if (welcomeBubbleMinimized) toggleMinimize(); };
     }
     
     var minimizeBtn = welcomeBubbleContent.querySelector("#chatvice-minimize-btn");
