@@ -20,7 +20,7 @@ import {
   Loader2, Camera, RefreshCw, X, Send, Paperclip, Smile, ImageIcon, Video,
   Globe, MessageSquare, Frame, Shield, Key, Eye, EyeOff, Crown, Lock, ArrowUpRight, ChevronDown,
   Plus, Trash2, CheckCircle, AlertCircle, ExternalLink, GripVertical, ChevronUp, ChevronDown as ChevronDownIcon,
-  Smartphone
+  Smartphone, Monitor
 } from "lucide-react";
 import type { MerchantDomain } from "@shared/schema";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -1026,28 +1026,93 @@ async function handleLogin() {
                     </div>
 
                     <div className="space-y-4">
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <Label>Icon Size</Label>
-                          <span className="text-sm text-muted-foreground">{config.iconSize}px</span>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Monitor className="w-4 h-4 text-primary" />
+                          <Label className="font-semibold">Desktop Icon Size</Label>
                         </div>
-                        <Slider
-                          value={[config.iconSize]}
-                          onValueChange={([value]) => setConfig({ 
-                            ...config, 
-                            iconSize: value,
-                            iconWidth: value,
-                            iconHeight: value,
-                            mobileIconWidth: Math.min(value, 120),
-                            mobileIconHeight: Math.min(value, 120)
-                          })}
-                          min={config.iconUrl ? 30 : 50}
-                          max={config.iconUrl ? 200 : 100}
-                          step={5}
-                          data-testid="slider-icon-size"
-                        />
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <Label className="text-sm">Width</Label>
+                              <span className="text-sm text-muted-foreground">{config.iconWidth}px</span>
+                            </div>
+                            <Slider
+                              value={[config.iconWidth]}
+                              onValueChange={([value]) => setConfig({ 
+                                ...config, 
+                                iconWidth: value,
+                                iconSize: value
+                              })}
+                              min={config.iconUrl ? 30 : 50}
+                              max={config.iconUrl ? 200 : 100}
+                              step={5}
+                              data-testid="slider-desktop-icon-width"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <Label className="text-sm">Height</Label>
+                              <span className="text-sm text-muted-foreground">{config.iconHeight}px</span>
+                            </div>
+                            <Slider
+                              value={[config.iconHeight]}
+                              onValueChange={([value]) => setConfig({ 
+                                ...config, 
+                                iconHeight: value
+                              })}
+                              min={config.iconUrl ? 30 : 50}
+                              max={config.iconUrl ? 200 : 100}
+                              step={5}
+                              data-testid="slider-desktop-icon-height"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Smartphone className="w-4 h-4 text-primary" />
+                          <Label className="font-semibold">Mobile Icon Size</Label>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <Label className="text-sm">Width</Label>
+                              <span className="text-sm text-muted-foreground">{config.mobileIconWidth}px</span>
+                            </div>
+                            <Slider
+                              value={[config.mobileIconWidth]}
+                              onValueChange={([value]) => setConfig({ 
+                                ...config, 
+                                mobileIconWidth: value
+                              })}
+                              min={30}
+                              max={120}
+                              step={5}
+                              data-testid="slider-mobile-icon-width"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <Label className="text-sm">Height</Label>
+                              <span className="text-sm text-muted-foreground">{config.mobileIconHeight}px</span>
+                            </div>
+                            <Slider
+                              value={[config.mobileIconHeight]}
+                              onValueChange={([value]) => setConfig({ 
+                                ...config, 
+                                mobileIconHeight: value
+                              })}
+                              min={30}
+                              max={120}
+                              step={5}
+                              data-testid="slider-mobile-icon-height"
+                            />
+                          </div>
+                        </div>
                         <p className="text-xs text-muted-foreground">
-                          Applies to both desktop and mobile (mobile auto-scales for smaller screens).
+                          Mobile has safety caps: max 50% screen width, 35% screen height.
                         </p>
                       </div>
                       
