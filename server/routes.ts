@@ -9623,32 +9623,29 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   button.onmouseover = function() { button.style.transform = "scale(1.05)"; };
   button.onmouseout = function() { button.style.transform = "scale(1)"; };
   
-  // Widget sizing - desktop height +20% (550 -> 660), floating design with frosted glass
+  // Widget sizing - desktop height +20% (550 -> 660), transparent iframe for frosted glass effect inside
   function getWidgetStyles() {
     var currentIsMobile = window.innerWidth <= 480;
     var positionStyle = bubblePosition === "left" ? "left:" + widgetOffset + "px;right:auto;" : "right:" + widgetOffset + "px;left:auto;";
     
-    // Frosted glass transparent 60% background with XL blur (24px) - darker for dark theme
-    var frostedBg = "background:rgba(255,255,255,0.4);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);";
-    if (widgetTheme === "dark") {
-      frostedBg = "background:rgba(20,20,20,0.6);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);";
-    }
+    // Keep iframe transparent - frosted glass effect is handled inside chat-widget.tsx
+    // This allows the backdrop-filter inside the widget to blur correctly
     
     if (currentIsMobile) {
       if (isMaximized) {
         // Mobile maximized - full screen (z-index 100000 - highest)
-        return "position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;border:none;z-index:100000;" + frostedBg;
+        return "position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;border:none;z-index:100000;background:transparent;";
       } else {
         // Mobile normal - 90% of screen with rounded corners
-        return "position:fixed;bottom:" + widgetOffset + "px;left:" + widgetOffset + "px;right:" + widgetOffset + "px;width:calc(100vw - " + (widgetOffset * 2) + "px);height:calc(85vh - " + widgetOffset + "px);border-radius:16px;border:none;z-index:100000;" + frostedBg + "box-shadow:0 8px 32px rgba(0,0,0,0.2);";
+        return "position:fixed;bottom:" + widgetOffset + "px;left:" + widgetOffset + "px;right:" + widgetOffset + "px;width:calc(100vw - " + (widgetOffset * 2) + "px);height:calc(85vh - " + widgetOffset + "px);border-radius:16px;border:none;z-index:100000;background:transparent;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.2);";
       }
     } else {
       if (isMaximized) {
         // Desktop maximized - +20% from normal (660 * 1.2 = 792px) (z-index 100000 - highest)
-        return "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:456px;height:792px;border-radius:16px;border:none;z-index:100000;" + frostedBg + "box-shadow:0 8px 32px rgba(0,0,0,0.2);";
+        return "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:456px;height:792px;border-radius:16px;border:none;z-index:100000;background:transparent;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.2);";
       } else {
         // Desktop normal - height +20% (550 -> 660px)
-        return "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:380px;height:660px;border-radius:16px;border:none;z-index:100000;" + frostedBg + "box-shadow:0 8px 32px rgba(0,0,0,0.2);";
+        return "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:380px;height:660px;border-radius:16px;border:none;z-index:100000;background:transparent;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.2);";
       }
     }
   }

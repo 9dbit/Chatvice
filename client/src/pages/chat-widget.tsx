@@ -1099,26 +1099,32 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     </div>
   );
 
-  // Frosted glass styling - semi-transparent with blur
-  // Dark mode: rgba(20,20,20,0.6), Light mode: rgba(255,255,255,0.4)
-  const frostedGlassClasses = "backdrop-blur-[24px] bg-[rgba(255,255,255,0.4)] dark:bg-[rgba(20,20,20,0.6)]";
+  // Frosted glass styling - semi-transparent with blur  
+  // External embed uses 60% transparent background for frosted glass effect
+  const isDarkMode = document.documentElement.classList.contains('dark');
   
   // External embed uses borderless transparent design with frosted glass
   const containerClasses = isExternalEmbed
-    ? `absolute inset-0 w-full h-full overflow-hidden flex flex-col ${frostedGlassClasses}`
-    : `${
-        embedded 
-          ? `w-full h-full ${frostedGlassClasses}` 
-          : isFullscreen
-            ? `fixed inset-4 z-50 animate-in fade-in duration-300 rounded-xl ${frostedGlassClasses}`
-            : `${positionClass} bottom-5 right-5 w-[360px] h-[520px] z-50 animate-in slide-in-from-bottom-5 fade-in duration-300 rounded-xl ${frostedGlassClasses}`
-      } overflow-hidden flex flex-col`;
+    ? "absolute inset-0 w-full h-full overflow-hidden flex flex-col"
+    : embedded 
+      ? "w-full h-full overflow-hidden flex flex-col"
+      : isFullscreen
+        ? `fixed inset-4 z-50 animate-in fade-in duration-300 rounded-xl overflow-hidden flex flex-col`
+        : `${positionClass} bottom-5 right-5 w-[360px] h-[520px] z-50 animate-in slide-in-from-bottom-5 fade-in duration-300 rounded-xl overflow-hidden flex flex-col`;
+  
+  // Frosted glass inline styles - ensures proper rendering in iframe
+  const frostedGlassStyle: React.CSSProperties = (isExternalEmbed || embedded) ? {
+    backgroundColor: isDarkMode ? 'rgba(20, 20, 20, 0.6)' : 'rgba(255, 255, 255, 0.4)',
+    backdropFilter: 'blur(24px)',
+    WebkitBackdropFilter: 'blur(24px)',
+  } : {};
 
   return (
     <div
       className={containerClasses}
       style={{
         transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        ...frostedGlassStyle,
       }}
       data-testid="widget-container"
     >
