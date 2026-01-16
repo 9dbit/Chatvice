@@ -9730,14 +9730,15 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   var bubbleInitialized = false;
   var isMobile = window.innerWidth <= 768;
   
-  // Sizes: desktop 196px, mobile 168px - button font +40%, social icons +30%
-  var bubbleWidth = isMobile ? 168 : 196;
+  // Sizes: desktop 206px (+5%), mobile 176px (+5%) - button font +40%, social icons +30%
+  var bubbleWidth = isMobile ? 176 : 206;
   var basePadding = isMobile ? 8 : 11;
   var headlineFontSize = isMobile ? 14 : 16;
   var messageFontSize = isMobile ? 12 : 12;
   var buttonFontSize = isMobile ? 14 : 14;
-  var buttonPadding = isMobile ? "8px 12px" : "9px 14px";
-  var actionBtnPadding = isMobile ? "7px 12px" : "8px 14px";
+  // Button padding reduced by 10%
+  var buttonPadding = isMobile ? "7px 11px" : "8px 13px";
+  var actionBtnPadding = isMobile ? "6px 11px" : "7px 13px";
   var socialIconSize = isMobile ? 26 : 26;
   var socialSvgSize = isMobile ? 13 : 13;
   
@@ -9932,12 +9933,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       welcomeBubble.style.boxShadow = "none";
       welcomeBubble.style.overflow = "visible";
     } else {
-      // Show full content
+      // Show full content - use theme-aware background color
       if (fullContent) fullContent.style.display = "block";
       if (minimizedState) minimizedState.style.display = "none";
       if (hiddenLabel) hiddenLabel.style.display = "none";
-      welcomeBubble.style.background = "#fff";
-      welcomeBubble.style.boxShadow = "0 2px 14px rgba(0,0,0,0.15)";
+      // Theme-aware frosted glass background
+      var isDark = widgetTheme === "dark";
+      welcomeBubble.style.background = isDark ? "rgba(30,30,30,0.5)" : "rgba(255,255,255,0.5)";
+      welcomeBubble.style.backdropFilter = "blur(12px)";
+      welcomeBubble.style.webkitBackdropFilter = "blur(12px)";
+      welcomeBubble.style.boxShadow = "0 4px 20px rgba(0,0,0,0.15)";
       welcomeBubble.style.overflow = "hidden";
       welcomeBubbleHidden = false;
     }
