@@ -9411,13 +9411,14 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       ? "left:20px;right:auto;" 
       : "right:20px;left:auto;";
     
-    // Align icon to container edge based on position
-    var alignStyle = bubblePosition === "left" ? "justify-content:flex-start;" : "justify-content:flex-end;";
+    // Custom icon: anchor to corner, size grows inward and upward
+    // Right position: anchor bottom-right, grow left+up. Left position: anchor bottom-left, grow right+up
+    var transformOrigin = bubblePosition === "left" ? "transform-origin:bottom left;" : "transform-origin:bottom right;";
     
     if (iconUrl) {
-      // Custom icon - no background, no border-radius, aligned to edge, auto-crop to image content
-      button.style.cssText = "position:fixed;bottom:20px;" + positionStyle + "width:auto;height:auto;background:transparent;cursor:pointer;display:flex;align-items:flex-end;" + alignStyle + "z-index:99999;transition:transform 0.2s ease;";
-      button.innerHTML = '<img src="' + iconUrl + '" style="max-width:' + buttonWidth + 'px;max-height:' + buttonHeight + 'px;width:auto;height:auto;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.3));" />';
+      // Custom icon - locked to corner, auto-crop to image content
+      button.style.cssText = "position:fixed;bottom:20px;" + positionStyle + "background:transparent;cursor:pointer;z-index:99999;transition:transform 0.2s ease;" + transformOrigin;
+      button.innerHTML = '<img src="' + iconUrl + '" style="display:block;max-width:' + buttonWidth + 'px;max-height:' + buttonHeight + 'px;width:auto;height:auto;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.3));" />';
     } else {
       // Default chat bubble icon
       button.style.cssText = "position:fixed;bottom:20px;" + positionStyle + "width:" + buttonWidth + "px;height:" + buttonHeight + "px;border-radius:50%;background:" + defaultColor + ";cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:99999;box-shadow:0 4px 15px " + defaultColor + "66;transition:transform 0.2s ease;";
