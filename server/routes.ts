@@ -12595,6 +12595,8 @@ ${html.substring(0, 50000)}`;
         promoImageEnabled: false,
         promoImageUrl: "",
         isEnabled: true,
+        actionButtons: [],
+        socialIconsEnabled: false,
       });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
