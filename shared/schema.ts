@@ -14,6 +14,7 @@ export const merchants = pgTable("merchants", {
   profileStep: integer("profile_step").default(0),
   phoneCountryCode: text("phone_country_code"),
   iconUrl: text("icon_url").default(""),
+  iconVisible: boolean("icon_visible").default(true),
   iconSize: integer("icon_size").default(70),
   iconWidth: integer("icon_width"),
   iconHeight: integer("icon_height"),
@@ -331,6 +332,7 @@ const safeUrlSchema = z.string().refine((url) => {
 
 export const merchantConfigSchema = z.object({
   iconUrl: z.string().optional(),
+  iconVisible: z.boolean().optional(),
   iconSize: z.number().min(30).max(400).optional(),
   iconWidth: z.number().min(30).max(400).optional(),
   iconHeight: z.number().min(30).max(400).optional(),

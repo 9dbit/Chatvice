@@ -9401,9 +9401,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   var bubblePosition = "right";
   var widgetOffset = 20;
   
+  var iconVisible = true;
+  
   function updateButtonStyles(config) {
     defaultColor = config.primaryColor || defaultColor;
     widgetOffset = config.widgetOffset || 20;
+    iconVisible = config.iconVisible !== false;
     // Use iconUrl from config - ensure full URL if relative path
     iconUrl = config.iconUrl || "";
     if (iconUrl && !iconUrl.startsWith("http") && !iconUrl.startsWith("data:")) {
@@ -9413,6 +9416,14 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     if (iconUrl && !iconUrl.startsWith("data:")) {
       var cacheBuster = iconUrl.indexOf("?") === -1 ? "?v=" : "&v=";
       iconUrl = iconUrl + cacheBuster + Date.now();
+    }
+    
+    // Handle icon visibility - hide button if custom icon and iconVisible is false
+    if (iconUrl && !iconVisible) {
+      button.style.display = "none";
+      return;
+    } else {
+      button.style.display = "";
     }
     // Re-check mobile at update time (in case orientation changed)
     var currentIsMobile = window.innerWidth <= 768;

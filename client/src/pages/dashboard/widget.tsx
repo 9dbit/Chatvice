@@ -56,6 +56,7 @@ export default function WidgetPage() {
   }, [previewKey, merchantId]);
   const [config, setConfig] = useState({
     iconUrl: "",
+    iconVisible: true,
     iconSize: 70,
     iconWidth: 70,
     iconHeight: 70,
@@ -265,6 +266,7 @@ export default function WidgetPage() {
     if (merchant && merchant.activeAgentId && agentWidgetSettings) {
       setConfig({
         iconUrl: merchant.iconUrl || "",
+        iconVisible: (merchant as any).iconVisible !== false,
         iconSize: Math.min(Math.max((merchant.iconSize || 70), 30), 400),
         iconWidth: Math.min(Math.max(((merchant as any).iconWidth || 70), 30), 400),
         iconHeight: Math.min(Math.max(((merchant as any).iconHeight || 70), 30), 400),
@@ -289,6 +291,7 @@ export default function WidgetPage() {
     } else if (merchant && !merchant.activeAgentId) {
       setConfig({
         iconUrl: merchant.iconUrl || "",
+        iconVisible: (merchant as any).iconVisible !== false,
         iconSize: Math.min(Math.max((merchant.iconSize || 70), 30), 400),
         iconWidth: Math.min(Math.max(((merchant as any).iconWidth || 70), 30), 400),
         iconHeight: Math.min(Math.max(((merchant as any).iconHeight || 70), 30), 400),
@@ -564,6 +567,7 @@ export default function WidgetPage() {
       // Always save icon settings to merchant config (iconUrl, iconWidth, iconHeight are merchant-level settings)
       const merchantIconConfig = {
         iconUrl: config.iconUrl,
+        iconVisible: config.iconVisible,
         iconSize: config.iconSize,
         iconWidth: config.iconWidth,
         iconHeight: config.iconHeight,
@@ -920,11 +924,34 @@ async function handleLogin() {
                 ) : (
                   <>
                     <div className="space-y-2">
-                      <Label>Widget Button Icon</Label>
+                      <div className="flex items-center justify-between">
+                        <Label>Widget Button Icon</Label>
+                        {config.iconUrl && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 gap-1"
+                            onClick={() => setConfig({ ...config, iconVisible: !config.iconVisible })}
+                            data-testid="button-toggle-icon-visibility"
+                          >
+                            {config.iconVisible !== false ? (
+                              <>
+                                <Eye className="w-4 h-4" />
+                                <span className="text-xs">Visible</span>
+                              </>
+                            ) : (
+                              <>
+                                <EyeOff className="w-4 h-4 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">Hidden</span>
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
                       <div className="flex items-start gap-4">
                         <div className="relative">
                           <div 
-                            className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden border-2 border-muted"
+                            className={`w-16 h-16 rounded-full flex items-center justify-center overflow-hidden border-2 border-muted ${config.iconVisible === false ? 'opacity-40' : ''}`}
                             style={{ backgroundColor: config.primaryColor + '20' }}
                           >
                             {config.iconUrl ? (
