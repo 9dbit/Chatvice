@@ -9,9 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { MessageCircle, X, Save, Eye, Loader2, Clock, Upload } from "lucide-react";
+import { MessageCircle, X, Save, Eye, Loader2, Clock, Upload, Plus, Trash2, Link, Share2 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import type { WelcomeBubble } from "@shared/schema";
+
+interface ActionButton {
+  label: string;
+  url: string;
+}
 
 export default function WelcomeBubblePage() {
   const { toast } = useToast();
@@ -26,6 +31,8 @@ export default function WelcomeBubblePage() {
     promoImageUrl: "",
     reappearInterval: 60,
     isEnabled: true,
+    actionButtons: [] as ActionButton[],
+    socialIconsEnabled: false,
   });
 
   const { data: bubble, isLoading } = useQuery<WelcomeBubble>({
@@ -43,6 +50,8 @@ export default function WelcomeBubblePage() {
         promoImageUrl: bubble.promoImageUrl || "",
         reappearInterval: bubble.reappearInterval ?? 60,
         isEnabled: bubble.isEnabled ?? true,
+        actionButtons: (bubble.actionButtons as ActionButton[]) || [],
+        socialIconsEnabled: bubble.socialIconsEnabled ?? false,
       });
     }
   }, [bubble]);
@@ -113,6 +122,30 @@ export default function WelcomeBubblePage() {
         setUploadProgress(0);
       }, 500);
     }
+  };
+
+  const addActionButton = () => {
+    if (form.actionButtons.length >= 5) {
+      toast({ title: "Maksimum 5 tombol aksi", variant: "destructive" });
+      return;
+    }
+    setForm({
+      ...form,
+      actionButtons: [...form.actionButtons, { label: "", url: "" }],
+    });
+  };
+
+  const updateActionButton = (index: number, field: keyof ActionButton, value: string) => {
+    const updated = [...form.actionButtons];
+    updated[index] = { ...updated[index], [field]: value };
+    setForm({ ...form, actionButtons: updated });
+  };
+
+  const removeActionButton = (index: number) => {
+    setForm({
+      ...form,
+      actionButtons: form.actionButtons.filter((_, i) => i !== index),
+    });
   };
 
   if (isLoading) {
@@ -364,6 +397,99 @@ export default function WelcomeBubblePage() {
                     className="flex-1"
                   />
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Link className="w-4 h-4" />
+                Action Buttons
+              </CardTitle>
+              <CardDescription>
+                Tambahkan tombol aksi dengan URL target (maksimum 5 tombol)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {form.actionButtons.map((btn, index) => (
+                <div key={index} className="flex items-start gap-2 p-3 border rounded-lg bg-muted/30">
+                  <div className="flex-1 space-y-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Button Label</Label>
+                      <Input
+                        value={btn.label}
+                        onChange={(e) => updateActionButton(index, "label", e.target.value)}
+                        placeholder="Nama tombol..."
+                        data-testid={`input-action-btn-label-${index}`}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">URL Target</Label>
+                      <Input
+                        value={btn.url}
+                        onChange={(e) => updateActionButton(index, "url", e.target.value)}
+                        placeholder="https://example.com/page"
+                        data-testid={`input-action-btn-url-${index}`}
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeActionButton(index)}
+                    className="text-destructive hover:text-destructive shrink-0"
+                    data-testid={`button-remove-action-btn-${index}`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+              
+              {form.actionButtons.length < 5 && (
+                <Button
+                  variant="outline"
+                  onClick={addActionButton}
+                  className="w-full"
+                  data-testid="button-add-action-btn"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Tambah Tombol ({form.actionButtons.length}/5)
+                </Button>
+              )}
+              
+              {form.actionButtons.length === 5 && (
+                <p className="text-sm text-muted-foreground text-center">
+                  Maksimum 5 tombol tercapai
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Share2 className="w-4 h-4" />
+                Social Media Icons
+              </CardTitle>
+              <CardDescription>
+                Tampilkan ikon sosial media di bawah welcome bubble
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="socialIconsEnabled">Aktifkan Social Icons</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Ikon akan tampil di bawah welcome bubble (konfigurasi link di halaman Widget)
+                  </p>
+                </div>
+                <Switch
+                  id="socialIconsEnabled"
+                  checked={form.socialIconsEnabled}
+                  onCheckedChange={(checked) => setForm({ ...form, socialIconsEnabled: checked })}
+                  data-testid="switch-social-icons-enabled"
+                />
               </div>
             </CardContent>
           </Card>
