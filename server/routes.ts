@@ -9673,8 +9673,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   // Sizes: desktop 196px, mobile 168px - button font +40%, social icons +30%
   var bubbleWidth = isMobile ? 168 : 196;
   var basePadding = isMobile ? 8 : 11;
-  var headlineFontSize = isMobile ? 12 : 13;
-  var messageFontSize = isMobile ? 10 : 10;
+  var headlineFontSize = isMobile ? 14 : 16;
+  var messageFontSize = isMobile ? 12 : 12;
   var buttonFontSize = isMobile ? 14 : 14;
   var buttonPadding = isMobile ? "8px 12px" : "9px 14px";
   var actionBtnPadding = isMobile ? "7px 12px" : "8px 14px";
