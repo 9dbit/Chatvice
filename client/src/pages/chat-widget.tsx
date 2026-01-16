@@ -1117,9 +1117,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     </div>
   );
 
-  // Frosted glass styling - semi-transparent with blur  
-  // External embed uses 60% transparent background for frosted glass effect
-  const isDarkMode = document.documentElement.classList.contains('dark');
+  // Frosted glass styling - use merchant's widget theme setting, not document dark class
+  // This ensures the widget respects the merchant's configured theme
+  const widgetIsDark = merchantConfig?.widgetTheme === "dark" || document.documentElement.classList.contains('dark');
   
   // External embed uses borderless transparent design with frosted glass
   const containerClasses = isExternalEmbed
@@ -1130,17 +1130,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         ? `fixed inset-4 z-50 animate-in fade-in duration-300 rounded-xl overflow-hidden flex flex-col`
         : `${positionClass} bottom-5 right-5 w-[360px] h-[520px] z-50 animate-in slide-in-from-bottom-5 fade-in duration-300 rounded-xl overflow-hidden flex flex-col`;
   
-  // Frosted glass - for external embed, keep content transparent (frosted glass on iframe in parent page)
-  // For embedded mode, apply frosted glass inside
-  const frostedGlassStyle: React.CSSProperties = isExternalEmbed 
-    ? { backgroundColor: 'transparent' }
-    : embedded 
-      ? {
-          backgroundColor: isDarkMode ? 'rgba(20, 20, 20, 0.6)' : 'rgba(255, 255, 255, 0.4)',
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
-        } 
-      : {};
+  // Frosted glass - apply on widget container for both external embed and embedded modes
+  // Darker background (85% opacity) for frosted glass effect
+  const frostedGlassStyle: React.CSSProperties = (isExternalEmbed || embedded) 
+    ? {
+        backgroundColor: widgetIsDark ? 'rgba(10, 10, 10, 0.85)' : 'rgba(255, 255, 255, 0.6)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+      } 
+    : {};
 
   return (
     <div

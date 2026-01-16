@@ -9628,19 +9628,19 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     var currentIsMobile = window.innerWidth <= 480;
     var positionStyle = bubblePosition === "left" ? "left:" + widgetOffset + "px;right:auto;" : "right:" + widgetOffset + "px;left:auto;";
     
-    // Frosted glass applied directly on iframe element (same as welcome bubble) - 60% transparent
+    // Frosted glass applied directly on iframe element (same as welcome bubble) - darker background
     var isDark = widgetTheme === "dark";
     var frostedBg = isDark 
-      ? "background:rgba(20,20,20,0.6);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);" 
-      : "background:rgba(255,255,255,0.4);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);";
+      ? "background:rgba(10,10,10,0.85);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);" 
+      : "background:rgba(255,255,255,0.6);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);";
     
     if (currentIsMobile) {
       if (isMaximized) {
-        // Mobile maximized - full screen (z-index 100000 - highest)
+        // Mobile maximized - full screen without gaps (z-index 100000 - highest)
         return "position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;border:none;z-index:100000;" + frostedBg;
       } else {
-        // Mobile normal - 90% of screen with rounded corners
-        return "position:fixed;bottom:" + widgetOffset + "px;left:" + widgetOffset + "px;right:" + widgetOffset + "px;width:calc(100vw - " + (widgetOffset * 2) + "px);height:calc(85vh - " + widgetOffset + "px);border-radius:16px;border:none;z-index:100000;" + frostedBg + "overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.2);";
+        // Mobile normal - fullscreen from top to bottom, no gaps, no rounded corners
+        return "position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;border:none;z-index:100000;" + frostedBg + "overflow:hidden;";
       }
     } else {
       if (isMaximized) {
