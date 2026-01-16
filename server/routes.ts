@@ -9454,12 +9454,13 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     if (iconUrl) {
       hasCustomIcon = true;
       // Custom icon - locked to corner, auto-crop to image content (z-index 99996 - below eye toggle)
-      button.style.cssText = "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "background:transparent;cursor:pointer;z-index:99996;transition:transform 0.2s ease;" + transformOrigin;
+      // Fade in with opacity transition after config loads
+      button.style.cssText = "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "background:transparent;cursor:pointer;z-index:99996;transition:transform 0.2s ease, opacity 0.3s ease;opacity:1;" + transformOrigin;
       button.innerHTML = '<img src="' + iconUrl + '" style="display:block;max-width:' + buttonWidth + 'px;max-height:' + buttonHeight + 'px;width:auto;height:auto;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.3));" />';
     } else {
       hasCustomIcon = false;
-      // Default chat bubble icon (z-index 99996)
-      button.style.cssText = "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:" + buttonWidth + "px;height:" + buttonHeight + "px;border-radius:50%;background:" + defaultColor + ";cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:99996;box-shadow:0 4px 15px " + defaultColor + "66;transition:transform 0.2s ease;";
+      // Default chat bubble icon (z-index 99996) - fade in with opacity transition
+      button.style.cssText = "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:" + buttonWidth + "px;height:" + buttonHeight + "px;border-radius:50%;background:" + defaultColor + ";cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:99996;box-shadow:0 4px 15px " + defaultColor + "66;transition:transform 0.2s ease, opacity 0.3s ease;opacity:1;";
       button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
     }
     
@@ -9473,9 +9474,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     iframe.style.cssText = iframePosStyle + "display:" + (isOpen ? "block" : "none") + ";";
   }
   
-  // Initial default styles (z-index 99996 - below eye toggle and widget)
-  button.style.cssText = "position:fixed;bottom:20px;right:20px;width:60px;height:60px;border-radius:50%;background:#6b5dfc;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:99996;box-shadow:0 4px 15px rgba(107,93,252,0.4);transition:transform 0.2s ease;";
-  button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
+  // Initial styles - HIDDEN until config is loaded (no default icon shown)
+  button.style.cssText = "position:fixed;bottom:20px;right:20px;width:60px;height:60px;border-radius:50%;background:#6b5dfc;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:99996;box-shadow:0 4px 15px rgba(107,93,252,0.4);transition:transform 0.2s ease;opacity:0;";
+  button.innerHTML = '';
   
   // Eye toggle button for custom icon visibility control (z-index 99998 - above button, below widget)
   var eyeToggleBtn = document.createElement("div");
