@@ -1102,8 +1102,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         className="px-3 py-2 flex items-center justify-between shadow-md relative z-10"
         style={{ backgroundColor: primaryColor }}
       >
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
+        <div className="flex items-center gap-2.5">
+          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
             {merchantConfig?.agentPhotoUrl ? (
               <img
                 src={merchantConfig.agentPhotoUrl}
@@ -1117,7 +1117,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 className="w-full h-full object-cover"
               />
             ) : (
-              <Bot className="w-4 h-4 text-white" />
+              <Bot className="w-5 h-5 text-white" />
             )}
           </div>
           <div className="text-white">
@@ -1346,6 +1346,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           <div className="w-full max-w-xs space-y-4">
             <div className="space-y-2">
               <Input
+                type="text"
                 placeholder="Enter your name"
                 value={nameInputValue}
                 onChange={(e) => {
@@ -1358,6 +1359,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   }
                 }}
                 className="text-center"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="words"
+                spellCheck="false"
                 data-testid="input-customer-name"
               />
               {nameError && (
