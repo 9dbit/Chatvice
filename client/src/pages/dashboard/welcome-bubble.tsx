@@ -16,6 +16,7 @@ import type { WelcomeBubble } from "@shared/schema";
 interface ActionButton {
   label: string;
   url: string;
+  color: string;
 }
 
 export default function WelcomeBubblePage() {
@@ -126,12 +127,12 @@ export default function WelcomeBubblePage() {
 
   const addActionButton = () => {
     if (form.actionButtons.length >= 5) {
-      toast({ title: "Maksimum 5 tombol aksi", variant: "destructive" });
+      toast({ title: "Maximum 5 action buttons reached", variant: "destructive" });
       return;
     }
     setForm({
       ...form,
-      actionButtons: [...form.actionButtons, { label: "", url: "" }],
+      actionButtons: [...form.actionButtons, { label: "", url: "", color: "#7c3aed" }],
     });
   };
 
@@ -408,7 +409,7 @@ export default function WelcomeBubblePage() {
                 Action Buttons
               </CardTitle>
               <CardDescription>
-                Tambahkan tombol aksi dengan URL target (maksimum 5 tombol)
+                Add action buttons with URL targets (maximum 5 buttons)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -420,7 +421,7 @@ export default function WelcomeBubblePage() {
                       <Input
                         value={btn.label}
                         onChange={(e) => updateActionButton(index, "label", e.target.value)}
-                        placeholder="Nama tombol..."
+                        placeholder="Button name..."
                         data-testid={`input-action-btn-label-${index}`}
                       />
                     </div>
@@ -432,6 +433,24 @@ export default function WelcomeBubblePage() {
                         placeholder="https://example.com/page"
                         data-testid={`input-action-btn-url-${index}`}
                       />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Button Color</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="color"
+                          value={btn.color || "#7c3aed"}
+                          onChange={(e) => updateActionButton(index, "color", e.target.value)}
+                          className="w-12 h-9 p-1 cursor-pointer"
+                          data-testid={`input-action-btn-color-${index}`}
+                        />
+                        <Input
+                          value={btn.color || "#7c3aed"}
+                          onChange={(e) => updateActionButton(index, "color", e.target.value)}
+                          placeholder="#7c3aed"
+                          className="flex-1"
+                        />
+                      </div>
                     </div>
                   </div>
                   <Button
@@ -454,13 +473,13 @@ export default function WelcomeBubblePage() {
                   data-testid="button-add-action-btn"
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  Tambah Tombol ({form.actionButtons.length}/5)
+                  Add Button ({form.actionButtons.length}/5)
                 </Button>
               )}
               
               {form.actionButtons.length === 5 && (
                 <p className="text-sm text-muted-foreground text-center">
-                  Maksimum 5 tombol tercapai
+                  Maximum 5 buttons reached
                 </p>
               )}
             </CardContent>
@@ -473,15 +492,15 @@ export default function WelcomeBubblePage() {
                 Social Media Icons
               </CardTitle>
               <CardDescription>
-                Tampilkan ikon sosial media di bawah welcome bubble
+                Display social media icons below the welcome bubble
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <Label htmlFor="socialIconsEnabled">Aktifkan Social Icons</Label>
+                  <Label htmlFor="socialIconsEnabled">Enable Social Icons</Label>
                   <p className="text-sm text-muted-foreground">
-                    Ikon akan tampil di bawah welcome bubble (konfigurasi link di halaman Widget)
+                    Icons will appear below the welcome bubble (configure links in Widget page)
                   </p>
                 </div>
                 <Switch
