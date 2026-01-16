@@ -172,6 +172,13 @@
     @apply border-border;
   }
 
+  /* Full height for embedded widget iframe */
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
   body {
     @apply font-sans antialiased bg-background text-foreground;
     -webkit-tap-highlight-color: transparent;

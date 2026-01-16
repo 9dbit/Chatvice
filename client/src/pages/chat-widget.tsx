@@ -1077,9 +1077,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     </div>
   );
 
-  // External embed uses borderless design
+  // External embed uses borderless transparent design to show iframe's frosted glass
   const containerClasses = isExternalEmbed
-    ? "w-full h-full bg-background overflow-hidden flex flex-col"
+    ? "w-full h-full bg-transparent overflow-hidden flex flex-col"
     : `${
         embedded 
           ? "w-full h-full" 
@@ -1342,7 +1342,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
       {/* Customer name form - shown for new customers */}
       {!hasSubmittedName && !serverMessages?.length ? (
-        <div className="flex-1 flex flex-col items-center justify-center p-6">
+        <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-6">
           <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: `${primaryColor}20` }}>
             <User className="w-8 h-8" style={{ color: primaryColor }} />
           </div>
@@ -1398,7 +1398,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         </div>
       ) : (
         <>
-          <ScrollArea className="flex-1 p-4">
+          <ScrollArea className="flex-1 min-h-0 p-4">
             <div className="space-y-4">
               {allMessages.map((msg, index) => (
             <div key={msg.id || index}>
