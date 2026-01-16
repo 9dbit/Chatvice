@@ -123,15 +123,33 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const [isOpen, setIsOpen] = useState(embedded);
   const [isFullscreen, setIsFullscreen] = useState(false);
   
-  // Make body transparent for external embed mode so frosted glass shows through
+  // Make body, html, and #root transparent for external embed mode so frosted glass shows through
   useEffect(() => {
     if (isExternalEmbed || embedded) {
+      // Set all possible backgrounds to transparent
       document.body.style.background = "transparent";
+      document.body.style.backgroundColor = "transparent";
       document.documentElement.style.background = "transparent";
+      document.documentElement.style.backgroundColor = "transparent";
+      
+      // Also make #root transparent
+      const rootEl = document.getElementById('root');
+      if (rootEl) {
+        rootEl.style.background = "transparent";
+        rootEl.style.backgroundColor = "transparent";
+      }
     }
     return () => {
       document.body.style.background = "";
+      document.body.style.backgroundColor = "";
       document.documentElement.style.background = "";
+      document.documentElement.style.backgroundColor = "";
+      
+      const rootEl = document.getElementById('root');
+      if (rootEl) {
+        rootEl.style.background = "";
+        rootEl.style.backgroundColor = "";
+      }
     };
   }, [isExternalEmbed, embedded]);
   const [sessionId] = useState(() => initialSessionId || `sess_${Math.random().toString(36).substring(2, 12)}`);

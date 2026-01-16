@@ -112,11 +112,23 @@ function Router() {
       <Route path="/admin/:page*" component={AdminDashboard} />
       <Route path="/widget-demo" component={WidgetDemoPage} />
       <Route path="/widget/:merchantId">
-        {(params) => (
-          <div className="min-h-screen flex items-center justify-center bg-muted">
-            <ChatWidget merchantId={params.merchantId} embedded />
-          </div>
-        )}
+        {(params) => {
+          // External embed (showClose=true) needs transparent background for frosted glass
+          const urlParams = new URLSearchParams(window.location.search);
+          const isExternalEmbed = urlParams.get("showClose") === "true";
+          
+          if (isExternalEmbed) {
+            // No wrapper - direct transparent background handled in ChatWidget
+            return <ChatWidget merchantId={params.merchantId} embedded />;
+          }
+          
+          // Regular embedded widget with centered display
+          return (
+            <div className="min-h-screen flex items-center justify-center bg-muted">
+              <ChatWidget merchantId={params.merchantId} embedded />
+            </div>
+          );
+        }}
       </Route>
 
       <Route path="/faq" component={FAQPage} />
