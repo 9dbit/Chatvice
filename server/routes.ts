@@ -9399,11 +9399,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       buttonWidth = config.iconSize || 60;
       buttonHeight = config.iconSize || 60;
     }
-    // Responsive scaling for mobile - max 30% of screen width
+    // Mobile: use configured size from dashboard, only cap if exceeds 50% screen width
     if (isMobile) {
-      var maxMobileSize = Math.min(window.innerWidth * 0.25, 100);
-      buttonWidth = Math.min(buttonWidth, maxMobileSize);
-      buttonHeight = Math.min(buttonHeight, maxMobileSize);
+      var maxMobileWidth = window.innerWidth * 0.5;
+      var maxMobileHeight = window.innerHeight * 0.3;
+      if (buttonWidth > maxMobileWidth) buttonWidth = maxMobileWidth;
+      if (buttonHeight > maxMobileHeight) buttonHeight = maxMobileHeight;
     }
     bubblePosition = config.bubblePosition || "right";
     
