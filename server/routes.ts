@@ -9656,6 +9656,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   function openWidget() {
     iframe.style.cssText = getWidgetStyles() + "display:block;";
     button.style.display = "none";
+    eyeToggleBtn.style.display = "none";
     isOpen = true;
   }
   
@@ -9684,6 +9685,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   function closeWidget() {
     iframe.style.display = "none";
     button.style.display = "flex";
+    if (hasCustomIcon && !isIconHidden) {
+      eyeToggleBtn.style.display = "flex";
+    }
     isOpen = false;
   }
   

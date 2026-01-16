@@ -1130,8 +1130,51 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </div>
         </div>
         
-        <div className="flex gap-0.5 flex-shrink-0">
+        {/* Get in Touch Toggle - inside header */}
+        {merchantConfig?.socialMediaEnabled && (() => {
+          const validUrl = (url: string | undefined) => {
+            if (!url) return null;
+            try {
+              const parsed = new URL(url);
+              if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+                return url;
+              }
+            } catch {}
+            return null;
+          };
+          const hasSocialLinks = [
+            validUrl(merchantConfig.socialInstagram),
+            validUrl(merchantConfig.socialFacebook),
+            validUrl(merchantConfig.socialTelegram),
+            validUrl(merchantConfig.socialWhatsapp),
+            validUrl(merchantConfig.socialDiscord),
+          ].some(Boolean);
+          
+          if (!hasSocialLinks) return null;
+          
+          return (
+            <button
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium text-white/90 bg-white/15 hover:bg-white/25 transition-colors"
+              onClick={() => {
+                if (socialIconsExpanded) {
+                  handleCloseSocialPanel();
+                } else {
+                  setSocialIconsExpanded(true);
+                }
+              }}
+              data-testid="button-toggle-social-header"
+            >
+              Get in touch
+              {socialIconsExpanded ? (
+                <ChevronUp className="w-3 h-3" />
+              ) : (
+                <ChevronDown className="w-3 h-3" />
+              )}
+            </button>
+          );
+        })()}
         
+        <div className="flex gap-0.5 flex-shrink-0">
         {/* Fullscreen Toggle - Square for maximize, Minimize2 for minimize */}
         {!embedded && (
           <Tooltip>
@@ -1177,8 +1220,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         </div>
       </div>
       
-      {/* Get in Touch Button + Social Media Panel - below header */}
-      {merchantConfig?.socialMediaEnabled && (() => {
+      {/* Social Media Panel - expandable below header */}
+      {merchantConfig?.socialMediaEnabled && (socialIconsExpanded || socialPanelClosing) && (() => {
         const validUrl = (url: string | undefined) => {
           if (!url) return null;
           try {
@@ -1204,66 +1247,40 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         const iconStyle = merchantConfig.socialIconStyle || "colored";
         
         return (
-          <div className="relative">
-            {/* Get in Touch Toggle Button - below header */}
-            <div 
-              className="px-3 py-1.5 flex items-center justify-center cursor-pointer hover:bg-white/5 transition-colors"
-              style={{ backgroundColor: `${primaryColor}30` }}
-              onClick={() => {
-                if (socialIconsExpanded) {
-                  handleCloseSocialPanel();
-                } else {
-                  setSocialIconsExpanded(true);
+          <div 
+            className="backdrop-blur-lg overflow-hidden"
+            style={{ 
+              backgroundColor: `${primaryColor}40`,
+              animation: socialPanelClosing 
+                ? 'slideUpSmooth 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+                : 'slideDownSmooth 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+            }}
+          >
+            <style>{`
+              @keyframes slideDownSmooth {
+                from {
+                  opacity: 0;
+                  max-height: 0;
                 }
-              }}
-              data-testid="button-toggle-social"
-            >
-              <span className="text-xs font-medium text-white/90 flex items-center gap-1.5">
-                Get in touch
-                {socialIconsExpanded ? (
-                  <ChevronUp className="w-3.5 h-3.5" />
-                ) : (
-                  <ChevronDown className="w-3.5 h-3.5" />
-                )}
-              </span>
-            </div>
+                to {
+                  opacity: 1;
+                  max-height: 60px;
+                }
+              }
+              @keyframes slideUpSmooth {
+                from {
+                  opacity: 1;
+                  max-height: 60px;
+                }
+                to {
+                  opacity: 0;
+                  max-height: 0;
+                }
+              }
+            `}</style>
             
-            {/* Social icons panel - expandable */}
-            {(socialIconsExpanded || socialPanelClosing) && (
-              <div 
-                className="backdrop-blur-lg overflow-hidden"
-                style={{ 
-                  backgroundColor: `${primaryColor}40`,
-                  animation: socialPanelClosing 
-                    ? 'slideUpSmooth 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
-                    : 'slideDownSmooth 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
-                }}
-              >
-                <style>{`
-                  @keyframes slideDownSmooth {
-                    from {
-                      opacity: 0;
-                      max-height: 0;
-                    }
-                    to {
-                      opacity: 1;
-                      max-height: 60px;
-                    }
-                  }
-                  @keyframes slideUpSmooth {
-                    from {
-                      opacity: 1;
-                      max-height: 60px;
-                    }
-                    to {
-                      opacity: 0;
-                      max-height: 0;
-                    }
-                  }
-                `}</style>
-                
-                {/* Social icons */}
-                <div className="px-3 py-2 flex items-center justify-center gap-3">
+            {/* Social icons */}
+            <div className="px-3 py-2 flex items-center justify-center gap-3">
                   {socialLinks.map(social => (
                     <a
                       key={social.icon}
@@ -1309,9 +1326,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                       )}
                     </a>
                   ))}
-                </div>
-              </div>
-            )}
+            </div>
           </div>
         );
       })()}
