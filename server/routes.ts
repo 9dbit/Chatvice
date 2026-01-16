@@ -9584,12 +9584,27 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   
   // Welcome Bubble Implementation
   var welcomeBubble = null;
+  var welcomeBubbleContent = null;
+  var welcomeBubbleMinimized = false;
   var welcomeBubbleVisible = false;
   var reappearInterval = 60;
   var bubbleClosedTime = 0;
-  var socialLinks = {};
+  var bubbleConfig = null;
+  var isMobile = window.innerWidth <= 768;
   
-  function createWelcomeBubble(bubbleConfig, merchantConfig) {
+  // Reduced sizes: 30% smaller - desktop 196px (was 280), mobile 168px (was 240)
+  var bubbleWidth = isMobile ? 168 : 196;
+  var basePadding = isMobile ? 8 : 11;
+  var headlineFontSize = isMobile ? 11 : 11;
+  var messageFontSize = isMobile ? 10 : 10;
+  var buttonFontSize = isMobile ? 10 : 10;
+  var buttonPadding = isMobile ? "6px 10px" : "7px 11px";
+  var actionBtnPadding = isMobile ? "5px 10px" : "6px 11px";
+  var socialIconSize = isMobile ? 20 : 20;
+  var socialSvgSize = isMobile ? 10 : 10;
+  
+  function createWelcomeBubble(config, merchantConfig) {
+    bubbleConfig = config;
     if (welcomeBubble) {
       welcomeBubble.remove();
     }
@@ -9598,51 +9613,84 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     welcomeBubble.id = "chatvice-welcome-bubble";
     
     var posStyle = bubblePosition === "left" ? "left:" + widgetOffset + "px;right:auto;" : "right:" + widgetOffset + "px;left:auto;";
-    welcomeBubble.style.cssText = "position:fixed;bottom:" + (widgetOffset + buttonHeight + 15) + "px;" + posStyle + "width:280px;background:#fff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.15);z-index:99998;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;";
+    welcomeBubble.style.cssText = "position:fixed;bottom:" + (widgetOffset + buttonHeight + 10) + "px;" + posStyle + "width:" + bubbleWidth + "px;background:#fff;border-radius:8px;box-shadow:0 2px 14px rgba(0,0,0,0.15);z-index:99998;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;";
     
-    var bubbleHtml = "";
+    // Create minimized header bar (always visible, acts as toggle)
+    var headerBar = document.createElement("div");
+    headerBar.id = "chatvice-bubble-header";
+    headerBar.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding:" + (basePadding - 2) + "px " + basePadding + "px;background:" + (config.buttonColor || "#7c3aed") + ";color:#fff;cursor:pointer;";
+    
+    var headerTitle = document.createElement("span");
+    headerTitle.style.cssText = "font-weight:600;font-size:" + headlineFontSize + "px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;";
+    headerTitle.textContent = config.headline || "Need help?";
+    
+    var headerButtons = document.createElement("div");
+    headerButtons.style.cssText = "display:flex;gap:6px;align-items:center;margin-left:6px;";
+    
+    var minimizeBtn = document.createElement("button");
+    minimizeBtn.id = "chatvice-minimize-btn";
+    minimizeBtn.style.cssText = "background:none;border:none;cursor:pointer;padding:0;color:#fff;font-size:14px;line-height:1;opacity:0.9;";
+    minimizeBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14"/></svg>';
+    minimizeBtn.onclick = function(e) { e.stopPropagation(); toggleMinimize(); };
+    
+    var closeBtn = document.createElement("button");
+    closeBtn.id = "chatvice-close-btn";
+    closeBtn.style.cssText = "background:none;border:none;cursor:pointer;padding:0;color:#fff;font-size:14px;line-height:1;opacity:0.9;";
+    closeBtn.innerHTML = "&times;";
+    closeBtn.onclick = function(e) { e.stopPropagation(); hideWelcomeBubble(); };
+    
+    headerButtons.appendChild(minimizeBtn);
+    headerButtons.appendChild(closeBtn);
+    headerBar.appendChild(headerTitle);
+    headerBar.appendChild(headerButtons);
+    headerBar.onclick = function() { if (welcomeBubbleMinimized) toggleMinimize(); };
+    
+    welcomeBubble.appendChild(headerBar);
+    
+    // Create content container (collapsible)
+    welcomeBubbleContent = document.createElement("div");
+    welcomeBubbleContent.id = "chatvice-bubble-content";
+    welcomeBubbleContent.style.cssText = "transition:max-height 0.2s ease,opacity 0.2s ease;overflow:hidden;";
+    
+    var contentHtml = "";
     
     // Promo image
-    if (bubbleConfig.promoImageEnabled && bubbleConfig.promoImageUrl) {
-      var promoUrl = bubbleConfig.promoImageUrl;
+    if (config.promoImageEnabled && config.promoImageUrl) {
+      var promoUrl = config.promoImageUrl;
       if (promoUrl && !promoUrl.startsWith("http") && !promoUrl.startsWith("data:")) {
         promoUrl = baseUrl + promoUrl;
       }
-      bubbleHtml += '<div style="width:100%;"><img src="' + promoUrl + '" style="width:100%;height:auto;display:block;" onerror="this.style.display=\\'none\\'" /></div>';
+      contentHtml += '<div style="width:100%;"><img src="' + promoUrl + '" style="width:100%;height:auto;display:block;" onerror="this.style.display=\\'none\\'" /></div>';
     }
-    
-    // Content section
-    bubbleHtml += '<div style="padding:16px;">';
-    
-    // Headline and close button
-    bubbleHtml += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">';
-    bubbleHtml += '<div style="font-weight:600;font-size:16px;color:#1a1a1a;">' + (bubbleConfig.headline || "Need help?") + '</div>';
-    bubbleHtml += '<button onclick="window.chatvice.closeWelcomeBubble()" style="background:none;border:none;cursor:pointer;padding:0;color:#999;font-size:18px;line-height:1;">&times;</button>';
-    bubbleHtml += '</div>';
     
     // Message
-    bubbleHtml += '<div style="font-size:14px;color:#666;margin-bottom:12px;">' + (bubbleConfig.message || "") + '</div>';
-    
-    // Main CTA button
-    bubbleHtml += '<button onclick="window.chatvice.open();window.chatvice.closeWelcomeBubble();" style="width:100%;padding:10px 16px;background:' + (bubbleConfig.buttonColor || "#7c3aed") + ';color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;transition:opacity 0.2s;">' + (bubbleConfig.buttonLabel || "Chat with us") + '</button>';
-    
-    // Action buttons
-    if (bubbleConfig.actionButtons && bubbleConfig.actionButtons.length > 0) {
-      var defaultBtnColor = bubbleConfig.buttonColor || "#7c3aed";
-      bubbleHtml += '<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">';
-      bubbleConfig.actionButtons.forEach(function(btn) {
-        if (btn.label && btn.url) {
-          var btnColor = (btn.color && btn.color.trim() !== "") ? btn.color : defaultBtnColor;
-          bubbleHtml += '<a href="' + btn.url + '" target="_blank" rel="noopener" style="display:block;width:100%;padding:8px 16px;background:' + btnColor + ';color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:500;text-align:center;text-decoration:none;cursor:pointer;transition:opacity 0.2s;">' + btn.label + '</a>';
-        }
-      });
-      bubbleHtml += '</div>';
+    if (config.message) {
+      contentHtml += '<div style="padding:' + basePadding + 'px;font-size:' + messageFontSize + 'px;color:#666;">' + config.message + '</div>';
     }
     
-    bubbleHtml += '</div>';
+    // Buttons section
+    contentHtml += '<div style="padding:0 ' + basePadding + 'px ' + basePadding + 'px ' + basePadding + 'px;">';
+    
+    // Main CTA button
+    contentHtml += '<button id="chatvice-cta-btn" style="width:100%;padding:' + buttonPadding + ';background:' + (config.buttonColor || "#7c3aed") + ';color:#fff;border:none;border-radius:6px;font-size:' + buttonFontSize + 'px;font-weight:500;cursor:pointer;">' + (config.buttonLabel || "Chat with us") + '</button>';
+    
+    // Action buttons
+    if (config.actionButtons && config.actionButtons.length > 0) {
+      var defaultBtnColor = config.buttonColor || "#7c3aed";
+      contentHtml += '<div style="margin-top:5px;display:flex;flex-direction:column;gap:4px;">';
+      config.actionButtons.forEach(function(btn, idx) {
+        if (btn.label && btn.url) {
+          var btnColor = (btn.color && btn.color.trim() !== "") ? btn.color : defaultBtnColor;
+          contentHtml += '<a href="' + btn.url + '" target="_blank" rel="noopener" class="chatvice-action-btn" style="display:block;width:100%;padding:' + actionBtnPadding + ';background:' + btnColor + ';color:#fff;border:none;border-radius:5px;font-size:' + (buttonFontSize - 1) + 'px;font-weight:500;text-align:center;text-decoration:none;">' + btn.label + '</a>';
+        }
+      });
+      contentHtml += '</div>';
+    }
+    
+    contentHtml += '</div>';
     
     // Social media icons
-    if (bubbleConfig.socialIconsEnabled && merchantConfig) {
+    if (config.socialIconsEnabled && merchantConfig) {
       var socialHtml = '';
       var hasSocial = false;
       
@@ -9657,18 +9705,43 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       socialItems.forEach(function(item) {
         if (item.url) {
           hasSocial = true;
-          socialHtml += '<a href="' + item.url + '" target="_blank" rel="noopener" style="display:inline-flex;width:28px;height:28px;align-items:center;justify-content:center;background:' + item.color + ';border-radius:50%;color:#fff;text-decoration:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="' + item.icon + '"/></svg></a>';
+          socialHtml += '<a href="' + item.url + '" target="_blank" rel="noopener" style="display:inline-flex;width:' + socialIconSize + 'px;height:' + socialIconSize + 'px;align-items:center;justify-content:center;background:' + item.color + ';border-radius:50%;color:#fff;text-decoration:none;"><svg width="' + socialSvgSize + '" height="' + socialSvgSize + '" viewBox="0 0 24 24" fill="currentColor"><path d="' + item.icon + '"/></svg></a>';
         }
       });
       
       if (hasSocial) {
-        bubbleHtml += '<div style="padding:12px 16px;border-top:1px solid #eee;display:flex;gap:8px;justify-content:center;">' + socialHtml + '</div>';
+        contentHtml += '<div style="padding:' + (basePadding - 2) + 'px ' + basePadding + 'px;border-top:1px solid #eee;display:flex;gap:5px;justify-content:center;">' + socialHtml + '</div>';
       }
     }
     
-    welcomeBubble.innerHTML = bubbleHtml;
+    welcomeBubbleContent.innerHTML = contentHtml;
+    welcomeBubble.appendChild(welcomeBubbleContent);
+    
+    // Attach CTA button click handler
+    var ctaBtn = welcomeBubbleContent.querySelector("#chatvice-cta-btn");
+    if (ctaBtn) {
+      ctaBtn.onclick = function() { openWidget(); hideWelcomeBubble(); };
+    }
+    
     document.body.appendChild(welcomeBubble);
     welcomeBubbleVisible = true;
+    welcomeBubbleMinimized = false;
+  }
+  
+  function toggleMinimize() {
+    if (!welcomeBubble || !welcomeBubbleContent) return;
+    welcomeBubbleMinimized = !welcomeBubbleMinimized;
+    
+    var minimizeBtn = document.getElementById("chatvice-minimize-btn");
+    if (welcomeBubbleMinimized) {
+      welcomeBubbleContent.style.maxHeight = "0";
+      welcomeBubbleContent.style.opacity = "0";
+      if (minimizeBtn) minimizeBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>';
+    } else {
+      welcomeBubbleContent.style.maxHeight = "500px";
+      welcomeBubbleContent.style.opacity = "1";
+      if (minimizeBtn) minimizeBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14"/></svg>';
+    }
   }
   
   function showWelcomeBubble() {
@@ -9688,20 +9761,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   
   // Fetch welcome bubble settings and merchant config
   function initWelcomeBubble() {
-    var bubbleConfig = null;
-    var merchantConfig = null;
-    
-    // Fetch both configs in parallel
     Promise.all([
       fetch(baseUrl + "/api/widget/" + merchantId + "/welcome-bubble?t=" + Date.now()).then(function(r) { return r.json(); }),
       fetch(baseUrl + "/api/merchant/status/" + merchantId + "?t=" + Date.now()).then(function(r) { return r.json(); })
     ]).then(function(results) {
-      bubbleConfig = results[0];
-      merchantConfig = results[1];
+      var config = results[0];
+      var merchantConfig = results[1];
       
-      if (bubbleConfig && bubbleConfig.isEnabled !== false) {
-        reappearInterval = (bubbleConfig.reappearInterval || 60) * 1000;
-        createWelcomeBubble(bubbleConfig, merchantConfig);
+      if (config && config.isEnabled !== false) {
+        reappearInterval = (config.reappearInterval || 60) * 1000;
+        createWelcomeBubble(config, merchantConfig);
         
         // Check for reappearing bubble
         setInterval(function() {
@@ -9727,7 +9796,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     toggle: function() { isOpen ? closeWidget() : openWidget(); },
     isOpen: function() { return isOpen; },
     closeWelcomeBubble: hideWelcomeBubble,
-    showWelcomeBubble: showWelcomeBubble
+    showWelcomeBubble: showWelcomeBubble,
+    toggleBubbleMinimize: toggleMinimize
   };
 })();
 `;
