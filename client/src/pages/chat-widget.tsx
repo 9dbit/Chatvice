@@ -1211,7 +1211,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           
           return (
             <button
-              className="flex items-center gap-1 text-[14px] font-bold text-white hover:text-white transition-colors px-2.5 py-1 rounded-md border border-white/30"
+              className="flex items-center gap-1 text-[14px] font-bold text-white hover:text-white transition-colors px-2 py-0.5 rounded-md border border-white/30"
               style={{ 
                 textShadow: '0 1px 3px rgba(0,0,0,0.3)',
                 boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
@@ -1234,28 +1234,6 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             </button>
           );
         })()}
-        
-        {/* Minimize button for external embed - sends close message to parent to hide widget */}
-        {isExternalEmbed && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="text-white hover:bg-white/20 h-7 w-7"
-                onClick={() => {
-                  window.parent.postMessage({ type: "chatvice-close" }, "*");
-                }}
-                data-testid="button-minimize-widget"
-              >
-                <Minimize2 className="w-3.5 h-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <p className="text-xs">Minimize</p>
-            </TooltipContent>
-          </Tooltip>
-        )}
         
         {/* Close button - X icon */}
         {(!embedded || showCloseButton) && (
