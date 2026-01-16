@@ -9636,12 +9636,14 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       : "background:rgba(255,255,255,0.6);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);";
     
     if (currentIsMobile) {
+      // Mobile margin from edges
+      var mobileMargin = 12;
       if (isMaximized) {
-        // Mobile maximized - full screen without gaps (z-index 100000 - highest)
-        return "position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;border:none;z-index:100000;" + frostedBg;
+        // Mobile maximized - slightly larger but still with margins and rounded corners
+        return "position:fixed;bottom:" + mobileMargin + "px;left:" + mobileMargin + "px;right:" + mobileMargin + "px;width:calc(100vw - " + (mobileMargin * 2) + "px);height:calc(100vh - " + (mobileMargin * 2) + "px);border-radius:16px;border:none;z-index:100000;" + frostedBg + "overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.3);";
       } else {
-        // Mobile normal - fullscreen from top to bottom, no gaps, no rounded corners
-        return "position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;border:none;z-index:100000;" + frostedBg + "overflow:hidden;";
+        // Mobile normal - with margins and rounded corners (same as before)
+        return "position:fixed;bottom:" + mobileMargin + "px;left:" + mobileMargin + "px;right:" + mobileMargin + "px;width:calc(100vw - " + (mobileMargin * 2) + "px);height:calc(100vh - 100px);max-height:600px;border-radius:16px;border:none;z-index:100000;" + frostedBg + "overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.3);";
       }
     } else {
       if (isMaximized) {
