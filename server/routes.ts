@@ -9387,8 +9387,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   var widgetBottom = isMobile ? "0" : "20px";
   var widgetRight = isMobile ? "0" : "20px";
   
-  // Borderless design - no border-radius, no box-shadow for clean integration
-  iframe.style.cssText = "position:fixed;bottom:" + widgetBottom + ";right:" + widgetRight + ";width:" + widgetWidth + ";height:" + widgetHeight + ";max-height:100vh;max-width:100vw;border:none;z-index:99999;display:none;background:transparent;";
+  // Borderless design - z-index 100000 (highest, above all other elements)
+  iframe.style.cssText = "position:fixed;bottom:" + widgetBottom + ";right:" + widgetRight + ";width:" + widgetWidth + ";height:" + widgetHeight + ";max-height:100vh;max-width:100vw;border:none;z-index:100000;display:none;background:transparent;";
   iframe.id = "chatvice-widget-frame";
   iframe.allow = "microphone; camera";
   
@@ -9453,31 +9453,31 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     
     if (iconUrl) {
       hasCustomIcon = true;
-      // Custom icon - locked to corner, auto-crop to image content
-      button.style.cssText = "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "background:transparent;cursor:pointer;z-index:99999;transition:transform 0.2s ease;" + transformOrigin;
+      // Custom icon - locked to corner, auto-crop to image content (z-index 99996 - below eye toggle)
+      button.style.cssText = "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "background:transparent;cursor:pointer;z-index:99996;transition:transform 0.2s ease;" + transformOrigin;
       button.innerHTML = '<img src="' + iconUrl + '" style="display:block;max-width:' + buttonWidth + 'px;max-height:' + buttonHeight + 'px;width:auto;height:auto;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.3));" />';
     } else {
       hasCustomIcon = false;
-      // Default chat bubble icon
-      button.style.cssText = "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:" + buttonWidth + "px;height:" + buttonHeight + "px;border-radius:50%;background:" + defaultColor + ";cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:99999;box-shadow:0 4px 15px " + defaultColor + "66;transition:transform 0.2s ease;";
+      // Default chat bubble icon (z-index 99996)
+      button.style.cssText = "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:" + buttonWidth + "px;height:" + buttonHeight + "px;border-radius:50%;background:" + defaultColor + ";cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:99996;box-shadow:0 4px 15px " + defaultColor + "66;transition:transform 0.2s ease;";
       button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
     }
     
     // Update eye toggle position after button styles
     updateEyeTogglePosition(config);
     
-    // Also update iframe position with responsive sizing - borderless design
+    // Also update iframe position with responsive sizing - z-index 100000 (highest)
     var iframePosStyle = isMobile 
-      ? "position:fixed;bottom:" + widgetOffset + "px;left:0;right:" + widgetOffset + "px;width:calc(100vw - " + widgetOffset + "px);height:calc(100vh - " + widgetOffset + "px);max-height:calc(100vh - " + widgetOffset + "px);max-width:calc(100vw - " + widgetOffset + "px);border:none;z-index:99999;background:transparent;"
-      : "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:380px;height:550px;border:none;z-index:99999;background:transparent;";
+      ? "position:fixed;bottom:" + widgetOffset + "px;left:0;right:" + widgetOffset + "px;width:calc(100vw - " + widgetOffset + "px);height:calc(100vh - " + widgetOffset + "px);max-height:calc(100vh - " + widgetOffset + "px);max-width:calc(100vw - " + widgetOffset + "px);border:none;z-index:100000;background:transparent;"
+      : "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:380px;height:550px;border:none;z-index:100000;background:transparent;";
     iframe.style.cssText = iframePosStyle + "display:" + (isOpen ? "block" : "none") + ";";
   }
   
-  // Initial default styles
-  button.style.cssText = "position:fixed;bottom:20px;right:20px;width:60px;height:60px;border-radius:50%;background:#6b5dfc;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:99999;box-shadow:0 4px 15px rgba(107,93,252,0.4);transition:transform 0.2s ease;";
+  // Initial default styles (z-index 99996 - below eye toggle and widget)
+  button.style.cssText = "position:fixed;bottom:20px;right:20px;width:60px;height:60px;border-radius:50%;background:#6b5dfc;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:99996;box-shadow:0 4px 15px rgba(107,93,252,0.4);transition:transform 0.2s ease;";
   button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
   
-  // Eye toggle button for custom icon visibility control
+  // Eye toggle button for custom icon visibility control (z-index 99998 - above button, below widget)
   var eyeToggleBtn = document.createElement("div");
   eyeToggleBtn.id = "chatvice-eye-toggle";
   eyeToggleBtn.style.cssText = "display:none;position:fixed;bottom:20px;right:20px;z-index:99998;";
@@ -9636,19 +9636,19 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     
     if (currentIsMobile) {
       if (isMaximized) {
-        // Mobile maximized - full screen
-        return "position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;border:none;z-index:99999;" + frostedBg;
+        // Mobile maximized - full screen (z-index 100000 - highest)
+        return "position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;border:none;z-index:100000;" + frostedBg;
       } else {
         // Mobile normal - 90% of screen with rounded corners
-        return "position:fixed;bottom:" + widgetOffset + "px;left:" + widgetOffset + "px;right:" + widgetOffset + "px;width:calc(100vw - " + (widgetOffset * 2) + "px);height:calc(85vh - " + widgetOffset + "px);border-radius:16px;border:none;z-index:99999;" + frostedBg + "box-shadow:0 8px 32px rgba(0,0,0,0.2);";
+        return "position:fixed;bottom:" + widgetOffset + "px;left:" + widgetOffset + "px;right:" + widgetOffset + "px;width:calc(100vw - " + (widgetOffset * 2) + "px);height:calc(85vh - " + widgetOffset + "px);border-radius:16px;border:none;z-index:100000;" + frostedBg + "box-shadow:0 8px 32px rgba(0,0,0,0.2);";
       }
     } else {
       if (isMaximized) {
-        // Desktop maximized - +20% from normal (660 * 1.2 = 792px)
-        return "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:456px;height:792px;border-radius:16px;border:none;z-index:99999;" + frostedBg + "box-shadow:0 8px 32px rgba(0,0,0,0.2);";
+        // Desktop maximized - +20% from normal (660 * 1.2 = 792px) (z-index 100000 - highest)
+        return "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:456px;height:792px;border-radius:16px;border:none;z-index:100000;" + frostedBg + "box-shadow:0 8px 32px rgba(0,0,0,0.2);";
       } else {
         // Desktop normal - height +20% (550 -> 660px)
-        return "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:380px;height:660px;border-radius:16px;border:none;z-index:99999;" + frostedBg + "box-shadow:0 8px 32px rgba(0,0,0,0.2);";
+        return "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:380px;height:660px;border-radius:16px;border:none;z-index:100000;" + frostedBg + "box-shadow:0 8px 32px rgba(0,0,0,0.2);";
       }
     }
   }
@@ -9762,7 +9762,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     
     var posStyle = bubblePosition === "left" ? "left:" + widgetOffset + "px;right:auto;" : "right:" + widgetOffset + "px;left:auto;";
     // Frosted glass 50% transparent with theme sync
-    welcomeBubble.style.cssText = "position:fixed;bottom:" + (widgetOffset + buttonHeight + 10) + "px;" + posStyle + "width:" + bubbleWidth + "px;background:" + bubbleBg + ";backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid " + bubbleBorder + ";border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.15);z-index:99998;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;";
+    // Welcome bubble z-index 99997 - above button, below eye toggle
+    welcomeBubble.style.cssText = "position:fixed;bottom:" + (widgetOffset + buttonHeight + 10) + "px;" + posStyle + "width:" + bubbleWidth + "px;background:" + bubbleBg + ";backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid " + bubbleBorder + ";border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.15);z-index:99997;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;";
     
     // Create content container
     welcomeBubbleContent = document.createElement("div");
