@@ -9480,7 +9480,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   // Eye toggle button for custom icon visibility control (z-index 99998 - above button, below widget)
   var eyeToggleBtn = document.createElement("div");
   eyeToggleBtn.id = "chatvice-eye-toggle";
-  eyeToggleBtn.style.cssText = "display:none;position:fixed;bottom:20px;right:20px;z-index:99998;";
+  eyeToggleBtn.style.cssText = "display:none;position:fixed;bottom:20px;right:20px;z-index:99990;";
   
   // Hidden label (shown when icon is hidden via eye toggle)
   var hiddenLabel = document.createElement("div");
@@ -9500,7 +9500,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     
     // Position eye toggle above the button
     var eyeBottom = offset + buttonHeight + 10;
-    eyeToggleBtn.style.cssText = "position:fixed;bottom:" + eyeBottom + "px;" + posStyle + "z-index:99998;cursor:pointer;padding:6px;background:rgba(30,30,30,0.8);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.15);border-radius:50%;display:" + (hasCustomIcon && !isIconHidden ? "flex" : "none") + ";align-items:center;justify-content:center;";
+    eyeToggleBtn.style.cssText = "position:fixed;bottom:" + eyeBottom + "px;" + posStyle + "z-index:99990;cursor:pointer;padding:6px;background:rgba(30,30,30,0.8);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.15);border-radius:50%;display:" + (hasCustomIcon && !isIconHidden ? "flex" : "none") + ";align-items:center;justify-content:center;";
     
     // Position hidden label
     hiddenLabel.style.cssText = "position:fixed;bottom:" + offset + "px;" + posStyle + "padding:8px 12px;background:rgba(30,30,30,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.15);border-radius:8px;cursor:pointer;z-index:99999;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:" + (isIconHidden ? "block" : "none") + ";";

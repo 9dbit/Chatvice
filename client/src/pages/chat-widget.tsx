@@ -1205,7 +1205,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           
           return (
             <button
-              className="flex items-center gap-1 text-[12px] font-medium text-white/90 hover:text-white transition-colors px-2"
+              className="flex items-center gap-1 text-[14px] font-bold text-white hover:text-white transition-colors px-2.5 py-1 rounded-md border border-white/30"
+              style={{ 
+                textShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+              }}
               onClick={() => {
                 if (socialIconsExpanded) {
                   handleCloseSocialPanel();
@@ -1217,15 +1221,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             >
               Get in touch
               {socialIconsExpanded ? (
-                <ChevronUp className="w-3.5 h-3.5" />
+                <ChevronUp className="w-4 h-4" />
               ) : (
-                <ChevronDown className="w-3.5 h-3.5" />
+                <ChevronDown className="w-4 h-4" />
               )}
             </button>
           );
         })()}
         
-        {/* Minimize button for external embed - sends minimize message to parent */}
+        {/* Minimize button for external embed - sends close message to parent to hide widget */}
         {isExternalEmbed && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -1234,7 +1238,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 variant="ghost"
                 className="text-white hover:bg-white/20 h-7 w-7"
                 onClick={() => {
-                  window.parent.postMessage({ type: "chatvice-minimize" }, "*");
+                  window.parent.postMessage({ type: "chatvice-close" }, "*");
                 }}
                 data-testid="button-minimize-widget"
               >
