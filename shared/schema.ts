@@ -1007,6 +1007,8 @@ export const welcomeBubbles = pgTable("welcome_bubbles", {
   promoImageUrl: text("promo_image_url").default(""),
   reappearInterval: integer("reappear_interval").default(60),
   isEnabled: boolean("is_enabled").default(true),
+  actionButtons: jsonb("action_buttons").default([]), // Array of {label: string, url: string}, max 5
+  socialIconsEnabled: boolean("social_icons_enabled").default(false), // Show social icons below bubble
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
