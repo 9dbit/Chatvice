@@ -1078,8 +1078,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   );
 
   // External embed uses borderless transparent design to show iframe's frosted glass
+  // Use absolute positioning to fill parent container completely
   const containerClasses = isExternalEmbed
-    ? "w-full h-full bg-transparent overflow-hidden flex flex-col"
+    ? "absolute inset-0 w-full h-full bg-transparent overflow-hidden flex flex-col"
     : `${
         embedded 
           ? "w-full h-full" 
@@ -1154,7 +1155,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           
           return (
             <button
-              className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium text-white/90 bg-white/15 hover:bg-white/25 transition-colors"
+              className="flex items-center gap-1.5 text-[13px] font-medium text-white/90 hover:text-white transition-colors"
               onClick={() => {
                 if (socialIconsExpanded) {
                   handleCloseSocialPanel();
@@ -1166,9 +1167,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             >
               Get in touch
               {socialIconsExpanded ? (
-                <ChevronUp className="w-3 h-3" />
+                <ChevronUp className="w-4 h-4" />
               ) : (
-                <ChevronDown className="w-3 h-3" />
+                <ChevronDown className="w-4 h-4" />
               )}
             </button>
           );
