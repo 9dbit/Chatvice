@@ -122,6 +122,18 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   
   const [isOpen, setIsOpen] = useState(embedded);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  
+  // Make body transparent for external embed mode so frosted glass shows through
+  useEffect(() => {
+    if (isExternalEmbed || embedded) {
+      document.body.style.background = "transparent";
+      document.documentElement.style.background = "transparent";
+    }
+    return () => {
+      document.body.style.background = "";
+      document.documentElement.style.background = "";
+    };
+  }, [isExternalEmbed, embedded]);
   const [sessionId] = useState(() => initialSessionId || `sess_${Math.random().toString(36).substring(2, 12)}`);
   const [message, setMessage] = useState("");
   const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
@@ -1332,9 +1344,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         );
       })()}
 
-      {/* Customer name form - shown for new customers */}
+      {/* Customer name form - shown for new customers - transparent background */}
       {!hasSubmittedName && !serverMessages?.length ? (
-        <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-6">
+        <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-6 bg-transparent">
           <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: `${primaryColor}20` }}>
             <User className="w-8 h-8" style={{ color: primaryColor }} />
           </div>
@@ -1359,10 +1371,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   }
                 }}
                 className="text-center"
-                autoComplete="off"
+                name="chatvice_customer_display_name"
+                id="chatvice_customer_display_name"
+                autoComplete="new-password"
                 autoCorrect="off"
                 autoCapitalize="words"
-                spellCheck="false"
+                spellCheck={false}
+                data-lpignore="true"
+                data-form-type="other"
+                aria-autocomplete="none"
                 data-testid="input-customer-name"
               />
               {nameError && (
@@ -1395,7 +1412,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         </div>
       ) : (
         <>
-          <ScrollArea className="flex-1 min-h-0 p-4">
+          <ScrollArea className="flex-1 min-h-0 p-4 bg-transparent">
             <div className="space-y-4">
               {allMessages.map((msg, index) => (
             <div key={msg.id || index}>
@@ -1673,7 +1690,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       </ScrollArea>
 
       {suggestedQuestions.length > 0 && (
-        <div className="px-4 py-2 border-t border-border/50 bg-background/80 backdrop-blur-sm">
+        <div className="px-4 py-2 border-t border-white/10 bg-transparent">
           <p className="text-xs text-muted-foreground mb-1.5">Quick questions:</p>
           <div className="flex flex-wrap gap-1.5">
             {suggestedQuestions.slice(0, 5).map((sq) => (
