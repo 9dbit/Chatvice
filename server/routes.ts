@@ -2840,6 +2840,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           iconWidth: 70,
           iconHeight: 70,
           useCustomIconDimensions: false,
+          mobileIconWidth: 60,
+          mobileIconHeight: 60,
           online: true,
           primaryColor: "#6b5dfc",
           welcomeMessage: "Hi! How can I help you today?",
@@ -2884,6 +2886,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         iconWidth: merchant.iconWidth ?? 70,
         iconHeight: merchant.iconHeight ?? 70,
         useCustomIconDimensions: merchant.useCustomIconDimensions ?? false,
+        mobileIconWidth: merchant.mobileIconWidth ?? 60,
+        mobileIconHeight: merchant.mobileIconHeight ?? 60,
         online: merchant.online ?? true,
         primaryColor: agentSettings.primaryColor || merchant.primaryColor || "#6b5dfc",
         welcomeMessage: agentSettings.widgetWelcomeMessage || merchant.welcomeMessage || "Hi! How can I help you today?",
@@ -9391,17 +9395,26 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       var cacheBuster = iconUrl.indexOf("?") === -1 ? "?v=" : "&v=";
       iconUrl = iconUrl + cacheBuster + Date.now();
     }
-    // Support custom icon dimensions - always use config values for sync with dashboard
+    // Re-check mobile at update time (in case orientation changed)
+    var currentIsMobile = window.innerWidth <= 768;
+    
+    // Support custom icon dimensions - separate for desktop and mobile
     if (iconUrl) {
-      buttonWidth = config.iconWidth || config.iconSize || 70;
-      buttonHeight = config.iconHeight || config.iconSize || 70;
+      if (currentIsMobile) {
+        // Mobile: use mobile dimensions from config, fallback to desktop if not set
+        buttonWidth = config.mobileIconWidth || config.iconWidth || config.iconSize || 60;
+        buttonHeight = config.mobileIconHeight || config.iconHeight || config.iconSize || 60;
+      } else {
+        // Desktop: use desktop dimensions
+        buttonWidth = config.iconWidth || config.iconSize || 70;
+        buttonHeight = config.iconHeight || config.iconSize || 70;
+      }
     } else {
       buttonWidth = config.iconSize || 60;
       buttonHeight = config.iconSize || 60;
     }
-    // Re-check mobile at update time (in case orientation changed)
-    var currentIsMobile = window.innerWidth <= 768;
-    // Mobile: use configured size from dashboard, only cap if exceeds 50% screen width
+    
+    // Safety cap for mobile - prevent icon from being too large
     if (currentIsMobile) {
       var maxMobileWidth = window.innerWidth * 0.5;
       var maxMobileHeight = window.innerHeight * 0.35;
