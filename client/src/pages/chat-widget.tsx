@@ -889,12 +889,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               className={`bg-card shadow-xl px-4 pt-6 pb-4 border border-border relative z-10 ${welcomeBubble.promoImageEnabled && welcomeBubble.promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}
             >
               <button
-                onClick={dismissWelcomeBubble}
-                className="absolute top-2 p-1 rounded-full hover:bg-muted z-30"
-                style={{ right: '-2px' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  dismissWelcomeBubble();
+                }}
+                className="absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded-full hover:bg-muted z-30"
                 data-testid="button-close-welcome-bubble"
               >
-                <X className="w-4 h-4 text-muted-foreground" />
+                <X className="w-3 h-3 text-muted-foreground" />
               </button>
               <div className="mb-3 pr-4">
                 <p className="font-semibold text-base" data-testid="text-welcome-headline">
