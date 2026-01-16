@@ -9450,14 +9450,19 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     var transformOrigin = bubblePosition === "left" ? "transform-origin:bottom left;" : "transform-origin:bottom right;";
     
     if (iconUrl) {
+      hasCustomIcon = true;
       // Custom icon - locked to corner, auto-crop to image content
       button.style.cssText = "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "background:transparent;cursor:pointer;z-index:99999;transition:transform 0.2s ease;" + transformOrigin;
       button.innerHTML = '<img src="' + iconUrl + '" style="display:block;max-width:' + buttonWidth + 'px;max-height:' + buttonHeight + 'px;width:auto;height:auto;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.3));" />';
     } else {
+      hasCustomIcon = false;
       // Default chat bubble icon
       button.style.cssText = "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:" + buttonWidth + "px;height:" + buttonHeight + "px;border-radius:50%;background:" + defaultColor + ";cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:99999;box-shadow:0 4px 15px " + defaultColor + "66;transition:transform 0.2s ease;";
       button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
     }
+    
+    // Update eye toggle position after button styles
+    updateEyeTogglePosition(config);
     
     // Also update iframe position with responsive sizing - borderless design
     var iframePosStyle = isMobile 
@@ -9469,6 +9474,65 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   // Initial default styles
   button.style.cssText = "position:fixed;bottom:20px;right:20px;width:60px;height:60px;border-radius:50%;background:#6b5dfc;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:99999;box-shadow:0 4px 15px rgba(107,93,252,0.4);transition:transform 0.2s ease;";
   button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>';
+  
+  // Eye toggle button for custom icon visibility control
+  var eyeToggleBtn = document.createElement("div");
+  eyeToggleBtn.id = "chatvice-eye-toggle";
+  eyeToggleBtn.style.cssText = "display:none;position:fixed;bottom:20px;right:20px;z-index:99998;";
+  
+  // Hidden label (shown when icon is hidden via eye toggle)
+  var hiddenLabel = document.createElement("div");
+  hiddenLabel.id = "chatvice-hidden-label";
+  hiddenLabel.style.cssText = "display:none;position:fixed;bottom:20px;right:20px;padding:8px 12px;background:rgba(30,30,30,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.15);border-radius:8px;cursor:pointer;z-index:99999;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;";
+  hiddenLabel.innerHTML = '<div style="display:flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg><span style="color:rgba(255,255,255,0.7);font-size:11px;">Click to show</span></div>';
+  
+  var isIconHidden = false;
+  var hasCustomIcon = false;
+  var savedButtonStyles = "";
+  var savedEyeToggleStyles = "";
+  
+  function updateEyeTogglePosition(config) {
+    var offset = config.widgetOffset || 20;
+    var pos = config.bubblePosition || "right";
+    var posStyle = pos === "left" ? "left:" + offset + "px;right:auto;" : "right:" + offset + "px;left:auto;";
+    
+    // Position eye toggle above the button
+    var eyeBottom = offset + buttonHeight + 10;
+    eyeToggleBtn.style.cssText = "position:fixed;bottom:" + eyeBottom + "px;" + posStyle + "z-index:99998;cursor:pointer;padding:6px;background:rgba(30,30,30,0.8);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.15);border-radius:50%;display:" + (hasCustomIcon && !isIconHidden ? "flex" : "none") + ";align-items:center;justify-content:center;";
+    
+    // Position hidden label
+    hiddenLabel.style.cssText = "position:fixed;bottom:" + offset + "px;" + posStyle + "padding:8px 12px;background:rgba(30,30,30,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.15);border-radius:8px;cursor:pointer;z-index:99999;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:" + (isIconHidden ? "block" : "none") + ";";
+  }
+  
+  function toggleIconVisibility() {
+    isIconHidden = !isIconHidden;
+    
+    if (isIconHidden) {
+      // Hide button and eye toggle, show hidden label
+      button.style.display = "none";
+      eyeToggleBtn.style.display = "none";
+      hiddenLabel.style.display = "block";
+    } else {
+      // Show button and eye toggle, hide hidden label
+      button.style.display = "";
+      if (hasCustomIcon) {
+        eyeToggleBtn.style.display = "flex";
+      }
+      hiddenLabel.style.display = "none";
+    }
+  }
+  
+  // Eye toggle click handler
+  eyeToggleBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+  eyeToggleBtn.onclick = function(e) {
+    e.stopPropagation();
+    toggleIconVisibility();
+  };
+  
+  // Hidden label click handler
+  hiddenLabel.onclick = function() {
+    toggleIconVisibility();
+  };
   
   // Animation styles
   var animationStyleTag = document.createElement("style");
@@ -9592,6 +9656,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   
   document.body.appendChild(iframe);
   document.body.appendChild(button);
+  document.body.appendChild(eyeToggleBtn);
+  document.body.appendChild(hiddenLabel);
   
   // Welcome Bubble Implementation
   var welcomeBubble = null;
