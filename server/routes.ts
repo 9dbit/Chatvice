@@ -9628,10 +9628,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     var currentIsMobile = window.innerWidth <= 480;
     var positionStyle = bubblePosition === "left" ? "left:" + widgetOffset + "px;right:auto;" : "right:" + widgetOffset + "px;left:auto;";
     
-    // Frosted glass transparent 60% background with XL blur (24px)
+    // Frosted glass transparent 60% background with XL blur (24px) - darker for dark theme
     var frostedBg = "background:rgba(255,255,255,0.4);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);";
     if (widgetTheme === "dark") {
-      frostedBg = "background:rgba(30,30,30,0.4);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);";
+      frostedBg = "background:rgba(20,20,20,0.6);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);";
     }
     
     if (currentIsMobile) {
@@ -9753,9 +9753,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       welcomeBubble = null;
     }
     
-    // Theme-aware colors - sync with widget theme (60% transparent with XL blur)
+    // Theme-aware colors - sync with widget theme (darker for dark mode)
     var isDark = widgetTheme === "dark";
-    var bubbleBg = isDark ? "rgba(30,30,30,0.4)" : "rgba(255,255,255,0.4)";
+    var bubbleBg = isDark ? "rgba(20,20,20,0.6)" : "rgba(255,255,255,0.4)";
     var bubbleBorder = isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.1)";
     var titleColor = isDark ? "rgba(255,255,255,0.95)" : "#1a1a1a";
     var messageColor = isDark ? "rgba(255,255,255,0.7)" : "#666";
@@ -9937,9 +9937,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (fullContent) fullContent.style.display = "block";
       if (minimizedState) minimizedState.style.display = "none";
       if (hiddenLabel) hiddenLabel.style.display = "none";
-      // Theme-aware frosted glass background (60% transparent with XL blur)
+      // Theme-aware frosted glass background (darker for dark mode)
       var isDark = widgetTheme === "dark";
-      welcomeBubble.style.background = isDark ? "rgba(30,30,30,0.4)" : "rgba(255,255,255,0.4)";
+      welcomeBubble.style.background = isDark ? "rgba(20,20,20,0.6)" : "rgba(255,255,255,0.4)";
       welcomeBubble.style.backdropFilter = "blur(24px)";
       welcomeBubble.style.webkitBackdropFilter = "blur(24px)";
       welcomeBubble.style.boxShadow = "0 4px 20px rgba(0,0,0,0.15)";

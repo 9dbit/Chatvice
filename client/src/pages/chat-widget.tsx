@@ -1078,16 +1078,16 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   );
 
   // External embed uses borderless transparent design to show iframe's frosted glass
-  // Use absolute positioning to fill parent container completely
+  // Use absolute positioning to fill parent container completely - background is transparent
   const containerClasses = isExternalEmbed
     ? "absolute inset-0 w-full h-full bg-transparent overflow-hidden flex flex-col"
     : `${
         embedded 
-          ? "w-full h-full" 
+          ? "w-full h-full bg-transparent" 
           : isFullscreen
             ? "fixed inset-4 z-50 animate-in fade-in duration-300"
             : `${positionClass} bottom-5 right-5 w-[360px] h-[520px] z-50 animate-in slide-in-from-bottom-5 fade-in duration-300`
-      } bg-white/25 dark:bg-gray-900/25 backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden flex flex-col border border-white/30 dark:border-gray-700/50`;
+      } bg-transparent overflow-hidden flex flex-col`;
 
   return (
     <div
@@ -1131,51 +1131,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </div>
         </div>
         
-        {/* Get in Touch Toggle - inside header */}
-        {merchantConfig?.socialMediaEnabled && (() => {
-          const validUrl = (url: string | undefined) => {
-            if (!url) return null;
-            try {
-              const parsed = new URL(url);
-              if (parsed.protocol === "https:" || parsed.protocol === "http:") {
-                return url;
-              }
-            } catch {}
-            return null;
-          };
-          const hasSocialLinks = [
-            validUrl(merchantConfig.socialInstagram),
-            validUrl(merchantConfig.socialFacebook),
-            validUrl(merchantConfig.socialTelegram),
-            validUrl(merchantConfig.socialWhatsapp),
-            validUrl(merchantConfig.socialDiscord),
-          ].some(Boolean);
-          
-          if (!hasSocialLinks) return null;
-          
-          return (
-            <button
-              className="flex items-center gap-1.5 text-[13px] font-medium text-white/90 hover:text-white transition-colors"
-              onClick={() => {
-                if (socialIconsExpanded) {
-                  handleCloseSocialPanel();
-                } else {
-                  setSocialIconsExpanded(true);
-                }
-              }}
-              data-testid="button-toggle-social-header"
-            >
-              Get in touch
-              {socialIconsExpanded ? (
-                <ChevronUp className="w-4 h-4" />
-              ) : (
-                <ChevronDown className="w-4 h-4" />
-              )}
-            </button>
-          );
-        })()}
-        
-        <div className="flex gap-0.5 flex-shrink-0">
+        <div className="flex items-center gap-1 flex-shrink-0">
         {/* Fullscreen Toggle - Square for maximize, Minimize2 for minimize */}
         {!embedded && (
           <Tooltip>
@@ -1199,6 +1155,50 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             </TooltipContent>
           </Tooltip>
         )}
+        
+        {/* Get in Touch Toggle - next to X button */}
+        {merchantConfig?.socialMediaEnabled && (() => {
+          const validUrl = (url: string | undefined) => {
+            if (!url) return null;
+            try {
+              const parsed = new URL(url);
+              if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+                return url;
+              }
+            } catch {}
+            return null;
+          };
+          const hasSocialLinks = [
+            validUrl(merchantConfig.socialInstagram),
+            validUrl(merchantConfig.socialFacebook),
+            validUrl(merchantConfig.socialTelegram),
+            validUrl(merchantConfig.socialWhatsapp),
+            validUrl(merchantConfig.socialDiscord),
+          ].some(Boolean);
+          
+          if (!hasSocialLinks) return null;
+          
+          return (
+            <button
+              className="flex items-center gap-1 text-[12px] font-medium text-white/90 hover:text-white transition-colors px-2"
+              onClick={() => {
+                if (socialIconsExpanded) {
+                  handleCloseSocialPanel();
+                } else {
+                  setSocialIconsExpanded(true);
+                }
+              }}
+              data-testid="button-toggle-social-header"
+            >
+              Get in touch
+              {socialIconsExpanded ? (
+                <ChevronUp className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5" />
+              )}
+            </button>
+          );
+        })()}
         
         {/* Close button - X icon */}
         {(!embedded || showCloseButton) && (
