@@ -19,7 +19,8 @@ import {
   Palette, Save, Copy, Check, Bot, Code, Moon, Sun, AlignLeft, AlignRight, 
   Loader2, Camera, RefreshCw, X, Send, Paperclip, Smile, ImageIcon, Video,
   Globe, MessageSquare, Frame, Shield, Key, Eye, EyeOff, Crown, Lock, ArrowUpRight, ChevronDown,
-  Plus, Trash2, CheckCircle, AlertCircle, ExternalLink, GripVertical, ChevronUp, ChevronDown as ChevronDownIcon
+  Plus, Trash2, CheckCircle, AlertCircle, ExternalLink, GripVertical, ChevronUp, ChevronDown as ChevronDownIcon,
+  Smartphone
 } from "lucide-react";
 import type { MerchantDomain } from "@shared/schema";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -59,6 +60,8 @@ export default function WidgetPage() {
     iconWidth: 70,
     iconHeight: 70,
     useCustomIconDimensions: false,
+    mobileIconWidth: 60,
+    mobileIconHeight: 60,
     online: true,
     primaryColor: "#6b5dfc",
     welcomeMessage: "Hi! How can I help you today?",
@@ -260,6 +263,8 @@ export default function WidgetPage() {
         iconWidth: (merchant as any).iconWidth || 70,
         iconHeight: (merchant as any).iconHeight || 70,
         useCustomIconDimensions: (merchant as any).useCustomIconDimensions || false,
+        mobileIconWidth: (merchant as any).mobileIconWidth || 60,
+        mobileIconHeight: (merchant as any).mobileIconHeight || 60,
         online: merchant.online ?? true,
         primaryColor: agentWidgetSettings.primaryColor || "#6b5dfc",
         welcomeMessage: agentWidgetSettings.widgetWelcomeMessage || "Hi! How can I help you today?",
@@ -276,6 +281,8 @@ export default function WidgetPage() {
         iconWidth: (merchant as any).iconWidth || 70,
         iconHeight: (merchant as any).iconHeight || 70,
         useCustomIconDimensions: (merchant as any).useCustomIconDimensions || false,
+        mobileIconWidth: (merchant as any).mobileIconWidth || 60,
+        mobileIconHeight: (merchant as any).mobileIconHeight || 60,
         online: merchant.online ?? true,
         primaryColor: merchant.primaryColor || "#6b5dfc",
         welcomeMessage: merchant.welcomeMessage || "Hi! How can I help you today?",
@@ -543,6 +550,8 @@ export default function WidgetPage() {
         iconWidth: config.iconWidth,
         iconHeight: config.iconHeight,
         useCustomIconDimensions: config.useCustomIconDimensions,
+        mobileIconWidth: config.mobileIconWidth,
+        mobileIconHeight: config.mobileIconHeight,
         online: config.online,
       };
       await apiRequest("POST", "/api/merchant/config", merchantIconConfig);
@@ -1043,8 +1052,48 @@ async function handleLogin() {
                           />
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          Adjust width and height independently for custom icons.
+                          Desktop: Adjust width and height independently for custom icons.
                         </p>
+                        
+                        <div className="border-t pt-4 mt-4">
+                          <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                            <Smartphone className="w-4 h-4" />
+                            Mobile Dimensions
+                          </h4>
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <div className="flex justify-between">
+                                <Label>Mobile Icon Width</Label>
+                                <span className="text-sm text-muted-foreground">{config.mobileIconWidth}px</span>
+                              </div>
+                              <Slider
+                                value={[config.mobileIconWidth]}
+                                onValueChange={([value]) => setConfig({ ...config, mobileIconWidth: value })}
+                                min={30}
+                                max={200}
+                                step={5}
+                                data-testid="slider-mobile-icon-width"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex justify-between">
+                                <Label>Mobile Icon Height</Label>
+                                <span className="text-sm text-muted-foreground">{config.mobileIconHeight}px</span>
+                              </div>
+                              <Slider
+                                value={[config.mobileIconHeight]}
+                                onValueChange={([value]) => setConfig({ ...config, mobileIconHeight: value })}
+                                min={30}
+                                max={200}
+                                step={5}
+                                data-testid="slider-mobile-icon-height"
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Mobile: Separate dimensions for mobile devices (screens ≤768px).
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     ) : (
                       <div className="space-y-2">
