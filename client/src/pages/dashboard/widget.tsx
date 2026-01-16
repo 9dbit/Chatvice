@@ -684,14 +684,17 @@ export default function WidgetPage() {
 
   const baseUrl = window.location.origin;
   
-  // Simple embed code - easy to copy and paste
+  // Cache-busting version - updates when page loads to ensure latest script
+  const cacheVersion = Math.floor(Date.now() / 1000);
+  
+  // Simple embed code - easy to copy and paste (with cache-busting)
   const widgetEmbedCode = `<!-- Chatvice Chat Widget -->
-<script src="${baseUrl}/api/widget/chatvice.js?merchant=${merchantId}" async></script>`;
+<script src="${baseUrl}/api/widget/chatvice.js?merchant=${merchantId}&v=${cacheVersion}" async></script>`;
 
-  // Full-page iframe embed code
+  // Full-page iframe embed code (with cache-busting)
   const iframeEmbedCode = `<!-- Chatvice Chat Widget (iFrame) -->
 <iframe
-  src="${baseUrl}/widget/${merchantId}?showClose=true&embedded=true"
+  src="${baseUrl}/widget/${merchantId}?showClose=true&embedded=true&v=${cacheVersion}"
   style="position:fixed;bottom:20px;right:20px;width:380px;height:550px;border:none;z-index:99999;"
   allow="microphone; camera"
 ></iframe>`;
