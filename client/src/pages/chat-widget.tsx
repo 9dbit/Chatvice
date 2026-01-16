@@ -1225,6 +1225,28 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           );
         })()}
         
+        {/* Minimize button for external embed - sends minimize message to parent */}
+        {isExternalEmbed && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="text-white hover:bg-white/20 h-7 w-7"
+                onClick={() => {
+                  window.parent.postMessage({ type: "chatvice-minimize" }, "*");
+                }}
+                data-testid="button-minimize-widget"
+              >
+                <Minimize2 className="w-3.5 h-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p className="text-xs">Minimize</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+        
         {/* Close button - X icon */}
         {(!embedded || showCloseButton) && (
           <Button
@@ -1369,7 +1391,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </p>
           
           <div className="w-full max-w-xs space-y-4">
-            <div className="space-y-2">
+            <div className="space-y-2 relative overflow-hidden">
               <Input
                 type="text"
                 placeholder="Enter your name"
@@ -1383,16 +1405,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                     handleNameSubmit();
                   }
                 }}
-                className="text-center"
+                className="text-center pr-3"
                 name="chatvice_customer_display_name"
                 id="chatvice_customer_display_name"
-                autoComplete="new-password"
+                autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="words"
                 spellCheck={false}
                 data-lpignore="true"
+                data-1p-ignore="true"
+                data-bwignore="true"
                 data-form-type="other"
                 aria-autocomplete="none"
+                style={{ WebkitTextSecurity: 'none' } as React.CSSProperties}
                 data-testid="input-customer-name"
               />
               {nameError && (
