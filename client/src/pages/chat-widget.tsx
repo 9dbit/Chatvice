@@ -1328,10 +1328,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           <div className="text-white">
             <p className="font-medium text-sm leading-tight">{merchantConfig?.agentName || "Chatvice"}</p>
             <div className="flex items-center gap-1">
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${isOnline ? "bg-status-online" : "bg-status-offline"}`}
-              />
-              <span className="text-[10px] opacity-80">{isOnline ? "Online" : "Offline"}</span>
+              <span className="text-[10px] opacity-80">{isOnline ? "🟢 Online - Customer Service" : "🔴 Offline"}</span>
             </div>
           </div>
         </div>
