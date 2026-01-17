@@ -118,6 +118,43 @@ function parseMessageContent(content: string): ParsedPart[] {
   return parts;
 }
 
+// Generate a simple device fingerprint for session persistence
+function generateDeviceFingerprint(): string {
+  try {
+    const components: string[] = [];
+    
+    // Safely collect browser components with fallbacks
+    if (typeof navigator !== 'undefined') {
+      components.push(navigator.userAgent || 'unknown');
+      components.push(navigator.language || 'unknown');
+    } else {
+      components.push('no-navigator');
+    }
+    
+    if (typeof screen !== 'undefined') {
+      components.push((screen.width || 0) + 'x' + (screen.height || 0));
+      components.push(String(screen.colorDepth || 0));
+    } else {
+      components.push('no-screen');
+    }
+    
+    components.push(String(new Date().getTimezoneOffset()));
+    
+    // Create a simple hash from the components
+    const str = components.join('|');
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return 'fp_' + Math.abs(hash).toString(36);
+  } catch {
+    // Fallback to random ID if fingerprinting fails
+    return 'fp_' + Math.random().toString(36).substring(2, 10);
+  }
+}
+
 export default function ChatWidget({ merchantId, sessionId: initialSessionId, embedded = false, previewMode = false }: ChatWidgetProps) {
   const urlParams = new URLSearchParams(window.location.search);
   const showCloseButton = urlParams.get("showClose") === "true";
@@ -125,6 +162,34 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const isExternalEmbed = showCloseButton;
   
   const [isOpen, setIsOpen] = useState(embedded);
+  
+  // Device fingerprint for 24-hour session persistence
+  const [deviceFingerprint, setDeviceFingerprint] = useState<string>(() => {
+    if (previewMode) return '';
+    // Try to get from localStorage first (for consistency)
+    try {
+      const stored = localStorage.getItem(`chatvice_device_fp_${merchantId}`);
+      if (stored) return stored;
+    } catch {}
+    return ''; // Will be generated in useEffect
+  });
+  
+  // Generate fingerprint on client-side only (avoids SSR issues)
+  useEffect(() => {
+    if (previewMode || deviceFingerprint) return;
+    
+    const fp = generateDeviceFingerprint();
+    setDeviceFingerprint(fp);
+    
+    // Persist to localStorage
+    try {
+      localStorage.setItem(`chatvice_device_fp_${merchantId}`, fp);
+    } catch {}
+  }, [merchantId, previewMode, deviceFingerprint]);
+  
+  // Session can be resumed from existing session (24-hour persistence for all widgets)
+  const [isCheckingSession, setIsCheckingSession] = useState(!previewMode);
+  const [resumedSessionId, setResumedSessionId] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   
   // Make body, html, and #root transparent for external embed mode so frosted glass shows through
@@ -156,12 +221,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       }
     };
   }, [isExternalEmbed, embedded]);
-  const [sessionId] = useState(() => initialSessionId || `sess_${Math.random().toString(36).substring(2, 12)}`);
+  const [generatedSessionId] = useState(() => initialSessionId || `sess_${Math.random().toString(36).substring(2, 12)}`);
+  // Use resumed session ID if available, otherwise use generated one
+  const sessionId = resumedSessionId || generatedSessionId;
   const [message, setMessage] = useState("");
   const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
   
-  // Customer name form state
-  const customerNameKey = `chatvice_customer_name_${merchantId}_${sessionId}`;
+  // Customer name form state - use merchantId only to persist across sessions
+  const customerNameKey = `chatvice_customer_name_${merchantId}`;
   const [customerName, setCustomerName] = useState(() => {
     if (previewMode) return "";
     try {
@@ -182,6 +249,55 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const [nameError, setNameError] = useState("");
   const [selectedQuickMessage, setSelectedQuickMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Check for existing session on mount (24-hour persistence for all widgets)
+  useEffect(() => {
+    // Wait for fingerprint to be generated
+    if (previewMode) {
+      setIsCheckingSession(false);
+      return;
+    }
+    
+    // Keep checking state true until fingerprint is available
+    if (!deviceFingerprint) {
+      setIsCheckingSession(true);
+      return;
+    }
+    
+    const checkExistingSession = async () => {
+      try {
+        const response = await fetch('/api/widget/find-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ merchantId, deviceFingerprint }),
+        });
+        const data = await response.json();
+        
+        if (data.found && data.sessionId && data.customerName) {
+          // Resume existing session
+          setResumedSessionId(data.sessionId);
+          setCustomerName(data.customerName);
+          setHasSubmittedName(true);
+          // Update sessionStorage with session-specific key
+          try {
+            sessionStorage.setItem(`${customerNameKey}_${data.sessionId}`, data.customerName);
+            sessionStorage.setItem(`${customerNameKey}_${data.sessionId}_submitted`, "true");
+          } catch {}
+        } else {
+          // No session found - clear any stale submitted flags
+          setHasSubmittedName(false);
+        }
+      } catch (err) {
+        console.error("Error checking existing session:", err);
+        // On error, allow name form to show
+        setHasSubmittedName(false);
+      } finally {
+        setIsCheckingSession(false);
+      }
+    };
+    
+    checkExistingSession();
+  }, [merchantId, deviceFingerprint, previewMode]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const documentInputRef = useRef<HTMLInputElement>(null);
@@ -555,6 +671,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         sessionId,
         customerName: name,
         initialMessage,
+        deviceFingerprint, // For 24-hour session persistence
       });
       return response.json() as Promise<{ success: boolean; answer: string; error?: string; sanitizedName?: string }>;
     },
@@ -1417,7 +1534,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       })()}
 
       {/* Customer name form - shown for new customers - frosted glass background */}
-      {!hasSubmittedName && !serverMessages?.length ? (
+      {isCheckingSession ? (
+        <div 
+          className="flex-1 min-h-0 flex flex-col p-4 items-center justify-center"
+          style={frostedGlassBodyStyle}
+        >
+          <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
+      ) : !hasSubmittedName && !serverMessages?.length ? (
         <div 
           className="flex-1 min-h-0 flex flex-col p-4 overflow-y-auto"
           style={frostedGlassBodyStyle}

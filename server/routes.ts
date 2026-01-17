@@ -29,7 +29,7 @@ import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./payp
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, isNotNull } from "drizzle-orm";
+import { eq, desc, and, isNotNull, gte } from "drizzle-orm";
 import { messages, sessions, chatLogs } from "@shared/schema";
 import crypto from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
@@ -11647,11 +11647,67 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
     return { isValid: true, sanitizedName: sanitized };
   }
 
+  // Public endpoint to find existing session within 24 hours by device fingerprint
+  app.post("/api/widget/find-session", async (req, res) => {
+    try {
+      const { merchantId, deviceFingerprint } = req.body;
+      
+      if (!merchantId || !deviceFingerprint) {
+        return res.json({ found: false });
+      }
+      
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.json({ found: false });
+      }
+      
+      // Find active session with matching device fingerprint within last 24 hours
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      
+      const existingSession = await db.query.sessions.findFirst({
+        where: and(
+          eq(sessions.merchantId, merchantId),
+          eq(sessions.deviceFingerprint, deviceFingerprint),
+          eq(sessions.status, "active"),
+          gte(sessions.lastActivity, twentyFourHoursAgo)
+        ),
+        orderBy: [desc(sessions.lastActivity)],
+      });
+      
+      if (existingSession) {
+        // Get messages for this session
+        const sessionMessages = await storage.getMessages(existingSession.id);
+        
+        // Update last activity
+        await storage.updateSession(existingSession.id, {
+          lastActivity: new Date()
+        });
+        
+        return res.json({
+          found: true,
+          sessionId: existingSession.id,
+          customerName: existingSession.customerName,
+          messages: sessionMessages
+        });
+      }
+      
+      res.json({ found: false });
+    } catch (error) {
+      console.error("Error finding session:", error);
+      res.json({ found: false });
+    }
+  });
+
   // Public endpoint for widget to start chat with customer name
   app.post("/api/widget/start-chat", async (req, res) => {
     // CORS is handled by the middleware at line 907-926 for /api/widget/ routes
     try {
-      const { merchantId, sessionId, customerName, initialMessage } = req.body;
+      const { merchantId, sessionId, customerName, initialMessage, deviceFingerprint } = req.body;
+      
+      // Get client IP from request
+      const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || 
+                       req.socket.remoteAddress || 
+                       'unknown';
       
       // Return 200 with success:false for validation errors so widget can display user-friendly messages
       if (!merchantId || !sessionId || !customerName) {
@@ -11682,6 +11738,8 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
           mode: "AI",
           customerName: sanitizedName,
           agentId: assignedAgentId,
+          deviceFingerprint: deviceFingerprint || null,
+          clientIp: clientIp || null,
         });
       } else {
         // Security check: Verify session belongs to this merchant

@@ -208,10 +208,14 @@ export const sessions = pgTable("sessions", {
   status: text("status").default("active"),
   plannedClearAt: timestamp("planned_clear_at"),
   createdAt: timestamp("created_at").defaultNow(),
+  // Device fingerprint and IP for 24-hour session persistence
+  deviceFingerprint: text("device_fingerprint"),
+  clientIp: text("client_ip"),
 }, (table) => [
   index("sessions_merchant_id_idx").on(table.merchantId),
   index("sessions_created_at_idx").on(table.createdAt),
   index("sessions_status_idx").on(table.status),
+  index("sessions_device_fingerprint_idx").on(table.deviceFingerprint),
 ]);
 
 export const insertSessionSchema = createInsertSchema(sessions).omit({ lastActivity: true });
