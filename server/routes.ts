@@ -11649,7 +11649,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
     return { isValid: true, sanitizedName: sanitized };
   }
 
-  // Public endpoint to find existing session within 24 hours by device fingerprint
+  // Public endpoint to find existing session within 1 hour by device fingerprint
   app.post("/api/widget/find-session", async (req, res) => {
     try {
       const { merchantId, deviceFingerprint } = req.body;
@@ -11663,15 +11663,15 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         return res.json({ found: false });
       }
       
-      // Find active session with matching device fingerprint within last 24 hours
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      // Find active session with matching device fingerprint within last 1 hour
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
       
       const existingSession = await db.query.sessions.findFirst({
         where: and(
           eq(sessions.merchantId, merchantId),
           eq(sessions.deviceFingerprint, deviceFingerprint),
           eq(sessions.status, "active"),
-          gte(sessions.lastActivity, twentyFourHoursAgo)
+          gte(sessions.lastActivity, oneHourAgo)
         ),
         orderBy: [desc(sessions.lastActivity)],
       });

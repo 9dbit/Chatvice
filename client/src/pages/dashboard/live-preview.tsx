@@ -54,7 +54,7 @@ export default function LivePreviewPage() {
 
   const activeAgent = agents.find(a => a.isActive);
 
-  const loadExternalWidget = () => {
+  const cleanupWidget = () => {
     const existingScript = document.getElementById("chatvice-widget-script");
     const existingButton = document.getElementById("chatvice-button");
     const existingIframe = document.getElementById("chatvice-iframe");
@@ -68,6 +68,10 @@ export default function LivePreviewPage() {
     if (existingWelcome) existingWelcome.remove();
     if (existingEye) existingEye.remove();
     if (existingHidden) existingHidden.remove();
+  };
+
+  const loadExternalWidget = () => {
+    cleanupWidget();
 
     if (showWidget && merchantId && activeAgent?.id) {
       const script = document.createElement("script");
@@ -80,24 +84,14 @@ export default function LivePreviewPage() {
   };
 
   useEffect(() => {
+    if (agentsLoading) return;
+    
     loadExternalWidget();
 
     return () => {
-      const existingScript = document.getElementById("chatvice-widget-script");
-      const existingButton = document.getElementById("chatvice-button");
-      const existingIframe = document.getElementById("chatvice-iframe");
-      const existingWelcome = document.getElementById("chatvice-welcome-bubble");
-      const existingEye = document.getElementById("chatvice-eye-toggle");
-      const existingHidden = document.getElementById("chatvice-hidden-label");
-      
-      if (existingScript) existingScript.remove();
-      if (existingButton) existingButton.remove();
-      if (existingIframe) existingIframe.remove();
-      if (existingWelcome) existingWelcome.remove();
-      if (existingEye) existingEye.remove();
-      if (existingHidden) existingHidden.remove();
+      cleanupWidget();
     };
-  }, [showWidget, merchantId, activeAgent?.id, widgetKey]);
+  }, [showWidget, merchantId, activeAgent?.id, widgetKey, agentsLoading]);
 
   const handleRefresh = () => {
     setWidgetKey(prev => prev + 1);
