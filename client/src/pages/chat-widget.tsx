@@ -1277,9 +1277,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   // Preview mode also gets frosted glass to match external widget appearance
   const frostedGlassContainerStyle: React.CSSProperties = applyEmbedStyles
     ? {
-        backgroundColor: widgetIsDark ? 'rgba(10, 10, 10, 0.85)' : 'rgba(255, 255, 255, 0.6)',
-        backdropFilter: 'blur(24px)',
-        WebkitBackdropFilter: 'blur(24px)',
+        backgroundColor: 'transparent',
       } 
     : {};
   
@@ -1288,9 +1286,23 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     ? { backgroundColor: `${primaryColor}CC` } // 80% opacity of primary color
     : { backgroundColor: primaryColor };
   
-  // Body sections use transparent background (frosted glass is on container)
+  // Body sections use frosted glass XL with 60% transparency
+  // End-to-end masking from bottom of header to top of footer
   const frostedBodyStyle: React.CSSProperties = applyEmbedStyles
-    ? { backgroundColor: 'transparent' } 
+    ? { 
+        backgroundColor: widgetIsDark ? 'rgba(10, 10, 10, 0.60)' : 'rgba(255, 255, 255, 0.60)',
+        backdropFilter: 'blur(40px)',
+        WebkitBackdropFilter: 'blur(40px)',
+      } 
+    : {};
+
+  // Footer style - also uses frosted glass XL with 60% transparency
+  const frostedFooterStyle: React.CSSProperties = applyEmbedStyles
+    ? { 
+        backgroundColor: widgetIsDark ? 'rgba(10, 10, 10, 0.60)' : 'rgba(255, 255, 255, 0.60)',
+        backdropFilter: 'blur(40px)',
+        WebkitBackdropFilter: 'blur(40px)',
+      } 
     : {};
 
   return (
@@ -1943,7 +1955,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       </ScrollArea>
 
       {suggestedQuestions.length > 0 && (
-        <div className="px-4 py-2 border-t border-white/10 bg-transparent">
+        <div className={`px-4 py-2 border-t ${applyEmbedStyles ? 'border-white/10' : 'border-border'}`} style={frostedFooterStyle}>
           <p className="text-xs text-muted-foreground mb-1.5">Quick questions:</p>
           <div className="flex flex-wrap gap-1.5">
             {suggestedQuestions.slice(0, 5).map((sq) => (
@@ -1963,7 +1975,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         </div>
       )}
 
-      <div className={`p-4 border-t ${applyEmbedStyles ? 'border-white/10 bg-transparent' : 'border-border'}`}>
+      <div className={`p-4 border-t ${applyEmbedStyles ? 'border-white/10' : 'border-border'}`} style={frostedFooterStyle}>
         <input
           type="file"
           ref={fileInputRef}
