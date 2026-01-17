@@ -930,7 +930,7 @@ async function handleLogin() {
       </div>
 
       <Tabs defaultValue="appearance">
-        <div className="overflow-x-auto -mx-1 px-1 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+        <div className="overflow-x-auto overflow-y-hidden -mx-1 px-1 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
           <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-5 md:w-full gap-1">
             <TabsTrigger value="appearance" className="whitespace-nowrap px-4">Appearance</TabsTrigger>
             <TabsTrigger value="prechat" className="whitespace-nowrap px-4">Pre-Chat</TabsTrigger>
