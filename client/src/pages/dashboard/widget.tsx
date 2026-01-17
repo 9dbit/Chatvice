@@ -100,6 +100,7 @@ export default function WidgetPage() {
     quickMessageOptions: [] as string[],
   });
   const [newQuickMessage, setNewQuickMessage] = useState("");
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   
   const [uploadingSocialIcon, setUploadingSocialIcon] = useState<string | null>(null);
   const socialIconInputRefs = {
@@ -929,16 +930,18 @@ async function handleLogin() {
       </div>
 
       <Tabs defaultValue="appearance">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="appearance">Appearance</TabsTrigger>
-          <TabsTrigger value="prechat">Pre-Chat</TabsTrigger>
-          <TabsTrigger value="embed">Embed</TabsTrigger>
-          <TabsTrigger value="social">Social</TabsTrigger>
-          <TabsTrigger value="security" className="flex items-center gap-2">
-            Security
-            {!canUseAdvancedFeatures && <Lock className="w-3 h-3" />}
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-1 px-1 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+          <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-5 md:w-full gap-1">
+            <TabsTrigger value="appearance" className="whitespace-nowrap px-4">Appearance</TabsTrigger>
+            <TabsTrigger value="prechat" className="whitespace-nowrap px-4">Pre-Chat</TabsTrigger>
+            <TabsTrigger value="embed" className="whitespace-nowrap px-4">Embed</TabsTrigger>
+            <TabsTrigger value="social" className="whitespace-nowrap px-4">Social</TabsTrigger>
+            <TabsTrigger value="security" className="flex items-center gap-2 whitespace-nowrap px-4">
+              Security
+              {!canUseAdvancedFeatures && <Lock className="w-3 h-3" />}
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="appearance" className="mt-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1563,7 +1566,49 @@ async function handleLogin() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
-                <Label className="text-base font-medium">Welcome Description</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-medium">Welcome Description</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      if (!merchant) return;
+                      setIsGeneratingDescription(true);
+                      try {
+                        const response = await apiRequest("POST", "/api/ai/generate-welcome-description", {
+                          businessName: merchant.companyName || merchant.username || "My Business",
+                          industry: "general business"
+                        });
+                        const data = await response.json();
+                        if (data.description) {
+                          setPreChatConfig({ ...preChatConfig, welcomeDescription: data.description });
+                          toast({
+                            title: "Description generated",
+                            description: "AI has created a welcome description for you.",
+                          });
+                        }
+                      } catch (error) {
+                        toast({
+                          title: "Generation failed",
+                          description: "Could not generate description. Please try again.",
+                          variant: "destructive"
+                        });
+                      } finally {
+                        setIsGeneratingDescription(false);
+                      }
+                    }}
+                    disabled={isGeneratingDescription}
+                    data-testid="button-generate-description"
+                  >
+                    {isGeneratingDescription ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-4 h-4 mr-2" />
+                    )}
+                    Generate with AI
+                  </Button>
+                </div>
                 <p className="text-sm text-muted-foreground">
                   Add a custom description that appears above the name field. Use this to provide important information or links to customers.
                 </p>

@@ -14877,5 +14877,45 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
+  // Generate welcome description using AI
+  app.post("/api/ai/generate-welcome-description", requireMerchant, async (req, res) => {
+    try {
+      const { businessName, industry } = req.body;
+      
+      if (!businessName) {
+        return res.status(400).json({ error: "Business name is required" });
+      }
+      
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are a professional copywriter specializing in customer service. Generate a welcoming and friendly description for a pre-chat form. The description should:
+- Be warm, professional, and concise (2-3 sentences max)
+- Mention the business name naturally
+- Encourage customers to share their name and start chatting
+- Be in Indonesian (Bahasa Indonesia)
+- Not use emojis
+- Feel personal and inviting`
+          },
+          {
+            role: "user",
+            content: `Generate a welcome description for "${businessName}" which operates in the "${industry}" industry. The description will appear above a name input field in a chat widget.`
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 200,
+      });
+      
+      const description = completion.choices[0]?.message?.content?.trim() || "";
+      
+      res.json({ description });
+    } catch (error) {
+      console.error("Generate welcome description error:", error);
+      res.status(500).json({ error: "Failed to generate description" });
+    }
+  });
+
   return httpServer;
 }
