@@ -887,7 +887,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         style={{ bottom: previewMode ? "20px" : widgetPosition }}
       >
         {showWelcomeBubble && welcomeBubble && welcomeBubble.isEnabled && (
-          <div className="w-52 animate-in slide-in-from-bottom-5 fade-in duration-300" data-testid="welcome-bubble-container">
+          <div 
+            className="w-52 animate-in slide-in-from-bottom-5 fade-in duration-300" 
+            data-testid="welcome-bubble-container"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+          >
             {welcomeBubble.promoImageEnabled && welcomeBubble.promoImageUrl && (
               <div className="relative z-20" style={{ marginBottom: '-16px' }}>
                 <img 
@@ -932,6 +938,16 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 onMouseDown={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
+                }}
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  console.log('[Widget] Chat with us button touched');
+                  handleWidgetOpen();
+                  setTimeout(() => dismissWelcomeBubble(), 100);
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
