@@ -9389,10 +9389,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   var widgetBottom = isMobile ? "0" : "20px";
   var widgetRight = isMobile ? "0" : "20px";
   
-  // Borderless design - z-index 100000 (highest, above all other elements)
+  // Borderless design with transparency - z-index 100000 (highest, above all other elements)
   iframe.style.cssText = "position:fixed;bottom:" + widgetBottom + ";right:" + widgetRight + ";width:" + widgetWidth + ";height:" + widgetHeight + ";max-height:100vh;max-width:100vw;border:none;z-index:100000;display:none;background:transparent;";
   iframe.id = "chatvice-widget-frame";
   iframe.allow = "microphone; camera";
+  iframe.setAttribute("allowtransparency", "true");
   
   var button = document.createElement("div");
   button.id = "chatvice-widget-button";
