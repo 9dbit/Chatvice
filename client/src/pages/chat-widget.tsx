@@ -1130,14 +1130,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         ? `fixed inset-4 z-50 animate-in fade-in duration-300 rounded-xl overflow-hidden flex flex-col`
         : `${positionClass} bottom-5 right-5 w-[360px] h-[520px] z-50 animate-in slide-in-from-bottom-5 fade-in duration-300 rounded-xl overflow-hidden flex flex-col`;
   
-  // Frosted glass - apply on widget container for both external embed and embedded modes
-  // Darker background (85% opacity) for frosted glass effect
-  const frostedGlassStyle: React.CSSProperties = (isExternalEmbed || embedded) 
+  // Frosted glass - apply on chat body, not outer container
+  // This allows the blur effect to show on message area while header stays solid
+  const frostedGlassBodyStyle: React.CSSProperties = (isExternalEmbed || embedded) 
     ? {
         backgroundColor: widgetIsDark ? 'rgba(10, 10, 10, 0.85)' : 'rgba(255, 255, 255, 0.6)',
         backdropFilter: 'blur(24px)',
         WebkitBackdropFilter: 'blur(24px)',
       } 
+    : {};
+  
+  // Outer container style - transparent for external embed to show frosted body
+  const outerContainerStyle: React.CSSProperties = (isExternalEmbed || embedded)
+    ? { backgroundColor: 'transparent' }
     : {};
 
   return (
@@ -1145,7 +1150,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       className={containerClasses}
       style={{
         transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-        ...frostedGlassStyle,
+        ...outerContainerStyle,
       }}
       data-testid="widget-container"
     >
@@ -1389,9 +1394,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         );
       })()}
 
-      {/* Customer name form - shown for new customers - transparent background */}
+      {/* Customer name form - shown for new customers - frosted glass background */}
       {!hasSubmittedName && !serverMessages?.length ? (
-        <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-6 bg-transparent">
+        <div 
+          className="flex-1 min-h-0 flex flex-col items-center justify-center p-6"
+          style={frostedGlassBodyStyle}
+        >
           <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: `${primaryColor}20` }}>
             <User className="w-8 h-8" style={{ color: primaryColor }} />
           </div>
@@ -1459,8 +1467,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </div>
         </div>
       ) : (
-        <>
-          <ScrollArea className="flex-1 min-h-0 p-4 bg-transparent">
+        <div className="flex-1 min-h-0 flex flex-col" style={frostedGlassBodyStyle}>
+          <ScrollArea className="flex-1 min-h-0 p-4">
             <div className="space-y-4">
               {allMessages.map((msg, index) => (
             <div key={msg.id || index}>
@@ -1880,7 +1888,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </p>
         )}
       </div>
-      </>
+      </div>
       )}
       
       {viewingImage && (
