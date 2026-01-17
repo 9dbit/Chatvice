@@ -1438,9 +1438,6 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               </div>
             )}
             
-            <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: `${primaryColor}20` }}>
-              <User className="w-6 h-6" style={{ color: primaryColor }} />
-            </div>
             <p className="text-sm text-muted-foreground mb-4 text-center">
               Please enter your name to start chatting with us.
             </p>
@@ -1486,7 +1483,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               {/* Quick Message Options */}
               {merchantConfig?.quickMessageOptions && merchantConfig.quickMessageOptions.length > 0 ? (
                 <div className="bg-muted/50 rounded-lg p-3 border">
-                  <p className="text-xs text-muted-foreground mb-2">Pertanyaan: *</p>
+                  <p className="text-xs text-muted-foreground mb-2">⚡️ smart question</p>
                   <div className="space-y-2">
                     {merchantConfig.quickMessageOptions.map((option: string, index: number) => (
                       <label 
@@ -1524,7 +1521,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 ) : (
                   <Send className="w-4 h-4 mr-2" />
                 )}
-                Mulai obrolan
+                start chat
               </Button>
             </div>
           </div>
