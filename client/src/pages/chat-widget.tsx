@@ -872,7 +872,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       return (
         <button
           onClick={toggleWidgetHidden}
-          className={`${positionClass} right-0 z-50 bg-primary/90 hover:bg-primary text-white px-2 py-3 rounded-l-lg shadow-lg transition-all`}
+          className={`${positionClass} right-0 z-40 bg-primary/90 hover:bg-primary text-white px-2 py-3 rounded-l-lg shadow-lg transition-all`}
           style={{ bottom: previewMode ? "20px" : widgetPosition }}
           data-testid="button-show-widget"
         >
@@ -1253,11 +1253,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           
           return (
             <button
-              className="flex items-center gap-1 text-[13px] font-bold text-white hover:text-white transition-colors px-1.5 py-0 rounded border border-white/30 leading-tight"
+              className="flex items-center gap-0.5 text-[11px] font-semibold text-white hover:text-white transition-colors px-1 py-0 rounded border border-white/20 leading-tight"
               style={{ 
-                textShadow: '0 1px 3px rgba(0,0,0,0.3)',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
-                height: '22px'
+                textShadow: '0 1px 2px rgba(0,0,0,0.2)',
+                height: '18px'
               }}
               onClick={() => {
                 if (socialIconsExpanded) {
@@ -1270,9 +1269,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             >
               Get in touch
               {socialIconsExpanded ? (
-                <ChevronUp className="w-4 h-4" />
+                <ChevronUp className="w-3 h-3" />
               ) : (
-                <ChevronDown className="w-4 h-4" />
+                <ChevronDown className="w-3 h-3" />
               )}
             </button>
           );
