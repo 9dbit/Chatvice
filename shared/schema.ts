@@ -103,6 +103,9 @@ export const merchants = pgTable("merchants", {
   socialCustomTelegram: text("social_custom_telegram"),
   socialCustomWhatsapp: text("social_custom_whatsapp"),
   socialCustomDiscord: text("social_custom_discord"),
+  // Pre-chat form customization
+  welcomeDescription: text("welcome_description").default(""),
+  quickMessageOptions: text("quick_message_options").array().default([]),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -360,6 +363,8 @@ export const merchantConfigSchema = z.object({
   socialTelegram: safeUrlSchema,
   socialWhatsapp: safeUrlSchema,
   socialDiscord: safeUrlSchema,
+  welcomeDescription: z.string().optional(),
+  quickMessageOptions: z.array(z.string()).optional(),
 });
 export type MerchantConfig = z.infer<typeof merchantConfigSchema>;
 
