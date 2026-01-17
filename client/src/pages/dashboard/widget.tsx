@@ -94,6 +94,12 @@ export default function WidgetPage() {
     socialCustomWhatsapp: "",
     socialCustomDiscord: "",
   });
+
+  const [preChatConfig, setPreChatConfig] = useState({
+    welcomeDescription: "",
+    quickMessageOptions: [] as string[],
+  });
+  const [newQuickMessage, setNewQuickMessage] = useState("");
   
   const [uploadingSocialIcon, setUploadingSocialIcon] = useState<string | null>(null);
   const socialIconInputRefs = {
@@ -332,6 +338,10 @@ export default function WidgetPage() {
         socialCustomTelegram: (merchant as any).socialCustomTelegram || "",
         socialCustomWhatsapp: (merchant as any).socialCustomWhatsapp || "",
         socialCustomDiscord: (merchant as any).socialCustomDiscord || "",
+      });
+      setPreChatConfig({
+        welcomeDescription: (merchant as any).welcomeDescription || "",
+        quickMessageOptions: (merchant as any).quickMessageOptions || [],
       });
     }
   }, [merchant]);
@@ -682,6 +692,30 @@ export default function WidgetPage() {
     },
   });
 
+  const preChatMutation = useMutation({
+    mutationFn: async (data: { 
+      welcomeDescription?: string;
+      quickMessageOptions?: string[];
+    }) => {
+      return apiRequest("POST", "/api/merchant/config", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
+      setPreviewKey(prev => prev + 1);
+      toast({
+        title: "Pre-chat form saved",
+        description: "Your changes have been applied.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to save",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const baseUrl = window.location.origin;
   
   // Cache-busting version - updates when page loads to ensure latest script
@@ -895,8 +929,9 @@ async function handleLogin() {
       </div>
 
       <Tabs defaultValue="appearance">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="appearance">Appearance</TabsTrigger>
+          <TabsTrigger value="prechat">Pre-Chat</TabsTrigger>
           <TabsTrigger value="embed">Embed</TabsTrigger>
           <TabsTrigger value="social">Social</TabsTrigger>
           <TabsTrigger value="security" className="flex items-center gap-2">
@@ -1513,6 +1548,129 @@ async function handleLogin() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="prechat" className="mt-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-primary" />
+                <CardTitle>Pre-Chat Form</CardTitle>
+              </div>
+              <CardDescription>
+                Customize the welcome screen that customers see before starting a chat. Add a custom description and quick message options.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label className="text-base font-medium">Welcome Description</Label>
+                <p className="text-sm text-muted-foreground">
+                  Add a custom description that appears above the name field. Use this to provide important information or links to customers.
+                </p>
+                <Textarea
+                  placeholder="Enter your welcome description here... (supports links and text)"
+                  value={preChatConfig.welcomeDescription}
+                  onChange={(e) => setPreChatConfig({ ...preChatConfig, welcomeDescription: e.target.value })}
+                  className="min-h-[120px]"
+                  data-testid="textarea-welcome-description"
+                />
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-base font-medium">Quick Message Options</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Add predefined message options that customers can select before starting a chat.
+                  </p>
+                </div>
+                
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter a quick message option..."
+                    value={newQuickMessage}
+                    onChange={(e) => setNewQuickMessage(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newQuickMessage.trim()) {
+                        e.preventDefault();
+                        setPreChatConfig({
+                          ...preChatConfig,
+                          quickMessageOptions: [...preChatConfig.quickMessageOptions, newQuickMessage.trim()]
+                        });
+                        setNewQuickMessage("");
+                      }
+                    }}
+                    data-testid="input-new-quick-message"
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      if (newQuickMessage.trim()) {
+                        setPreChatConfig({
+                          ...preChatConfig,
+                          quickMessageOptions: [...preChatConfig.quickMessageOptions, newQuickMessage.trim()]
+                        });
+                        setNewQuickMessage("");
+                      }
+                    }}
+                    data-testid="button-add-quick-message"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add
+                  </Button>
+                </div>
+
+                {preChatConfig.quickMessageOptions.length > 0 && (
+                  <div className="space-y-2">
+                    {preChatConfig.quickMessageOptions.map((option, index) => (
+                      <div key={index} className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                        <span className="flex-1 text-sm">{option}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => {
+                            const newOptions = [...preChatConfig.quickMessageOptions];
+                            newOptions.splice(index, 1);
+                            setPreChatConfig({ ...preChatConfig, quickMessageOptions: newOptions });
+                          }}
+                          data-testid={`button-remove-quick-message-${index}`}
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {preChatConfig.quickMessageOptions.length === 0 && (
+                  <p className="text-sm text-muted-foreground italic">No quick message options added yet.</p>
+                )}
+              </div>
+
+              <Separator />
+
+              <Button
+                onClick={() => preChatMutation.mutate(preChatConfig)}
+                disabled={preChatMutation.isPending}
+                className="w-full"
+                data-testid="button-save-prechat"
+              >
+                {preChatMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Pre-Chat Settings
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="embed" className="mt-6 space-y-6">
