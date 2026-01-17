@@ -2915,6 +2915,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         socialTelegram: sanitizeUrl(merchant.socialTelegram),
         socialWhatsapp: sanitizeUrl(merchant.socialWhatsapp),
         socialDiscord: sanitizeUrl(merchant.socialDiscord),
+        welcomeDescription: merchant.welcomeDescription || "",
+        quickMessageOptions: merchant.quickMessageOptions || [],
       });
     } catch (error) {
       res.status(500).json({ error: "Server error" });

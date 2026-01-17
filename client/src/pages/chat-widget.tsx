@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Bot, Send, X, Shrink, Square, Minimize2, Maximize2, HeadphonesIcon, User, ImageIcon, Video, FileText, Plus, Loader2, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ExternalLink, ShoppingBag, EyeOff, GripVertical, MapPin } from "lucide-react";
@@ -23,6 +24,7 @@ interface MerchantConfig {
   companyName: string;
   agentName: string;
   agentPhotoUrl: string;
+  widgetTheme?: "light" | "dark";
   socialMediaEnabled?: boolean;
   socialIconStyle?: "colored" | "silhouette";
   socialInstagram?: string;
@@ -30,6 +32,8 @@ interface MerchantConfig {
   socialTelegram?: string;
   socialWhatsapp?: string;
   socialDiscord?: string;
+  welcomeDescription?: string;
+  quickMessageOptions?: string[];
 }
 
 interface NotificationSettings {
@@ -176,6 +180,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   });
   const [nameInputValue, setNameInputValue] = useState("");
   const [nameError, setNameError] = useState("");
+  const [selectedQuickMessage, setSelectedQuickMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -553,11 +558,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       });
       return response.json() as Promise<{ success: boolean; answer: string; error?: string; sanitizedName?: string }>;
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       if (data.success) {
         const finalName = data.sanitizedName || nameInputValue.trim();
         setCustomerName(finalName);
         setHasSubmittedName(true);
+        setSelectedQuickMessage(null); // Clear selected quick message after submission
         if (!previewMode) {
           try {
             sessionStorage.setItem(customerNameKey, finalName);
@@ -565,10 +571,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           } catch {}
         }
         
-        // Add initial message from user and AI response
-        const defaultMessage = "Halo kak, ada yang mau saya tanyakan";
+        // Add initial message from user (use the actual submitted message) and AI response
         setPendingMessages([
-          { clientId: generateClientId(), from: "user", content: defaultMessage, timestamp: new Date() },
+          { clientId: generateClientId(), from: "user", content: variables.initialMessage, timestamp: new Date() },
           { clientId: generateClientId(), from: "chatvice", content: data.answer, timestamp: new Date() },
         ]);
         playNotificationSound("reply");
@@ -597,9 +602,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       return;
     }
     setNameError("");
+    // Use selected quick message if available, otherwise default
+    const initialMessage = selectedQuickMessage || "Halo kak, ada yang mau saya tanyakan";
     startChatMutation.mutate({ 
       name, 
-      initialMessage: "Halo kak, ada yang mau saya tanyakan" 
+      initialMessage 
     });
   };
 
@@ -1412,73 +1419,114 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       {/* Customer name form - shown for new customers - frosted glass background */}
       {!hasSubmittedName && !serverMessages?.length ? (
         <div 
-          className="flex-1 min-h-0 flex flex-col items-center justify-center p-6"
+          className="flex-1 min-h-0 flex flex-col p-4 overflow-y-auto"
           style={frostedGlassBodyStyle}
         >
-          <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: `${primaryColor}20` }}>
-            <User className="w-8 h-8" style={{ color: primaryColor }} />
-          </div>
-          <h3 className="text-lg font-semibold mb-2 text-center">Welcome!</h3>
-          <p className="text-sm text-muted-foreground mb-6 text-center">
-            Please enter your name to start chatting with us.
-          </p>
-          
-          <div className="w-full max-w-xs space-y-4">
-            <div className="space-y-2 relative overflow-hidden">
-              <Input
-                type="text"
-                placeholder="Enter your name"
-                value={nameInputValue}
-                onChange={(e) => {
-                  setNameInputValue(e.target.value);
-                  setNameError("");
-                }}
-                onKeyPress={(e) => {
-                  if (e.key === "Enter") {
-                    handleNameSubmit();
-                  }
-                }}
-                className="text-center pr-3"
-                name="chatvice_customer_display_name"
-                id="chatvice_customer_display_name"
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="words"
-                spellCheck={false}
-                data-lpignore="true"
-                data-1p-ignore="true"
-                data-bwignore="true"
-                data-form-type="other"
-                aria-autocomplete="none"
-                style={{ WebkitTextSecurity: 'none' } as React.CSSProperties}
-                data-testid="input-customer-name"
-              />
-              {nameError && (
-                <p className="text-xs text-red-500 text-center" data-testid="text-name-error">
-                  {nameError}
-                </p>
-              )}
-            </div>
+          <div className="flex-1 flex flex-col items-center">
+            <h3 className="text-lg font-semibold mb-3 text-center">Welcome!</h3>
             
-            <div className="bg-muted/50 rounded-lg p-3 border">
-              <p className="text-xs text-muted-foreground mb-1">Your message:</p>
-              <p className="text-sm italic">"Halo kak, ada yang mau saya tanyakan"</p>
-            </div>
+            {/* Custom Description Box */}
+            {merchantConfig?.welcomeDescription && (
+              <div className="w-full bg-muted/50 rounded-lg p-3 border mb-4 text-sm whitespace-pre-wrap" data-testid="text-welcome-description">
+                {merchantConfig.welcomeDescription.split(/(\bhttps?:\/\/\S+)/g).map((part: string, i: number) => 
+                  part.match(/^https?:\/\//) ? (
+                    <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-primary underline break-all">
+                      {part}
+                    </a>
+                  ) : part
+                )}
+              </div>
+            )}
             
-            <Button
-              onClick={handleNameSubmit}
-              disabled={startChatMutation.isPending || !nameInputValue.trim()}
-              className="w-full text-white"
-              style={{ backgroundColor: primaryColor }}
-              data-testid="button-start-chat"
-            >
-              {startChatMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: `${primaryColor}20` }}>
+              <User className="w-6 h-6" style={{ color: primaryColor }} />
+            </div>
+            <p className="text-sm text-muted-foreground mb-4 text-center">
+              Please enter your name to start chatting with us.
+            </p>
+            
+            <div className="w-full max-w-xs space-y-4">
+              <div className="space-y-2 relative overflow-hidden">
+                <Label className="text-xs text-muted-foreground">Nama: *</Label>
+                <Input
+                  type="text"
+                  placeholder="Enter your name"
+                  value={nameInputValue}
+                  onChange={(e) => {
+                    setNameInputValue(e.target.value);
+                    setNameError("");
+                  }}
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter") {
+                      handleNameSubmit();
+                    }
+                  }}
+                  className="text-center pr-3"
+                  name="chatvice_customer_display_name"
+                  id="chatvice_customer_display_name"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="words"
+                  spellCheck={false}
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  data-bwignore="true"
+                  data-form-type="other"
+                  aria-autocomplete="none"
+                  style={{ WebkitTextSecurity: 'none' } as React.CSSProperties}
+                  data-testid="input-customer-name"
+                />
+                {nameError && (
+                  <p className="text-xs text-red-500 text-center" data-testid="text-name-error">
+                    {nameError}
+                  </p>
+                )}
+              </div>
+              
+              {/* Quick Message Options */}
+              {merchantConfig?.quickMessageOptions && merchantConfig.quickMessageOptions.length > 0 ? (
+                <div className="bg-muted/50 rounded-lg p-3 border">
+                  <p className="text-xs text-muted-foreground mb-2">Pertanyaan: *</p>
+                  <div className="space-y-2">
+                    {merchantConfig.quickMessageOptions.map((option: string, index: number) => (
+                      <label 
+                        key={index} 
+                        className="flex items-center gap-2 cursor-pointer text-sm hover:bg-muted/50 p-1 rounded"
+                        data-testid={`quick-message-option-${index}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedQuickMessage === option}
+                          onChange={() => setSelectedQuickMessage(selectedQuickMessage === option ? null : option)}
+                          className="w-4 h-4 rounded border-gray-300"
+                        />
+                        <span>{option}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
               ) : (
-                <Send className="w-4 h-4 mr-2" />
+                <div className="bg-muted/50 rounded-lg p-3 border">
+                  <p className="text-xs text-muted-foreground mb-1">Your message:</p>
+                  <p className="text-sm italic">"Halo kak, ada yang mau saya tanyakan"</p>
+                </div>
               )}
-              Start Chat
-            </Button>
+              
+              <Button
+                onClick={handleNameSubmit}
+                disabled={startChatMutation.isPending || !nameInputValue.trim()}
+                className="w-full text-white"
+                style={{ backgroundColor: primaryColor }}
+                data-testid="button-start-chat"
+              >
+                {startChatMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Send className="w-4 h-4 mr-2" />
+                )}
+                Mulai obrolan
+              </Button>
+            </div>
           </div>
         </div>
       ) : (
