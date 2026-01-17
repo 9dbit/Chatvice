@@ -136,8 +136,13 @@ function Router() {
       <Route path="/embed/:merchantId/:agentId">
         {(params) => {
           // This route is used by: live preview page, widget tab appearance section
-          // It renders the exact same widget as the external embed
-          return <ChatWidget merchantId={params.merchantId} embedded previewMode />;
+          // Renders as floating widget (same as external website) - NOT embedded mode
+          // Shows: floating icon → welcome bubble → chat panel
+          return (
+            <div className="w-full h-full min-h-screen" style={{ background: 'transparent' }}>
+              <ChatWidget merchantId={params.merchantId} previewMode />
+            </div>
+          );
         }}
       </Route>
 
