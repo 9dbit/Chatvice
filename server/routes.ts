@@ -9882,7 +9882,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     // Attach event handlers
     var ctaBtn = welcomeBubbleContent.querySelector("#chatvice-cta-btn");
     if (ctaBtn) {
-      ctaBtn.onclick = function() { openWidget(); hideWelcomeBubble(); };
+      ctaBtn.onclick = function(e) { e.stopPropagation(); openWidget(); hideWelcomeBubble(); };
     }
     
     var minimizeBtn = welcomeBubbleContent.querySelector("#chatvice-minimize-btn");
