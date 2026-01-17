@@ -1543,60 +1543,50 @@ async function handleLogin() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-lg">Live Preview</CardTitle>
-                    <CardDescription>
-                      Uses the exact same widget code as your external website
-                    </CardDescription>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setPreviewKey(prev => prev + 1)}
-                    data-testid="button-refresh-preview"
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Refresh
-                  </Button>
+            {/* Live Preview - Direct widget display without browser mock */}
+            <div 
+              className="relative rounded-lg overflow-hidden border border-border"
+              style={{ 
+                height: '550px',
+                background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)'
+              }}
+            >
+              <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
+                <Badge variant="outline" className="text-xs bg-background/80 backdrop-blur-sm">
+                  <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse" />
+                  Live Preview
+                </Badge>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 text-xs bg-background/80 backdrop-blur-sm"
+                  onClick={() => setPreviewKey(prev => prev + 1)}
+                  data-testid="button-refresh-preview"
+                >
+                  <RefreshCw className="w-3 h-3 mr-1" />
+                  Refresh
+                </Button>
+              </div>
+              
+              {activeAgent?.id ? (
+                <iframe
+                  key={previewKey}
+                  src={`${window.location.origin}/embed/${merchantId}/${activeAgent.id}?preview=true&v=${previewKey}`}
+                  className="w-full h-full border-0"
+                  style={{ background: 'transparent' }}
+                  title="Widget Preview"
+                  data-testid="iframe-widget-preview"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-center text-gray-400">
+                  <Bot className="w-12 h-12 mb-4 opacity-30" />
+                  <p className="text-lg font-medium">No Active Agent</p>
+                  <p className="text-sm mt-1">
+                    Please select an active agent to preview the widget
+                  </p>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="relative bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg overflow-hidden" style={{ height: '550px' }}>
-                  <div className="absolute top-0 left-0 right-0 h-10 bg-gray-800 flex items-center px-4 z-10">
-                    <div className="flex gap-1.5">
-                      <div className="w-2.5 h-2.5 rounded-full bg-red-500/70" />
-                      <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/70" />
-                      <div className="w-2.5 h-2.5 rounded-full bg-green-500/70" />
-                    </div>
-                    <span className="text-xs text-gray-400 ml-3">yourwebsite.com</span>
-                  </div>
-                  
-                  {activeAgent?.id ? (
-                    <iframe
-                      key={previewKey}
-                      src={`${window.location.origin}/embed/${merchantId}/${activeAgent.id}?preview=true&v=${previewKey}`}
-                      className="w-full h-full border-0 pt-10"
-                      style={{ 
-                        background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)'
-                      }}
-                      title="Widget Preview"
-                      data-testid="iframe-widget-preview"
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-center text-gray-400 pt-10">
-                      <Bot className="w-12 h-12 mb-4 opacity-30" />
-                      <p className="text-lg font-medium">No Active Agent</p>
-                      <p className="text-sm mt-1">
-                        Please select an active agent to preview the widget
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+              )}
+            </div>
           </div>
         </TabsContent>
 

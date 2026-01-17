@@ -230,49 +230,36 @@ export default function LivePreviewPage() {
         </CardContent>
       </Card>
 
-      {/* Live Preview Card with iframe */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-base">Live Preview</CardTitle>
-              <CardDescription>
-                This preview uses the exact same widget code as your external website
-              </CardDescription>
-            </div>
-            <Badge variant="outline" className="text-xs">
+      {/* Live Preview - Full width iframe without browser mock */}
+      {showWidget && embedUrl ? (
+        <div 
+          className="relative rounded-lg overflow-hidden border border-border"
+          style={{ 
+            height: '650px',
+            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)'
+          }}
+        >
+          <div className="absolute top-3 left-3 z-10">
+            <Badge variant="outline" className="text-xs bg-background/80 backdrop-blur-sm">
               <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse" />
-              Live
+              Live Preview
             </Badge>
           </div>
-        </CardHeader>
-        <CardContent>
-          {showWidget && embedUrl ? (
-            <div className="relative bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg overflow-hidden" style={{ height: '600px' }}>
-              {/* Browser mock header */}
-              <div className="absolute top-0 left-0 right-0 h-10 bg-gray-800 flex items-center px-4 z-10">
-                <div className="flex gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-red-500/70" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/70" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-green-500/70" />
-                </div>
-                <span className="text-xs text-gray-400 ml-3">yourwebsite.com</span>
-              </div>
-              
-              {/* Iframe container */}
-              <iframe
-                key={iframeKey}
-                src={embedUrl}
-                className="w-full h-full border-0 pt-10"
-                style={{ 
-                  background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)'
-                }}
-                title="Widget Preview"
-                data-testid="iframe-widget-preview"
-              />
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+          
+          {/* Direct iframe - widget appears in actual position */}
+          <iframe
+            key={iframeKey}
+            src={embedUrl}
+            className="w-full h-full border-0"
+            style={{ background: 'transparent' }}
+            title="Widget Preview"
+            data-testid="iframe-widget-preview"
+          />
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="py-16">
+            <div className="flex flex-col items-center justify-center text-center text-muted-foreground">
               <Eye className="w-12 h-12 mb-4 opacity-30" />
               {!activeAgent ? (
                 <>
@@ -290,9 +277,9 @@ export default function LivePreviewPage() {
                 </>
               )}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
