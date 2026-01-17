@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,18 +9,13 @@ import {
   Eye, RefreshCw, MessageSquare, Bot, Loader2, ExternalLink,
   Settings, Sparkles, Package, MousePointer, CheckCircle2, AlertCircle
 } from "lucide-react";
-import ChatWidget from "@/pages/chat-widget";
 import type { Agent, WelcomeBubble, QuickReply, ProductCard, ChatButton, SuggestedQuestion, Merchant } from "@shared/schema";
 
 export default function LivePreviewPage() {
   const merchantId = localStorage.getItem("merchantId") || "";
   const [showWidget, setShowWidget] = useState(true);
-  const [previewKey, setPreviewKey] = useState(0);
-
-  const previewSessionId = useMemo(() => 
-    `customer_preview_${merchantId}_${Date.now()}_${previewKey}`,
-    [merchantId, previewKey]
-  );
+  const [widgetKey, setWidgetKey] = useState(0);
+  const scriptRef = useRef<HTMLScriptElement | null>(null);
 
   const { data: merchant } = useQuery<Merchant>({
     queryKey: ["/api/merchant", merchantId],
@@ -59,18 +54,54 @@ export default function LivePreviewPage() {
 
   const activeAgent = agents.find(a => a.isActive);
 
-  const handleRefresh = () => {
-    setShowWidget(false);
-    setTimeout(() => {
-      setPreviewKey(prev => prev + 1);
-      setShowWidget(true);
-    }, 100);
+  const loadExternalWidget = () => {
+    const existingScript = document.getElementById("chatvice-widget-script");
+    const existingButton = document.getElementById("chatvice-button");
+    const existingIframe = document.getElementById("chatvice-iframe");
+    const existingWelcome = document.getElementById("chatvice-welcome-bubble");
+    const existingEye = document.getElementById("chatvice-eye-toggle");
+    const existingHidden = document.getElementById("chatvice-hidden-label");
+    
+    if (existingScript) existingScript.remove();
+    if (existingButton) existingButton.remove();
+    if (existingIframe) existingIframe.remove();
+    if (existingWelcome) existingWelcome.remove();
+    if (existingEye) existingEye.remove();
+    if (existingHidden) existingHidden.remove();
+
+    if (showWidget && merchantId && activeAgent?.id) {
+      const script = document.createElement("script");
+      script.id = "chatvice-widget-script";
+      script.src = `${window.location.origin}/widget/${merchantId}/${activeAgent.id}?v=${Date.now()}`;
+      script.async = true;
+      document.body.appendChild(script);
+      scriptRef.current = script;
+    }
   };
 
-  // Auto-refresh when entering the page
   useEffect(() => {
-    handleRefresh();
-  }, []);
+    loadExternalWidget();
+
+    return () => {
+      const existingScript = document.getElementById("chatvice-widget-script");
+      const existingButton = document.getElementById("chatvice-button");
+      const existingIframe = document.getElementById("chatvice-iframe");
+      const existingWelcome = document.getElementById("chatvice-welcome-bubble");
+      const existingEye = document.getElementById("chatvice-eye-toggle");
+      const existingHidden = document.getElementById("chatvice-hidden-label");
+      
+      if (existingScript) existingScript.remove();
+      if (existingButton) existingButton.remove();
+      if (existingIframe) existingIframe.remove();
+      if (existingWelcome) existingWelcome.remove();
+      if (existingEye) existingEye.remove();
+      if (existingHidden) existingHidden.remove();
+    };
+  }, [showWidget, merchantId, activeAgent?.id, widgetKey]);
+
+  const handleRefresh = () => {
+    setWidgetKey(prev => prev + 1);
+  };
 
   if (agentsLoading) {
     return (
@@ -253,16 +284,6 @@ export default function LivePreviewPage() {
           </div>
         </CardContent>
       </Card>
-
-      {showWidget && (
-        <ChatWidget 
-          key={previewKey}
-          merchantId={merchantId} 
-          sessionId={previewSessionId}
-          embedded={false}
-          previewMode={true}
-        />
-      )}
     </div>
   );
 }
