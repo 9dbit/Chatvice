@@ -1270,9 +1270,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         ? `fixed inset-4 z-50 animate-in fade-in duration-300 rounded-xl overflow-hidden flex flex-col`
         : `${positionClass} bottom-5 right-5 w-[360px] h-[520px] z-50 animate-in slide-in-from-bottom-5 fade-in duration-300 rounded-xl overflow-hidden flex flex-col`;
   
-  // Frosted glass - apply on chat body, not outer container
-  // This allows the blur effect to show on message area while header stays solid
-  const frostedGlassBodyStyle: React.CSSProperties = (isExternalEmbed || embedded) 
+  // Frosted glass - apply to entire container for end-to-end effect (header to footer)
+  const frostedGlassContainerStyle: React.CSSProperties = (isExternalEmbed || embedded) 
     ? {
         backgroundColor: widgetIsDark ? 'rgba(10, 10, 10, 0.85)' : 'rgba(255, 255, 255, 0.6)',
         backdropFilter: 'blur(24px)',
@@ -1280,9 +1279,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       } 
     : {};
   
-  // Outer container style - transparent for external embed to show frosted body
-  const outerContainerStyle: React.CSSProperties = (isExternalEmbed || embedded)
-    ? { backgroundColor: 'transparent' }
+  // Header style - semi-transparent primary color over frosted glass
+  const frostedHeaderStyle: React.CSSProperties = (isExternalEmbed || embedded)
+    ? { backgroundColor: `${primaryColor}CC` } // 80% opacity of primary color
+    : { backgroundColor: primaryColor };
+  
+  // Body sections use transparent background (frosted glass is on container)
+  const frostedBodyStyle: React.CSSProperties = (isExternalEmbed || embedded) 
+    ? { backgroundColor: 'transparent' } 
     : {};
 
   return (
@@ -1290,14 +1294,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       className={containerClasses}
       style={{
         transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-        ...outerContainerStyle,
+        ...frostedGlassContainerStyle,
       }}
       data-testid="widget-container"
     >
       {/* Slim Header with drop shadow - z-10 to stay above social panel */}
       <div
         className="px-3 py-2 flex items-center justify-between shadow-md relative z-10"
-        style={{ backgroundColor: primaryColor }}
+        style={frostedHeaderStyle}
       >
         <div className="flex items-center gap-2.5">
           <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
@@ -1537,7 +1541,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       {isCheckingSession ? (
         <div 
           className="flex-1 min-h-0 flex flex-col p-4 items-center justify-center"
-          style={frostedGlassBodyStyle}
+          style={frostedBodyStyle}
         >
           <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
           <p className="text-sm text-muted-foreground">Loading...</p>
@@ -1545,7 +1549,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       ) : !hasSubmittedName && !serverMessages?.length ? (
         <div 
           className="flex-1 min-h-0 flex flex-col p-4 overflow-y-auto"
-          style={frostedGlassBodyStyle}
+          style={frostedBodyStyle}
         >
           <div className="flex-1 flex flex-col items-center">
             <h3 className="text-lg font-semibold mb-3 text-center">Welcome!</h3>
@@ -1652,7 +1656,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </div>
         </div>
       ) : (
-        <div className="flex-1 min-h-0 flex flex-col" style={frostedGlassBodyStyle}>
+        <div className="flex-1 min-h-0 flex flex-col" style={frostedBodyStyle}>
           <ScrollArea className="flex-1 min-h-0 p-4">
             <div className="space-y-4">
               {allMessages.map((msg, index) => (
