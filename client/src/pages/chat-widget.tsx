@@ -1682,9 +1682,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   className={`max-w-[80%] p-3 text-sm ${
                     msg.from === "user"
                       ? "rounded-2xl rounded-br-sm text-white"
-                      : "bg-muted rounded-2xl rounded-bl-sm"
+                      : `rounded-2xl rounded-bl-sm ${isExternalEmbed ? '' : 'bg-muted'}`
                   }`}
-                  style={msg.from === "user" ? { backgroundColor: primaryColor } : undefined}
+                  style={msg.from === "user" 
+                    ? { backgroundColor: primaryColor } 
+                    : isExternalEmbed 
+                      ? { backgroundColor: 'rgba(255, 255, 255, 0.15)', backdropFilter: 'blur(8px)' }
+                      : undefined}
                 >
                   {!((msg as any).messageType === "media" && (msg as any).payload?.url) && 
                    !((msg as any).messageType === "product_offer" && (msg as any).payload?.productCard) &&
@@ -1757,7 +1761,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                         
                         {/* 2-column grid with square images */}
                         <div className="grid grid-cols-2 gap-2">
-                          <div className="bg-background rounded-lg border shadow-sm overflow-hidden">
+                          <div 
+                            className={`rounded-lg border shadow-sm overflow-hidden ${isExternalEmbed ? '' : 'bg-background'}`}
+                            style={isExternalEmbed ? { backgroundColor: 'rgba(255, 255, 255, 0.2)', backdropFilter: 'blur(8px)' } : undefined}
+                          >
                             {productCard.imageUrl ? (
                               <div className="aspect-square bg-muted flex items-center justify-center">
                                 <img 
