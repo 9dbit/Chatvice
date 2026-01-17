@@ -1434,6 +1434,40 @@ async function handleLogin() {
                         </div>
                       </div>
 
+                      <div className="space-y-2">
+                        <Label className="text-sm">Or Choose Avatar</Label>
+                        <div className="grid grid-cols-4 gap-2">
+                          {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+                            <button
+                              key={num}
+                              type="button"
+                              onClick={() => setConfig({ ...config, agentPhotoUrl: `/avatars/avatar-${num}.jpg` })}
+                              className={`relative rounded-lg overflow-hidden border-2 transition-all hover:opacity-80 active:scale-95 ${
+                                config.agentPhotoUrl === `/avatars/avatar-${num}.jpg` 
+                                  ? 'border-primary ring-2 ring-primary/30' 
+                                  : 'border-muted hover:border-muted-foreground/50'
+                              }`}
+                              data-testid={`button-avatar-${num}`}
+                            >
+                              <img
+                                src={`/avatars/avatar-${num}.jpg`}
+                                alt={`Avatar ${num}`}
+                                className="w-full aspect-square object-cover"
+                                loading="lazy"
+                              />
+                              {config.agentPhotoUrl === `/avatars/avatar-${num}.jpg` && (
+                                <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                                  <Check className="w-5 h-5 text-primary" />
+                                </div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Click an avatar to select, or upload your own image above
+                        </p>
+                      </div>
+
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label>Widget Theme</Label>
