@@ -9433,9 +9433,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     // Re-check mobile at update time (in case orientation changed)
     var currentIsMobile = window.innerWidth <= 768;
     
-    // Support custom icon dimensions - single size for both desktop and mobile
-    buttonWidth = config.iconSize || 60;
-    buttonHeight = config.iconSize || 60;
+    // Support custom icon dimensions - use iconWidth/iconHeight if available, fallback to iconSize
+    var baseSize = config.iconSize || 70;
+    buttonWidth = config.iconWidth || baseSize;
+    buttonHeight = config.iconHeight || baseSize;
     
     // Safety cap for mobile - prevent icon from being too large
     if (currentIsMobile) {
