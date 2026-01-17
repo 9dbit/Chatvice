@@ -1261,6 +1261,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   // This ensures the widget respects the merchant's configured theme
   const widgetIsDark = merchantConfig?.widgetTheme === "dark" || document.documentElement.classList.contains('dark');
   
+  // Styles apply to external embed, embedded mode, AND preview mode (for sync)
+  const applyEmbedStyles = isExternalEmbed || embedded || previewMode;
+  
   // External embed uses borderless transparent design with frosted glass
   const containerClasses = isExternalEmbed
     ? "absolute inset-0 w-full h-full overflow-hidden flex flex-col"
@@ -1271,7 +1274,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         : `${positionClass} bottom-5 right-5 w-[360px] h-[520px] z-50 animate-in slide-in-from-bottom-5 fade-in duration-300 rounded-xl overflow-hidden flex flex-col`;
   
   // Frosted glass - apply to entire container for end-to-end effect (header to footer)
-  const frostedGlassContainerStyle: React.CSSProperties = (isExternalEmbed || embedded) 
+  // Preview mode also gets frosted glass to match external widget appearance
+  const frostedGlassContainerStyle: React.CSSProperties = applyEmbedStyles
     ? {
         backgroundColor: widgetIsDark ? 'rgba(10, 10, 10, 0.85)' : 'rgba(255, 255, 255, 0.6)',
         backdropFilter: 'blur(24px)',
@@ -1280,12 +1284,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     : {};
   
   // Header style - semi-transparent primary color over frosted glass
-  const frostedHeaderStyle: React.CSSProperties = (isExternalEmbed || embedded)
+  const frostedHeaderStyle: React.CSSProperties = applyEmbedStyles
     ? { backgroundColor: `${primaryColor}CC` } // 80% opacity of primary color
     : { backgroundColor: primaryColor };
   
   // Body sections use transparent background (frosted glass is on container)
-  const frostedBodyStyle: React.CSSProperties = (isExternalEmbed || embedded) 
+  const frostedBodyStyle: React.CSSProperties = applyEmbedStyles
     ? { backgroundColor: 'transparent' } 
     : {};
 
@@ -1682,11 +1686,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   className={`max-w-[80%] p-3 text-sm ${
                     msg.from === "user"
                       ? "rounded-2xl rounded-br-sm text-white"
-                      : `rounded-2xl rounded-bl-sm ${isExternalEmbed ? '' : 'bg-muted'}`
+                      : `rounded-2xl rounded-bl-sm ${applyEmbedStyles ? '' : 'bg-muted'}`
                   }`}
                   style={msg.from === "user" 
                     ? { backgroundColor: primaryColor } 
-                    : isExternalEmbed 
+                    : applyEmbedStyles 
                       ? { backgroundColor: 'rgba(255, 255, 255, 0.15)', backdropFilter: 'blur(8px)' }
                       : undefined}
                 >
@@ -1762,8 +1766,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                         {/* 2-column grid with square images */}
                         <div className="grid grid-cols-2 gap-2">
                           <div 
-                            className={`rounded-lg border shadow-sm overflow-hidden ${isExternalEmbed ? '' : 'bg-background'}`}
-                            style={isExternalEmbed ? { backgroundColor: 'rgba(255, 255, 255, 0.2)', backdropFilter: 'blur(8px)' } : undefined}
+                            className={`rounded-lg border shadow-sm overflow-hidden ${applyEmbedStyles ? '' : 'bg-background'}`}
+                            style={applyEmbedStyles ? { backgroundColor: 'rgba(255, 255, 255, 0.2)', backdropFilter: 'blur(8px)' } : undefined}
                           >
                             {productCard.imageUrl ? (
                               <div className="aspect-square bg-muted flex items-center justify-center">
@@ -1962,7 +1966,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         </div>
       )}
 
-      <div className={`p-4 border-t ${isExternalEmbed ? 'border-white/10 bg-transparent' : 'border-border'}`}>
+      <div className={`p-4 border-t ${applyEmbedStyles ? 'border-white/10 bg-transparent' : 'border-border'}`}>
         <input
           type="file"
           ref={fileInputRef}
