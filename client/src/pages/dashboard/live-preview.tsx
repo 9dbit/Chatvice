@@ -14,8 +14,7 @@ import type { Agent, WelcomeBubble, QuickReply, ProductCard, ChatButton, Suggest
 export default function LivePreviewPage() {
   const merchantId = localStorage.getItem("merchantId") || "";
   const [showWidget, setShowWidget] = useState(true);
-  const [widgetKey, setWidgetKey] = useState(0);
-  const scriptRef = useRef<HTMLScriptElement | null>(null);
+  const [iframeKey, setIframeKey] = useState(0);
 
   const { data: merchant } = useQuery<Merchant>({
     queryKey: ["/api/merchant", merchantId],
@@ -54,48 +53,14 @@ export default function LivePreviewPage() {
 
   const activeAgent = agents.find(a => a.isActive);
 
-  const cleanupWidget = () => {
-    const existingScript = document.getElementById("chatvice-widget-script");
-    const existingButton = document.getElementById("chatvice-button");
-    const existingIframe = document.getElementById("chatvice-iframe");
-    const existingWelcome = document.getElementById("chatvice-welcome-bubble");
-    const existingEye = document.getElementById("chatvice-eye-toggle");
-    const existingHidden = document.getElementById("chatvice-hidden-label");
-    
-    if (existingScript) existingScript.remove();
-    if (existingButton) existingButton.remove();
-    if (existingIframe) existingIframe.remove();
-    if (existingWelcome) existingWelcome.remove();
-    if (existingEye) existingEye.remove();
-    if (existingHidden) existingHidden.remove();
-  };
-
-  const loadExternalWidget = () => {
-    cleanupWidget();
-
-    if (showWidget && merchantId && activeAgent?.id) {
-      const script = document.createElement("script");
-      script.id = "chatvice-widget-script";
-      script.src = `${window.location.origin}/widget/${merchantId}/${activeAgent.id}?v=${Date.now()}`;
-      script.async = true;
-      document.body.appendChild(script);
-      scriptRef.current = script;
-    }
-  };
-
-  useEffect(() => {
-    if (agentsLoading) return;
-    
-    loadExternalWidget();
-
-    return () => {
-      cleanupWidget();
-    };
-  }, [showWidget, merchantId, activeAgent?.id, widgetKey, agentsLoading]);
-
   const handleRefresh = () => {
-    setWidgetKey(prev => prev + 1);
+    setIframeKey(prev => prev + 1);
   };
+
+  // Build the embed URL - same as what external websites use
+  const embedUrl = activeAgent?.id 
+    ? `${window.location.origin}/embed/${merchantId}/${activeAgent.id}?preview=true&v=${iframeKey}`
+    : null;
 
   if (agentsLoading) {
     return (
@@ -111,7 +76,7 @@ export default function LivePreviewPage() {
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-page-title">Live Preview</h1>
           <p className="text-muted-foreground text-sm sm:text-base">
-            Preview your chat widget - appears at bottom right of this page
+            Real-time preview of your widget with all current settings
           </p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
@@ -125,16 +90,18 @@ export default function LivePreviewPage() {
             <RefreshCw className="w-4 h-4 sm:mr-2" />
             <span className="hidden sm:inline">Refresh</span>
           </Button>
-          <a 
-            href={`/embed/${merchantId}/${activeAgent?.id || ''}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Button variant="outline" size="sm" data-testid="button-open-fullscreen">
-              <ExternalLink className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Fullscreen</span>
-            </Button>
-          </a>
+          {embedUrl && (
+            <a 
+              href={embedUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button variant="outline" size="sm" data-testid="button-open-fullscreen">
+                <ExternalLink className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Fullscreen</span>
+              </Button>
+            </a>
+          )}
         </div>
       </div>
 
@@ -154,7 +121,7 @@ export default function LivePreviewPage() {
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Toggle to show/hide the chat widget on this page
+              Toggle to show/hide the chat widget preview
             </p>
           </CardContent>
         </Card>
@@ -263,19 +230,67 @@ export default function LivePreviewPage() {
         </CardContent>
       </Card>
 
-      <Card className="border-dashed">
-        <CardContent className="py-8">
-          <div className="flex flex-col items-center justify-center text-center text-muted-foreground">
-            <Eye className="w-12 h-12 mb-4 opacity-30" />
-            <p className="text-lg font-medium">Widget Preview Active</p>
-            <p className="text-sm mt-1">
-              Look at the bottom-right corner of this page to see your chat widget
-            </p>
-            <Badge variant="outline" className="mt-3">
+      {/* Live Preview Card with iframe */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base">Live Preview</CardTitle>
+              <CardDescription>
+                This preview uses the exact same widget code as your external website
+              </CardDescription>
+            </div>
+            <Badge variant="outline" className="text-xs">
               <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse" />
               Live
             </Badge>
           </div>
+        </CardHeader>
+        <CardContent>
+          {showWidget && embedUrl ? (
+            <div className="relative bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg overflow-hidden" style={{ height: '600px' }}>
+              {/* Browser mock header */}
+              <div className="absolute top-0 left-0 right-0 h-10 bg-gray-800 flex items-center px-4 z-10">
+                <div className="flex gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-500/70" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/70" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-green-500/70" />
+                </div>
+                <span className="text-xs text-gray-400 ml-3">yourwebsite.com</span>
+              </div>
+              
+              {/* Iframe container */}
+              <iframe
+                key={iframeKey}
+                src={embedUrl}
+                className="w-full h-full border-0 pt-10"
+                style={{ 
+                  background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)'
+                }}
+                title="Widget Preview"
+                data-testid="iframe-widget-preview"
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+              <Eye className="w-12 h-12 mb-4 opacity-30" />
+              {!activeAgent ? (
+                <>
+                  <p className="text-lg font-medium">No Active Agent</p>
+                  <p className="text-sm mt-1">
+                    Please activate an agent to preview the widget
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-lg font-medium">Widget Preview Hidden</p>
+                  <p className="text-sm mt-1">
+                    Enable "Show Widget" to see the preview
+                  </p>
+                </>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

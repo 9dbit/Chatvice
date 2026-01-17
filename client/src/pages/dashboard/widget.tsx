@@ -1549,7 +1549,7 @@ async function handleLogin() {
                   <div>
                     <CardTitle className="text-lg">Live Preview</CardTitle>
                     <CardDescription>
-                      Real-time preview of your widget with all current settings
+                      Uses the exact same widget code as your external website
                     </CardDescription>
                   </div>
                   <Button
@@ -1564,23 +1564,36 @@ async function handleLogin() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="relative bg-muted/30 rounded-lg h-[550px] overflow-visible">
-                  <div className="absolute top-4 left-4 right-4 h-8 bg-muted rounded flex items-center px-3">
+                <div className="relative bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg overflow-hidden" style={{ height: '550px' }}>
+                  <div className="absolute top-0 left-0 right-0 h-10 bg-gray-800 flex items-center px-4 z-10">
                     <div className="flex gap-1.5">
-                      <div className="w-2.5 h-2.5 rounded-full bg-destructive/50" />
-                      <div className="w-2.5 h-2.5 rounded-full bg-status-away/50" />
-                      <div className="w-2.5 h-2.5 rounded-full bg-status-online/50" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-red-500/70" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/70" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-green-500/70" />
                     </div>
-                    <span className="text-xs text-muted-foreground ml-3">yourwebsite.com</span>
+                    <span className="text-xs text-gray-400 ml-3">yourwebsite.com</span>
                   </div>
-
-                  <ChatWidget
-                    key={previewKey}
-                    merchantId={merchantId}
-                    sessionId={previewSessionId}
-                    embedded={false}
-                    previewMode={true}
-                  />
+                  
+                  {activeAgent?.id ? (
+                    <iframe
+                      key={previewKey}
+                      src={`${window.location.origin}/embed/${merchantId}/${activeAgent.id}?preview=true&v=${previewKey}`}
+                      className="w-full h-full border-0 pt-10"
+                      style={{ 
+                        background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)'
+                      }}
+                      title="Widget Preview"
+                      data-testid="iframe-widget-preview"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-center text-gray-400 pt-10">
+                      <Bot className="w-12 h-12 mb-4 opacity-30" />
+                      <p className="text-lg font-medium">No Active Agent</p>
+                      <p className="text-sm mt-1">
+                        Please select an active agent to preview the widget
+                      </p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

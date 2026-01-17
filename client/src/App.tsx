@@ -71,6 +71,7 @@ function GlobalHelpBubble() {
     '/admin',
     '/widget',
     '/widget-demo',
+    '/embed',
     '/select-agent',
     '/verify-supervisor',
     '/verify-email',
@@ -128,6 +129,15 @@ function Router() {
               <ChatWidget merchantId={params.merchantId} embedded />
             </div>
           );
+        }}
+      </Route>
+
+      {/* Embed route for iframe preview - single source widget for all previews */}
+      <Route path="/embed/:merchantId/:agentId">
+        {(params) => {
+          // This route is used by: live preview page, widget tab appearance section
+          // It renders the exact same widget as the external embed
+          return <ChatWidget merchantId={params.merchantId} embedded previewMode />;
         }}
       </Route>
 
