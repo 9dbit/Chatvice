@@ -132,7 +132,6 @@ const menuItemsMap: Record<string, MenuItem> = {
   "triggers": { id: "triggers", title: "Triggers", url: "/dashboard/triggers", icon: Zap, permission: "settings" },
   "analytics": { id: "analytics", title: "Analytics", url: "/dashboard/analytics", icon: BarChart3, permission: "analytics" },
   "chat-logs": { id: "chat-logs", title: "Chat Logs", url: "/dashboard/chat-logs", icon: FileText, permission: "chatLogs" },
-  "notifications": { id: "notifications", title: "Notifications", url: "/dashboard/notification-settings", icon: Bell, permission: "notifications" },
   "live-preview": { id: "live-preview", title: "Live Preview", url: "/dashboard/live-preview", icon: Eye, permission: "livePreview" },
   "settings": { id: "settings", title: "Settings", url: "/dashboard/settings", icon: Settings, permission: "settings" },
   "widget": { id: "widget", title: "Widget", url: "/dashboard/widget", icon: Palette, permission: "widgetSettings" },

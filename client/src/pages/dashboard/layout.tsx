@@ -22,7 +22,6 @@ import IntegrationsPage from "./integrations";
 import ChatLogsPage from "./chat-logs";
 import WorkSchedulerPage from "./work-scheduler";
 import QuickRepliesPage from "./quick-replies";
-import NotificationSettingsPage from "./notification-settings";
 import WelcomeBubblePage from "./welcome-bubble";
 import ProductCardsPage from "./product-cards";
 import TeamActivityPage from "./team-activity";
@@ -53,7 +52,6 @@ const pageNames: Record<string, string> = {
   "settings": "Settings",
   "work-scheduler": "Work Scheduler",
   "quick-replies": "Quick Replies",
-  "notification-settings": "Notification Settings",
   "welcome-bubble": "Welcome Bubble",
   "product-cards": "Product Cards",
   "team-activity": "Team Activity",
@@ -146,7 +144,6 @@ export default function DashboardLayout() {
               <Route path="/dashboard/integrations" component={IntegrationsPage} />
               <Route path="/dashboard/work-scheduler" component={WorkSchedulerPage} />
               <Route path="/dashboard/quick-replies" component={QuickRepliesPage} />
-              <Route path="/dashboard/notification-settings" component={NotificationSettingsPage} />
               <Route path="/dashboard/welcome-bubble" component={WelcomeBubblePage} />
               <Route path="/dashboard/product-cards" component={ProductCardsPage} />
               <Route path="/dashboard/team-activity" component={TeamActivityPage} />

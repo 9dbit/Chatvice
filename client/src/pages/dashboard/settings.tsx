@@ -83,21 +83,16 @@ export default function SettingsPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   
   const defaultSounds = [
-    { id: "default", name: "Default Chime", frequency: 800, duration: 150 },
-    { id: "chime", name: "Soft Chime", frequency: 600, duration: 200 },
-    { id: "bell", name: "Bell", frequency: 1000, duration: 300 },
-    { id: "alert", name: "Alert", frequency: 440, duration: 100 },
-    { id: "ping", name: "Ping", frequency: 1200, duration: 80 },
-    { id: "ding", name: "Ding Dong", frequency: 880, duration: 250 },
-    { id: "notify", name: "Notify", frequency: 523, duration: 180 },
-    { id: "pop", name: "Pop", frequency: 1400, duration: 60 },
-    { id: "beep", name: "Beep", frequency: 900, duration: 120 },
-    { id: "ring", name: "Ring", frequency: 700, duration: 400 },
-    { id: "buzz", name: "Buzz", frequency: 350, duration: 200 },
-    { id: "chirp", name: "Chirp", frequency: 1600, duration: 100 },
-    { id: "tone", name: "Tone", frequency: 550, duration: 350 },
-    { id: "urgent", name: "Urgent", frequency: 1100, duration: 150 },
-    { id: "gentle", name: "Gentle", frequency: 480, duration: 300 },
+    { id: "incoming-msg", name: "Incoming Message", url: "/sounds/incoming-msg.mp3" },
+    { id: "notification-alert", name: "Notification Alert", url: "/sounds/notification-alert.mp3" },
+    { id: "live-chat", name: "Live Chat", url: "/sounds/live-chat.mp3" },
+    { id: "alert", name: "Alert", url: "/sounds/alert.mp3" },
+    { id: "new-notification", name: "New Notification", url: "/sounds/new-notification.mp3" },
+    { id: "text-message", name: "Text Message", url: "/sounds/text-message.mp3" },
+    { id: "gaming-lock", name: "Gaming Lock", url: "/sounds/gaming-lock.wav" },
+    { id: "quick-lock", name: "Quick Lock", url: "/sounds/quick-lock.wav" },
+    { id: "sci-fi-confirm", name: "Sci-Fi Confirm", url: "/sounds/sci-fi-confirm.wav" },
+    { id: "interface-start", name: "Interface Start", url: "/sounds/interface-start.wav" },
   ];
 
   const { data: merchant, isLoading } = useQuery<Merchant>({
@@ -127,35 +122,6 @@ export default function SettingsPage() {
   const customSounds = (notificationSettings?.customSounds as any[]) || [];
   const allSounds = [...defaultSounds.map(s => ({ id: s.id, name: s.name })), ...customSounds.map((s: any) => ({ id: s.url, name: s.name }))];
 
-  function playToneSound(frequency: number, duration: number): Promise<void> {
-    return new Promise((resolve, reject) => {
-      try {
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.value = frequency;
-        oscillator.type = 'sine';
-        
-        gainNode.gain.setValueAtTime(0.8, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + duration / 1000);
-        
-        oscillator.onended = () => {
-          audioContext.close();
-          resolve();
-        };
-      } catch (error) {
-        reject(error);
-      }
-    });
-  }
-
   async function playSound(soundId: string) {
     if (isPlayingSound) {
       if (audioRef.current) {
@@ -168,10 +134,12 @@ export default function SettingsPage() {
 
     setIsPlayingSound(soundId);
     
+    // Check custom sounds first
     const customSound = customSounds.find((s: any) => s.url === soundId);
     if (customSound) {
       try {
         const audio = new Audio(customSound.url);
+        audio.volume = 1.0;
         audioRef.current = audio;
         audio.onended = () => {
           setIsPlayingSound(null);
@@ -190,14 +158,26 @@ export default function SettingsPage() {
       return;
     }
 
+    // Check default sounds (audio files)
     const defaultSound = defaultSounds.find(s => s.id === soundId);
     if (defaultSound) {
       try {
-        await playToneSound(defaultSound.frequency, defaultSound.duration);
-        setIsPlayingSound(null);
+        const audio = new Audio(defaultSound.url);
+        audio.volume = 1.0;
+        audioRef.current = audio;
+        audio.onended = () => {
+          setIsPlayingSound(null);
+          audioRef.current = null;
+        };
+        audio.onerror = () => {
+          setIsPlayingSound(null);
+          audioRef.current = null;
+          toast({ title: "Could not play sound", variant: "destructive" });
+        };
+        await audio.play();
       } catch (error) {
         setIsPlayingSound(null);
-        toast({ title: "Could not play sound. Please interact with the page first.", variant: "destructive" });
+        toast({ title: "Could not play sound", variant: "destructive" });
       }
     } else {
       setIsPlayingSound(null);
@@ -921,10 +901,10 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Select Sound</Label>
+                    <Label>Sound Attached</Label>
                     <div className="flex gap-2">
                       <Select 
-                        value={notificationSettings?.incomingChatSound || "default"}
+                        value={notificationSettings?.incomingChatSound || "incoming-msg"}
                         onValueChange={(value) => handleNotificationUpdate("incomingChatSound", value)}
                       >
                         <SelectTrigger className="flex-1" data-testid="select-incoming-sound">
@@ -939,10 +919,10 @@ export default function SettingsPage() {
                       <Button 
                         size="icon" 
                         variant="outline"
-                        onClick={() => playSound(notificationSettings?.incomingChatSound || "default")}
+                        onClick={() => playSound(notificationSettings?.incomingChatSound || "incoming-msg")}
                         data-testid="button-play-incoming"
                       >
-                        {isPlayingSound === (notificationSettings?.incomingChatSound || "default") ? (
+                        {isPlayingSound === (notificationSettings?.incomingChatSound || "incoming-msg") ? (
                           <Square className="w-4 h-4" />
                         ) : (
                           <Play className="w-4 h-4" />
@@ -972,10 +952,10 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Select Sound</Label>
+                    <Label>Sound Attached</Label>
                     <div className="flex gap-2">
                       <Select 
-                        value={notificationSettings?.chatReplySound || "default"}
+                        value={notificationSettings?.chatReplySound || "live-chat"}
                         onValueChange={(value) => handleNotificationUpdate("chatReplySound", value)}
                       >
                         <SelectTrigger className="flex-1" data-testid="select-reply-sound">
@@ -990,10 +970,10 @@ export default function SettingsPage() {
                       <Button 
                         size="icon" 
                         variant="outline"
-                        onClick={() => playSound(notificationSettings?.chatReplySound || "default")}
+                        onClick={() => playSound(notificationSettings?.chatReplySound || "live-chat")}
                         data-testid="button-play-reply"
                       >
-                        {isPlayingSound === (notificationSettings?.chatReplySound || "default") ? (
+                        {isPlayingSound === (notificationSettings?.chatReplySound || "live-chat") ? (
                           <Square className="w-4 h-4" />
                         ) : (
                           <Play className="w-4 h-4" />
@@ -1023,10 +1003,10 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Select Sound</Label>
+                    <Label>Sound Attached</Label>
                     <div className="flex gap-2">
                       <Select 
-                        value={notificationSettings?.angryCustomerSound || "alert"}
+                        value={notificationSettings?.angryCustomerSound || "notification-alert"}
                         onValueChange={(value) => handleNotificationUpdate("angryCustomerSound", value)}
                       >
                         <SelectTrigger className="flex-1" data-testid="select-angry-sound">
@@ -1041,10 +1021,10 @@ export default function SettingsPage() {
                       <Button 
                         size="icon" 
                         variant="outline"
-                        onClick={() => playSound(notificationSettings?.angryCustomerSound || "alert")}
+                        onClick={() => playSound(notificationSettings?.angryCustomerSound || "notification-alert")}
                         data-testid="button-play-angry"
                       >
-                        {isPlayingSound === (notificationSettings?.angryCustomerSound || "alert") ? (
+                        {isPlayingSound === (notificationSettings?.angryCustomerSound || "notification-alert") ? (
                           <Square className="w-4 h-4" />
                         ) : (
                           <Play className="w-4 h-4" />
@@ -1061,7 +1041,7 @@ export default function SettingsPage() {
                     <Volume2 className="w-5 h-5" />
                     Sound Options
                   </CardTitle>
-                  <CardDescription>15 built-in alert sounds available</CardDescription>
+                  <CardDescription>10 built-in alert sounds available</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
