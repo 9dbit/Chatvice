@@ -36,6 +36,10 @@ app.use("/uploads", express.static(uploadsPath));
 // Serve avatar images from public/avatars
 const avatarsPath = path.resolve(process.cwd(), "public", "avatars");
 app.use("/avatars", express.static(avatarsPath, { maxAge: '1y' }));
+
+// Serve notification sounds from public/sounds
+const soundsPath = path.resolve(process.cwd(), "public", "sounds");
+app.use("/sounds", express.static(soundsPath, { maxAge: '1y' }));
 const httpServer = createServer(app);
 
 declare module "http" {
