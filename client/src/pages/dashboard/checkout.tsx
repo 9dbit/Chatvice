@@ -1912,7 +1912,7 @@ export default function CheckoutPage() {
 
                   {/* Total Amount */}
                   <div className="text-center py-3 bg-gradient-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20 rounded-xl border border-primary/20">
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Total Pembayaran</p>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Total Payment</p>
                     <div className="text-2xl md:text-3xl font-bold text-primary" data-testid="text-qris-amount">
                       Rp {(qrisData.amount || 0).toLocaleString('id-ID')}
                     </div>
@@ -1927,7 +1927,7 @@ export default function CheckoutPage() {
                     <span className="font-mono text-lg font-bold text-amber-700 dark:text-amber-300" data-testid="text-qris-countdown">
                       {formatTime(timeRemaining)}
                     </span>
-                    <span className="text-xs text-amber-600 dark:text-amber-400">tersisa</span>
+                    <span className="text-xs text-amber-600 dark:text-amber-400">remaining</span>
                   </div>
 
                   {/* Action Buttons */}
@@ -1939,7 +1939,7 @@ export default function CheckoutPage() {
                       data-testid="button-save-qris"
                     >
                       <Download className="w-4 h-4 mr-2" />
-                      Simpan
+                      Save
                     </Button>
                     {import.meta.env.DEV && (
                       <Button 
@@ -1964,7 +1964,7 @@ export default function CheckoutPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                  <span className="text-[10px] text-gray-500 dark:text-gray-400">Menunggu pembayaran...</span>
+                  <span className="text-[10px] text-gray-500 dark:text-gray-400">Waiting for payment...</span>
                 </div>
                 <button 
                   onClick={handleCancelPending}
@@ -1972,7 +1972,7 @@ export default function CheckoutPage() {
                   data-testid="button-cancel-payment"
                 >
                   <XCircle className="w-3 h-3" />
-                  Batalkan
+                  Cancel
                 </button>
               </div>
             </div>

@@ -271,7 +271,7 @@ export default function ProductCardsPage() {
       } else if (data.error === "spa_website") {
         toast({ 
           title: "Website SPA Detected", 
-          description: data.message || "Website menggunakan JavaScript. Silakan isi data secara manual.",
+          description: data.message || "Website uses JavaScript. Please fill in the data manually.",
           variant: "destructive" 
         });
       } else if (data.message) {

@@ -39,7 +39,7 @@ export default function UserDataPage() {
   const handleDownloadCSV = () => {
     if (!filteredData.length) return;
     
-    const headers = ["Nama", "Nomor Telepon", "Email", "Terakhir Aktif"];
+    const headers = ["Name", "Phone Number", "Email", "Last Active"];
     const csvContent = [
       headers.join(","),
       ...filteredData.map(user => [
@@ -70,7 +70,7 @@ export default function UserDataPage() {
             User Data
           </h1>
           <p className="text-sm text-muted-foreground">
-            Data kontak pelanggan yang dikumpulkan dari widget chat
+            Customer contact data collected from the chat widget
           </p>
         </div>
       </div>
@@ -79,15 +79,15 @@ export default function UserDataPage() {
         <CardHeader className="pb-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <CardTitle className="text-base">Daftar Pelanggan</CardTitle>
+              <CardTitle className="text-base">Customer List</CardTitle>
               <CardDescription>
-                {filteredData.length} pelanggan ditemukan
+                {filteredData.length} customers found
               </CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative">
                 <Input
-                  placeholder="Cari nama, telepon, email..."
+                  placeholder="Search name, phone, email..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-[250px] pl-8"
@@ -123,13 +123,13 @@ export default function UserDataPage() {
                     <TableHead className="w-[200px]">
                       <div className="flex items-center gap-1.5">
                         <User className="w-3.5 h-3.5" />
-                        Nama
+                        Name
                       </div>
                     </TableHead>
                     <TableHead>
                       <div className="flex items-center gap-1.5">
                         <Phone className="w-3.5 h-3.5" />
-                        Nomor Telepon
+                        Phone Number
                       </div>
                     </TableHead>
                     <TableHead>
@@ -141,7 +141,7 @@ export default function UserDataPage() {
                     <TableHead>
                       <div className="flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5" />
-                        Terakhir Aktif
+                        Last Active
                       </div>
                     </TableHead>
                   </TableRow>
@@ -183,11 +183,11 @@ export default function UserDataPage() {
           ) : (
             <div className="text-center py-12">
               <Users className="w-12 h-12 mx-auto text-muted-foreground/40 mb-3" />
-              <p className="text-muted-foreground font-medium">Belum ada data pelanggan</p>
+              <p className="text-muted-foreground font-medium">No customer data yet</p>
               <p className="text-sm text-muted-foreground mt-1">
                 {searchQuery
-                  ? "Tidak ditemukan hasil pencarian"
-                  : "Data pelanggan akan muncul setelah mereka menggunakan widget chat"}
+                  ? "No search results found"
+                  : "Customer data will appear after they use the chat widget"}
               </p>
             </div>
           )}

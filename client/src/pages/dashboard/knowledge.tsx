@@ -131,6 +131,18 @@ export default function KnowledgePage() {
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [templateApplyMode, setTemplateApplyMode] = useState<"replace" | "append">("replace");
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
+  
+  // AI Analysis state for knowledge content
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [estimatedTime, setEstimatedTime] = useState(0);
+  const [analysisResult, setAnalysisResult] = useState<{
+    hasIssues: boolean;
+    anomalies: string[];
+    simplifications: { original: string; simplified: string }[];
+    improvements: string[];
+  } | null>(null);
+  const [showAnalysisDialog, setShowAnalysisDialog] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState<KnowledgebaseArticle | null>(null);
   const [isViewOpen, setIsViewOpen] = useState(false);
@@ -511,6 +523,94 @@ export default function KnowledgePage() {
     },
   });
 
+  // Analyze knowledge content mutation
+  const analyzeMutation = useMutation({
+    mutationFn: async (contentText: string) => {
+      const res = await apiRequest("POST", "/api/knowledge/analyze", { content: contentText });
+      return res.json() as Promise<{
+        success: boolean;
+        hasIssues: boolean;
+        estimatedProcessingTime: number;
+        anomalies: string[];
+        simplifications: { original: string; simplified: string }[];
+        improvements: string[];
+      }>;
+    },
+    onSuccess: (data) => {
+      setIsAnalyzing(false);
+      setAnalysisProgress(100);
+      if (data.hasIssues) {
+        setAnalysisResult({
+          hasIssues: data.hasIssues,
+          anomalies: data.anomalies,
+          simplifications: data.simplifications,
+          improvements: data.improvements,
+        });
+        setShowAnalysisDialog(true);
+      } else {
+        // No issues found, proceed to save
+        saveMutation.mutate(content);
+      }
+    },
+    onError: () => {
+      setIsAnalyzing(false);
+      setAnalysisProgress(0);
+      // On error, still save the content
+      saveMutation.mutate(content);
+    },
+  });
+
+  // Handle save with analysis
+  const handleSaveWithAnalysis = () => {
+    if (!content.trim()) {
+      toast({
+        title: "Empty content",
+        description: "Please add some knowledge content before saving.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Calculate estimated time
+    const wordCount = content.split(/\s+/).length;
+    const estSeconds = Math.max(3, Math.min(30, Math.ceil(wordCount / 100)));
+    setEstimatedTime(estSeconds);
+    
+    // Start analysis with progress animation
+    setIsAnalyzing(true);
+    setAnalysisProgress(0);
+    setAnalysisResult(null);
+    
+    // Animate progress bar
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += Math.random() * 15;
+      if (progress >= 90) {
+        progress = 90;
+        clearInterval(interval);
+      }
+      setAnalysisProgress(Math.min(progress, 90));
+    }, 500);
+    
+    analyzeMutation.mutate(content);
+  };
+
+  // Apply simplification suggestion
+  const applySimplification = (original: string, simplified: string) => {
+    const newContent = content.replace(original, simplified);
+    setContent(newContent);
+    toast({
+      title: "Simplification applied",
+      description: "The text has been simplified.",
+    });
+  };
+
+  // Proceed to save after analysis (skip suggestions)
+  const proceedToSave = () => {
+    setShowAnalysisDialog(false);
+    saveMutation.mutate(content);
+  };
+
   const crawlMutation = useMutation<{ content: string; linkId: string }, Error, string>({
     mutationFn: async (url: string) => {
       const res = await apiRequest("POST", "/api/knowledge/crawl", { url });
@@ -712,7 +812,7 @@ export default function KnowledgePage() {
   };
 
   const handleSave = () => {
-    saveMutation.mutate(content);
+    handleSaveWithAnalysis();
   };
 
   const onSourceSubmit = async (data: z.infer<typeof sourceSchema>) => {
@@ -905,18 +1005,41 @@ export default function KnowledgePage() {
                 )}
                 <Button
                   onClick={handleSave}
-                  disabled={saveMutation.isPending}
+                  disabled={saveMutation.isPending || isAnalyzing}
                   data-testid="button-save-knowledge"
                 >
-                  {saveMutation.isPending ? (
+                  {saveMutation.isPending || isAnalyzing ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   ) : (
                     <Save className="w-4 h-4 mr-2" />
                   )}
-                  Save
+                  {isAnalyzing ? "Thinking..." : "Save"}
                 </Button>
               </div>
             </div>
+            
+            {/* AI Analysis Progress Bar */}
+            {isAnalyzing && (
+              <div className="mt-4 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                    <span className="font-medium">Thinking...</span>
+                  </div>
+                  <span className="text-muted-foreground">Est. {estimatedTime}s</span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div 
+                    className="bg-primary h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${analysisProgress}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  AI is analyzing your knowledge base for anomalies and suggestions...
+                </p>
+              </div>
+            )}
+            
             <CardDescription>
               Add information that Chatvice will use to answer customer questions.
             </CardDescription>
@@ -1350,25 +1473,122 @@ Example:
         </DialogContent>
       </Dialog>
 
+      {/* AI Analysis Results Dialog */}
+      <Dialog open={showAnalysisDialog} onOpenChange={setShowAnalysisDialog}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-yellow-500" />
+              Knowledge Analysis Results
+            </DialogTitle>
+            <DialogDescription>
+              AI has analyzed your knowledge base and found some suggestions
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* Anomalies/Conflicts */}
+            {analysisResult?.anomalies && analysisResult.anomalies.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="font-medium text-destructive flex items-center gap-2">
+                  <X className="w-4 h-4" />
+                  Anomalies / Conflicts Found
+                </h4>
+                <div className="space-y-2">
+                  {analysisResult.anomalies.map((anomaly, idx) => (
+                    <div key={idx} className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-sm">
+                      {anomaly}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Simplification Suggestions */}
+            {analysisResult?.simplifications && analysisResult.simplifications.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="font-medium text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                  <Type className="w-4 h-4" />
+                  Simplification Suggestions
+                </h4>
+                <div className="space-y-3">
+                  {analysisResult.simplifications.map((simp, idx) => (
+                    <div key={idx} className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-md space-y-2">
+                      <div className="text-xs text-muted-foreground">Original:</div>
+                      <div className="text-sm bg-muted p-2 rounded">{simp.original}</div>
+                      <div className="text-xs text-muted-foreground">Simplified:</div>
+                      <div className="text-sm bg-primary/10 p-2 rounded">{simp.simplified}</div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => applySimplification(simp.original, simp.simplified)}
+                        className="mt-2"
+                      >
+                        <Check className="w-3 h-3 mr-1" />
+                        Apply This Change
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* General Improvements */}
+            {analysisResult?.improvements && analysisResult.improvements.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="font-medium text-green-600 dark:text-green-400 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Improvement Suggestions
+                </h4>
+                <div className="space-y-2">
+                  {analysisResult.improvements.map((improvement, idx) => (
+                    <div key={idx} className="p-3 bg-green-500/10 border border-green-500/20 rounded-md text-sm">
+                      {improvement}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* No issues message */}
+            {(!analysisResult?.anomalies?.length && !analysisResult?.simplifications?.length && !analysisResult?.improvements?.length) && (
+              <div className="text-center py-8 text-muted-foreground">
+                <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-green-500" />
+                <p className="font-medium">No issues found!</p>
+                <p className="text-sm">Your knowledge base content looks good.</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowAnalysisDialog(false)}>
+              Edit Content
+            </Button>
+            <Button onClick={proceedToSave}>
+              <Save className="w-4 h-4 mr-2" />
+              Save Anyway
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Knowledge Template Selection Dialog */}
       <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="w-5 h-5" />
-              Pilih Knowledge Template
+              Select Knowledge Template
             </DialogTitle>
             <DialogDescription>
-              Pilih template yang sesuai dengan gaya komunikasi bisnis Anda
+              Choose a template that matches your business communication style
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             {/* Category filter */}
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Kategori:</span>
+              <span className="text-sm text-muted-foreground">Category:</span>
               <div className="flex gap-1 flex-wrap">
                 {[
-                  { value: "all", label: "Semua" },
+                  { value: "all", label: "All" },
                   { value: "casual", label: "Casual" },
                   { value: "formal", label: "Formal" },
                   { value: "corporate", label: "Corporate" },
@@ -1394,8 +1614,8 @@ Example:
             ) : knowledgeTemplates.filter((t: any) => templateCategory === "all" || t.category === templateCategory).length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>Belum ada template tersedia</p>
-                <p className="text-sm">Hubungi admin untuk menambahkan template</p>
+                <p>No templates available</p>
+                <p className="text-sm">Contact admin to add templates</p>
               </div>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
@@ -1428,7 +1648,7 @@ Example:
                       </CardHeader>
                       <CardContent className="pb-3">
                         <p className="text-xs text-muted-foreground line-clamp-2">
-                          {template.description || "Tidak ada deskripsi"}
+                          {template.description || "No description"}
                         </p>
                         <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
                           <span>{template.language === "id" ? "Indonesia" : "English"}</span>
@@ -1444,7 +1664,7 @@ Example:
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsTemplateDialogOpen(false)}>
-              Batal
+              Cancel
             </Button>
             <Button
               onClick={() => {
@@ -1456,7 +1676,7 @@ Example:
               data-testid="button-select-template"
             >
               <Check className="w-4 h-4 mr-2" />
-              Pilih Template
+              Select Template
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1466,21 +1686,21 @@ Example:
       <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Konfirmasi Penggunaan Template</DialogTitle>
+            <DialogTitle>Confirm Template Application</DialogTitle>
             <DialogDescription>
-              Template &quot;{selectedTemplate?.name}&quot; akan diterapkan ke knowledge base
+              Template &quot;{selectedTemplate?.name}&quot; will be applied to the knowledge base
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="p-3 bg-muted rounded-lg">
-              <p className="text-sm font-medium mb-2">Preview Konten:</p>
+              <p className="text-sm font-medium mb-2">Content Preview:</p>
               <ScrollArea className="h-32">
                 <pre className="text-xs whitespace-pre-wrap">{selectedTemplate?.content?.slice(0, 500)}...</pre>
               </ScrollArea>
             </div>
             
             <div className="space-y-3">
-              <Label>Mode Penerapan:</Label>
+              <Label>Application Mode:</Label>
               <div className="space-y-2">
                 <button
                   className={`w-full p-3 rounded-lg border text-left transition-colors ${
@@ -1489,9 +1709,9 @@ Example:
                   onClick={() => setTemplateApplyMode("replace")}
                   data-testid="button-mode-replace"
                 >
-                  <div className="font-medium text-sm">Ganti Semua</div>
+                  <div className="font-medium text-sm">Replace All</div>
                   <p className="text-xs text-muted-foreground">
-                    Hapus konten yang ada dan ganti dengan template ini
+                    Remove existing content and replace with this template
                   </p>
                 </button>
                 <button
@@ -1501,9 +1721,9 @@ Example:
                   onClick={() => setTemplateApplyMode("append")}
                   data-testid="button-mode-append"
                 >
-                  <div className="font-medium text-sm">Tambahkan</div>
+                  <div className="font-medium text-sm">Append</div>
                   <p className="text-xs text-muted-foreground">
-                    Tambahkan template ini ke konten yang sudah ada
+                    Add this template to your existing content
                   </p>
                 </button>
               </div>
@@ -1511,7 +1731,7 @@ Example:
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsConfirmDialogOpen(false)}>
-              Batal
+              Cancel
             </Button>
             <Button
               onClick={() => {
@@ -1531,7 +1751,7 @@ Example:
               ) : (
                 <Check className="w-4 h-4 mr-2" />
               )}
-              Terapkan Template
+              Apply Template
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -176,7 +176,7 @@ export default function ChatButtonsPage() {
                   id="label"
                   value={form.label}
                   onChange={(e) => setForm({ ...form, label: e.target.value })}
-                  placeholder="Lihat Produk"
+                  placeholder="View Product"
                   data-testid="input-button-label"
                 />
               </div>

@@ -3939,6 +3939,96 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // Knowledge Analysis API - Analyze knowledge content for anomalies and suggestions
+  app.post("/api/knowledge/analyze", requireMerchant, async (req, res) => {
+    try {
+      const { content } = req.body;
+      
+      if (!content || typeof content !== "string" || content.trim().length < 10) {
+        return res.json({ 
+          success: true, 
+          hasIssues: false,
+          estimatedProcessingTime: 0,
+          suggestions: []
+        });
+      }
+      
+      // Estimate processing time based on content length (rough estimate)
+      const wordCount = content.split(/\s+/).length;
+      const estimatedSeconds = Math.max(3, Math.min(30, Math.ceil(wordCount / 100)));
+      
+      try {
+        const analysisPrompt = `Analyze the following knowledge base content for a customer service AI chatbot. Identify any issues and provide suggestions.
+
+CONTENT TO ANALYZE:
+"""
+${content.slice(0, 8000)}
+"""
+
+Please analyze and respond in JSON format with:
+1. "hasIssues": boolean - whether there are any issues found
+2. "anomalies": array of strings - contradictory, conflicting, or illogical statements
+3. "simplifications": array of objects with "original" and "simplified" - verbose text that can be simplified without losing meaning
+4. "improvements": array of strings - general suggestions to improve the knowledge base
+
+Keep your analysis concise and actionable. Focus on issues that would affect AI responses.
+Respond ONLY with valid JSON, no markdown or other formatting.`;
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-4.1-mini",
+          messages: [{ role: "user", content: analysisPrompt }],
+          max_tokens: 1500,
+          temperature: 0.3,
+        });
+
+        const aiResponse = response.choices[0]?.message?.content || "";
+        
+        // Parse JSON response
+        let analysis = {
+          hasIssues: false,
+          anomalies: [] as string[],
+          simplifications: [] as { original: string; simplified: string }[],
+          improvements: [] as string[],
+        };
+        
+        try {
+          // Try to extract JSON from the response
+          const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            analysis = {
+              hasIssues: parsed.hasIssues || (parsed.anomalies?.length > 0 || parsed.simplifications?.length > 0 || parsed.improvements?.length > 0),
+              anomalies: parsed.anomalies || [],
+              simplifications: parsed.simplifications || [],
+              improvements: parsed.improvements || [],
+            };
+          }
+        } catch (parseErr) {
+          console.error("Error parsing AI analysis response:", parseErr);
+        }
+        
+        res.json({
+          success: true,
+          estimatedProcessingTime: estimatedSeconds,
+          ...analysis,
+        });
+      } catch (aiError) {
+        console.error("AI analysis error:", aiError);
+        res.json({
+          success: true,
+          hasIssues: false,
+          estimatedProcessingTime: estimatedSeconds,
+          anomalies: [],
+          simplifications: [],
+          improvements: [],
+        });
+      }
+    } catch (error) {
+      console.error("Knowledge analysis error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.post("/api/knowledge/crawl", requireMerchant, async (req, res) => {
     try {
       const { url } = req.body;
@@ -12052,6 +12142,12 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       const assignedAgentId = await getNextAgentId(merchantId, sanitizedName, deviceFingerprint);
       
       if (!session) {
+        // Check subscription limits before creating session
+        const limitCheck = await checkSubscriptionLimits(merchantId, 'conversation');
+        if (!limitCheck.allowed) {
+          return res.json({ success: false, error: limitCheck.message });
+        }
+        
         session = await storage.createSession({
           id: sessionId,
           merchantId,
@@ -12063,6 +12159,10 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
           deviceFingerprint: deviceFingerprint || null,
           clientIp: clientIp || null,
         });
+        
+        // Increment conversation usage for new sessions
+        const credits = storage.calculateCreditsFromCustomerId(sessionId);
+        await storage.incrementConversationUsage(merchantId, credits);
       } else {
         // Security check: Verify session belongs to this merchant
         if (session.merchantId !== merchantId) {

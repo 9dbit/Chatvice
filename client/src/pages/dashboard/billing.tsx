@@ -1659,7 +1659,7 @@ export default function BillingPage() {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4 text-muted-foreground" />
-                      <CardTitle className="text-sm">Riwayat Pembayaran</CardTitle>
+                      <CardTitle className="text-sm">Payment History</CardTitle>
                       <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{billingHistory.length}</Badge>
                     </div>
                     {showBillingHistory ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -1691,7 +1691,7 @@ export default function BillingPage() {
                               <p className="text-xs font-medium truncate">
                                 {tx.planName || 'Unknown Plan'}
                                 {tx.subscriptionMonths && tx.subscriptionMonths > 1 && (
-                                  <span className="text-muted-foreground"> ({tx.subscriptionMonths} bulan)</span>
+                                  <span className="text-muted-foreground"> ({tx.subscriptionMonths} months)</span>
                                 )}
                               </p>
                               <p className="text-[10px] text-muted-foreground">
@@ -1707,10 +1707,10 @@ export default function BillingPage() {
                               variant={tx.status === 'paid' ? 'default' : tx.status === 'pending' ? 'secondary' : 'destructive'} 
                               className="text-[9px] h-4 px-1.5"
                             >
-                              {tx.status === 'paid' ? 'Lunas' : 
+                              {tx.status === 'paid' ? 'Paid' : 
                                tx.status === 'pending' ? 'Pending' : 
                                tx.status === 'expired' ? 'Expired' :
-                               tx.status === 'cancelled' ? 'Dibatalkan' : 'Gagal'}
+                               tx.status === 'cancelled' ? 'Cancelled' : 'Failed'}
                             </Badge>
                           </div>
                         </div>
@@ -2044,9 +2044,9 @@ export default function BillingPage() {
                     <FileText className="w-6 h-6 text-primary" />
                   </div>
                   <DialogHeader className="space-y-1">
-                    <DialogTitle className="text-xl">Konfirmasi Checkout</DialogTitle>
+                    <DialogTitle className="text-xl">Checkout Confirmation</DialogTitle>
                     <DialogDescription className="text-sm">
-                      Review pesanan Anda sebelum melanjutkan pembayaran
+                      Review your order before proceeding to payment
                     </DialogDescription>
                   </DialogHeader>
                 </div>
@@ -2081,33 +2081,33 @@ export default function BillingPage() {
                         {/* Billing Period Badge */}
                         <div className="flex items-center justify-between mb-3">
                           <Badge className="bg-primary/20 text-primary border-0 hover:bg-primary/20">
-                            {isAnnual ? 'Tahunan' : 'Bulanan'}
+                            {isAnnual ? 'Annual' : 'Monthly'}
                           </Badge>
                           <span className="text-xs text-muted-foreground">
-                            Kurs: Rp {exchangeRate.toLocaleString('id-ID')}/USD
+                            Rate: Rp {exchangeRate.toLocaleString('id-ID')}/USD
                           </span>
                         </div>
                         
                         {/* Price Breakdown */}
                         <div className="space-y-2 pt-2 border-t border-primary/10">
                           <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Harga {isAnnual ? 'Tahunan' : 'Bulanan'}</span>
+                            <span className="text-muted-foreground">{isAnnual ? 'Annual' : 'Monthly'} Price</span>
                             <span>Rp {priceIDR.toLocaleString('id-ID')}</span>
                           </div>
                           {discountPercent > 0 && (
                             <div className="flex justify-between text-sm text-green-600">
-                              <span>Diskon ({discountPercent}%)</span>
+                              <span>Discount ({discountPercent}%)</span>
                               <span>- Rp {discountAmount.toLocaleString('id-ID')}</span>
                             </div>
                           )}
                           {prorationInfo?.prorationApplied && prorationInfo?.creditAmount && (
                             <div className="flex justify-between text-sm text-blue-600">
-                              <span>Kredit dari plan sebelumnya</span>
+                              <span>Credit from previous plan</span>
                               <span>- Rp {Math.round(prorationInfo.creditAmount * exchangeRate).toLocaleString('id-ID')}</span>
                             </div>
                           )}
                           <div className="flex justify-between pt-2 border-t border-primary/10">
-                            <span className="font-semibold">Total Pembayaran</span>
+                            <span className="font-semibold">Total Payment</span>
                             <span className="text-2xl font-bold text-primary">
                               Rp {finalPaymentIDR.toLocaleString('id-ID')}
                             </span>
@@ -2122,12 +2122,12 @@ export default function BillingPage() {
                 <div className="p-4 rounded-lg border bg-muted/30">
                   <h4 className="font-medium mb-3 flex items-center gap-2">
                     <Zap className="w-4 h-4 text-primary" />
-                    Fitur yang Didapat
+                    Features Included
                   </h4>
                   <ul className="space-y-2 text-sm">
                     <li className="flex items-center gap-2">
                       <Check className="w-4 h-4 text-green-500" />
-                      <span>{selectedPlan.conversationsLimit?.toLocaleString() || 'Unlimited'} percakapan/bulan</span>
+                      <span>{selectedPlan.conversationsLimit?.toLocaleString() || 'Unlimited'} conversations/month</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="w-4 h-4 text-green-500" />
@@ -2150,14 +2150,14 @@ export default function BillingPage() {
                 <div className="p-4 rounded-lg border bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
                   <h4 className="font-medium mb-2 flex items-center gap-2 text-amber-800 dark:text-amber-300">
                     <ShieldCheck className="w-4 h-4" />
-                    Syarat & Ketentuan
+                    Terms & Conditions
                   </h4>
                   <ul className="text-xs text-amber-700 dark:text-amber-400 space-y-1.5">
-                    <li>• Pembayaran bersifat non-refundable setelah aktivasi</li>
-                    <li>• Langganan akan otomatis diperpanjang setiap periode</li>
-                    <li>• Anda dapat membatalkan langganan kapan saja</li>
-                    <li>• Upgrade berlaku segera setelah pembayaran berhasil</li>
-                    <li>• Harga dapat berubah dengan pemberitahuan 30 hari</li>
+                    <li>• Payment is non-refundable after activation</li>
+                    <li>• Subscription will automatically renew each period</li>
+                    <li>• You can cancel your subscription at any time</li>
+                    <li>• Upgrade takes effect immediately after successful payment</li>
+                    <li>• Prices may change with 30 days notice</li>
                   </ul>
                 </div>
 
@@ -2170,7 +2170,7 @@ export default function BillingPage() {
                     data-testid="checkbox-terms"
                   />
                   <label htmlFor="terms" className="text-sm cursor-pointer">
-                    Saya menyetujui <span className="text-primary font-medium">Syarat & Ketentuan</span> serta memahami bahwa pembayaran akan diproses setelah konfirmasi
+                    I agree to the <span className="text-primary font-medium">Terms & Conditions</span> and understand that payment will be processed after confirmation
                   </label>
                 </div>
               </div>
@@ -2184,7 +2184,7 @@ export default function BillingPage() {
                   onClick={handleClosePayment}
                   data-testid="button-cancel-checkout"
                 >
-                  Batal
+                  Cancel
                 </Button>
                 <Button 
                   className="flex-1"
@@ -2285,7 +2285,7 @@ export default function BillingPage() {
                     data-testid="button-save-qris"
                   >
                     <Download className="w-4 h-4 mr-2" />
-                    Simpan
+                    Save
                   </Button>
                   <Button 
                     className="flex-1"
@@ -2304,7 +2304,7 @@ export default function BillingPage() {
                     <div className="w-2 h-2 bg-blue-500 rounded-full relative" />
                   </div>
                   <span className="text-sm text-blue-700 dark:text-blue-300">
-                    Menunggu pembayaran...
+                    Waiting for payment...
                   </span>
                 </div>
 
