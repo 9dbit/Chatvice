@@ -1025,7 +1025,7 @@ export default function SessionsPage() {
                                     <div className="mt-2 bg-background rounded-xl border shadow-sm overflow-hidden max-w-[200px]">
                                       {(msg as any).payload.productCard.imageUrl ? (
                                         <button 
-                                          className="bg-blue-50 dark:bg-blue-950/30 p-4 w-full cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                                          className="w-full cursor-pointer hover:opacity-90 transition-opacity"
                                           onClick={() => setPreviewContent({
                                             type: "photo",
                                             url: (msg as any).payload.productCard.imageUrl,
@@ -1033,11 +1033,13 @@ export default function SessionsPage() {
                                           })}
                                           data-testid={`button-preview-product-image-${msg.id}`}
                                         >
-                                          <img 
-                                            src={(msg as any).payload.productCard.imageUrl} 
-                                            alt={(msg as any).payload.productCard.title}
-                                            className="w-full h-auto object-contain max-h-28"
-                                          />
+                                          <div className="aspect-square w-full overflow-hidden">
+                                            <img 
+                                              src={(msg as any).payload.productCard.imageUrl} 
+                                              alt={(msg as any).payload.productCard.title}
+                                              className="w-full h-full object-cover"
+                                            />
+                                          </div>
                                         </button>
                                       ) : (
                                         <div className="bg-blue-50 dark:bg-blue-950/30 h-28 flex items-center justify-center">
