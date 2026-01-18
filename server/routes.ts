@@ -12075,15 +12075,29 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       let supervisorInfo: { id: string; name: string; photoUrl: string } | null = null;
       let agentInfo: { id: string; name: string; photoUrl: string } | null = null;
       
-      // If session is in HUMAN mode, get supervisor info
+      // If session is in HUMAN mode, get supervisor/merchant info
+      // supervisorId can be either a supervisor ID (sup_*) or merchant ID (m_*)
       if (session.mode === "HUMAN" && session.supervisorId) {
-        const supervisor = await storage.getSupervisor(session.supervisorId);
-        if (supervisor) {
-          supervisorInfo = {
-            id: supervisor.id,
-            name: supervisor.name,
-            photoUrl: supervisor.photoUrl || "",
-          };
+        if (session.supervisorId.startsWith("sup_")) {
+          // It's a supervisor
+          const supervisor = await storage.getSupervisor(session.supervisorId);
+          if (supervisor) {
+            supervisorInfo = {
+              id: supervisor.id,
+              name: supervisor.name,
+              photoUrl: supervisor.photoUrl || "",
+            };
+          }
+        } else if (session.supervisorId.startsWith("m_")) {
+          // It's a merchant acting as supervisor
+          const merchant = await storage.getMerchant(session.supervisorId);
+          if (merchant) {
+            supervisorInfo = {
+              id: merchant.id,
+              name: merchant.businessName || merchant.username || "Merchant",
+              photoUrl: merchant.logoUrl || "",
+            };
+          }
         }
       }
       
