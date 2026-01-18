@@ -1399,22 +1399,20 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     ? { backgroundColor: `${primaryColor}CC` } // 80% opacity of primary color
     : { backgroundColor: primaryColor };
   
-  // Body sections use frosted glass XL
-  // Light mode: white 90% opacity for more solid coverage
-  // Dark mode: dark with 60% transparency
+  // Body and footer use same styling as welcome bubble (bg-card)
+  // Uses CSS variable --card which auto-adapts to light/dark theme
   const frostedBodyStyle: React.CSSProperties = applyEmbedStyles
     ? { 
-        backgroundColor: widgetIsDark ? 'rgba(10, 10, 10, 0.60)' : 'rgba(255, 255, 255, 0.90)',
+        backgroundColor: 'hsl(var(--card))',
         backdropFilter: 'blur(40px)',
         WebkitBackdropFilter: 'blur(40px)',
       } 
     : {};
 
-  // Footer style - matches body style for consistency
-  // Light mode: white 90% opacity, Dark mode: 60% transparency
+  // Footer style - matches body style (same as welcome bubble)
   const frostedFooterStyle: React.CSSProperties = applyEmbedStyles
     ? { 
-        backgroundColor: widgetIsDark ? 'rgba(10, 10, 10, 0.60)' : 'rgba(255, 255, 255, 0.90)',
+        backgroundColor: 'hsl(var(--card))',
         backdropFilter: 'blur(40px)',
         WebkitBackdropFilter: 'blur(40px)',
       } 
