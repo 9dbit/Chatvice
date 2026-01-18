@@ -43,6 +43,9 @@ Chatvice is a monorepo application structured with `/client`, `/server`, and `/s
 - **Automatic Knowledge Base Sync**: Crawled website sources auto-sync every 60 minutes with background job. Features green blinking dot for active sources, spinning icon during sync, last sync timestamp, and manual "Update" button for on-demand refresh.
 - **Product Catalog Crawler**: AI-powered product scanning system for intelligent product recommendations. Workflow includes adding URL, AI scanning, human review, and syncing to AI knowledge base.
 - **Custom Plan Request System**: Interactive budget simulator for merchants to configure and request custom plans, with real-time price calculation and admin review dashboard.
+- **Closing Statement Feature**: Automatic or manual closing statements when chat becomes inactive. Supports two modes: manual (custom message) and automatic (AI-generated contextual closing matching agent's tone style). Configurable to include business name and customer name. Triggers after 2 minutes of inactivity.
+- **Automatic Chat Cleanup**: Background job running every 60 minutes that archives expired sessions and generates chat logs with full transcripts. Retention periods vary by plan: Free (24 hours), Starter (7 days), Pro (30 days), Enterprise (90 days).
+- **Welcome Description in Chat**: Welcome description message appears as the first message in chat history after customer starts the conversation, providing context before the AI greeting.
 
 **Data Model Highlights**: Core entities include Merchants, Supervisors, Sessions, Messages, Triggers, Knowledge Base content, Subscription Plans, and Agents.
 **Chat Widget Message Reconciliation**: Optimistic UI updates using `clientId` with server-side reconciliation.
