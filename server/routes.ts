@@ -11843,6 +11843,136 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
     }
   });
 
+  // Public endpoint for widget to get closing statement (for inactivity timeout)
+  app.post("/api/widget/closing-statement", async (req, res) => {
+    try {
+      const { sessionId, merchantId, agentId } = req.body;
+
+      if (!sessionId || !merchantId) {
+        return res.json({ success: false, error: "Missing required fields" });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session) {
+        return res.json({ success: false, error: "Session not found" });
+      }
+
+      // Security: Verify the session belongs to the merchant
+      if (session.merchantId !== merchantId) {
+        return res.json({ success: false, error: "Unauthorized" });
+      }
+
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.json({ success: false, error: "Merchant not found" });
+      }
+
+      // Get the agent settings
+      const activeAgentId = agentId || session.agentId || merchant.activeAgentId;
+      let agent = null;
+      if (activeAgentId) {
+        agent = await storage.getAgent(activeAgentId);
+      }
+
+      // If goodbye message is not enabled, return empty
+      if (!agent?.goodbyeMessageEnabled) {
+        return res.json({ success: true, closingStatement: null, enabled: false });
+      }
+
+      let closingStatement: string;
+
+      // Check the closing statement mode
+      if (agent.closingStatementMode === "automatic") {
+        // Get recent messages for context
+        const recentMessages = await storage.getMessages(sessionId);
+        const lastFiveMessages = recentMessages.slice(-5);
+        const conversationContext = lastFiveMessages
+          .map(m => `${m.from === "customer" || m.from === "user" ? "Customer" : "Agent"}: ${m.content}`)
+          .join("\n");
+
+        const customerName = session.customerName || "Pelanggan";
+        const businessName = merchant.companyName || "Kami";
+        const toneStyle = agent.toneStyle || "formal";
+
+        // Build the tone instruction
+        const toneInstructions: Record<string, string> = {
+          formal: "Use formal, professional language. Be polite and respectful.",
+          casual: "Use casual, friendly language. Be warm and approachable.",
+          poetic: "Use beautiful, expressive language with metaphors."
+        };
+        const toneInstruction = toneInstructions[toneStyle] || toneInstructions.formal;
+
+        // Build the closing prompt
+        let closingPrompt = `You are ${agent.name}, a customer service AI assistant. ${toneInstruction}
+
+Generate a brief closing statement for a customer service conversation that has become inactive.
+
+`;
+
+        if (agent.closingStatementAutoIncludeBusinessName) {
+          closingPrompt += `Include thanks from "${businessName}" in a natural way.\n`;
+        }
+        if (agent.closingStatementAutoIncludeCustomerName && customerName !== "Pelanggan") {
+          closingPrompt += `Address the customer by their name "${customerName}" politely.\n`;
+        }
+
+        closingPrompt += `
+Recent conversation context:
+${conversationContext}
+
+Requirements:
+1. Keep it brief (1-2 sentences)
+2. Match the tone style: ${toneStyle}
+3. Make it feel natural and not robotic
+4. Use Indonesian language
+5. Don't use brackets or special formatting
+
+Generate only the closing statement, nothing else.`;
+
+        try {
+          const response = await openai.chat.completions.create({
+            model: "gpt-4.1-mini",
+            messages: [{ role: "user", content: closingPrompt }],
+            max_tokens: 100,
+            temperature: 0.7,
+          });
+
+          closingStatement = response.choices[0]?.message?.content || 
+            agent.goodbyeMessageText || 
+            "Terima kasih sudah menghubungi kami!";
+        } catch (aiError) {
+          console.error("AI closing statement error, using fallback:", aiError);
+          closingStatement = agent.goodbyeMessageText || "Terima kasih sudah menghubungi kami!";
+        }
+      } else {
+        // Manual mode - use the configured message
+        closingStatement = agent.goodbyeMessageText || "Terima kasih sudah menghubungi kami!";
+      }
+
+      // Store the closing statement as a message
+      await storage.createMessage({
+        sessionId,
+        from: "chatvice",
+        content: closingStatement,
+      });
+
+      // Broadcast to websocket
+      broadcastToSession(sessionId, {
+        type: "message",
+        message: { from: "chatvice", content: closingStatement },
+      });
+
+      res.json({ 
+        success: true, 
+        closingStatement,
+        enabled: true,
+      });
+    } catch (error) {
+      console.error("Error generating closing statement:", error);
+      res.json({ success: false, error: "Unable to generate closing statement" });
+    }
+  });
+
 // Chat Logs API
   app.get("/api/chat-logs", requireMerchantOrSupervisor, async (req, res) => {
     try {

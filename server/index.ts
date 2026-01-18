@@ -277,15 +277,92 @@ async function runBackgroundSync(): Promise<void> {
   }
 }
 
+// Automatic chat cleanup - archive expired sessions and create chat logs
+async function runAutomaticChatCleanup(): Promise<void> {
+  try {
+    console.log("[cleanup] Starting automatic chat cleanup");
+    
+    const merchants = await storage.getAllMerchants();
+    let totalArchived = 0;
+    
+    for (const merchant of merchants) {
+      try {
+        // Get retention hours based on plan
+        const planId = merchant.subscriptionPlanId || 'free';
+        // Free plan: 24 hours, Starter: 168 hours (7 days), Pro: 720 hours (30 days), Enterprise: 2160 hours (90 days)
+        const retentionMap: Record<string, number> = {
+          free: 24,
+          starter: 168,
+          pro: 720,
+          enterprise: 2160,
+        };
+        const retentionHours = retentionMap[planId] || 24;
+        
+        const expiredSessions = await storage.getExpiredSessions(merchant.id, retentionHours);
+        
+        for (const session of expiredSessions) {
+          const messages = await storage.getMessages(session.id);
+          
+          if (messages.length === 0) continue;
+          
+          // Generate full transcript
+          const transcript = messages.map(m => {
+            const sender = m.from === 'user' || m.from === 'customer' ? (session.customerName || 'Customer') : 
+                           m.from === 'chatvice' || m.from === 'ai' ? 'AI Assistant' : 'Supervisor';
+            const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString() : '';
+            return `[${time}] ${sender}: ${m.content}`;
+          }).join('\n');
+          
+          // Generate simple summary
+          const summary = `Chat session with ${messages.length} messages. ${
+            session.mode === 'HUMAN' ? 'Escalated to supervisor.' : 'Handled by AI.'
+          }`;
+          
+          // Create chat log
+          await storage.createChatLog({
+            merchantId: merchant.id,
+            sessionId: session.id,
+            agentId: session.agentId || null,
+            supervisorId: session.supervisorId || null,
+            customerName: session.customerName || null,
+            customerEmail: session.customerEmail || null,
+            summary,
+            messageCount: messages.length,
+            fullTranscript: transcript,
+            extractedKnowledge: null,
+            sessionStartedAt: session.createdAt || null,
+            sessionEndedAt: session.lastActivity || null,
+          });
+          
+          // Delete messages but keep session
+          await storage.deleteSessionMessages(session.id);
+          await storage.updateSession(session.id, { status: 'archived' });
+          totalArchived++;
+        }
+      } catch (merchantError) {
+        console.error(`[cleanup] Error processing merchant ${merchant.id}:`, merchantError);
+      }
+    }
+    
+    if (totalArchived > 0) {
+      console.log(`[cleanup] Archived ${totalArchived} expired sessions`);
+    }
+  } catch (error) {
+    console.error("[cleanup] Automatic chat cleanup error:", error);
+  }
+}
+
 function startBackgroundSync(): void {
   // Run initial sync after 5 minutes of startup
   setTimeout(() => {
     runBackgroundSync();
+    runAutomaticChatCleanup();
   }, 5 * 60 * 1000);
   
   // Then run every 60 minutes
   setInterval(() => {
     runBackgroundSync();
+    runAutomaticChatCleanup();
   }, 60 * 60 * 1000);
   
   console.log("[sync] Background sync scheduler started (60 min interval)");

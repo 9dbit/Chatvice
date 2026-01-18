@@ -250,6 +250,75 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const [selectedQuickMessage, setSelectedQuickMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
+  // Inactivity timer for closing statement
+  const [closingStatementSent, setClosingStatementSent] = useState(false);
+  const lastActivityRef = useRef<number>(Date.now());
+  const inactivityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Inactivity timeout (2 minutes = 120000ms)
+  const INACTIVITY_TIMEOUT = 120000;
+  
+  // Reset inactivity timer on user activity
+  const resetInactivityTimer = useCallback(() => {
+    lastActivityRef.current = Date.now();
+    
+    // Clear existing timeout
+    if (inactivityTimeoutRef.current) {
+      clearTimeout(inactivityTimeoutRef.current);
+    }
+    
+    // Only set new timeout if chat is active and closing statement wasn't sent
+    if (hasSubmittedName && !closingStatementSent && !previewMode) {
+      inactivityTimeoutRef.current = setTimeout(async () => {
+        // Check if still inactive
+        const timeSinceActivity = Date.now() - lastActivityRef.current;
+        if (timeSinceActivity >= INACTIVITY_TIMEOUT && !closingStatementSent) {
+          try {
+            const response = await fetch('/api/widget/closing-statement', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                sessionId, 
+                merchantId,
+                agentId: merchantConfig?.activeAgentId,
+              }),
+            });
+            const data = await response.json();
+            
+            if (data.success && data.closingStatement && data.enabled) {
+              setPendingMessages(prev => [
+                ...prev,
+                {
+                  clientId: generateClientId(),
+                  from: "chatvice",
+                  content: data.closingStatement,
+                  timestamp: new Date(),
+                },
+              ]);
+              setClosingStatementSent(true);
+              playNotificationSound("reply");
+            }
+          } catch (err) {
+            console.error("Error fetching closing statement:", err);
+          }
+        }
+      }, INACTIVITY_TIMEOUT);
+    }
+  }, [hasSubmittedName, closingStatementSent, previewMode, sessionId, merchantId, merchantConfig?.activeAgentId]);
+  
+  // Set up inactivity timer when chat becomes active
+  useEffect(() => {
+    if (hasSubmittedName && !closingStatementSent && !previewMode) {
+      resetInactivityTimer();
+    }
+    
+    return () => {
+      if (inactivityTimeoutRef.current) {
+        clearTimeout(inactivityTimeoutRef.current);
+      }
+    };
+  }, [hasSubmittedName, closingStatementSent, previewMode, resetInactivityTimer]);
+  
   // Check for existing session on mount (24-hour persistence for all widgets)
   useEffect(() => {
     // Wait for fingerprint to be generated
@@ -616,6 +685,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     setPendingMessages((prev) => [...prev, { clientId, from: "user", content: userMessage, timestamp: new Date() }]);
     setMessage("");
     sendMessageMutation.mutate({ userMessage, clientId });
+    // Reset inactivity timer on user activity
+    resetInactivityTimer();
   };
   
   const sendButtonMessage = (buttonAction: string) => {
@@ -623,6 +694,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     const clientId = generateClientId();
     setPendingMessages((prev) => [...prev, { clientId, from: "user", content: buttonAction, timestamp: new Date() }]);
     sendMessageMutation.mutate({ userMessage: buttonAction, clientId });
+    // Reset inactivity timer on user activity
+    resetInactivityTimer();
   };
 
   const useSuggestedQuestionMutation = useMutation({
@@ -661,6 +734,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       { clientId: generateClientId(), from: "user", content: sq.question, timestamp: new Date() },
     ]);
     useSuggestedQuestionMutation.mutate(sq);
+    // Reset inactivity timer on user activity
+    resetInactivityTimer();
   };
 
   // Start chat mutation with customer name
@@ -756,6 +831,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMessage(e.target.value);
+    // Reset inactivity timer on user typing
+    resetInactivityTimer();
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

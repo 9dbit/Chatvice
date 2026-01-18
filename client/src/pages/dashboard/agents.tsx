@@ -55,6 +55,9 @@ const agentSchema = z.object({
   welcomeMessageText: z.string().optional(),
   goodbyeMessageEnabled: z.boolean().optional(),
   goodbyeMessageText: z.string().optional(),
+  closingStatementMode: z.string().optional(),
+  closingStatementAutoIncludeBusinessName: z.boolean().optional(),
+  closingStatementAutoIncludeCustomerName: z.boolean().optional(),
   inactivityTimeoutSeconds: z.number().optional(),
   temperature: z.string().optional(),
 });
@@ -100,6 +103,9 @@ export default function AgentsPage() {
       welcomeMessageText: "Hello! How can I help you?",
       goodbyeMessageEnabled: false,
       goodbyeMessageText: "Thank you for contacting us!",
+      closingStatementMode: "manual",
+      closingStatementAutoIncludeBusinessName: true,
+      closingStatementAutoIncludeCustomerName: true,
       inactivityTimeoutSeconds: 120,
       temperature: "0.7",
     },
@@ -235,6 +241,9 @@ export default function AgentsPage() {
     form.setValue("welcomeMessageText", agent.welcomeMessageText || "Hello! How can I help you?");
     form.setValue("goodbyeMessageEnabled", agent.goodbyeMessageEnabled || false);
     form.setValue("goodbyeMessageText", agent.goodbyeMessageText || "Thank you for contacting us!");
+    form.setValue("closingStatementMode", agent.closingStatementMode || "manual");
+    form.setValue("closingStatementAutoIncludeBusinessName", agent.closingStatementAutoIncludeBusinessName ?? true);
+    form.setValue("closingStatementAutoIncludeCustomerName", agent.closingStatementAutoIncludeCustomerName ?? true);
     form.setValue("inactivityTimeoutSeconds", agent.inactivityTimeoutSeconds || 120);
     form.setValue("temperature", agent.temperature || "0.7");
     setPhotoUrl(agent.photoUrl || "");
@@ -502,21 +511,107 @@ export default function AgentsPage() {
                   />
 
                   {form.watch("goodbyeMessageEnabled") && (
-                    <FormField
-                      control={form.control}
-                      name="goodbyeMessageText"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormControl>
-                            <Input
-                              placeholder="Thank you for contacting us!"
-                              data-testid="input-goodbye-message"
-                              {...field}
-                            />
-                          </FormControl>
-                        </FormItem>
+                    <>
+                      {/* Closing Statement Mode */}
+                      <FormField
+                        control={form.control}
+                        name="closingStatementMode"
+                        render={({ field }) => (
+                          <FormItem className="space-y-2">
+                            <FormLabel className="text-xs">Closing Statement Mode</FormLabel>
+                            <FormControl>
+                              <div className="flex gap-2">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant={field.value === "manual" ? "default" : "outline"}
+                                  onClick={() => field.onChange("manual")}
+                                  data-testid="button-closing-manual"
+                                >
+                                  Manual
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant={field.value === "automatic" ? "default" : "outline"}
+                                  onClick={() => field.onChange("automatic")}
+                                  data-testid="button-closing-automatic"
+                                >
+                                  Automatic (AI)
+                                </Button>
+                              </div>
+                            </FormControl>
+                            <FormDescription className="text-xs">
+                              {field.value === "manual" 
+                                ? "Use your custom message below" 
+                                : "AI generates contextual closing based on conversation"}
+                            </FormDescription>
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Manual mode - custom text */}
+                      {form.watch("closingStatementMode") === "manual" && (
+                        <FormField
+                          control={form.control}
+                          name="goodbyeMessageText"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormControl>
+                                <Input
+                                  placeholder="Thank you for contacting us!"
+                                  data-testid="input-goodbye-message"
+                                  {...field}
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
                       )}
-                    />
+
+                      {/* Automatic mode - AI options */}
+                      {form.watch("closingStatementMode") === "automatic" && (
+                        <div className="space-y-3 rounded-lg border p-3 bg-muted/20">
+                          <p className="text-xs text-muted-foreground">
+                            AI will generate a personalized closing that matches the agent's tone style
+                          </p>
+                          
+                          <FormField
+                            control={form.control}
+                            name="closingStatementAutoIncludeBusinessName"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-center justify-between">
+                                <FormLabel className="text-xs">Include business name in thanks</FormLabel>
+                                <FormControl>
+                                  <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                    data-testid="switch-closing-business-name"
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={form.control}
+                            name="closingStatementAutoIncludeCustomerName"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-center justify-between">
+                                <FormLabel className="text-xs">Address customer by name</FormLabel>
+                                <FormControl>
+                                  <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                    data-testid="switch-closing-customer-name"
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      )}
+                    </>
                   )}
 
                   <Separator />

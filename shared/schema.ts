@@ -477,6 +477,9 @@ export const agents = pgTable("agents", {
   welcomeMessageText: text("welcome_message_text").default("Halo! Ada yang bisa saya bantu?"),
   goodbyeMessageEnabled: boolean("goodbye_message_enabled").default(false),
   goodbyeMessageText: text("goodbye_message_text").default("Terima kasih sudah menghubungi kami!"),
+  closingStatementMode: text("closing_statement_mode").default("manual"), // "manual" or "automatic"
+  closingStatementAutoIncludeBusinessName: boolean("closing_statement_auto_include_business_name").default(true),
+  closingStatementAutoIncludeCustomerName: boolean("closing_statement_auto_include_customer_name").default(true),
   inactivityTimeoutSeconds: integer("inactivity_timeout_seconds").default(120),
   temperature: text("temperature").default("0.7"),
   isActive: boolean("is_active").default(true),
