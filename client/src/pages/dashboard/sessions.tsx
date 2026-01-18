@@ -21,6 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import type { Session, Message, Supervisor, Agent, QuickReply, ProductCard, ProductCardButton } from "@shared/schema";
+import { playIncomingChatSound, playChatReplySound, playAngrySound } from "@/lib/sounds";
 
 interface ProductCardWithButtons extends ProductCard {
   buttons?: ProductCardButton[];
@@ -157,34 +158,6 @@ export default function SessionsPage() {
   useEffect(() => {
     localStorage.setItem("sessionSoundEnabled", String(soundEnabled));
   }, [soundEnabled]);
-  
-  // Sound utility functions
-  function playIncomingChatSound() {
-    if (!soundEnabled) return;
-    try {
-      const audio = new Audio("/sounds/sci-fi-confirm.wav");
-      audio.volume = 0.5;
-      audio.play().catch(() => {});
-    } catch (e) {}
-  }
-  
-  function playChatReplySound() {
-    if (!soundEnabled) return;
-    try {
-      const audio = new Audio("/sounds/live-chat.mp3");
-      audio.volume = 0.4;
-      audio.play().catch(() => {});
-    } catch (e) {}
-  }
-  
-  function playAngrySound() {
-    if (!soundEnabled) return;
-    try {
-      const audio = new Audio("/sounds/alert.mp3");
-      audio.volume = 0.6;
-      audio.play().catch(() => {});
-    } catch (e) {}
-  }
   
   // Clear preview when session changes
   useEffect(() => {

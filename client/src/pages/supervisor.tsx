@@ -59,6 +59,7 @@ import {
   X,
 } from "lucide-react";
 import type { Session, Message, Notification, ChatLog } from "@shared/schema";
+import { playIncomingChatSound, playChatReplySound, playAngrySound } from "@/lib/sounds";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -90,40 +91,6 @@ const supervisorMenuItems: { id: SupervisorPage; title: string; icon: any }[] = 
   { id: "team-activity", title: "Team Activity", icon: Activity },
   { id: "notifications", title: "Notifications", icon: Bell },
 ];
-
-// Sound utility functions for supervisor notifications
-function playIncomingChatSound() {
-  // Plays only when first message of new session arrives
-  try {
-    const audio = new Audio("/sounds/sci-fi-confirm.wav");
-    audio.volume = 1.0;
-    audio.play().catch((e) => console.warn("Incoming chat sound failed:", e));
-  } catch (error) {
-    console.log("Could not play incoming chat sound:", error);
-  }
-}
-
-function playChatReplySound() {
-  // Plays for subsequent messages in active sessions
-  try {
-    const audio = new Audio("/sounds/live-chat.mp3");
-    audio.volume = 0.7;
-    audio.play().catch((e) => console.warn("Chat reply sound failed:", e));
-  } catch (error) {
-    console.log("Could not play chat reply sound:", error);
-  }
-}
-
-function playAngrySound() {
-  // Plays when anger detected or trigger words hit
-  try {
-    const audio = new Audio("/sounds/alert.mp3");
-    audio.volume = 1.0;
-    audio.play().catch((e) => console.warn("Angry sound failed:", e));
-  } catch (error) {
-    console.log("Could not play angry sound:", error);
-  }
-}
 
 function playAlertSound() {
   try {
@@ -254,8 +221,16 @@ export default function SupervisorPanel() {
   const [newMessage, setNewMessage] = useState("");
   const [takeoverDialogOpen, setTakeoverDialogOpen] = useState(false);
   const [sessionToTakeover, setSessionToTakeover] = useState<Session | null>(null);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    const saved = localStorage.getItem("supervisorSoundEnabled");
+    return saved !== null ? saved === "true" : true;
+  });
   const [isAlertActive, setIsAlertActive] = useState(false);
+  
+  // Persist sound preference
+  useEffect(() => {
+    localStorage.setItem("supervisorSoundEnabled", String(soundEnabled));
+  }, [soundEnabled]);
   const [currentPage, setCurrentPage] = useState<SupervisorPage>("overview");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const previousSessionsRef = useRef<Set<string>>(new Set());
