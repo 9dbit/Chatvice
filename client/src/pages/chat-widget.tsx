@@ -546,11 +546,38 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     };
   }, [initAudio]);
 
+  // Default sounds for customer widget
+  const defaultSoundUrls: Record<string, string> = {
+    "incoming-msg": "/sounds/incoming-msg.mp3",
+    "notification-alert": "/sounds/notification-alert.mp3",
+    "live-chat": "/sounds/live-chat.mp3",
+    "alert": "/sounds/alert.mp3",
+    "new-notification": "/sounds/new-notification.mp3",
+    "text-message": "/sounds/text-message.mp3",
+    "gaming-lock": "/sounds/gaming-lock.wav",
+    "quick-lock": "/sounds/quick-lock.wav",
+    "sci-fi-confirm": "/sounds/sci-fi-confirm.wav",
+    "interface-start": "/sounds/interface-start.wav",
+  };
+
   const playNotificationSound = (type: "incoming" | "reply") => {
-    if (!notificationSettings) return;
+    if (!notificationSettings) {
+      // Play default sounds even without settings
+      const defaultSound = type === "incoming" ? "/sounds/sci-fi-confirm.wav" : "/sounds/live-chat.mp3";
+      try {
+        const audio = new Audio(defaultSound);
+        audio.volume = 1.0;
+        audio.play().catch((e) => console.warn("Audio playback failed:", e));
+      } catch (e) {
+        console.warn("Sound playback error:", e);
+      }
+      return;
+    }
     
     const enabled = type === "incoming" ? notificationSettings.incomingChatEnabled : notificationSettings.chatReplyEnabled;
-    const sound = type === "incoming" ? notificationSettings.incomingChatSound : notificationSettings.chatReplySound;
+    const sound = type === "incoming" 
+      ? (notificationSettings.incomingChatSound || "sci-fi-confirm")
+      : (notificationSettings.chatReplySound || "live-chat");
     
     if (!enabled || sound === "none") return;
 
@@ -560,36 +587,20 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         audioRef.current = null;
       }
       
-      if (sound === "default") {
-        if (!audioContextRef.current) {
-          initAudio();
-        }
-        
-        if (audioContextRef.current) {
-          if (audioContextRef.current.state === 'suspended') {
-            audioContextRef.current.resume();
-          }
-          
-          const oscillator = audioContextRef.current.createOscillator();
-          const gainNode = audioContextRef.current.createGain();
-          
-          oscillator.connect(gainNode);
-          gainNode.connect(audioContextRef.current.destination);
-          
-          oscillator.frequency.value = 800;
-          oscillator.type = "sine";
-          gainNode.gain.value = 0.3;
-          
-          oscillator.start();
-          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContextRef.current.currentTime + 0.3);
-          oscillator.stop(audioContextRef.current.currentTime + 0.3);
-        }
-        return;
+      // Get sound URL - check if it's a default sound ID or a custom upload path
+      let soundUrl: string | null = null;
+      if (defaultSoundUrls[sound]) {
+        soundUrl = defaultSoundUrls[sound];
+      } else if (sound.startsWith("/uploads/") || sound.startsWith("/sounds/")) {
+        soundUrl = sound;
+      } else if (sound === "default") {
+        // Fallback default sounds
+        soundUrl = type === "incoming" ? "/sounds/sci-fi-confirm.wav" : "/sounds/live-chat.mp3";
       }
       
-      if (sound && sound.startsWith("/uploads/")) {
-        audioRef.current = new Audio(sound);
-        audioRef.current.volume = 0.5;
+      if (soundUrl) {
+        audioRef.current = new Audio(soundUrl);
+        audioRef.current.volume = 1.0;
         audioRef.current.play().catch((e) => {
           console.warn("Audio playback failed:", e);
         });
