@@ -1782,8 +1782,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </div>
         </div>
       ) : (
-        <div className="flex-1 min-h-0 flex flex-col" style={frostedBodyStyle}>
-          <ScrollArea className="flex-1 min-h-0 p-4">
+        <div className="flex-1 min-h-0 flex flex-col">
+          <ScrollArea className="flex-1 min-h-0 p-4" style={frostedBodyStyle}>
             <div className="space-y-4">
               {allMessages.map((msg, index) => (
             <div key={msg.id || index}>
@@ -2068,7 +2068,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       </ScrollArea>
 
       {suggestedQuestions.length > 0 && (
-        <div className={`px-4 py-2 border-t ${applyEmbedStyles ? 'border-white/10' : 'border-border'}`}>
+        <div className={`px-4 py-2 ${applyEmbedStyles ? '' : 'border-t border-border'}`} style={frostedFooterStyle}>
           <p className="text-xs text-muted-foreground mb-1.5">Quick questions:</p>
           <div className="flex flex-wrap gap-1.5">
             {suggestedQuestions.slice(0, 5).map((sq) => (
@@ -2088,7 +2088,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         </div>
       )}
 
-      <div className={`p-4 border-t ${applyEmbedStyles ? 'border-white/10' : 'border-border'}`}>
+      <div className={`p-4 ${applyEmbedStyles ? '' : 'border-t border-border'}`} style={frostedFooterStyle}>
         <input
           type="file"
           ref={fileInputRef}
