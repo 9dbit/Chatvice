@@ -1581,7 +1581,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           <div 
             className="overflow-hidden"
             style={{ 
-              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              backgroundColor: 'rgba(0, 0, 0, 0.3)',
               backdropFilter: 'blur(40px)',
               WebkitBackdropFilter: 'blur(40px)',
               animation: socialPanelClosing 
