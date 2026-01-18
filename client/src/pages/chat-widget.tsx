@@ -34,6 +34,7 @@ interface MerchantConfig {
   socialDiscord?: string;
   welcomeDescription?: string;
   quickMessageOptions?: string[];
+  activeAgentId?: string;
 }
 
 interface NotificationSettings {
@@ -254,6 +255,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const [closingStatementSent, setClosingStatementSent] = useState(false);
   const lastActivityRef = useRef<number>(Date.now());
   const inactivityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const activeAgentIdRef = useRef<string | undefined>(undefined);
   
   // Inactivity timeout (2 minutes = 120000ms)
   const INACTIVITY_TIMEOUT = 120000;
@@ -280,7 +282,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               body: JSON.stringify({ 
                 sessionId, 
                 merchantId,
-                agentId: merchantConfig?.activeAgentId,
+                agentId: activeAgentIdRef.current,
               }),
             });
             const data = await response.json();
@@ -296,7 +298,6 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 },
               ]);
               setClosingStatementSent(true);
-              playNotificationSound("reply");
             }
           } catch (err) {
             console.error("Error fetching closing statement:", err);
@@ -304,7 +305,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         }
       }, INACTIVITY_TIMEOUT);
     }
-  }, [hasSubmittedName, closingStatementSent, previewMode, sessionId, merchantId, merchantConfig?.activeAgentId]);
+  }, [hasSubmittedName, closingStatementSent, previewMode, sessionId, merchantId]);
   
   // Set up inactivity timer when chat becomes active
   useEffect(() => {
@@ -437,6 +438,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     queryKey: ["/api/merchant/status", merchantId],
     enabled: !!merchantId,
   });
+
+  // Sync activeAgentIdRef when merchantConfig loads
+  useEffect(() => {
+    if (merchantConfig?.activeAgentId) {
+      activeAgentIdRef.current = merchantConfig.activeAgentId;
+    }
+  }, [merchantConfig?.activeAgentId]);
 
   const { data: serverMessages } = useQuery<Message[]>({
     queryKey: ["/api/messages", sessionId],
