@@ -91,6 +91,40 @@ const supervisorMenuItems: { id: SupervisorPage; title: string; icon: any }[] = 
   { id: "notifications", title: "Notifications", icon: Bell },
 ];
 
+// Sound utility functions for supervisor notifications
+function playIncomingChatSound() {
+  // Plays only when first message of new session arrives
+  try {
+    const audio = new Audio("/sounds/sci-fi-confirm.wav");
+    audio.volume = 1.0;
+    audio.play().catch((e) => console.warn("Incoming chat sound failed:", e));
+  } catch (error) {
+    console.log("Could not play incoming chat sound:", error);
+  }
+}
+
+function playChatReplySound() {
+  // Plays for subsequent messages in active sessions
+  try {
+    const audio = new Audio("/sounds/live-chat.mp3");
+    audio.volume = 0.7;
+    audio.play().catch((e) => console.warn("Chat reply sound failed:", e));
+  } catch (error) {
+    console.log("Could not play chat reply sound:", error);
+  }
+}
+
+function playAngrySound() {
+  // Plays when anger detected or trigger words hit
+  try {
+    const audio = new Audio("/sounds/alert.mp3");
+    audio.volume = 1.0;
+    audio.play().catch((e) => console.warn("Angry sound failed:", e));
+  } catch (error) {
+    console.log("Could not play angry sound:", error);
+  }
+}
+
 function playAlertSound() {
   try {
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -226,6 +260,9 @@ export default function SupervisorPanel() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const previousSessionsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
+  // Track message counts per session for notification sounds
+  const sessionMessageCountsRef = useRef<Map<string, number>>(new Map());
+  const lastProcessedMessageIdRef = useRef<string | null>(null);
 
   if (!merchantId || userType !== "supervisor") {
     return <Redirect to="/login" />;
@@ -349,6 +386,41 @@ export default function SupervisorPanel() {
     }
   }, [messages]);
 
+  // Track notifications to detect anger/trigger - play angry sound for anger or trigger
+  const previousNotificationIdsRef = useRef<Set<string>>(new Set());
+  const soundPlayedForSessionRef = useRef<Set<string>>(new Set()); // Track sessions we've played sounds for
+  
+  // Check for anger or trigger notifications and play angry sound
+  useEffect(() => {
+    if (!notifications || !soundEnabled) return;
+    
+    const currentNotificationIds = new Set(notifications.map((n) => n.id));
+    const newNotifications = notifications.filter((n) => !previousNotificationIdsRef.current.has(n.id) && !n.seen);
+    
+    // Check for anger or trigger notifications - both should play angry sound
+    for (const notification of newNotifications) {
+      if (notification.message?.includes("anger detected") || notification.message?.includes("trigger detected")) {
+        playAngrySound();
+        // Mark this session so we don't play incoming sound for it
+        if (notification.sessionId) {
+          soundPlayedForSessionRef.current.add(notification.sessionId);
+        }
+        setIsAlertActive(true);
+        setTimeout(() => setIsAlertActive(false), 3000);
+        
+        toast({
+          title: notification.message?.includes("anger") ? "Angry customer alert!" : "Trigger word detected!",
+          description: "A customer needs immediate attention.",
+          duration: 10000,
+        });
+        break;
+      }
+    }
+    
+    previousNotificationIdsRef.current = currentNotificationIds;
+  }, [notifications, soundEnabled, toast]);
+  
+  // Handle new sessions - play incoming chat sound for first message
   useEffect(() => {
     if (!escalatedSessions) return;
     
@@ -364,22 +436,57 @@ export default function SupervisorPanel() {
     const newSessions = humanSessions.filter((s) => !previousSessionsRef.current.has(s.id));
     
     if (newSessions.length > 0 && soundEnabled) {
-      playAlertSound();
-      setIsAlertActive(true);
+      // Check if any new session hasn't already had a sound played (from anger/trigger)
+      const sessionsNeedingSound = newSessions.filter(s => !soundPlayedForSessionRef.current.has(s.id));
       
-      newSessions.forEach((session) => {
-        toast({
-          title: "New escalation alert!",
-          description: `${session.customerName || "A customer"} needs human assistance.`,
-          duration: 10000,
+      if (sessionsNeedingSound.length > 0) {
+        // Play incoming chat sound for new sessions (first message)
+        playIncomingChatSound();
+        setIsAlertActive(true);
+        
+        sessionsNeedingSound.forEach((session) => {
+          toast({
+            title: "New chat alert!",
+            description: `${session.customerName || "A customer"} started a conversation.`,
+            duration: 10000,
+          });
         });
-      });
-      
-      setTimeout(() => setIsAlertActive(false), 3000);
+        
+        setTimeout(() => setIsAlertActive(false), 3000);
+      }
     }
     
     previousSessionsRef.current = currentSessionIds;
   }, [escalatedSessions, soundEnabled, toast]);
+
+  // Track messages for notification sounds in selected session
+  // Play reply sound for any new message after the first message of a session
+  useEffect(() => {
+    if (!messages || messages.length === 0 || !selectedSession || !soundEnabled) return;
+    
+    const lastMessage = messages[messages.length - 1];
+    if (!lastMessage?.id || lastProcessedMessageIdRef.current === lastMessage.id) return;
+    
+    // Get previous message count for this session
+    const prevCount = sessionMessageCountsRef.current.get(selectedSession) || 0;
+    const currentCount = messages.length;
+    
+    // Only process if we have new messages (regardless of sender)
+    if (currentCount > prevCount) {
+      if (prevCount === 0) {
+        // First message of session - play incoming chat sound (unless anger/trigger already played)
+        if (!soundPlayedForSessionRef.current.has(selectedSession)) {
+          playIncomingChatSound();
+        }
+      } else {
+        // Subsequent messages - play chat reply sound (for any sender)
+        playChatReplySound();
+      }
+    }
+    
+    sessionMessageCountsRef.current.set(selectedSession, currentCount);
+    lastProcessedMessageIdRef.current = lastMessage.id;
+  }, [messages, selectedSession, soundEnabled]);
 
   const handleSendMessage = () => {
     if (newMessage.trim()) {

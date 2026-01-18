@@ -42,6 +42,8 @@ interface NotificationSettings {
   incomingChatEnabled: boolean;
   chatReplySound: string;
   chatReplyEnabled: boolean;
+  angryCustomerSound?: string;
+  angryCustomerEnabled?: boolean;
 }
 
 interface ProductCardWithButtons extends ProductCard {
@@ -377,6 +379,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const [viewingImage, setViewingImage] = useState<{ url: string; filename: string } | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastProcessedServerMsgId = useRef<string | null>(null);
+  const processedMsgIdsSet = useRef<Set<string>>(new Set()); // Track all processed message IDs
+  const isFirstEffectRun = useRef<boolean>(true); // Track if this is the first effect run
   
   const inputRef = useRef<HTMLInputElement>(null);
   
@@ -568,12 +572,16 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     "interface-start": "/sounds/interface-start.wav",
   };
 
-  const playNotificationSound = (type: "incoming" | "reply") => {
+  const playNotificationSound = (type: "incoming" | "reply" | "angry") => {
     if (!notificationSettings) {
       // Play default sounds even without settings
-      const defaultSound = type === "incoming" ? "/sounds/sci-fi-confirm.wav" : "/sounds/live-chat.mp3";
+      const defaultSounds: Record<string, string> = {
+        incoming: "/sounds/sci-fi-confirm.wav",
+        reply: "/sounds/live-chat.mp3",
+        angry: "/sounds/alert.mp3",
+      };
       try {
-        const audio = new Audio(defaultSound);
+        const audio = new Audio(defaultSounds[type] || defaultSounds.reply);
         audio.volume = 1.0;
         audio.play().catch((e) => console.warn("Audio playback failed:", e));
       } catch (e) {
@@ -582,10 +590,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       return;
     }
     
-    const enabled = type === "incoming" ? notificationSettings.incomingChatEnabled : notificationSettings.chatReplyEnabled;
-    const sound = type === "incoming" 
-      ? (notificationSettings.incomingChatSound || "sci-fi-confirm")
-      : (notificationSettings.chatReplySound || "live-chat");
+    let enabled: boolean;
+    let sound: string;
+    
+    if (type === "incoming") {
+      enabled = notificationSettings.incomingChatEnabled;
+      sound = notificationSettings.incomingChatSound || "sci-fi-confirm";
+    } else if (type === "angry") {
+      enabled = notificationSettings.angryCustomerEnabled !== false;
+      sound = notificationSettings.angryCustomerSound || "alert";
+    } else {
+      enabled = notificationSettings.chatReplyEnabled;
+      sound = notificationSettings.chatReplySound || "live-chat";
+    }
     
     if (!enabled || sound === "none") return;
 
@@ -603,7 +620,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         soundUrl = sound;
       } else if (sound === "default") {
         // Fallback default sounds
-        soundUrl = type === "incoming" ? "/sounds/sci-fi-confirm.wav" : "/sounds/live-chat.mp3";
+        const fallbackSounds: Record<string, string> = {
+          incoming: "/sounds/sci-fi-confirm.wav",
+          reply: "/sounds/live-chat.mp3",
+          angry: "/sounds/alert.mp3",
+        };
+        soundUrl = fallbackSounds[type] || fallbackSounds.reply;
       }
       
       if (soundUrl) {
@@ -658,7 +680,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         message: userMessage,
         clientMessageId: clientId,
       });
-      return response.json() as Promise<{ answer: string; mode: string; clientMessageId?: string; responseClientId?: string }>;
+      return response.json() as Promise<{ 
+        answer: string; 
+        mode: string; 
+        clientMessageId?: string; 
+        responseClientId?: string;
+        isAngry?: boolean;
+        triggerHit?: boolean;
+        isNewSession?: boolean;
+      }>;
     },
     onSuccess: (data) => {
       setPendingMessages((prev) => [
@@ -671,6 +701,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         },
       ]);
       
+      // Play reply sound for customer when receiving AI response
+      // (angry sound is for merchant/supervisor side only)
       playNotificationSound("reply");
       queryClient.invalidateQueries({ queryKey: ["/api/messages", sessionId] });
     },
@@ -1090,23 +1122,66 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   useEffect(() => {
     if (!serverMessages || serverMessages.length === 0) return;
     
-    const lastServerMsg = serverMessages[serverMessages.length - 1];
-    if (!lastServerMsg?.id) return;
+    const RECENT_THRESHOLD_MS = 30000; // 30 seconds - messages within this window are "new"
+    const now = Date.now();
     
-    if (lastProcessedServerMsgId.current !== lastServerMsg.id) {
-      const isFromOthers = lastServerMsg.from !== "customer";
-      if (isFromOthers && lastProcessedServerMsgId.current !== null) {
-        // Play notification sound for incoming messages from AI/supervisor
-        playNotificationSound("incoming");
+    // Initialize tracking on first run
+    if (isFirstEffectRun.current) {
+      isFirstEffectRun.current = false;
+      
+      // On first run, process recent AI/supervisor messages (could be proactive outreach)
+      for (const msg of serverMessages) {
+        if (msg.id) processedMsgIdsSet.current.add(msg.id);
+        
+        // Check if this is a recent non-customer message (received in last 30s)
+        const msgTime = msg.timestamp ? new Date(msg.timestamp).getTime() : 0;
+        const isRecent = (now - msgTime) < RECENT_THRESHOLD_MS;
+        const isFromOthers = msg.from !== "customer";
+        
+        if (isRecent && isFromOthers) {
+          // Recent AI/supervisor message on first load - play sound
+          playNotificationSound("reply");
+          if (!isOpen && !embedded) {
+            setUnreadCount(prev => prev + 1);
+          }
+          break; // Only play once even if multiple recent messages
+        }
+      }
+      
+      const lastMsg = serverMessages[serverMessages.length - 1];
+      if (lastMsg?.id) lastProcessedServerMsgId.current = lastMsg.id;
+      return;
+    }
+    
+    // Find new messages that we haven't processed yet
+    const newMessages = serverMessages.filter(msg => msg.id && !processedMsgIdsSet.current.has(msg.id));
+    
+    // Process new messages - only for polling (supervisor messages coming from server)
+    // Note: AI responses from sendMessageMutation are handled in mutation.onSuccess
+    for (const msg of newMessages) {
+      if (msg.id) processedMsgIdsSet.current.add(msg.id);
+      
+      // Only play sounds for messages from AI/supervisor that weren't already handled by mutation
+      // Check if this message is already in pendingMessages (handled by mutation)
+      const isAlreadyInPending = pendingMessages.some(pm => 
+        pm.content === msg.content && pm.from !== "user"
+      );
+      
+      const isFromOthers = msg.from !== "customer";
+      if (isFromOthers && !isAlreadyInPending) {
+        // This is a new message from supervisor/AI that came via polling (not mutation)
+        playNotificationSound("reply");
         
         // Increment unread count if widget is minimized
         if (!isOpen && !embedded) {
           setUnreadCount(prev => prev + 1);
         }
       }
-      lastProcessedServerMsgId.current = lastServerMsg.id;
     }
-  }, [serverMessages, isOpen, embedded]);
+    
+    const lastMsg = serverMessages[serverMessages.length - 1];
+    if (lastMsg?.id) lastProcessedServerMsgId.current = lastMsg.id;
+  }, [serverMessages, isOpen, embedded, pendingMessages]);
 
   // Clear unread count when widget opens
   useEffect(() => {

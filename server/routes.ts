@@ -381,13 +381,18 @@ async function checkUnansweredChatSessions(merchant: any) {
   }
 }
 
-async function notifySupervisors(merchantId: string, sessionId: string) {
+async function notifySupervisors(merchantId: string, sessionId: string, reason: "trigger" | "angry" | "manual" = "trigger") {
   const supervisors = await storage.getSupervisorsByMerchant(merchantId);
+  const reasonMessages: Record<string, string> = {
+    trigger: "Customer needs assistance (trigger detected)",
+    angry: "Customer needs assistance (anger detected)",
+    manual: "Customer needs assistance (manual escalation)",
+  };
   for (const supervisor of supervisors) {
     await storage.createNotification({
       supervisorId: supervisor.id,
       sessionId,
-      message: "Customer needs assistance (trigger detected)",
+      message: reasonMessages[reason] || reasonMessages.trigger,
       seen: false,
     });
   }
@@ -504,7 +509,7 @@ async function askChatvice(
     const isAngryDetected = angerIndicators.some(indicator => lowerMessage.includes(indicator));
     if (isAngryDetected) {
       await storage.updateSession(sessionId, { mode: "HUMAN" });
-      await notifySupervisors(merchantId, sessionId);
+      await notifySupervisors(merchantId, sessionId, "angry");
       return {
         answer: "Saya memahami Anda sedang frustasi. Izinkan saya menghubungkan Anda dengan supervisor kami yang dapat membantu lebih lanjut.",
         mode: "HUMAN",
