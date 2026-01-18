@@ -1399,20 +1399,22 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     ? { backgroundColor: `${primaryColor}CC` } // 80% opacity of primary color
     : { backgroundColor: primaryColor };
   
-  // Body sections use frosted glass XL with 60% transparency
-  // End-to-end masking from bottom of header to top of footer
+  // Body sections use frosted glass XL
+  // Light mode: white 90% opacity for more solid coverage
+  // Dark mode: dark with 60% transparency
   const frostedBodyStyle: React.CSSProperties = applyEmbedStyles
     ? { 
-        backgroundColor: widgetIsDark ? 'rgba(10, 10, 10, 0.60)' : 'rgba(255, 255, 255, 0.60)',
+        backgroundColor: widgetIsDark ? 'rgba(10, 10, 10, 0.60)' : 'rgba(255, 255, 255, 0.90)',
         backdropFilter: 'blur(40px)',
         WebkitBackdropFilter: 'blur(40px)',
       } 
     : {};
 
-  // Footer style - also uses frosted glass XL with 60% transparency
+  // Footer style - matches body style for consistency
+  // Light mode: white 90% opacity, Dark mode: 60% transparency
   const frostedFooterStyle: React.CSSProperties = applyEmbedStyles
     ? { 
-        backgroundColor: widgetIsDark ? 'rgba(10, 10, 10, 0.60)' : 'rgba(255, 255, 255, 0.60)',
+        backgroundColor: widgetIsDark ? 'rgba(10, 10, 10, 0.60)' : 'rgba(255, 255, 255, 0.90)',
         backdropFilter: 'blur(40px)',
         WebkitBackdropFilter: 'blur(40px)',
       } 
