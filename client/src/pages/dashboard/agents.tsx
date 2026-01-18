@@ -157,6 +157,14 @@ export default function AgentsPage() {
       });
     },
     onError: (error: any) => {
+      // Check if it's an agent limit error - show upselling popup instead of toast
+      const errorMessage = error.message || "";
+      if (errorMessage.includes("Agent limit reached") || errorMessage.includes("limit reached") || errorMessage.includes("403")) {
+        setIsDialogOpen(false);
+        setShowLimitPopup(true);
+        return;
+      }
+      
       toast({
         title: "Failed to create agent",
         description: error.message || "Please try again.",
