@@ -265,17 +265,17 @@ export default function SessionsPage() {
   };
 
   const getAgentName = (agentId: string | null | undefined) => {
-    const effectiveAgentId = agentId || merchant?.activeAgentId;
-    if (!effectiveAgentId || !agents) return "AI Assistant";
-    const agent = agents.find(a => a.id === effectiveAgentId);
+    // Don't fall back to active agent - show only the agent that was assigned to this session
+    if (!agentId || !agents) return "AI Assistant";
+    const agent = agents.find(a => a.id === agentId);
     return agent?.name || "AI Assistant";
   };
 
   const getAgentPhoto = (agentId: string | null | undefined) => {
-    const effectiveAgentId = agentId || merchant?.activeAgentId;
-    if (!effectiveAgentId || !agents) return merchant?.widgetSettings?.agentPhotoUrl || null;
-    const agent = agents.find(a => a.id === effectiveAgentId);
-    return agent?.photoUrl || merchant?.widgetSettings?.agentPhotoUrl || null;
+    // Don't fall back to active agent - show only the agent that was assigned to this session
+    if (!agentId || !agents) return null;
+    const agent = agents.find(a => a.id === agentId);
+    return agent?.photoUrl || null;
   };
 
   const getSupervisorName = (supervisorId: string | null | undefined, agentId?: string | null) => {
