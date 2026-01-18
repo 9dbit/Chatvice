@@ -1399,19 +1399,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     ? { backgroundColor: `${primaryColor}CC` } // 80% opacity of primary color
     : { backgroundColor: primaryColor };
   
-  // Body uses frosted glass - 25% opacity for more transparency
+  // Body uses frosted glass - 15% opacity for more transparency
   const frostedBodyStyle: React.CSSProperties = applyEmbedStyles
     ? { 
-        backgroundColor: 'rgba(0, 0, 0, 0.25)',
+        backgroundColor: 'rgba(0, 0, 0, 0.15)',
         backdropFilter: 'blur(40px)',
         WebkitBackdropFilter: 'blur(40px)',
       } 
     : {};
 
-  // Footer style - matches body style (25% opacity)
+  // Footer style - matches body style (15% opacity)
   const frostedFooterStyle: React.CSSProperties = applyEmbedStyles
     ? { 
-        backgroundColor: 'rgba(0, 0, 0, 0.25)',
+        backgroundColor: 'rgba(0, 0, 0, 0.15)',
         backdropFilter: 'blur(40px)',
         WebkitBackdropFilter: 'blur(40px)',
       } 

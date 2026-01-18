@@ -1150,7 +1150,7 @@ export default function SessionsPage() {
                                     <div key={card.id} className="bg-background rounded-lg border overflow-hidden">
                                       {card.imageUrl ? (
                                         <button 
-                                          className="bg-muted/30 w-full aspect-square cursor-pointer hover:bg-muted/50 transition-colors"
+                                          className="bg-muted/30 w-full h-20 cursor-pointer hover:bg-muted/50 transition-colors"
                                           onClick={() => setPreviewContent({
                                             type: "photo",
                                             url: card.imageUrl!,
@@ -1165,8 +1165,8 @@ export default function SessionsPage() {
                                           />
                                         </button>
                                       ) : (
-                                        <div className="bg-muted/30 w-full aspect-square flex items-center justify-center">
-                                          <ShoppingBag className="w-8 h-8 text-muted-foreground/50" />
+                                        <div className="bg-muted/30 w-full h-20 flex items-center justify-center">
+                                          <ShoppingBag className="w-6 h-6 text-muted-foreground/50" />
                                         </div>
                                       )}
                                       <div className="p-2 space-y-1">
