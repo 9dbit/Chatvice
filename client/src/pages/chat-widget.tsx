@@ -509,6 +509,21 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     enabled: !!merchantId,
   });
 
+  // Fetch session info including supervisor data when supervisor takes over
+  interface SessionInfo {
+    found: boolean;
+    mode: "AI" | "HUMAN";
+    supervisorId: string | null;
+    supervisorInfo: { id: string; name: string; photoUrl: string } | null;
+    agentId: string | null;
+  }
+  
+  const { data: sessionInfo } = useQuery<SessionInfo>({
+    queryKey: [`/api/widget/session-info`, sessionId],
+    enabled: !!sessionId,
+    refetchInterval: 3000, // Poll for supervisor takeover
+  });
+
   interface ProductRecommendationSettings {
     aiAutoRecommendEnabled: boolean;
     triggerKeywords: string;
@@ -1507,6 +1522,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         style={frostedHeaderStyle}
       >
         <div className="flex items-center gap-2.5">
+          {/* Agent photo - always shown */}
           <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
             {merchantConfig?.agentPhotoUrl ? (
               <img
@@ -1524,10 +1540,35 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               <Bot className="w-5 h-5 text-white" />
             )}
           </div>
+          
+          {/* Supervisor photo - shown when supervisor takes over (overlapping agent photo) */}
+          {sessionInfo?.mode === "HUMAN" && sessionInfo?.supervisorInfo && (
+            <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center overflow-hidden -ml-5 border-2 border-white/40 shadow-md">
+              {sessionInfo.supervisorInfo.photoUrl ? (
+                <img
+                  src={sessionInfo.supervisorInfo.photoUrl}
+                  alt="Supervisor"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <HeadphonesIcon className="w-4 h-4 text-white" />
+              )}
+            </div>
+          )}
+          
           <div className="text-white">
-            <p className="font-medium text-sm leading-tight">{merchantConfig?.agentName || "Chatvice"}</p>
+            {/* Show supervisor name when in HUMAN mode, otherwise agent name */}
+            <p className="font-medium text-sm leading-tight">
+              {sessionInfo?.mode === "HUMAN" && sessionInfo?.supervisorInfo
+                ? sessionInfo.supervisorInfo.name
+                : merchantConfig?.agentName || "Chatvice"}
+            </p>
             <div className="flex items-center gap-1">
-              <span className="text-[10px] opacity-80">{isOnline ? "🟢 Online - Customer Service" : "🔴 Offline"}</span>
+              <span className="text-[10px] opacity-80">
+                {sessionInfo?.mode === "HUMAN" 
+                  ? "👤 Live Agent" 
+                  : isOnline ? "🟢 Online - Customer Service" : "🔴 Offline"}
+              </span>
             </div>
           </div>
         </div>
@@ -1874,7 +1915,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                     style={{ backgroundColor: `${primaryColor}20` }}
                   >
                     {msg.from === "supervisor" ? (
-                      <HeadphonesIcon className="w-3.5 h-3.5" style={{ color: primaryColor }} />
+                      // Show supervisor photo if available, otherwise headphones icon
+                      sessionInfo?.supervisorInfo?.photoUrl ? (
+                        <img src={sessionInfo.supervisorInfo.photoUrl} alt="Supervisor" className="w-full h-full object-cover" />
+                      ) : (
+                        <HeadphonesIcon className="w-3.5 h-3.5" style={{ color: primaryColor }} />
+                      )
                     ) : merchantConfig?.agentPhotoUrl ? (
                       <img src={merchantConfig.agentPhotoUrl} alt="Agent" className="w-full h-full object-cover" />
                     ) : (

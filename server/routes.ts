@@ -29,7 +29,7 @@ import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./payp
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, isNotNull, gte } from "drizzle-orm";
+import { eq, desc, and, or, isNotNull, gte } from "drizzle-orm";
 import { messages, sessions, chatLogs } from "@shared/schema";
 import crypto from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
@@ -401,7 +401,64 @@ async function notifySupervisors(merchantId: string, sessionId: string, reason: 
 // Round-robin agent assignment tracking per merchant
 const lastAssignedAgentIndex: Map<string, number> = new Map();
 
-async function getNextAgentId(merchantId: string): Promise<string | null> {
+// Find previous agent for returning user (by customerName or deviceFingerprint)
+async function findPreviousAgentForUser(merchantId: string, customerName?: string, deviceFingerprint?: string): Promise<string | null> {
+  if (!customerName && !deviceFingerprint) {
+    return null;
+  }
+  
+  // Check active sessions first for same user
+  const activeSessions = await storage.getSessionsByMerchant(merchantId, true);
+  for (const session of activeSessions) {
+    if (session.agentId) {
+      // Match by fingerprint (most reliable) or exact customerName
+      if ((deviceFingerprint && session.deviceFingerprint === deviceFingerprint) ||
+          (customerName && session.customerName === customerName)) {
+        // Verify agent is still active
+        const agent = await storage.getAgent(session.agentId);
+        if (agent && agent.isActive) {
+          return session.agentId;
+        }
+      }
+    }
+  }
+  
+  // Check chat logs for previous sessions with same user
+  // Build conditions dynamically to avoid passing undefined to or()
+  const userConditions = [];
+  if (deviceFingerprint) {
+    userConditions.push(eq(schema.chatLogs.deviceFingerprint, deviceFingerprint));
+  }
+  if (customerName) {
+    userConditions.push(eq(schema.chatLogs.customerName, customerName));
+  }
+  
+  // Only query if we have at least one condition
+  if (userConditions.length === 0) {
+    return null;
+  }
+  
+  const chatLogResults = await db.query.chatLogs.findMany({
+    where: and(
+      eq(schema.chatLogs.merchantId, merchantId),
+      userConditions.length === 1 ? userConditions[0] : or(...userConditions)
+    ),
+    orderBy: [desc(schema.chatLogs.clearedAt)],
+    limit: 1,
+  });
+  
+  if (chatLogResults.length > 0 && chatLogResults[0].agentId) {
+    // Verify agent is still active
+    const agent = await storage.getAgent(chatLogResults[0].agentId);
+    if (agent && agent.isActive) {
+      return chatLogResults[0].agentId;
+    }
+  }
+  
+  return null;
+}
+
+async function getNextAgentId(merchantId: string, customerName?: string, deviceFingerprint?: string): Promise<string | null> {
   const agents = await storage.getAgents(merchantId);
   const activeAgents = agents.filter(a => a.isActive);
   
@@ -410,16 +467,26 @@ async function getNextAgentId(merchantId: string): Promise<string | null> {
     return null;
   }
   
+  // First, check if this is a returning user who should go to their previous agent
+  if (customerName || deviceFingerprint) {
+    const previousAgentId = await findPreviousAgentForUser(merchantId, customerName, deviceFingerprint);
+    if (previousAgentId) {
+      console.log(`[Session Continuity] Returning user assigned to previous agent: ${previousAgentId}`);
+      return previousAgentId;
+    }
+  }
+  
   if (activeAgents.length === 1) {
     // Only one active agent, always use it
     return activeAgents[0].id;
   }
   
-  // Round-robin for 2+ active agents
+  // Round-robin for 2+ active agents (new users only)
   const lastIndex = lastAssignedAgentIndex.get(merchantId) ?? -1;
   const nextIndex = (lastIndex + 1) % activeAgents.length;
   lastAssignedAgentIndex.set(merchantId, nextIndex);
   
+  console.log(`[Round-Robin] New user assigned to agent index ${nextIndex}: ${activeAgents[nextIndex].id}`);
   return activeAgents[nextIndex].id;
 }
 
@@ -11901,6 +11968,47 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
     }
   });
 
+  // Get session state with supervisor info (for widget to display supervisor photo/name)
+  app.get("/api/widget/session-info/:sessionId", async (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type");
+    
+    try {
+      const { sessionId } = req.params;
+      const session = await storage.getSession(sessionId);
+      
+      if (!session) {
+        return res.json({ found: false });
+      }
+      
+      let supervisorInfo: { id: string; name: string; photoUrl: string } | null = null;
+      
+      // If session is in HUMAN mode, get supervisor info
+      if (session.mode === "HUMAN" && session.supervisorId) {
+        const supervisor = await storage.getSupervisor(session.supervisorId);
+        if (supervisor) {
+          supervisorInfo = {
+            id: supervisor.id,
+            name: supervisor.name,
+            photoUrl: supervisor.photoUrl || "",
+          };
+        }
+      }
+      
+      res.json({
+        found: true,
+        mode: session.mode,
+        supervisorId: session.supervisorId,
+        supervisorInfo,
+        agentId: session.agentId,
+      });
+    } catch (error) {
+      console.error("Error getting session info:", error);
+      res.json({ found: false });
+    }
+  });
+
   // Public endpoint for widget to start chat with customer name
   app.post("/api/widget/start-chat", async (req, res) => {
     // CORS is handled by the middleware at line 907-926 for /api/widget/ routes
@@ -11932,7 +12040,8 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
 
       // Create or update session with customer name
       let session = await storage.getSession(sessionId);
-      const assignedAgentId = await getNextAgentId(merchantId);
+      // Pass customerName and deviceFingerprint for session continuity (returning users get same agent)
+      const assignedAgentId = await getNextAgentId(merchantId, sanitizedName, deviceFingerprint);
       
       if (!session) {
         session = await storage.createSession({
@@ -12286,6 +12395,39 @@ ${log.extractedKnowledge}` : ''}
       res.json({ success: true });
     } catch (error) {
       console.error("Error updating lead status:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Search chat logs by customerName or deviceFingerprint (for agent context)
+  app.get("/api/chat-logs/search", requireMerchantOrSupervisor, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { customerName, deviceFingerprint } = req.query;
+      
+      if (!customerName && !deviceFingerprint) {
+        return res.status(400).json({ error: "Please provide customerName or deviceFingerprint" });
+      }
+      
+      // Build search conditions
+      const conditions: any[] = [eq(chatLogs.merchantId, merchantId)];
+      
+      if (customerName && typeof customerName === 'string') {
+        conditions.push(eq(chatLogs.customerName, customerName));
+      }
+      if (deviceFingerprint && typeof deviceFingerprint === 'string') {
+        conditions.push(eq(chatLogs.deviceFingerprint, deviceFingerprint));
+      }
+      
+      const logs = await db.query.chatLogs.findMany({
+        where: and(...conditions),
+        orderBy: [desc(chatLogs.clearedAt)],
+        limit: 50,
+      });
+      
+      res.json(logs);
+    } catch (error) {
+      console.error("Error searching chat logs:", error);
       res.status(500).json({ error: "Server error" });
     }
   });

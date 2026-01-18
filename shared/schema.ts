@@ -568,6 +568,7 @@ export const chatLogs = pgTable("chat_logs", {
   customerName: text("customer_name"),
   customerEmail: text("customer_email"),
   customerPhone: text("customer_phone"),
+  deviceFingerprint: text("device_fingerprint"), // For session continuity lookup
   bankRecords: jsonb("bank_records"),
   leadStatus: text("lead_status").default("new"),
   locationData: jsonb("location_data"), // {latitude, longitude, city, country, source}[]

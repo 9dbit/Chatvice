@@ -323,7 +323,7 @@ async function runAutomaticChatCleanup(): Promise<void> {
             session.mode === 'HUMAN' ? 'Escalated to supervisor.' : 'Handled by AI.'
           }`;
           
-          // Create chat log
+          // Create chat log (includes deviceFingerprint for session continuity lookup)
           await storage.createChatLog({
             merchantId: merchant.id,
             sessionId: session.id,
@@ -331,6 +331,7 @@ async function runAutomaticChatCleanup(): Promise<void> {
             supervisorId: session.supervisorId || null,
             customerName: session.customerName || null,
             customerEmail: session.customerEmail || null,
+            deviceFingerprint: session.deviceFingerprint || null,
             summary,
             messageCount: messages.length,
             fullTranscript: transcript,
