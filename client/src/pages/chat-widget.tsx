@@ -1399,20 +1399,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     ? { backgroundColor: `${primaryColor}CC` } // 80% opacity of primary color
     : { backgroundColor: primaryColor };
   
-  // Body and footer use same styling as welcome bubble (bg-card)
-  // Uses CSS variable --card which auto-adapts to light/dark theme
+  // Body uses frosted glass transparent for see-through effect
   const frostedBodyStyle: React.CSSProperties = applyEmbedStyles
     ? { 
-        backgroundColor: 'hsl(var(--card))',
+        backgroundColor: 'rgba(255, 255, 255, 0.15)',
         backdropFilter: 'blur(40px)',
         WebkitBackdropFilter: 'blur(40px)',
       } 
     : {};
 
-  // Footer style - matches body style (same as welcome bubble)
+  // Footer style - matches body style (frosted glass transparent)
   const frostedFooterStyle: React.CSSProperties = applyEmbedStyles
     ? { 
-        backgroundColor: 'hsl(var(--card))',
+        backgroundColor: 'rgba(255, 255, 255, 0.15)',
         backdropFilter: 'blur(40px)',
         WebkitBackdropFilter: 'blur(40px)',
       } 
@@ -1580,9 +1579,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         
         return (
           <div 
-            className="backdrop-blur-lg overflow-hidden"
+            className="backdrop-blur-xl overflow-hidden"
             style={{ 
-              backgroundColor: `${primaryColor}40`,
+              backgroundColor: 'rgba(255, 255, 255, 0.15)',
+              backdropFilter: 'blur(40px)',
+              WebkitBackdropFilter: 'blur(40px)',
               animation: socialPanelClosing 
                 ? 'slideUpSmooth 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
                 : 'slideDownSmooth 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
