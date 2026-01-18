@@ -326,6 +326,11 @@ export default function CheckoutPage() {
   const [submittingCryptoPayment, setSubmittingCryptoPayment] = useState(false);
   const [priceLoadingProgress, setPriceLoadingProgress] = useState(0);
   
+  // Bank transfer proof upload states
+  const [bankProofFile, setBankProofFile] = useState<File | null>(null);
+  const [bankProofPreview, setBankProofPreview] = useState<string | null>(null);
+  const [submittingBankProof, setSubmittingBankProof] = useState(false);
+  
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -2100,6 +2105,138 @@ export default function CheckoutPage() {
                   Demo Pay
                 </Button>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Proof of Payment Upload Section */}
+          <Card>
+            <CardContent className="pt-3 pb-3 space-y-2.5">
+              <div className="text-center">
+                <h3 className="text-xs font-semibold">Upload Proof of Payment</h3>
+                <p className="text-[10px] text-muted-foreground">
+                  Upload screenshot of your transfer for faster verification
+                </p>
+              </div>
+
+              <div 
+                className="border-2 border-dashed border-border rounded-lg p-3 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                onClick={() => document.getElementById('bankProofInput')?.click()}
+                data-testid="bank-proof-upload-area"
+              >
+                {bankProofPreview ? (
+                  <div className="space-y-2">
+                    <img src={bankProofPreview} alt="Proof" className="max-h-32 mx-auto rounded-lg" />
+                    <p className="text-[10px] text-muted-foreground">{bankProofFile?.name}</p>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 text-[10px]"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setBankProofFile(null);
+                        setBankProofPreview(null);
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="py-3 space-y-1.5">
+                    <Upload className="w-6 h-6 mx-auto text-muted-foreground" />
+                    <p className="text-[10px] text-muted-foreground">Click to upload proof</p>
+                    <p className="text-[9px] text-muted-foreground/70">PNG, JPG up to 5MB</p>
+                  </div>
+                )}
+              </div>
+              <input
+                id="bankProofInput"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    if (file.size > 5 * 1024 * 1024) {
+                      toast({ title: "Error", description: "File size must be less than 5MB", variant: "destructive" });
+                      return;
+                    }
+                    setBankProofFile(file);
+                    const reader = new FileReader();
+                    reader.onloadend = () => setBankProofPreview(reader.result as string);
+                    reader.readAsDataURL(file);
+                  }
+                }}
+                data-testid="input-bank-proof-file"
+              />
+
+              <Button
+                className="w-full"
+                size="sm"
+                disabled={!bankProofFile || submittingBankProof}
+                onClick={async () => {
+                  if (!bankProofFile || !bankTransferData) return;
+                  
+                  setSubmittingBankProof(true);
+                  try {
+                    const formData = new FormData();
+                    formData.append('proof', bankProofFile);
+                    formData.append('transactionId', bankTransferData.transactionId);
+                    formData.append('planId', planId || '');
+                    formData.append('billingInterval', billingInterval);
+                    formData.append('amount', String(bankTransferData.totalAmount || bankTransferData.amount));
+                    formData.append('bankCode', bankTransferData.bankCode);
+                    formData.append('accountNumber', bankTransferData.accountNumber);
+                    formData.append('accountName', bankTransferData.accountName);
+                    if (bankTransferData.uniqueCode) {
+                      formData.append('uniqueCode', String(bankTransferData.uniqueCode));
+                    }
+                    if (invoiceId) {
+                      formData.append('invoiceId', invoiceId);
+                    }
+
+                    const response = await fetch('/api/bank-transfer/confirm', {
+                      method: 'POST',
+                      body: formData,
+                      credentials: 'include',
+                    });
+
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                      toast({
+                        title: "Proof Submitted",
+                        description: "Your payment proof has been submitted for verification. We'll notify you once confirmed.",
+                      });
+                      // Keep polling for automatic verification, but show success message
+                      setBankProofFile(null);
+                      setBankProofPreview(null);
+                    } else {
+                      throw new Error(result.error || 'Failed to submit proof');
+                    }
+                  } catch (error: any) {
+                    toast({
+                      title: "Error",
+                      description: error.message || "Failed to submit payment proof",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setSubmittingBankProof(false);
+                  }
+                }}
+                data-testid="button-submit-bank-proof"
+              >
+                {submittingBankProof ? (
+                  <>
+                    <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-3 h-3 mr-1.5" />
+                    Submit Proof
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
 
