@@ -1399,19 +1399,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     ? { backgroundColor: `${primaryColor}CC` } // 80% opacity of primary color
     : { backgroundColor: primaryColor };
   
-  // Body uses frosted glass - 50% transparent
+  // Body uses frosted glass - 25% opacity for more transparency
   const frostedBodyStyle: React.CSSProperties = applyEmbedStyles
     ? { 
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.25)',
         backdropFilter: 'blur(40px)',
         WebkitBackdropFilter: 'blur(40px)',
       } 
     : {};
 
-  // Footer style - matches body style (50% transparent)
+  // Footer style - matches body style (25% opacity)
   const frostedFooterStyle: React.CSSProperties = applyEmbedStyles
     ? { 
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.25)',
         backdropFilter: 'blur(40px)',
         WebkitBackdropFilter: 'blur(40px)',
       } 
@@ -1581,9 +1581,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           <div 
             className="overflow-hidden"
             style={{ 
-              backgroundColor: 'rgba(0, 0, 0, 0.5)',
-              backdropFilter: 'blur(40px)',
-              WebkitBackdropFilter: 'blur(40px)',
+              backgroundColor: 'rgba(0, 0, 0, 0.15)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
               animation: socialPanelClosing 
                 ? 'slideUpSmooth 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
                 : 'slideDownSmooth 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
