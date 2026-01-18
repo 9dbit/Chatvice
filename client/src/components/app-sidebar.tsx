@@ -123,7 +123,7 @@ const iconMap: Record<string, any> = {
 };
 
 const menuItemsMap: Record<string, MenuItem> = {
-  "overview": { id: "overview", title: "Overview", url: "/dashboard", icon: LayoutDashboard, permission: "overview" },
+  "overview": { id: "overview", title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, permission: "overview" },
   "profile": { id: "profile", title: "Profile", url: "/dashboard/profile", icon: User, permission: "overview" },
   "agents": { id: "agents", title: "Agents", url: "/dashboard/agents", icon: Bot, permission: "agents" },
   "quick-replies": { id: "quick-replies", title: "Quick Replies", url: "/dashboard/quick-replies", icon: Reply, permission: "quickReplies" },
