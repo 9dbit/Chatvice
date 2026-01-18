@@ -11705,7 +11705,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
   app.post("/api/widget/start-chat", async (req, res) => {
     // CORS is handled by the middleware at line 907-926 for /api/widget/ routes
     try {
-      const { merchantId, sessionId, customerName, initialMessage, deviceFingerprint, welcomeDescription } = req.body;
+      const { merchantId, sessionId, customerName, initialMessage, deviceFingerprint, welcomeDescription, isQuickQuestion } = req.body;
       
       // Get client IP from request
       const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || 
@@ -11790,8 +11790,34 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         content: finalMessage,
       });
 
-      // Generate personalized AI greeting response
-      const greetingPrompt = `You are ${agentName}, a friendly customer service AI assistant for ${merchant.companyName}. 
+      // Generate AI response based on whether user selected a quick question or not
+      let aiPrompt: string;
+      let fallbackResponse: string;
+
+      if (isQuickQuestion) {
+        // User selected a quick question - answer their question directly
+        // Get knowledge base for context
+        const knowledge = activeAgentId ? await storage.getKnowledgeByAgent(activeAgentId) : null;
+        const knowledgeContext = knowledge?.content ? `\n\nKnowledge Base:\n${knowledge.content.slice(0, 3000)}` : "";
+        
+        aiPrompt = `You are ${agentName}, a friendly customer service AI assistant for ${merchant.companyName}. 
+${agentSystemPrompt ? `Additional context: ${agentSystemPrompt}` : ""}
+${knowledgeContext}
+
+The customer named "${sanitizedName}" just started a chat with a specific question: "${finalMessage}"
+
+Respond by:
+1. Greet them briefly using their name (e.g., "Halo ${sanitizedName}!")
+2. Answer their question directly and helpfully
+3. Use your knowledge base to provide accurate information
+4. Keep the response concise but informative
+5. Respond in Indonesian
+
+Do not use brackets, special formatting, or mention that you're an AI.`;
+        fallbackResponse = `Halo ${sanitizedName}! Terima kasih atas pertanyaannya. Saya akan dengan senang hati membantu Anda. Bisa Anda jelaskan lebih detail?`;
+      } else {
+        // No quick question - show welcome message/greeting
+        aiPrompt = `You are ${agentName}, a friendly customer service AI assistant for ${merchant.companyName}. 
 ${agentSystemPrompt ? `Additional context: ${agentSystemPrompt}` : ""}
 
 The customer named "${sanitizedName}" just started a chat with the message: "${finalMessage}"
@@ -11804,14 +11830,16 @@ Respond with a warm, personalized greeting that:
 5. Respond in Indonesian as the customer used Indonesian
 
 Do not use brackets, special formatting, or mention that you're an AI.`;
+        fallbackResponse = `Halo ${sanitizedName}! Terima kasih sudah menghubungi kami. Ada yang bisa saya bantu hari ini?`;
+      }
 
-      let aiGreeting = `Halo ${sanitizedName}! Terima kasih sudah menghubungi kami. Ada yang bisa saya bantu hari ini?`;
+      let aiGreeting = fallbackResponse;
 
       try {
         const response = await openai.chat.completions.create({
           model: "gpt-4.1-mini",
-          messages: [{ role: "user", content: greetingPrompt }],
-          max_tokens: 150,
+          messages: [{ role: "user", content: aiPrompt }],
+          max_tokens: isQuickQuestion ? 400 : 150, // More tokens for answering questions
           temperature: 0.7,
         });
         
@@ -11819,8 +11847,8 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
           aiGreeting = response.choices[0].message.content;
         }
       } catch (aiError) {
-        console.error("AI greeting error, using fallback:", aiError);
-        // Use fallback greeting
+        console.error("AI response error, using fallback:", aiError);
+        // Use fallback response
       }
 
       // Store AI response

@@ -740,14 +740,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
   // Start chat mutation with customer name
   const startChatMutation = useMutation({
-    mutationFn: async ({ name, initialMessage, welcomeDescription }: { name: string; initialMessage: string; welcomeDescription?: string }) => {
+    mutationFn: async ({ name, initialMessage, welcomeDescription, isQuickQuestion }: { name: string; initialMessage: string; welcomeDescription?: string; isQuickQuestion?: boolean }) => {
       const response = await apiRequest("POST", "/api/widget/start-chat", {
         merchantId,
         sessionId,
         customerName: name,
         initialMessage,
         deviceFingerprint, // For 24-hour session persistence
-        welcomeDescription, // Include welcome description for chat history
+        welcomeDescription, // Include welcome description for chat history (only if no quick question)
+        isQuickQuestion, // Flag to indicate if user selected a quick question
       });
       return response.json() as Promise<{ success: boolean; answer: string; error?: string; sanitizedName?: string; welcomeMessage?: string }>;
     },
@@ -821,11 +822,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     }
     setNameError("");
     // Use selected quick message if available, otherwise default
+    const hasQuickQuestion = !!selectedQuickMessage;
     const initialMessage = selectedQuickMessage || "Halo kak, ada yang mau saya tanyakan";
+    // Only include welcome description if no quick question was selected
+    // If user selects quick question, they want direct answer to their question
     startChatMutation.mutate({ 
       name, 
       initialMessage,
-      welcomeDescription: merchantConfig?.welcomeDescription || "",
+      welcomeDescription: hasQuickQuestion ? "" : (merchantConfig?.welcomeDescription || ""),
+      isQuickQuestion: hasQuickQuestion,
     });
   };
 
