@@ -437,8 +437,10 @@ async function askChatvice(
   }
 
   if (session.mode === "HUMAN") {
+    // Don't auto-reply when supervisor is handling - let supervisor respond manually
+    // Return empty answer to indicate no AI response needed
     return {
-      answer: "Supervisor sedang menangani percakapan Anda. Mohon tunggu balasannya.",
+      answer: "",
       mode: "HUMAN",
     };
   }
@@ -3437,20 +3439,24 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       // Remove the tag from the displayed answer
       const cleanAnswer = result.answer.replace(/\[RECOMMEND_PRODUCT\]/g, "").trim();
 
-      const responseClientId = clientMessageId ? `response_${clientMessageId}` : undefined;
-      await storage.createMessage({
-        sessionId,
-        from: result.mode === "HUMAN" ? "system" : "chatvice",
-        content: cleanAnswer,
-        clientMessageId: responseClientId,
-      });
+      // Only create/broadcast message if there's actual content to send
+      // When mode is HUMAN, supervisor will respond manually - no auto-reply needed
+      if (cleanAnswer) {
+        const responseClientId = clientMessageId ? `response_${clientMessageId}` : undefined;
+        await storage.createMessage({
+          sessionId,
+          from: result.mode === "HUMAN" ? "system" : "chatvice",
+          content: cleanAnswer,
+          clientMessageId: responseClientId,
+        });
+
+        broadcastToSession(sessionId, {
+          type: "message",
+          message: { from: result.mode === "HUMAN" ? "system" : "chatvice", content: cleanAnswer, clientMessageId: responseClientId },
+        });
+      }
 
       await storage.updateSession(sessionId, {});
-
-      broadcastToSession(sessionId, {
-        type: "message",
-        message: { from: result.mode === "HUMAN" ? "system" : "chatvice", content: cleanAnswer, clientMessageId: responseClientId },
-      });
 
       if (result.mode === "AI") {
         try {

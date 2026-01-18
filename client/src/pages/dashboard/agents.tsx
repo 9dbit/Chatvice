@@ -16,7 +16,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Bot, Plus, Edit, Trash2, Sparkles, Crown, ArrowUpRight, Camera, Loader2, MessageSquare, AlertTriangle, Clock, Thermometer, UserCircle, Zap, Check, FileText, MessageCircle } from "lucide-react";
+import { Bot, Plus, Edit, Trash2, Sparkles, Crown, ArrowUpRight, Camera, Loader2, MessageSquare, AlertTriangle, Clock, Thermometer, UserCircle, Zap, Check, FileText, MessageCircle, Send, X } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -60,6 +61,10 @@ const agentSchema = z.object({
   closingStatementAutoIncludeCustomerName: z.boolean().optional(),
   inactivityTimeoutSeconds: z.number().optional(),
   temperature: z.string().optional(),
+  followUpEnabled: z.boolean().optional(),
+  followUpMessage: z.string().optional(),
+  followUpSuggestions: z.array(z.string()).optional(),
+  followUpIntervalMinutes: z.number().optional(),
 });
 
 type AgentFormData = z.infer<typeof agentSchema>;
@@ -108,6 +113,10 @@ export default function AgentsPage() {
       closingStatementAutoIncludeCustomerName: true,
       inactivityTimeoutSeconds: 120,
       temperature: "0.7",
+      followUpEnabled: false,
+      followUpMessage: "Apakah ada yang bisa saya bantu lagi?",
+      followUpSuggestions: [],
+      followUpIntervalMinutes: 5,
     },
   });
 
@@ -254,6 +263,10 @@ export default function AgentsPage() {
     form.setValue("closingStatementAutoIncludeCustomerName", agent.closingStatementAutoIncludeCustomerName ?? true);
     form.setValue("inactivityTimeoutSeconds", agent.inactivityTimeoutSeconds || 120);
     form.setValue("temperature", agent.temperature || "0.7");
+    form.setValue("followUpEnabled", agent.followUpEnabled || false);
+    form.setValue("followUpMessage", agent.followUpMessage || "Apakah ada yang bisa saya bantu lagi?");
+    form.setValue("followUpSuggestions", (agent.followUpSuggestions as string[]) || []);
+    form.setValue("followUpIntervalMinutes", agent.followUpIntervalMinutes || 5);
     setPhotoUrl(agent.photoUrl || "");
     setIsDialogOpen(true);
   };
@@ -624,6 +637,164 @@ export default function AgentsPage() {
 
                   <Separator />
 
+                  {/* Follow Up Message Settings */}
+                  <FormField
+                    control={form.control}
+                    name="followUpEnabled"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                        <div className="space-y-0.5">
+                          <FormLabel className="flex items-center gap-2">
+                            <Send className="w-4 h-4 text-purple-500" />
+                            Follow Up Message
+                          </FormLabel>
+                          <FormDescription className="text-xs">
+                            Send follow up message after customer is inactive
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-follow-up"
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  {form.watch("followUpEnabled") && (
+                    <div className="space-y-3 border rounded-lg p-3">
+                      {/* Follow Up Message Text */}
+                      <FormField
+                        control={form.control}
+                        name="followUpMessage"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">Follow Up Message</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Apakah ada yang bisa saya bantu lagi?"
+                                className="min-h-[60px]"
+                                data-testid="input-follow-up-message"
+                                {...field}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Follow Up Interval */}
+                      <FormField
+                        control={form.control}
+                        name="followUpIntervalMinutes"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">Interval (after inactive)</FormLabel>
+                            <Select
+                              value={String(field.value)}
+                              onValueChange={(val) => field.onChange(Number(val))}
+                            >
+                              <FormControl>
+                                <SelectTrigger data-testid="select-follow-up-interval">
+                                  <SelectValue placeholder="Select interval" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="5">5 minutes</SelectItem>
+                                <SelectItem value="15">15 minutes</SelectItem>
+                                <SelectItem value="30">30 minutes</SelectItem>
+                                <SelectItem value="60">1 hour</SelectItem>
+                                <SelectItem value="120">2 hours</SelectItem>
+                                <SelectItem value="360">6 hours</SelectItem>
+                                <SelectItem value="720">12 hours</SelectItem>
+                                <SelectItem value="1440">24 hours</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Follow Up Suggestions - max 3 buttons */}
+                      <FormField
+                        control={form.control}
+                        name="followUpSuggestions"
+                        render={({ field }) => {
+                          const suggestions = field.value || [];
+                          const canAddMore = suggestions.length < 3;
+                          
+                          const addSuggestion = () => {
+                            if (canAddMore) {
+                              field.onChange([...suggestions, ""]);
+                            }
+                          };
+                          
+                          const updateSuggestion = (index: number, value: string) => {
+                            const newSuggestions = [...suggestions];
+                            newSuggestions[index] = value;
+                            field.onChange(newSuggestions);
+                          };
+                          
+                          const removeSuggestion = (index: number) => {
+                            const newSuggestions = suggestions.filter((_: string, i: number) => i !== index);
+                            field.onChange(newSuggestions);
+                          };
+                          
+                          return (
+                            <FormItem>
+                              <div className="flex items-center justify-between">
+                                <FormLabel className="text-xs">Quick Reply Suggestions (max 3)</FormLabel>
+                                {canAddMore && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={addSuggestion}
+                                    className="h-6 text-xs"
+                                    data-testid="button-add-suggestion"
+                                  >
+                                    <Plus className="w-3 h-3 mr-1" />
+                                    Add
+                                  </Button>
+                                )}
+                              </div>
+                              <div className="space-y-2">
+                                {suggestions.map((suggestion: string, index: number) => (
+                                  <div key={index} className="flex items-center gap-2">
+                                    <FormControl>
+                                      <Input
+                                        placeholder={`Suggestion ${index + 1}...`}
+                                        value={suggestion}
+                                        onChange={(e) => updateSuggestion(index, e.target.value)}
+                                        className="text-xs"
+                                        data-testid={`input-suggestion-${index}`}
+                                      />
+                                    </FormControl>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => removeSuggestion(index)}
+                                      className="h-8 w-8"
+                                      data-testid={`button-remove-suggestion-${index}`}
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                              <FormDescription className="text-xs">
+                                Buttons to help customers respond quickly
+                              </FormDescription>
+                            </FormItem>
+                          );
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  <Separator />
+
                   <FormField
                     control={form.control}
                     name="temperature"
@@ -794,6 +965,14 @@ export default function AgentsPage() {
                     <Badge variant="outline" className="text-[10px] gap-1 text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700">
                       <Clock className="w-2.5 h-2.5" />
                       Goodbye
+                    </Badge>
+                  )}
+                  
+                  {/* Follow Up Message */}
+                  {agent.followUpEnabled && (
+                    <Badge variant="outline" className="text-[10px] gap-1 text-purple-600 dark:text-purple-400 border-purple-300 dark:border-purple-700">
+                      <Send className="w-2.5 h-2.5" />
+                      Follow Up
                     </Badge>
                   )}
                   

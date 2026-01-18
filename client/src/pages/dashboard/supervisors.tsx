@@ -135,34 +135,68 @@ export default function SupervisorsPage() {
     },
   });
 
+  const compressImage = (file: File, maxWidth: number = 200, quality: number = 0.8): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calculate new dimensions while maintaining aspect ratio
+        let { width, height } = img;
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxWidth) {
+            width = Math.round((width * maxWidth) / height);
+            height = maxWidth;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw and compress
+        ctx?.drawImage(img, 0, 0, width, height);
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressedDataUrl);
+      };
+      
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
+    if (file.size > 5 * 1024 * 1024) {
       toast({
         title: "File too large",
-        description: "Please upload an image smaller than 2MB",
+        description: "Please upload an image smaller than 5MB",
         variant: "destructive",
       });
       return;
     }
 
     setUploadingPhoto(true);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setPhotoUrl(reader.result as string);
+    try {
+      // Compress and resize to max 200x200
+      const compressedUrl = await compressImage(file, 200, 0.8);
+      setPhotoUrl(compressedUrl);
       setUploadingPhoto(false);
-    };
-    reader.onerror = () => {
+    } catch (error) {
       toast({
         title: "Upload failed",
-        description: "Failed to read the image file",
+        description: "Failed to process the image file",
         variant: "destructive",
       });
       setUploadingPhoto(false);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const getInitials = (name: string) => {

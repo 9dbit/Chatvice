@@ -293,14 +293,15 @@ async function runAutomaticChatCleanup(): Promise<void> {
       try {
         // Get retention hours based on plan
         const planId = merchant.subscriptionPlanId || 'free';
-        // Free plan: 24 hours, Starter: 168 hours (7 days), Pro: 720 hours (30 days), Enterprise: 2160 hours (90 days)
+        // Free plan: 1 hour, Starter: 24 hours, Pro: 48 hours, Enterprise: 168 hours (7 days), Custom: Enterprise-level
         const retentionMap: Record<string, number> = {
-          free: 24,
-          starter: 168,
-          pro: 720,
-          enterprise: 2160,
+          free: 1,
+          starter: 24,
+          pro: 48,
+          enterprise: 168,
+          custom: 168, // Custom plans get same retention as Enterprise
         };
-        const retentionHours = retentionMap[planId] || 24;
+        const retentionHours = retentionMap[planId] || 168; // Default to Enterprise-level retention for unknown plans
         
         const expiredSessions = await storage.getExpiredSessions(merchant.id, retentionHours);
         

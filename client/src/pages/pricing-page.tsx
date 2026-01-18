@@ -503,7 +503,7 @@ export default function PricingPage() {
                   { feature: "Supervisors", free: String(freeLimits.supervisors), starter: String(starterLimits.supervisors), pro: String(proLimits.supervisors), enterprise: String(enterpriseLimits.supervisors), custom: "Unlimited" },
                   { feature: "Monthly Conversations", free: freeLimits.conversations, starter: starterLimits.conversations, pro: proLimits.conversations, enterprise: enterpriseLimits.conversations, custom: "Unlimited" },
                   { feature: "Knowledge Sources", free: String(freeLimits.sources), starter: String(starterLimits.sources), pro: String(proLimits.sources), enterprise: String(enterpriseLimits.sources), custom: "Unlimited" },
-                  { feature: "Chat History Retention", free: getChatRetention('free', 1), starter: getChatRetention('starter', 12), pro: getChatRetention('pro', 24), enterprise: getChatRetention('enterprise', 24), custom: "Unlimited" },
+                  { feature: "Chat History Retention", free: getChatRetention('free', 1), starter: getChatRetention('starter', 24), pro: getChatRetention('pro', 48), enterprise: getChatRetention('enterprise', 168), custom: "Unlimited" },
                   { feature: "Suggested Questions", free: getDbLimit('free', 'suggestedQuestionsLimit', 0), starter: getDbLimit('starter', 'suggestedQuestionsLimit', 5), pro: getDbLimit('pro', 'suggestedQuestionsLimit', 5), enterprise: getDbLimit('enterprise', 'suggestedQuestionsLimit', 5), custom: "Unlimited" },
                   { feature: "Widget Customization", free: "Basic", starter: true, pro: true, enterprise: true, custom: true },
                   { feature: "Remove Branding", free: false, starter: true, pro: true, enterprise: true, custom: true },

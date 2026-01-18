@@ -482,6 +482,11 @@ export const agents = pgTable("agents", {
   closingStatementAutoIncludeCustomerName: boolean("closing_statement_auto_include_customer_name").default(true),
   inactivityTimeoutSeconds: integer("inactivity_timeout_seconds").default(120),
   temperature: text("temperature").default("0.7"),
+  // Follow up settings
+  followUpEnabled: boolean("follow_up_enabled").default(false),
+  followUpMessage: text("follow_up_message").default("Apakah ada yang bisa saya bantu lagi?"),
+  followUpSuggestions: jsonb("follow_up_suggestions").default([]), // Array of up to 3 suggestion buttons
+  followUpIntervalMinutes: integer("follow_up_interval_minutes").default(5), // 5, 15, 30, 60, 120, 360, 720, 1440 minutes
   isActive: boolean("is_active").default(true),
   supervisorId: varchar("supervisor_id", { length: 32 }),
   // Per-agent widget settings
