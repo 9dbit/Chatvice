@@ -15,7 +15,7 @@ import {
   MessageSquare, Bot, HeadphonesIcon, Send, Search, User, Download, 
   Hand, ArrowLeft, Clock, Edit, Check, X, Loader2, RefreshCw, AlertCircle,
   CheckCircle2, Circle, XCircle, Filter, ShoppingBag, Plus, ImageIcon, Video, FileText,
-  ExternalLink, Maximize2, Minimize2, MapPin
+  ExternalLink, Maximize2, Minimize2, MapPin, Volume2, VolumeX
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
@@ -143,6 +143,49 @@ export default function SessionsPage() {
   const [previewContent, setPreviewContent] = useState<PreviewContent | null>(null);
   const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
   
+  // Sound notification system
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    const saved = localStorage.getItem("sessionSoundEnabled");
+    return saved !== null ? saved === "true" : true;
+  });
+  const previousSessionIdsRef = useRef<Set<string>>(new Set());
+  const sessionMessageCountsRef = useRef<Map<string, number>>(new Map());
+  const lastProcessedMessageIdRef = useRef<string | null>(null);
+  const initialLoadRef = useRef(true);
+  
+  // Save sound preference
+  useEffect(() => {
+    localStorage.setItem("sessionSoundEnabled", String(soundEnabled));
+  }, [soundEnabled]);
+  
+  // Sound utility functions
+  function playIncomingChatSound() {
+    if (!soundEnabled) return;
+    try {
+      const audio = new Audio("/sounds/sci-fi-confirm.wav");
+      audio.volume = 0.5;
+      audio.play().catch(() => {});
+    } catch (e) {}
+  }
+  
+  function playChatReplySound() {
+    if (!soundEnabled) return;
+    try {
+      const audio = new Audio("/sounds/live-chat.mp3");
+      audio.volume = 0.4;
+      audio.play().catch(() => {});
+    } catch (e) {}
+  }
+  
+  function playAngrySound() {
+    if (!soundEnabled) return;
+    try {
+      const audio = new Audio("/sounds/alert.mp3");
+      audio.volume = 0.6;
+      audio.play().catch(() => {});
+    } catch (e) {}
+  }
+  
   // Clear preview when session changes
   useEffect(() => {
     setPreviewContent(null);
@@ -199,6 +242,60 @@ export default function SessionsPage() {
     queryKey: ["/api/product-recommendation-settings"],
     enabled: !!merchantId,
   });
+
+  // Track new sessions - play incoming sound for first message
+  useEffect(() => {
+    if (!sessions || !soundEnabled) return;
+    
+    const currentSessionIds = new Set(sessions.map(s => s.id));
+    
+    if (initialLoadRef.current) {
+      previousSessionIdsRef.current = currentSessionIds;
+      sessions.forEach(s => sessionMessageCountsRef.current.set(s.id, 0));
+      initialLoadRef.current = false;
+      return;
+    }
+    
+    // Check for new sessions
+    const newSessions = sessions.filter(s => !previousSessionIdsRef.current.has(s.id));
+    if (newSessions.length > 0) {
+      playIncomingChatSound();
+      toast({
+        title: "Pesan baru!",
+        description: `${newSessions.length} sesi baru dimulai`,
+        duration: 5000,
+      });
+    }
+    
+    // Check for angry sessions (needsSupervisorAttention = true)
+    const angrySessions = sessions.filter(s => 
+      s.needsSupervisorAttention &&
+      !previousSessionIdsRef.current.has(s.id)
+    );
+    if (angrySessions.length > 0) {
+      playAngrySound();
+    }
+    
+    previousSessionIdsRef.current = currentSessionIds;
+  }, [sessions, soundEnabled, toast]);
+  
+  // Track messages in selected session - play reply sound for new messages
+  useEffect(() => {
+    if (!messages || messages.length === 0 || !selectedSession || !soundEnabled) return;
+    
+    const lastMessage = messages[messages.length - 1];
+    if (!lastMessage?.id || lastProcessedMessageIdRef.current === lastMessage.id) return;
+    
+    const prevCount = sessionMessageCountsRef.current.get(selectedSession) || 0;
+    const currentCount = messages.length;
+    
+    if (currentCount > prevCount && prevCount > 0) {
+      playChatReplySound();
+    }
+    
+    sessionMessageCountsRef.current.set(selectedSession, currentCount);
+    lastProcessedMessageIdRef.current = lastMessage.id;
+  }, [messages, selectedSession, soundEnabled]);
 
   // Helper function to check if products should be shown based on message content
   const shouldShowProductsForMessage = (messageContent: string): boolean => {
@@ -672,6 +769,16 @@ export default function SessionsPage() {
               <span className="hidden sm:inline text-gray-600 dark:text-gray-400">Finished</span>
               <span data-testid="text-count-ended">{statusCounts.ended}</span>
             </div>
+            <Button
+              variant={soundEnabled ? "ghost" : "outline"}
+              size="icon"
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              title={soundEnabled ? "Sound alerts on" : "Sound alerts off"}
+              className="h-7 w-7 sm:h-8 sm:w-8"
+              data-testid="button-toggle-sound"
+            >
+              {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </Button>
           </div>
         </div>
       </div>
