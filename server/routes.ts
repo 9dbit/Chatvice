@@ -12112,14 +12112,14 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       
       // Return 200 with success:false for validation errors so widget can display user-friendly messages
       if (!merchantId || !sessionId || !customerName || !customerPhone) {
-        return res.json({ success: false, error: "Mohon isi nama dan nomor telepon" });
+        return res.json({ success: false, error: "Please enter your name and phone number" });
       }
       
       // Validate email format if provided
       if (customerEmail && customerEmail.trim()) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(customerEmail.trim())) {
-          return res.json({ success: false, error: "Format email tidak valid" });
+          return res.json({ success: false, error: "Invalid email format" });
         }
       }
 

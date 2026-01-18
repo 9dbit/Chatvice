@@ -112,7 +112,7 @@ export function validatePhoneNumber(dialCode: string, localNumber: string): Phon
   if (!countryConfig) {
     return {
       isValid: false,
-      error: "Kode negara tidak valid",
+      error: "Invalid country code",
     };
   }
   
@@ -120,7 +120,7 @@ export function validatePhoneNumber(dialCode: string, localNumber: string): Phon
   if (!normalizedLocal) {
     return {
       isValid: false,
-      error: "Nomor telepon harus diisi",
+      error: "Phone number is required",
     };
   }
   
@@ -128,7 +128,7 @@ export function validatePhoneNumber(dialCode: string, localNumber: string): Phon
   if (!/^\d+$/.test(normalizedLocal)) {
     return {
       isValid: false,
-      error: "Nomor telepon hanya boleh berisi angka",
+      error: "Phone number can only contain digits",
     };
   }
   
@@ -136,14 +136,14 @@ export function validatePhoneNumber(dialCode: string, localNumber: string): Phon
   if (normalizedLocal.length < countryConfig.minLength) {
     return {
       isValid: false,
-      error: `Nomor telepon ${countryConfig.name} minimal ${countryConfig.minLength} digit (Anda: ${normalizedLocal.length} digit)`,
+      error: `${countryConfig.name} phone number must be at least ${countryConfig.minLength} digits (you entered: ${normalizedLocal.length} digits)`,
     };
   }
   
   if (normalizedLocal.length > countryConfig.maxLength) {
     return {
       isValid: false,
-      error: `Nomor telepon ${countryConfig.name} maksimal ${countryConfig.maxLength} digit (Anda: ${normalizedLocal.length} digit)`,
+      error: `${countryConfig.name} phone number can be at most ${countryConfig.maxLength} digits (you entered: ${normalizedLocal.length} digits)`,
     };
   }
   
@@ -153,7 +153,7 @@ export function validatePhoneNumber(dialCode: string, localNumber: string): Phon
     if (!normalizedLocal.startsWith('8')) {
       return {
         isValid: false,
-        error: "Nomor HP Indonesia harus diawali angka 8",
+        error: "Indonesian mobile numbers must start with 8",
       };
     }
   }

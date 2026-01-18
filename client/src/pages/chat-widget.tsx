@@ -889,13 +889,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     
     // Validate name
     if (!name) {
-      setNameError("Mohon masukkan nama Anda");
+      setNameError("Please enter your name");
       hasError = true;
     } else if (name.length < 2) {
-      setNameError("Nama minimal 2 karakter");
+      setNameError("Name must be at least 2 characters");
       hasError = true;
     } else if (name.length > 50) {
-      setNameError("Nama terlalu panjang");
+      setNameError("Name is too long");
       hasError = true;
     } else {
       setNameError("");
@@ -904,7 +904,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     // Validate phone (required)
     const phoneValidation = validatePhoneNumber(phoneDialCode, phoneLocalNumber);
     if (!phoneValidation.isValid) {
-      setPhoneError(phoneValidation.error || "Nomor telepon tidak valid");
+      setPhoneError(phoneValidation.error || "Invalid phone number");
       hasError = true;
     } else {
       setPhoneError("");
@@ -914,7 +914,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     if (emailValue.trim()) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(emailValue.trim())) {
-        setEmailError("Format email tidak valid");
+        setEmailError("Invalid email format");
         hasError = true;
       } else {
         setEmailError("");
@@ -927,7 +927,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     
     // Use selected quick message if available, otherwise default
     const hasQuickQuestion = !!selectedQuickMessage;
-    const initialMessage = selectedQuickMessage || "Halo kak, ada yang mau saya tanyakan";
+    const initialMessage = selectedQuickMessage || "Hello, I have a question";
     // Only include welcome description if no quick question was selected
     // If user selects quick question, they want direct answer to their question
     startChatMutation.mutate({ 
@@ -1853,18 +1853,18 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             )}
             
             <p className="text-sm text-muted-foreground mb-4 text-center">
-              Isi data berikut untuk memulai chat.
+              Please fill in your details to start chatting.
             </p>
             
             <div className="w-full max-w-xs space-y-3">
               {/* Name Input */}
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                  <User className="w-3 h-3" /> Nama <span className="text-red-500">*</span>
+                  <User className="w-3 h-3" /> Name <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   type="text"
-                  placeholder="Masukkan nama Anda"
+                  placeholder="Enter your name"
                   value={nameInputValue}
                   onChange={(e) => {
                     setNameInputValue(e.target.value);
@@ -1895,7 +1895,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               {/* Phone Input with Country Code */}
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Phone className="w-3 h-3" /> Nomor Telepon <span className="text-red-500">*</span>
+                  <Phone className="w-3 h-3" /> Phone Number <span className="text-red-500">*</span>
                 </Label>
                 <div className="flex gap-1.5">
                   <Select value={phoneDialCode} onValueChange={setPhoneDialCode}>
@@ -1941,11 +1941,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               {/* Email Input (Optional) */}
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Mail className="w-3 h-3" /> Email <span className="text-muted-foreground">(opsional)</span>
+                  <Mail className="w-3 h-3" /> Email <span className="text-muted-foreground">(optional)</span>
                 </Label>
                 <Input
                   type="email"
-                  placeholder="email@contoh.com"
+                  placeholder="email@example.com"
                   value={emailValue}
                   onChange={(e) => {
                     setEmailValue(e.target.value);
@@ -1967,7 +1967,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               {/* Quick Message Options */}
               {merchantConfig?.quickMessageOptions && merchantConfig.quickMessageOptions.length > 0 ? (
                 <div className="bg-muted/50 rounded-lg p-3 border">
-                  <p className="text-xs text-muted-foreground mb-2">⚡️ smart question</p>
+                  <p className="text-xs text-muted-foreground mb-2">⚡️ Quick Question</p>
                   <div className="space-y-2">
                     {merchantConfig.quickMessageOptions.map((option: string, index: number) => (
                       <label 
@@ -1989,7 +1989,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               ) : (
                 <div className="bg-muted/50 rounded-lg p-3 border">
                   <p className="text-xs text-muted-foreground mb-1">Your message:</p>
-                  <p className="text-sm italic">"Halo kak, ada yang mau saya tanyakan"</p>
+                  <p className="text-sm italic">"Hello, I have a question"</p>
                 </div>
               )}
               
@@ -2005,7 +2005,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 ) : (
                   <Send className="w-4 h-4 mr-2" />
                 )}
-                Mulai Chat
+                Start Chat
               </Button>
             </div>
           </div>
