@@ -6,11 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Bot, Send, X, Shrink, Square, Minimize2, Maximize2, HeadphonesIcon, User, ImageIcon, Video, FileText, Plus, Loader2, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ExternalLink, ShoppingBag, EyeOff, GripVertical, MapPin } from "lucide-react";
+import { Bot, Send, X, Shrink, Square, Minimize2, Maximize2, HeadphonesIcon, User, ImageIcon, Video, FileText, Plus, Loader2, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ExternalLink, ShoppingBag, EyeOff, GripVertical, MapPin, Phone, Mail } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Message, SuggestedQuestion, WelcomeBubble, ChatButton, ProductCard, ProductCardButton } from "@shared/schema";
 import { getImageLocation, type LocationData } from "@/lib/location-utils";
+import { countryPhoneConfigs, validatePhoneNumber } from "@shared/phoneValidation";
 
 interface MerchantConfig {
   online: boolean;
@@ -251,6 +253,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const [nameInputValue, setNameInputValue] = useState("");
   const [nameError, setNameError] = useState("");
   const [selectedQuickMessage, setSelectedQuickMessage] = useState<string | null>(null);
+  
+  // Phone and email state for welcome form
+  const [phoneDialCode, setPhoneDialCode] = useState("62"); // Default to Indonesia
+  const [phoneLocalNumber, setPhoneLocalNumber] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+  const [emailValue, setEmailValue] = useState("");
+  const [emailError, setEmailError] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Inactivity timer for closing statement
@@ -804,13 +813,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     resetInactivityTimer();
   };
 
-  // Start chat mutation with customer name
+  // Start chat mutation with customer name, phone and email
   const startChatMutation = useMutation({
-    mutationFn: async ({ name, initialMessage, welcomeDescription, isQuickQuestion }: { name: string; initialMessage: string; welcomeDescription?: string; isQuickQuestion?: boolean }) => {
+    mutationFn: async ({ name, phone, email, initialMessage, welcomeDescription, isQuickQuestion }: { name: string; phone: string; email: string; initialMessage: string; welcomeDescription?: string; isQuickQuestion?: boolean }) => {
       const response = await apiRequest("POST", "/api/widget/start-chat", {
         merchantId,
         sessionId,
         customerName: name,
+        customerPhone: phone,
+        customerEmail: email,
         initialMessage,
         deviceFingerprint, // For 24-hour session persistence
         welcomeDescription, // Include welcome description for chat history (only if no quick question)
@@ -874,19 +885,46 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
   const handleNameSubmit = () => {
     const name = nameInputValue.trim();
+    let hasError = false;
+    
+    // Validate name
     if (!name) {
-      setNameError("Please enter your name");
-      return;
+      setNameError("Mohon masukkan nama Anda");
+      hasError = true;
+    } else if (name.length < 2) {
+      setNameError("Nama minimal 2 karakter");
+      hasError = true;
+    } else if (name.length > 50) {
+      setNameError("Nama terlalu panjang");
+      hasError = true;
+    } else {
+      setNameError("");
     }
-    if (name.length < 2) {
-      setNameError("Name must be at least 2 characters");
-      return;
+    
+    // Validate phone (required)
+    const phoneValidation = validatePhoneNumber(phoneDialCode, phoneLocalNumber);
+    if (!phoneValidation.isValid) {
+      setPhoneError(phoneValidation.error || "Nomor telepon tidak valid");
+      hasError = true;
+    } else {
+      setPhoneError("");
     }
-    if (name.length > 50) {
-      setNameError("Name is too long");
-      return;
+    
+    // Validate email (optional, but must be valid if provided)
+    if (emailValue.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailValue.trim())) {
+        setEmailError("Format email tidak valid");
+        hasError = true;
+      } else {
+        setEmailError("");
+      }
+    } else {
+      setEmailError("");
     }
-    setNameError("");
+    
+    if (hasError) return;
+    
     // Use selected quick message if available, otherwise default
     const hasQuickQuestion = !!selectedQuickMessage;
     const initialMessage = selectedQuickMessage || "Halo kak, ada yang mau saya tanyakan";
@@ -894,6 +932,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     // If user selects quick question, they want direct answer to their question
     startChatMutation.mutate({ 
       name, 
+      phone: phoneValidation.formattedNumber || "",
+      email: emailValue.trim() || "",
       initialMessage,
       welcomeDescription: hasQuickQuestion ? "" : (merchantConfig?.welcomeDescription || ""),
       isQuickQuestion: hasQuickQuestion,
@@ -1813,26 +1853,24 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             )}
             
             <p className="text-sm text-muted-foreground mb-4 text-center">
-              Please enter your name to start chatting with us.
+              Isi data berikut untuk memulai chat.
             </p>
             
-            <div className="w-full max-w-xs space-y-4">
-              <div className="space-y-2 relative overflow-hidden">
-                <Label className="text-xs text-muted-foreground">Nama: *</Label>
+            <div className="w-full max-w-xs space-y-3">
+              {/* Name Input */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <User className="w-3 h-3" /> Nama <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   type="text"
-                  placeholder="Enter your name"
+                  placeholder="Masukkan nama Anda"
                   value={nameInputValue}
                   onChange={(e) => {
                     setNameInputValue(e.target.value);
                     setNameError("");
                   }}
-                  onKeyPress={(e) => {
-                    if (e.key === "Enter") {
-                      handleNameSubmit();
-                    }
-                  }}
-                  className="text-center pr-3"
+                  className="text-sm"
                   name="chatvice_customer_display_name"
                   id="chatvice_customer_display_name"
                   autoComplete="off"
@@ -1848,8 +1886,80 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   data-testid="input-customer-name"
                 />
                 {nameError && (
-                  <p className="text-xs text-red-500 text-center" data-testid="text-name-error">
+                  <p className="text-xs text-red-500" data-testid="text-name-error">
                     {nameError}
+                  </p>
+                )}
+              </div>
+              
+              {/* Phone Input with Country Code */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Phone className="w-3 h-3" /> Nomor Telepon <span className="text-red-500">*</span>
+                </Label>
+                <div className="flex gap-1.5">
+                  <Select value={phoneDialCode} onValueChange={setPhoneDialCode}>
+                    <SelectTrigger className="w-[90px] text-xs" data-testid="select-country-code">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[200px]">
+                      {countryPhoneConfigs.map((country) => (
+                        <SelectItem 
+                          key={country.code} 
+                          value={country.dialCode}
+                          className="text-xs"
+                        >
+                          +{country.dialCode}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="tel"
+                    placeholder="81234567890"
+                    value={phoneLocalNumber}
+                    onChange={(e) => {
+                      // Only allow digits
+                      const value = e.target.value.replace(/\D/g, '');
+                      setPhoneLocalNumber(value);
+                      setPhoneError("");
+                    }}
+                    className="flex-1 text-sm"
+                    name="chatvice_customer_phone"
+                    id="chatvice_customer_phone"
+                    autoComplete="tel"
+                    data-testid="input-customer-phone"
+                  />
+                </div>
+                {phoneError && (
+                  <p className="text-xs text-red-500" data-testid="text-phone-error">
+                    {phoneError}
+                  </p>
+                )}
+              </div>
+              
+              {/* Email Input (Optional) */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Mail className="w-3 h-3" /> Email <span className="text-muted-foreground">(opsional)</span>
+                </Label>
+                <Input
+                  type="email"
+                  placeholder="email@contoh.com"
+                  value={emailValue}
+                  onChange={(e) => {
+                    setEmailValue(e.target.value);
+                    setEmailError("");
+                  }}
+                  className="text-sm"
+                  name="chatvice_customer_email"
+                  id="chatvice_customer_email"
+                  autoComplete="email"
+                  data-testid="input-customer-email"
+                />
+                {emailError && (
+                  <p className="text-xs text-red-500" data-testid="text-email-error">
+                    {emailError}
                   </p>
                 )}
               </div>
@@ -1885,7 +1995,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               
               <Button
                 onClick={handleNameSubmit}
-                disabled={startChatMutation.isPending || !nameInputValue.trim()}
+                disabled={startChatMutation.isPending || !nameInputValue.trim() || !phoneLocalNumber.trim()}
                 className="w-full text-white"
                 style={{ backgroundColor: primaryColor }}
                 data-testid="button-start-chat"
@@ -1895,7 +2005,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 ) : (
                   <Send className="w-4 h-4 mr-2" />
                 )}
-                start chat
+                Mulai Chat
               </Button>
             </div>
           </div>

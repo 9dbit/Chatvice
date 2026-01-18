@@ -12013,7 +12013,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
   app.post("/api/widget/start-chat", async (req, res) => {
     // CORS is handled by the middleware at line 907-926 for /api/widget/ routes
     try {
-      const { merchantId, sessionId, customerName, initialMessage, deviceFingerprint, welcomeDescription, isQuickQuestion } = req.body;
+      const { merchantId, sessionId, customerName, customerPhone, customerEmail, initialMessage, deviceFingerprint, welcomeDescription, isQuickQuestion } = req.body;
       
       // Get client IP from request
       const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || 
@@ -12021,8 +12021,16 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
                        'unknown';
       
       // Return 200 with success:false for validation errors so widget can display user-friendly messages
-      if (!merchantId || !sessionId || !customerName) {
-        return res.json({ success: false, error: "Please fill in all required fields" });
+      if (!merchantId || !sessionId || !customerName || !customerPhone) {
+        return res.json({ success: false, error: "Mohon isi nama dan nomor telepon" });
+      }
+      
+      // Validate email format if provided
+      if (customerEmail && customerEmail.trim()) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(customerEmail.trim())) {
+          return res.json({ success: false, error: "Format email tidak valid" });
+        }
       }
 
       const merchant = await storage.getMerchant(merchantId);
@@ -12049,6 +12057,8 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
           merchantId,
           mode: "AI",
           customerName: sanitizedName,
+          customerPhone: customerPhone || null,
+          customerEmail: customerEmail?.trim() || null,
           agentId: assignedAgentId,
           deviceFingerprint: deviceFingerprint || null,
           clientIp: clientIp || null,
@@ -12063,6 +12073,8 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         }
         await storage.updateSession(sessionId, { 
           customerName: sanitizedName,
+          customerPhone: customerPhone || null,
+          customerEmail: customerEmail?.trim() || null,
           lastActivity: new Date()
         });
       }
@@ -12307,6 +12319,149 @@ Generate only the closing statement, nothing else.`;
     } catch (error) {
       console.error("Error generating closing statement:", error);
       res.json({ success: false, error: "Unable to generate closing statement" });
+    }
+  });
+
+// Admin User Data API - All customer contact data across all merchants
+  app.get("/api/admin/user-data", requireAdmin, async (req, res) => {
+    try {
+      // Get all unique customer data from sessions and chat logs across all merchants
+      const allSessions = await db.select({
+        merchantId: sessions.merchantId,
+        customerName: sessions.customerName,
+        customerPhone: sessions.customerPhone,
+        customerEmail: sessions.customerEmail,
+        createdAt: sessions.createdAt,
+      }).from(sessions);
+      
+      const chatLogData = await db.select({
+        merchantId: chatLogs.merchantId,
+        customerName: chatLogs.customerName,
+        customerPhone: chatLogs.customerPhone,
+        customerEmail: chatLogs.customerEmail,
+        createdAt: chatLogs.clearedAt,
+      }).from(chatLogs);
+      
+      // Get merchant names for display
+      const allMerchants = await storage.getAllMerchants();
+      const merchantNames = new Map<string, string>();
+      for (const m of allMerchants) {
+        merchantNames.set(m.id, m.companyName || m.username);
+      }
+      
+      // Combine and deduplicate by phone number (primary identifier)
+      const userMap = new Map<string, { name: string; phone: string; email: string | null; merchantId: string; merchantName: string; lastSeen: Date }>();
+      
+      // Process sessions first
+      for (const session of allSessions) {
+        if (session.customerPhone) {
+          const existing = userMap.get(session.customerPhone);
+          if (!existing || (session.createdAt && (!existing.lastSeen || new Date(session.createdAt) > existing.lastSeen))) {
+            userMap.set(session.customerPhone, {
+              name: session.customerName || "Anonymous",
+              phone: session.customerPhone,
+              email: session.customerEmail || null,
+              merchantId: session.merchantId,
+              merchantName: merchantNames.get(session.merchantId) || "Unknown",
+              lastSeen: session.createdAt ? new Date(session.createdAt) : new Date(),
+            });
+          }
+        }
+      }
+      
+      // Process chat logs
+      for (const log of chatLogData) {
+        if (log.customerPhone) {
+          const existing = userMap.get(log.customerPhone);
+          if (!existing || (log.createdAt && (!existing.lastSeen || new Date(log.createdAt) > existing.lastSeen))) {
+            userMap.set(log.customerPhone, {
+              name: log.customerName || "Anonymous",
+              phone: log.customerPhone,
+              email: log.customerEmail || existing?.email || null,
+              merchantId: log.merchantId,
+              merchantName: merchantNames.get(log.merchantId) || "Unknown",
+              lastSeen: log.createdAt ? new Date(log.createdAt) : new Date(),
+            });
+          }
+        }
+      }
+      
+      // Convert to array and sort by most recent
+      const userData = Array.from(userMap.values()).sort((a, b) => 
+        b.lastSeen.getTime() - a.lastSeen.getTime()
+      );
+      
+      res.json(userData);
+    } catch (error) {
+      console.error("Error fetching admin user data:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+// User Data API - Customer contact data collected from widget
+  app.get("/api/user-data", requireMerchantOrSupervisor, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      
+      // Get all unique customer data from sessions and chat logs
+      const allSessions = await db.select({
+        customerName: sessions.customerName,
+        customerPhone: sessions.customerPhone,
+        customerEmail: sessions.customerEmail,
+        createdAt: sessions.createdAt,
+      }).from(sessions)
+        .where(eq(sessions.merchantId, merchantId));
+      
+      const chatLogData = await db.select({
+        customerName: chatLogs.customerName,
+        customerPhone: chatLogs.customerPhone,
+        customerEmail: chatLogs.customerEmail,
+        createdAt: chatLogs.clearedAt,
+      }).from(chatLogs)
+        .where(eq(chatLogs.merchantId, merchantId));
+      
+      // Combine and deduplicate by phone number (primary identifier)
+      const userMap = new Map<string, { name: string; phone: string; email: string | null; lastSeen: Date }>();
+      
+      // Process sessions first
+      for (const session of allSessions) {
+        if (session.customerPhone) {
+          const existing = userMap.get(session.customerPhone);
+          if (!existing || (session.createdAt && (!existing.lastSeen || new Date(session.createdAt) > existing.lastSeen))) {
+            userMap.set(session.customerPhone, {
+              name: session.customerName || "Anonymous",
+              phone: session.customerPhone,
+              email: session.customerEmail || null,
+              lastSeen: session.createdAt ? new Date(session.createdAt) : new Date(),
+            });
+          }
+        }
+      }
+      
+      // Process chat logs
+      for (const log of chatLogData) {
+        if (log.customerPhone) {
+          const existing = userMap.get(log.customerPhone);
+          if (!existing || (log.createdAt && (!existing.lastSeen || new Date(log.createdAt) > existing.lastSeen))) {
+            userMap.set(log.customerPhone, {
+              name: log.customerName || "Anonymous",
+              phone: log.customerPhone,
+              email: log.customerEmail || existing?.email || null,
+              lastSeen: log.createdAt ? new Date(log.createdAt) : new Date(),
+            });
+          }
+        }
+      }
+      
+      // Convert to array and sort by most recent
+      const userData = Array.from(userMap.values()).sort((a, b) => 
+        b.lastSeen.getTime() - a.lastSeen.getTime()
+      );
+      
+      res.json(userData);
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      res.status(500).json({ error: "Server error" });
     }
   });
 

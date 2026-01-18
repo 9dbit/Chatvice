@@ -20,6 +20,7 @@ import SourcesPage from "./sources";
 import AnalyticsPage from "./analytics";
 import IntegrationsPage from "./integrations";
 import ChatLogsPage from "./chat-logs";
+import UserDataPage from "./user-data";
 import WorkSchedulerPage from "./work-scheduler";
 import QuickRepliesPage from "./quick-replies";
 import WelcomeBubblePage from "./welcome-bubble";
@@ -42,6 +43,7 @@ const pageNames: Record<string, string> = {
   "analytics": "Analytics",
   "sessions": "Chat Sessions",
   "chat-logs": "Chat Logs",
+  "user-data": "User Data",
   "knowledge": "Knowledge Base",
   "triggers": "Triggers",
   "widget": "Widget",
@@ -137,6 +139,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/analytics" component={AnalyticsPage} />
               <Route path="/dashboard/sessions" component={SessionsPage} />
               <Route path="/dashboard/chat-logs" component={ChatLogsPage} />
+              <Route path="/dashboard/user-data" component={UserDataPage} />
               <Route path="/dashboard/knowledge" component={KnowledgePage} />
               <Route path="/dashboard/triggers" component={TriggersPage} />
               <Route path="/dashboard/widget" component={WidgetPage} />

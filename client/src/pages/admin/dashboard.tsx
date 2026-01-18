@@ -345,6 +345,7 @@ export default function AdminDashboard() {
     { id: "custom-requests", label: "Custom Requests", icon: Sparkles },
     { id: "affiliates", label: "Affiliates", icon: Share2 },
     { id: "knowledge-templates", label: "Knowledge Templates", icon: BookOpen },
+    { id: "user-data", label: "User Data", icon: Users },
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
@@ -532,6 +533,8 @@ export default function AdminDashboard() {
             {activeTab === "affiliates" && <AffiliatesTab toast={toast} />}
             
             {activeTab === "knowledge-templates" && <KnowledgeTemplatesTab toast={toast} />}
+            
+            {activeTab === "user-data" && <AdminUserDataTab toast={toast} />}
           </div>
         </div>
       </main>
@@ -10944,6 +10947,188 @@ function KnowledgeTemplatesTab({ toast }: { toast: any }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// Admin User Data Tab - View all customer contact data across all merchants
+function AdminUserDataTab({ toast }: { toast: any }) {
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  interface AdminUserData {
+    name: string;
+    phone: string;
+    email: string | null;
+    merchantId: string;
+    merchantName: string;
+    lastSeen: string;
+  }
+  
+  const { data: userData = [], isLoading } = useQuery<AdminUserData[]>({
+    queryKey: ["/api/admin/user-data"],
+  });
+  
+  // Filter data based on search
+  const filteredData = userData.filter((user) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      user.name.toLowerCase().includes(query) ||
+      user.phone.includes(query) ||
+      (user.email && user.email.toLowerCase().includes(query)) ||
+      user.merchantName.toLowerCase().includes(query)
+    );
+  });
+  
+  // Format phone number for display (add + prefix)
+  const formatPhone = (phone: string) => {
+    return phone ? `+${phone}` : "-";
+  };
+  
+  // Download CSV
+  const handleDownloadCSV = () => {
+    if (filteredData.length === 0) {
+      toast({
+        title: "Tidak Ada Data",
+        description: "Tidak ada data untuk diunduh",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const headers = ["Nama", "Telepon", "Email", "Merchant", "Terakhir Aktif"];
+    const rows = filteredData.map((user) => [
+      user.name,
+      formatPhone(user.phone),
+      user.email || "-",
+      user.merchantName,
+      new Date(user.lastSeen).toLocaleDateString("id-ID", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    ]);
+    
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${cell}"`).join(","))
+      .join("\n");
+    
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `chatvice-all-user-data-${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Berhasil",
+      description: `${filteredData.length} data pengguna berhasil diunduh`,
+    });
+  };
+  
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Data Pengguna Global
+            </CardTitle>
+            <CardDescription>
+              Semua data kontak pelanggan dari seluruh merchant
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-sm">
+              {filteredData.length} pengguna
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadCSV}
+              disabled={filteredData.length === 0}
+              data-testid="button-download-csv"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Unduh CSV
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-4 mb-6">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Cari nama, telepon, email, atau merchant..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+                data-testid="input-search-user-data"
+              />
+            </div>
+          </div>
+          
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredData.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p className="font-medium">Belum Ada Data Pengguna</p>
+              <p className="text-sm">Data kontak pelanggan akan muncul setelah mereka mengisi formulir di widget</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nama</TableHead>
+                    <TableHead>Telepon</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Merchant</TableHead>
+                    <TableHead>Terakhir Aktif</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredData.map((user, index) => (
+                    <TableRow key={`${user.phone}-${index}`} data-testid={`row-user-${index}`}>
+                      <TableCell className="font-medium">{user.name}</TableCell>
+                      <TableCell>
+                        <code className="text-sm bg-muted px-2 py-1 rounded">
+                          {formatPhone(user.phone)}
+                        </code>
+                      </TableCell>
+                      <TableCell>
+                        {user.email ? (
+                          <span className="text-sm">{user.email}</span>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{user.merchantName}</Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {new Date(user.lastSeen).toLocaleDateString("id-ID", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
