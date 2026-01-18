@@ -422,8 +422,10 @@ async function askChatvice(
   sessionId: string,
   merchantId: string,
   message: string
-): Promise<{ answer: string; mode: "AI" | "HUMAN" }> {
+): Promise<{ answer: string; mode: "AI" | "HUMAN"; isAngry?: boolean; triggerHit?: boolean; isNewSession?: boolean }> {
   let session = await storage.getSession(sessionId);
+  let isNewSession = false;
+  
   if (!session) {
     // Use round-robin agent assignment for new sessions
     const assignedAgentId = await getNextAgentId(merchantId);
@@ -434,6 +436,11 @@ async function askChatvice(
       customerName: "Customer",
       agentId: assignedAgentId,
     });
+    isNewSession = true;
+  } else {
+    // Check if this is the first message in an existing session
+    const existingMessages = await storage.getMessages(sessionId);
+    isNewSession = existingMessages.length === 0;
   }
 
   if (session.mode === "HUMAN") {
@@ -442,6 +449,7 @@ async function askChatvice(
     return {
       answer: "",
       mode: "HUMAN",
+      isNewSession,
     };
   }
 
@@ -452,6 +460,8 @@ async function askChatvice(
     return {
       answer: "Saya akan menghubungkan Anda dengan supervisor yang dapat membantu. Mohon tunggu sebentar.",
       mode: "HUMAN",
+      triggerHit: true,
+      isNewSession,
     };
   }
 
@@ -491,13 +501,15 @@ async function askChatvice(
   if (autoEscalateAngry) {
     const angerIndicators = ["marah", "kesal", "kecewa", "angry", "frustrated", "upset", "terrible", "worst", "hate", "stupid", "idiot", "bodoh", "goblok", "!!!"];
     const lowerMessage = message.toLowerCase();
-    const isAngry = angerIndicators.some(indicator => lowerMessage.includes(indicator));
-    if (isAngry) {
+    const isAngryDetected = angerIndicators.some(indicator => lowerMessage.includes(indicator));
+    if (isAngryDetected) {
       await storage.updateSession(sessionId, { mode: "HUMAN" });
       await notifySupervisors(merchantId, sessionId);
       return {
         answer: "Saya memahami Anda sedang frustasi. Izinkan saya menghubungkan Anda dengan supervisor kami yang dapat membantu lebih lanjut.",
         mode: "HUMAN",
+        isAngry: true,
+        isNewSession,
       };
     }
   }
@@ -704,12 +716,13 @@ If you don't have specific information to answer, be honest about it and offer t
     });
 
     const answer = completion.choices[0]?.message?.content || "I'm sorry, I couldn't process your request. Please try again.";
-    return { answer, mode: "AI" };
+    return { answer, mode: "AI", isNewSession };
   } catch (error) {
     console.error("OpenAI error:", error);
     return {
       answer: "I'm experiencing some technical difficulties. Please try again in a moment.",
       mode: "AI",
+      isNewSession,
     };
   }
 }
@@ -3540,6 +3553,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         mode: result.mode,
         clientMessageId: clientMessageId,
         responseClientId: responseClientId,
+        isAngry: result.isAngry || false,
+        triggerHit: result.triggerHit || false,
+        isNewSession: result.isNewSession || false,
       });
     } catch (error: any) {
       console.error("Chat error:", error);
