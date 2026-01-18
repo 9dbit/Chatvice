@@ -2068,7 +2068,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       </ScrollArea>
 
       {suggestedQuestions.length > 0 && (
-        <div className={`px-4 py-2 border-t ${applyEmbedStyles ? 'border-white/10' : 'border-border'}`} style={frostedFooterStyle}>
+        <div className={`px-4 py-2 border-t ${applyEmbedStyles ? 'border-white/10' : 'border-border'}`}>
           <p className="text-xs text-muted-foreground mb-1.5">Quick questions:</p>
           <div className="flex flex-wrap gap-1.5">
             {suggestedQuestions.slice(0, 5).map((sq) => (
@@ -2088,7 +2088,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         </div>
       )}
 
-      <div className={`p-4 border-t ${applyEmbedStyles ? 'border-white/10' : 'border-border'}`} style={frostedFooterStyle}>
+      <div className={`p-4 border-t ${applyEmbedStyles ? 'border-white/10' : 'border-border'}`}>
         <input
           type="file"
           ref={fileInputRef}
