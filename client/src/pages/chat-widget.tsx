@@ -1783,8 +1783,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         </div>
       ) : (
         <div className="flex-1 min-h-0 flex flex-col">
-          <ScrollArea className="flex-1 min-h-0 p-4" style={frostedBodyStyle}>
-            <div className="space-y-4">
+          <ScrollArea className="flex-1 min-h-0" style={frostedBodyStyle}>
+            <div className="space-y-4 p-4">
               {allMessages.map((msg, index) => (
             <div key={msg.id || index}>
               <div
