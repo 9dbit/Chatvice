@@ -518,13 +518,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     enabled: !!merchantId,
   });
 
-  // Fetch session info including supervisor data when supervisor takes over
+  // Fetch session info including supervisor and agent data
   interface SessionInfo {
     found: boolean;
     mode: "AI" | "HUMAN";
     supervisorId: string | null;
     supervisorInfo: { id: string; name: string; photoUrl: string } | null;
     agentId: string | null;
+    agentInfo: { id: string; name: string; photoUrl: string } | null;
   }
   
   const { data: sessionInfo } = useQuery<SessionInfo>({
@@ -532,6 +533,16 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     enabled: !!sessionId,
     refetchInterval: 3000, // Poll for supervisor takeover
   });
+
+  // Stop inactivity timer when supervisor takes over (HUMAN mode)
+  useEffect(() => {
+    if (sessionInfo?.mode === "HUMAN") {
+      if (inactivityTimeoutRef.current) {
+        clearTimeout(inactivityTimeoutRef.current);
+        inactivityTimeoutRef.current = null;
+      }
+    }
+  }, [sessionInfo?.mode]);
 
   interface ProductRecommendationSettings {
     aiAutoRecommendEnabled: boolean;
@@ -1562,9 +1573,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         style={frostedHeaderStyle}
       >
         <div className="flex items-center gap-2.5">
-          {/* Agent photo - always shown */}
+          {/* Agent photo - use session's assigned agent if available, otherwise fallback */}
           <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
-            {merchantConfig?.agentPhotoUrl ? (
+            {sessionInfo?.agentInfo?.photoUrl ? (
+              <img
+                src={sessionInfo.agentInfo.photoUrl}
+                alt="Agent"
+                className="w-full h-full object-cover"
+              />
+            ) : merchantConfig?.agentPhotoUrl ? (
               <img
                 src={merchantConfig.agentPhotoUrl}
                 alt="Agent"
@@ -1597,16 +1614,16 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           )}
           
           <div className="text-white">
-            {/* Show supervisor name when in HUMAN mode, otherwise agent name */}
+            {/* Show supervisor name when in HUMAN mode, otherwise assigned agent name */}
             <p className="font-medium text-sm leading-tight">
               {sessionInfo?.mode === "HUMAN" && sessionInfo?.supervisorInfo
                 ? sessionInfo.supervisorInfo.name
-                : merchantConfig?.agentName || "Chatvice"}
+                : sessionInfo?.agentInfo?.name || merchantConfig?.agentName || "Chatvice"}
             </p>
             <div className="flex items-center gap-1">
               <span className="text-[10px] opacity-80">
-                {sessionInfo?.mode === "HUMAN" 
-                  ? "👤 Live Agent" 
+                {sessionInfo?.mode === "HUMAN" && sessionInfo?.supervisorInfo
+                  ? `👤 Supervisor: ${sessionInfo.supervisorInfo.name}` 
                   : isOnline ? "🟢 Online - Customer Service" : "🔴 Offline"}
               </span>
             </div>
@@ -2031,7 +2048,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                       ) : (
                         <HeadphonesIcon className="w-3.5 h-3.5" style={{ color: primaryColor }} />
                       )
+                    ) : sessionInfo?.agentInfo?.photoUrl ? (
+                      // Use the session's assigned agent photo
+                      <img src={sessionInfo.agentInfo.photoUrl} alt="Agent" className="w-full h-full object-cover" />
                     ) : merchantConfig?.agentPhotoUrl ? (
+                      // Fallback to merchant's default agent photo
                       <img src={merchantConfig.agentPhotoUrl} alt="Agent" className="w-full h-full object-cover" />
                     ) : (
                       <Bot className="w-3.5 h-3.5" style={{ color: primaryColor }} />

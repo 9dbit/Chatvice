@@ -12073,6 +12073,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       }
       
       let supervisorInfo: { id: string; name: string; photoUrl: string } | null = null;
+      let agentInfo: { id: string; name: string; photoUrl: string } | null = null;
       
       // If session is in HUMAN mode, get supervisor info
       if (session.mode === "HUMAN" && session.supervisorId) {
@@ -12086,12 +12087,25 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         }
       }
       
+      // Get agent info for the assigned agent
+      if (session.agentId) {
+        const agent = await storage.getAgent(session.agentId);
+        if (agent) {
+          agentInfo = {
+            id: agent.id,
+            name: agent.name || "AI Agent",
+            photoUrl: agent.photoUrl || "",
+          };
+        }
+      }
+      
       res.json({
         found: true,
         mode: session.mode,
         supervisorId: session.supervisorId,
         supervisorInfo,
         agentId: session.agentId,
+        agentInfo,
       });
     } catch (error) {
       console.error("Error getting session info:", error);
@@ -12309,6 +12323,11 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
       // Security: Verify the session belongs to the merchant
       if (session.merchantId !== merchantId) {
         return res.json({ success: false, error: "Unauthorized" });
+      }
+
+      // Don't send AI closing statement when supervisor is handling the chat
+      if (session.mode === "HUMAN") {
+        return res.json({ success: true, closingStatement: null, enabled: false });
       }
 
       const merchant = await storage.getMerchant(merchantId);
