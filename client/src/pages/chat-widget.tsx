@@ -1399,19 +1399,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     ? { backgroundColor: `${primaryColor}CC` } // 80% opacity of primary color
     : { backgroundColor: primaryColor };
   
-  // Body uses frosted glass transparent for see-through effect
+  // Body uses frosted glass - darker but more transparent
   const frostedBodyStyle: React.CSSProperties = applyEmbedStyles
     ? { 
-        backgroundColor: 'rgba(255, 255, 255, 0.15)',
+        backgroundColor: 'rgba(0, 0, 0, 0.35)',
         backdropFilter: 'blur(40px)',
         WebkitBackdropFilter: 'blur(40px)',
       } 
     : {};
 
-  // Footer style - matches body style (frosted glass transparent)
+  // Footer style - matches body style (darker but more transparent)
   const frostedFooterStyle: React.CSSProperties = applyEmbedStyles
     ? { 
-        backgroundColor: 'rgba(255, 255, 255, 0.15)',
+        backgroundColor: 'rgba(0, 0, 0, 0.35)',
         backdropFilter: 'blur(40px)',
         WebkitBackdropFilter: 'blur(40px)',
       } 
@@ -1579,9 +1579,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         
         return (
           <div 
-            className="backdrop-blur-xl overflow-hidden"
+            className="overflow-hidden"
             style={{ 
-              backgroundColor: 'rgba(255, 255, 255, 0.15)',
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
               backdropFilter: 'blur(40px)',
               WebkitBackdropFilter: 'blur(40px)',
               animation: socialPanelClosing 
