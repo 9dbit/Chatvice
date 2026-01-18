@@ -186,6 +186,32 @@ export default function SessionsPage() {
     enabled: !!merchantId,
   });
 
+  // Product recommendation settings for detecting when to show products
+  interface ProductRecommendSettings {
+    aiAutoRecommendEnabled: boolean;
+    triggerKeywords: string;
+    aiContextTriggerEnabled: boolean;
+    maxProductsPerRecommendation: number;
+    showPriceInRecommendation: boolean;
+  }
+  
+  const { data: productRecommendSettings } = useQuery<ProductRecommendSettings>({
+    queryKey: ["/api/product-recommendation-settings"],
+    enabled: !!merchantId,
+  });
+
+  // Helper function to check if products should be shown based on message content
+  const shouldShowProductsForMessage = (messageContent: string): boolean => {
+    if (!productCards.length) return false;
+    if (!productRecommendSettings?.aiAutoRecommendEnabled) return false;
+    
+    const triggerKeywords = productRecommendSettings?.triggerKeywords || "product,recommend,buy,shop,item,catalog,produk,beli,harga,barang,katalog";
+    const productTriggers = triggerKeywords.toLowerCase().split(",").map(t => t.trim()).filter(t => t.length > 0);
+    const lowerContent = messageContent.toLowerCase();
+    
+    return productTriggers.some(trigger => lowerContent.includes(trigger));
+  };
+
   const offerProductMutation = useMutation({
     mutationFn: async (productCardId: string) => {
       return apiRequest("POST", "/api/session/offer-product", {
@@ -869,8 +895,8 @@ export default function SessionsPage() {
                           {messages.map((msg, index) => {
                             const isCustomerMessage = msg.from === "customer" || msg.from === "user";
                             return (
+                            <div key={msg.id || index} className="space-y-2">
                             <div
-                              key={msg.id || index}
                               className={`flex gap-2.5 ${isCustomerMessage ? "justify-start" : "justify-end"} group`}
                             >
                               {/* Customer avatar on left */}
@@ -1111,6 +1137,61 @@ export default function SessionsPage() {
                                 </Avatar>
                               )}
                             </div>
+                            {/* Product Cards Display - show when AI message matches product triggers */}
+                            {!isCustomerMessage && (msg.from === "chatvice" || msg.from === "bot" || msg.from === "ai") && 
+                             shouldShowProductsForMessage(msg.content) && productCards.filter(c => c.isActive).length > 0 && (
+                              <div className="ml-9 mt-2">
+                                <div className="flex items-center gap-1.5 mb-2">
+                                  <ShoppingBag className="w-3.5 h-3.5 text-primary" />
+                                  <span className="text-[11px] font-medium text-muted-foreground">Produk rekomendasi:</span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 max-w-[300px]">
+                                  {productCards.filter(c => c.isActive).slice(0, 2).map((card) => (
+                                    <div key={card.id} className="bg-background rounded-lg border overflow-hidden">
+                                      {card.imageUrl ? (
+                                        <button 
+                                          className="bg-muted/30 w-full aspect-square cursor-pointer hover:bg-muted/50 transition-colors"
+                                          onClick={() => setPreviewContent({
+                                            type: "photo",
+                                            url: card.imageUrl!,
+                                            title: card.title
+                                          })}
+                                          data-testid={`button-preview-product-${card.id}`}
+                                        >
+                                          <img 
+                                            src={card.imageUrl} 
+                                            alt={card.title}
+                                            className="w-full h-full object-cover"
+                                          />
+                                        </button>
+                                      ) : (
+                                        <div className="bg-muted/30 w-full aspect-square flex items-center justify-center">
+                                          <ShoppingBag className="w-8 h-8 text-muted-foreground/50" />
+                                        </div>
+                                      )}
+                                      <div className="p-2 space-y-1">
+                                        <p className="font-medium text-xs text-foreground line-clamp-2">{card.title}</p>
+                                        {card.price && (
+                                          <p className="text-xs text-primary font-semibold">{card.price}</p>
+                                        )}
+                                        {card.buttons && card.buttons.length > 0 && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="w-full h-6 text-[10px]"
+                                            onClick={() => card.buttons?.[0]?.url && window.open(card.buttons[0].url, '_blank')}
+                                            data-testid={`button-product-action-${card.id}`}
+                                          >
+                                            {card.buttons[0].label || 'View'}
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                           );})}
                           <div ref={messagesEndRef} />
                         </>

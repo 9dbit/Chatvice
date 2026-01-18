@@ -4416,7 +4416,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!supervisor) {
         return res.status(404).json({ error: "Supervisor not found" });
       }
-      const sessions = await storage.getSessionsByMerchant(supervisor.merchantId);
+      // Use activeOnly: true to only show sessions from the last 60 minutes
+      const sessions = await storage.getSessionsByMerchant(supervisor.merchantId, true);
       const escalatedSessions = sessions.filter((s) => s.mode === "HUMAN");
       res.json(escalatedSessions);
     } catch (error) {
@@ -11704,7 +11705,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
   app.post("/api/widget/start-chat", async (req, res) => {
     // CORS is handled by the middleware at line 907-926 for /api/widget/ routes
     try {
-      const { merchantId, sessionId, customerName, initialMessage, deviceFingerprint } = req.body;
+      const { merchantId, sessionId, customerName, initialMessage, deviceFingerprint, welcomeDescription } = req.body;
       
       // Get client IP from request
       const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || 
@@ -11770,6 +11771,17 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         }
       }
 
+      // Store the welcome description as the first message (if provided)
+      let storedWelcomeMessage = "";
+      if (welcomeDescription && welcomeDescription.trim()) {
+        storedWelcomeMessage = welcomeDescription.trim();
+        await storage.createMessage({
+          sessionId,
+          from: "chatvice",
+          content: storedWelcomeMessage,
+        });
+      }
+
       // Store the initial message from customer
       const finalMessage = initialMessage || "Halo kak, ada yang mau saya tanyakan";
       await storage.createMessage({
@@ -11821,7 +11833,8 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
       res.json({ 
         success: true, 
         answer: aiGreeting,
-        sanitizedName
+        sanitizedName,
+        welcomeMessage: storedWelcomeMessage || undefined,
       });
     } catch (error) {
       console.error("Error starting chat:", error);

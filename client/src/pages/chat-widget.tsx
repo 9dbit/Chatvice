@@ -665,15 +665,16 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
   // Start chat mutation with customer name
   const startChatMutation = useMutation({
-    mutationFn: async ({ name, initialMessage }: { name: string; initialMessage: string }) => {
+    mutationFn: async ({ name, initialMessage, welcomeDescription }: { name: string; initialMessage: string; welcomeDescription?: string }) => {
       const response = await apiRequest("POST", "/api/widget/start-chat", {
         merchantId,
         sessionId,
         customerName: name,
         initialMessage,
         deviceFingerprint, // For 24-hour session persistence
+        welcomeDescription, // Include welcome description for chat history
       });
-      return response.json() as Promise<{ success: boolean; answer: string; error?: string; sanitizedName?: string }>;
+      return response.json() as Promise<{ success: boolean; answer: string; error?: string; sanitizedName?: string; welcomeMessage?: string }>;
     },
     onSuccess: (data, variables) => {
       if (data.success) {
@@ -688,11 +689,36 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           } catch {}
         }
         
-        // Add initial message from user (use the actual submitted message) and AI response
-        setPendingMessages([
-          { clientId: generateClientId(), from: "user", content: variables.initialMessage, timestamp: new Date() },
-          { clientId: generateClientId(), from: "chatvice", content: data.answer, timestamp: new Date() },
-        ]);
+        // Add welcome message (if available), user's initial message, and AI response
+        const newMessages: Array<{clientId: string; from: string; content: string; timestamp: Date}> = [];
+        
+        // Add welcome description as a system message first
+        if (data.welcomeMessage) {
+          newMessages.push({
+            clientId: generateClientId(),
+            from: "chatvice",
+            content: data.welcomeMessage,
+            timestamp: new Date(Date.now() - 2000), // 2 seconds earlier
+          });
+        }
+        
+        // Add user's initial message (quick message selection)
+        newMessages.push({
+          clientId: generateClientId(),
+          from: "user",
+          content: variables.initialMessage,
+          timestamp: new Date(Date.now() - 1000), // 1 second earlier
+        });
+        
+        // Add AI response
+        newMessages.push({
+          clientId: generateClientId(),
+          from: "chatvice",
+          content: data.answer,
+          timestamp: new Date(),
+        });
+        
+        setPendingMessages(newMessages);
         playNotificationSound("reply");
         queryClient.invalidateQueries({ queryKey: ["/api/messages", sessionId] });
       } else {
@@ -723,7 +749,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     const initialMessage = selectedQuickMessage || "Halo kak, ada yang mau saya tanyakan";
     startChatMutation.mutate({ 
       name, 
-      initialMessage 
+      initialMessage,
+      welcomeDescription: merchantConfig?.welcomeDescription || "",
     });
   };
 

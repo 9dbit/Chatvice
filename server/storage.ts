@@ -97,7 +97,7 @@ export interface IStorage {
   deleteSupervisor(id: string): Promise<boolean>;
 
   getSession(id: string): Promise<Session | undefined>;
-  getSessionsByMerchant(merchantId: string): Promise<Session[]>;
+  getSessionsByMerchant(merchantId: string, activeOnly?: boolean): Promise<Session[]>;
   createSession(session: InsertSession): Promise<Session>;
   updateSession(id: string, data: Partial<Session>): Promise<Session | undefined>;
 
@@ -526,7 +526,19 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async getSessionsByMerchant(merchantId: string): Promise<Session[]> {
+  async getSessionsByMerchant(merchantId: string, activeOnly: boolean = false): Promise<Session[]> {
+    // If activeOnly is true, only return sessions from the last 60 minutes
+    if (activeOnly) {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      return db.select().from(sessions)
+        .where(and(
+          eq(sessions.merchantId, merchantId),
+          gte(sessions.lastActivity, oneHourAgo)
+        ))
+        .orderBy(desc(sessions.lastActivity));
+    }
+    
+    // Default: return all sessions for historical viewing
     return db.select().from(sessions)
       .where(eq(sessions.merchantId, merchantId))
       .orderBy(desc(sessions.lastActivity));
