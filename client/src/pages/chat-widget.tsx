@@ -1551,69 +1551,71 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         </div>
       </div>
       
-      {/* Social Media Panel - expandable below header */}
-      {merchantConfig?.socialMediaEnabled && (socialIconsExpanded || socialPanelClosing) && (() => {
-        const validUrl = (url: string | undefined) => {
-          if (!url) return null;
-          try {
-            const parsed = new URL(url);
-            if (parsed.protocol === "https:" || parsed.protocol === "http:") {
-              return url;
-            }
-          } catch {}
-          return null;
-        };
-        
-        const useCustomIcons = (merchantConfig as any).socialUseCustomIcons;
-        const socialLinks = [
-          { url: validUrl(merchantConfig.socialInstagram), icon: "instagram", color: "#E4405F", customIcon: (merchantConfig as any).socialCustomInstagram },
-          { url: validUrl(merchantConfig.socialFacebook), icon: "facebook", color: "#1877F2", customIcon: (merchantConfig as any).socialCustomFacebook },
-          { url: validUrl(merchantConfig.socialTelegram), icon: "telegram", color: "#0088cc", customIcon: (merchantConfig as any).socialCustomTelegram },
-          { url: validUrl(merchantConfig.socialWhatsapp), icon: "whatsapp", color: "#25D366", customIcon: (merchantConfig as any).socialCustomWhatsapp },
-          { url: validUrl(merchantConfig.socialDiscord), icon: "discord", color: "#5865F2", customIcon: (merchantConfig as any).socialCustomDiscord },
-        ].filter(s => s.url);
-        
-        if (socialLinks.length === 0) return null;
-        
-        const iconStyle = merchantConfig.socialIconStyle || "colored";
-        
-        return (
-          <div 
-            className="overflow-hidden"
-            style={{ 
-              backgroundColor: 'rgba(0, 0, 0, 0.15)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-              animation: socialPanelClosing 
-                ? 'slideUpSmooth 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
-                : 'slideDownSmooth 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
-            }}
-          >
-            <style>{`
-              @keyframes slideDownSmooth {
-                from {
-                  opacity: 0;
-                  max-height: 0;
-                }
-                to {
-                  opacity: 1;
-                  max-height: 60px;
-                }
+      {/* Main content area with relative positioning for social panel overlay */}
+      <div className="flex-1 min-h-0 flex flex-col relative">
+        {/* Social Media Panel - absolute positioned overlay on top of chat area */}
+        {merchantConfig?.socialMediaEnabled && (socialIconsExpanded || socialPanelClosing) && (() => {
+          const validUrl = (url: string | undefined) => {
+            if (!url) return null;
+            try {
+              const parsed = new URL(url);
+              if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+                return url;
               }
-              @keyframes slideUpSmooth {
-                from {
-                  opacity: 1;
-                  max-height: 60px;
+            } catch {}
+            return null;
+          };
+          
+          const useCustomIcons = (merchantConfig as any).socialUseCustomIcons;
+          const socialLinks = [
+            { url: validUrl(merchantConfig.socialInstagram), icon: "instagram", color: "#E4405F", customIcon: (merchantConfig as any).socialCustomInstagram },
+            { url: validUrl(merchantConfig.socialFacebook), icon: "facebook", color: "#1877F2", customIcon: (merchantConfig as any).socialCustomFacebook },
+            { url: validUrl(merchantConfig.socialTelegram), icon: "telegram", color: "#0088cc", customIcon: (merchantConfig as any).socialCustomTelegram },
+            { url: validUrl(merchantConfig.socialWhatsapp), icon: "whatsapp", color: "#25D366", customIcon: (merchantConfig as any).socialCustomWhatsapp },
+            { url: validUrl(merchantConfig.socialDiscord), icon: "discord", color: "#5865F2", customIcon: (merchantConfig as any).socialCustomDiscord },
+          ].filter(s => s.url);
+          
+          if (socialLinks.length === 0) return null;
+          
+          const iconStyle = merchantConfig.socialIconStyle || "colored";
+          
+          return (
+            <div 
+              className="absolute top-0 left-0 right-0 z-20 overflow-hidden"
+              style={{ 
+                backgroundColor: 'rgba(0, 0, 0, 0.15)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                animation: socialPanelClosing 
+                  ? 'slideUpSmooth 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+                  : 'slideDownSmooth 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+              }}
+            >
+              <style>{`
+                @keyframes slideDownSmooth {
+                  from {
+                    opacity: 0;
+                    max-height: 0;
+                  }
+                  to {
+                    opacity: 1;
+                    max-height: 60px;
+                  }
                 }
-                to {
-                  opacity: 0;
-                  max-height: 0;
+                @keyframes slideUpSmooth {
+                  from {
+                    opacity: 1;
+                    max-height: 60px;
+                  }
+                  to {
+                    opacity: 0;
+                    max-height: 0;
+                  }
                 }
-              }
-            `}</style>
-            
-            {/* Social icons */}
-            <div className="px-3 py-2 flex items-center justify-center gap-3">
+              `}</style>
+              
+              {/* Social icons */}
+              <div className="px-3 py-2 flex items-center justify-center gap-3">
                   {socialLinks.map(social => (
                     <a
                       key={social.icon}
@@ -2213,6 +2215,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       </div>
       </div>
       )}
+      </div>
+      {/* End of main content area wrapper */}
       
       {viewingImage && (
         <div 
