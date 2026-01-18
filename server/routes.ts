@@ -427,10 +427,10 @@ async function findPreviousAgentForUser(merchantId: string, customerName?: strin
   // Build conditions dynamically to avoid passing undefined to or()
   const userConditions = [];
   if (deviceFingerprint) {
-    userConditions.push(eq(schema.chatLogs.deviceFingerprint, deviceFingerprint));
+    userConditions.push(eq(chatLogs.deviceFingerprint, deviceFingerprint));
   }
   if (customerName) {
-    userConditions.push(eq(schema.chatLogs.customerName, customerName));
+    userConditions.push(eq(chatLogs.customerName, customerName));
   }
   
   // Only query if we have at least one condition
@@ -440,10 +440,10 @@ async function findPreviousAgentForUser(merchantId: string, customerName?: strin
   
   const chatLogResults = await db.query.chatLogs.findMany({
     where: and(
-      eq(schema.chatLogs.merchantId, merchantId),
+      eq(chatLogs.merchantId, merchantId),
       userConditions.length === 1 ? userConditions[0] : or(...userConditions)
     ),
-    orderBy: [desc(schema.chatLogs.clearedAt)],
+    orderBy: [desc(chatLogs.clearedAt)],
     limit: 1,
   });
   
