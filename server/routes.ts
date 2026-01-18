@@ -8198,6 +8198,179 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // ============ Knowledge Templates (Admin) ============
+  
+  // Get all knowledge templates (admin)
+  app.get("/api/admin/knowledge-templates", requireAdmin, async (req, res) => {
+    try {
+      const category = req.query.category as string | undefined;
+      const templates = await storage.getKnowledgeTemplates(category);
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching knowledge templates:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Get single knowledge template (admin)
+  app.get("/api/admin/knowledge-templates/:id", requireAdmin, async (req, res) => {
+    try {
+      const template = await storage.getKnowledgeTemplate(req.params.id);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      res.json(template);
+    } catch (error) {
+      console.error("Error fetching knowledge template:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Create knowledge template (admin)
+  app.post("/api/admin/knowledge-templates", requireAdmin, async (req, res) => {
+    try {
+      const { name, description, category, content, businessType, language, isActive } = req.body;
+      
+      if (!name || !category || !content) {
+        return res.status(400).json({ error: "Name, category, and content are required" });
+      }
+      
+      if (!["casual", "formal", "corporate"].includes(category)) {
+        return res.status(400).json({ error: "Invalid category. Must be casual, formal, or corporate" });
+      }
+      
+      const adminId = (req.session as any)?.adminId;
+      const template = await storage.createKnowledgeTemplate({
+        name,
+        description: description || "",
+        category,
+        content,
+        businessType: businessType || null,
+        language: language || "id",
+        isActive: isActive !== false,
+        createdBy: adminId || null,
+      });
+      
+      res.json(template);
+    } catch (error) {
+      console.error("Error creating knowledge template:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Update knowledge template (admin)
+  app.patch("/api/admin/knowledge-templates/:id", requireAdmin, async (req, res) => {
+    try {
+      const { name, description, category, content, businessType, language, isActive } = req.body;
+      
+      if (category && !["casual", "formal", "corporate"].includes(category)) {
+        return res.status(400).json({ error: "Invalid category. Must be casual, formal, or corporate" });
+      }
+      
+      const updateData: Record<string, any> = {};
+      if (name !== undefined) updateData.name = name;
+      if (description !== undefined) updateData.description = description;
+      if (category !== undefined) updateData.category = category;
+      if (content !== undefined) updateData.content = content;
+      if (businessType !== undefined) updateData.businessType = businessType;
+      if (language !== undefined) updateData.language = language;
+      if (isActive !== undefined) updateData.isActive = isActive;
+      
+      const template = await storage.updateKnowledgeTemplate(req.params.id, updateData);
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      
+      res.json(template);
+    } catch (error) {
+      console.error("Error updating knowledge template:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Delete knowledge template (admin)
+  app.delete("/api/admin/knowledge-templates/:id", requireAdmin, async (req, res) => {
+    try {
+      const success = await storage.deleteKnowledgeTemplate(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting knowledge template:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // ============ Knowledge Templates (Public - for merchants) ============
+  
+  // Get active knowledge templates (public - for merchants to browse)
+  app.get("/api/knowledge-templates", requireAuth, async (req, res) => {
+    try {
+      const category = req.query.category as string | undefined;
+      const templates = await storage.getActiveKnowledgeTemplates(category);
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching knowledge templates:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Get single knowledge template (public)
+  app.get("/api/knowledge-templates/:id", requireAuth, async (req, res) => {
+    try {
+      const template = await storage.getKnowledgeTemplate(req.params.id);
+      if (!template || !template.isActive) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      res.json(template);
+    } catch (error) {
+      console.error("Error fetching knowledge template:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Apply knowledge template to agent's knowledge base
+  app.post("/api/knowledge-templates/:id/apply", requireAuth, async (req, res) => {
+    try {
+      const merchantId = (req.session as any)?.merchantId;
+      if (!merchantId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const { agentId, mode } = req.body; // mode: "replace" or "append"
+      
+      const template = await storage.getKnowledgeTemplate(req.params.id);
+      if (!template || !template.isActive) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      
+      // Get current knowledge if appending
+      let newContent = template.content;
+      if (mode === "append" && agentId) {
+        const existingKnowledge = await storage.getKnowledgeByAgent(agentId);
+        if (existingKnowledge?.content) {
+          newContent = existingKnowledge.content + "\n\n--- Template: " + template.name + " ---\n\n" + template.content;
+        }
+      }
+      
+      // Update knowledge base
+      if (agentId) {
+        await storage.setKnowledgeByAgent(merchantId, agentId, newContent);
+      } else {
+        await storage.setKnowledge(merchantId, newContent);
+      }
+      
+      // Increment usage count
+      await storage.incrementKnowledgeTemplateUsage(template.id);
+      
+      res.json({ success: true, message: "Template applied successfully" });
+    } catch (error) {
+      console.error("Error applying knowledge template:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // ============ Payment Gateway Configuration (Admin) ============
   
   // Get payment gateway configuration status (never expose actual keys)

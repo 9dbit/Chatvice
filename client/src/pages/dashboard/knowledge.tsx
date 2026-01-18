@@ -123,6 +123,13 @@ export default function KnowledgePage() {
   const [activeTab, setActiveTab] = useState("training");
   const [articleSearchQuery, setArticleSearchQuery] = useState("");
   const [articleStatusFilter, setArticleStatusFilter] = useState<string>("all");
+  
+  // Knowledge Template state
+  const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
+  const [templateCategory, setTemplateCategory] = useState<string>("all");
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [templateApplyMode, setTemplateApplyMode] = useState<"replace" | "append">("replace");
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState<KnowledgebaseArticle | null>(null);
@@ -237,6 +244,41 @@ export default function KnowledgePage() {
   const { data: articles = [], isLoading: articlesLoading } = useQuery<KnowledgebaseArticle[]>({
     queryKey: ["/api/knowledgebase/articles", articleStatusFilter !== "all" ? articleStatusFilter : undefined],
     enabled: !!merchantId,
+  });
+
+  // Knowledge Templates query (for merchants)
+  const { data: knowledgeTemplates = [], isLoading: templatesLoading } = useQuery<any[]>({
+    queryKey: ["/api/knowledge-templates"],
+    enabled: !!merchantId && isTemplateDialogOpen,
+  });
+  
+  // Apply template mutation
+  const applyTemplateMutation = useMutation({
+    mutationFn: async ({ templateId, agentId, mode }: { templateId: string; agentId?: string; mode: "replace" | "append" }) => {
+      const response = await apiRequest("POST", `/api/knowledge-templates/${templateId}/apply`, {
+        agentId,
+        mode,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/knowledge/agent/${activeAgentId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/knowledge/${merchantId}`] });
+      setIsConfirmDialogOpen(false);
+      setSelectedTemplate(null);
+      setIsTemplateDialogOpen(false);
+      toast({
+        title: "Template diterapkan",
+        description: templateApplyMode === "append" ? "Template berhasil ditambahkan ke knowledge base" : "Knowledge base berhasil diupdate dengan template",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Gagal menerapkan template",
+        description: error.message || "Terjadi kesalahan",
+        variant: "destructive",
+      });
+    },
   });
 
   const generateMutation = useMutation({
@@ -843,6 +885,14 @@ export default function KnowledgePage() {
                 <CardTitle>Knowledge Content</CardTitle>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsTemplateDialogOpen(true)}
+                  data-testid="button-use-template"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Use Template
+                </Button>
                 {otherAgents.length > 0 && (
                   <Button
                     variant="outline"
@@ -1295,6 +1345,193 @@ Example:
                 <Copy className="w-4 h-4 mr-2" />
               )}
               Import
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Knowledge Template Selection Dialog */}
+      <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5" />
+              Pilih Knowledge Template
+            </DialogTitle>
+            <DialogDescription>
+              Pilih template yang sesuai dengan gaya komunikasi bisnis Anda
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* Category filter */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Kategori:</span>
+              <div className="flex gap-1 flex-wrap">
+                {[
+                  { value: "all", label: "Semua" },
+                  { value: "casual", label: "Casual" },
+                  { value: "formal", label: "Formal" },
+                  { value: "corporate", label: "Corporate" },
+                ].map((cat) => (
+                  <Button
+                    key={cat.value}
+                    size="sm"
+                    variant={templateCategory === cat.value ? "default" : "outline"}
+                    onClick={() => setTemplateCategory(cat.value)}
+                    data-testid={`button-filter-${cat.value}`}
+                  >
+                    {cat.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            
+            {/* Templates list */}
+            {templatesLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin" />
+              </div>
+            ) : knowledgeTemplates.filter((t: any) => templateCategory === "all" || t.category === templateCategory).length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>Belum ada template tersedia</p>
+                <p className="text-sm">Hubungi admin untuk menambahkan template</p>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {knowledgeTemplates
+                  .filter((t: any) => templateCategory === "all" || t.category === templateCategory)
+                  .map((template: any) => (
+                    <Card
+                      key={template.id}
+                      className={`cursor-pointer transition-all hover-elevate ${
+                        selectedTemplate?.id === template.id ? "ring-2 ring-primary" : ""
+                      }`}
+                      onClick={() => setSelectedTemplate(template)}
+                      data-testid={`template-card-${template.id}`}
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <CardTitle className="text-sm line-clamp-1">{template.name}</CardTitle>
+                          <Badge
+                            className={
+                              template.category === "casual"
+                                ? "bg-green-500/20 text-green-700 dark:text-green-400"
+                                : template.category === "formal"
+                                ? "bg-blue-500/20 text-blue-700 dark:text-blue-400"
+                                : "bg-purple-500/20 text-purple-700 dark:text-purple-400"
+                            }
+                          >
+                            {template.category}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pb-3">
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {template.description || "Tidak ada deskripsi"}
+                        </p>
+                        <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
+                          <span>{template.language === "id" ? "Indonesia" : "English"}</span>
+                          {template.businessType && (
+                            <Badge variant="outline" className="text-[10px]">{template.businessType}</Badge>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsTemplateDialogOpen(false)}>
+              Batal
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectedTemplate) {
+                  setIsConfirmDialogOpen(true);
+                }
+              }}
+              disabled={!selectedTemplate}
+              data-testid="button-select-template"
+            >
+              <Check className="w-4 h-4 mr-2" />
+              Pilih Template
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Template Confirmation Dialog */}
+      <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Konfirmasi Penggunaan Template</DialogTitle>
+            <DialogDescription>
+              Template &quot;{selectedTemplate?.name}&quot; akan diterapkan ke knowledge base
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="p-3 bg-muted rounded-lg">
+              <p className="text-sm font-medium mb-2">Preview Konten:</p>
+              <ScrollArea className="h-32">
+                <pre className="text-xs whitespace-pre-wrap">{selectedTemplate?.content?.slice(0, 500)}...</pre>
+              </ScrollArea>
+            </div>
+            
+            <div className="space-y-3">
+              <Label>Mode Penerapan:</Label>
+              <div className="space-y-2">
+                <button
+                  className={`w-full p-3 rounded-lg border text-left transition-colors ${
+                    templateApplyMode === "replace" ? "border-primary bg-primary/10" : "border-border hover-elevate"
+                  }`}
+                  onClick={() => setTemplateApplyMode("replace")}
+                  data-testid="button-mode-replace"
+                >
+                  <div className="font-medium text-sm">Ganti Semua</div>
+                  <p className="text-xs text-muted-foreground">
+                    Hapus konten yang ada dan ganti dengan template ini
+                  </p>
+                </button>
+                <button
+                  className={`w-full p-3 rounded-lg border text-left transition-colors ${
+                    templateApplyMode === "append" ? "border-primary bg-primary/10" : "border-border hover-elevate"
+                  }`}
+                  onClick={() => setTemplateApplyMode("append")}
+                  data-testid="button-mode-append"
+                >
+                  <div className="font-medium text-sm">Tambahkan</div>
+                  <p className="text-xs text-muted-foreground">
+                    Tambahkan template ini ke konten yang sudah ada
+                  </p>
+                </button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsConfirmDialogOpen(false)}>
+              Batal
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectedTemplate) {
+                  applyTemplateMutation.mutate({
+                    templateId: selectedTemplate.id,
+                    agentId: activeAgentId || undefined,
+                    mode: templateApplyMode,
+                  });
+                }
+              }}
+              disabled={applyTemplateMutation.isPending}
+              data-testid="button-confirm-apply-template"
+            >
+              {applyTemplateMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Check className="w-4 h-4 mr-2" />
+              )}
+              Terapkan Template
             </Button>
           </DialogFooter>
         </DialogContent>

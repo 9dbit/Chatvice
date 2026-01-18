@@ -63,6 +63,7 @@ import {
   paymentTransactions, adminNotifications, chatSecuritySettings, chatSecurityAlerts,
   knowledgebaseArticles, knowledgebaseTemplates, productCrawlSources, crawledProducts, customPlanInvoices,
   customPlanRequests, merchantNotifications, affiliates, affiliateReferrals, affiliateCommissions, affiliatePayouts,
+  knowledgeTemplates, type KnowledgeTemplate, type InsertKnowledgeTemplate,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, or, lt, isNull, sql, count, inArray } from "drizzle-orm";
@@ -410,6 +411,15 @@ export interface IStorage {
   markNotificationAsRead(id: string): Promise<MerchantNotification | undefined>;
   markAllNotificationsAsRead(merchantId: string): Promise<void>;
   getUnreadNotificationCount(merchantId: string): Promise<number>;
+  
+  // Knowledge Templates (Admin-managed training data templates)
+  getKnowledgeTemplates(category?: string): Promise<KnowledgeTemplate[]>;
+  getKnowledgeTemplate(id: string): Promise<KnowledgeTemplate | undefined>;
+  getActiveKnowledgeTemplates(category?: string): Promise<KnowledgeTemplate[]>;
+  createKnowledgeTemplate(data: InsertKnowledgeTemplate): Promise<KnowledgeTemplate>;
+  updateKnowledgeTemplate(id: string, data: Partial<KnowledgeTemplate>): Promise<KnowledgeTemplate | undefined>;
+  deleteKnowledgeTemplate(id: string): Promise<boolean>;
+  incrementKnowledgeTemplateUsage(id: string): Promise<boolean>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -2968,6 +2978,73 @@ export class DatabaseStorage implements IStorage {
       totalCommissions: totalCommissions?.count || 0,
       pendingPayouts: pendingPayouts?.count || 0,
     };
+  }
+  
+  // Knowledge Templates (Admin-managed training data templates)
+  async getKnowledgeTemplates(category?: string): Promise<KnowledgeTemplate[]> {
+    if (category) {
+      return db.select().from(knowledgeTemplates)
+        .where(eq(knowledgeTemplates.category, category))
+        .orderBy(desc(knowledgeTemplates.createdAt));
+    }
+    return db.select().from(knowledgeTemplates)
+      .orderBy(desc(knowledgeTemplates.createdAt));
+  }
+  
+  async getKnowledgeTemplate(id: string): Promise<KnowledgeTemplate | undefined> {
+    const result = await db.select().from(knowledgeTemplates)
+      .where(eq(knowledgeTemplates.id, id));
+    return result[0];
+  }
+  
+  async getActiveKnowledgeTemplates(category?: string): Promise<KnowledgeTemplate[]> {
+    if (category) {
+      return db.select().from(knowledgeTemplates)
+        .where(and(
+          eq(knowledgeTemplates.isActive, true),
+          eq(knowledgeTemplates.category, category)
+        ))
+        .orderBy(desc(knowledgeTemplates.createdAt));
+    }
+    return db.select().from(knowledgeTemplates)
+      .where(eq(knowledgeTemplates.isActive, true))
+      .orderBy(desc(knowledgeTemplates.createdAt));
+  }
+  
+  async createKnowledgeTemplate(data: InsertKnowledgeTemplate): Promise<KnowledgeTemplate> {
+    const id = generateId("kt_");
+    const result = await db.insert(knowledgeTemplates).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+  
+  async updateKnowledgeTemplate(id: string, data: Partial<KnowledgeTemplate>): Promise<KnowledgeTemplate | undefined> {
+    const result = await db.update(knowledgeTemplates)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(knowledgeTemplates.id, id))
+      .returning();
+    return result[0];
+  }
+  
+  async deleteKnowledgeTemplate(id: string): Promise<boolean> {
+    const result = await db.delete(knowledgeTemplates)
+      .where(eq(knowledgeTemplates.id, id))
+      .returning();
+    return result.length > 0;
+  }
+  
+  async incrementKnowledgeTemplateUsage(id: string): Promise<boolean> {
+    const template = await this.getKnowledgeTemplate(id);
+    if (!template) return false;
+    const result = await db.update(knowledgeTemplates)
+      .set({ usageCount: (template.usageCount || 0) + 1, updatedAt: new Date() })
+      .where(eq(knowledgeTemplates.id, id))
+      .returning();
+    return result.length > 0;
   }
 }
 

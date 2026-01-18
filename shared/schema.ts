@@ -1801,3 +1801,23 @@ export const insertAffiliatePayoutSchema = createInsertSchema(affiliatePayouts).
 export type InsertAffiliatePayout = z.infer<typeof insertAffiliatePayoutSchema>;
 export type AffiliatePayout = typeof affiliatePayouts.$inferSelect;
 
+// Knowledge Base Templates (Admin-managed templates for merchants to use)
+export const knowledgeTemplates = pgTable("knowledge_templates", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  name: text("name").notNull(), // Template name (e.g., "E-commerce FAQ", "Customer Service")
+  description: text("description"), // Brief description of template purpose
+  category: text("category").notNull(), // casual, formal, corporate
+  content: text("content").notNull(), // The template knowledge base content
+  businessType: text("business_type"), // Optional: specific business type (e.g., "retail", "saas", "restaurant")
+  language: text("language").default("id"), // Language code (id = Indonesian, en = English)
+  isActive: boolean("is_active").default(true), // Whether template is available for merchants
+  usageCount: integer("usage_count").default(0), // Track how many merchants use this template
+  createdBy: varchar("created_by", { length: 32 }), // Admin who created
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertKnowledgeTemplateSchema = createInsertSchema(knowledgeTemplates).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertKnowledgeTemplate = z.infer<typeof insertKnowledgeTemplateSchema>;
+export type KnowledgeTemplate = typeof knowledgeTemplates.$inferSelect;
+

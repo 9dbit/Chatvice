@@ -119,6 +119,7 @@ import {
   Bitcoin,
   Key,
   Landmark,
+  BookOpen,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -343,6 +344,7 @@ export default function AdminDashboard() {
     { id: "bank-transfers", label: "Bank Transfers", icon: Landmark },
     { id: "custom-requests", label: "Custom Requests", icon: Sparkles },
     { id: "affiliates", label: "Affiliates", icon: Share2 },
+    { id: "knowledge-templates", label: "Knowledge Templates", icon: BookOpen },
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
@@ -528,6 +530,8 @@ export default function AdminDashboard() {
             {activeTab === "custom-requests" && <CustomRequestsTab toast={toast} />}
             
             {activeTab === "affiliates" && <AffiliatesTab toast={toast} />}
+            
+            {activeTab === "knowledge-templates" && <KnowledgeTemplatesTab toast={toast} />}
           </div>
         </div>
       </main>
@@ -10574,6 +10578,368 @@ function AffiliatesTab({ toast }: { toast: any }) {
               {saveSettingsMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               <Save className="w-4 h-4 mr-2" />
               Save Settings
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// Knowledge Templates Tab - Admin management of training data templates
+function KnowledgeTemplatesTab({ toast }: { toast: any }) {
+  const [editingTemplate, setEditingTemplate] = useState<any>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+  
+  // Form state
+  const [formName, setFormName] = useState("");
+  const [formDescription, setFormDescription] = useState("");
+  const [formCategory, setFormCategory] = useState<string>("casual");
+  const [formContent, setFormContent] = useState("");
+  const [formBusinessType, setFormBusinessType] = useState("");
+  const [formLanguage, setFormLanguage] = useState("id");
+  const [formIsActive, setFormIsActive] = useState(true);
+  
+  // Fetch templates
+  const { data: templates = [], isLoading, refetch } = useQuery<any[]>({
+    queryKey: ["/api/admin/knowledge-templates"],
+  });
+  
+  // Create template mutation
+  const createMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/admin/knowledge-templates", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Berhasil", description: "Template berhasil dibuat" });
+      resetForm();
+      setIsCreateOpen(false);
+      refetch();
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Gagal membuat template", variant: "destructive" });
+    },
+  });
+  
+  // Update template mutation
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await apiRequest("PATCH", `/api/admin/knowledge-templates/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Berhasil", description: "Template berhasil diupdate" });
+      setEditingTemplate(null);
+      resetForm();
+      refetch();
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Gagal update template", variant: "destructive" });
+    },
+  });
+  
+  // Delete template mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/knowledge-templates/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Berhasil", description: "Template berhasil dihapus" });
+      refetch();
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Gagal hapus template", variant: "destructive" });
+    },
+  });
+  
+  const resetForm = () => {
+    setFormName("");
+    setFormDescription("");
+    setFormCategory("casual");
+    setFormContent("");
+    setFormBusinessType("");
+    setFormLanguage("id");
+    setFormIsActive(true);
+  };
+  
+  const openEditDialog = (template: any) => {
+    setEditingTemplate(template);
+    setFormName(template.name);
+    setFormDescription(template.description || "");
+    setFormCategory(template.category);
+    setFormContent(template.content);
+    setFormBusinessType(template.businessType || "");
+    setFormLanguage(template.language || "id");
+    setFormIsActive(template.isActive);
+  };
+  
+  const handleSubmit = () => {
+    const data = {
+      name: formName,
+      description: formDescription,
+      category: formCategory,
+      content: formContent,
+      businessType: formBusinessType || null,
+      language: formLanguage,
+      isActive: formIsActive,
+    };
+    
+    if (editingTemplate) {
+      updateMutation.mutate({ id: editingTemplate.id, data });
+    } else {
+      createMutation.mutate(data);
+    }
+  };
+  
+  const getCategoryBadge = (category: string) => {
+    switch (category) {
+      case "casual":
+        return <Badge className="bg-green-500/20 text-green-700 dark:text-green-400">Casual</Badge>;
+      case "formal":
+        return <Badge className="bg-blue-500/20 text-blue-700 dark:text-blue-400">Formal</Badge>;
+      case "corporate":
+        return <Badge className="bg-purple-500/20 text-purple-700 dark:text-purple-400">Corporate</Badge>;
+      default:
+        return <Badge variant="outline">{category}</Badge>;
+    }
+  };
+  
+  const filteredTemplates = templates.filter((t: any) => 
+    filterCategory === "all" || t.category === filterCategory
+  );
+  
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="w-5 h-5" />
+                Knowledge Templates
+              </CardTitle>
+              <CardDescription>
+                Kelola template knowledge base untuk merchant (casual, formal, corporate)
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger className="w-[140px]" data-testid="select-filter-category">
+                  <SelectValue placeholder="Filter kategori" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua</SelectItem>
+                  <SelectItem value="casual">Casual</SelectItem>
+                  <SelectItem value="formal">Formal</SelectItem>
+                  <SelectItem value="corporate">Corporate</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button onClick={() => { resetForm(); setIsCreateOpen(true); }} data-testid="button-create-template">
+                <Plus className="w-4 h-4 mr-2" />
+                Buat Template
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="w-6 h-6 animate-spin" />
+            </div>
+          ) : filteredTemplates.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>Belum ada template knowledge base</p>
+              <p className="text-sm">Buat template pertama untuk membantu merchant</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {filteredTemplates.map((template: any) => (
+                <Card key={template.id} className={`${!template.isActive ? "opacity-60" : ""}`}>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <CardTitle className="text-base line-clamp-1">{template.name}</CardTitle>
+                        <div className="flex items-center gap-2 mt-1">
+                          {getCategoryBadge(template.category)}
+                          {!template.isActive && <Badge variant="outline">Nonaktif</Badge>}
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => openEditDialog(template)}
+                          data-testid={`button-edit-${template.id}`}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="icon" variant="ghost" className="text-destructive" data-testid={`button-delete-${template.id}`}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Hapus Template?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Template "{template.name}" akan dihapus. Aksi ini tidak dapat dibatalkan.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Batal</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteMutation.mutate(template.id)}
+                                className="bg-destructive text-destructive-foreground"
+                              >
+                                Hapus
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+                      {template.description || "Tidak ada deskripsi"}
+                    </p>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Digunakan: {template.usageCount || 0}x</span>
+                      <span>{template.language === "id" ? "Indonesia" : "English"}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      {/* Create/Edit Dialog */}
+      <Dialog open={isCreateOpen || !!editingTemplate} onOpenChange={(open) => {
+        if (!open) {
+          setIsCreateOpen(false);
+          setEditingTemplate(null);
+          resetForm();
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingTemplate ? "Edit Template" : "Buat Template Baru"}</DialogTitle>
+            <DialogDescription>
+              {editingTemplate ? "Ubah detail template knowledge base" : "Buat template knowledge base baru untuk merchant"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="template-name">Nama Template *</Label>
+                <Input
+                  id="template-name"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  placeholder="E-commerce Customer Service"
+                  className="mt-1"
+                  data-testid="input-template-name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="template-category">Kategori *</Label>
+                <Select value={formCategory} onValueChange={setFormCategory}>
+                  <SelectTrigger className="mt-1" data-testid="select-template-category">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="casual">Casual - Santai & friendly</SelectItem>
+                    <SelectItem value="formal">Formal - Profesional & sopan</SelectItem>
+                    <SelectItem value="corporate">Corporate - Bisnis & resmi</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div>
+              <Label htmlFor="template-description">Deskripsi</Label>
+              <Input
+                id="template-description"
+                value={formDescription}
+                onChange={(e) => setFormDescription(e.target.value)}
+                placeholder="Template untuk bisnis e-commerce dengan gaya santai"
+                className="mt-1"
+                data-testid="input-template-description"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="template-business">Tipe Bisnis (opsional)</Label>
+                <Input
+                  id="template-business"
+                  value={formBusinessType}
+                  onChange={(e) => setFormBusinessType(e.target.value)}
+                  placeholder="e-commerce, restaurant, saas"
+                  className="mt-1"
+                  data-testid="input-template-business"
+                />
+              </div>
+              <div>
+                <Label htmlFor="template-language">Bahasa</Label>
+                <Select value={formLanguage} onValueChange={setFormLanguage}>
+                  <SelectTrigger className="mt-1" data-testid="select-template-language">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="id">Bahasa Indonesia</SelectItem>
+                    <SelectItem value="en">English</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div>
+              <Label htmlFor="template-content">Konten Knowledge Base *</Label>
+              <Textarea
+                id="template-content"
+                value={formContent}
+                onChange={(e) => setFormContent(e.target.value)}
+                placeholder="Masukkan konten knowledge base template di sini..."
+                className="mt-1 min-h-[200px] font-mono text-sm"
+                data-testid="textarea-template-content"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Konten ini akan ditambahkan ke knowledge base merchant saat mereka memilih template ini
+              </p>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Status Aktif</Label>
+                <p className="text-xs text-muted-foreground">Template aktif dapat dilihat dan digunakan merchant</p>
+              </div>
+              <Switch
+                checked={formIsActive}
+                onCheckedChange={setFormIsActive}
+                data-testid="switch-template-active"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setIsCreateOpen(false); setEditingTemplate(null); resetForm(); }}>
+              Batal
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={!formName || !formContent || createMutation.isPending || updateMutation.isPending}
+              data-testid="button-submit-template"
+            >
+              {(createMutation.isPending || updateMutation.isPending) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              <Save className="w-4 h-4 mr-2" />
+              {editingTemplate ? "Simpan Perubahan" : "Buat Template"}
             </Button>
           </DialogFooter>
         </DialogContent>
