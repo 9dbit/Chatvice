@@ -16,7 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Bot, Plus, Edit, Trash2, Sparkles, Crown, ArrowUpRight, Camera, Loader2, MessageSquare, AlertTriangle, Clock, Thermometer, UserCircle, Zap, Check, FileText, MessageCircle, Send, X } from "lucide-react";
+import { Bot, Plus, Edit, Trash2, Sparkles, Crown, ArrowUpRight, Camera, Loader2, MessageSquare, AlertTriangle, Clock, Thermometer, UserCircle, Zap, FileText, MessageCircle, Send, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -208,33 +208,6 @@ export default function AgentsPage() {
       toast({
         title: "Agent deleted",
         description: "The agent has been removed.",
-      });
-    },
-  });
-
-  const [selectingAgentId, setSelectingAgentId] = useState<string | null>(null);
-  
-  const selectAgentMutation = useMutation({
-    mutationFn: async (agentId: string) => {
-      setSelectingAgentId(agentId);
-      return apiRequest("POST", "/api/merchant/select-agent", { agentId });
-    },
-    onSuccess: (_, agentId) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/knowledge"] });
-      setSelectingAgentId(null);
-      toast({
-        title: "Agent selected",
-        description: "This agent is now active. Knowledge Base and Widget Settings will use this agent's configuration.",
-      });
-    },
-    onError: () => {
-      setSelectingAgentId(null);
-      toast({
-        title: "Failed to select agent",
-        description: "Please try again.",
-        variant: "destructive",
       });
     },
   });
@@ -897,11 +870,10 @@ export default function AgentsPage() {
       <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
         {agents && agents.length > 0 ? (
           agents.map((agent) => {
-            const isActiveAgent = merchant?.activeAgentId === agent.id;
             return (
             <Card 
               key={agent.id} 
-              className={`hover-elevate transition-all ${isActiveAgent ? "border-primary bg-primary/10 ring-2 ring-primary/30" : ""}`} 
+              className="hover-elevate transition-all" 
               data-testid={`agent-card-${agent.id}`}
             >
               <CardHeader className="flex flex-row items-start justify-between gap-2 sm:gap-4 p-4 sm:p-6">
@@ -915,9 +887,7 @@ export default function AgentsPage() {
                   <div className="min-w-0">
                     <CardTitle className="text-base sm:text-lg truncate">{agent.name}</CardTitle>
                     <div className="flex items-center gap-2 mt-1">
-                      {isActiveAgent ? (
-                        <Badge className="text-[10px] sm:text-xs bg-primary">Selected</Badge>
-                      ) : agent.isActive ? (
+                      {agent.isActive ? (
                         <Badge variant="default" className="text-[10px] sm:text-xs">Active</Badge>
                       ) : (
                         <Badge variant="secondary" className="text-[10px] sm:text-xs">Inactive</Badge>
@@ -994,22 +964,6 @@ export default function AgentsPage() {
                 </div>
                 
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                  {!isActiveAgent && (
-                    <Button
-                      size="sm"
-                      onClick={() => selectAgentMutation.mutate(agent.id)}
-                      disabled={selectingAgentId !== null}
-                      className="text-xs sm:text-sm h-8"
-                      data-testid={`button-select-agent-${agent.id}`}
-                    >
-                      {selectingAgentId === agent.id ? (
-                        <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 animate-spin" />
-                      ) : (
-                        <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
-                      )}
-                      <span className="hidden xs:inline">Select Agent</span>
-                    </Button>
-                  )}
                   <Button size="sm" variant="outline" onClick={() => handleEdit(agent)} className="text-xs sm:text-sm h-8" data-testid={`button-edit-agent-${agent.id}`}>
                     <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-1" />
                     <span className="hidden sm:inline">Edit</span>

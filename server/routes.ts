@@ -539,7 +539,8 @@ async function askChatvice(
 
   const merchant = await storage.getMerchant(merchantId);
   const companyName = merchant?.companyName || "our company";
-  const activeAgentId = merchant?.activeAgentId || undefined;
+  // Use session's assigned agent (from round-robin) instead of merchant's activeAgentId
+  const assignedAgentId = session.agentId || undefined;
   
   // Get agent's settings
   let agentSystemPrompt = "";
@@ -548,8 +549,8 @@ async function askChatvice(
   let temperature = 0.7;
   let autoEscalateAngry = false;
   
-  if (activeAgentId) {
-    const agent = await storage.getAgent(activeAgentId);
+  if (assignedAgentId) {
+    const agent = await storage.getAgent(assignedAgentId);
     if (agent) {
       if (agent.systemPrompt) {
         agentSystemPrompt = agent.systemPrompt;
@@ -596,19 +597,19 @@ async function askChatvice(
   
   let knowledgeContext = "";
   try {
-    const relevantChunks = await searchKnowledge(merchantId, message, 3, activeAgentId);
+    const relevantChunks = await searchKnowledge(merchantId, message, 3, assignedAgentId);
     if (relevantChunks.length > 0) {
       knowledgeContext = relevantChunks.join("\n\n---\n\n");
     } else {
-      const knowledge = activeAgentId 
-        ? await storage.getKnowledgeByAgent(activeAgentId)
+      const knowledge = assignedAgentId 
+        ? await storage.getKnowledgeByAgent(assignedAgentId)
         : await storage.getKnowledge(merchantId);
       knowledgeContext = knowledge?.content || "";
     }
   } catch (error) {
     console.error("Knowledge search error:", error);
-    const knowledge = activeAgentId 
-      ? await storage.getKnowledgeByAgent(activeAgentId)
+    const knowledge = assignedAgentId 
+      ? await storage.getKnowledgeByAgent(assignedAgentId)
       : await storage.getKnowledge(merchantId);
     knowledgeContext = knowledge?.content || "";
   }
@@ -648,7 +649,7 @@ async function askChatvice(
   try {
     const productSettings = await storage.getProductRecommendationSettings(merchantId);
     if (productSettings?.aiAutoRecommendEnabled) {
-      const productCards = await storage.getProductCards(merchantId, activeAgentId);
+      const productCards = await storage.getProductCards(merchantId, assignedAgentId);
       const activeProducts = productCards.filter(p => p.isActive);
       if (activeProducts.length > 0) {
         productCatalogContext = activeProducts.map(p => {
