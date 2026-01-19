@@ -150,6 +150,7 @@ export default function SessionsPage() {
     return saved !== null ? saved === "true" : true;
   });
   const previousSessionIdsRef = useRef<Set<string>>(new Set());
+  const previousAttentionSessionsRef = useRef<Set<string>>(new Set());
   const sessionMessageCountsRef = useRef<Map<string, number>>(new Map());
   const lastProcessedMessageIdRef = useRef<string | null>(null);
   const initialLoadRef = useRef(true);
@@ -221,9 +222,13 @@ export default function SessionsPage() {
     if (!sessions || !soundEnabled) return;
     
     const currentSessionIds = new Set(sessions.map(s => s.id));
+    const currentAttentionSessions = new Set(
+      sessions.filter(s => s.needsSupervisorAttention).map(s => s.id)
+    );
     
     if (initialLoadRef.current) {
       previousSessionIdsRef.current = currentSessionIds;
+      previousAttentionSessionsRef.current = currentAttentionSessions;
       sessions.forEach(s => sessionMessageCountsRef.current.set(s.id, 0));
       initialLoadRef.current = false;
       return;
@@ -240,16 +245,23 @@ export default function SessionsPage() {
       });
     }
     
-    // Check for angry sessions (needsSupervisorAttention = true)
-    const angrySessions = sessions.filter(s => 
+    // Check for sessions that newly require attention (trigger words or anger detected)
+    // This includes both new sessions AND existing sessions that just got escalated
+    const newlyEscalatedSessions = sessions.filter(s => 
       s.needsSupervisorAttention &&
-      !previousSessionIdsRef.current.has(s.id)
+      !previousAttentionSessionsRef.current.has(s.id)
     );
-    if (angrySessions.length > 0) {
+    if (newlyEscalatedSessions.length > 0) {
       playAngrySound();
+      toast({
+        title: "Escalated session!",
+        description: `${newlyEscalatedSessions.length} session(s) need immediate attention`,
+        duration: 10000,
+      });
     }
     
     previousSessionIdsRef.current = currentSessionIds;
+    previousAttentionSessionsRef.current = currentAttentionSessions;
   }, [sessions, soundEnabled, toast]);
   
   // Track messages in selected session - play reply sound for new messages

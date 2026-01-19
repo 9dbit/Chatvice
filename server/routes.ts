@@ -527,7 +527,7 @@ async function askChatvice(
 
   const triggerResult = await checkTriggers(merchantId, message);
   if (triggerResult.triggered) {
-    await storage.updateSession(sessionId, { mode: "HUMAN" });
+    await storage.updateSession(sessionId, { mode: "HUMAN", needsSupervisorAttention: true });
     await notifySupervisors(merchantId, sessionId);
     return {
       answer: "Saya akan menghubungkan Anda dengan supervisor yang dapat membantu. Mohon tunggu sebentar.",
@@ -575,7 +575,7 @@ async function askChatvice(
     const lowerMessage = message.toLowerCase();
     const isAngryDetected = angerIndicators.some(indicator => lowerMessage.includes(indicator));
     if (isAngryDetected) {
-      await storage.updateSession(sessionId, { mode: "HUMAN" });
+      await storage.updateSession(sessionId, { mode: "HUMAN", needsSupervisorAttention: true });
       await notifySupervisors(merchantId, sessionId, "angry");
       return {
         answer: "Saya memahami Anda sedang frustasi. Izinkan saya menghubungkan Anda dengan supervisor kami yang dapat membantu lebih lanjut.",
