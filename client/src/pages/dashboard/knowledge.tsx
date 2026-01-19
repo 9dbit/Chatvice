@@ -205,38 +205,28 @@ export default function KnowledgePage() {
   const questionsLimit = effectiveSuggestedQuestionsLimit === -1 ? Infinity : effectiveSuggestedQuestionsLimit;
   const canAddMoreQuestions = suggestedQuestions.length < questionsLimit;
 
-  const otherAgents = agents?.filter(a => a.id !== merchant?.activeAgentId) || [];
+  // Local state for selecting which agent's knowledge to edit
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  
+  // Initialize selectedAgentId from first agent when agents data loads
+  useEffect(() => {
+    if (agents && agents.length > 0 && !selectedAgentId) {
+      setSelectedAgentId(agents[0].id);
+    }
+  }, [agents, selectedAgentId]);
 
-  const activeAgentId = merchant?.activeAgentId;
-  const activeAgent = agents?.find(a => a.id === activeAgentId);
-
-  const selectAgentMutation = useMutation({
-    mutationFn: async (agentId: string) => {
-      return apiRequest("POST", "/api/merchant/select-agent", { agentId });
-    },
-    onSuccess: (_, newAgentId) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
-      queryClient.invalidateQueries({ queryKey: [`/api/knowledge/agent/${newAgentId}`] });
-      queryClient.invalidateQueries({ queryKey: ["/api/knowledge"] });
-      setContent("");
-      toast({
-        title: "Agent selected",
-        description: "Now editing knowledge for the selected agent.",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Failed to select agent",
-        description: "Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
+  const otherAgents = agents?.filter(a => a.id !== selectedAgentId) || [];
+  const selectedAgent = agents?.find(a => a.id === selectedAgentId);
+  
+  // Handle agent selection change
+  const handleAgentSelect = (agentId: string) => {
+    setSelectedAgentId(agentId);
+    setContent(""); // Clear content when switching agents
+  };
 
   const { data: knowledge, isLoading } = useQuery<{ content: string }>({
-    queryKey: activeAgentId 
-      ? [`/api/knowledge/agent/${activeAgentId}`]
+    queryKey: selectedAgentId 
+      ? [`/api/knowledge/agent/${selectedAgentId}`]
       : [`/api/knowledge/${merchantId}`],
     enabled: !!merchantId,
   });
@@ -274,7 +264,7 @@ export default function KnowledgePage() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/knowledge/agent/${activeAgentId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/knowledge/agent/${selectedAgentId}`] });
       queryClient.invalidateQueries({ queryKey: [`/api/knowledge/${merchantId}`] });
       setIsConfirmDialogOpen(false);
       setSelectedTemplate(null);
@@ -501,12 +491,12 @@ export default function KnowledgePage() {
       return apiRequest("POST", "/api/knowledge/set", {
         merchantId,
         knowledgeText,
-        agentId: activeAgentId || undefined,
+        agentId: selectedAgentId || undefined,
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: activeAgentId 
-        ? [`/api/knowledge/agent/${activeAgentId}`]
+      queryClient.invalidateQueries({ queryKey: selectedAgentId 
+        ? [`/api/knowledge/agent/${selectedAgentId}`]
         : [`/api/knowledge/${merchantId}`] 
       });
       toast({
@@ -619,8 +609,8 @@ export default function KnowledgePage() {
     onSuccess: () => {
       setCrawlUrl("");
       queryClient.invalidateQueries({ queryKey: ["/api/knowledge/links", merchantId] });
-      queryClient.invalidateQueries({ queryKey: activeAgentId 
-        ? [`/api/knowledge/agent/${activeAgentId}`]
+      queryClient.invalidateQueries({ queryKey: selectedAgentId 
+        ? [`/api/knowledge/agent/${selectedAgentId}`]
         : [`/api/knowledge/${merchantId}`] 
       });
       toast({
@@ -645,8 +635,8 @@ export default function KnowledgePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/knowledge/links", merchantId] });
-      queryClient.invalidateQueries({ queryKey: activeAgentId 
-        ? [`/api/knowledge/agent/${activeAgentId}`]
+      queryClient.invalidateQueries({ queryKey: selectedAgentId 
+        ? [`/api/knowledge/agent/${selectedAgentId}`]
         : [`/api/knowledge/${merchantId}`] 
       });
       toast({
@@ -923,25 +913,24 @@ export default function KnowledgePage() {
             <div className="flex items-center gap-2">
               <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap hidden sm:inline">Training:</span>
               <Select
-                value={activeAgentId || "none"}
+                value={selectedAgentId || "none"}
                 onValueChange={(value) => {
                   if (value !== "none") {
-                    selectAgentMutation.mutate(value);
+                    handleAgentSelect(value);
                   }
                 }}
-                disabled={selectAgentMutation.isPending}
               >
                 <SelectTrigger className="w-[160px] sm:w-[200px]" data-testid="select-agent-knowledge">
                   <div className="flex items-center gap-2">
-                    {activeAgent ? (
+                    {selectedAgent ? (
                       <>
                         <Avatar className="w-5 h-5">
-                          <AvatarImage src={activeAgent.photoUrl || ""} />
+                          <AvatarImage src={selectedAgent.photoUrl || ""} />
                           <AvatarFallback className="text-[10px]">
                             <Bot className="w-3 h-3" />
                           </AvatarFallback>
                         </Avatar>
-                        <span className="truncate">{activeAgent.name}</span>
+                        <span className="truncate">{selectedAgent.name}</span>
                       </>
                     ) : (
                       <span className="text-muted-foreground">Select agent...</span>
@@ -949,7 +938,7 @@ export default function KnowledgePage() {
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  {!activeAgentId && (
+                  {!selectedAgentId && (
                     <SelectItem value="none" disabled>
                       <span className="text-muted-foreground">Select an agent to train...</span>
                     </SelectItem>
@@ -964,8 +953,8 @@ export default function KnowledgePage() {
                           </AvatarFallback>
                         </Avatar>
                         <span>{agent.name}</span>
-                        {agent.id === activeAgentId && (
-                          <Badge variant="secondary" className="text-[10px] ml-1">Active</Badge>
+                        {agent.id === selectedAgentId && (
+                          <Badge variant="secondary" className="text-[10px] ml-1">Selected</Badge>
                         )}
                       </div>
                     </SelectItem>
@@ -1738,7 +1727,7 @@ Example:
                 if (selectedTemplate) {
                   applyTemplateMutation.mutate({
                     templateId: selectedTemplate.id,
-                    agentId: activeAgentId || undefined,
+                    agentId: selectedAgentId || undefined,
                     mode: templateApplyMode,
                   });
                 }
