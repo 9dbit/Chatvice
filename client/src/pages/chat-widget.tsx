@@ -2299,7 +2299,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 overflow-hidden"
                 style={{ backgroundColor: `${primaryColor}20` }}
               >
-                {merchantConfig?.agentPhotoUrl ? (
+                {/* Use same logic as header - show supervisor when HUMAN mode, otherwise session's assigned agent */}
+                {sessionInfo?.mode === "HUMAN" && sessionInfo?.supervisorInfo?.photoUrl ? (
+                  <img src={sessionInfo.supervisorInfo.photoUrl} alt="Supervisor" className="w-full h-full object-cover" />
+                ) : sessionInfo?.agentInfo?.photoUrl ? (
+                  <img src={sessionInfo.agentInfo.photoUrl} alt="Agent" className="w-full h-full object-cover" />
+                ) : merchantConfig?.agentPhotoUrl ? (
                   <img src={merchantConfig.agentPhotoUrl} alt="Agent" className="w-full h-full object-cover" />
                 ) : (
                   <Bot className="w-3.5 h-3.5" style={{ color: primaryColor }} />
