@@ -2063,12 +2063,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   className={`max-w-[80%] p-3 text-sm ${
                     msg.from === "user"
                       ? "rounded-2xl rounded-br-sm text-white"
-                      : `rounded-2xl rounded-bl-sm ${applyEmbedStyles ? '' : 'bg-muted'}`
+                      : `rounded-2xl rounded-bl-sm ${applyEmbedStyles ? 'text-white' : 'bg-muted'}`
                   }`}
                   style={msg.from === "user" 
                     ? { backgroundColor: primaryColor } 
                     : applyEmbedStyles 
-                      ? { backgroundColor: 'rgba(30, 30, 40, 0.85)' }
+                      ? { backgroundColor: 'rgba(255, 255, 255, 0.15)', backdropFilter: 'blur(8px)' }
                       : undefined}
                 >
                   {!((msg as any).messageType === "media" && (msg as any).payload?.url) && 
