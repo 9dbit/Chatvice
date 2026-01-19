@@ -2068,7 +2068,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   style={msg.from === "user" 
                     ? { backgroundColor: primaryColor } 
                     : applyEmbedStyles 
-                      ? { backgroundColor: 'rgba(255, 255, 255, 0.15)', backdropFilter: 'blur(8px)' }
+                      ? { backgroundColor: 'rgba(50, 50, 60, 0.95)' }
                       : undefined}
                 >
                   {!((msg as any).messageType === "media" && (msg as any).payload?.url) && 
