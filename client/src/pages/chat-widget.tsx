@@ -1443,7 +1443,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 className="rounded-lg overflow-hidden border border-border bg-card"
                 data-testid={`card-product-${card.id}`}
               >
-                {/* Square IMAGE area - enforced square format */}
+                {/* Square IMAGE area - enforced square format with object-contain to show full product */}
                 <div 
                   className="aspect-square bg-muted flex items-center justify-center overflow-hidden cursor-pointer hover-elevate"
                   onClick={() => card.sourceUrl && window.open(card.sourceUrl, "_blank")}
@@ -1452,7 +1452,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                     <img 
                       src={card.imageUrl || ""} 
                       alt={card.title}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain"
                       onError={() => handleImageError(card.id)}
                     />
                   ) : (
@@ -2026,7 +2026,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       ) : (
         <div className="flex-1 min-h-0 flex flex-col">
           <ScrollArea className="flex-1 min-h-0" style={frostedBodyStyle}>
-            <div className="space-y-4 p-4">
+            {/* Add extra top padding when social panel is open to prevent overlap */}
+            <div className={`space-y-4 p-4 ${socialIconsExpanded ? 'pt-16' : ''}`}>
               {allMessages.map((msg, index) => (
             <div key={msg.id || index}>
               <div
