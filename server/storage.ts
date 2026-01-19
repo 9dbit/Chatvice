@@ -561,6 +561,8 @@ export class DatabaseStorage implements IStorage {
       mode: data.mode || "AI",
       supervisorId: data.supervisorId || null,
       customerName: data.customerName || "Customer",
+      customerPhone: data.customerPhone || null,
+      customerEmail: data.customerEmail || null,
       agentId: data.agentId || null,
       deviceFingerprint: data.deviceFingerprint || null,
       clientIp: data.clientIp || null,
