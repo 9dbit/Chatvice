@@ -2147,11 +2147,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                             style={applyEmbedStyles ? { backgroundColor: 'rgba(255, 255, 255, 0.2)', backdropFilter: 'blur(8px)' } : undefined}
                           >
                             {productCard.imageUrl ? (
-                              <div className="aspect-square bg-muted flex items-center justify-center">
+                              <div className="aspect-square bg-muted overflow-hidden">
                                 <img 
                                   src={productCard.imageUrl} 
                                   alt={productCard.title}
-                                  className="w-full h-full object-contain"
+                                  className="w-full h-full object-cover"
                                 />
                               </div>
                             ) : (
