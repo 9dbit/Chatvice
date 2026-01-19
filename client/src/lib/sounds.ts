@@ -39,16 +39,51 @@ function playSound(soundId: string) {
   }
 }
 
-export function playIncomingChatSound() {
-  playSound("sci-fi-confirm");
+interface NotificationSettings {
+  incomingChatSound?: string;
+  chatReplySound?: string;
+  angryCustomerSound?: string;
 }
 
-export function playChatReplySound() {
-  playSound("live-chat");
+let cachedNotificationSettings: NotificationSettings | null = null;
+let lastFetchTime = 0;
+const CACHE_DURATION = 60000; // 1 minute cache
+
+async function fetchNotificationSettings(): Promise<NotificationSettings | null> {
+  const now = Date.now();
+  if (cachedNotificationSettings && (now - lastFetchTime) < CACHE_DURATION) {
+    return cachedNotificationSettings;
+  }
+  
+  try {
+    const response = await fetch('/api/notification-settings');
+    if (response.ok) {
+      cachedNotificationSettings = await response.json();
+      lastFetchTime = now;
+      return cachedNotificationSettings;
+    }
+  } catch (e) {
+    console.warn("Failed to fetch notification settings:", e);
+  }
+  return null;
 }
 
-export function playAngrySound() {
-  playSound("alert");
+export async function playIncomingChatSound() {
+  const settings = await fetchNotificationSettings();
+  const soundId = settings?.incomingChatSound || "sci-fi-confirm";
+  playSound(soundId);
+}
+
+export async function playChatReplySound() {
+  const settings = await fetchNotificationSettings();
+  const soundId = settings?.chatReplySound || "live-chat";
+  playSound(soundId);
+}
+
+export async function playAngrySound() {
+  const settings = await fetchNotificationSettings();
+  const soundId = settings?.angryCustomerSound || "notification-alert";
+  playSound(soundId);
 }
 
 export { soundUrls };

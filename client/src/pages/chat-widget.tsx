@@ -1573,9 +1573,20 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         style={frostedHeaderStyle}
       >
         <div className="flex items-center gap-2.5">
-          {/* Agent photo - use session's assigned agent if available, otherwise fallback */}
+          {/* Show supervisor photo when in HUMAN mode, otherwise show agent photo */}
           <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
-            {sessionInfo?.agentInfo?.photoUrl ? (
+            {sessionInfo?.mode === "HUMAN" && sessionInfo?.supervisorInfo ? (
+              // Supervisor is handling - show supervisor photo
+              sessionInfo.supervisorInfo.photoUrl && sessionInfo.supervisorInfo.photoUrl.trim() !== "" ? (
+                <img
+                  src={sessionInfo.supervisorInfo.photoUrl}
+                  alt="Supervisor"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <HeadphonesIcon className="w-5 h-5 text-white" />
+              )
+            ) : sessionInfo?.agentInfo?.photoUrl && sessionInfo.agentInfo.photoUrl.trim() !== "" ? (
               <img
                 src={sessionInfo.agentInfo.photoUrl}
                 alt="Agent"
@@ -1597,21 +1608,6 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               <Bot className="w-5 h-5 text-white" />
             )}
           </div>
-          
-          {/* Supervisor photo - shown when supervisor takes over (overlapping agent photo) */}
-          {sessionInfo?.mode === "HUMAN" && sessionInfo?.supervisorInfo && (
-            <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center overflow-hidden -ml-5 border-2 border-white/40 shadow-md">
-              {sessionInfo.supervisorInfo.photoUrl ? (
-                <img
-                  src={sessionInfo.supervisorInfo.photoUrl}
-                  alt="Supervisor"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <HeadphonesIcon className="w-4 h-4 text-white" />
-              )}
-            </div>
-          )}
           
           <div className="text-white">
             {/* Show supervisor name when in HUMAN mode, otherwise assigned agent name */}
@@ -2043,12 +2039,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   >
                     {msg.from === "supervisor" ? (
                       // Show supervisor photo if available, otherwise headphones icon
-                      sessionInfo?.supervisorInfo?.photoUrl ? (
+                      sessionInfo?.supervisorInfo?.photoUrl && sessionInfo.supervisorInfo.photoUrl.trim() !== "" ? (
                         <img src={sessionInfo.supervisorInfo.photoUrl} alt="Supervisor" className="w-full h-full object-cover" />
                       ) : (
                         <HeadphonesIcon className="w-3.5 h-3.5" style={{ color: primaryColor }} />
                       )
-                    ) : sessionInfo?.agentInfo?.photoUrl ? (
+                    ) : sessionInfo?.agentInfo?.photoUrl && sessionInfo.agentInfo.photoUrl.trim() !== "" ? (
                       // Use the session's assigned agent photo
                       <img src={sessionInfo.agentInfo.photoUrl} alt="Agent" className="w-full h-full object-cover" />
                     ) : merchantConfig?.agentPhotoUrl ? (
