@@ -7,6 +7,8 @@ const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || undefined,
 });
 
+let embeddingsSupported: boolean | null = null;
+
 function splitIntoChunks(content: string, maxChunkSize: number = 500): string[] {
   const chunks: string[] = [];
   const paragraphs = content.split(/\n\n+/);
@@ -36,16 +38,26 @@ function splitIntoChunks(content: string, maxChunkSize: number = 500): string[] 
   return chunks;
 }
 
-async function generateEmbedding(text: string): Promise<number[]> {
+async function generateEmbedding(text: string): Promise<number[] | null> {
+  if (embeddingsSupported === false) {
+    return null;
+  }
+  
   try {
     const response = await openai.embeddings.create({
       model: "text-embedding-3-small",
       input: text,
     });
+    embeddingsSupported = true;
     return response.data[0].embedding;
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'INVALID_ENDPOINT' || error?.message?.includes('not supported')) {
+      console.log("Embeddings API not available - falling back to keyword search");
+      embeddingsSupported = false;
+      return null;
+    }
     console.error("Error generating embedding:", error);
-    throw error;
+    return null;
   }
 }
 
@@ -78,13 +90,29 @@ export async function processKnowledgeBase(merchantId: string, content: string, 
       content: chunkContent,
     });
     
-    try {
-      const embedding = await generateEmbedding(chunkContent);
+    const embedding = await generateEmbedding(chunkContent);
+    if (embedding) {
       await storage.updateChunkEmbedding(chunk.id, JSON.stringify(embedding));
-    } catch (error) {
-      console.error("Error processing chunk embedding:", error);
     }
   }
+}
+
+function keywordSearch(chunks: KnowledgeChunk[], query: string, topK: number): string[] {
+  const queryWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+  
+  const scored = chunks.map(chunk => {
+    const contentLower = chunk.content.toLowerCase();
+    let score = 0;
+    for (const word of queryWords) {
+      if (contentLower.includes(word)) {
+        score += 1;
+      }
+    }
+    return { chunk, score };
+  });
+  
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, topK).filter(s => s.score > 0).map(s => s.chunk.content);
 }
 
 export async function searchKnowledge(
@@ -101,12 +129,24 @@ export async function searchKnowledge(
   
   const chunksWithEmbeddings = chunks.filter(c => c.embedding);
   
-  if (chunksWithEmbeddings.length === 0) {
+  if (chunksWithEmbeddings.length === 0 || embeddingsSupported === false) {
+    const keywordResults = keywordSearch(chunks, query, topK);
+    if (keywordResults.length > 0) {
+      return keywordResults;
+    }
     return chunks.slice(0, topK).map(c => c.content);
   }
   
   try {
     const queryEmbedding = await generateEmbedding(query);
+    
+    if (!queryEmbedding) {
+      const keywordResults = keywordSearch(chunks, query, topK);
+      if (keywordResults.length > 0) {
+        return keywordResults;
+      }
+      return chunks.slice(0, topK).map(c => c.content);
+    }
     
     const scored = chunksWithEmbeddings.map(chunk => {
       const chunkEmbedding = JSON.parse(chunk.embedding!) as number[];
@@ -126,6 +166,10 @@ export async function searchKnowledge(
     return relevantChunks.map(s => s.chunk.content);
   } catch (error) {
     console.error("Error searching knowledge:", error);
+    const keywordResults = keywordSearch(chunks, query, topK);
+    if (keywordResults.length > 0) {
+      return keywordResults;
+    }
     return chunks.slice(0, topK).map(c => c.content);
   }
 }

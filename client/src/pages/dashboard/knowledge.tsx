@@ -435,15 +435,15 @@ export default function KnowledgePage() {
   });
 
   const toggleSourceMutation = useMutation({
-    mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
-      return apiRequest("PUT", `/api/sources/${id}`, { enabled });
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      return apiRequest("PUT", `/api/sources/${id}`, { isActive });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
       toast({ title: "Source updated", description: "Source status has been updated." });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to update source.", variant: "destructive" });
+      toast({ title: "Update failed", description: error.message || "Could not update source. Please try again.", variant: "destructive" });
     },
   });
 
@@ -1795,7 +1795,7 @@ Example:
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {sources.map((source) => (
-                  <Card key={source.id} className={!source.enabled ? "opacity-60" : ""}>
+                  <Card key={source.id} className={!(source.isActive ?? true) ? "opacity-60" : ""}>
                     <CardHeader className="pb-2">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -1803,12 +1803,17 @@ Example:
                           <CardTitle className="text-base truncate">{source.name}</CardTitle>
                         </div>
                         <div className="flex items-center gap-1">
-                          {source.enabled && source.type === "website" && (
-                            <span className="relative flex h-2 w-2" title="Auto-sync active">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                            </span>
-                          )}
+                          {/* Status indicator dot - green animated for active, red for disabled */}
+                          <span className="relative flex h-2.5 w-2.5" title={(source.isActive ?? true) ? "Active" : "Disabled"}>
+                            {(source.isActive ?? true) ? (
+                              <>
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                              </>
+                            ) : (
+                              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                            )}
+                          </span>
                           {source.isSyncing && (
                             <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                           )}
@@ -1833,12 +1838,12 @@ Example:
                     <CardFooter className="flex items-center justify-between gap-2 pt-2">
                       <div className="flex items-center gap-2">
                         <Switch
-                          checked={source.enabled}
-                          onCheckedChange={(checked) => toggleSourceMutation.mutate({ id: source.id, enabled: checked })}
+                          checked={source.isActive ?? true}
+                          onCheckedChange={(checked) => toggleSourceMutation.mutate({ id: source.id, isActive: checked })}
                           data-testid={`switch-source-${source.id}`}
                         />
                         <Label className="text-xs text-muted-foreground">
-                          {source.enabled ? "Active" : "Disabled"}
+                          {(source.isActive ?? true) ? "Active" : "Disabled"}
                         </Label>
                       </div>
                       <div className="flex items-center gap-1">
