@@ -5147,6 +5147,18 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         }
       }
       
+      // Get actual usage counts
+      const agents = await storage.getAgents(merchant.id);
+      const supervisors = await storage.getSupervisors(merchant.id);
+      const domainsData = await storage.getMerchantDomains(merchant.id);
+      
+      // Count knowledge sources across all agents
+      let totalSources = 0;
+      for (const agent of agents) {
+        const sources = await storage.getKnowledgeWebsources(agent.id);
+        totalSources += sources.length;
+      }
+      
       res.json({
         status: merchant.subscriptionStatus,
         planId: merchant.subscriptionPlanId,
@@ -5156,7 +5168,14 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         currentPeriodEnd: merchant.currentPeriodEnd,
         conversationsUsed: merchant.conversationsUsed || 0,
         conversationsLimit: plan.conversationsLimit,
+        agentsUsed: agents.length,
+        agentsLimit: plan.agentsLimit,
+        supervisorsUsed: supervisors.length,
         supervisorsLimit: plan.supervisorsLimit,
+        sourcesUsed: totalSources,
+        sourcesLimit: plan.sourcesLimit,
+        domainsUsed: domainsData.length,
+        domainsLimit: plan.domainsLimit,
         isTrialExpired,
         hasActiveSubscription: merchant.subscriptionStatus === 'active',
         pendingTransaction,
