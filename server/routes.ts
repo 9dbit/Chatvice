@@ -26,7 +26,7 @@ import { extractFAQContent, syncKnowledgeFromUrl, fetchWebContent } from "./craw
 import { parseFile, fetchGoogleDoc, fetchGoogleSheet } from "./fileParser";
 import { createQRISPayment, createVAPayment, createBankTransferPayment, createPaymentLinkPayment, checkPaymentStatus, isKompasPayConfigured, convertToIDR, formatIDR } from "./kompasPayClient";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
-import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient } from "./resendClient";
+import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient, sendMerchantAuthNotification } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, isNotNull, gte } from "drizzle-orm";
@@ -1331,6 +1331,28 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         console.error("Failed to send verification email:", err);
       });
       
+      // Get IP address for activity log
+      const ipAddress = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || 
+                       req.socket?.remoteAddress || 'unknown';
+      
+      // Log merchant sign-up activity (non-blocking)
+      storage.createMerchantActivityLog({
+        merchantId: merchant.id,
+        activityType: "sign_up",
+        activityCategory: "auth",
+        description: `New merchant registered with email`,
+        authMethod: "email",
+        ipAddress,
+        userAgent: req.headers['user-agent'] || null,
+      }).catch((err) => {
+        console.error("Failed to log sign-up activity:", err);
+      });
+      
+      // Send admin notification email (non-blocking)
+      sendMerchantAuthNotification("sign_up", data.email, data.username, "email", ipAddress).catch((err) => {
+        console.error("Failed to send sign-up notification:", err);
+      });
+      
       res.json({ 
         success: true, 
         merchantId: merchant.id,
@@ -1585,6 +1607,28 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         
         // Check for unanswered chat sessions (non-blocking)
         checkUnansweredChatSessions(merchant).catch(err => console.error("Failed to check unanswered chat sessions:", err));
+        
+        // Get IP address for activity log
+        const ipAddress = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || 
+                         req.socket?.remoteAddress || 'unknown';
+        
+        // Log merchant sign-in activity (non-blocking)
+        storage.createMerchantActivityLog({
+          merchantId: merchant.id,
+          activityType: "sign_in",
+          activityCategory: "auth",
+          description: `Merchant signed in with email`,
+          authMethod: "email",
+          ipAddress,
+          userAgent: req.headers['user-agent'] || null,
+        }).catch((err) => {
+          console.error("Failed to log sign-in activity:", err);
+        });
+        
+        // Send admin notification email (non-blocking)
+        sendMerchantAuthNotification("sign_in", merchant.email, merchant.companyName || merchant.username || "", "email", ipAddress).catch((err) => {
+          console.error("Failed to send sign-in notification:", err);
+        });
         
         const profileCompleted = merchant.profileStep === 4 || merchant.profileCompleted === true;
         return res.json({ success: true, merchantId: merchant.id, type: "merchant", profileCompleted });
@@ -2056,6 +2100,38 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       req.session.userType = "merchant";
       req.session.merchantId = merchant.id;
       
+      // Determine if this was a sign up or sign in
+      const isNewMerchant = !merchant.profileCompleted && !merchant.companyName;
+      const activityType = isNewMerchant ? "sign_up" : "sign_in";
+      
+      // Get IP address for activity log
+      const ipAddress = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || 
+                       req.socket?.remoteAddress || 'unknown';
+      
+      // Log merchant activity (non-blocking)
+      storage.createMerchantActivityLog({
+        merchantId: merchant.id,
+        activityType,
+        activityCategory: "auth",
+        description: `Merchant ${activityType === 'sign_up' ? 'registered' : 'signed in'} with Google`,
+        authMethod: "google",
+        ipAddress,
+        userAgent: req.headers['user-agent'] || null,
+      }).catch((err) => {
+        console.error(`Failed to log ${activityType} activity:`, err);
+      });
+      
+      // Send admin notification email (non-blocking)
+      sendMerchantAuthNotification(
+        activityType as 'sign_up' | 'sign_in',
+        merchant.email,
+        merchant.companyName || googleUser.name || "",
+        "google",
+        ipAddress
+      ).catch((err) => {
+        console.error(`Failed to send ${activityType} notification:`, err);
+      });
+      
       console.log("=== Google OAuth Login Success ===");
       console.log("Merchant ID:", merchant.id);
       console.log("Email:", merchant.email);
@@ -2250,6 +2326,38 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       req.session.userId = merchant.id;
       req.session.userType = "merchant";
       req.session.merchantId = merchant.id;
+      
+      // Determine if this was a sign up or sign in
+      const isNewMerchant = !merchant.profileCompleted && !merchant.companyName;
+      const activityType = isNewMerchant ? "sign_up" : "sign_in";
+      
+      // Get IP address for activity log
+      const ipAddress = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || 
+                       req.socket?.remoteAddress || 'unknown';
+      
+      // Log merchant activity (non-blocking)
+      storage.createMerchantActivityLog({
+        merchantId: merchant.id,
+        activityType,
+        activityCategory: "auth",
+        description: `Merchant ${activityType === 'sign_up' ? 'registered' : 'signed in'} with GitHub`,
+        authMethod: "github",
+        ipAddress,
+        userAgent: req.headers['user-agent'] || null,
+      }).catch((err) => {
+        console.error(`Failed to log ${activityType} activity:`, err);
+      });
+      
+      // Send admin notification email (non-blocking)
+      sendMerchantAuthNotification(
+        activityType as 'sign_up' | 'sign_in',
+        merchant.email,
+        merchant.companyName || githubUser.name || githubUser.login || "",
+        "github",
+        ipAddress
+      ).catch((err) => {
+        console.error(`Failed to send ${activityType} notification:`, err);
+      });
 
       // Explicitly save session before redirect to ensure it persists
       req.session.save((err) => {
@@ -8552,6 +8660,72 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       res.json({ success: true, message: "Template applied successfully" });
     } catch (error) {
       console.error("Error applying knowledge template:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ============ Merchant Activity Logs (Admin) ============
+  
+  // Get all activity logs (admin only)
+  app.get("/api/admin/activity-logs", requireAdmin, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 500;
+      const activityType = req.query.type as string | undefined;
+      const logs = await storage.getAllMerchantActivityLogs(limit, activityType);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching activity logs:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Get activity logs for specific merchant (admin only)
+  app.get("/api/admin/activity-logs/:merchantId", requireAdmin, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const logs = await storage.getMerchantActivityLogs(req.params.merchantId, limit);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching merchant activity logs:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Log merchant activity (internal use - called from frontend)
+  app.post("/api/activity-log", requireAuth, async (req, res) => {
+    try {
+      const merchantId = (req.session as any)?.merchantId;
+      if (!merchantId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const { activityType, activityCategory, description, pageUrl, elementId, elementLabel, formData } = req.body;
+      
+      if (!activityType || !description) {
+        return res.status(400).json({ error: "activityType and description are required" });
+      }
+      
+      // Get IP address
+      const ipAddress = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || 
+                       req.socket?.remoteAddress || 'unknown';
+      
+      const log = await storage.createMerchantActivityLog({
+        merchantId,
+        activityType,
+        activityCategory: activityCategory || null,
+        description,
+        pageUrl: pageUrl || null,
+        elementId: elementId || null,
+        elementLabel: elementLabel || null,
+        formData: formData || null,
+        authMethod: null,
+        ipAddress,
+        userAgent: req.headers['user-agent'] || null,
+      });
+      
+      res.json({ success: true, id: log.id });
+    } catch (error) {
+      console.error("Error logging activity:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
