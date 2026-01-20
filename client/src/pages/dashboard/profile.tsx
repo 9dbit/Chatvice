@@ -15,6 +15,56 @@ import {
 } from "lucide-react";
 import type { Merchant } from "@shared/schema";
 
+// Phone validation rules per country code
+const PHONE_VALIDATION_RULES: Record<string, { 
+  pattern: RegExp; 
+  minLength: number; 
+  maxLength: number; 
+  example: string;
+  description: string;
+}> = {
+  "+62": { pattern: /^8[0-9]{8,12}$/, minLength: 9, maxLength: 13, example: "812345678901", description: "Nomor Indonesia harus dimulai dengan 8 (9-13 digit)" },
+  "+1": { pattern: /^[2-9][0-9]{9}$/, minLength: 10, maxLength: 10, example: "2025551234", description: "US/Canada harus 10 digit, dimulai dengan 2-9" },
+  "+60": { pattern: /^[1-9][0-9]{7,9}$/, minLength: 8, maxLength: 10, example: "123456789", description: "Malaysia harus 8-10 digit" },
+  "+65": { pattern: /^[689][0-9]{7}$/, minLength: 8, maxLength: 8, example: "91234567", description: "Singapore harus 8 digit, dimulai dengan 6, 8, atau 9" },
+  "+66": { pattern: /^[0-9]{9}$/, minLength: 9, maxLength: 9, example: "812345678", description: "Thailand harus 9 digit" },
+  "+84": { pattern: /^[0-9]{9,10}$/, minLength: 9, maxLength: 10, example: "912345678", description: "Vietnam harus 9-10 digit" },
+  "+63": { pattern: /^9[0-9]{9}$/, minLength: 10, maxLength: 10, example: "9123456789", description: "Filipina harus 10 digit, dimulai dengan 9" },
+  "+91": { pattern: /^[6-9][0-9]{9}$/, minLength: 10, maxLength: 10, example: "9123456789", description: "India harus 10 digit, dimulai dengan 6-9" },
+  "+86": { pattern: /^1[3-9][0-9]{9}$/, minLength: 11, maxLength: 11, example: "13912345678", description: "China harus 11 digit, dimulai dengan 1" },
+  "+81": { pattern: /^[0-9]{10,11}$/, minLength: 10, maxLength: 11, example: "9012345678", description: "Jepang harus 10-11 digit" },
+  "+82": { pattern: /^1[0-9]{8,9}$/, minLength: 9, maxLength: 10, example: "1012345678", description: "Korea Selatan harus 9-10 digit, dimulai dengan 1" },
+  "+61": { pattern: /^4[0-9]{8}$/, minLength: 9, maxLength: 9, example: "412345678", description: "Australia harus 9 digit, dimulai dengan 4" },
+  "+44": { pattern: /^7[0-9]{9}$/, minLength: 10, maxLength: 10, example: "7123456789", description: "UK harus 10 digit, dimulai dengan 7" },
+  "+49": { pattern: /^1[5-7][0-9]{8,9}$/, minLength: 10, maxLength: 11, example: "15123456789", description: "Jerman harus 10-11 digit, dimulai dengan 15, 16, atau 17" },
+  "+33": { pattern: /^[67][0-9]{8}$/, minLength: 9, maxLength: 9, example: "612345678", description: "Prancis harus 9 digit, dimulai dengan 6 atau 7" },
+  "+31": { pattern: /^6[0-9]{8}$/, minLength: 9, maxLength: 9, example: "612345678", description: "Belanda harus 9 digit, dimulai dengan 6" },
+  "+971": { pattern: /^5[0-9]{8}$/, minLength: 9, maxLength: 9, example: "501234567", description: "UAE harus 9 digit, dimulai dengan 5" },
+  "+966": { pattern: /^5[0-9]{8}$/, minLength: 9, maxLength: 9, example: "512345678", description: "Saudi Arabia harus 9 digit, dimulai dengan 5" },
+  "+55": { pattern: /^[1-9][0-9]{9,10}$/, minLength: 10, maxLength: 11, example: "11912345678", description: "Brasil harus 10-11 digit" },
+  "+52": { pattern: /^[1-9][0-9]{9}$/, minLength: 10, maxLength: 10, example: "5512345678", description: "Meksiko harus 10 digit" },
+};
+
+function validatePhoneByCountry(phone: string, countryCode: string): { valid: boolean; message: string } {
+  const cleanPhone = phone.replace(/[\s\-\(\)]/g, "");
+  if (!cleanPhone) return { valid: true, message: "" }; // Optional field
+  if (!/^[0-9]+$/.test(cleanPhone)) return { valid: false, message: "Nomor telepon hanya boleh berisi angka" };
+  
+  const rule = PHONE_VALIDATION_RULES[countryCode];
+  if (!rule) {
+    if (cleanPhone.length < 5 || cleanPhone.length > 15) return { valid: false, message: "Nomor telepon harus 5-15 digit" };
+    return { valid: true, message: "" };
+  }
+  
+  if (cleanPhone.length < rule.minLength || cleanPhone.length > rule.maxLength) {
+    return { valid: false, message: `${rule.description}. Contoh: ${rule.example}` };
+  }
+  if (!rule.pattern.test(cleanPhone)) {
+    return { valid: false, message: `Format tidak valid. ${rule.description}. Contoh: ${rule.example}` };
+  }
+  return { valid: true, message: "" };
+}
+
 export default function ProfilePage() {
   const merchantId = localStorage.getItem("merchantId") || "";
   const { toast } = useToast();
@@ -78,6 +128,18 @@ export default function ProfilePage() {
   });
 
   const handleSave = () => {
+    // Validate phone number before saving
+    if (formData.phone) {
+      const phoneValidation = validatePhoneByCountry(formData.phone, formData.phoneCountryCode);
+      if (!phoneValidation.valid) {
+        toast({
+          title: "Format Nomor Telepon Tidak Valid",
+          description: phoneValidation.message,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     updateMutation.mutate(formData);
   };
 

@@ -37,6 +37,195 @@ const COUNTRY_CODES = [
   { code: "+52", country: "Mexico", flag: "🇲🇽" },
 ];
 
+// Phone validation rules per country code
+const PHONE_VALIDATION_RULES: Record<string, { 
+  pattern: RegExp; 
+  minLength: number; 
+  maxLength: number; 
+  example: string;
+  description: string;
+}> = {
+  "+62": { // Indonesia
+    pattern: /^8[0-9]{8,12}$/,
+    minLength: 9,
+    maxLength: 13,
+    example: "812345678901",
+    description: "Nomor Indonesia harus dimulai dengan 8 (9-13 digit)"
+  },
+  "+1": { // United States / Canada
+    pattern: /^[2-9][0-9]{9}$/,
+    minLength: 10,
+    maxLength: 10,
+    example: "2025551234",
+    description: "US/Canada harus 10 digit, dimulai dengan 2-9"
+  },
+  "+60": { // Malaysia
+    pattern: /^[1-9][0-9]{7,9}$/,
+    minLength: 8,
+    maxLength: 10,
+    example: "123456789",
+    description: "Malaysia harus 8-10 digit"
+  },
+  "+65": { // Singapore
+    pattern: /^[689][0-9]{7}$/,
+    minLength: 8,
+    maxLength: 8,
+    example: "91234567",
+    description: "Singapore harus 8 digit, dimulai dengan 6, 8, atau 9"
+  },
+  "+66": { // Thailand
+    pattern: /^[0-9]{9}$/,
+    minLength: 9,
+    maxLength: 9,
+    example: "812345678",
+    description: "Thailand harus 9 digit"
+  },
+  "+84": { // Vietnam
+    pattern: /^[0-9]{9,10}$/,
+    minLength: 9,
+    maxLength: 10,
+    example: "912345678",
+    description: "Vietnam harus 9-10 digit"
+  },
+  "+63": { // Philippines
+    pattern: /^9[0-9]{9}$/,
+    minLength: 10,
+    maxLength: 10,
+    example: "9123456789",
+    description: "Filipina harus 10 digit, dimulai dengan 9"
+  },
+  "+91": { // India
+    pattern: /^[6-9][0-9]{9}$/,
+    minLength: 10,
+    maxLength: 10,
+    example: "9123456789",
+    description: "India harus 10 digit, dimulai dengan 6-9"
+  },
+  "+86": { // China
+    pattern: /^1[3-9][0-9]{9}$/,
+    minLength: 11,
+    maxLength: 11,
+    example: "13912345678",
+    description: "China harus 11 digit, dimulai dengan 1"
+  },
+  "+81": { // Japan
+    pattern: /^[0-9]{10,11}$/,
+    minLength: 10,
+    maxLength: 11,
+    example: "9012345678",
+    description: "Jepang harus 10-11 digit"
+  },
+  "+82": { // South Korea
+    pattern: /^1[0-9]{8,9}$/,
+    minLength: 9,
+    maxLength: 10,
+    example: "1012345678",
+    description: "Korea Selatan harus 9-10 digit, dimulai dengan 1"
+  },
+  "+61": { // Australia
+    pattern: /^4[0-9]{8}$/,
+    minLength: 9,
+    maxLength: 9,
+    example: "412345678",
+    description: "Australia harus 9 digit, dimulai dengan 4"
+  },
+  "+44": { // United Kingdom
+    pattern: /^7[0-9]{9}$/,
+    minLength: 10,
+    maxLength: 10,
+    example: "7123456789",
+    description: "UK harus 10 digit, dimulai dengan 7"
+  },
+  "+49": { // Germany
+    pattern: /^1[5-7][0-9]{8,9}$/,
+    minLength: 10,
+    maxLength: 11,
+    example: "15123456789",
+    description: "Jerman harus 10-11 digit, dimulai dengan 15, 16, atau 17"
+  },
+  "+33": { // France
+    pattern: /^[67][0-9]{8}$/,
+    minLength: 9,
+    maxLength: 9,
+    example: "612345678",
+    description: "Prancis harus 9 digit, dimulai dengan 6 atau 7"
+  },
+  "+31": { // Netherlands
+    pattern: /^6[0-9]{8}$/,
+    minLength: 9,
+    maxLength: 9,
+    example: "612345678",
+    description: "Belanda harus 9 digit, dimulai dengan 6"
+  },
+  "+971": { // UAE
+    pattern: /^5[0-9]{8}$/,
+    minLength: 9,
+    maxLength: 9,
+    example: "501234567",
+    description: "UAE harus 9 digit, dimulai dengan 5"
+  },
+  "+966": { // Saudi Arabia
+    pattern: /^5[0-9]{8}$/,
+    minLength: 9,
+    maxLength: 9,
+    example: "512345678",
+    description: "Saudi Arabia harus 9 digit, dimulai dengan 5"
+  },
+  "+55": { // Brazil
+    pattern: /^[1-9][0-9]{9,10}$/,
+    minLength: 10,
+    maxLength: 11,
+    example: "11912345678",
+    description: "Brasil harus 10-11 digit"
+  },
+  "+52": { // Mexico
+    pattern: /^[1-9][0-9]{9}$/,
+    minLength: 10,
+    maxLength: 10,
+    example: "5512345678",
+    description: "Meksiko harus 10 digit"
+  },
+};
+
+// Validate phone number based on country code
+function validatePhoneByCountry(phone: string, countryCode: string): { valid: boolean; message: string } {
+  const cleanPhone = phone.replace(/[\s\-\(\)]/g, "");
+  
+  if (!cleanPhone) {
+    return { valid: false, message: "Nomor telepon wajib diisi" };
+  }
+  
+  if (!/^[0-9]+$/.test(cleanPhone)) {
+    return { valid: false, message: "Nomor telepon hanya boleh berisi angka" };
+  }
+  
+  const rule = PHONE_VALIDATION_RULES[countryCode];
+  
+  if (!rule) {
+    // Default validation for unknown country codes
+    if (cleanPhone.length < 5 || cleanPhone.length > 15) {
+      return { valid: false, message: "Nomor telepon harus 5-15 digit" };
+    }
+    return { valid: true, message: "" };
+  }
+  
+  if (cleanPhone.length < rule.minLength || cleanPhone.length > rule.maxLength) {
+    return { 
+      valid: false, 
+      message: `${rule.description}. Contoh: ${rule.example}` 
+    };
+  }
+  
+  if (!rule.pattern.test(cleanPhone)) {
+    return { 
+      valid: false, 
+      message: `Format tidak valid. ${rule.description}. Contoh: ${rule.example}` 
+    };
+  }
+  
+  return { valid: true, message: "" };
+}
+
 const COUNTRIES = [
   "Indonesia", "Malaysia", "Singapore", "Thailand", "Vietnam", "Philippines",
   "United States", "United Kingdom", "Australia", "Canada", "Germany", "France",
@@ -51,12 +240,21 @@ const step1Schema = z.object({
 });
 
 const step2Schema = z.object({
-  picName: z.string().min(2, "Contact name must be at least 2 characters").max(100),
-  phoneCountryCode: z.string().min(1, "Please select a country code"),
-  phone: z.string().min(5, "Phone number must be at least 5 digits").max(20),
-  country: z.string().min(2, "Please select a country"),
+  picName: z.string().min(2, "Nama kontak minimal 2 karakter").max(100),
+  phoneCountryCode: z.string().min(1, "Pilih kode negara"),
+  phone: z.string().min(1, "Nomor telepon wajib diisi"),
+  country: z.string().min(2, "Pilih negara"),
   city: z.string().optional(),
   region: z.string().optional(),
+}).superRefine((data, ctx) => {
+  const validation = validatePhoneByCountry(data.phone, data.phoneCountryCode);
+  if (!validation.valid) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: validation.message,
+      path: ["phone"],
+    });
+  }
 });
 
 const step3Schema = z.object({
