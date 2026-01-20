@@ -230,28 +230,59 @@ export default function LivePreviewPage() {
         </CardContent>
       </Card>
 
-      {/* Live Preview - Full width iframe without browser mock */}
+      {/* Live Preview - Real widget outside container */}
       {showWidget && embedUrl ? (
-        <div 
-          className="relative rounded-lg overflow-hidden border border-border"
-          style={{ 
-            height: '650px',
-            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)'
-          }}
-        >
-          <div className="absolute top-3 left-3 z-10">
-            <Badge variant="outline" className="text-xs bg-background/80 backdrop-blur-sm">
-              <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse" />
-              Live Preview
-            </Badge>
+        <div className="relative">
+          {/* Website mockup background */}
+          <div 
+            className="relative rounded-lg border border-border overflow-hidden"
+            style={{ 
+              height: '500px',
+              background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)'
+            }}
+          >
+            {/* Browser chrome mockup */}
+            <div className="h-10 bg-muted border-b border-border flex items-center px-4 gap-2">
+              <div className="flex gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-destructive/50" />
+                <div className="w-3 h-3 rounded-full bg-status-away/50" />
+                <div className="w-3 h-3 rounded-full bg-status-online/50" />
+              </div>
+              <div className="flex-1 flex justify-center">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono bg-background/50 px-3 py-1 rounded">
+                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  yourwebsite.com - Live Preview
+                </div>
+              </div>
+            </div>
+            
+            {/* Website content placeholder */}
+            <div className="p-8 space-y-4">
+              <div className="h-8 bg-muted/60 rounded w-3/4" />
+              <div className="h-4 bg-muted/40 rounded w-1/2" />
+              <div className="h-4 bg-muted/40 rounded w-2/3" />
+              <div className="h-24 bg-muted/30 rounded mt-6" />
+              <div className="h-4 bg-muted/40 rounded w-1/3" />
+              <div className="h-4 bg-muted/40 rounded w-1/4" />
+              <div className="grid grid-cols-3 gap-4 mt-6">
+                <div className="h-20 bg-muted/30 rounded" />
+                <div className="h-20 bg-muted/30 rounded" />
+                <div className="h-20 bg-muted/30 rounded" />
+              </div>
+            </div>
           </div>
           
-          {/* Direct iframe - widget appears in actual position */}
+          {/* Widget iframe - positioned outside the mockup container */}
           <iframe
             key={iframeKey}
             src={embedUrl}
-            className="w-full h-full border-0"
-            style={{ background: 'transparent' }}
+            className="fixed bottom-0 right-0 border-0 pointer-events-auto"
+            style={{ 
+              width: '420px',
+              height: '650px',
+              background: 'transparent',
+              zIndex: 1000
+            }}
             title="Widget Preview"
             data-testid="iframe-widget-preview"
           />

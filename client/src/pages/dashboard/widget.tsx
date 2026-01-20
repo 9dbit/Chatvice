@@ -1543,46 +1543,75 @@ async function handleLogin() {
               </CardContent>
             </Card>
 
-            {/* Live Preview - Direct widget display without browser mock */}
-            <div 
-              className="relative rounded-lg overflow-hidden border border-border"
-              style={{ 
-                height: '550px',
-                background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)'
-              }}
-            >
-              <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
-                <Badge variant="outline" className="text-xs bg-background/80 backdrop-blur-sm">
-                  <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse" />
-                  Live Preview
-                </Badge>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-6 text-xs bg-background/80 backdrop-blur-sm"
-                  onClick={() => setPreviewKey(prev => prev + 1)}
-                  data-testid="button-refresh-preview"
-                >
-                  <RefreshCw className="w-3 h-3 mr-1" />
-                  Refresh
-                </Button>
+            {/* Live Preview - Real widget outside container */}
+            <div className="relative">
+              {/* Website mockup background */}
+              <div 
+                className="relative rounded-lg border border-border overflow-hidden"
+                style={{ 
+                  height: '450px',
+                  background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)'
+                }}
+              >
+                {/* Browser chrome mockup */}
+                <div className="h-9 bg-muted border-b border-border flex items-center px-3 gap-2">
+                  <div className="flex gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-destructive/50" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-status-away/50" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-status-online/50" />
+                  </div>
+                  <div className="flex-1 flex justify-center">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono bg-background/50 px-2 py-0.5 rounded">
+                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                      Live Preview
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 text-xs"
+                    onClick={() => setPreviewKey(prev => prev + 1)}
+                    data-testid="button-refresh-preview"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                  </Button>
+                </div>
+                
+                {/* Website content placeholder */}
+                <div className="p-6 space-y-3">
+                  <div className="h-6 bg-muted/60 rounded w-3/4" />
+                  <div className="h-3 bg-muted/40 rounded w-1/2" />
+                  <div className="h-3 bg-muted/40 rounded w-2/3" />
+                  <div className="h-16 bg-muted/30 rounded mt-4" />
+                  <div className="h-3 bg-muted/40 rounded w-1/3" />
+                  <div className="grid grid-cols-2 gap-3 mt-4">
+                    <div className="h-12 bg-muted/30 rounded" />
+                    <div className="h-12 bg-muted/30 rounded" />
+                  </div>
+                </div>
               </div>
               
+              {/* Widget iframe - positioned outside the mockup container */}
               {activeAgent?.id ? (
                 <iframe
                   key={previewKey}
                   src={`${window.location.origin}/embed/${merchantId}/${activeAgent.id}?preview=true&v=${previewKey}`}
-                  className="w-full h-full border-0"
-                  style={{ background: 'transparent' }}
+                  className="fixed bottom-0 right-0 border-0 pointer-events-auto"
+                  style={{ 
+                    width: '420px',
+                    height: '650px',
+                    background: 'transparent',
+                    zIndex: 1000
+                  }}
                   title="Widget Preview"
                   data-testid="iframe-widget-preview"
                 />
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-center text-gray-400">
-                  <Bot className="w-12 h-12 mb-4 opacity-30" />
-                  <p className="text-lg font-medium">No Active Agent</p>
-                  <p className="text-sm mt-1">
-                    Please select an active agent to preview the widget
+                <div className="absolute bottom-4 right-4 flex flex-col items-center justify-center p-6 text-center text-muted-foreground bg-background/80 rounded-lg border">
+                  <Bot className="w-10 h-10 mb-3 opacity-30" />
+                  <p className="text-sm font-medium">No Active Agent</p>
+                  <p className="text-xs mt-1">
+                    Select an agent to preview
                   </p>
                 </div>
               )}
