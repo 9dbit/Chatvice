@@ -11110,13 +11110,13 @@ function KnowledgeTemplatesTab({ toast }: { toast: any }) {
       return res.json();
     },
     onSuccess: () => {
-      toast({ title: "Berhasil", description: "Template berhasil dibuat" });
+      toast({ title: "Success", description: "Template created successfully" });
       resetForm();
       setIsCreateOpen(false);
       refetch();
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Gagal membuat template", variant: "destructive" });
+      toast({ title: "Error", description: error.message || "Failed to create template", variant: "destructive" });
     },
   });
   
@@ -11127,13 +11127,13 @@ function KnowledgeTemplatesTab({ toast }: { toast: any }) {
       return res.json();
     },
     onSuccess: () => {
-      toast({ title: "Berhasil", description: "Template berhasil diupdate" });
+      toast({ title: "Success", description: "Template updated successfully" });
       setEditingTemplate(null);
       resetForm();
       refetch();
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Gagal update template", variant: "destructive" });
+      toast({ title: "Error", description: error.message || "Failed to update template", variant: "destructive" });
     },
   });
   
@@ -11144,11 +11144,11 @@ function KnowledgeTemplatesTab({ toast }: { toast: any }) {
       return res.json();
     },
     onSuccess: () => {
-      toast({ title: "Berhasil", description: "Template berhasil dihapus" });
+      toast({ title: "Success", description: "Template deleted successfully" });
       refetch();
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Gagal hapus template", variant: "destructive" });
+      toast({ title: "Error", description: error.message || "Failed to delete template", variant: "destructive" });
     },
   });
   
@@ -11556,7 +11556,7 @@ function ActivityLogsTab({ toast }: { toast: any }) {
       return;
     }
     
-    const headers = ["Waktu", "Merchant", "Tipe Aktivitas", "Deskripsi", "Metode Auth", "IP Address", "User Agent"];
+    const headers = ["Time", "Merchant", "Activity Type", "Description", "Auth Method", "IP Address", "User Agent"];
     const rows = filteredLogs.map(log => [
       formatDate(log.createdAt),
       getMerchantName(log.merchantId),
@@ -11582,8 +11582,8 @@ function ActivityLogsTab({ toast }: { toast: any }) {
     URL.revokeObjectURL(url);
     
     toast({
-      title: "Berhasil",
-      description: `${filteredLogs.length} log aktivitas berhasil diunduh`,
+      title: "Success",
+      description: `${filteredLogs.length} activity logs downloaded successfully`,
     });
   };
   
@@ -11597,7 +11597,7 @@ function ActivityLogsTab({ toast }: { toast: any }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-semibold">Activity Logs</h2>
-          <p className="text-muted-foreground">Pantau semua aktivitas merchant di platform</p>
+          <p className="text-muted-foreground">Monitor all merchant activities on the platform</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => refetch()} data-testid="button-refresh-logs">
@@ -11789,7 +11789,7 @@ function AdminUserDataTab({ toast }: { toast: any }) {
       return;
     }
     
-    const headers = ["Nama", "Telepon", "Email", "Merchant", "Terakhir Aktif"];
+    const headers = ["Name", "Phone", "Email", "Merchant", "Last Active"];
     const rows = filteredData.map((user) => [
       user.name,
       formatPhone(user.phone),
@@ -11817,8 +11817,8 @@ function AdminUserDataTab({ toast }: { toast: any }) {
     URL.revokeObjectURL(url);
     
     toast({
-      title: "Berhasil",
-      description: `${filteredData.length} data pengguna berhasil diunduh`,
+      title: "Success",
+      description: `${filteredData.length} user data downloaded successfully`,
     });
   };
   
@@ -11829,15 +11829,15 @@ function AdminUserDataTab({ toast }: { toast: any }) {
           <div>
             <CardTitle className="flex items-center gap-2">
               <Users className="w-5 h-5" />
-              Data Pengguna Global
+              Global User Data
             </CardTitle>
             <CardDescription>
-              Semua data kontak pelanggan dari seluruh merchant
+              All customer contact data from all merchants
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="text-sm">
-              {filteredData.length} pengguna
+              {filteredData.length} users
             </Badge>
             <Button
               variant="outline"
@@ -11847,7 +11847,7 @@ function AdminUserDataTab({ toast }: { toast: any }) {
               data-testid="button-download-csv"
             >
               <Download className="w-4 h-4 mr-2" />
-              Unduh CSV
+              Download CSV
             </Button>
           </div>
         </CardHeader>

@@ -572,7 +572,7 @@ export default function BillingPage() {
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Gagal mengirim bukti pembayaran.",
+        description: error.message || "Failed to submit payment proof.",
         variant: "destructive",
       });
     },
@@ -850,15 +850,15 @@ export default function BillingPage() {
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
         toast({
-          title: "Tersimpan!",
-          description: "Gambar QRIS berhasil disimpan",
+          title: "Saved!",
+          description: "QRIS image saved successfully",
         });
       } catch {
         // Fallback: open image in new tab
         window.open(qrisData.qrisImageUrl, '_blank');
         toast({
-          title: "Gambar QRIS",
-          description: "Gambar QRIS dibuka di tab baru",
+          title: "QRIS Image",
+          description: "QRIS image opened in new tab",
         });
       }
     }

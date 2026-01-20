@@ -271,14 +271,14 @@ export default function KnowledgePage() {
       setSelectedTemplate(null);
       setIsTemplateDialogOpen(false);
       toast({
-        title: "Template diterapkan",
-        description: templateApplyMode === "append" ? "Template berhasil ditambahkan ke knowledge base" : "Knowledge base berhasil diupdate dengan template",
+        title: "Template applied",
+        description: templateApplyMode === "append" ? "Template successfully added to knowledge base" : "Knowledge base successfully updated with template",
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Gagal menerapkan template",
-        description: error.message || "Terjadi kesalahan",
+        title: "Failed to apply template",
+        description: error.message || "Something went wrong",
         variant: "destructive",
       });
     },
@@ -520,16 +520,16 @@ export default function KnowledgePage() {
         : [`/api/knowledge/${merchantId}`] 
       });
       toast({
-        title: "Berhasil disimpan!",
-        description: "AI Anda sekarang akan menggunakan informasi ini untuk menjawab pertanyaan pelanggan.",
+        title: "Successfully saved!",
+        description: "Your AI will now use this information to answer customer questions.",
       });
     },
     onError: () => {
       setSaveStage("idle");
       setAnalysisProgress(0);
       toast({
-        title: "Gagal menyimpan",
-        description: "Terjadi kesalahan. Silakan coba lagi.",
+        title: "Failed to save",
+        description: "Something went wrong. Please try again.",
         variant: "destructive",
       });
     },

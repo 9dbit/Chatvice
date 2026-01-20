@@ -401,7 +401,7 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
     onError: (error: Error) => {
       setMessages(prev => [...prev, { 
         role: "assistant", 
-        content: `❌ Gagal melakukan aksi: ${error.message}` 
+        content: `❌ Action failed: ${error.message}` 
       }]);
     }
   });
