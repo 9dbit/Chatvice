@@ -56,13 +56,15 @@ import {
   type AffiliateReferral, type InsertAffiliateReferral,
   type AffiliateCommission, type InsertAffiliateCommission,
   type AffiliatePayout, type InsertAffiliatePayout,
+  type AffiliatePaymentMethod, type InsertAffiliatePaymentMethod,
+  type AffiliateWithdrawalRequest, type InsertAffiliateWithdrawalRequest,
   merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings, storedFiles, domainRegistrations,
   workShifts, shiftAssignments, workReports, quickReplies, chatButtons, productCards, productCardButtons, welcomeBubbles, notificationSettings, productRecommendationSettings, productTriggers, supervisorInvitations,
   emailVerificationTokens, passwordResetTokens, promotions, promotionUsage,
   widgetSites, siteDomains, coinOrders, topupNominals, merchantDomains, paymentGateways,
   paymentTransactions, adminNotifications, chatSecuritySettings, chatSecurityAlerts,
   knowledgebaseArticles, knowledgebaseTemplates, productCrawlSources, crawledProducts, customPlanInvoices,
-  customPlanRequests, merchantNotifications, affiliates, affiliateReferrals, affiliateCommissions, affiliatePayouts,
+  customPlanRequests, merchantNotifications, affiliates, affiliateReferrals, affiliateCommissions, affiliatePayouts, affiliatePaymentMethods, affiliateWithdrawalRequests,
   knowledgeTemplates, type KnowledgeTemplate, type InsertKnowledgeTemplate,
   merchantActivityLogs, type MerchantActivityLog, type InsertMerchantActivityLog,
 } from "@shared/schema";
@@ -3050,6 +3052,128 @@ export class DatabaseStorage implements IStorage {
       totalReferrals: totalReferrals?.count || 0,
       totalCommissions: totalCommissions?.count || 0,
       pendingPayouts: pendingPayouts?.count || 0,
+    };
+  }
+  
+  // Affiliate Payment Methods
+  async getAffiliatePaymentMethods(affiliateId: string): Promise<AffiliatePaymentMethod[]> {
+    return db.select().from(affiliatePaymentMethods)
+      .where(eq(affiliatePaymentMethods.affiliateId, affiliateId))
+      .orderBy(desc(affiliatePaymentMethods.createdAt));
+  }
+  
+  async getAffiliatePaymentMethod(id: string): Promise<AffiliatePaymentMethod | undefined> {
+    const result = await db.select().from(affiliatePaymentMethods)
+      .where(eq(affiliatePaymentMethods.id, id));
+    return result[0];
+  }
+  
+  async createAffiliatePaymentMethod(data: InsertAffiliatePaymentMethod): Promise<AffiliatePaymentMethod> {
+    const id = generateId("apm_");
+    // If this is set as default, unset other defaults for this affiliate
+    if (data.isDefault) {
+      await db.update(affiliatePaymentMethods)
+        .set({ isDefault: false, updatedAt: new Date() })
+        .where(eq(affiliatePaymentMethods.affiliateId, data.affiliateId));
+    }
+    const result = await db.insert(affiliatePaymentMethods).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+  
+  async updateAffiliatePaymentMethod(id: string, data: Partial<AffiliatePaymentMethod>): Promise<AffiliatePaymentMethod | undefined> {
+    // If setting as default, unset other defaults for this affiliate
+    if (data.isDefault) {
+      const method = await this.getAffiliatePaymentMethod(id);
+      if (method) {
+        await db.update(affiliatePaymentMethods)
+          .set({ isDefault: false, updatedAt: new Date() })
+          .where(and(
+            eq(affiliatePaymentMethods.affiliateId, method.affiliateId),
+            ne(affiliatePaymentMethods.id, id)
+          ));
+      }
+    }
+    const result = await db.update(affiliatePaymentMethods)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(affiliatePaymentMethods.id, id))
+      .returning();
+    return result[0];
+  }
+  
+  async deleteAffiliatePaymentMethod(id: string): Promise<boolean> {
+    const result = await db.delete(affiliatePaymentMethods)
+      .where(eq(affiliatePaymentMethods.id, id))
+      .returning();
+    return result.length > 0;
+  }
+  
+  // Affiliate Withdrawal Requests
+  async getAffiliateWithdrawalRequests(affiliateId: string): Promise<AffiliateWithdrawalRequest[]> {
+    return db.select().from(affiliateWithdrawalRequests)
+      .where(eq(affiliateWithdrawalRequests.affiliateId, affiliateId))
+      .orderBy(desc(affiliateWithdrawalRequests.createdAt));
+  }
+  
+  async getAffiliateWithdrawalRequest(id: string): Promise<AffiliateWithdrawalRequest | undefined> {
+    const result = await db.select().from(affiliateWithdrawalRequests)
+      .where(eq(affiliateWithdrawalRequests.id, id));
+    return result[0];
+  }
+  
+  async getAllWithdrawalRequests(status?: string): Promise<AffiliateWithdrawalRequest[]> {
+    if (status) {
+      return db.select().from(affiliateWithdrawalRequests)
+        .where(eq(affiliateWithdrawalRequests.status, status))
+        .orderBy(desc(affiliateWithdrawalRequests.createdAt));
+    }
+    return db.select().from(affiliateWithdrawalRequests)
+      .orderBy(desc(affiliateWithdrawalRequests.createdAt));
+  }
+  
+  async getPendingWithdrawalRequests(): Promise<AffiliateWithdrawalRequest[]> {
+    return db.select().from(affiliateWithdrawalRequests)
+      .where(eq(affiliateWithdrawalRequests.status, "pending"))
+      .orderBy(desc(affiliateWithdrawalRequests.createdAt));
+  }
+  
+  async createAffiliateWithdrawalRequest(data: InsertAffiliateWithdrawalRequest): Promise<AffiliateWithdrawalRequest> {
+    const id = generateId("wr_");
+    const result = await db.insert(affiliateWithdrawalRequests).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+  
+  async updateAffiliateWithdrawalRequest(id: string, data: Partial<AffiliateWithdrawalRequest>): Promise<AffiliateWithdrawalRequest | undefined> {
+    const result = await db.update(affiliateWithdrawalRequests)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(affiliateWithdrawalRequests.id, id))
+      .returning();
+    return result[0];
+  }
+  
+  async getWithdrawalRequestStats(): Promise<{ pending: number; approved: number; rejected: number; completed: number; totalAmount: number }> {
+    const [pending] = await db.select({ count: count() }).from(affiliateWithdrawalRequests).where(eq(affiliateWithdrawalRequests.status, "pending"));
+    const [approved] = await db.select({ count: count() }).from(affiliateWithdrawalRequests).where(eq(affiliateWithdrawalRequests.status, "approved"));
+    const [rejected] = await db.select({ count: count() }).from(affiliateWithdrawalRequests).where(eq(affiliateWithdrawalRequests.status, "rejected"));
+    const [completed] = await db.select({ count: count() }).from(affiliateWithdrawalRequests).where(eq(affiliateWithdrawalRequests.status, "completed"));
+    const pendingRequests = await this.getPendingWithdrawalRequests();
+    const totalPendingAmount = pendingRequests.reduce((sum, r) => sum + r.amount, 0);
+    
+    return {
+      pending: pending?.count || 0,
+      approved: approved?.count || 0,
+      rejected: rejected?.count || 0,
+      completed: completed?.count || 0,
+      totalAmount: totalPendingAmount,
     };
   }
   
