@@ -1811,6 +1811,64 @@ export const insertAffiliatePayoutSchema = createInsertSchema(affiliatePayouts).
 export type InsertAffiliatePayout = z.infer<typeof insertAffiliatePayoutSchema>;
 export type AffiliatePayout = typeof affiliatePayouts.$inferSelect;
 
+// Affiliate Payment Methods - Saved payout methods for affiliates
+export const affiliatePaymentMethods = pgTable("affiliate_payment_methods", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  affiliateId: varchar("affiliate_id", { length: 32 }).notNull(),
+  // Method type
+  methodType: text("method_type").notNull(), // bank_transfer, cryptocurrency, paypal
+  methodName: text("method_name"), // Display name for this payment method
+  isDefault: boolean("is_default").default(false),
+  // Bank Transfer fields
+  bankName: text("bank_name"),
+  bankAccountNumber: text("bank_account_number"),
+  bankAccountName: text("bank_account_name"),
+  bankCountry: text("bank_country"), // ISO country code
+  swiftCode: text("swift_code"), // Required for non-Indonesian banks
+  // Cryptocurrency fields
+  cryptoWalletAddress: text("crypto_wallet_address"),
+  cryptoNetwork: text("crypto_network"), // BTC, ETH, USDT-TRC20, etc.
+  // PayPal fields
+  paypalEmail: text("paypal_email"),
+  paypalAccountName: text("paypal_account_name"),
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertAffiliatePaymentMethodSchema = createInsertSchema(affiliatePaymentMethods).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertAffiliatePaymentMethod = z.infer<typeof insertAffiliatePaymentMethodSchema>;
+export type AffiliatePaymentMethod = typeof affiliatePaymentMethods.$inferSelect;
+
+// Affiliate Withdrawal Requests - Withdrawal requests with approval workflow
+export const affiliateWithdrawalRequests = pgTable("affiliate_withdrawal_requests", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  affiliateId: varchar("affiliate_id", { length: 32 }).notNull(),
+  paymentMethodId: varchar("payment_method_id", { length: 32 }), // Reference to saved payment method
+  // Request details
+  amount: integer("amount").notNull(), // Amount in cents
+  currency: text("currency").default("USD"),
+  // Payment method snapshot (in case payment method is edited/deleted later)
+  methodType: text("method_type").notNull(), // bank_transfer, cryptocurrency, paypal
+  paymentDetails: jsonb("payment_details").notNull(), // Full payment method details at time of request
+  // Status
+  status: text("status").default("pending"), // pending, approved, rejected, processing, completed, failed
+  // Rejection/approval notes
+  adminNotes: text("admin_notes"),
+  rejectionReason: text("rejection_reason"),
+  // Processing
+  processedBy: varchar("processed_by", { length: 32 }),
+  processedAt: timestamp("processed_at"),
+  transactionReference: text("transaction_reference"),
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertAffiliateWithdrawalRequestSchema = createInsertSchema(affiliateWithdrawalRequests).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertAffiliateWithdrawalRequest = z.infer<typeof insertAffiliateWithdrawalRequestSchema>;
+export type AffiliateWithdrawalRequest = typeof affiliateWithdrawalRequests.$inferSelect;
+
 // Knowledge Base Templates (Admin-managed templates for merchants to use)
 export const knowledgeTemplates = pgTable("knowledge_templates", {
   id: varchar("id", { length: 32 }).primaryKey(),
