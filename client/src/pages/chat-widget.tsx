@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Message, SuggestedQuestion, WelcomeBubble, ChatButton, ProductCard, ProductCardButton } from "@shared/schema";
 import { getImageLocation, type LocationData } from "@/lib/location-utils";
 import { countryPhoneConfigs, validatePhoneNumber } from "@shared/phoneValidation";
+import chatviceLogoLight from "@assets/Chatvice-02_1768953333682.png";
+import chatviceLogoDark from "@assets/Chatvice-04_1768953333682.png";
 
 interface MerchantConfig {
   online: boolean;
@@ -2466,6 +2468,23 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             We're currently offline. Please try again later.
           </p>
         )}
+        {/* Powered by Chatvice branding */}
+        <div className="flex items-center justify-center gap-1.5 mt-3 pb-1">
+          <span className="text-[10px] text-muted-foreground">Powered by</span>
+          <a 
+            href="https://chatvice.ai" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="opacity-70 hover:opacity-100 transition-opacity"
+            data-testid="link-powered-by-chatvice"
+          >
+            <img 
+              src={widgetIsDark ? chatviceLogoDark : chatviceLogoLight} 
+              alt="Chatvice" 
+              className="h-4"
+            />
+          </a>
+        </div>
       </div>
       </div>
       )}
