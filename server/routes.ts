@@ -5149,7 +5149,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       
       // Get actual usage counts
       const agents = await storage.getAgents(merchant.id);
-      const supervisors = await storage.getSupervisors(merchant.id);
+      const supervisors = await storage.getSupervisorsByMerchant(merchant.id);
       const domainsData = await storage.getMerchantDomains(merchant.id);
       
       // Count knowledge sources across all agents

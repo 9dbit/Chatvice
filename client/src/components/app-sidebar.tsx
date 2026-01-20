@@ -216,6 +216,14 @@ interface BillingStatus {
   planName: string;
   conversationsUsed: number;
   conversationsLimit: number;
+  agentsUsed: number;
+  agentsLimit: number;
+  supervisorsUsed: number;
+  supervisorsLimit: number;
+  sourcesUsed: number;
+  sourcesLimit: number;
+  domainsUsed: number;
+  domainsLimit: number;
   trialEndsAt: string | null;
   currentPeriodEnd: string | null;
   isTrialExpired: boolean;
@@ -602,38 +610,134 @@ export function AppSidebar() {
         
         {isAdmin && billingStatus && (
           <div className="p-3 rounded-lg bg-muted/50 space-y-2">
-            <div className="flex items-center gap-2 text-xs font-medium">
-              <Coins className="w-3.5 h-3.5 text-primary" />
-              <span>Usage & Plan</span>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-xs font-medium">
+                <Coins className="w-3.5 h-3.5 text-primary" />
+                <span>Usage & Plan</span>
+              </div>
+              <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                {billingStatus.planName}
+              </span>
             </div>
-            <div className="text-xs space-y-1">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Credits Used</span>
-                <span className="font-medium">{billingStatus.conversationsUsed} / {billingStatus.conversationsLimit === -1 ? "∞" : billingStatus.conversationsLimit}</span>
+            <div className="text-xs space-y-2">
+              {/* Conversations */}
+              <div className="space-y-1">
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">Conversations</span>
+                  <span className="font-medium">{billingStatus.conversationsUsed} / {billingStatus.conversationsLimit === -1 ? "∞" : billingStatus.conversationsLimit}</span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-1.5">
+                  <div 
+                    className="bg-primary h-1.5 rounded-full transition-all"
+                    style={{ 
+                      width: billingStatus.conversationsLimit === -1 
+                        ? "10%" 
+                        : `${Math.min((billingStatus.conversationsUsed / billingStatus.conversationsLimit) * 100, 100)}%` 
+                    }}
+                  />
+                </div>
               </div>
-              <div className="w-full bg-muted rounded-full h-1.5">
-                <div 
-                  className="bg-primary h-1.5 rounded-full transition-all"
-                  style={{ 
-                    width: billingStatus.conversationsLimit === -1 
-                      ? "10%" 
-                      : `${Math.min((billingStatus.conversationsUsed / billingStatus.conversationsLimit) * 100, 100)}%` 
-                  }}
-                />
+              
+              {/* AI Agents */}
+              <div className="space-y-1">
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">AI Agents</span>
+                  <span className="font-medium">{billingStatus.agentsUsed} / {billingStatus.agentsLimit === -1 ? "∞" : billingStatus.agentsLimit}</span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-1.5">
+                  <div 
+                    className="bg-blue-500 h-1.5 rounded-full transition-all"
+                    style={{ 
+                      width: billingStatus.agentsLimit === -1 
+                        ? "10%" 
+                        : `${Math.min((billingStatus.agentsUsed / billingStatus.agentsLimit) * 100, 100)}%` 
+                    }}
+                  />
+                </div>
               </div>
+              
+              {/* Supervisors */}
+              <div className="space-y-1">
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">Supervisors</span>
+                  <span className="font-medium">{billingStatus.supervisorsUsed} / {billingStatus.supervisorsLimit === -1 ? "∞" : billingStatus.supervisorsLimit}</span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-1.5">
+                  <div 
+                    className="bg-emerald-500 h-1.5 rounded-full transition-all"
+                    style={{ 
+                      width: billingStatus.supervisorsLimit === -1 
+                        ? "10%" 
+                        : `${Math.min((billingStatus.supervisorsUsed / billingStatus.supervisorsLimit) * 100, 100)}%` 
+                    }}
+                  />
+                </div>
+              </div>
+              
+              {/* Knowledge Sources */}
+              <div className="space-y-1">
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">Knowledge Sources</span>
+                  <span className="font-medium">{billingStatus.sourcesUsed} / {billingStatus.sourcesLimit === -1 ? "∞" : billingStatus.sourcesLimit}</span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-1.5">
+                  <div 
+                    className="bg-amber-500 h-1.5 rounded-full transition-all"
+                    style={{ 
+                      width: billingStatus.sourcesLimit === -1 
+                        ? "10%" 
+                        : `${Math.min((billingStatus.sourcesUsed / billingStatus.sourcesLimit) * 100, 100)}%` 
+                    }}
+                  />
+                </div>
+              </div>
+              
+              {/* Domains */}
+              <div className="space-y-1">
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">Domains</span>
+                  <span className="font-medium">{billingStatus.domainsUsed} / {billingStatus.domainsLimit === -1 ? "∞" : billingStatus.domainsLimit}</span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-1.5">
+                  <div 
+                    className="bg-purple-500 h-1.5 rounded-full transition-all"
+                    style={{ 
+                      width: billingStatus.domainsLimit === -1 
+                        ? "10%" 
+                        : `${Math.min((billingStatus.domainsUsed / billingStatus.domainsLimit) * 100, 100)}%` 
+                    }}
+                  />
+                </div>
+              </div>
+              
               {billingStatus.status === "trial" && billingStatus.trialEndsAt && (
-                <div className="flex justify-between pt-1">
+                <div className="flex justify-between gap-2 pt-1 border-t border-muted">
                   <span className="text-muted-foreground">Trial Ends</span>
                   <span className="font-medium">{new Date(billingStatus.trialEndsAt).toLocaleDateString()}</span>
                 </div>
               )}
               {billingStatus.status === "active" && billingStatus.currentPeriodEnd && (
-                <div className="flex justify-between pt-1">
+                <div className="flex justify-between gap-2 pt-1 border-t border-muted">
                   <span className="text-muted-foreground">Renews</span>
                   <span className="font-medium">{new Date(billingStatus.currentPeriodEnd).toLocaleDateString()}</span>
                 </div>
               )}
             </div>
+            
+            {/* Upgrade CTA Button */}
+            {billingStatus.planId !== "enterprise" && billingStatus.planId !== "custom" && (
+              <Link href="/dashboard/plans" className="block">
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  className="w-full mt-2"
+                  data-testid="button-upgrade-plan"
+                >
+                  <CreditCard className="w-3.5 h-3.5 mr-1.5" />
+                  Upgrade Plan
+                </Button>
+              </Link>
+            )}
           </div>
         )}
         {isAdmin && (
