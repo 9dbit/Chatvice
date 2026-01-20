@@ -64,6 +64,7 @@ import {
   knowledgebaseArticles, knowledgebaseTemplates, productCrawlSources, crawledProducts, customPlanInvoices,
   customPlanRequests, merchantNotifications, affiliates, affiliateReferrals, affiliateCommissions, affiliatePayouts,
   knowledgeTemplates, type KnowledgeTemplate, type InsertKnowledgeTemplate,
+  merchantActivityLogs, type MerchantActivityLog, type InsertMerchantActivityLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, or, lt, isNull, sql, count, inArray, ne } from "drizzle-orm";
@@ -431,6 +432,12 @@ export interface IStorage {
   updateKnowledgeTemplate(id: string, data: Partial<KnowledgeTemplate>): Promise<KnowledgeTemplate | undefined>;
   deleteKnowledgeTemplate(id: string): Promise<boolean>;
   incrementKnowledgeTemplateUsage(id: string): Promise<boolean>;
+  
+  // Merchant Activity Logs
+  getMerchantActivityLogs(merchantId: string, limit?: number): Promise<MerchantActivityLog[]>;
+  getAllMerchantActivityLogs(limit?: number, activityType?: string): Promise<MerchantActivityLog[]>;
+  createMerchantActivityLog(data: InsertMerchantActivityLog): Promise<MerchantActivityLog>;
+  getMerchantActivityLogsByType(activityType: string, limit?: number): Promise<MerchantActivityLog[]>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -3111,6 +3118,43 @@ export class DatabaseStorage implements IStorage {
       .where(eq(knowledgeTemplates.id, id))
       .returning();
     return result.length > 0;
+  }
+  
+  // Merchant Activity Logs
+  async getMerchantActivityLogs(merchantId: string, limit: number = 100): Promise<MerchantActivityLog[]> {
+    return db.select().from(merchantActivityLogs)
+      .where(eq(merchantActivityLogs.merchantId, merchantId))
+      .orderBy(desc(merchantActivityLogs.createdAt))
+      .limit(limit);
+  }
+  
+  async getAllMerchantActivityLogs(limit: number = 500, activityType?: string): Promise<MerchantActivityLog[]> {
+    if (activityType) {
+      return db.select().from(merchantActivityLogs)
+        .where(eq(merchantActivityLogs.activityType, activityType))
+        .orderBy(desc(merchantActivityLogs.createdAt))
+        .limit(limit);
+    }
+    return db.select().from(merchantActivityLogs)
+      .orderBy(desc(merchantActivityLogs.createdAt))
+      .limit(limit);
+  }
+  
+  async createMerchantActivityLog(data: InsertMerchantActivityLog): Promise<MerchantActivityLog> {
+    const id = generateId("mal_");
+    const result = await db.insert(merchantActivityLogs).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+  
+  async getMerchantActivityLogsByType(activityType: string, limit: number = 100): Promise<MerchantActivityLog[]> {
+    return db.select().from(merchantActivityLogs)
+      .where(eq(merchantActivityLogs.activityType, activityType))
+      .orderBy(desc(merchantActivityLogs.createdAt))
+      .limit(limit);
   }
 }
 

@@ -1831,3 +1831,33 @@ export const insertKnowledgeTemplateSchema = createInsertSchema(knowledgeTemplat
 export type InsertKnowledgeTemplate = z.infer<typeof insertKnowledgeTemplateSchema>;
 export type KnowledgeTemplate = typeof knowledgeTemplates.$inferSelect;
 
+// Merchant Activity Logs - tracks all merchant actions for admin monitoring
+export const merchantActivityLogs = pgTable("merchant_activity_logs", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  // Activity details
+  activityType: text("activity_type").notNull(), // sign_up, sign_in, page_view, button_click, form_submit, workflow_action
+  activityCategory: text("activity_category"), // auth, dashboard, widget, knowledge, agents, etc.
+  description: text("description").notNull(), // Human-readable description
+  // Additional metadata
+  pageUrl: text("page_url"), // URL/path where action occurred
+  elementId: text("element_id"), // Button/form ID clicked
+  elementLabel: text("element_label"), // Button/form label clicked
+  formData: jsonb("form_data"), // Form fields filled (excluding sensitive data)
+  // Auth method for sign_up/sign_in
+  authMethod: text("auth_method"), // email, google, github
+  // Device/browser info
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  merchantIdIdx: index("activity_merchant_id_idx").on(table.merchantId),
+  activityTypeIdx: index("activity_type_idx").on(table.activityType),
+  createdAtIdx: index("activity_created_at_idx").on(table.createdAt),
+}));
+
+export const insertMerchantActivityLogSchema = createInsertSchema(merchantActivityLogs).omit({ id: true, createdAt: true });
+export type InsertMerchantActivityLog = z.infer<typeof insertMerchantActivityLogSchema>;
+export type MerchantActivityLog = typeof merchantActivityLogs.$inferSelect;
+

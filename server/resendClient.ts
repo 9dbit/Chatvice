@@ -733,3 +733,100 @@ export async function sendSubscriptionExpiringEmail(data: SubscriptionExpiringDa
     return false;
   }
 }
+
+// Send notification to admin when merchant signs up or signs in
+export async function sendMerchantAuthNotification(
+  activityType: 'sign_up' | 'sign_in',
+  merchantEmail: string,
+  merchantName: string,
+  authMethod: string,
+  ipAddress?: string
+): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getUncachableResendClient();
+    
+    const isSignUp = activityType === 'sign_up';
+    const actionText = isSignUp ? 'New Merchant Sign Up' : 'Merchant Sign In';
+    const emoji = isSignUp ? '🎉' : '👋';
+    const color = isSignUp ? '#22c55e' : '#6b5dfc';
+    
+    const authMethodLabel = {
+      'email': 'Email/Password',
+      'google': 'Google OAuth',
+      'github': 'GitHub OAuth'
+    }[authMethod] || authMethod;
+    
+    const { error } = await client.emails.send({
+      from: fromEmail,
+      to: 'hello@chatvice.app',
+      subject: `${emoji} ${actionText}: ${merchantName || merchantEmail}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f5;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+            <div style="background-color: #18181b; border-radius: 12px; padding: 40px;">
+              <div style="text-align: center; margin-bottom: 24px;">
+                <div style="width: 64px; height: 64px; background-color: ${color}; border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;">
+                  <span style="font-size: 32px; color: #ffffff;">${emoji}</span>
+                </div>
+                <h1 style="color: ${color}; margin: 0 0 8px 0; font-size: 24px;">${actionText}</h1>
+              </div>
+              
+              <div style="background-color: #27272a; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="color: #71717a; padding: 8px 0; font-size: 14px;">Email:</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${merchantEmail}</td>
+                  </tr>
+                  ${merchantName ? `
+                  <tr>
+                    <td style="color: #71717a; padding: 8px 0; font-size: 14px;">Name/Company:</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${merchantName}</td>
+                  </tr>
+                  ` : ''}
+                  <tr>
+                    <td style="color: #71717a; padding: 8px 0; font-size: 14px;">Auth Method:</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${authMethodLabel}</td>
+                  </tr>
+                  ${ipAddress ? `
+                  <tr>
+                    <td style="color: #71717a; padding: 8px 0; font-size: 14px;">IP Address:</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${ipAddress}</td>
+                  </tr>
+                  ` : ''}
+                  <tr>
+                    <td style="color: #71717a; padding: 8px 0; font-size: 14px;">Time:</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })} WIB</td>
+                  </tr>
+                </table>
+              </div>
+              
+              <p style="color: #71717a; margin: 0; font-size: 12px; text-align: center;">
+                This is an automated notification from Chatvice.
+              </p>
+            </div>
+            <p style="text-align: center; color: #71717a; margin: 24px 0 0 0; font-size: 12px;">
+              &copy; ${new Date().getFullYear()} Chatvice. All rights reserved.
+            </p>
+          </div>
+        </body>
+        </html>
+      `
+    });
+
+    if (error) {
+      console.error('Resend merchant auth notification error:', error);
+      return false;
+    }
+    console.log(`Merchant ${activityType} notification sent to hello@chatvice.app for:`, merchantEmail);
+    return true;
+  } catch (error) {
+    console.error('Failed to send merchant auth notification:', error);
+    return false;
+  }
+}
