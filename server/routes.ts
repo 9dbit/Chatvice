@@ -13539,7 +13539,11 @@ ${log.extractedKnowledge}` : ''}
     }
   });
 
-  // Crawl a URL for products
+  // Concurrency guard for Puppeteer crawling
+  let activeCrawls = 0;
+  const MAX_CONCURRENT_CRAWLS = 2;
+  
+  // Crawl a URL for products using OpenAI Vision
   app.post("/api/product-crawl-sources/:id/crawl", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
@@ -13550,66 +13554,206 @@ ${log.extractedKnowledge}` : ''}
         return res.status(404).json({ error: "Source not found" });
       }
       
-      // Fetch the page content
-      const response = await fetch(source.url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        },
-      });
-      
-      if (!response.ok) {
-        return res.status(400).json({ error: "Failed to fetch URL" });
+      // Check concurrency limit
+      if (activeCrawls >= MAX_CONCURRENT_CRAWLS) {
+        return res.status(503).json({ 
+          error: "Server busy. Please try again in a few minutes.",
+          retryAfter: 60
+        });
       }
       
-      const html = await response.text();
+      // Validate source URL protocol (security: prevent SSRF)
+      try {
+        const sourceUrlObj = new URL(source.url);
+        if (!['http:', 'https:'].includes(sourceUrlObj.protocol)) {
+          return res.status(400).json({ error: "Only HTTP/HTTPS URLs are allowed" });
+        }
+      } catch (e) {
+        return res.status(400).json({ error: "Invalid URL format" });
+      }
       
-      // Use AI to extract product information from the page
+      activeCrawls++;
+      
+      // Use try/finally to ensure activeCrawls is always decremented
+      try {
+        // Use Puppeteer to take a screenshot of the page
+        const puppeteer = await import("puppeteer");
+        let browser;
+        let screenshotBase64 = "";
+        let pageHtml = "";
+        let crawlMethod = "vision"; // Track which method was used
+        
+        try {
+          browser = await puppeteer.default.launch({
+          headless: true,
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--disable-software-rasterizer',
+            '--single-process',
+          ],
+          timeout: 30000,
+        });
+        
+        const page = await browser.newPage();
+        await page.setViewport({ width: 1280, height: 2000 });
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        
+        // Navigate and wait for content to load
+        await page.goto(source.url, { 
+          waitUntil: 'networkidle2',
+          timeout: 30000 
+        });
+        
+        // Scroll down to load lazy-loaded images
+        await page.evaluate(() => {
+          window.scrollTo(0, document.body.scrollHeight / 2);
+        });
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        await page.evaluate(() => {
+          window.scrollTo(0, document.body.scrollHeight);
+        });
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        await page.evaluate(() => {
+          window.scrollTo(0, 0);
+        });
+        
+        // Take full-page screenshot
+        const screenshot = await page.screenshot({ 
+          fullPage: true,
+          type: 'jpeg',
+          quality: 80,
+        });
+        screenshotBase64 = screenshot.toString('base64');
+        
+        // Also get the HTML for extracting image URLs
+        pageHtml = await page.content();
+        
+        await browser.close();
+        browser = undefined;
+      } catch (puppeteerError: any) {
+        console.error("Puppeteer error:", puppeteerError);
+        if (browser) {
+          try { await browser.close(); } catch (e) {}
+          browser = undefined;
+        }
+        crawlMethod = "html";
+        
+        // Fallback to HTML-only approach
+        try {
+          const response = await fetch(source.url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              'Accept': 'text/html',
+            },
+            signal: AbortSignal.timeout(15000),
+          });
+          if (response.ok) {
+            pageHtml = await response.text();
+            // Check if HTML has meaningful product content
+            const hasProductIndicators = pageHtml.includes('price') || 
+                                         pageHtml.includes('product') || 
+                                         pageHtml.includes('item') ||
+                                         pageHtml.includes('og:product');
+            if (!hasProductIndicators || pageHtml.length < 1000) {
+              // Note: finally block will decrement activeCrawls
+              return res.status(400).json({ 
+                error: "Website appears to be JavaScript-rendered. Unable to extract products from HTML alone.",
+                suggestion: "Try again later or use a direct product page URL"
+              });
+            }
+          } else {
+            // Note: finally block will decrement activeCrawls
+            return res.status(400).json({ error: "Failed to access URL" });
+          }
+        } catch (fetchError) {
+          // Note: finally block will decrement activeCrawls
+          return res.status(400).json({ error: "Failed to access URL" });
+        }
+      }
+      
+      // Use OpenAI Vision to extract products from screenshot
       const OpenAI = (await import("openai")).default;
       const openai = new OpenAI({ 
         apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
         baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
       });
       
-      const systemPrompt = `You are a product data extraction expert. Extract product information from the provided HTML content.
+      const systemPrompt = `You are a product data extraction expert specialized in analyzing e-commerce websites.
+      
+Analyze the provided webpage screenshot and/or HTML to extract all visible product information.
 
-For each product found, extract:
-- title: Product name/title
-- description: Brief description
-- price: Price with currency symbol
-- imageUrl: Main product image URL (make absolute URLs if relative)
-- productUrl: Link to product page (make absolute URLs if relative)
+For EACH product found, extract these fields:
+- title: Product name (required)
+- description: Brief description if visible
+- price: Price with currency (e.g., "Rp 150.000" or "$29.99")
+- imageUrl: Direct URL to the product image (from the HTML, make absolute URLs)
+- productUrl: Link to the product detail page (from the HTML, make absolute URLs)
 - category: Product category if identifiable
-- brand: Brand name if found
+- brand: Brand name if visible
 - availability: "in_stock", "out_of_stock", or "preorder"
-- rating: Star rating if present
-- reviewCount: Number of reviews if present
-- specifications: Key product specifications as an object
+- rating: Star rating if shown (e.g., "4.5")
+- reviewCount: Number of reviews if shown
 
-Return a JSON object with:
+Return a JSON object:
 {
   "products": [array of product objects],
-  "totalFound": number of products found
+  "totalFound": number
 }
 
-Important:
-- Only extract actual products, not navigation or ads
-- Convert relative URLs to absolute using the base URL provided
-- If a field is not found, use empty string or appropriate default`;
+IMPORTANT RULES:
+1. Only extract real products, ignore navigation, ads, banners
+2. Extract image URLs from the HTML src attributes
+3. Convert relative URLs to absolute using base URL: ${source.url}
+4. If price has variations, use the main/lowest price
+5. Maximum 20 products per page to avoid duplication`;
 
-      const userPrompt = `Extract products from this page: ${source.url}
+      let messages: any[] = [
+        { role: "system", content: systemPrompt }
+      ];
+      
+      // Use Vision API if we have a screenshot
+      if (screenshotBase64) {
+        messages.push({
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:image/jpeg;base64,${screenshotBase64}`,
+                detail: "high"
+              }
+            },
+            {
+              type: "text",
+              text: `Extract all products from this e-commerce page screenshot.
 
-HTML Content (first 50000 chars):
-${html.substring(0, 50000)}`;
+Base URL: ${source.url}
+
+Here's the HTML for extracting image URLs and links (truncated):
+${pageHtml.substring(0, 30000)}`
+            }
+          ]
+        });
+      } else {
+        // Fallback to text-only if no screenshot
+        messages.push({
+          role: "user",
+          content: `Extract products from this page: ${source.url}
+
+HTML Content:
+${pageHtml.substring(0, 50000)}`
+        });
+      }
 
       const completion = await openai.chat.completions.create({
-        model: "gpt-4.1-mini",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
+        model: screenshotBase64 ? "gpt-4.1" : "gpt-4.1-mini",
+        messages,
         response_format: { type: "json_object" },
-        temperature: 0.3,
+        temperature: 0.2,
+        max_tokens: 4000,
       });
       
       const responseText = completion.choices[0]?.message?.content || "{}";
@@ -13628,6 +13772,28 @@ ${html.substring(0, 50000)}`;
       const createdProducts = [];
       for (const product of products) {
         if (product.title) {
+          // Validate and fix image URL
+          let imageUrl = product.imageUrl || "";
+          if (imageUrl && !imageUrl.startsWith("http")) {
+            try {
+              const baseUrl = new URL(source.url);
+              imageUrl = new URL(imageUrl, baseUrl.origin).href;
+            } catch (e) {
+              imageUrl = "";
+            }
+          }
+          
+          // Validate and fix product URL
+          let productUrl = product.productUrl || source.url;
+          if (productUrl && !productUrl.startsWith("http")) {
+            try {
+              const baseUrl = new URL(source.url);
+              productUrl = new URL(productUrl, baseUrl.origin).href;
+            } catch (e) {
+              productUrl = source.url;
+            }
+          }
+          
           const crawledProduct = await storage.createCrawledProduct({
             merchantId,
             sourceId: id,
@@ -13636,8 +13802,8 @@ ${html.substring(0, 50000)}`;
             description: product.description || "",
             price: product.price || "",
             currency: "IDR",
-            imageUrl: product.imageUrl || "",
-            productUrl: product.productUrl || source.url,
+            imageUrl,
+            productUrl,
             category: product.category || "",
             brand: product.brand || "",
             availability: product.availability || "in_stock",
@@ -13658,14 +13824,30 @@ ${html.substring(0, 50000)}`;
         totalProducts: createdProducts.length,
       });
       
+      // Return error if no products found
+      if (createdProducts.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "No products found on this page. Try a product listing or catalog page.",
+          productsFound: 0,
+        });
+      }
+      
       res.json({
         success: true,
         productsFound: createdProducts.length,
         products: createdProducts,
       });
+      } catch (innerError) {
+        console.error("Crawl error:", innerError);
+        res.status(500).json({ error: "Failed to crawl URL" });
+      } finally {
+        // Guaranteed cleanup: always decrement the counter
+        activeCrawls--;
+      }
     } catch (error) {
-      console.error("Crawl error:", error);
-      res.status(500).json({ error: "Failed to crawl URL" });
+      console.error("Crawl setup error:", error);
+      res.status(500).json({ error: "Failed to start crawl" });
     }
   });
 
@@ -13689,7 +13871,34 @@ ${html.substring(0, 50000)}`;
     }
   });
 
-  // Approve a crawled product
+  // Helper function to validate image URL for SSRF protection
+  function isValidImageUrl(urlString: string): boolean {
+    try {
+      const url = new URL(urlString);
+      // Only allow HTTP/HTTPS protocols
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        return false;
+      }
+      // Block common internal/localhost hosts
+      const hostname = url.hostname.toLowerCase();
+      if (hostname === 'localhost' || 
+          hostname === '127.0.0.1' || 
+          hostname === '0.0.0.0' ||
+          hostname.startsWith('192.168.') ||
+          hostname.startsWith('10.') ||
+          hostname.startsWith('172.') ||
+          hostname.endsWith('.local') ||
+          hostname === 'metadata.google.internal' ||
+          hostname === '169.254.169.254') {
+        return false;
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  
+  // Approve a crawled product (with image URL validation and fallback storage)
   app.post("/api/crawled-products/:id/approve", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
@@ -13698,6 +13907,63 @@ ${html.substring(0, 50000)}`;
       const product = await storage.getCrawledProduct(id);
       if (!product || product.merchantId !== merchantId) {
         return res.status(404).json({ error: "Product not found" });
+      }
+      
+      // Validate image URL accessibility, fallback to storage if needed
+      let finalImageUrl = product.imageUrl || "";
+      
+      // Security: Validate image URL before any fetch operations
+      if (finalImageUrl && !isValidImageUrl(finalImageUrl)) {
+        console.log(`[approve] Invalid/unsafe image URL rejected: ${finalImageUrl}`);
+        finalImageUrl = ""; // Clear unsafe URL
+      }
+      
+      if (finalImageUrl) {
+        try {
+          const imageResponse = await fetch(finalImageUrl, {
+            method: 'HEAD',
+            headers: { 'User-Agent': 'Mozilla/5.0' },
+            signal: AbortSignal.timeout(5000),
+          });
+          
+          // Validate content-type is an image
+          const contentType = imageResponse.headers.get('content-type') || '';
+          if (!imageResponse.ok || !contentType.startsWith('image/')) {
+            // Image URL is not accessible or not an image, try to download and store
+            console.log(`[approve] Image URL issue (status: ${imageResponse.status}, type: ${contentType}), attempting download: ${finalImageUrl}`);
+            try {
+              const downloadResponse = await fetch(finalImageUrl, {
+                headers: { 'User-Agent': 'Mozilla/5.0' },
+                signal: AbortSignal.timeout(10000),
+              });
+              
+              const downloadContentType = downloadResponse.headers.get('content-type') || '';
+              if (downloadResponse.ok && downloadResponse.body && downloadContentType.startsWith('image/')) {
+                const buffer = Buffer.from(await downloadResponse.arrayBuffer());
+                
+                // Validate size (max 5MB)
+                if (buffer.length <= 5 * 1024 * 1024) {
+                  // Store in object storage
+                  const objectStorage = new ObjectStorageService();
+                  const filename = `product_${product.id}_${Date.now()}.${downloadContentType.split('/')[1] || 'jpg'}`;
+                  const storedUrl = await objectStorage.uploadFile(buffer, filename, downloadContentType);
+                  finalImageUrl = storedUrl;
+                  
+                  // Update product with new image URL
+                  await storage.updateCrawledProduct(id, { imageUrl: finalImageUrl });
+                  console.log(`[approve] Image stored successfully: ${storedUrl}`);
+                } else {
+                  console.log(`[approve] Image too large (${buffer.length} bytes), keeping original URL`);
+                }
+              }
+            } catch (downloadError) {
+              console.error("[approve] Failed to download/store image:", downloadError);
+              // Keep original URL, it might work from client-side
+            }
+          }
+        } catch (headError) {
+          console.log("[approve] HEAD request failed, keeping original URL");
+        }
       }
       
       const approved = await storage.approveCrawledProduct(id, merchantId);

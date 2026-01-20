@@ -71,6 +71,15 @@ export default function ProductCardsPage() {
   });
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [editingCrawledProduct, setEditingCrawledProduct] = useState<CrawledProduct | null>(null);
+  const [crawledProductForm, setCrawledProductForm] = useState({
+    title: "",
+    description: "",
+    price: "",
+    imageUrl: "",
+    productUrl: "",
+    category: "",
+  });
 
   const { data: cards = [], isLoading } = useQuery<ProductCard[]>({
     queryKey: ["/api/product-cards"],
@@ -185,6 +194,40 @@ export default function ProductCardsPage() {
       toast({ title: "Failed to sync products to AI", variant: "destructive" });
     },
   });
+
+  const updateCrawledProductMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<CrawledProduct> }) => {
+      return apiRequest("PATCH", `/api/crawled-products/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/crawled-products"] });
+      setEditingCrawledProduct(null);
+      toast({ title: "Product updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update product", variant: "destructive" });
+    },
+  });
+
+  function handleEditCrawledProduct(product: CrawledProduct) {
+    setEditingCrawledProduct(product);
+    setCrawledProductForm({
+      title: product.title,
+      description: product.description || "",
+      price: product.price || "",
+      imageUrl: product.imageUrl || "",
+      productUrl: product.productUrl,
+      category: product.category || "",
+    });
+  }
+
+  function handleSaveCrawledProduct() {
+    if (!editingCrawledProduct) return;
+    updateCrawledProductMutation.mutate({
+      id: editingCrawledProduct.id,
+      data: crawledProductForm,
+    });
+  }
 
   const pendingProducts = crawledProducts.filter(p => p.status === "pending");
   const approvedProducts = crawledProducts.filter(p => p.status === "approved");
@@ -767,6 +810,15 @@ export default function ProductCardsPage() {
                             <Button
                               size="icon"
                               variant="ghost"
+                              className="h-8 w-8"
+                              onClick={() => handleEditCrawledProduct(product)}
+                              data-testid={`button-edit-crawled-${product.id}`}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
                               className="h-8 w-8 text-green-600"
                               onClick={() => approveProductMutation.mutate(product.id)}
                               disabled={approveProductMutation.isPending}
@@ -791,6 +843,104 @@ export default function ProductCardsPage() {
                   </ScrollArea>
                 </div>
               )}
+
+              {/* Edit Crawled Product Dialog */}
+              <Dialog open={!!editingCrawledProduct} onOpenChange={(open) => !open && setEditingCrawledProduct(null)}>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Edit Product</DialogTitle>
+                    <DialogDescription>
+                      Review and edit product details before approving
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="crawled-title">Product Name</Label>
+                      <Input
+                        id="crawled-title"
+                        value={crawledProductForm.title}
+                        onChange={(e) => setCrawledProductForm({ ...crawledProductForm, title: e.target.value })}
+                        placeholder="Product name"
+                        data-testid="input-crawled-title"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="crawled-price">Price</Label>
+                      <Input
+                        id="crawled-price"
+                        value={crawledProductForm.price}
+                        onChange={(e) => setCrawledProductForm({ ...crawledProductForm, price: e.target.value })}
+                        placeholder="e.g., Rp 150.000"
+                        data-testid="input-crawled-price"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="crawled-category">Category</Label>
+                      <Input
+                        id="crawled-category"
+                        value={crawledProductForm.category}
+                        onChange={(e) => setCrawledProductForm({ ...crawledProductForm, category: e.target.value })}
+                        placeholder="Product category"
+                        data-testid="input-crawled-category"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="crawled-description">Description</Label>
+                      <Textarea
+                        id="crawled-description"
+                        value={crawledProductForm.description}
+                        onChange={(e) => setCrawledProductForm({ ...crawledProductForm, description: e.target.value })}
+                        placeholder="Product description"
+                        rows={3}
+                        data-testid="input-crawled-description"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="crawled-imageUrl">Image URL</Label>
+                      <Input
+                        id="crawled-imageUrl"
+                        value={crawledProductForm.imageUrl}
+                        onChange={(e) => setCrawledProductForm({ ...crawledProductForm, imageUrl: e.target.value })}
+                        placeholder="https://..."
+                        data-testid="input-crawled-imageUrl"
+                      />
+                      {crawledProductForm.imageUrl && (
+                        <img 
+                          src={crawledProductForm.imageUrl} 
+                          alt="Preview" 
+                          className="w-20 h-20 object-contain rounded border mt-2"
+                          onError={(e) => (e.currentTarget.style.display = 'none')}
+                        />
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="crawled-productUrl">Product URL</Label>
+                      <Input
+                        id="crawled-productUrl"
+                        value={crawledProductForm.productUrl}
+                        onChange={(e) => setCrawledProductForm({ ...crawledProductForm, productUrl: e.target.value })}
+                        placeholder="https://..."
+                        data-testid="input-crawled-productUrl"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter className="gap-2">
+                    <Button variant="outline" onClick={() => setEditingCrawledProduct(null)}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={handleSaveCrawledProduct}
+                      disabled={updateCrawledProductMutation.isPending}
+                      data-testid="button-save-crawled-product"
+                    >
+                      {updateCrawledProductMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : null}
+                      Save Changes
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
               {/* Approved Products */}
               {approvedProducts.length > 0 && (
