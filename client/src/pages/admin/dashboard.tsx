@@ -1091,7 +1091,7 @@ function MerchantsTab({
       { key: "email", label: "Email" },
       { key: "websiteUrl", label: "Website URL" },
       { key: "picName", label: "PIC Name" },
-      { key: "phone", label: "Phone" },
+      { key: "formattedPhone", label: "Phone" },
       { key: "country", label: "Country" },
       { key: "city", label: "City" },
       { key: "region", label: "Region" },
@@ -1100,7 +1100,11 @@ function MerchantsTab({
       { key: "conversationsUsed", label: "Conversations Used" },
       { key: "createdAt", label: "Created At" },
     ];
-    const csv = generateCSV(merchants, columns);
+    const formattedMerchants = merchants.map(m => ({
+      ...m,
+      formattedPhone: m.phone ? `${m.phoneCountryCode || ''}${m.phone}` : '',
+    }));
+    const csv = generateCSV(formattedMerchants, columns);
     downloadCSV(csv, `merchants_${format(new Date(), 'yyyy-MM-dd')}.csv`);
     toast({ title: "Export Complete", description: "Merchant data has been downloaded." });
   };
@@ -1325,7 +1329,7 @@ function MerchantsTab({
                           <p className="text-sm">{merchant.picName || '-'}</p>
                         </TableCell>
                         <TableCell className="hidden xl:table-cell">
-                          <p className="text-sm">{merchant.phone || '-'}</p>
+                          <p className="text-sm">{merchant.phone ? `${merchant.phoneCountryCode || ''}${merchant.phone}` : '-'}</p>
                         </TableCell>
                         <TableCell className="hidden xl:table-cell">
                           <div className="text-sm">
