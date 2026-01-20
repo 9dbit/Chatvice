@@ -986,7 +986,7 @@ export default function AffiliateDashboardPage() {
       </Dialog>
 
       <Dialog open={paymentMethodDialogOpen} onOpenChange={setPaymentMethodDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-purple-600" />
