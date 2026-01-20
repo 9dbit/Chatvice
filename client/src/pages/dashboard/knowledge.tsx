@@ -520,16 +520,16 @@ export default function KnowledgePage() {
         : [`/api/knowledge/${merchantId}`] 
       });
       toast({
-        title: "Knowledge saved",
-        description: "Your AI will now use this information to answer questions.",
+        title: "Berhasil disimpan!",
+        description: "AI Anda sekarang akan menggunakan informasi ini untuk menjawab pertanyaan pelanggan.",
       });
     },
     onError: () => {
       setSaveStage("idle");
       setAnalysisProgress(0);
       toast({
-        title: "Failed to save",
-        description: "Something went wrong. Please try again.",
+        title: "Gagal menyimpan",
+        description: "Terjadi kesalahan. Silakan coba lagi.",
         variant: "destructive",
       });
     },
