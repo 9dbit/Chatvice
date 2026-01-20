@@ -135,6 +135,7 @@ export default function KnowledgePage() {
   // AI Analysis state for knowledge content
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [saveStage, setSaveStage] = useState<"idle" | "reading" | "learning" | "thinking">("idle");
   const [estimatedTime, setEstimatedTime] = useState(0);
   const [analysisResult, setAnalysisResult] = useState<{
     hasIssues: boolean;
@@ -488,13 +489,32 @@ export default function KnowledgePage() {
 
   const saveMutation = useMutation({
     mutationFn: async (knowledgeText: string) => {
-      return apiRequest("POST", "/api/knowledge/set", {
+      setSaveStage("reading");
+      setAnalysisProgress(10);
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setSaveStage("learning");
+      setAnalysisProgress(40);
+      
+      const response = await apiRequest("POST", "/api/knowledge/set", {
         merchantId,
         knowledgeText,
         agentId: selectedAgentId || undefined,
       });
+      
+      setSaveStage("thinking");
+      setAnalysisProgress(80);
+      await new Promise(resolve => setTimeout(resolve, 400));
+      
+      return response;
     },
     onSuccess: () => {
+      setAnalysisProgress(100);
+      setTimeout(() => {
+        setSaveStage("idle");
+        setAnalysisProgress(0);
+      }, 500);
+      
       queryClient.invalidateQueries({ queryKey: selectedAgentId 
         ? [`/api/knowledge/agent/${selectedAgentId}`]
         : [`/api/knowledge/${merchantId}`] 
@@ -505,6 +525,8 @@ export default function KnowledgePage() {
       });
     },
     onError: () => {
+      setSaveStage("idle");
+      setAnalysisProgress(0);
       toast({
         title: "Failed to save",
         description: "Something went wrong. Please try again.",
@@ -995,38 +1017,60 @@ export default function KnowledgePage() {
                 )}
                 <Button
                   onClick={handleSave}
-                  disabled={saveMutation.isPending || isAnalyzing}
+                  disabled={saveMutation.isPending || isAnalyzing || saveStage !== "idle"}
                   data-testid="button-save-knowledge"
                 >
-                  {saveMutation.isPending || isAnalyzing ? (
+                  {saveMutation.isPending || isAnalyzing || saveStage !== "idle" ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   ) : (
                     <Save className="w-4 h-4 mr-2" />
                   )}
-                  {isAnalyzing ? "Thinking..." : "Save"}
+                  {saveStage === "reading" ? "Reading..." :
+                   saveStage === "learning" ? "Learning..." :
+                   saveStage === "thinking" ? "Thinking..." :
+                   isAnalyzing ? "Analyzing..." : "Save"}
                 </Button>
               </div>
             </div>
             
-            {/* AI Analysis Progress Bar */}
-            {isAnalyzing && (
-              <div className="mt-4 space-y-2">
+            {/* AI Save/Analysis Progress Bar */}
+            {(isAnalyzing || saveStage !== "idle") && (
+              <div className="mt-4 space-y-3">
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                    <span className="font-medium">Thinking...</span>
+                    <span className="font-medium">
+                      {saveStage === "reading" ? "Reading your content..." :
+                       saveStage === "learning" ? "AI is learning..." :
+                       saveStage === "thinking" ? "Processing knowledge..." :
+                       "Analyzing content..."}
+                    </span>
                   </div>
-                  <span className="text-muted-foreground">Est. {estimatedTime}s</span>
+                  {isAnalyzing && <span className="text-muted-foreground">Est. {estimatedTime}s</span>}
                 </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div 
-                    className="bg-primary h-2 rounded-full transition-all duration-500"
-                    style={{ width: `${analysisProgress}%` }}
-                  />
+                
+                {/* 3-Stage Progress Indicator */}
+                <div className="flex gap-1">
+                  <div className={`flex-1 h-2 rounded-full transition-all duration-300 ${
+                    saveStage === "reading" || saveStage === "learning" || saveStage === "thinking" || analysisProgress >= 33
+                      ? "bg-primary" : "bg-muted"
+                  }`} />
+                  <div className={`flex-1 h-2 rounded-full transition-all duration-300 ${
+                    saveStage === "learning" || saveStage === "thinking" || analysisProgress >= 66
+                      ? "bg-primary" : "bg-muted"
+                  }`} />
+                  <div className={`flex-1 h-2 rounded-full transition-all duration-300 ${
+                    saveStage === "thinking" || analysisProgress >= 100
+                      ? "bg-primary" : "bg-muted"
+                  }`} />
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  AI is analyzing your knowledge base for anomalies and suggestions...
-                </p>
+                
+                {/* Stage Labels */}
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span className={saveStage === "reading" ? "text-primary font-medium" : ""}>Reading</span>
+                  <span className={saveStage === "learning" ? "text-primary font-medium" : ""}>Learning</span>
+                  <span className={saveStage === "thinking" ? "text-primary font-medium" : ""}>Thinking</span>
+                </div>
               </div>
             )}
             
