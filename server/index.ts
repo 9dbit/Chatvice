@@ -358,16 +358,129 @@ async function runAutomaticChatCleanup(): Promise<void> {
   }
 }
 
+// Sync sources to agent knowledge content
+async function syncSourceToKnowledge(sourceId: string): Promise<void> {
+  try {
+    const source = await storage.getSource(sourceId);
+    if (!source || !source.isActive || !source.syncEnabled || !source.agentId) return;
+    
+    await storage.updateSource(sourceId, { syncStatus: "syncing" });
+    
+    const agentId = source.agentId;
+    const sourceName = source.name;
+    const sourceContent = source.content || "";
+    
+    if (!sourceContent.trim()) {
+      await storage.updateSource(sourceId, { syncStatus: "idle", lastSyncedAt: new Date() });
+      return;
+    }
+    
+    // Get existing knowledge and update with source content
+    const existingKnowledge = await storage.getKnowledgeByAgent(agentId);
+    const existingContent = existingKnowledge?.content || "";
+    
+    const sourceMarker = `\n\n---\n[Source: ${sourceName}]\n`;
+    const escapedName = sourceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    
+    const newContent = existingContent.includes(`[Source: ${sourceName}]`)
+      ? existingContent.replace(
+          new RegExp(`\\n\\n---\\n\\[Source: ${escapedName}\\][\\s\\S]*?(?=\\n\\n---\\n\\[Source:|$)`, 'g'),
+          `${sourceMarker}${sourceContent}`
+        )
+      : existingContent + sourceMarker + sourceContent;
+    
+    await storage.setKnowledge(source.merchantId, newContent, agentId);
+    await storage.updateSource(sourceId, { syncStatus: "idle", lastSyncedAt: new Date() });
+    
+    // Process embeddings
+    processKnowledgeBase(source.merchantId, newContent, agentId).catch(err => {
+      console.error("[source-sync] Error processing knowledge embeddings:", err);
+    });
+    
+    console.log(`[source-sync] Synced source "${sourceName}" to agent ${agentId}`);
+  } catch (error) {
+    console.error(`[source-sync] Error syncing source ${sourceId}:`, error);
+    await storage.updateSource(sourceId, { syncStatus: "error" }).catch(() => {});
+  }
+}
+
+async function runSourceSync(): Promise<void> {
+  try {
+    const activeSources = await storage.getActiveSourcesForSync();
+    const sourcesToSync = activeSources.filter(s => s.agentId);
+    
+    if (sourcesToSync.length === 0) return;
+    
+    console.log(`[source-sync] Starting sync for ${sourcesToSync.length} sources`);
+    
+    for (const source of sourcesToSync) {
+      await syncSourceToKnowledge(source.id);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    
+    console.log(`[source-sync] Source sync completed`);
+  } catch (error) {
+    console.error("[source-sync] Source sync error:", error);
+  }
+}
+
+// Check if product source needs re-crawling based on frequency
+function shouldRecrawlProductSource(source: any): boolean {
+  if (!source.lastCrawledAt) return true;
+  
+  const now = new Date();
+  const lastCrawl = new Date(source.lastCrawledAt);
+  const hoursSinceLastCrawl = (now.getTime() - lastCrawl.getTime()) / (1000 * 60 * 60);
+  
+  switch (source.crawlFrequency) {
+    case "daily":
+      return hoursSinceLastCrawl >= 24;
+    case "weekly":
+      return hoursSinceLastCrawl >= 168; // 7 days
+    default:
+      return false;
+  }
+}
+
+async function runProductSourceSync(): Promise<void> {
+  try {
+    const activeSources = await storage.getActiveProductCrawlSourcesForSync();
+    const sourcesToCrawl = activeSources.filter(shouldRecrawlProductSource);
+    
+    if (sourcesToCrawl.length === 0) return;
+    
+    console.log(`[product-sync] Marking ${sourcesToCrawl.length} product sources as due for re-crawl`);
+    
+    for (const source of sourcesToCrawl) {
+      // Mark source as needing re-crawl by setting syncStatus
+      // The actual crawl must be triggered manually by merchant due to:
+      // 1. Puppeteer resource usage
+      // 2. OpenAI Vision API costs
+      // 3. Products require human review before approval
+      await storage.updateProductCrawlSource(source.id, { 
+        status: "pending",
+        lastCrawledAt: new Date() // Reset to prevent re-triggering
+      });
+      console.log(`[product-sync] Source "${source.url}" marked for re-crawl`);
+    }
+  } catch (error) {
+    console.error("[product-sync] Product source sync error:", error);
+  }
+}
+
 function startBackgroundSync(): void {
   // Run initial sync after 5 minutes of startup
   setTimeout(() => {
     runBackgroundSync();
+    runSourceSync();
     runAutomaticChatCleanup();
   }, 5 * 60 * 1000);
   
   // Then run every 60 minutes
   setInterval(() => {
     runBackgroundSync();
+    runSourceSync();
+    runProductSourceSync();
     runAutomaticChatCleanup();
   }, 60 * 60 * 1000);
   

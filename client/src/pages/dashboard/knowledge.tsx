@@ -896,12 +896,13 @@ export default function KnowledgePage() {
           </TabsTrigger>
           <TabsTrigger value="sources" className="flex items-center gap-2" data-testid="tab-sources">
             <FileText className="w-4 h-4" />
-            Sources
+            <span className="hidden sm:inline">Active Sources</span>
+            <span className="sm:hidden">Sources</span>
           </TabsTrigger>
           <TabsTrigger value="articles" className="flex items-center gap-2" data-testid="tab-articles">
-            <BookOpen className="w-4 h-4" />
-            <span className="hidden sm:inline">Help Articles</span>
-            <span className="sm:hidden">Articles</span>
+            <Sparkles className="w-4 h-4" />
+            <span className="hidden sm:inline">Create with AI</span>
+            <span className="sm:hidden">AI Create</span>
           </TabsTrigger>
         </TabsList>
 

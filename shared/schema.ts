@@ -531,11 +531,15 @@ export type AgentWidgetSettings = z.infer<typeof agentWidgetSettingsSchema>;
 export const sources = pgTable("sources", {
   id: varchar("id", { length: 32 }).primaryKey(),
   merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  agentId: varchar("agent_id", { length: 32 }),
   type: text("type").notNull(),
   name: text("name").notNull(),
   content: text("content").default(""),
   url: text("url").default(""),
   isActive: boolean("is_active").default(true),
+  syncEnabled: boolean("sync_enabled").default(true),
+  lastSyncedAt: timestamp("last_synced_at"),
+  syncStatus: text("sync_status").default("idle"),
   charCount: integer("char_count").default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });

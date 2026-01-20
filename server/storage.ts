@@ -66,7 +66,7 @@ import {
   knowledgeTemplates, type KnowledgeTemplate, type InsertKnowledgeTemplate,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, gte, and, or, lt, isNull, sql, count, inArray } from "drizzle-orm";
+import { eq, desc, gte, and, or, lt, isNull, sql, count, inArray, ne } from "drizzle-orm";
 import { randomBytes } from "crypto";
 
 export interface AnalyticsData {
@@ -133,6 +133,14 @@ export interface IStorage {
   updateCrawledLink(id: string, data: Partial<CrawledLink>): Promise<CrawledLink | undefined>;
   deleteCrawledLink(id: string): Promise<boolean>;
   getActiveCrawledLinksForSync(): Promise<CrawledLink[]>;
+  
+  // Sources
+  getSources(merchantId: string): Promise<Source[]>;
+  getSource(id: string): Promise<Source | undefined>;
+  createSource(data: InsertSource): Promise<Source>;
+  updateSource(id: string, data: Partial<Source>): Promise<Source | undefined>;
+  deleteSource(id: string): Promise<boolean>;
+  getActiveSourcesForSync(): Promise<Source[]>;
   
   deleteMerchant(id: string): Promise<boolean>;
   deleteSession(id: string): Promise<boolean>;
@@ -218,6 +226,7 @@ export interface IStorage {
   createProductCrawlSource(source: InsertProductCrawlSource): Promise<ProductCrawlSource>;
   updateProductCrawlSource(id: string, data: Partial<ProductCrawlSource>): Promise<ProductCrawlSource | undefined>;
   deleteProductCrawlSource(id: string): Promise<boolean>;
+  getActiveProductCrawlSourcesForSync(): Promise<ProductCrawlSource[]>;
   
   // Crawled Products
   getCrawledProducts(merchantId: string, status?: string): Promise<CrawledProduct[]>;
@@ -230,6 +239,8 @@ export interface IStorage {
   approveCrawledProduct(id: string, approvedBy: string): Promise<CrawledProduct | undefined>;
   rejectCrawledProduct(id: string): Promise<CrawledProduct | undefined>;
   getApprovedCrawledProducts(merchantId: string, agentId?: string): Promise<CrawledProduct[]>;
+  findCrawledProductByUrl(merchantId: string, productUrl: string): Promise<CrawledProduct | undefined>;
+  upsertCrawledProduct(product: InsertCrawledProduct): Promise<CrawledProduct>;
   
   // Welcome Bubble
   getWelcomeBubble(merchantId: string): Promise<WelcomeBubble | undefined>;
@@ -1251,14 +1262,25 @@ export class DatabaseStorage implements IStorage {
     const result = await db.insert(sources).values({
       id,
       merchantId: data.merchantId,
+      agentId: data.agentId || null,
       type: data.type,
       name: data.name,
       content: data.content || "",
       url: data.url || "",
       isActive: data.isActive ?? true,
+      syncEnabled: data.syncEnabled ?? true,
+      syncStatus: "idle",
       charCount: data.charCount || 0,
     }).returning();
     return result[0];
+  }
+
+  async getActiveSourcesForSync(): Promise<Source[]> {
+    return db.select().from(sources)
+      .where(and(
+        eq(sources.isActive, true),
+        eq(sources.syncEnabled, true),
+      ));
   }
 
   async updateSource(id: string, data: Partial<Source>): Promise<Source | undefined> {
@@ -1721,6 +1743,48 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(productCrawlSources)
       .where(eq(productCrawlSources.merchantId, merchantId))
       .orderBy(desc(productCrawlSources.createdAt));
+  }
+
+  async getActiveProductCrawlSourcesForSync(): Promise<ProductCrawlSource[]> {
+    return db.select().from(productCrawlSources)
+      .where(and(
+        eq(productCrawlSources.isActive, true),
+        ne(productCrawlSources.crawlFrequency, "manual"),
+      ));
+  }
+
+  async findCrawledProductByUrl(merchantId: string, productUrl: string): Promise<CrawledProduct | undefined> {
+    const result = await db.select().from(crawledProducts)
+      .where(and(
+        eq(crawledProducts.merchantId, merchantId),
+        eq(crawledProducts.productUrl, productUrl)
+      ));
+    return result[0];
+  }
+
+  async upsertCrawledProduct(product: InsertCrawledProduct): Promise<CrawledProduct> {
+    const existing = await this.findCrawledProductByUrl(product.merchantId, product.productUrl);
+    if (existing) {
+      const result = await db.update(crawledProducts)
+        .set({
+          title: product.title,
+          description: product.description,
+          price: product.price,
+          imageUrl: product.imageUrl,
+          category: product.category,
+          brand: product.brand,
+          availability: product.availability,
+          rating: product.rating,
+          reviewCount: product.reviewCount,
+          crawledAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(crawledProducts.id, existing.id))
+        .returning();
+      return result[0];
+    } else {
+      return this.createCrawledProduct(product);
+    }
   }
 
   async getProductCrawlSource(id: string): Promise<ProductCrawlSource | undefined> {
