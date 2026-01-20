@@ -8126,6 +8126,359 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       res.status(500).json({ error: "Server error" });
     }
   });
+  
+  // ============ Affiliate Payment Methods ============
+  
+  // Get affiliate payment methods
+  app.get("/api/affiliate/payment-methods", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      const affiliate = await storage.getAffiliateByMerchantId(merchantId);
+      
+      if (!affiliate) {
+        return res.status(404).json({ error: "Affiliate not found" });
+      }
+      
+      const methods = await storage.getAffiliatePaymentMethods(affiliate.id);
+      res.json(methods);
+    } catch (error) {
+      console.error("Error fetching payment methods:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Create affiliate payment method
+  app.post("/api/affiliate/payment-methods", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      const affiliate = await storage.getAffiliateByMerchantId(merchantId);
+      
+      if (!affiliate) {
+        return res.status(404).json({ error: "Affiliate not found" });
+      }
+      
+      if (affiliate.status !== "active") {
+        return res.status(403).json({ error: "Affiliate must be active to add payment methods" });
+      }
+      
+      const { methodType, methodName, isDefault, ...methodDetails } = req.body;
+      
+      if (!methodType || !["bank_transfer", "cryptocurrency", "paypal"].includes(methodType)) {
+        return res.status(400).json({ error: "Invalid payment method type" });
+      }
+      
+      // Validate based on method type
+      if (methodType === "bank_transfer") {
+        if (!methodDetails.bankName || !methodDetails.bankAccountNumber || !methodDetails.bankAccountName || !methodDetails.bankCountry) {
+          return res.status(400).json({ error: "Bank name, account number, account name, and country are required" });
+        }
+        // SWIFT code required for non-Indonesian banks
+        if (methodDetails.bankCountry !== "ID" && !methodDetails.swiftCode) {
+          return res.status(400).json({ error: "SWIFT code is required for non-Indonesian banks" });
+        }
+      } else if (methodType === "cryptocurrency") {
+        if (!methodDetails.cryptoWalletAddress || !methodDetails.cryptoNetwork) {
+          return res.status(400).json({ error: "Wallet address and network are required" });
+        }
+      } else if (methodType === "paypal") {
+        if (!methodDetails.paypalEmail) {
+          return res.status(400).json({ error: "PayPal email is required" });
+        }
+      }
+      
+      const method = await storage.createAffiliatePaymentMethod({
+        affiliateId: affiliate.id,
+        methodType,
+        methodName: methodName || `${methodType.replace("_", " ")} - ${new Date().toLocaleDateString()}`,
+        isDefault: isDefault || false,
+        ...methodDetails,
+      });
+      
+      res.json(method);
+    } catch (error) {
+      console.error("Error creating payment method:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Update affiliate payment method
+  app.put("/api/affiliate/payment-methods/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      const affiliate = await storage.getAffiliateByMerchantId(merchantId);
+      
+      if (!affiliate) {
+        return res.status(404).json({ error: "Affiliate not found" });
+      }
+      
+      const method = await storage.getAffiliatePaymentMethod(req.params.id);
+      if (!method || method.affiliateId !== affiliate.id) {
+        return res.status(404).json({ error: "Payment method not found" });
+      }
+      
+      const updated = await storage.updateAffiliatePaymentMethod(req.params.id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating payment method:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Delete affiliate payment method
+  app.delete("/api/affiliate/payment-methods/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      const affiliate = await storage.getAffiliateByMerchantId(merchantId);
+      
+      if (!affiliate) {
+        return res.status(404).json({ error: "Affiliate not found" });
+      }
+      
+      const method = await storage.getAffiliatePaymentMethod(req.params.id);
+      if (!method || method.affiliateId !== affiliate.id) {
+        return res.status(404).json({ error: "Payment method not found" });
+      }
+      
+      await storage.deleteAffiliatePaymentMethod(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting payment method:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // ============ Affiliate Withdrawal Requests ============
+  
+  // Get affiliate's own withdrawal requests
+  app.get("/api/affiliate/withdrawals", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      const affiliate = await storage.getAffiliateByMerchantId(merchantId);
+      
+      if (!affiliate) {
+        return res.status(404).json({ error: "Affiliate not found" });
+      }
+      
+      const withdrawals = await storage.getAffiliateWithdrawalRequests(affiliate.id);
+      res.json(withdrawals);
+    } catch (error) {
+      console.error("Error fetching withdrawals:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Create withdrawal request
+  app.post("/api/affiliate/withdrawals", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.userId;
+      const affiliate = await storage.getAffiliateByMerchantId(merchantId);
+      
+      if (!affiliate) {
+        return res.status(404).json({ error: "Affiliate not found" });
+      }
+      
+      if (affiliate.status !== "active") {
+        return res.status(403).json({ error: "Affiliate must be active to request withdrawal" });
+      }
+      
+      const { amount, paymentMethodId, paymentDetails, methodType } = req.body;
+      
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ error: "Invalid withdrawal amount" });
+      }
+      
+      // Get affiliate settings for minimum payout
+      const minimumPayoutSetting = await storage.getPlatformSetting("affiliate_minimum_payout");
+      const minimumPayout = parseInt(minimumPayoutSetting || "5000"); // Default $50 in cents
+      
+      if (amount < minimumPayout) {
+        return res.status(400).json({ error: `Minimum withdrawal amount is $${(minimumPayout / 100).toFixed(2)}` });
+      }
+      
+      // Check if affiliate has enough pending earnings
+      if ((affiliate.pendingEarnings || 0) < amount) {
+        return res.status(400).json({ error: "Insufficient pending earnings" });
+      }
+      
+      // Check for existing pending withdrawal
+      const existingWithdrawals = await storage.getAffiliateWithdrawalRequests(affiliate.id);
+      const hasPending = existingWithdrawals.some(w => w.status === "pending" || w.status === "processing");
+      if (hasPending) {
+        return res.status(400).json({ error: "You already have a pending withdrawal request" });
+      }
+      
+      // Get payment details from saved method or use provided details
+      let finalPaymentDetails = paymentDetails;
+      let finalMethodType = methodType;
+      
+      if (paymentMethodId) {
+        const savedMethod = await storage.getAffiliatePaymentMethod(paymentMethodId);
+        if (!savedMethod || savedMethod.affiliateId !== affiliate.id) {
+          return res.status(404).json({ error: "Payment method not found" });
+        }
+        finalMethodType = savedMethod.methodType;
+        finalPaymentDetails = {
+          methodName: savedMethod.methodName,
+          bankName: savedMethod.bankName,
+          bankAccountNumber: savedMethod.bankAccountNumber,
+          bankAccountName: savedMethod.bankAccountName,
+          bankCountry: savedMethod.bankCountry,
+          swiftCode: savedMethod.swiftCode,
+          cryptoWalletAddress: savedMethod.cryptoWalletAddress,
+          cryptoNetwork: savedMethod.cryptoNetwork,
+          paypalEmail: savedMethod.paypalEmail,
+          paypalAccountName: savedMethod.paypalAccountName,
+        };
+      }
+      
+      if (!finalMethodType || !finalPaymentDetails) {
+        return res.status(400).json({ error: "Payment method details are required" });
+      }
+      
+      const withdrawal = await storage.createAffiliateWithdrawalRequest({
+        affiliateId: affiliate.id,
+        paymentMethodId: paymentMethodId || null,
+        amount,
+        currency: "USD",
+        methodType: finalMethodType,
+        paymentDetails: finalPaymentDetails,
+        status: "pending",
+      });
+      
+      // Create admin notification
+      const merchant = await storage.getMerchant(affiliate.merchantId);
+      await storage.createAdminNotification({
+        type: "withdrawal_request",
+        title: "New Withdrawal Request",
+        message: `${merchant?.companyName || "Affiliate"} requested a withdrawal of $${(amount / 100).toFixed(2)}`,
+        data: {
+          relatedEntityType: "withdrawal_request",
+          relatedEntityId: withdrawal.id,
+          actionUrl: `/admin?tab=withdrawals&requestId=${withdrawal.id}`,
+          priority: "high",
+        },
+      });
+      
+      res.json(withdrawal);
+    } catch (error) {
+      console.error("Error creating withdrawal request:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Admin: Get all withdrawal requests
+  app.get("/api/admin/withdrawals", requireAdmin, async (req, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const withdrawals = await storage.getAllWithdrawalRequests(status);
+      
+      // Enrich with affiliate and merchant info
+      const enrichedWithdrawals = await Promise.all(withdrawals.map(async (w) => {
+        const affiliate = await storage.getAffiliate(w.affiliateId);
+        const merchant = affiliate ? await storage.getMerchant(affiliate.merchantId) : null;
+        return {
+          ...w,
+          affiliate: affiliate ? {
+            id: affiliate.id,
+            affiliateCode: affiliate.affiliateCode,
+            displayName: affiliate.displayName,
+          } : null,
+          merchant: merchant ? {
+            id: merchant.id,
+            companyName: merchant.companyName,
+            email: merchant.email,
+          } : null,
+        };
+      }));
+      
+      res.json(enrichedWithdrawals);
+    } catch (error) {
+      console.error("Error fetching withdrawals:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Admin: Get withdrawal request stats
+  app.get("/api/admin/withdrawals/stats", requireAdmin, async (req, res) => {
+    try {
+      const stats = await storage.getWithdrawalRequestStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching withdrawal stats:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Admin: Approve/Reject/Complete withdrawal request
+  app.put("/api/admin/withdrawals/:id", requireAdmin, async (req, res) => {
+    try {
+      const { status, adminNotes, rejectionReason, transactionReference } = req.body;
+      
+      const withdrawal = await storage.getAffiliateWithdrawalRequest(req.params.id);
+      if (!withdrawal) {
+        return res.status(404).json({ error: "Withdrawal request not found" });
+      }
+      
+      const validTransitions: Record<string, string[]> = {
+        pending: ["approved", "rejected"],
+        approved: ["processing", "completed", "failed"],
+        processing: ["completed", "failed"],
+      };
+      
+      if (!validTransitions[withdrawal.status as string]?.includes(status)) {
+        return res.status(400).json({ error: `Cannot transition from ${withdrawal.status} to ${status}` });
+      }
+      
+      const updateData: any = {
+        status,
+        processedBy: req.session.userId,
+        processedAt: new Date(),
+      };
+      
+      if (adminNotes) updateData.adminNotes = adminNotes;
+      if (rejectionReason) updateData.rejectionReason = rejectionReason;
+      if (transactionReference) updateData.transactionReference = transactionReference;
+      
+      const updated = await storage.updateAffiliateWithdrawalRequest(req.params.id, updateData);
+      
+      // If completed or rejected, update affiliate earnings
+      const affiliate = await storage.getAffiliate(withdrawal.affiliateId);
+      if (affiliate) {
+        if (status === "completed") {
+          // Deduct from pending, add to paid
+          await storage.updateAffiliate(affiliate.id, {
+            pendingEarnings: Math.max(0, (affiliate.pendingEarnings || 0) - withdrawal.amount),
+            paidEarnings: (affiliate.paidEarnings || 0) + withdrawal.amount,
+          });
+          
+          // Send notification to merchant
+          await storage.createMerchantNotification({
+            merchantId: affiliate.merchantId,
+            type: "withdrawal",
+            title: "Withdrawal Completed",
+            message: `Your withdrawal of $${(withdrawal.amount / 100).toFixed(2)} has been completed.`,
+            actionUrl: "/dashboard/affiliate",
+            actionLabel: "View Details",
+          });
+        } else if (status === "rejected") {
+          // Send notification about rejection
+          await storage.createMerchantNotification({
+            merchantId: affiliate.merchantId,
+            type: "withdrawal",
+            title: "Withdrawal Request Rejected",
+            message: rejectionReason || "Your withdrawal request has been rejected.",
+            actionUrl: "/dashboard/affiliate",
+            actionLabel: "View Details",
+          });
+        }
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating withdrawal request:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
 
   // ============ Custom Plan Requests ============
   
