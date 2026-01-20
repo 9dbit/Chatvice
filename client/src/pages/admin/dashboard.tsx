@@ -345,6 +345,7 @@ export default function AdminDashboard() {
     { id: "custom-requests", label: "Custom Requests", icon: Sparkles },
     { id: "affiliates", label: "Affiliates", icon: Share2 },
     { id: "knowledge-templates", label: "Knowledge Templates", icon: BookOpen },
+    { id: "activity-logs", label: "Activity Logs", icon: Activity },
     { id: "user-data", label: "User Data", icon: Users },
     { id: "settings", label: "Settings", icon: Settings },
   ];
@@ -533,6 +534,8 @@ export default function AdminDashboard() {
             {activeTab === "affiliates" && <AffiliatesTab toast={toast} />}
             
             {activeTab === "knowledge-templates" && <KnowledgeTemplatesTab toast={toast} />}
+            
+            {activeTab === "activity-logs" && <ActivityLogsTab toast={toast} />}
             
             {activeTab === "user-data" && <AdminUserDataTab toast={toast} />}
           </div>
@@ -10947,6 +10950,306 @@ function KnowledgeTemplatesTab({ toast }: { toast: any }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// Activity Logs Tab - View all merchant activity logs
+function ActivityLogsTab({ toast }: { toast: any }) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState<string>("all");
+  
+  interface ActivityLog {
+    id: string;
+    merchantId: string;
+    activityType: string;
+    activityCategory: string | null;
+    description: string;
+    pageUrl: string | null;
+    elementId: string | null;
+    elementLabel: string | null;
+    formData: any | null;
+    authMethod: string | null;
+    ipAddress: string | null;
+    userAgent: string | null;
+    createdAt: string;
+  }
+  
+  const { data: logs = [], isLoading, refetch } = useQuery<ActivityLog[]>({
+    queryKey: ["/api/admin/activity-logs", filterType],
+    queryFn: async () => {
+      const params = filterType !== "all" ? `?type=${filterType}` : "";
+      const response = await fetch(`/api/admin/activity-logs${params}`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch activity logs");
+      return response.json();
+    },
+  });
+  
+  // Fetch merchants for name lookup
+  const { data: merchants = [] } = useQuery<MerchantWithPlan[]>({
+    queryKey: ["/api/admin/merchants"],
+  });
+  
+  const getMerchantName = (merchantId: string) => {
+    const merchant = merchants.find(m => m.id === merchantId);
+    return merchant?.companyName || merchant?.username || merchant?.email || merchantId.substring(0, 8) + "...";
+  };
+  
+  // Filter logs by search
+  const filteredLogs = logs.filter(log => {
+    const query = searchQuery.toLowerCase();
+    const merchantName = getMerchantName(log.merchantId).toLowerCase();
+    return (
+      log.description.toLowerCase().includes(query) ||
+      merchantName.includes(query) ||
+      log.activityType.toLowerCase().includes(query) ||
+      (log.authMethod && log.authMethod.toLowerCase().includes(query)) ||
+      (log.ipAddress && log.ipAddress.includes(query))
+    );
+  });
+  
+  const getActivityTypeBadge = (type: string) => {
+    switch (type) {
+      case "sign_up":
+        return <Badge className="bg-green-500/20 text-green-700 dark:text-green-400">Sign Up</Badge>;
+      case "sign_in":
+        return <Badge className="bg-blue-500/20 text-blue-700 dark:text-blue-400">Sign In</Badge>;
+      case "page_view":
+        return <Badge variant="secondary">Page View</Badge>;
+      case "button_click":
+        return <Badge className="bg-purple-500/20 text-purple-700 dark:text-purple-400">Click</Badge>;
+      case "form_submit":
+        return <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-400">Form Submit</Badge>;
+      case "workflow_action":
+        return <Badge className="bg-cyan-500/20 text-cyan-700 dark:text-cyan-400">Workflow</Badge>;
+      default:
+        return <Badge variant="outline">{type}</Badge>;
+    }
+  };
+  
+  const getAuthMethodBadge = (method: string | null) => {
+    if (!method) return null;
+    switch (method) {
+      case "email":
+        return <Badge variant="outline" className="text-xs">Email</Badge>;
+      case "google":
+        return <Badge variant="outline" className="text-xs bg-red-500/10">Google</Badge>;
+      case "github":
+        return <Badge variant="outline" className="text-xs bg-slate-500/10">GitHub</Badge>;
+      default:
+        return <Badge variant="outline" className="text-xs">{method}</Badge>;
+    }
+  };
+  
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString("id-ID", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+  
+  // Download CSV
+  const handleDownloadCSV = () => {
+    if (filteredLogs.length === 0) {
+      toast({
+        title: "Tidak Ada Data",
+        description: "Tidak ada log aktivitas untuk diunduh",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const headers = ["Waktu", "Merchant", "Tipe Aktivitas", "Deskripsi", "Metode Auth", "IP Address", "User Agent"];
+    const rows = filteredLogs.map(log => [
+      formatDate(log.createdAt),
+      getMerchantName(log.merchantId),
+      log.activityType,
+      log.description,
+      log.authMethod || "-",
+      log.ipAddress || "-",
+      log.userAgent || "-",
+    ]);
+    
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${cell}"`).join(","))
+      .join("\n");
+    
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `chatvice-activity-logs-${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Berhasil",
+      description: `${filteredLogs.length} log aktivitas berhasil diunduh`,
+    });
+  };
+  
+  // Calculate stats
+  const signUpCount = logs.filter(l => l.activityType === "sign_up").length;
+  const signInCount = logs.filter(l => l.activityType === "sign_in").length;
+  const otherCount = logs.filter(l => !["sign_up", "sign_in"].includes(l.activityType)).length;
+  
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold">Activity Logs</h2>
+          <p className="text-muted-foreground">Pantau semua aktivitas merchant di platform</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => refetch()} data-testid="button-refresh-logs">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+          <Button onClick={handleDownloadCSV} data-testid="button-download-logs-csv">
+            <Download className="w-4 h-4 mr-2" />
+            Download CSV
+          </Button>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-green-500/10 rounded-full">
+                <UserCheck className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{signUpCount}</p>
+                <p className="text-sm text-muted-foreground">Total Sign Up</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-blue-500/10 rounded-full">
+                <Activity className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{signInCount}</p>
+                <p className="text-sm text-muted-foreground">Total Sign In</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-purple-500/10 rounded-full">
+                <History className="w-6 h-6 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{otherCount}</p>
+                <p className="text-sm text-muted-foreground">Aktivitas Lainnya</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col md:flex-row gap-4 justify-between">
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Cari merchant, aktivitas, IP..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 w-64"
+                  data-testid="input-search-logs"
+                />
+              </div>
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger className="w-40" data-testid="select-filter-type">
+                  <SelectValue placeholder="Filter tipe" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua</SelectItem>
+                  <SelectItem value="sign_up">Sign Up</SelectItem>
+                  <SelectItem value="sign_in">Sign In</SelectItem>
+                  <SelectItem value="page_view">Page View</SelectItem>
+                  <SelectItem value="button_click">Button Click</SelectItem>
+                  <SelectItem value="form_submit">Form Submit</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Menampilkan {filteredLogs.length} dari {logs.length} log
+            </p>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          ) : filteredLogs.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>Tidak ada log aktivitas ditemukan</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Waktu</TableHead>
+                    <TableHead>Merchant</TableHead>
+                    <TableHead>Tipe</TableHead>
+                    <TableHead>Deskripsi</TableHead>
+                    <TableHead>Auth Method</TableHead>
+                    <TableHead>IP Address</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredLogs.slice(0, 100).map((log) => (
+                    <TableRow key={log.id} data-testid={`row-activity-log-${log.id}`}>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {formatDate(log.createdAt)}
+                      </TableCell>
+                      <TableCell className="font-medium max-w-[150px] truncate">
+                        {getMerchantName(log.merchantId)}
+                      </TableCell>
+                      <TableCell>{getActivityTypeBadge(log.activityType)}</TableCell>
+                      <TableCell className="max-w-[200px] truncate text-sm">
+                        {log.description}
+                      </TableCell>
+                      <TableCell>{getAuthMethodBadge(log.authMethod)}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground font-mono">
+                        {log.ipAddress || "-"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {filteredLogs.length > 100 && (
+                <p className="text-center text-sm text-muted-foreground mt-4">
+                  Menampilkan 100 dari {filteredLogs.length} log. Download CSV untuk melihat semua data.
+                </p>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
