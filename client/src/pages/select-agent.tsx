@@ -168,15 +168,16 @@ export default function SelectAgentPage() {
             </div>
             <ThemeToggle />
           </header>
-          <main className="flex-1 overflow-auto relative">
+          <main className="flex-1 overflow-auto relative bg-background">
             {/* Video Background - Responsive */}
-            <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute inset-0 overflow-hidden bg-gradient-to-br from-primary/20 via-background to-primary/10">
               {/* Desktop Video */}
               <video
                 autoPlay
                 loop
                 muted
                 playsInline
+                preload="auto"
                 className="hidden sm:block w-full h-full object-cover object-center"
               >
                 <source src="/agent-bg-desktop.mp4" type="video/mp4" />
@@ -187,11 +188,13 @@ export default function SelectAgentPage() {
                 loop
                 muted
                 playsInline
+                preload="auto"
                 className="sm:hidden w-full h-full object-cover object-center"
               >
                 <source src="/agent-bg-mobile.mp4" type="video/mp4" />
               </video>
-              <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px]" />
+              {/* Dark overlay for readability */}
+              <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px]" />
             </div>
 
             <div className="relative z-10 p-4 sm:p-6">
