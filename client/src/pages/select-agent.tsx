@@ -169,19 +169,29 @@ export default function SelectAgentPage() {
             <ThemeToggle />
           </header>
           <main className="flex-1 overflow-auto relative">
-            {/* Video Background */}
+            {/* Video Background - Responsive */}
             <div className="absolute inset-0 overflow-hidden">
+              {/* Desktop Video */}
               <video
                 autoPlay
                 loop
                 muted
                 playsInline
-                className="w-full h-full object-cover object-center"
+                className="hidden sm:block w-full h-full object-cover object-center"
               >
-                <source src="/agent-bg-video.mp4" type="video/mp4" />
-                <source src="/agent-bg-video.mov" type="video/quicktime" />
+                <source src="/agent-bg-desktop.mp4" type="video/mp4" />
               </video>
-              <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px]" />
+              {/* Mobile Video */}
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="sm:hidden w-full h-full object-cover object-center"
+              >
+                <source src="/agent-bg-mobile.mp4" type="video/mp4" />
+              </video>
+              <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px]" />
             </div>
 
             <div className="relative z-10 p-4 sm:p-6">
@@ -212,7 +222,7 @@ export default function SelectAgentPage() {
 
                   {hasAgents ? (
                     <>
-                      <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6 sm:mb-8">
+                      <div className="grid gap-2 sm:gap-4 grid-cols-2 lg:grid-cols-3 mb-4 sm:mb-8">
                         {agents.map((agent) => (
                           <Card
                             key={agent.id}
@@ -224,20 +234,20 @@ export default function SelectAgentPage() {
                             onClick={() => setSelectedAgentId(agent.id)}
                             data-testid={`agent-select-card-${agent.id}`}
                           >
-                            <CardHeader className="flex flex-row items-start gap-3 p-3 sm:p-6">
+                            <CardHeader className="flex flex-row items-start gap-2 sm:gap-3 p-2.5 sm:p-6">
                               {agent.photoUrl && (
-                                <Avatar className="w-10 h-10 sm:w-12 sm:h-12 shrink-0">
+                                <Avatar className="w-8 h-8 sm:w-12 sm:h-12 shrink-0">
                                   <AvatarImage src={agent.photoUrl} />
                                 </Avatar>
                               )}
                               <div className="flex-1 min-w-0">
-                                <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                                  {agent.name}
+                                <CardTitle className="text-sm sm:text-lg flex items-center gap-1 sm:gap-2">
+                                  <span className="truncate">{agent.name}</span>
                                   {selectedAgentId === agent.id && (
-                                    <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                                    <CheckCircle2 className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-primary shrink-0" />
                                   )}
                                 </CardTitle>
-                                <CardDescription className="line-clamp-2 text-xs sm:text-sm">
+                                <CardDescription className="line-clamp-1 sm:line-clamp-2 text-[10px] sm:text-sm">
                                   {agent.description || "No description provided."}
                                 </CardDescription>
                               </div>
@@ -250,11 +260,11 @@ export default function SelectAgentPage() {
                           onClick={() => setIsDialogOpen(true)}
                           data-testid="button-create-new-agent"
                         >
-                          <CardContent className="flex flex-col items-center justify-center h-full py-6 sm:py-12">
-                            <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-muted/70 flex items-center justify-center mb-2 sm:mb-3">
-                              <Plus className="w-4 h-4 sm:w-6 sm:h-6 text-muted-foreground" />
+                          <CardContent className="flex flex-col items-center justify-center h-full py-4 sm:py-12">
+                            <div className="w-7 h-7 sm:w-12 sm:h-12 rounded-full bg-muted/70 flex items-center justify-center mb-1.5 sm:mb-3">
+                              <Plus className="w-3.5 h-3.5 sm:w-6 sm:h-6 text-muted-foreground" />
                             </div>
-                            <p className="font-medium text-sm sm:text-base">Create New Agent</p>
+                            <p className="font-medium text-xs sm:text-base">Create New Agent</p>
                           </CardContent>
                         </Card>
                       </div>

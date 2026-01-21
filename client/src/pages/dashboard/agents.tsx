@@ -268,20 +268,30 @@ export default function AgentsPage() {
 
   return (
     <div className={`${hasNoAgents ? 'relative min-h-[calc(100vh-8rem)]' : 'space-y-4 sm:space-y-6'}`}>
-      {/* Video Background for empty state */}
+      {/* Video Background for empty state - Responsive */}
       {hasNoAgents && (
         <div className="absolute inset-0 overflow-hidden -m-4 sm:-m-6">
+          {/* Desktop Video */}
           <video
             autoPlay
             loop
             muted
             playsInline
-            className="w-full h-full object-cover object-center"
+            className="hidden sm:block w-full h-full object-cover object-center"
           >
-            <source src="/agent-bg-video.mp4" type="video/mp4" />
-            <source src="/agent-bg-video.mov" type="video/quicktime" />
+            <source src="/agent-bg-desktop.mp4" type="video/mp4" />
           </video>
-          <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px]" />
+          {/* Mobile Video */}
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="sm:hidden w-full h-full object-cover object-center"
+          >
+            <source src="/agent-bg-mobile.mp4" type="video/mp4" />
+          </video>
+          <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px]" />
         </div>
       )}
 
