@@ -1541,13 +1541,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       } 
     : {};
   
-  // Header style - glassmorphism with primary color tint
+  // Header style - Island style with solid color, depth shadow, and shiny top
   const frostedHeaderStyle: React.CSSProperties = applyEmbedStyles
     ? { 
-        backgroundColor: `${primaryColor}B3`, // 70% opacity of primary color
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+        background: `linear-gradient(180deg, ${primaryColor}FF 0%, ${primaryColor}E6 50%, ${primaryColor}CC 100%)`,
+        boxShadow: `0 8px 32px rgba(0, 0, 0, 0.35), 0 16px 48px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.2)`,
+        borderRadius: '16px 16px 0 0',
+        border: 'none',
       }
     : { backgroundColor: primaryColor };
   
@@ -1909,7 +1909,18 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   data-bwignore="true"
                   data-form-type="other"
                   aria-autocomplete="none"
-                  style={{ WebkitTextSecurity: 'none' } as React.CSSProperties}
+                  style={{
+                    WebkitTextSecurity: 'none',
+                    ...(applyEmbedStyles ? {
+                      background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%)',
+                      backdropFilter: 'blur(20px) saturate(180%)',
+                      WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                      border: '1px solid rgba(255, 255, 255, 0.25)',
+                      boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 16px rgba(0, 0, 0, 0.15)',
+                      color: 'white',
+                      borderRadius: '12px',
+                    } : {})
+                  } as React.CSSProperties}
                   data-testid="input-customer-name"
                 />
                 {nameError && (
@@ -1955,6 +1966,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                     name="chatvice_customer_phone"
                     id="chatvice_customer_phone"
                     autoComplete="tel"
+                    style={applyEmbedStyles ? {
+                      background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%)',
+                      backdropFilter: 'blur(20px) saturate(180%)',
+                      WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                      border: '1px solid rgba(255, 255, 255, 0.25)',
+                      boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 16px rgba(0, 0, 0, 0.15)',
+                      color: 'white',
+                      borderRadius: '12px',
+                    } : undefined}
                     data-testid="input-customer-phone"
                   />
                 </div>
@@ -1982,6 +2002,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   name="chatvice_customer_email"
                   id="chatvice_customer_email"
                   autoComplete="email"
+                  style={applyEmbedStyles ? {
+                    background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%)',
+                    backdropFilter: 'blur(20px) saturate(180%)',
+                    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                    boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 16px rgba(0, 0, 0, 0.15)',
+                    color: 'white',
+                    borderRadius: '12px',
+                  } : undefined}
                   data-testid="input-customer-email"
                 />
                 {emailError && (
@@ -2024,7 +2053,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 onClick={handleNameSubmit}
                 disabled={startChatMutation.isPending || !nameInputValue.trim() || !phoneLocalNumber.trim()}
                 className="w-full text-white"
-                style={{ backgroundColor: primaryColor }}
+                style={applyEmbedStyles ? { 
+                  background: `linear-gradient(180deg, ${primaryColor}FF 0%, ${primaryColor}E6 50%, ${primaryColor}CC 100%)`,
+                  boxShadow: `0 6px 24px rgba(0, 0, 0, 0.35), 0 12px 36px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.15)`,
+                  borderRadius: '14px',
+                  border: 'none',
+                } : { backgroundColor: primaryColor }}
                 data-testid="button-start-chat"
               >
                 {startChatMutation.isPending ? (
@@ -2182,8 +2216,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                         {/* 2-column grid with square images */}
                         <div className="grid grid-cols-2 gap-2">
                           <div 
-                            className={`rounded-lg border shadow-sm overflow-hidden ${applyEmbedStyles ? '' : 'bg-background'}`}
-                            style={applyEmbedStyles ? { backgroundColor: 'rgba(255, 255, 255, 0.2)', backdropFilter: 'blur(8px)' } : undefined}
+                            className={`rounded-xl overflow-hidden ${applyEmbedStyles ? '' : 'bg-background border shadow-sm'}`}
+                            style={applyEmbedStyles ? { 
+                              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3), 0 20px 60px rgba(0, 0, 0, 0.15)',
+                              border: '1px solid rgba(255, 255, 255, 0.5)',
+                            } : undefined}
                           >
                             {productCard.imageUrl ? (
                               <div className="aspect-square bg-muted overflow-hidden">
@@ -2199,9 +2237,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                               </div>
                             )}
                             <div className="p-2 space-y-1">
-                              <p className="font-semibold text-xs line-clamp-1">{productCard.title}</p>
+                              <p className={`font-semibold text-xs line-clamp-1 ${applyEmbedStyles ? 'text-gray-900' : ''}`}>{productCard.title}</p>
                               {productCard.description && (
-                                <p className="text-[10px] text-muted-foreground line-clamp-1">{productCard.description}</p>
+                                <p className={`text-[10px] line-clamp-1 ${applyEmbedStyles ? 'text-gray-600' : 'text-muted-foreground'}`}>{productCard.description}</p>
                               )}
                               {productCard.price && (
                                 <p className="text-xs font-medium" style={{ color: primaryColor }}>{productCard.price}</p>
@@ -2376,21 +2414,40 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       </ScrollArea>
 
       {suggestedQuestions.length > 0 && (
-        <div className={`px-4 py-2 ${applyEmbedStyles ? '' : 'border-t border-border'}`} style={frostedFooterStyle}>
-          <p className={`text-xs mb-1.5 ${applyEmbedStyles ? 'text-white/60' : 'text-muted-foreground'}`}>Quick questions:</p>
-          <div className="flex flex-wrap gap-1.5">
-            {suggestedQuestions.slice(0, 5).map((sq) => (
-              <Button
-                key={sq.id}
-                variant="outline"
-                size="sm"
-                className="h-auto py-1.5 px-3 text-[10px] font-normal whitespace-normal text-left rounded-xl border-2 transition-all duration-200 bg-gradient-to-b from-white/80 to-white/60 dark:from-white/20 dark:to-white/10 backdrop-blur-sm border-gray-200 dark:border-gray-500 text-gray-700 dark:text-white shadow-[0_4px_12px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.5)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] hover:shadow-[0_2px_6px_rgba(0,0,0,0.1)] hover:translate-y-0.5 active:translate-y-1 active:shadow-none"
-                onClick={() => handleSuggestedQuestionClick(sq)}
-                disabled={sendMessageMutation.isPending || useSuggestedQuestionMutation.isPending}
-                data-testid={`button-suggested-question-${sq.id}`}
-              >
-                {sq.question}
-              </Button>
+        <div 
+          className={`px-4 py-3 ${applyEmbedStyles ? '' : 'border-t border-border'}`} 
+          style={applyEmbedStyles ? {
+            ...frostedFooterStyle,
+            background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 100%)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            borderRadius: '16px',
+            margin: '8px 12px',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.25)',
+          } : frostedFooterStyle}
+        >
+          <div className="flex flex-col">
+            {suggestedQuestions.slice(0, 5).map((sq, index) => (
+              <div key={sq.id}>
+                <button
+                  className={`w-full text-left py-2.5 px-1 text-sm transition-all duration-200 flex items-center justify-between gap-2 ${
+                    applyEmbedStyles 
+                      ? 'text-white/90 hover:text-white hover:bg-white/10' 
+                      : 'text-foreground hover:bg-muted/50'
+                  }`}
+                  style={{ borderRadius: '8px' }}
+                  onClick={() => handleSuggestedQuestionClick(sq)}
+                  disabled={sendMessageMutation.isPending || useSuggestedQuestionMutation.isPending}
+                  data-testid={`button-suggested-question-${sq.id}`}
+                >
+                  <span className="flex-1 truncate">{sq.question}</span>
+                  <ChevronRight className={`w-4 h-4 flex-shrink-0 ${applyEmbedStyles ? 'text-white/50' : 'text-muted-foreground'}`} />
+                </button>
+                {index < suggestedQuestions.slice(0, 5).length - 1 && (
+                  <div className={`h-px mx-1 ${applyEmbedStyles ? 'bg-white/15' : 'bg-border'}`} />
+                )}
+              </div>
             ))}
           </div>
         </div>
@@ -2501,13 +2558,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               disabled={!isOnline || isUploadingMedia}
               className="w-full"
               style={applyEmbedStyles ? {
-                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 100%)',
-                backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                backdropFilter: 'blur(10px)',
-                WebkitBackdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
+                background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%)',
+                backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                backdropFilter: 'blur(20px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                border: '1px solid rgba(255, 255, 255, 0.25)',
+                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 4px 16px rgba(0, 0, 0, 0.15)',
                 color: 'white',
-                borderRadius: '12px',
+                borderRadius: '14px',
+                height: '42px',
               } : undefined}
               data-testid="input-widget-message"
             />
@@ -2515,11 +2574,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           <Button
             onClick={handleSend}
             disabled={sendMessageMutation.isPending || !message.trim() || !isOnline || isUploadingMedia}
-            style={{ 
-              backgroundColor: primaryColor,
-              boxShadow: applyEmbedStyles ? '0 4px 15px rgba(0, 0, 0, 0.2)' : undefined,
-              borderRadius: applyEmbedStyles ? '12px' : undefined,
-            }}
+            style={applyEmbedStyles ? { 
+              background: `linear-gradient(180deg, ${primaryColor}FF 0%, ${primaryColor}E6 50%, ${primaryColor}CC 100%)`,
+              boxShadow: `0 6px 24px rgba(0, 0, 0, 0.35), 0 12px 36px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.15)`,
+              borderRadius: '14px',
+              border: 'none',
+              minWidth: '48px',
+              height: '42px',
+            } : { backgroundColor: primaryColor }}
             data-testid="button-widget-send"
           >
             <Send className="w-4 h-4" />
