@@ -158,19 +158,21 @@ export default function SelectAgentPage() {
 
   return (
     <SidebarProvider style={style as React.CSSProperties}>
-      <div className="flex h-screen w-full">
+      <div className="flex h-screen w-full bg-background">
         <AppSidebar />
-        <div className="flex flex-col flex-1 overflow-hidden">
-          <header className="flex items-center justify-between gap-4 px-4 border-b border-border h-14">
+        <div className="flex flex-col flex-1 overflow-hidden bg-background">
+          <header className="flex items-center justify-between gap-4 px-4 border-b border-border h-14 bg-background">
             <div className="flex items-center gap-4">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
               <span className="font-medium">Select Agent</span>
             </div>
             <ThemeToggle />
           </header>
-          <main className="flex-1 overflow-auto relative bg-background">
+          <main className="flex-1 overflow-auto relative bg-zinc-950">
+            {/* Solid base background to prevent bleed-through */}
+            <div className="absolute inset-0 bg-zinc-950" />
             {/* Video Background - Responsive */}
-            <div className="absolute inset-0 overflow-hidden bg-gradient-to-br from-primary/20 via-background to-primary/10">
+            <div className="absolute inset-0 overflow-hidden">
               {/* Desktop Video */}
               <video
                 autoPlay
@@ -178,7 +180,7 @@ export default function SelectAgentPage() {
                 muted
                 playsInline
                 preload="auto"
-                className="hidden sm:block w-full h-full object-cover object-center"
+                className="hidden sm:block w-full h-full object-cover object-center opacity-40"
               >
                 <source src="/agent-bg-desktop.mp4" type="video/mp4" />
               </video>
@@ -189,12 +191,12 @@ export default function SelectAgentPage() {
                 muted
                 playsInline
                 preload="auto"
-                className="sm:hidden w-full h-full object-cover object-center"
+                className="sm:hidden w-full h-full object-cover object-center opacity-40"
               >
                 <source src="/agent-bg-mobile.mp4" type="video/mp4" />
               </video>
-              {/* Dark overlay for readability */}
-              <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px]" />
+              {/* Gradient overlay for visual interest */}
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-primary/5" />
             </div>
 
             <div className="relative z-10 p-4 sm:p-6">
