@@ -168,11 +168,26 @@ export default function SelectAgentPage() {
             </div>
             <ThemeToggle />
           </header>
-          <main className="flex-1 overflow-auto p-6 bg-background">
+          <main className="flex-1 overflow-auto relative">
+            {/* Video Background */}
+            <div className="absolute inset-0 overflow-hidden">
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="w-full h-full object-cover object-center"
+              >
+                <source src="/agent-bg-video.mov" type="video/quicktime" />
+              </video>
+              <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px]" />
+            </div>
+
+            <div className="relative z-10 p-4 sm:p-6">
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="w-full max-w-4xl">
-                  <Skeleton className="h-12 w-64 mx-auto mb-8" />
+                  <Skeleton className="h-12 w-64 mb-8" />
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {[1, 2, 3].map((i) => (
                       <Skeleton key={i} className="h-48 w-full" />
@@ -183,14 +198,11 @@ export default function SelectAgentPage() {
             ) : (
               <div className="flex flex-col items-center justify-center min-h-[calc(100vh-8rem)]">
                 <div className="w-full max-w-4xl">
-                  <div className="text-center mb-8">
-                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                      <Bot className="w-8 h-8 text-primary" />
-                    </div>
-                    <h1 className="text-3xl font-bold mb-2" data-testid="text-select-agent-title">
+                  <div className="text-left mb-6 sm:mb-8">
+                    <h1 className="text-2xl sm:text-3xl font-bold mb-2" data-testid="text-select-agent-title">
                       {hasAgents ? "Select Your AI Agent" : "Create Your First AI Agent"}
                     </h1>
-                    <p className="text-muted-foreground max-w-md mx-auto">
+                    <p className="text-muted-foreground max-w-md">
                       {hasAgents
                         ? "Choose which AI agent will handle your customer conversations."
                         : "Get started by creating an AI agent that will represent your business."}
@@ -199,11 +211,11 @@ export default function SelectAgentPage() {
 
                   {hasAgents ? (
                     <>
-                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-8">
+                      <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6 sm:mb-8">
                         {agents.map((agent) => (
                           <Card
                             key={agent.id}
-                            className={`cursor-pointer transition-all hover-elevate ${
+                            className={`cursor-pointer transition-all hover-elevate bg-background/70 backdrop-blur-md border-white/20 ${
                               selectedAgentId === agent.id
                                 ? "border-primary ring-2 ring-primary/20"
                                 : ""
@@ -211,21 +223,20 @@ export default function SelectAgentPage() {
                             onClick={() => setSelectedAgentId(agent.id)}
                             data-testid={`agent-select-card-${agent.id}`}
                           >
-                            <CardHeader className="flex flex-row items-start gap-4">
-                              <Avatar className="w-12 h-12 shrink-0">
-                                <AvatarImage src={agent.photoUrl || ""} />
-                                <AvatarFallback className="bg-gradient-to-br from-primary to-primary/60">
-                                  <Bot className="w-6 h-6 text-primary-foreground" />
-                                </AvatarFallback>
-                              </Avatar>
+                            <CardHeader className="flex flex-row items-start gap-3 p-3 sm:p-6">
+                              {agent.photoUrl && (
+                                <Avatar className="w-10 h-10 sm:w-12 sm:h-12 shrink-0">
+                                  <AvatarImage src={agent.photoUrl} />
+                                </Avatar>
+                              )}
                               <div className="flex-1 min-w-0">
-                                <CardTitle className="text-lg flex items-center gap-2">
+                                <CardTitle className="text-base sm:text-lg flex items-center gap-2">
                                   {agent.name}
                                   {selectedAgentId === agent.id && (
-                                    <CheckCircle2 className="w-5 h-5 text-primary" />
+                                    <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                                   )}
                                 </CardTitle>
-                                <CardDescription className="line-clamp-2">
+                                <CardDescription className="line-clamp-2 text-xs sm:text-sm">
                                   {agent.description || "No description provided."}
                                 </CardDescription>
                               </div>
@@ -234,15 +245,15 @@ export default function SelectAgentPage() {
                         ))}
 
                         <Card
-                          className="cursor-pointer border-dashed hover-elevate"
+                          className="cursor-pointer border-dashed hover-elevate bg-background/70 backdrop-blur-md border-white/20"
                           onClick={() => setIsDialogOpen(true)}
                           data-testid="button-create-new-agent"
                         >
-                          <CardContent className="flex flex-col items-center justify-center h-full py-12">
-                            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
-                              <Plus className="w-6 h-6 text-muted-foreground" />
+                          <CardContent className="flex flex-col items-center justify-center h-full py-6 sm:py-12">
+                            <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-muted/70 flex items-center justify-center mb-2 sm:mb-3">
+                              <Plus className="w-4 h-4 sm:w-6 sm:h-6 text-muted-foreground" />
                             </div>
-                            <p className="font-medium">Create New Agent</p>
+                            <p className="font-medium text-sm sm:text-base">Create New Agent</p>
                           </CardContent>
                         </Card>
                       </div>
@@ -260,13 +271,13 @@ export default function SelectAgentPage() {
                       </div>
                     </>
                   ) : (
-                    <Card className="max-w-md mx-auto">
-                      <CardContent className="flex flex-col items-center justify-center py-12">
-                        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                          <Sparkles className="w-8 h-8 text-muted-foreground" />
+                    <Card className="max-w-md bg-background/70 backdrop-blur-md border-white/20">
+                      <CardContent className="flex flex-col items-start justify-center py-8 sm:py-12">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-muted/70 flex items-center justify-center mb-3 sm:mb-4">
+                          <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-muted-foreground" />
                         </div>
-                        <h3 className="font-semibold mb-2">No agents yet</h3>
-                        <p className="text-sm text-muted-foreground text-center max-w-sm mb-6">
+                        <h3 className="font-semibold mb-2 text-sm sm:text-base">No agents yet</h3>
+                        <p className="text-xs sm:text-sm text-muted-foreground text-left max-w-sm mb-4 sm:mb-6">
                           Create your first AI agent to start automating customer support for your business.
                         </p>
                         <Button onClick={() => setIsDialogOpen(true)} data-testid="button-create-first-agent">
@@ -279,6 +290,7 @@ export default function SelectAgentPage() {
                 </div>
               </div>
             )}
+            </div>
           </main>
         </div>
       </div>
