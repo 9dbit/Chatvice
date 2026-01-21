@@ -170,16 +170,17 @@ export default function SelectAgentPage() {
           </header>
           <main className="flex-1 overflow-auto relative">
             {/* Video Background */}
-            <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute inset-0 overflow-hidden z-0">
               <video
                 autoPlay
                 loop
                 muted
                 playsInline
+                preload="auto"
                 className="w-full h-full object-cover object-center"
+                style={{ WebkitTransform: 'translateZ(0)' }}
               >
                 <source src="/agent-bg-video.mp4" type="video/mp4" />
-                <source src="/agent-bg-video.mov" type="video/quicktime" />
               </video>
               <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px]" />
             </div>
