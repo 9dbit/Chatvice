@@ -1,4 +1,4 @@
-import type { Express, Request, Response, NextFunction } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { z } from "zod";
@@ -968,6 +968,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   
   // Trust proxy for production (required for secure cookies behind load balancer/reverse proxy)
   app.set("trust proxy", true);
+  
+  // Serve static files from public folder (for video backgrounds, etc.)
+  app.use(express.static(path.join(import.meta.dirname, "..", "public"), {
+    maxAge: "1d",
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith(".mp4") || filePath.endsWith(".mov")) {
+        res.setHeader("Content-Type", filePath.endsWith(".mp4") ? "video/mp4" : "video/quicktime");
+      }
+    }
+  }));
   
   // Canonical domain redirect: Enforce https://chatvice.app (no www, always HTTPS)
   // This handles both www→non-www and http→https redirects with 301 permanent
