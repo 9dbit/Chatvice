@@ -1529,46 +1529,57 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         ? `fixed inset-4 z-50 animate-in fade-in duration-300 rounded-xl overflow-hidden flex flex-col`
         : `${positionClass} bottom-5 right-5 w-[360px] h-[520px] z-50 animate-in slide-in-from-bottom-5 fade-in duration-300 rounded-xl overflow-hidden flex flex-col`;
   
-  // Glassmorphism container - enhanced glass effect with subtle borders
+  // Glassmorphism container - MORE TRANSPARENT with subtle borders
   // Preview mode also gets glassmorphism to match external widget appearance
   const frostedGlassContainerStyle: React.CSSProperties = applyEmbedStyles
     ? {
-        backgroundColor: 'transparent',
-        borderRadius: '20px',
-        border: '1px solid rgba(255, 255, 255, 0.18)',
-        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+        backgroundColor: 'rgba(0, 0, 0, 0.15)',
+        borderRadius: '24px',
+        border: '1px solid rgba(255, 255, 255, 0.12)',
+        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.25)',
         overflow: 'hidden',
+        backdropFilter: 'blur(20px) saturate(120%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(120%)',
       } 
     : {};
   
-  // Header style - Island style with solid color, depth shadow, and shiny top
+  // Header style - Island style with FULL rounded corners (floating pill), embossed edges (Apple iOS 26)
   const frostedHeaderStyle: React.CSSProperties = applyEmbedStyles
     ? { 
-        background: `linear-gradient(180deg, ${primaryColor}FF 0%, ${primaryColor}E6 50%, ${primaryColor}CC 100%)`,
-        boxShadow: `0 8px 32px rgba(0, 0, 0, 0.35), 0 16px 48px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.2)`,
-        borderRadius: '16px 16px 0 0',
-        border: 'none',
+        background: `linear-gradient(180deg, ${primaryColor}FF 0%, ${primaryColor}E6 60%, ${primaryColor}D9 100%)`,
+        boxShadow: `
+          0 10px 40px rgba(0, 0, 0, 0.4), 
+          0 20px 60px rgba(0, 0, 0, 0.25), 
+          inset 0 2px 1px rgba(255, 255, 255, 0.5), 
+          inset 0 -2px 1px rgba(0, 0, 0, 0.15),
+          inset 1px 0 1px rgba(255, 255, 255, 0.2),
+          inset -1px 0 1px rgba(255, 255, 255, 0.2)
+        `,
+        borderRadius: '50px',
+        border: '1px solid rgba(255, 255, 255, 0.25)',
+        margin: '8px',
+        marginBottom: '0',
       }
     : { backgroundColor: primaryColor };
   
-  // Body uses glassmorphism - frosted glass with subtle gradient
+  // Body uses glassmorphism - MORE TRANSPARENT frosted glass
   const frostedBodyStyle: React.CSSProperties = applyEmbedStyles
     ? { 
-        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)',
-        backgroundColor: 'rgba(17, 17, 17, 0.25)',
-        backdropFilter: 'blur(40px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+        background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%)',
+        backgroundColor: 'rgba(0, 0, 0, 0.08)',
+        backdropFilter: 'blur(30px) saturate(150%)',
+        WebkitBackdropFilter: 'blur(30px) saturate(150%)',
       } 
     : {};
 
   // Footer style - glassmorphism matching body with top border highlight
   const frostedFooterStyle: React.CSSProperties = applyEmbedStyles
     ? { 
-        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%)',
-        backgroundColor: 'rgba(17, 17, 17, 0.3)',
-        backdropFilter: 'blur(40px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-        borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+        background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%)',
+        backgroundColor: 'rgba(0, 0, 0, 0.12)',
+        backdropFilter: 'blur(30px) saturate(150%)',
+        WebkitBackdropFilter: 'blur(30px) saturate(150%)',
+        borderTop: '1px solid rgba(255, 255, 255, 0.06)',
       } 
     : {};
 
@@ -2131,16 +2142,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   style={msg.from === "user" 
                     ? { 
                         backgroundColor: primaryColor,
-                        boxShadow: applyEmbedStyles ? '0 4px 15px rgba(0, 0, 0, 0.2)' : undefined,
+                        boxShadow: applyEmbedStyles 
+                          ? '0 6px 24px rgba(0, 0, 0, 0.35), 0 12px 40px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3)' 
+                          : undefined,
+                        border: applyEmbedStyles ? '1px solid rgba(255, 255, 255, 0.2)' : undefined,
                       } 
                     : applyEmbedStyles 
                       ? { 
-                          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.05) 100%)',
-                          backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                          backdropFilter: 'blur(10px)',
-                          WebkitBackdropFilter: 'blur(10px)',
-                          border: '1px solid rgba(255, 255, 255, 0.12)',
-                          boxShadow: '0 4px 15px rgba(0, 0, 0, 0.15)',
+                          background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%)',
+                          backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                          backdropFilter: 'blur(20px) saturate(180%)',
+                          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                          border: '1px solid rgba(255, 255, 255, 0.25)',
+                          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3), 0 16px 48px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
                         }
                       : undefined}
                 >
@@ -2490,98 +2504,148 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           }}
           data-testid="input-file-document"
         />
-        <div className="flex gap-2 items-center">
+        {/* Input field with + button and send button INSIDE */}
+        <div 
+          className="flex items-center gap-1"
+          style={applyEmbedStyles ? {
+            background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%)',
+            backgroundColor: 'rgba(255, 255, 255, 0.12)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            border: '1px solid rgba(255, 255, 255, 0.25)',
+            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 4px 16px rgba(0, 0, 0, 0.15)',
+            borderRadius: '50px',
+            padding: '4px 4px 4px 8px',
+            height: '48px',
+          } : {
+            border: '1px solid hsl(var(--border))',
+            borderRadius: '50px',
+            padding: '4px 4px 4px 8px',
+            height: '48px',
+            backgroundColor: 'hsl(var(--background))',
+          }}
+        >
+          {/* Plus button inside input */}
           <Popover open={showUploadMenu} onOpenChange={setShowUploadMenu}>
             <PopoverTrigger asChild>
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-8 w-8"
+                className="h-9 w-9 shrink-0"
+                style={applyEmbedStyles ? {
+                  color: 'white',
+                  borderRadius: '50%',
+                } : undefined}
                 disabled={!isOnline || isUploadingMedia}
                 data-testid="button-upload-menu"
               >
                 {isUploadingMedia ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-5 h-5" />
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent side="top" align="start" className="w-40 p-1">
-              <div className="flex flex-col">
+            <PopoverContent 
+              side="top" 
+              align="start" 
+              className="w-44 p-2"
+              style={applyEmbedStyles ? {
+                background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%)',
+                backgroundColor: 'rgba(30, 30, 30, 0.85)',
+                backdropFilter: 'blur(30px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(30px) saturate(180%)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
+                borderRadius: '20px',
+              } : undefined}
+            >
+              <div className="flex flex-col gap-1">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="justify-start gap-2 h-9"
+                  className="justify-start gap-3 h-10"
+                  style={applyEmbedStyles ? { color: 'white', borderRadius: '12px' } : undefined}
                   onClick={() => {
                     fileInputRef.current?.click();
                   }}
                   data-testid="button-upload-image"
                 >
-                  <ImageIcon className="w-4 h-4" />
+                  <ImageIcon className="w-5 h-5" />
                   Image
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="justify-start gap-2 h-9"
+                  className="justify-start gap-3 h-10"
+                  style={applyEmbedStyles ? { color: 'white', borderRadius: '12px' } : undefined}
                   onClick={() => {
                     videoInputRef.current?.click();
                   }}
                   data-testid="button-upload-video"
                 >
-                  <Video className="w-4 h-4" />
+                  <Video className="w-5 h-5" />
                   Video
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="justify-start gap-2 h-9"
+                  className="justify-start gap-3 h-10"
+                  style={applyEmbedStyles ? { color: 'white', borderRadius: '12px' } : undefined}
                   onClick={() => {
                     documentInputRef.current?.click();
                   }}
                   data-testid="button-upload-document"
                 >
-                  <FileText className="w-4 h-4" />
+                  <FileText className="w-5 h-5" />
                   Document
                 </Button>
               </div>
             </PopoverContent>
           </Popover>
-          <div className="flex-1 relative">
-            <Input
-              ref={inputRef}
-              placeholder="Type your message..."
-              value={message}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyPress}
-              disabled={!isOnline || isUploadingMedia}
-              className="w-full"
-              style={applyEmbedStyles ? {
-                background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%)',
-                backgroundColor: 'rgba(255, 255, 255, 0.12)',
-                backdropFilter: 'blur(20px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                border: '1px solid rgba(255, 255, 255, 0.25)',
-                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 4px 16px rgba(0, 0, 0, 0.15)',
-                color: 'white',
-                borderRadius: '14px',
-                height: '42px',
-              } : undefined}
-              data-testid="input-widget-message"
-            />
-          </div>
+          
+          {/* Input field - transparent background when embedded */}
+          <Input
+            ref={inputRef}
+            placeholder="Type your message..."
+            value={message}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyPress}
+            disabled={!isOnline || isUploadingMedia}
+            className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+            style={applyEmbedStyles ? {
+              background: 'transparent',
+              color: 'white',
+              height: '36px',
+              padding: '0 8px',
+            } : {
+              background: 'transparent',
+              height: '36px',
+              padding: '0 8px',
+            }}
+            data-testid="input-widget-message"
+          />
+          
+          {/* Send button inside input */}
           <Button
             onClick={handleSend}
             disabled={sendMessageMutation.isPending || !message.trim() || !isOnline || isUploadingMedia}
+            className="shrink-0"
             style={applyEmbedStyles ? { 
-              background: `linear-gradient(180deg, ${primaryColor}FF 0%, ${primaryColor}E6 50%, ${primaryColor}CC 100%)`,
-              boxShadow: `0 6px 24px rgba(0, 0, 0, 0.35), 0 12px 36px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.15)`,
-              borderRadius: '14px',
-              border: 'none',
-              minWidth: '48px',
-              height: '42px',
-            } : { backgroundColor: primaryColor }}
+              background: `linear-gradient(180deg, ${primaryColor}FF 0%, ${primaryColor}E6 60%, ${primaryColor}D9 100%)`,
+              boxShadow: `0 4px 16px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1)`,
+              borderRadius: '50%',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              width: '40px',
+              height: '40px',
+              padding: 0,
+            } : { 
+              backgroundColor: primaryColor,
+              borderRadius: '50%',
+              width: '40px',
+              height: '40px',
+              padding: 0,
+            }}
             data-testid="button-widget-send"
           >
             <Send className="w-4 h-4" />
