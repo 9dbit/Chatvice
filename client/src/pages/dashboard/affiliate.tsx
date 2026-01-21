@@ -521,12 +521,14 @@ export default function AffiliateDashboardPage() {
       </div>
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
-          <TabsTrigger value="downlines" data-testid="tab-downlines">Downlines</TabsTrigger>
-          <TabsTrigger value="withdrawals" data-testid="tab-withdrawals">Withdrawals</TabsTrigger>
-          <TabsTrigger value="payment-methods" data-testid="tab-payment-methods">Payment Methods</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto overflow-y-hidden -mx-4 px-4 sm:mx-0 sm:px-0">
+          <TabsList className="inline-flex w-max min-w-full sm:w-full sm:grid sm:grid-cols-4">
+            <TabsTrigger value="overview" className="whitespace-nowrap" data-testid="tab-overview">Overview</TabsTrigger>
+            <TabsTrigger value="downlines" className="whitespace-nowrap" data-testid="tab-downlines">Downlines</TabsTrigger>
+            <TabsTrigger value="withdrawals" className="whitespace-nowrap" data-testid="tab-withdrawals">Withdrawals</TabsTrigger>
+            <TabsTrigger value="payment-methods" className="whitespace-nowrap" data-testid="tab-payment-methods">Payment Methods</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="overview" className="space-y-6 mt-6">
           <Card className="p-4 sm:p-6">
