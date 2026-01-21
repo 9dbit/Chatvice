@@ -55,6 +55,11 @@ Chatvice is a monorepo application structured with `/client`, `/server`, and `/s
 **AI Conversation Memory Optimization**: AI agents maintain conversation context by fetching the last 10 session messages and using system prompts.
 **Interactive AI Responses**: AI responses can include interactive buttons and clickable links.
 
+## Testing Credentials
+For app testing, use the following login:
+- **Email**: internal@marketplayid.com
+- **Password**: #Marketadmin1
+
 ## External Dependencies
 -   **AI Services**: OpenAI API (GPT-4.1-mini, text-embedding-3-small).
 -   **Database**: PostgreSQL.

@@ -157,9 +157,11 @@ export default function SelectAgentPage() {
   const hasAgents = agents && agents.length > 0;
 
   return (
-    <SidebarProvider style={style as React.CSSProperties}>
-      <div className="flex h-screen w-full bg-background">
-        <AppSidebar />
+    <>
+      <div className="fixed inset-0 bg-zinc-950 z-0" aria-hidden="true" />
+      <SidebarProvider style={style as React.CSSProperties}>
+        <div className="flex h-screen w-full bg-zinc-950 relative z-10">
+          <AppSidebar />
         <div className="flex flex-col flex-1 overflow-hidden bg-background">
           <header className="flex items-center justify-between gap-4 px-4 border-b border-border h-14 bg-background">
             <div className="flex items-center gap-4">
@@ -419,6 +421,7 @@ Contoh:
           </Form>
         </DialogContent>
       </Dialog>
-    </SidebarProvider>
+      </SidebarProvider>
+    </>
   );
 }
