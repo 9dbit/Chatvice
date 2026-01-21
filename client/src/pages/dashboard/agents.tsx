@@ -278,6 +278,7 @@ export default function AgentsPage() {
             playsInline
             className="w-full h-full object-cover object-center"
           >
+            <source src="/agent-bg-video.mp4" type="video/mp4" />
             <source src="/agent-bg-video.mov" type="video/quicktime" />
           </video>
           <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px]" />
