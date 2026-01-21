@@ -13,8 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Message, SuggestedQuestion, WelcomeBubble, ChatButton, ProductCard, ProductCardButton } from "@shared/schema";
 import { getImageLocation, type LocationData } from "@/lib/location-utils";
 import { countryPhoneConfigs, validatePhoneNumber } from "@shared/phoneValidation";
-import chatviceLogoLight from "@assets/Chatvice-02_1768953333682.png";
-import chatviceLogoDark from "@assets/Chatvice-04_1768953333682.png";
+import chatviceLogoLight from "../assets/chatvice-logo-light.png";
+import chatviceLogoDark from "../assets/chatvice-logo-dark.png";
 
 interface MerchantConfig {
   online: boolean;
@@ -2472,7 +2472,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         <div className="flex items-center justify-center gap-1.5 mt-3 pb-1">
           <span className="text-[10px] text-muted-foreground">Powered by</span>
           <a 
-            href="https://chatvice.ai" 
+            href="https://chatvice.app" 
             target="_blank" 
             rel="noopener noreferrer"
             className="opacity-70 hover:opacity-100 transition-opacity"
