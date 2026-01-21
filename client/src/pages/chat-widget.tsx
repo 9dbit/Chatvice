@@ -2022,6 +2022,24 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 )}
                 Start Chat
               </Button>
+              
+              {/* Powered by Chatvice branding */}
+              <div className="flex items-center justify-center gap-1.5 mt-4">
+                <span className="text-[10px] text-muted-foreground">Powered by</span>
+                <a 
+                  href="https://chatvice.app" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="opacity-70 hover:opacity-100 transition-opacity"
+                  data-testid="link-powered-by-chatvice-welcome"
+                >
+                  <img 
+                    src={widgetIsDark ? chatviceLogoDark : chatviceLogoLight} 
+                    alt="Chatvice" 
+                    className="h-4"
+                  />
+                </a>
+              </div>
             </div>
           </div>
         </div>
