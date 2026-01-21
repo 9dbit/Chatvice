@@ -162,7 +162,7 @@ export default function SelectAgentPage() {
       <SidebarProvider style={style as React.CSSProperties}>
         <div className="flex h-screen w-full bg-zinc-950 relative z-10">
           <AppSidebar />
-        <div className="flex flex-col flex-1 overflow-hidden bg-background">
+          <div className="flex flex-col flex-1 overflow-hidden bg-zinc-950">
           <header className="flex items-center justify-between gap-4 px-4 border-b border-border h-14 bg-background">
             <div className="flex items-center gap-4">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
@@ -175,30 +175,36 @@ export default function SelectAgentPage() {
             <div className="absolute inset-0 bg-zinc-950" />
             {/* Video Background - Responsive */}
             <div className="absolute inset-0 overflow-hidden">
-              {/* Desktop Video */}
+              {/* Desktop Video - Zero Gravity Particles */}
               <video
                 autoPlay
                 loop
                 muted
                 playsInline
                 preload="auto"
-                className="hidden sm:block w-full h-full object-cover object-center opacity-40"
+                disablePictureInPicture
+                data-testid="video-bg-desktop"
+                className="hidden sm:block w-full h-full object-cover object-center opacity-80"
+                style={{ WebkitTransform: 'translateZ(0)' }}
               >
                 <source src="/agent-bg-desktop.mp4" type="video/mp4" />
               </video>
-              {/* Mobile Video */}
+              {/* Mobile Video - Zero Gravity Particles */}
               <video
                 autoPlay
                 loop
                 muted
                 playsInline
                 preload="auto"
-                className="sm:hidden w-full h-full object-cover object-center opacity-40"
+                disablePictureInPicture
+                data-testid="video-bg-mobile"
+                className="sm:hidden w-full h-full object-cover object-center opacity-80"
+                style={{ WebkitTransform: 'translateZ(0)' }}
               >
                 <source src="/agent-bg-mobile.mp4" type="video/mp4" />
               </video>
-              {/* Gradient overlay for visual interest */}
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-primary/5" />
+              {/* Subtle overlay for text readability */}
+              <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/30 via-transparent to-zinc-950/50" />
             </div>
 
             <div className="relative z-10 p-4 sm:p-6">
