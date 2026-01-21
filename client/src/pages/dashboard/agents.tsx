@@ -264,8 +264,27 @@ export default function AgentsPage() {
     );
   }
 
+  const hasNoAgents = !agents || agents.length === 0;
+
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className={`${hasNoAgents ? 'relative min-h-[calc(100vh-8rem)]' : 'space-y-4 sm:space-y-6'}`}>
+      {/* Video Background for empty state */}
+      {hasNoAgents && (
+        <div className="absolute inset-0 overflow-hidden -m-4 sm:-m-6">
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-full h-full object-cover object-center"
+          >
+            <source src="/agent-bg-video.mov" type="video/quicktime" />
+          </video>
+          <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px]" />
+        </div>
+      )}
+
+      <div className={`${hasNoAgents ? 'relative z-10 p-4 sm:p-6' : ''} space-y-4 sm:space-y-6`}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold">AI Agents</h1>
@@ -984,17 +1003,16 @@ export default function AgentsPage() {
           );
           })
         ) : (
-          <Card className="col-span-full">
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <Sparkles className="w-8 h-8 text-muted-foreground" />
+          <Card className="col-span-full bg-background/70 backdrop-blur-md border-white/20">
+            <CardContent className="flex flex-col items-start justify-center py-8 sm:py-12 px-4 sm:px-6">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-muted/70 flex items-center justify-center mb-3 sm:mb-4">
+                <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-muted-foreground" />
               </div>
-              <h3 className="font-semibold mb-2">No agents yet</h3>
-              <p className="text-sm text-muted-foreground text-center max-w-sm">
+              <h3 className="font-semibold mb-2 text-sm sm:text-base">No agents yet</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground text-left max-w-sm mb-4 sm:mb-6">
                 Create your first AI agent to start automating customer support.
               </p>
               <Button 
-                className="mt-4" 
                 onClick={() => canAddMore ? setIsDialogOpen(true) : setShowLimitPopup(true)} 
                 data-testid="button-create-first-agent"
               >
@@ -1004,6 +1022,7 @@ export default function AgentsPage() {
             </CardContent>
           </Card>
         )}
+      </div>
       </div>
 
       <PlanLimitPopup
