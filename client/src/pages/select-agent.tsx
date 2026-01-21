@@ -220,9 +220,9 @@ export default function SelectAgentPage() {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center min-h-[calc(100vh-8rem)]">
-                <div className="w-full max-w-4xl">
-                  <div className="text-left mb-6 sm:mb-8">
+              <div className="flex flex-col min-h-[calc(100vh-3.5rem)] sm:min-h-[calc(100vh-8rem)] justify-end sm:justify-center pb-8 sm:pb-0">
+                <div className="w-full max-w-4xl mx-auto">
+                  <div className="text-left mb-4 sm:mb-8">
                     <h1 className="text-2xl sm:text-3xl font-bold mb-2" data-testid="text-select-agent-title">
                       {hasAgents ? "Select Your AI Agent" : "Create Your First AI Agent"}
                     </h1>
@@ -295,21 +295,15 @@ export default function SelectAgentPage() {
                       </div>
                     </>
                   ) : (
-                    <Card className="max-w-md bg-background/70 backdrop-blur-md border-white/20">
-                      <CardContent className="flex flex-col items-start justify-center py-8 sm:py-12">
-                        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-muted/70 flex items-center justify-center mb-3 sm:mb-4">
-                          <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-muted-foreground" />
-                        </div>
-                        <h3 className="font-semibold mb-2 text-sm sm:text-base">No agents yet</h3>
-                        <p className="text-xs sm:text-sm text-muted-foreground text-left max-w-sm mb-4 sm:mb-6">
-                          Create your first AI agent to start automating customer support for your business.
-                        </p>
-                        <Button onClick={() => setIsDialogOpen(true)} data-testid="button-create-first-agent">
-                          <Plus className="w-4 h-4 mr-2" />
-                          Create Your First Agent
-                        </Button>
-                      </CardContent>
-                    </Card>
+                    <Button 
+                      size="lg" 
+                      onClick={() => setIsDialogOpen(true)} 
+                      data-testid="button-create-first-agent"
+                      className="w-full sm:w-auto"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Your First Agent
+                    </Button>
                   )}
                 </div>
               </div>
