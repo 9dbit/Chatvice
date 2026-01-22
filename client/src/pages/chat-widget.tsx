@@ -1329,7 +1329,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               </div>
               <button
                 type="button"
-                className="w-full h-8 px-3 text-sm font-medium text-white rounded-md transition-colors hover:opacity-90"
+                className="w-full h-10 px-3 text-sm font-medium text-white rounded-[14px] transition-colors hover:opacity-90"
                 style={{ backgroundColor: welcomeBubble.buttonColor || primaryColor }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1699,7 +1699,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             )}
           </div>
           
-          <div className="text-white">
+          <div style={{ color: applyEmbedStyles ? (widgetIsDark ? '#ffffff' : '#374151') : 'white' }}>
             {/* Show supervisor name when in HUMAN mode, otherwise assigned agent name */}
             <p className="font-medium text-sm leading-tight">
               {sessionInfo?.mode === "HUMAN" && sessionInfo?.supervisorInfo
@@ -1707,10 +1707,21 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 : sessionInfo?.agentInfo?.name || merchantConfig?.agentName || "Chatvice"}
             </p>
             <div className="flex items-center gap-1">
-              <span className="text-[10px] opacity-80">
+              <span className="text-[10px] flex items-center gap-1" style={{ opacity: 0.8 }}>
                 {sessionInfo?.mode === "HUMAN" && sessionInfo?.supervisorInfo
-                  ? `👤 Supervisor: ${sessionInfo.supervisorInfo.name}` 
-                  : isOnline ? "🟢 Online - Customer Service" : "🔴 Offline"}
+                  ? <>
+                      <User className="w-2.5 h-2.5" />
+                      Supervisor: {sessionInfo.supervisorInfo.name}
+                    </>
+                  : isOnline 
+                    ? <>
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                        Online - Customer Service
+                      </>
+                    : <>
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                        Offline
+                      </>}
               </span>
             </div>
           </div>
@@ -1724,7 +1735,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               <Button
                 size="icon"
                 variant="ghost"
-                className="text-white hover:bg-white/20 h-7 w-7"
+                className="h-7 w-7"
+                style={{ 
+                  color: applyEmbedStyles ? (widgetIsDark ? '#ffffff' : '#374151') : 'white'
+                }}
                 onClick={() => setIsMaximized(!isMaximized)}
                 data-testid="button-maximize-widget"
               >
@@ -1765,9 +1779,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           
           return (
             <button
-              className="flex items-center gap-1 text-[10px] font-medium text-white hover:text-white transition-colors px-2.5 py-0 rounded border border-white/20 leading-none tracking-wide"
+              className="flex items-center gap-1 text-[10px] font-medium transition-colors px-2.5 py-0 rounded leading-none tracking-wide"
               style={{ 
-                textShadow: '0 1px 2px rgba(0,0,0,0.2)',
+                color: applyEmbedStyles ? (widgetIsDark ? '#ffffff' : '#374151') : 'white',
+                borderWidth: '1px',
+                borderStyle: 'solid',
+                borderColor: applyEmbedStyles ? (widgetIsDark ? 'rgba(255,255,255,0.2)' : 'rgba(55,65,81,0.3)') : 'rgba(255,255,255,0.2)',
+                textShadow: widgetIsDark ? '0 1px 2px rgba(0,0,0,0.2)' : 'none',
                 height: '16px'
               }}
               onClick={() => {
@@ -1794,7 +1812,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           <Button
             size="icon"
             variant="ghost"
-            className="text-white hover:bg-white/20 h-7 w-7"
+            className="h-7 w-7"
+            style={{ 
+              color: applyEmbedStyles ? (widgetIsDark ? '#ffffff' : '#374151') : 'white'
+            }}
             onClick={() => {
               if (embedded && showCloseButton) {
                 window.parent.postMessage({ type: "chatvice-close" }, "*");
@@ -1841,19 +1862,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           return (
             <div 
               className="absolute top-0 left-0 right-0 z-20 overflow-hidden"
-              style={widgetIsDark ? { 
-                backgroundColor: 'rgba(0, 0, 0, 0.15)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)',
-                animation: socialPanelClosing 
-                  ? 'slideUpSmooth 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
-                  : 'slideDownSmooth 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
-              } : { 
-                backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
+              style={{ 
+                backgroundColor: 'transparent',
                 animation: socialPanelClosing 
                   ? 'slideUpSmooth 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
                   : 'slideDownSmooth 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
@@ -1904,7 +1914,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                       rel="noopener noreferrer"
                       className="w-8 h-8 rounded-full flex items-center justify-center hover:scale-110 transition-transform overflow-hidden"
                       style={{ 
-                        backgroundColor: useCustomIcons && social.customIcon ? "transparent" : (iconStyle === "colored" ? social.color : "rgba(255,255,255,0.2)")
+                        backgroundColor: useCustomIcons && social.customIcon ? "transparent" : (iconStyle === "colored" ? social.color : "rgba(255,255,255,0.2)"),
+                        boxShadow: '0 5px 8px rgba(0, 0, 0, 0.35)'
                       }}
                       data-testid={`social-${social.icon}`}
                     >
@@ -1968,7 +1979,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             
             {/* Custom Description Box */}
             {merchantConfig?.welcomeDescription && (
-              <div className="w-full bg-muted/50 rounded-lg p-3 border mb-4 text-sm whitespace-pre-wrap" data-testid="text-welcome-description">
+              <div className="w-full bg-muted/50 rounded-[14px] p-3 border mb-4 text-sm whitespace-pre-wrap" data-testid="text-welcome-description">
                 {merchantConfig.welcomeDescription.split(/(\bhttps?:\/\/\S+)/g).map((part: string, i: number) => 
                   part.match(/^https?:\/\//) ? (
                     <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-primary underline break-all">
@@ -2285,7 +2296,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         </div>
       ) : (
         <div className="flex-1 min-h-0 flex flex-col">
-          <ScrollArea className="flex-1 min-h-0" style={frostedBodyStyle}>
+          <ScrollArea className="flex-1 min-h-0" style={{ ...frostedBodyStyle, borderRadius: '0 0 28px 28px' }}>
             {/* Add extra top padding when social panel is open to prevent overlap */}
             <div className={`space-y-4 p-4 ${socialIconsExpanded ? 'pt-16' : ''}`}>
               {allMessages.map((msg, index) => (
