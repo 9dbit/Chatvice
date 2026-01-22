@@ -26,7 +26,6 @@ import type { MerchantDomain } from "@shared/schema";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Merchant, Agent } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
-import ChatWidget from "@/pages/chat-widget";
 import { useMemo } from "react";
 
 export default function WidgetPage() {
@@ -42,18 +41,7 @@ export default function WidgetPage() {
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [isRemovingBg, setIsRemovingBg] = useState(false);
   const [bgRemovalStatus, setBgRemovalStatus] = useState<{ used: number; limit: number } | null>(null);
-  const [previewKey, setPreviewKey] = useState(0);
-  const [previewSessionId, setPreviewSessionId] = useState(() => 
-    `widget_preview_${merchantId}_${Date.now()}`
-  );
-  const lastMerchantIdRef = useRef(merchantId);
   
-  useEffect(() => {
-    if (previewKey > 0 || merchantId !== lastMerchantIdRef.current) {
-      setPreviewSessionId(`widget_preview_${merchantId}_${Date.now()}`);
-      lastMerchantIdRef.current = merchantId;
-    }
-  }, [previewKey, merchantId]);
   const [config, setConfig] = useState({
     iconUrl: "",
     iconVisible: true,
@@ -702,7 +690,6 @@ export default function WidgetPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
-      setPreviewKey(prev => prev + 1);
       toast({
         title: "Pre-chat form saved",
         description: "Your changes have been applied.",
@@ -944,7 +931,7 @@ async function handleLogin() {
         </div>
 
         <TabsContent value="appearance" className="mt-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-6">
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
@@ -1543,79 +1530,6 @@ async function handleLogin() {
               </CardContent>
             </Card>
 
-            {/* Live Preview - Real widget outside container */}
-            <div className="relative">
-              {/* Website mockup background */}
-              <div 
-                className="relative rounded-lg border border-border overflow-hidden"
-                style={{ 
-                  height: '450px',
-                  background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)'
-                }}
-              >
-                {/* Browser chrome mockup */}
-                <div className="h-9 bg-muted border-b border-border flex items-center px-3 gap-2">
-                  <div className="flex gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-full bg-destructive/50" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-status-away/50" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-status-online/50" />
-                  </div>
-                  <div className="flex-1 flex justify-center">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono bg-background/50 px-2 py-0.5 rounded">
-                      <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                      Live Preview
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 text-xs"
-                    onClick={() => setPreviewKey(prev => prev + 1)}
-                    data-testid="button-refresh-preview"
-                  >
-                    <RefreshCw className="w-3 h-3" />
-                  </Button>
-                </div>
-                
-                {/* Website content placeholder */}
-                <div className="p-6 space-y-3">
-                  <div className="h-6 bg-muted/60 rounded w-3/4" />
-                  <div className="h-3 bg-muted/40 rounded w-1/2" />
-                  <div className="h-3 bg-muted/40 rounded w-2/3" />
-                  <div className="h-16 bg-muted/30 rounded mt-4" />
-                  <div className="h-3 bg-muted/40 rounded w-1/3" />
-                  <div className="grid grid-cols-2 gap-3 mt-4">
-                    <div className="h-12 bg-muted/30 rounded" />
-                    <div className="h-12 bg-muted/30 rounded" />
-                  </div>
-                </div>
-              </div>
-              
-              {/* Widget iframe - positioned outside the mockup container */}
-              {activeAgent?.id ? (
-                <iframe
-                  key={previewKey}
-                  src={`${window.location.origin}/embed/${merchantId}/${activeAgent.id}?preview=true&v=${previewKey}`}
-                  className="fixed bottom-0 right-0 border-0 pointer-events-auto"
-                  style={{ 
-                    width: '420px',
-                    height: '650px',
-                    background: 'transparent',
-                    zIndex: 1000
-                  }}
-                  title="Widget Preview"
-                  data-testid="iframe-widget-preview"
-                />
-              ) : (
-                <div className="absolute bottom-4 right-4 flex flex-col items-center justify-center p-6 text-center text-muted-foreground bg-background/80 rounded-lg border">
-                  <Bot className="w-10 h-10 mb-3 opacity-30" />
-                  <p className="text-sm font-medium">No Active Agent</p>
-                  <p className="text-xs mt-1">
-                    Select an agent to preview
-                  </p>
-                </div>
-              )}
-            </div>
           </div>
         </TabsContent>
 
