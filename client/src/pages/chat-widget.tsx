@@ -2913,7 +2913,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             onChange={handleInputChange}
             onKeyDown={handleKeyPress}
             disabled={!isOnline || isUploadingMedia}
-            className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+            className={`flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 ${applyEmbedStyles ? (widgetIsDark ? 'placeholder:text-white/50' : 'placeholder:text-gray-500') : ''}`}
             style={applyEmbedStyles ? {
               background: 'transparent',
               color: widgetIsDark ? 'white' : '#1f2937',
