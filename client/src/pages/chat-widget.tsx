@@ -1646,28 +1646,29 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   
   // Glassmorphism container - Liquid glass effect like Apple iOS UI
   // Preview mode also gets glassmorphism to match external widget appearance
+  // Enhanced with larger blur (L), more transparency, outer-only shadow, refined edge
   const frostedGlassContainerStyle: React.CSSProperties = applyEmbedStyles
     ? widgetIsDark 
       ? {
-          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 50%, rgba(0, 0, 0, 0.1) 100%)',
-          backgroundColor: 'rgba(0, 0, 0, 0.25)',
+          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 50%, rgba(0, 0, 0, 0.02) 100%)',
+          backgroundColor: 'rgba(0, 0, 0, 0.15)',
           borderRadius: widgetBorderRadius,
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+          border: '1.5px solid rgba(255, 255, 255, 0.2)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 12px 24px -8px rgba(0, 0, 0, 0.3)',
           overflow: 'hidden',
-          backdropFilter: 'blur(40px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          backdropFilter: 'blur(60px) saturate(200%)',
+          WebkitBackdropFilter: 'blur(60px) saturate(200%)',
           ...getMaximizedStyle(),
         }
       : {
-          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 50%, rgba(248, 250, 252, 0.8) 100%)',
-          backgroundColor: 'rgba(255, 255, 255, 0.75)',
+          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.4) 50%, rgba(248, 250, 252, 0.5) 100%)',
+          backgroundColor: 'rgba(255, 255, 255, 0.45)',
           borderRadius: widgetBorderRadius,
-          border: '1px solid rgba(255, 255, 255, 0.5)',
-          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+          border: '1.5px solid rgba(255, 255, 255, 0.7)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 12px 24px -8px rgba(0, 0, 0, 0.1)',
           overflow: 'hidden',
-          backdropFilter: 'blur(40px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          backdropFilter: 'blur(60px) saturate(200%)',
+          WebkitBackdropFilter: 'blur(60px) saturate(200%)',
           ...getMaximizedStyle(),
         }
     : {};
@@ -1690,34 +1691,38 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       }
     : { backgroundColor: primaryColor };
   
-  // Body uses glassmorphism - Light mode uses solid white, dark mode uses transparent
+  // Body uses glassmorphism - Enhanced transparency for liquid glass effect
   const frostedBodyStyle: React.CSSProperties = applyEmbedStyles
     ? widgetIsDark
       ? { 
-          background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%)',
-          backgroundColor: 'rgba(0, 0, 0, 0.08)',
-          backdropFilter: 'blur(30px) saturate(150%)',
-          WebkitBackdropFilter: 'blur(30px) saturate(150%)',
+          background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%)',
+          backgroundColor: 'rgba(0, 0, 0, 0.04)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
         }
       : { 
-          background: 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(248, 250, 252, 1) 100%)',
-          backgroundColor: 'rgba(255, 255, 255, 0.98)',
+          background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(248, 250, 252, 0.6) 100%)',
+          backgroundColor: 'rgba(255, 255, 255, 0.5)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
         }
     : {};
 
-  // Footer style - Aligned with scroll area corners (0 top, 28px bottom)
+  // Footer style - Enhanced transparency for liquid glass effect
   const frostedFooterStyle: React.CSSProperties = applyEmbedStyles
     ? widgetIsDark
       ? { 
-          background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%)',
-          backgroundColor: 'rgba(0, 0, 0, 0.12)',
-          backdropFilter: 'blur(30px) saturate(150%)',
-          WebkitBackdropFilter: 'blur(30px) saturate(150%)',
+          background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.005) 100%)',
+          backgroundColor: 'rgba(0, 0, 0, 0.06)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
           borderRadius: '0 0 28px 28px',
         }
       : { 
-          background: 'linear-gradient(180deg, rgba(248, 250, 252, 1) 0%, rgba(241, 245, 249, 1) 100%)',
-          backgroundColor: 'rgba(255, 255, 255, 0.98)',
+          background: 'linear-gradient(180deg, rgba(248, 250, 252, 0.6) 0%, rgba(241, 245, 249, 0.5) 100%)',
+          backgroundColor: 'rgba(255, 255, 255, 0.4)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
           borderRadius: '0 0 28px 28px',
         }
     : {};
