@@ -1,25 +1,15 @@
-import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { 
-  Eye, RefreshCw, MessageSquare, Bot, Loader2, ExternalLink,
+  MessageSquare, Bot, Loader2,
   Settings, Sparkles, Package, MousePointer, CheckCircle2, AlertCircle
 } from "lucide-react";
-import type { Agent, WelcomeBubble, QuickReply, ProductCard, ChatButton, SuggestedQuestion, Merchant } from "@shared/schema";
+import type { Agent, WelcomeBubble, QuickReply, ProductCard, ChatButton, SuggestedQuestion } from "@shared/schema";
 
 export default function LivePreviewPage() {
   const merchantId = localStorage.getItem("merchantId") || "";
-  const [showWidget, setShowWidget] = useState(true);
-  const [iframeKey, setIframeKey] = useState(0);
-
-  const { data: merchant } = useQuery<Merchant>({
-    queryKey: ["/api/merchant", merchantId],
-    enabled: !!merchantId,
-  });
 
   const { data: agents = [], isLoading: agentsLoading } = useQuery<Agent[]>({
     queryKey: ["/api/agents"],
@@ -53,15 +43,6 @@ export default function LivePreviewPage() {
 
   const activeAgent = agents.find(a => a.isActive);
 
-  const handleRefresh = () => {
-    setIframeKey(prev => prev + 1);
-  };
-
-  // Build the embed URL - same as what external websites use
-  const embedUrl = activeAgent?.id 
-    ? `${window.location.origin}/embed/${merchantId}/${activeAgent.id}?preview=true&v=${iframeKey}`
-    : null;
-
   if (agentsLoading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
@@ -72,59 +53,14 @@ export default function LivePreviewPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-bold" data-testid="text-page-title">Live Preview</h1>
-          <p className="text-muted-foreground text-sm sm:text-base">
-            Real-time preview of your widget with all current settings
-          </p>
-        </div>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <span className="text-xs text-muted-foreground hidden sm:inline">Refresh to see changes</span>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={handleRefresh}
-            data-testid="button-refresh-preview"
-          >
-            <RefreshCw className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">Refresh</span>
-          </Button>
-          {embedUrl && (
-            <a 
-              href={embedUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Button variant="outline" size="sm" data-testid="button-open-fullscreen">
-                <ExternalLink className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Fullscreen</span>
-              </Button>
-            </a>
-          )}
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold" data-testid="text-page-title">Widget Status</h1>
+        <p className="text-muted-foreground text-sm sm:text-base">
+          Overview of your widget configuration and features
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Widget Controls</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="show-widget" className="text-sm">Show Widget</Label>
-              <Switch 
-                id="show-widget" 
-                checked={showWidget} 
-                onCheckedChange={setShowWidget}
-                data-testid="switch-show-widget"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Toggle to show/hide the chat widget preview
-            </p>
-          </CardContent>
-        </Card>
 
         <Card>
           <CardHeader className="pb-3">
@@ -229,47 +165,6 @@ export default function LivePreviewPage() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Live Preview - Natural widget display like external websites */}
-      {showWidget && embedUrl ? (
-        <>
-          {/* Widget iframe - responsive for mobile, natural positioning */}
-          <iframe
-            key={iframeKey}
-            src={embedUrl}
-            className="fixed bottom-0 right-0 border-0 pointer-events-auto w-full sm:w-[420px] h-[100dvh] sm:h-[650px]"
-            style={{ 
-              background: 'transparent',
-              zIndex: 1000
-            }}
-            title="Widget Preview"
-            data-testid="iframe-widget-preview"
-          />
-        </>
-      ) : (
-        <Card>
-          <CardContent className="py-16">
-            <div className="flex flex-col items-center justify-center text-center text-muted-foreground">
-              <Eye className="w-12 h-12 mb-4 opacity-30" />
-              {!activeAgent ? (
-                <>
-                  <p className="text-lg font-medium">No Active Agent</p>
-                  <p className="text-sm mt-1">
-                    Please activate an agent to preview the widget
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-lg font-medium">Widget Preview Hidden</p>
-                  <p className="text-sm mt-1">
-                    Enable "Show Widget" to see the preview
-                  </p>
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
