@@ -230,49 +230,10 @@ export default function LivePreviewPage() {
         </CardContent>
       </Card>
 
-      {/* Live Preview - Real widget outside container */}
+      {/* Live Preview - Natural widget display like external websites */}
       {showWidget && embedUrl ? (
-        <div className="relative">
-          {/* Website mockup background */}
-          <div 
-            className="relative rounded-lg border border-border overflow-hidden"
-            style={{ 
-              height: '500px',
-              background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)'
-            }}
-          >
-            {/* Browser chrome mockup */}
-            <div className="h-10 bg-muted border-b border-border flex items-center px-4 gap-2">
-              <div className="flex gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-destructive/50" />
-                <div className="w-3 h-3 rounded-full bg-status-away/50" />
-                <div className="w-3 h-3 rounded-full bg-status-online/50" />
-              </div>
-              <div className="flex-1 flex justify-center">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono bg-background/50 px-3 py-1 rounded">
-                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                  yourwebsite.com - Live Preview
-                </div>
-              </div>
-            </div>
-            
-            {/* Website content placeholder */}
-            <div className="p-8 space-y-4">
-              <div className="h-8 bg-muted/60 rounded w-3/4" />
-              <div className="h-4 bg-muted/40 rounded w-1/2" />
-              <div className="h-4 bg-muted/40 rounded w-2/3" />
-              <div className="h-24 bg-muted/30 rounded mt-6" />
-              <div className="h-4 bg-muted/40 rounded w-1/3" />
-              <div className="h-4 bg-muted/40 rounded w-1/4" />
-              <div className="grid grid-cols-3 gap-4 mt-6">
-                <div className="h-20 bg-muted/30 rounded" />
-                <div className="h-20 bg-muted/30 rounded" />
-                <div className="h-20 bg-muted/30 rounded" />
-              </div>
-            </div>
-          </div>
-          
-          {/* Widget iframe - positioned outside the mockup container */}
+        <>
+          {/* Widget iframe - natural positioning like external widget */}
           <iframe
             key={iframeKey}
             src={embedUrl}
@@ -286,7 +247,7 @@ export default function LivePreviewPage() {
             title="Widget Preview"
             data-testid="iframe-widget-preview"
           />
-        </div>
+        </>
       ) : (
         <Card>
           <CardContent className="py-16">
