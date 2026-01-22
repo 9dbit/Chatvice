@@ -1670,7 +1670,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         }
     : {};
   
-  // Header style - Island style with FULL rounded corners (floating pill), embossed edges (Apple iOS 26)
+  // Header style - Aligned with scroll area corners (28px top, 0 bottom)
   const frostedHeaderStyle: React.CSSProperties = applyEmbedStyles
     ? { 
         background: `linear-gradient(180deg, ${primaryColor}FF 0%, ${primaryColor}E6 60%, ${primaryColor}D9 100%)`,
@@ -1682,10 +1682,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           inset 1px 0 1px rgba(255, 255, 255, 0.2),
           inset -1px 0 1px rgba(255, 255, 255, 0.2)
         `,
-        borderRadius: '50px',
+        borderRadius: '28px 28px 0 0',
         border: '1px solid rgba(255, 255, 255, 0.25)',
-        margin: '8px',
-        marginBottom: '0',
+        borderBottom: 'none',
       }
     : { backgroundColor: primaryColor };
   
@@ -1704,7 +1703,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         }
     : {};
 
-  // Footer style - Light mode uses solid white, dark mode uses glassmorphism
+  // Footer style - Aligned with scroll area corners (0 top, 28px bottom)
   const frostedFooterStyle: React.CSSProperties = applyEmbedStyles
     ? widgetIsDark
       ? { 
@@ -1712,12 +1711,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           backgroundColor: 'rgba(0, 0, 0, 0.12)',
           backdropFilter: 'blur(30px) saturate(150%)',
           WebkitBackdropFilter: 'blur(30px) saturate(150%)',
-          borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+          borderRadius: '0 0 28px 28px',
         }
       : { 
           background: 'linear-gradient(180deg, rgba(248, 250, 252, 1) 0%, rgba(241, 245, 249, 1) 100%)',
           backgroundColor: 'rgba(255, 255, 255, 0.98)',
-          borderTop: '1px solid rgba(0, 0, 0, 0.06)',
+          borderRadius: '0 0 28px 28px',
         }
     : {};
 
@@ -2385,7 +2384,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         </div>
       ) : (
         <div className="flex-1 min-h-0 flex flex-col">
-          <ScrollArea className="flex-1 min-h-0" style={{ ...frostedBodyStyle, borderRadius: '28px 28px 0 0' }}>
+          <ScrollArea className="flex-1 min-h-0" style={{ ...frostedBodyStyle, borderRadius: '0' }}>
             {/* Add extra top padding when social panel is open to prevent overlap */}
             <div className={`space-y-4 p-4 ${socialIconsExpanded ? 'pt-16' : ''}`}>
               {allMessages.map((msg, index) => (
@@ -2942,12 +2941,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               width: '40px',
               height: '40px',
               padding: 0,
+              color: getContrastColor(primaryColor),
             } : { 
               backgroundColor: primaryColor,
               borderRadius: '50%',
               width: '40px',
               height: '40px',
               padding: 0,
+              color: getContrastColor(primaryColor),
             }}
             data-testid="button-widget-send"
           >
