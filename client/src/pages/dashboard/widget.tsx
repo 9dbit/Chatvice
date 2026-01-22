@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +26,6 @@ import type { MerchantDomain } from "@shared/schema";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Merchant, Agent } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
-import { useMemo } from "react";
 
 export default function WidgetPage() {
   const merchantId = localStorage.getItem("merchantId") || "";
@@ -41,6 +40,37 @@ export default function WidgetPage() {
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [isRemovingBg, setIsRemovingBg] = useState(false);
   const [bgRemovalStatus, setBgRemovalStatus] = useState<{ used: number; limit: number } | null>(null);
+  const [widgetKey, setWidgetKey] = useState(0);
+
+  // Load the widget script dynamically
+  useEffect(() => {
+    if (!merchantId) return;
+
+    // Remove any existing widget elements first
+    const existingScript = document.getElementById('chatvice-widget-script');
+    const existingContainer = document.getElementById('chatvice-widget');
+    if (existingScript) existingScript.remove();
+    if (existingContainer) existingContainer.remove();
+
+    // Create and append the widget script
+    const script = document.createElement('script');
+    script.id = 'chatvice-widget-script';
+    script.src = `${window.location.origin}/api/widget/chatvice.js?merchant=${merchantId}&v=${Date.now()}`;
+    script.async = true;
+    document.body.appendChild(script);
+
+    // Cleanup on unmount
+    return () => {
+      const scriptEl = document.getElementById('chatvice-widget-script');
+      const containerEl = document.getElementById('chatvice-widget');
+      if (scriptEl) scriptEl.remove();
+      if (containerEl) containerEl.remove();
+    };
+  }, [merchantId, widgetKey]);
+
+  const handleRefreshWidget = () => {
+    setWidgetKey(prev => prev + 1);
+  };
   
   const [config, setConfig] = useState({
     iconUrl: "",
@@ -859,6 +889,16 @@ async function handleLogin() {
             Customize your chat widget appearance and get embed codes.
           </p>
         </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleRefreshWidget}
+            data-testid="button-refresh-widget"
+          >
+            <RefreshCw className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Refresh Widget</span>
+          </Button>
         {agents.length > 0 && (
           <div className="flex items-center gap-2">
             <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap hidden sm:inline">Configuring:</span>
@@ -914,6 +954,7 @@ async function handleLogin() {
             </Select>
           </div>
         )}
+        </div>
       </div>
 
       <Tabs defaultValue="appearance">

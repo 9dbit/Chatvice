@@ -1,15 +1,47 @@
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
-  MessageSquare, Bot, Loader2,
+  MessageSquare, Bot, Loader2, RefreshCw,
   Settings, Sparkles, Package, MousePointer, CheckCircle2, AlertCircle
 } from "lucide-react";
 import type { Agent, WelcomeBubble, QuickReply, ProductCard, ChatButton, SuggestedQuestion } from "@shared/schema";
 
 export default function LivePreviewPage() {
   const merchantId = localStorage.getItem("merchantId") || "";
+  const [widgetKey, setWidgetKey] = useState(0);
+
+  // Load the widget script dynamically
+  useEffect(() => {
+    if (!merchantId) return;
+
+    // Remove any existing widget elements first
+    const existingScript = document.getElementById('chatvice-widget-script');
+    const existingContainer = document.getElementById('chatvice-widget');
+    if (existingScript) existingScript.remove();
+    if (existingContainer) existingContainer.remove();
+
+    // Create and append the widget script
+    const script = document.createElement('script');
+    script.id = 'chatvice-widget-script';
+    script.src = `${window.location.origin}/api/widget/chatvice.js?merchant=${merchantId}&v=${Date.now()}`;
+    script.async = true;
+    document.body.appendChild(script);
+
+    // Cleanup on unmount
+    return () => {
+      const scriptEl = document.getElementById('chatvice-widget-script');
+      const containerEl = document.getElementById('chatvice-widget');
+      if (scriptEl) scriptEl.remove();
+      if (containerEl) containerEl.remove();
+    };
+  }, [merchantId, widgetKey]);
+
+  const handleRefresh = () => {
+    setWidgetKey(prev => prev + 1);
+  };
 
   const { data: agents = [], isLoading: agentsLoading } = useQuery<Agent[]>({
     queryKey: ["/api/agents"],
@@ -53,11 +85,22 @@ export default function LivePreviewPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold" data-testid="text-page-title">Widget Status</h1>
-        <p className="text-muted-foreground text-sm sm:text-base">
-          Overview of your widget configuration and features
-        </p>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-bold" data-testid="text-page-title">Live Preview</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">
+            Real-time preview of your widget with all current settings
+          </p>
+        </div>
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={handleRefresh}
+          data-testid="button-refresh-preview"
+        >
+          <RefreshCw className="w-4 h-4 sm:mr-2" />
+          <span className="hidden sm:inline">Refresh Widget</span>
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
