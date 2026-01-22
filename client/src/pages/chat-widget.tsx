@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Bot, Send, X, Shrink, Square, Minimize2, Maximize2, HeadphonesIcon, User, ImageIcon, Video, FileText, Plus, Loader2, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ExternalLink, ShoppingBag, EyeOff, GripVertical, MapPin, Phone, Mail } from "lucide-react";
+import { Bot, Send, X, Shrink, Square, Minimize2, Maximize2, HeadphonesIcon, User, ImageIcon, Video, FileText, Plus, Loader2, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ExternalLink, ShoppingBag, EyeOff, GripVertical, MapPin, Phone, Mail, Minus } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -159,6 +159,42 @@ function generateDeviceFingerprint(): string {
   } catch {
     // Fallback to random ID if fingerprinting fails
     return 'fp_' + Math.random().toString(36).substring(2, 10);
+  }
+}
+
+// Calculate contrasting text color based on background luminance
+function getContrastColor(hexColor: string): string {
+  try {
+    // Remove # if present and normalize
+    let hex = hexColor.replace('#', '');
+    
+    // Validate hex format (3 or 6 characters)
+    if (!/^[0-9A-Fa-f]{3}$|^[0-9A-Fa-f]{6}$/.test(hex)) {
+      return '#ffffff'; // Default to white for invalid input
+    }
+    
+    // Expand shorthand hex (#abc -> #aabbcc)
+    if (hex.length === 3) {
+      hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+    }
+    
+    // Parse RGB values
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    
+    // Check for NaN
+    if (isNaN(r) || isNaN(g) || isNaN(b)) {
+      return '#ffffff';
+    }
+    
+    // Calculate relative luminance using WCAG formula
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    
+    // Return white for dark backgrounds, dark grey for light backgrounds
+    return luminance > 0.5 ? '#374151' : '#ffffff';
+  } catch {
+    return '#ffffff'; // Fallback to white on any error
   }
 }
 
@@ -1306,30 +1342,47 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               </div>
             )}
             <div 
-              className={`bg-card shadow-xl px-4 pt-6 pb-4 border border-border relative z-10 ${welcomeBubble.promoImageEnabled && welcomeBubble.promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}
+              className={`bg-card shadow-xl px-4 pt-3 pb-4 border border-border relative z-10 ${welcomeBubble.promoImageEnabled && welcomeBubble.promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}
             >
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  dismissWelcomeBubble();
-                }}
-                className="absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded-full hover:bg-muted z-30"
-                data-testid="button-close-welcome-bubble"
-              >
-                <X className="w-3 h-3 text-muted-foreground" />
-              </button>
-              <div className="mb-3 pr-4">
+              {/* Header row with title and controls aligned */}
+              <div className="flex items-center justify-between gap-2 mb-2">
                 <p className="font-semibold text-base" data-testid="text-welcome-headline">
                   {welcomeBubble.headline}
                 </p>
-                <p className="text-[11px] text-muted-foreground mt-1" data-testid="text-welcome-message">
+                <div className="flex items-center -mr-2">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      dismissWelcomeBubble();
+                    }}
+                    data-testid="button-minimize-welcome-bubble"
+                  >
+                    <Minus className="w-3 h-3 text-muted-foreground" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      dismissWelcomeBubble();
+                    }}
+                    data-testid="button-close-welcome-bubble"
+                  >
+                    <X className="w-3 h-3 text-muted-foreground" />
+                  </Button>
+                </div>
+              </div>
+              <div className="mb-3">
+                <p className="text-[11px] text-muted-foreground" data-testid="text-welcome-message">
                   {welcomeBubble.message}
                 </p>
               </div>
-              <button
-                type="button"
-                className="w-full h-10 px-3 text-sm font-medium text-white rounded-[14px] transition-colors hover:opacity-90"
+              <Button
+                className="w-full rounded-[14px] text-white"
                 style={{ backgroundColor: welcomeBubble.buttonColor || primaryColor }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1340,7 +1393,27 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 data-testid="button-welcome-primary"
               >
                 {welcomeBubble.buttonLabel || "Chat with us"}
-              </button>
+              </Button>
+              {/* Action buttons */}
+              {Array.isArray(welcomeBubble.actionButtons) && welcomeBubble.actionButtons.length > 0 && (
+                <div className="flex flex-col gap-2 mt-2">
+                  {(welcomeBubble.actionButtons as Array<{label: string; url: string; color?: string}>).map((btn, index) => (
+                    <Button
+                      key={index}
+                      className="w-full rounded-[14px] text-white"
+                      style={{ backgroundColor: btn.color || primaryColor }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        handleWelcomeBubbleButtonClick(btn.url);
+                      }}
+                      data-testid={`button-welcome-action-${index}`}
+                    >
+                      {btn.label}
+                    </Button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1699,7 +1772,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             )}
           </div>
           
-          <div style={{ color: applyEmbedStyles ? (widgetIsDark ? '#ffffff' : '#374151') : 'white' }}>
+          <div style={{ color: applyEmbedStyles ? getContrastColor(primaryColor) : 'white' }}>
             {/* Show supervisor name when in HUMAN mode, otherwise assigned agent name */}
             <p className="font-medium text-sm leading-tight">
               {sessionInfo?.mode === "HUMAN" && sessionInfo?.supervisorInfo
@@ -1737,7 +1810,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 variant="ghost"
                 className="h-7 w-7"
                 style={{ 
-                  color: applyEmbedStyles ? (widgetIsDark ? '#ffffff' : '#374151') : 'white'
+                  color: applyEmbedStyles ? getContrastColor(primaryColor) : 'white'
                 }}
                 onClick={() => setIsMaximized(!isMaximized)}
                 data-testid="button-maximize-widget"
@@ -1781,11 +1854,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             <button
               className="flex items-center gap-1 text-[10px] font-medium transition-colors px-2.5 py-0 rounded leading-none tracking-wide"
               style={{ 
-                color: applyEmbedStyles ? (widgetIsDark ? '#ffffff' : '#374151') : 'white',
+                color: applyEmbedStyles ? getContrastColor(primaryColor) : 'white',
                 borderWidth: '1px',
                 borderStyle: 'solid',
-                borderColor: applyEmbedStyles ? (widgetIsDark ? 'rgba(255,255,255,0.2)' : 'rgba(55,65,81,0.3)') : 'rgba(255,255,255,0.2)',
-                textShadow: widgetIsDark ? '0 1px 2px rgba(0,0,0,0.2)' : 'none',
+                borderColor: applyEmbedStyles ? (getContrastColor(primaryColor) === '#ffffff' ? 'rgba(255,255,255,0.2)' : 'rgba(55,65,81,0.3)') : 'rgba(255,255,255,0.2)',
+                textShadow: getContrastColor(primaryColor) === '#ffffff' ? '0 1px 2px rgba(0,0,0,0.2)' : 'none',
                 height: '16px'
               }}
               onClick={() => {
@@ -1814,7 +1887,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             variant="ghost"
             className="h-7 w-7"
             style={{ 
-              color: applyEmbedStyles ? (widgetIsDark ? '#ffffff' : '#374151') : 'white'
+              color: applyEmbedStyles ? getContrastColor(primaryColor) : 'white'
             }}
             onClick={() => {
               if (embedded && showCloseButton) {
@@ -2623,46 +2696,43 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
       {suggestedQuestions.length > 0 && (
         <div 
-          className={`px-4 py-3 ${applyEmbedStyles ? '' : 'border-t border-border'}`} 
+          className={`px-2 py-3 ${applyEmbedStyles ? '' : 'border-t border-border'}`} 
           style={applyEmbedStyles ? (widgetIsDark ? {
             ...frostedFooterStyle,
             background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 100%)',
             backdropFilter: 'blur(20px) saturate(180%)',
             WebkitBackdropFilter: 'blur(20px) saturate(180%)',
             borderRadius: '16px',
-            margin: '8px 12px',
+            margin: '8px 8px',
             border: '1px solid rgba(255, 255, 255, 0.2)',
             boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.25)',
           } : {
             ...frostedFooterStyle,
             background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 1) 100%)',
             borderRadius: '16px',
-            margin: '8px 12px',
+            margin: '8px 8px',
             border: '1px solid rgba(0, 0, 0, 0.08)',
             boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
           }) : frostedFooterStyle}
         >
-          <div className="flex flex-col">
-            {suggestedQuestions.slice(0, 5).map((sq, index) => (
-              <div key={sq.id}>
-                <button
-                  className={`w-full text-left py-2.5 px-1 text-sm transition-all duration-200 flex items-center justify-between gap-2 ${
-                    applyEmbedStyles 
-                      ? (widgetIsDark ? 'text-white/90 hover:text-white hover:bg-white/10' : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100/50')
-                      : 'text-foreground hover:bg-muted/50'
-                  }`}
-                  style={{ borderRadius: '8px' }}
-                  onClick={() => handleSuggestedQuestionClick(sq)}
-                  disabled={sendMessageMutation.isPending || useSuggestedQuestionMutation.isPending}
-                  data-testid={`button-suggested-question-${sq.id}`}
-                >
-                  <span className="flex-1 truncate">{sq.question}</span>
-                  <ChevronRight className={`w-4 h-4 flex-shrink-0 ${applyEmbedStyles ? (widgetIsDark ? 'text-white/50' : 'text-gray-400') : 'text-muted-foreground'}`} />
-                </button>
-                {index < suggestedQuestions.slice(0, 5).length - 1 && (
-                  <div className={`h-px mx-1 ${applyEmbedStyles ? (widgetIsDark ? 'bg-white/15' : 'bg-gray-200') : 'bg-border'}`} />
-                )}
-              </div>
+          <div className="flex flex-col gap-2">
+            {suggestedQuestions.slice(0, 5).map((sq) => (
+              <Button
+                key={sq.id}
+                variant="ghost"
+                size="lg"
+                className={`w-full justify-start text-left rounded-xl ${
+                  applyEmbedStyles 
+                    ? (widgetIsDark ? 'text-white/90 bg-white/10' : 'text-gray-700 bg-gray-100/60')
+                    : 'text-foreground bg-muted/30'
+                }`}
+                onClick={() => handleSuggestedQuestionClick(sq)}
+                disabled={sendMessageMutation.isPending || useSuggestedQuestionMutation.isPending}
+                data-testid={`button-suggested-question-${sq.id}`}
+              >
+                <ChevronRight className={`w-4 h-4 flex-shrink-0 mr-2 ${applyEmbedStyles ? (widgetIsDark ? 'text-white/50' : 'text-gray-400') : 'text-muted-foreground'}`} />
+                <span className="flex-1 text-left">{sq.question}</span>
+              </Button>
             ))}
           </div>
         </div>
