@@ -2048,11 +2048,26 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           style={frostedBodyStyle}
         >
           <div className="flex-1 flex flex-col items-center">
-            <h3 className="text-lg font-semibold mb-3 text-center">Welcome!</h3>
+            <h3 
+              className="text-lg font-semibold mb-3 text-center"
+              style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#1f2937' } : undefined}
+            >Welcome!</h3>
             
             {/* Custom Description Box */}
             {merchantConfig?.welcomeDescription && (
-              <div className="w-full bg-muted/50 rounded-[14px] p-3 border mb-4 text-sm whitespace-pre-wrap" data-testid="text-welcome-description">
+              <div 
+                className="w-full rounded-[14px] p-3 border mb-4 text-sm whitespace-pre-wrap" 
+                style={applyEmbedStyles ? (widgetIsDark ? {
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  color: '#ffffff',
+                } : {
+                  background: 'rgba(0, 0, 0, 0.04)',
+                  border: '1px solid rgba(0, 0, 0, 0.08)',
+                  color: '#374151',
+                }) : undefined}
+                data-testid="text-welcome-description"
+              >
                 {merchantConfig.welcomeDescription.split(/(\bhttps?:\/\/\S+)/g).map((part: string, i: number) => 
                   part.match(/^https?:\/\//) ? (
                     <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-primary underline break-all">
@@ -2327,12 +2342,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               <Button
                 onClick={handleNameSubmit}
                 disabled={startChatMutation.isPending || !nameInputValue.trim() || !phoneLocalNumber.trim()}
-                className="w-full text-white"
+                className="w-full"
                 style={applyEmbedStyles ? { 
                   background: `linear-gradient(180deg, ${primaryColor}FF 0%, ${primaryColor}E6 50%, ${primaryColor}CC 100%)`,
                   boxShadow: `0 6px 24px rgba(0, 0, 0, 0.35), 0 12px 36px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.15)`,
                   borderRadius: '14px',
                   border: 'none',
+                  color: getContrastColor(primaryColor),
                 } : { backgroundColor: primaryColor }}
                 data-testid="button-start-chat"
               >
@@ -2369,7 +2385,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         </div>
       ) : (
         <div className="flex-1 min-h-0 flex flex-col">
-          <ScrollArea className="flex-1 min-h-0" style={{ ...frostedBodyStyle, borderRadius: '28px' }}>
+          <ScrollArea className="flex-1 min-h-0" style={{ ...frostedBodyStyle, borderRadius: '28px 28px 0 0' }}>
             {/* Add extra top padding when social panel is open to prevent overlap */}
             <div className={`space-y-4 p-4 ${socialIconsExpanded ? 'pt-16' : ''}`}>
               {allMessages.map((msg, index) => (
