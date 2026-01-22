@@ -95,42 +95,42 @@ export default function DashboardOverview() {
         <p className="text-sm text-muted-foreground hidden sm:block">Monitor your AI chatbot performance and customer interactions.</p>
       </div>
 
-      {/* Real-time and Last 7 Days Grid - Like LiveChat Dashboard */}
+      {/* Real-time and Last 7 Days Grid - Frosted Glass Style */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Real-time Section */}
-        <Card className="bg-slate-900 dark:bg-slate-950 text-white border-slate-800">
+        <Card className="backdrop-blur-xl bg-white/5 dark:bg-white/[0.03] border-white/10 dark:border-white/5">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Zap className="w-4 h-4 text-green-400" />
-              <span className="text-slate-300">Real time</span>
+              <span className="text-muted-foreground">Real time</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               {/* Visitors */}
-              <div className="bg-slate-800/50 rounded-lg p-4">
-                <div className="flex items-center gap-2 text-slate-400 text-xs mb-2">
-                  <Users className="w-3.5 h-3.5 text-blue-400" />
+              <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-4 border border-white/10 dark:border-white/5">
+                <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
+                  <Users className="w-3.5 h-3.5 text-primary" />
                   <span>Visitors</span>
                 </div>
                 <p className="text-4xl font-bold" data-testid="text-realtime-visitors">
-                  {isLoading ? <Skeleton className="h-10 w-16 bg-slate-700" /> : activeSessions.length || 0}
+                  {isLoading ? <Skeleton className="h-10 w-16" /> : activeSessions.length || 0}
                 </p>
               </div>
               
               {/* Chats */}
-              <div className="bg-slate-800/50 rounded-lg p-4">
-                <div className="flex items-center gap-2 text-slate-400 text-xs mb-2">
-                  <MessageCircle className="w-3.5 h-3.5 text-blue-400" />
+              <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-4 border border-white/10 dark:border-white/5">
+                <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
+                  <MessageCircle className="w-3.5 h-3.5 text-primary" />
                   <span>Chats</span>
                 </div>
                 <p className="text-4xl font-bold" data-testid="text-realtime-chats">
-                  {isLoading ? <Skeleton className="h-10 w-16 bg-slate-700" /> : activeChats.length || 0}
+                  {isLoading ? <Skeleton className="h-10 w-16" /> : activeChats.length || 0}
                 </p>
                 {/* Queued indicator */}
                 {queuedSessions.length > 0 && (
-                  <div className="mt-2 bg-red-500/90 rounded px-2 py-1.5 text-center">
-                    <span className="text-xs text-white/80">queued</span>
+                  <div className="mt-2 bg-red-500/80 backdrop-blur-sm rounded px-2 py-1.5 text-center text-white">
+                    <span className="text-xs opacity-80">queued</span>
                     <p className="text-2xl font-bold">{queuedSessions.length}</p>
                   </div>
                 )}
@@ -138,22 +138,22 @@ export default function DashboardOverview() {
             </div>
             
             {/* Agents Section */}
-            <div className="bg-slate-800/50 rounded-lg p-4">
-              <div className="flex items-center gap-2 text-slate-400 text-xs mb-3">
+            <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-4 border border-white/10 dark:border-white/5">
+              <div className="flex items-center gap-2 text-muted-foreground text-xs mb-3">
                 <Bot className="w-3.5 h-3.5 text-orange-400" />
                 <span>Agents</span>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Badge className="bg-blue-600/80 text-white text-[10px] mb-1">logged in</Badge>
+                  <Badge className="bg-primary/80 text-primary-foreground text-[10px] mb-1">logged in</Badge>
                   <p className="text-3xl font-bold" data-testid="text-agents-logged-in">
-                    {isLoading ? <Skeleton className="h-8 w-12 bg-slate-700" /> : (stats?.activeSessions ? Math.min(stats.activeSessions, 5) : 1)}
+                    {isLoading ? <Skeleton className="h-8 w-12" /> : (stats?.activeSessions ? Math.min(stats.activeSessions, 5) : 1)}
                   </p>
                 </div>
                 <div>
-                  <Badge className="bg-emerald-600/80 text-white text-[10px] mb-1">chatting</Badge>
+                  <Badge className="bg-emerald-500/80 text-white text-[10px] mb-1">chatting</Badge>
                   <p className="text-3xl font-bold" data-testid="text-agents-chatting">
-                    {isLoading ? <Skeleton className="h-8 w-12 bg-slate-700" /> : activeChats.length}
+                    {isLoading ? <Skeleton className="h-8 w-12" /> : activeChats.length}
                   </p>
                 </div>
               </div>
@@ -162,27 +162,27 @@ export default function DashboardOverview() {
         </Card>
 
         {/* Last 7 Days Section */}
-        <Card className="bg-slate-900 dark:bg-slate-950 text-white border-slate-800">
+        <Card className="backdrop-blur-xl bg-white/5 dark:bg-white/[0.03] border-white/10 dark:border-white/5">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-300">Last 7 days</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Last 7 days</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {/* Total Chats with Chart */}
-            <div className="bg-slate-800/50 rounded-lg p-4">
-              <div className="flex items-center gap-2 text-slate-400 text-xs mb-2">
-                <MessageSquare className="w-3.5 h-3.5 text-blue-400" />
+            <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-4 border border-white/10 dark:border-white/5">
+              <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
+                <MessageSquare className="w-3.5 h-3.5 text-primary" />
                 <span>Total chats</span>
               </div>
               <p className="text-4xl font-bold mb-3" data-testid="text-total-chats-7d">
-                {isLoading ? <Skeleton className="h-10 w-20 bg-slate-700" /> : stats?.messagesThisWeek || 0}
+                {isLoading ? <Skeleton className="h-10 w-20" /> : stats?.messagesThisWeek || 0}
               </p>
               {/* Mini Chart */}
               {chartData.length > 0 && (
                 <div className="h-[80px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartData}>
-                      <Bar dataKey="count" fill="#3b82f6" radius={[2, 2, 0, 0]} />
-                      <XAxis dataKey="displayDate" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                      <Bar dataKey="count" fill="hsl(var(--primary))" radius={[2, 2, 0, 0]} />
+                      <XAxis dataKey="displayDate" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -192,8 +192,8 @@ export default function DashboardOverview() {
             {/* Additional Metrics */}
             <div className="grid grid-cols-3 gap-2">
               {/* Queued Visitors */}
-              <div className="bg-slate-800/50 rounded-lg p-3 text-center">
-                <div className="flex items-center justify-center gap-1 text-slate-400 text-[10px] mb-1">
+              <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-3 text-center border border-white/10 dark:border-white/5">
+                <div className="flex items-center justify-center gap-1 text-muted-foreground text-[10px] mb-1">
                   <AlertCircle className="w-3 h-3" />
                   <span>Queued</span>
                 </div>
@@ -201,8 +201,8 @@ export default function DashboardOverview() {
               </div>
               
               {/* Goals */}
-              <div className="bg-slate-800/50 rounded-lg p-3 text-center">
-                <div className="flex items-center justify-center gap-1 text-slate-400 text-[10px] mb-1">
+              <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-3 text-center border border-white/10 dark:border-white/5">
+                <div className="flex items-center justify-center gap-1 text-muted-foreground text-[10px] mb-1">
                   <Target className="w-3 h-3" />
                   <span>Goals</span>
                 </div>
@@ -210,8 +210,8 @@ export default function DashboardOverview() {
               </div>
               
               {/* Visitor Satisfaction */}
-              <div className="bg-slate-800/50 rounded-lg p-3 text-center">
-                <div className="flex items-center justify-center gap-1 text-slate-400 text-[10px] mb-1">
+              <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-3 text-center border border-white/10 dark:border-white/5">
+                <div className="flex items-center justify-center gap-1 text-muted-foreground text-[10px] mb-1">
                   <ThumbsUp className="w-3 h-3" />
                   <span>Satisfaction</span>
                 </div>
