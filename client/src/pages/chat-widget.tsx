@@ -1737,48 +1737,72 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         style={frostedHeaderStyle}
       >
         <div className="flex items-center gap-2.5">
-          {/* Show supervisor photo when in HUMAN mode, otherwise show agent photo */}
-          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
-            {sessionInfo?.mode === "HUMAN" && sessionInfo?.supervisorInfo ? (
-              // Supervisor is handling - show supervisor photo
-              sessionInfo.supervisorInfo.photoUrl && sessionInfo.supervisorInfo.photoUrl.trim() !== "" ? (
+          {/* Show dual photos when supervisor takes over, otherwise single agent photo */}
+          {sessionInfo?.mode === "HUMAN" && sessionInfo?.supervisorInfo ? (
+            // Dual profile: Agent + Supervisor overlapping
+            <div className="flex items-center -space-x-2">
+              {/* Agent photo (background, slightly smaller) */}
+              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center overflow-hidden border-2 border-white/30 z-0">
+                {sessionInfo?.agentInfo?.photoUrl && sessionInfo.agentInfo.photoUrl.trim() !== "" ? (
+                  <img
+                    src={sessionInfo.agentInfo.photoUrl}
+                    alt="Agent"
+                    className="w-full h-full object-cover"
+                  />
+                ) : merchantConfig?.agentPhotoUrl ? (
+                  <img
+                    src={merchantConfig.agentPhotoUrl}
+                    alt="Agent"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <Bot className="w-4 h-4 text-white" />
+                )}
+              </div>
+              {/* Supervisor photo (foreground) */}
+              <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center overflow-hidden border-2 border-white/40 z-10">
+                {sessionInfo.supervisorInfo.photoUrl && sessionInfo.supervisorInfo.photoUrl.trim() !== "" ? (
+                  <img
+                    src={sessionInfo.supervisorInfo.photoUrl}
+                    alt="Supervisor"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <HeadphonesIcon className="w-4 h-4 text-white" />
+                )}
+              </div>
+            </div>
+          ) : (
+            // Single agent photo
+            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
+              {sessionInfo?.agentInfo?.photoUrl && sessionInfo.agentInfo.photoUrl.trim() !== "" ? (
                 <img
-                  src={sessionInfo.supervisorInfo.photoUrl}
-                  alt="Supervisor"
+                  src={sessionInfo.agentInfo.photoUrl}
+                  alt="Agent"
+                  className="w-full h-full object-cover"
+                />
+              ) : merchantConfig?.agentPhotoUrl ? (
+                <img
+                  src={merchantConfig.agentPhotoUrl}
+                  alt="Agent"
+                  className="w-full h-full object-cover"
+                />
+              ) : merchantConfig?.iconUrl ? (
+                <img
+                  src={merchantConfig.iconUrl}
+                  alt="Chat"
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <HeadphonesIcon className="w-5 h-5 text-white" />
-              )
-            ) : sessionInfo?.agentInfo?.photoUrl && sessionInfo.agentInfo.photoUrl.trim() !== "" ? (
-              <img
-                src={sessionInfo.agentInfo.photoUrl}
-                alt="Agent"
-                className="w-full h-full object-cover"
-              />
-            ) : merchantConfig?.agentPhotoUrl ? (
-              <img
-                src={merchantConfig.agentPhotoUrl}
-                alt="Agent"
-                className="w-full h-full object-cover"
-              />
-            ) : merchantConfig?.iconUrl ? (
-              <img
-                src={merchantConfig.iconUrl}
-                alt="Chat"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <Bot className="w-5 h-5 text-white" />
-            )}
-          </div>
+                <Bot className="w-5 h-5 text-white" />
+              )}
+            </div>
+          )}
           
           <div style={{ color: applyEmbedStyles ? getContrastColor(primaryColor) : 'white' }}>
-            {/* Show supervisor name when in HUMAN mode, otherwise assigned agent name */}
+            {/* Always show agent name, with supervisor info below when in HUMAN mode */}
             <p className="font-medium text-sm leading-tight">
-              {sessionInfo?.mode === "HUMAN" && sessionInfo?.supervisorInfo
-                ? sessionInfo.supervisorInfo.name
-                : sessionInfo?.agentInfo?.name || merchantConfig?.agentName || "Chatvice"}
+              {sessionInfo?.agentInfo?.name || merchantConfig?.agentName || "Chatvice"}
             </p>
             <div className="flex items-center gap-1">
               <span className="text-[10px] flex items-center gap-1" style={{ opacity: 0.8 }}>
