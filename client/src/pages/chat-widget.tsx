@@ -1670,7 +1670,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         }
     : {};
   
-  // Header style - Aligned with scroll area corners (28px top, 0 bottom)
+  // Header style - Pill shaped with 50px rounded corners (top and bottom)
   const frostedHeaderStyle: React.CSSProperties = applyEmbedStyles
     ? { 
         background: `linear-gradient(180deg, ${primaryColor}FF 0%, ${primaryColor}E6 60%, ${primaryColor}D9 100%)`,
@@ -1682,9 +1682,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           inset 1px 0 1px rgba(255, 255, 255, 0.2),
           inset -1px 0 1px rgba(255, 255, 255, 0.2)
         `,
-        borderRadius: '28px 28px 0 0',
+        borderRadius: '50px',
         border: '1px solid rgba(255, 255, 255, 0.25)',
-        borderBottom: 'none',
       }
     : { backgroundColor: primaryColor };
   
