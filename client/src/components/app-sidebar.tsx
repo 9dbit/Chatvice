@@ -608,8 +608,8 @@ export function AppSidebar() {
           </Link>
         )}
         
-        {isAdmin && billingStatus && (
-          <Collapsible>
+        {billingStatus && (
+          <Collapsible defaultOpen>
             <div className="p-3 rounded-lg bg-muted/50 space-y-2">
               <CollapsibleTrigger className="w-full">
                 <div className="flex items-center justify-between gap-2">
@@ -621,7 +621,7 @@ export function AppSidebar() {
                     <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
                       {billingStatus.planName}
                     </span>
-                    <ChevronDown className="w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+                    <ChevronDown className="w-3.5 h-3.5 text-muted-foreground transition-transform duration-300 ease-out [[data-state=open]>&]:rotate-180" />
                   </div>
                 </div>
               </CollapsibleTrigger>
@@ -645,7 +645,7 @@ export function AppSidebar() {
                   </div>
                 </div>
                 
-                <CollapsibleContent className="space-y-2">
+                <CollapsibleContent className="space-y-2 animate-in slide-in-from-top-2 fade-in duration-300">
                   {/* AI Agents */}
                   <div className="space-y-1">
                     <div className="flex justify-between gap-2">
