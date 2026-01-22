@@ -1520,17 +1520,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   // Styles apply to external embed, embedded mode, AND preview mode (for sync)
   const applyEmbedStyles = isExternalEmbed || embedded || previewMode;
   
-  // External embed uses borderless transparent design with frosted glass
-  // Preview mode shows widget naturally floating at bottom-right like external widget
-  const containerClasses = isExternalEmbed
+  // External embed and previewMode both use absolute positioning to fill their container (iframe)
+  // The iframe itself is positioned at bottom-right by the parent page (live-preview.tsx)
+  const containerClasses = (isExternalEmbed || previewMode)
     ? "absolute inset-0 w-full h-full overflow-hidden flex flex-col"
     : embedded 
       ? "w-full h-full overflow-hidden flex flex-col"
-      : previewMode
-        ? "fixed bottom-5 right-5 w-[360px] h-[520px] z-50 rounded-xl overflow-hidden flex flex-col"
-        : isFullscreen
-          ? `fixed inset-4 z-50 animate-in fade-in duration-300 rounded-xl overflow-hidden flex flex-col`
-          : `${positionClass} bottom-5 right-5 w-[360px] h-[520px] z-50 animate-in slide-in-from-bottom-5 fade-in duration-300 rounded-xl overflow-hidden flex flex-col`;
+      : isFullscreen
+        ? `fixed inset-4 z-50 animate-in fade-in duration-300 rounded-xl overflow-hidden flex flex-col`
+        : `${positionClass} bottom-5 right-5 w-[360px] h-[520px] z-50 animate-in slide-in-from-bottom-5 fade-in duration-300 rounded-xl overflow-hidden flex flex-col`;
   
   // Glassmorphism container - MORE TRANSPARENT with subtle borders
   // Preview mode also gets glassmorphism to match external widget appearance
