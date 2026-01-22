@@ -32,24 +32,74 @@ export interface ParseResult {
   };
 }
 
+function detectLanguage(text: string): 'id' | 'en' | 'other' {
+  // Simple language detection based on common words
+  const indonesianWords = ['dan', 'yang', 'untuk', 'dengan', 'ini', 'dari', 'adalah', 'atau', 'pada', 'ke', 'di', 'tidak', 'akan', 'juga', 'sudah', 'bisa', 'ada', 'itu', 'dapat', 'telah', 'oleh', 'sebagai', 'dalam', 'karena', 'harus', 'saya', 'kami', 'kita', 'mereka', 'anda'];
+  const englishWords = ['the', 'and', 'is', 'are', 'was', 'were', 'have', 'has', 'had', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'this', 'that', 'with', 'from', 'for', 'not', 'but', 'what', 'which', 'when', 'where', 'who', 'how', 'all', 'each', 'every', 'both', 'few', 'more', 'most', 'other', 'some', 'such'];
+  
+  const words = text.toLowerCase().split(/\s+/).slice(0, 200);
+  let idCount = 0;
+  let enCount = 0;
+  
+  for (const word of words) {
+    if (indonesianWords.includes(word)) idCount++;
+    if (englishWords.includes(word)) enCount++;
+  }
+  
+  if (idCount > enCount && idCount >= 3) return 'id';
+  if (enCount > idCount && enCount >= 3) return 'en';
+  return 'other';
+}
+
 function generateSummary(content: string, fileType: string): string {
   const lines = content.split('\n').filter(l => l.trim().length > 0);
   const firstFewLines = lines.slice(0, 5).join(' ').substring(0, 200);
+  const lang = detectLanguage(content);
+  
+  // Multi-language labels
+  const labels = {
+    id: {
+      tableData: 'Data tabel dengan',
+      rows: 'baris',
+      preview: 'Preview',
+      pdfDoc: 'Dokumen PDF',
+      textDoc: 'Dokumen teks',
+      file: 'File'
+    },
+    en: {
+      tableData: 'Table data with',
+      rows: 'rows',
+      preview: 'Preview',
+      pdfDoc: 'PDF Document',
+      textDoc: 'Text document',
+      file: 'File'
+    },
+    other: {
+      tableData: 'Table data with',
+      rows: 'rows',
+      preview: 'Preview',
+      pdfDoc: 'PDF Document',
+      textDoc: 'Text document',
+      file: 'File'
+    }
+  };
+  
+  const l = labels[lang];
   
   if (fileType === 'Excel' || fileType === 'CSV' || fileType === 'Google Sheet') {
     const tableRows = lines.length;
-    return `Data tabel dengan ${tableRows} baris. Preview: ${firstFewLines}...`;
+    return `${l.tableData} ${tableRows} ${l.rows}. ${l.preview}: ${firstFewLines}...`;
   }
   
   if (fileType === 'PDF') {
-    return `Dokumen PDF. Preview: ${firstFewLines}...`;
+    return `${l.pdfDoc}. ${l.preview}: ${firstFewLines}...`;
   }
   
   if (fileType === 'Word' || fileType === 'Google Doc') {
-    return `Dokumen teks. Preview: ${firstFewLines}...`;
+    return `${l.textDoc}. ${l.preview}: ${firstFewLines}...`;
   }
   
-  return `File ${fileType}. Preview: ${firstFewLines}...`;
+  return `${l.file} ${fileType}. ${l.preview}: ${firstFewLines}...`;
 }
 
 export async function parseFile(filePath: string, mimeType: string): Promise<ParseResult> {
