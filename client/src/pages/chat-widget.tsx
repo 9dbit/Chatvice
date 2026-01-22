@@ -2464,12 +2464,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                       : { backgroundColor: primaryColor }
                     : applyEmbedStyles 
                       ? { 
-                          background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.15) 100%)',
-                          backgroundColor: 'rgba(255, 255, 255, 0.20)',
-                          backdropFilter: 'blur(20px) saturate(150%)',
-                          WebkitBackdropFilter: 'blur(20px) saturate(150%)',
-                          border: '1px solid rgba(255, 255, 255, 0.3)',
-                          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
+                          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%)',
+                          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                          backdropFilter: 'blur(40px) saturate(180%)',
+                          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+                          border: '1px solid rgba(255, 255, 255, 0.15)',
+                          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
                         }
                       : undefined}
                 >
@@ -2723,11 +2723,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               <div 
                 className="rounded-2xl rounded-bl-sm p-3"
                 style={applyEmbedStyles ? {
-                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.05) 100%)',
-                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                  backdropFilter: 'blur(10px)',
-                  WebkitBackdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  backdropFilter: 'blur(40px) saturate(180%)',
+                  WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
                 } : { backgroundColor: 'hsl(var(--muted))' }}
               >
                 <div className="flex gap-1">

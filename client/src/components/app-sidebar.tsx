@@ -609,9 +609,9 @@ export function AppSidebar() {
         )}
         
         {billingStatus && (
-          <Collapsible defaultOpen>
+          <Collapsible defaultOpen={true}>
             <div className="p-3 rounded-lg bg-muted/50 space-y-2">
-              <CollapsibleTrigger className="w-full">
+              <CollapsibleTrigger className="w-full" data-testid="trigger-usage-plan">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-xs font-medium">
                     <Coins className="w-3.5 h-3.5 text-primary" />
@@ -621,7 +621,7 @@ export function AppSidebar() {
                     <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
                       {billingStatus.planName}
                     </span>
-                    <ChevronDown className="w-3.5 h-3.5 text-muted-foreground transition-transform duration-300 ease-out [[data-state=open]>&]:rotate-180" />
+                    <ChevronDown className="w-3.5 h-3.5 text-muted-foreground transition-transform duration-300 ease-out data-[state=open]:rotate-180" />
                   </div>
                 </div>
               </CollapsibleTrigger>
@@ -645,7 +645,7 @@ export function AppSidebar() {
                   </div>
                 </div>
                 
-                <CollapsibleContent className="space-y-2 animate-in slide-in-from-top-2 fade-in duration-300">
+                <CollapsibleContent className="space-y-2 overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-top-1 data-[state=open]:slide-in-from-top-1 duration-300">
                   {/* AI Agents */}
                   <div className="space-y-1">
                     <div className="flex justify-between gap-2">
