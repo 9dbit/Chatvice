@@ -1644,39 +1644,41 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     };
   };
   
-  // Glassmorphism container - Light mode uses solid white, dark mode uses transparent
+  // Glassmorphism container - Liquid glass effect like Apple iOS UI
   // Preview mode also gets glassmorphism to match external widget appearance
   const frostedGlassContainerStyle: React.CSSProperties = applyEmbedStyles
     ? widgetIsDark 
       ? {
-          backgroundColor: 'rgba(0, 0, 0, 0.15)',
+          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 50%, rgba(0, 0, 0, 0.1) 100%)',
+          backgroundColor: 'rgba(0, 0, 0, 0.25)',
           borderRadius: widgetBorderRadius,
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.25)',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
+          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
           overflow: 'hidden',
-          backdropFilter: 'blur(20px) saturate(120%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(120%)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
           ...getMaximizedStyle(),
         }
       : {
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 50%, rgba(248, 250, 252, 0.8) 100%)',
+          backgroundColor: 'rgba(255, 255, 255, 0.75)',
           borderRadius: widgetBorderRadius,
-          border: '1px solid rgba(0, 0, 0, 0.08)',
-          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)',
+          border: '1px solid rgba(255, 255, 255, 0.5)',
+          boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
           overflow: 'hidden',
-          backdropFilter: 'blur(20px) saturate(120%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(120%)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
           ...getMaximizedStyle(),
         }
     : {};
   
-  // Header style - Pill shaped with 50px rounded corners (top and bottom)
+  // Header style - Island style: smaller width with margins, pill shaped
   const frostedHeaderStyle: React.CSSProperties = applyEmbedStyles
     ? { 
         background: `linear-gradient(180deg, ${primaryColor}FF 0%, ${primaryColor}E6 60%, ${primaryColor}D9 100%)`,
         boxShadow: `
-          0 10px 40px rgba(0, 0, 0, 0.4), 
-          0 20px 60px rgba(0, 0, 0, 0.25), 
+          0 6px 20px rgba(0, 0, 0, 0.3), 
+          0 12px 40px rgba(0, 0, 0, 0.2), 
           inset 0 2px 1px rgba(255, 255, 255, 0.5), 
           inset 0 -2px 1px rgba(0, 0, 0, 0.15),
           inset 1px 0 1px rgba(255, 255, 255, 0.2),
@@ -1684,6 +1686,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         `,
         borderRadius: '50px',
         border: '1px solid rgba(255, 255, 255, 0.25)',
+        margin: '8px 10px 0 10px',
       }
     : { backgroundColor: primaryColor };
   
@@ -2421,21 +2424,23 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                       : `rounded-2xl rounded-bl-sm ${applyEmbedStyles ? 'text-white' : 'bg-muted'}`
                   }`}
                   style={msg.from === "user" 
-                    ? { 
-                        backgroundColor: primaryColor,
-                        boxShadow: applyEmbedStyles 
-                          ? '0 6px 24px rgba(0, 0, 0, 0.35), 0 12px 40px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3)' 
-                          : undefined,
-                        border: applyEmbedStyles ? '1px solid rgba(255, 255, 255, 0.2)' : undefined,
-                      } 
+                    ? applyEmbedStyles
+                      ? { 
+                          background: `linear-gradient(180deg, ${primaryColor}99 0%, ${primaryColor}80 100%)`,
+                          backdropFilter: 'blur(20px) saturate(150%)',
+                          WebkitBackdropFilter: 'blur(20px) saturate(150%)',
+                          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
+                          border: '1px solid rgba(255, 255, 255, 0.2)',
+                        }
+                      : { backgroundColor: primaryColor }
                     : applyEmbedStyles 
                       ? { 
-                          background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%)',
-                          backgroundColor: 'rgba(255, 255, 255, 0.12)',
-                          backdropFilter: 'blur(20px) saturate(180%)',
-                          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                          border: '1px solid rgba(255, 255, 255, 0.25)',
-                          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3), 0 16px 48px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
+                          background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.15) 100%)',
+                          backgroundColor: 'rgba(255, 255, 255, 0.20)',
+                          backdropFilter: 'blur(20px) saturate(150%)',
+                          WebkitBackdropFilter: 'blur(20px) saturate(150%)',
+                          border: '1px solid rgba(255, 255, 255, 0.3)',
+                          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
                         }
                       : undefined}
                 >
