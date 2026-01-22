@@ -2739,8 +2739,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               <Button
                 key={sq.id}
                 variant="ghost"
-                size="lg"
-                className={`w-full justify-start text-left rounded-xl ${
+                size="sm"
+                className={`w-full justify-start text-left rounded-xl py-2 ${
                   applyEmbedStyles 
                     ? (widgetIsDark ? 'text-white/90 bg-white/10' : 'text-gray-700 bg-gray-100/60')
                     : 'text-foreground bg-muted/30'
