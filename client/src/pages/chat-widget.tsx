@@ -198,6 +198,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const [isCheckingSession, setIsCheckingSession] = useState(!previewMode);
   const [resumedSessionId, setResumedSessionId] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
   
   // Make body, html, and #root transparent for external embed mode so frosted glass shows through
   useEffect(() => {
@@ -1522,13 +1523,53 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   
   // External embed and previewMode both use absolute positioning to fill their container (iframe)
   // The iframe itself is positioned at bottom-right by the parent page (live-preview.tsx)
-  const containerClasses = (isExternalEmbed || previewMode)
-    ? "absolute inset-0 w-full h-full overflow-hidden flex flex-col"
-    : embedded 
-      ? "w-full h-full overflow-hidden flex flex-col"
-      : isFullscreen
-        ? `fixed inset-4 z-50 animate-in fade-in duration-300 rounded-xl overflow-hidden flex flex-col`
-        : `${positionClass} bottom-5 right-5 w-[360px] h-[520px] z-50 animate-in slide-in-from-bottom-5 fade-in duration-300 rounded-xl overflow-hidden flex flex-col`;
+  // Maximized state: mobile = full height below header (top: 60px), desktop = 20% larger
+  const getContainerClasses = () => {
+    if (isExternalEmbed || previewMode) {
+      return "absolute inset-0 w-full h-full overflow-hidden flex flex-col";
+    }
+    if (embedded) {
+      return "w-full h-full overflow-hidden flex flex-col";
+    }
+    if (isFullscreen) {
+      return `fixed inset-4 z-50 animate-in fade-in duration-300 overflow-hidden flex flex-col`;
+    }
+    if (isMaximized) {
+      // Maximized: responsive - mobile fills below header, desktop 20% larger
+      return `${positionClass} bottom-5 right-5 z-50 animate-in fade-in duration-300 overflow-hidden flex flex-col`;
+    }
+    return `${positionClass} bottom-5 right-5 w-[360px] h-[520px] z-50 animate-in slide-in-from-bottom-5 fade-in duration-300 overflow-hidden flex flex-col`;
+  };
+  const containerClasses = getContainerClasses();
+  
+  // Consistent border radius throughout widget
+  const widgetBorderRadius = '28px';
+  
+  // Maximized dimensions - responsive
+  const getMaximizedStyle = (): React.CSSProperties => {
+    if (!isMaximized) return {};
+    // Mobile: fill height below website header (60px), desktop: 20% larger
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    if (isMobile) {
+      return {
+        position: 'fixed',
+        top: '70px', // Below external website header
+        left: '20px',
+        right: '20px',
+        bottom: '20px',
+        width: 'auto',
+        height: 'auto',
+        maxWidth: '100vw',
+        maxHeight: 'calc(100vh - 90px)',
+      };
+    }
+    return {
+      width: '432px', // 360px + 20%
+      height: '624px', // 520px + 20%
+      maxWidth: 'calc(100vw - 40px)',
+      maxHeight: 'calc(100vh - 90px)',
+    };
+  };
   
   // Glassmorphism container - Light mode uses solid white, dark mode uses transparent
   // Preview mode also gets glassmorphism to match external widget appearance
@@ -1536,21 +1577,23 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     ? widgetIsDark 
       ? {
           backgroundColor: 'rgba(0, 0, 0, 0.15)',
-          borderRadius: '24px',
+          borderRadius: widgetBorderRadius,
           border: '1px solid rgba(255, 255, 255, 0.12)',
           boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.25)',
           overflow: 'hidden',
           backdropFilter: 'blur(20px) saturate(120%)',
           WebkitBackdropFilter: 'blur(20px) saturate(120%)',
+          ...getMaximizedStyle(),
         }
       : {
           backgroundColor: 'rgba(255, 255, 255, 0.95)',
-          borderRadius: '24px',
+          borderRadius: widgetBorderRadius,
           border: '1px solid rgba(0, 0, 0, 0.08)',
           boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)',
           overflow: 'hidden',
           backdropFilter: 'blur(20px) saturate(120%)',
           WebkitBackdropFilter: 'blur(20px) saturate(120%)',
+          ...getMaximizedStyle(),
         }
     : {};
   
@@ -1674,7 +1717,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         </div>
         
         <div className="flex items-center gap-1 flex-shrink-0">
-        {/* Fullscreen Toggle - Square for maximize, Minimize2 for minimize */}
+        {/* Maximize Toggle - responsive sizing (mobile: full height, desktop: 20% larger) */}
         {!embedded && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -1682,10 +1725,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 size="icon"
                 variant="ghost"
                 className="text-white hover:bg-white/20 h-7 w-7"
-                onClick={() => setIsFullscreen(!isFullscreen)}
-                data-testid="button-fullscreen-widget"
+                onClick={() => setIsMaximized(!isMaximized)}
+                data-testid="button-maximize-widget"
               >
-                {isFullscreen ? (
+                {isMaximized ? (
                   <Minimize2 className="w-3.5 h-3.5" />
                 ) : (
                   <Maximize2 className="w-3.5 h-3.5" />
@@ -1693,7 +1736,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              <p className="text-xs">{isFullscreen ? "Minimize" : "Maximize"}</p>
+              <p className="text-xs">{isMaximized ? "Minimize" : "Maximize"}</p>
             </TooltipContent>
           </Tooltip>
         )}
@@ -1798,10 +1841,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           return (
             <div 
               className="absolute top-0 left-0 right-0 z-20 overflow-hidden"
-              style={{ 
+              style={widgetIsDark ? { 
                 backgroundColor: 'rgba(0, 0, 0, 0.15)',
                 backdropFilter: 'blur(20px)',
                 WebkitBackdropFilter: 'blur(20px)',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)',
+                animation: socialPanelClosing 
+                  ? 'slideUpSmooth 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+                  : 'slideDownSmooth 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+              } : { 
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
                 animation: socialPanelClosing 
                   ? 'slideUpSmooth 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
                   : 'slideDownSmooth 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
@@ -1830,8 +1882,20 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 }
               `}</style>
               
-              {/* Social icons */}
-              <div className="px-3 py-2 flex items-center justify-center gap-3">
+              {/* Social icons with close button */}
+              <div className="px-3 py-2 flex items-center justify-center gap-3 relative">
+                  {/* Close drawer button - positioned at right */}
+                  <button
+                    onClick={handleCloseSocialPanel}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full hover:scale-110 transition-transform"
+                    style={{ 
+                      backgroundColor: widgetIsDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)',
+                      color: widgetIsDark ? '#ffffff' : '#374151'
+                    }}
+                    data-testid="button-close-drawer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
                   {socialLinks.map(social => (
                     <a
                       key={social.icon}
@@ -1889,7 +1953,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           style={frostedBodyStyle}
         >
           <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <p 
+            className="text-sm"
+            style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#374151' } : undefined}
+          >Loading...</p>
         </div>
       ) : !hasSubmittedName && !serverMessages?.length ? (
         <div 
@@ -1912,14 +1979,20 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               </div>
             )}
             
-            <p className="text-sm text-muted-foreground mb-4 text-center">
+            <p 
+              className="text-sm mb-4 text-center"
+              style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#374151' } : undefined}
+            >
               Please fill in your details to start chatting.
             </p>
             
             <div className="w-full max-w-xs space-y-3">
               {/* Name Input */}
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                <Label 
+                  className="text-xs flex items-center gap-1"
+                  style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#374151' } : undefined}
+                >
                   <User className="w-3 h-3" /> Name <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -1942,18 +2015,21 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   data-bwignore="true"
                   data-form-type="other"
                   aria-autocomplete="none"
-                  style={{
-                    WebkitTextSecurity: 'none',
-                    ...(applyEmbedStyles ? {
-                      background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%)',
-                      backdropFilter: 'blur(20px) saturate(180%)',
-                      WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                      border: '1px solid rgba(255, 255, 255, 0.25)',
-                      boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 16px rgba(0, 0, 0, 0.15)',
-                      color: 'white',
-                      borderRadius: '12px',
-                    } : {})
-                  } as React.CSSProperties}
+                  style={applyEmbedStyles ? (widgetIsDark ? {
+                    background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%)',
+                    backdropFilter: 'blur(20px) saturate(180%)',
+                    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                    boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 16px rgba(0, 0, 0, 0.15)',
+                    color: '#ffffff',
+                    borderRadius: '14px',
+                  } : {
+                    background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 1) 100%)',
+                    border: '1px solid rgba(0, 0, 0, 0.12)',
+                    boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 2px 8px rgba(0, 0, 0, 0.08)',
+                    color: '#1f2937',
+                    borderRadius: '14px',
+                  }) : undefined}
                   data-testid="input-customer-name"
                 />
                 {nameError && (
@@ -1965,20 +2041,54 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               
               {/* Phone Input with Country Code */}
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                <Label 
+                  className="text-xs flex items-center gap-1"
+                  style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#374151' } : undefined}
+                >
                   <Phone className="w-3 h-3" /> Phone Number <span className="text-red-500">*</span>
                 </Label>
                 <div className="flex gap-1.5">
                   <Select value={phoneDialCode} onValueChange={setPhoneDialCode}>
-                    <SelectTrigger className="w-[90px] text-xs" data-testid="select-country-code">
+                    <SelectTrigger 
+                      className="w-[90px] text-xs" 
+                      data-testid="select-country-code"
+                      style={applyEmbedStyles ? (widgetIsDark ? {
+                        background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%)',
+                        backdropFilter: 'blur(20px) saturate(180%)',
+                        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                        border: '1px solid rgba(255, 255, 255, 0.25)',
+                        boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 16px rgba(0, 0, 0, 0.15)',
+                        color: '#ffffff',
+                        borderRadius: '14px',
+                      } : {
+                        background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 1) 100%)',
+                        border: '1px solid rgba(0, 0, 0, 0.12)',
+                        boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 2px 8px rgba(0, 0, 0, 0.08)',
+                        color: '#1f2937',
+                        borderRadius: '14px',
+                      }) : undefined}
+                    >
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="max-h-[200px]">
+                    <SelectContent 
+                      className="max-h-[200px]"
+                      style={applyEmbedStyles ? (widgetIsDark ? {
+                        background: 'rgba(30, 30, 30, 0.95)',
+                        backdropFilter: 'blur(20px)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        borderRadius: '14px',
+                      } : {
+                        background: 'rgba(255, 255, 255, 0.98)',
+                        border: '1px solid rgba(0, 0, 0, 0.1)',
+                        borderRadius: '14px',
+                      }) : undefined}
+                    >
                       {countryPhoneConfigs.map((country) => (
                         <SelectItem 
                           key={country.code} 
                           value={country.dialCode}
                           className="text-xs"
+                          style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#1f2937' } : undefined}
                         >
                           +{country.dialCode}
                         </SelectItem>
@@ -1999,15 +2109,21 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                     name="chatvice_customer_phone"
                     id="chatvice_customer_phone"
                     autoComplete="tel"
-                    style={applyEmbedStyles ? {
+                    style={applyEmbedStyles ? (widgetIsDark ? {
                       background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%)',
                       backdropFilter: 'blur(20px) saturate(180%)',
                       WebkitBackdropFilter: 'blur(20px) saturate(180%)',
                       border: '1px solid rgba(255, 255, 255, 0.25)',
                       boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 16px rgba(0, 0, 0, 0.15)',
-                      color: 'white',
-                      borderRadius: '12px',
-                    } : undefined}
+                      color: '#ffffff',
+                      borderRadius: '14px',
+                    } : {
+                      background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 1) 100%)',
+                      border: '1px solid rgba(0, 0, 0, 0.12)',
+                      boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 2px 8px rgba(0, 0, 0, 0.08)',
+                      color: '#1f2937',
+                      borderRadius: '14px',
+                    }) : undefined}
                     data-testid="input-customer-phone"
                   />
                 </div>
@@ -2020,8 +2136,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               
               {/* Email Input (Optional) */}
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Mail className="w-3 h-3" /> Email <span className="text-muted-foreground">(optional)</span>
+                <Label 
+                  className="text-xs flex items-center gap-1"
+                  style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#374151' } : undefined}
+                >
+                  <Mail className="w-3 h-3" /> Email <span style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#6b7280' } : undefined}>(optional)</span>
                 </Label>
                 <Input
                   type="email"
@@ -2035,15 +2154,21 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   name="chatvice_customer_email"
                   id="chatvice_customer_email"
                   autoComplete="email"
-                  style={applyEmbedStyles ? {
+                  style={applyEmbedStyles ? (widgetIsDark ? {
                     background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%)',
                     backdropFilter: 'blur(20px) saturate(180%)',
                     WebkitBackdropFilter: 'blur(20px) saturate(180%)',
                     border: '1px solid rgba(255, 255, 255, 0.25)',
                     boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 16px rgba(0, 0, 0, 0.15)',
-                    color: 'white',
-                    borderRadius: '12px',
-                  } : undefined}
+                    color: '#ffffff',
+                    borderRadius: '14px',
+                  } : {
+                    background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 1) 100%)',
+                    border: '1px solid rgba(0, 0, 0, 0.12)',
+                    boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 2px 8px rgba(0, 0, 0, 0.08)',
+                    color: '#1f2937',
+                    borderRadius: '14px',
+                  }) : undefined}
                   data-testid="input-customer-email"
                 />
                 {emailError && (
@@ -2055,20 +2180,36 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               
               {/* Quick Message Options */}
               {merchantConfig?.quickMessageOptions && merchantConfig.quickMessageOptions.length > 0 ? (
-                <div className="bg-muted/50 rounded-lg p-3 border">
-                  <p className="text-xs text-muted-foreground mb-2">⚡️ Quick Question</p>
+                <div 
+                  className="rounded-lg p-3"
+                  style={applyEmbedStyles ? (widgetIsDark ? {
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    borderRadius: '14px',
+                  } : {
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    border: '1px solid rgba(0, 0, 0, 0.08)',
+                    borderRadius: '14px',
+                  }) : undefined}
+                >
+                  <p 
+                    className="text-xs mb-2"
+                    style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#6b7280' } : undefined}
+                  >⚡ Quick Question</p>
                   <div className="space-y-2">
                     {merchantConfig.quickMessageOptions.map((option: string, index: number) => (
                       <label 
                         key={index} 
-                        className="flex items-center gap-2 cursor-pointer text-sm hover:bg-muted/50 p-1 rounded"
+                        className="flex items-center gap-2 cursor-pointer text-sm p-1 rounded transition-colors"
+                        style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#1f2937' } : undefined}
                         data-testid={`quick-message-option-${index}`}
                       >
                         <input
                           type="checkbox"
                           checked={selectedQuickMessage === option}
                           onChange={() => setSelectedQuickMessage(selectedQuickMessage === option ? null : option)}
-                          className="w-4 h-4 rounded border-gray-300"
+                          className="w-4 h-4 rounded"
+                          style={applyEmbedStyles ? { accentColor: primaryColor } : undefined}
                         />
                         <span>{option}</span>
                       </label>
@@ -2076,9 +2217,26 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   </div>
                 </div>
               ) : (
-                <div className="bg-muted/50 rounded-lg p-3 border">
-                  <p className="text-xs text-muted-foreground mb-1">Your message:</p>
-                  <p className="text-sm italic">"Hello, I have a question"</p>
+                <div 
+                  className="rounded-lg p-3"
+                  style={applyEmbedStyles ? (widgetIsDark ? {
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    borderRadius: '14px',
+                  } : {
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    border: '1px solid rgba(0, 0, 0, 0.08)',
+                    borderRadius: '14px',
+                  }) : undefined}
+                >
+                  <p 
+                    className="text-xs mb-1"
+                    style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#6b7280' } : undefined}
+                  >Your message:</p>
+                  <p 
+                    className="text-sm italic"
+                    style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#1f2937' } : undefined}
+                  >"Hello, I have a question"</p>
                 </div>
               )}
               
@@ -2104,7 +2262,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               
               {/* Powered by Chatvice branding */}
               <div className="flex items-center justify-center gap-1.5 mt-4">
-                <span className="text-[10px] text-muted-foreground">Powered by</span>
+                <span 
+                  className="text-[10px]"
+                  style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#6b7280' } : undefined}
+                >Powered by</span>
                 <a 
                   href="https://chatvice.app" 
                   target="_blank" 
@@ -2697,13 +2858,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </Button>
         </div>
         {!isOnline && (
-          <p className="text-xs text-muted-foreground text-center mt-2">
+          <p 
+            className="text-xs text-center mt-2"
+            style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#374151' } : undefined}
+          >
             We're currently offline. Please try again later.
           </p>
         )}
         {/* Powered by Chatvice branding */}
         <div className="flex items-center justify-center gap-1.5 mt-3 pb-1">
-          <span className="text-[10px] text-muted-foreground">Powered by</span>
+          <span 
+            className="text-[10px]"
+            style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#6b7280' } : undefined}
+          >Powered by</span>
           <a 
             href="https://chatvice.app" 
             target="_blank" 
