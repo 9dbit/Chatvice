@@ -13592,6 +13592,180 @@ ${log.extractedKnowledge}` : ''}
     }
   });
 
+  // Performance analytics for agents and supervisors
+  app.get("/api/analytics/performance", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { period = "daily" } = req.query;
+      
+      // Get agents and supervisors
+      const agentsList = await storage.getAgents(merchantId);
+      const supervisorsList = await storage.getSupervisorsByMerchant(merchantId);
+      const allSessions = await storage.getSessionsByMerchant(merchantId);
+      
+      // Calculate date range based on period
+      const now = new Date();
+      let startDate: Date;
+      let dateGrouping: "day" | "week" | "month" | "year";
+      
+      switch (period) {
+        case "weekly":
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          dateGrouping = "day";
+          break;
+        case "monthly":
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          dateGrouping = "week";
+          break;
+        case "yearly":
+          startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+          dateGrouping = "month";
+          break;
+        default: // daily
+          startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          dateGrouping = "day";
+      }
+      
+      // Get messages for each session within the date range
+      const agentPerformance = await Promise.all(agentsList.map(async (agent: { id: string; name: string; photoUrl: string | null }) => {
+        const agentSessions = allSessions.filter(s => s.agentId === agent.id);
+        let totalMessages = 0;
+        let totalResponseTime = 0;
+        let responseCount = 0;
+        
+        for (const session of agentSessions) {
+          const sessionMessages = await storage.getMessages(session.id);
+          const filteredMessages = sessionMessages.filter(m => 
+            m.timestamp && new Date(m.timestamp) >= startDate
+          );
+          
+          // Count AI messages
+          const aiMessages = filteredMessages.filter(m => m.from === "agent");
+          totalMessages += aiMessages.length;
+          
+          // Calculate response times
+          for (let i = 0; i < filteredMessages.length; i++) {
+            const msg = filteredMessages[i];
+            if (msg.from === "agent" && i > 0) {
+              const prevMsg = filteredMessages[i - 1];
+              if (prevMsg.from === "user" && msg.timestamp && prevMsg.timestamp) {
+                const responseTimeMs = new Date(msg.timestamp).getTime() - new Date(prevMsg.timestamp).getTime();
+                if (responseTimeMs > 0 && responseTimeMs < 300000) { // < 5 minutes
+                  totalResponseTime += responseTimeMs;
+                  responseCount++;
+                }
+              }
+            }
+          }
+        }
+        
+        const avgResponseTimeMs = responseCount > 0 ? totalResponseTime / responseCount : 0;
+        const avgResponseTimeSec = avgResponseTimeMs / 1000;
+        
+        return {
+          id: agent.id,
+          name: agent.name,
+          photoUrl: agent.photoUrl,
+          type: "agent" as const,
+          messagesHandled: totalMessages,
+          avgResponseTime: avgResponseTimeSec,
+          avgResponseTimeFormatted: avgResponseTimeSec > 0 ? `${avgResponseTimeSec.toFixed(1)}s` : "N/A",
+        };
+      }));
+      
+      // Calculate supervisor performance
+      const supervisorPerformance = await Promise.all(supervisorsList.map(async (supervisor) => {
+        const supervisorSessions = allSessions.filter(s => s.supervisorId === supervisor.id);
+        let totalMessages = 0;
+        let totalResponseTime = 0;
+        let responseCount = 0;
+        
+        for (const session of supervisorSessions) {
+          const sessionMessages = await storage.getMessages(session.id);
+          const filteredMessages = sessionMessages.filter(m => 
+            m.timestamp && new Date(m.timestamp) >= startDate
+          );
+          
+          // Count supervisor messages (from = "supervisor" or from includes supervisor name)
+          const supervisorMessages = filteredMessages.filter(m => 
+            m.from === "supervisor" || m.from.toLowerCase().includes(supervisor.name.toLowerCase())
+          );
+          totalMessages += supervisorMessages.length;
+          
+          // Calculate response times for supervisor messages
+          for (let i = 0; i < filteredMessages.length; i++) {
+            const msg = filteredMessages[i];
+            if ((msg.from === "supervisor" || msg.from.toLowerCase().includes(supervisor.name.toLowerCase())) && i > 0) {
+              const prevMsg = filteredMessages[i - 1];
+              if (prevMsg.from === "user" && msg.timestamp && prevMsg.timestamp) {
+                const responseTimeMs = new Date(msg.timestamp).getTime() - new Date(prevMsg.timestamp).getTime();
+                if (responseTimeMs > 0 && responseTimeMs < 600000) { // < 10 minutes
+                  totalResponseTime += responseTimeMs;
+                  responseCount++;
+                }
+              }
+            }
+          }
+        }
+        
+        const avgResponseTimeMs = responseCount > 0 ? totalResponseTime / responseCount : 0;
+        const avgResponseTimeSec = avgResponseTimeMs / 1000;
+        
+        return {
+          id: supervisor.id,
+          name: supervisor.name,
+          photoUrl: supervisor.photoUrl,
+          type: "supervisor" as const,
+          messagesHandled: totalMessages,
+          avgResponseTime: avgResponseTimeSec,
+          avgResponseTimeFormatted: avgResponseTimeSec > 0 
+            ? avgResponseTimeSec >= 60 
+              ? `${Math.floor(avgResponseTimeSec / 60)}m ${Math.round(avgResponseTimeSec % 60)}s`
+              : `${avgResponseTimeSec.toFixed(1)}s`
+            : "N/A",
+        };
+      }));
+      
+      // Calculate totals for comparison
+      const totalAgentMessages = agentPerformance.reduce((sum: number, a: { messagesHandled: number }) => sum + a.messagesHandled, 0);
+      const totalSupervisorMessages = supervisorPerformance.reduce((sum: number, s: { messagesHandled: number }) => sum + s.messagesHandled, 0);
+      
+      const avgAgentResponseTime = agentPerformance.length > 0 
+        ? agentPerformance.reduce((sum: number, a: { avgResponseTime: number }) => sum + a.avgResponseTime, 0) / agentPerformance.filter((a: { avgResponseTime: number }) => a.avgResponseTime > 0).length || 0
+        : 0;
+      
+      const avgSupervisorResponseTime = supervisorPerformance.length > 0
+        ? supervisorPerformance.reduce((sum, s) => sum + s.avgResponseTime, 0) / supervisorPerformance.filter(s => s.avgResponseTime > 0).length || 0
+        : 0;
+      
+      res.json({
+        period,
+        agents: agentPerformance,
+        supervisors: supervisorPerformance,
+        comparison: {
+          agents: {
+            totalMessages: totalAgentMessages,
+            avgResponseTime: avgAgentResponseTime,
+            avgResponseTimeFormatted: avgAgentResponseTime > 0 ? `${avgAgentResponseTime.toFixed(1)}s` : "N/A",
+          },
+          supervisors: {
+            totalMessages: totalSupervisorMessages,
+            avgResponseTime: avgSupervisorResponseTime,
+            avgResponseTimeFormatted: avgSupervisorResponseTime > 0
+              ? avgSupervisorResponseTime >= 60
+                ? `${Math.floor(avgSupervisorResponseTime / 60)}m ${Math.round(avgSupervisorResponseTime % 60)}s`
+                : `${avgSupervisorResponseTime.toFixed(1)}s`
+              : "N/A",
+          },
+        },
+        needsUpgrade: avgAgentResponseTime > 3, // Flag for upselling if AI response > 3 seconds
+      });
+    } catch (error) {
+      console.error("Performance analytics error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // ============== WORK SCHEDULER ROUTES ==============
   
   // Get all shifts for merchant

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +7,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "wouter";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   BarChart3,
   TrendingUp,
@@ -22,6 +26,8 @@ import {
   MapPin,
   Lightbulb,
   Target,
+  Zap,
+  AlertTriangle,
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
 import type { Merchant } from "@shared/schema";
@@ -68,10 +74,42 @@ interface LocationAnalytics {
   recentLocations: LocationPoint[];
 }
 
+interface PerformanceData {
+  id: string;
+  name: string;
+  photoUrl: string | null;
+  type: "agent" | "supervisor";
+  messagesHandled: number;
+  avgResponseTime: number;
+  avgResponseTimeFormatted: string;
+}
+
+interface PerformanceAnalytics {
+  period: string;
+  agents: PerformanceData[];
+  supervisors: PerformanceData[];
+  comparison: {
+    agents: {
+      totalMessages: number;
+      avgResponseTime: number;
+      avgResponseTimeFormatted: string;
+    };
+    supervisors: {
+      totalMessages: number;
+      avgResponseTime: number;
+      avgResponseTimeFormatted: string;
+    };
+  };
+  needsUpgrade: boolean;
+}
+
 const CHART_COLORS = ["#6b5dfc", "#8b7dfc", "#ab9dfc", "#cbbdfc", "#ebddfc"];
+const AGENT_COLOR = "#6b5dfc";
+const SUPERVISOR_COLOR = "#22c55e";
 
 export default function AnalyticsPage() {
   const merchantId = localStorage.getItem("merchantId") || "";
+  const [performancePeriod, setPerformancePeriod] = useState<"daily" | "weekly" | "monthly" | "yearly">("daily");
 
   const { data: merchant } = useQuery<Merchant>({
     queryKey: ["/api/merchant", merchantId],
@@ -86,6 +124,16 @@ export default function AnalyticsPage() {
   const { data: locationAnalytics } = useQuery<LocationAnalytics>({
     queryKey: ["/api/analytics/locations"],
     refetchInterval: 60000,
+  });
+
+  const { data: performanceAnalytics, isLoading: performanceLoading } = useQuery<PerformanceAnalytics>({
+    queryKey: ["/api/analytics/performance", performancePeriod],
+    queryFn: async () => {
+      const res = await fetch(`/api/analytics/performance?period=${performancePeriod}`);
+      if (!res.ok) throw new Error("Failed to fetch performance analytics");
+      return res.json();
+    },
+    refetchInterval: 30000,
   });
 
   const plan = merchant ? subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free : subscriptionPlans.free;
@@ -251,7 +299,7 @@ export default function AnalyticsPage() {
       </div>
 
       <Tabs defaultValue="topics">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="topics" className="flex items-center gap-2">
             Chat Topics
             {!canViewChatTopics && <Lock className="w-3 h-3" />}
@@ -260,6 +308,10 @@ export default function AnalyticsPage() {
           <TabsTrigger value="locations" className="flex items-center gap-2">
             <MapPin className="w-3 h-3" />
             Locations
+          </TabsTrigger>
+          <TabsTrigger value="team-performance" className="flex items-center gap-2">
+            <Users className="w-3 h-3" />
+            Team Performance
           </TabsTrigger>
           <TabsTrigger value="performance">Response Times</TabsTrigger>
         </TabsList>
@@ -531,6 +583,305 @@ export default function AnalyticsPage() {
                 )}
               </CardContent>
             </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="team-performance" className="mt-4">
+          <div className="space-y-6">
+            {/* Period Filter */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold">Agent & Supervisor Performance</h3>
+                <p className="text-sm text-muted-foreground">Compare message handling and response times</p>
+              </div>
+              <Select value={performancePeriod} onValueChange={(v) => setPerformancePeriod(v as typeof performancePeriod)}>
+                <SelectTrigger className="w-[140px]" data-testid="select-performance-period">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="yearly">Yearly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Upselling Alert if AI response time > 3s */}
+            {performanceAnalytics?.needsUpgrade && (
+              <Alert className="border-yellow-500/50 bg-yellow-500/10">
+                <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                <AlertTitle className="text-yellow-600 dark:text-yellow-400">AI Response Time Alert</AlertTitle>
+                <AlertDescription className="text-muted-foreground">
+                  Your AI agent's average response time exceeds 3 seconds. Upgrade your plan for faster AI processing and improved customer experience.
+                  <Link href="/dashboard/plans">
+                    <Button size="sm" className="ml-3" data-testid="button-upgrade-speed">
+                      <Zap className="w-3 h-3 mr-1" />
+                      Upgrade Now
+                    </Button>
+                  </Link>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Comparison Summary Cards */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card className="border-primary/30">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Bot className="w-4 h-4 text-primary" />
+                    All AI Agents
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground text-sm">Total Messages</span>
+                    <span className="text-2xl font-bold">{performanceAnalytics?.comparison.agents.totalMessages || 0}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground text-sm">Avg Response Time</span>
+                    <span className="text-lg font-semibold">{performanceAnalytics?.comparison.agents.avgResponseTimeFormatted || "N/A"}</span>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="border-green-500/30">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <HeadphonesIcon className="w-4 h-4 text-green-500" />
+                    All Supervisors
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground text-sm">Total Messages</span>
+                    <span className="text-2xl font-bold">{performanceAnalytics?.comparison.supervisors.totalMessages || 0}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground text-sm">Avg Response Time</span>
+                    <span className="text-lg font-semibold">{performanceAnalytics?.comparison.supervisors.avgResponseTimeFormatted || "N/A"}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Tower Bar Charts */}
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Messages Handled Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Messages Handled</CardTitle>
+                  <CardDescription>Total messages per agent/supervisor ({performancePeriod})</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {performanceLoading ? (
+                    <div className="h-[300px] flex items-center justify-center">
+                      <Skeleton className="h-full w-full" />
+                    </div>
+                  ) : (
+                    <div className="h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={[
+                            ...(performanceAnalytics?.agents || []).map(a => ({
+                              name: a.name,
+                              messages: a.messagesHandled,
+                              type: "agent",
+                            })),
+                            ...(performanceAnalytics?.supervisors || []).map(s => ({
+                              name: s.name,
+                              messages: s.messagesHandled,
+                              type: "supervisor",
+                            })),
+                          ]}
+                          layout="vertical"
+                          margin={{ left: 20, right: 20 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                          <XAxis type="number" className="text-xs" />
+                          <YAxis dataKey="name" type="category" width={80} className="text-xs" />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "hsl(var(--card))",
+                              border: "1px solid hsl(var(--border))",
+                              borderRadius: "8px",
+                            }}
+                          />
+                          <Bar 
+                            dataKey="messages" 
+                            fill={AGENT_COLOR}
+                            radius={[0, 4, 4, 0]}
+                            name="Messages"
+                          >
+                            {[...(performanceAnalytics?.agents || []), ...(performanceAnalytics?.supervisors || [])].map((entry, index) => (
+                              <Cell 
+                                key={`cell-${index}`} 
+                                fill={entry.type === "agent" ? AGENT_COLOR : SUPERVISOR_COLOR} 
+                              />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Response Time Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Average Response Time</CardTitle>
+                  <CardDescription>Time to respond in seconds ({performancePeriod})</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {performanceLoading ? (
+                    <div className="h-[300px] flex items-center justify-center">
+                      <Skeleton className="h-full w-full" />
+                    </div>
+                  ) : (
+                    <div className="h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={[
+                            ...(performanceAnalytics?.agents || []).map(a => ({
+                              name: a.name,
+                              responseTime: a.avgResponseTime,
+                              type: "agent",
+                            })),
+                            ...(performanceAnalytics?.supervisors || []).map(s => ({
+                              name: s.name,
+                              responseTime: s.avgResponseTime,
+                              type: "supervisor",
+                            })),
+                          ]}
+                          layout="vertical"
+                          margin={{ left: 20, right: 20 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                          <XAxis type="number" className="text-xs" unit="s" />
+                          <YAxis dataKey="name" type="category" width={80} className="text-xs" />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "hsl(var(--card))",
+                              border: "1px solid hsl(var(--border))",
+                              borderRadius: "8px",
+                            }}
+                          />
+                          <Bar 
+                            dataKey="responseTime" 
+                            fill={AGENT_COLOR}
+                            radius={[0, 4, 4, 0]}
+                            name="Response Time"
+                          >
+                            {[...(performanceAnalytics?.agents || []), ...(performanceAnalytics?.supervisors || [])].map((entry, index) => (
+                              <Cell 
+                                key={`cell-${index}`} 
+                                fill={entry.type === "agent" ? AGENT_COLOR : SUPERVISOR_COLOR} 
+                              />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Individual Performance List */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Individual Performance</CardTitle>
+                <CardDescription>Detailed breakdown by team member</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {/* Agents Column */}
+                  <div>
+                    <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                      <Bot className="w-4 h-4 text-primary" />
+                      AI Agents
+                    </h4>
+                    <div className="space-y-2">
+                      {(performanceAnalytics?.agents || []).length > 0 ? (
+                        performanceAnalytics?.agents.map((agent) => (
+                          <div key={agent.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover-elevate" data-testid={`agent-performance-${agent.id}`}>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-8 w-8">
+                                {agent.photoUrl && <AvatarImage src={agent.photoUrl} alt={agent.name} />}
+                                <AvatarFallback className="bg-primary/10">
+                                  <Bot className="h-4 w-4 text-primary" />
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="text-sm font-medium">{agent.name}</p>
+                                <p className="text-xs text-muted-foreground">{agent.messagesHandled} messages</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className={`text-sm font-semibold ${agent.avgResponseTime > 3 ? "text-yellow-500" : "text-green-500"}`}>
+                                {agent.avgResponseTimeFormatted}
+                              </p>
+                              <p className="text-xs text-muted-foreground">avg response</p>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-4">No agents found</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Supervisors Column */}
+                  <div>
+                    <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                      <HeadphonesIcon className="w-4 h-4 text-green-500" />
+                      Supervisors
+                    </h4>
+                    <div className="space-y-2">
+                      {(performanceAnalytics?.supervisors || []).length > 0 ? (
+                        performanceAnalytics?.supervisors.map((supervisor) => (
+                          <div key={supervisor.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover-elevate" data-testid={`supervisor-performance-${supervisor.id}`}>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-8 w-8">
+                                {supervisor.photoUrl && <AvatarImage src={supervisor.photoUrl} alt={supervisor.name} />}
+                                <AvatarFallback className="bg-green-500/10">
+                                  <HeadphonesIcon className="h-4 w-4 text-green-500" />
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="text-sm font-medium">{supervisor.name}</p>
+                                <p className="text-xs text-muted-foreground">{supervisor.messagesHandled} messages</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-semibold text-green-500">
+                                {supervisor.avgResponseTimeFormatted}
+                              </p>
+                              <p className="text-xs text-muted-foreground">avg response</p>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-4">No supervisors found</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Legend */}
+            <div className="flex items-center justify-center gap-6 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded" style={{ backgroundColor: AGENT_COLOR }} />
+                <span className="text-muted-foreground">AI Agents</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded" style={{ backgroundColor: SUPERVISOR_COLOR }} />
+                <span className="text-muted-foreground">Supervisors</span>
+              </div>
+            </div>
           </div>
         </TabsContent>
 
