@@ -2369,7 +2369,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         </div>
       ) : (
         <div className="flex-1 min-h-0 flex flex-col">
-          <ScrollArea className="flex-1 min-h-0" style={{ ...frostedBodyStyle, borderRadius: '0 0 28px 28px' }}>
+          <ScrollArea className="flex-1 min-h-0" style={{ ...frostedBodyStyle, borderRadius: '28px' }}>
             {/* Add extra top padding when social panel is open to prevent overlap */}
             <div className={`space-y-4 p-4 ${socialIconsExpanded ? 'pt-16' : ''}`}>
               {allMessages.map((msg, index) => (
