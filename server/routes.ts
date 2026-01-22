@@ -13738,10 +13738,117 @@ ${log.extractedKnowledge}` : ''}
         ? supervisorPerformance.reduce((sum, s) => sum + s.avgResponseTime, 0) / supervisorPerformance.filter(s => s.avgResponseTime > 0).length || 0
         : 0;
       
+      // Generate daily time-series data for charts
+      const days = period === "yearly" ? 12 : period === "monthly" ? 30 : 7;
+      const dailyData: Array<{
+        date: string;
+        dateLabel: string;
+        [key: string]: number | string;
+      }> = [];
+      
+      for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        const dateLabel = date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+        
+        const dayData: { date: string; dateLabel: string; [key: string]: number | string } = { 
+          date: dateStr, 
+          dateLabel 
+        };
+        
+        // Add agent data for this date
+        for (const agent of agentsList) {
+          const agentSessions = allSessions.filter(s => s.agentId === agent.id);
+          let dayMessages = 0;
+          let dayResponseTime = 0;
+          let responseCount = 0;
+          
+          for (const session of agentSessions) {
+            const sessionMessages = await storage.getMessages(session.id);
+            const dayStart = new Date(dateStr);
+            const dayEnd = new Date(dateStr);
+            dayEnd.setDate(dayEnd.getDate() + 1);
+            
+            const dayMsgs = sessionMessages.filter(m => {
+              if (!m.timestamp) return false;
+              const msgDate = new Date(m.timestamp);
+              return msgDate >= dayStart && msgDate < dayEnd;
+            });
+            
+            const aiMsgs = dayMsgs.filter(m => m.from === "agent");
+            dayMessages += aiMsgs.length;
+            
+            for (let j = 0; j < dayMsgs.length; j++) {
+              const msg = dayMsgs[j];
+              if (msg.from === "agent" && j > 0) {
+                const prevMsg = dayMsgs[j - 1];
+                if (prevMsg.from === "user" && msg.timestamp && prevMsg.timestamp) {
+                  const responseTimeMs = new Date(msg.timestamp).getTime() - new Date(prevMsg.timestamp).getTime();
+                  if (responseTimeMs > 0 && responseTimeMs < 300000) {
+                    dayResponseTime += responseTimeMs / 1000;
+                    responseCount++;
+                  }
+                }
+              }
+            }
+          }
+          
+          dayData[`agent_${agent.id}_messages`] = dayMessages;
+          dayData[`agent_${agent.id}_responseTime`] = responseCount > 0 ? Math.round(dayResponseTime / responseCount) : 0;
+        }
+        
+        // Add supervisor data for this date
+        for (const supervisor of supervisorsList) {
+          const supSessions = allSessions.filter(s => s.supervisorId === supervisor.id);
+          let dayMessages = 0;
+          let dayResponseTime = 0;
+          let responseCount = 0;
+          
+          for (const session of supSessions) {
+            const sessionMessages = await storage.getMessages(session.id);
+            const dayStart = new Date(dateStr);
+            const dayEnd = new Date(dateStr);
+            dayEnd.setDate(dayEnd.getDate() + 1);
+            
+            const dayMsgs = sessionMessages.filter(m => {
+              if (!m.timestamp) return false;
+              const msgDate = new Date(m.timestamp);
+              return msgDate >= dayStart && msgDate < dayEnd;
+            });
+            
+            const supMsgs = dayMsgs.filter(m => 
+              m.from === "supervisor" || m.from.toLowerCase().includes(supervisor.name.toLowerCase())
+            );
+            dayMessages += supMsgs.length;
+            
+            for (let j = 0; j < dayMsgs.length; j++) {
+              const msg = dayMsgs[j];
+              if ((msg.from === "supervisor" || msg.from.toLowerCase().includes(supervisor.name.toLowerCase())) && j > 0) {
+                const prevMsg = dayMsgs[j - 1];
+                if (prevMsg.from === "user" && msg.timestamp && prevMsg.timestamp) {
+                  const responseTimeMs = new Date(msg.timestamp).getTime() - new Date(prevMsg.timestamp).getTime();
+                  if (responseTimeMs > 0 && responseTimeMs < 600000) {
+                    dayResponseTime += responseTimeMs / 1000;
+                    responseCount++;
+                  }
+                }
+              }
+            }
+          }
+          
+          dayData[`supervisor_${supervisor.id}_messages`] = dayMessages;
+          dayData[`supervisor_${supervisor.id}_responseTime`] = responseCount > 0 ? Math.round(dayResponseTime / responseCount) : 0;
+        }
+        
+        dailyData.push(dayData);
+      }
+      
       res.json({
         period,
         agents: agentPerformance,
         supervisors: supervisorPerformance,
+        dailyData,
         comparison: {
           agents: {
             totalMessages: totalAgentMessages,
@@ -13758,7 +13865,7 @@ ${log.extractedKnowledge}` : ''}
               : "N/A",
           },
         },
-        needsUpgrade: avgAgentResponseTime > 3, // Flag for upselling if AI response > 3 seconds
+        needsUpgrade: avgAgentResponseTime > 3,
       });
     } catch (error) {
       console.error("Performance analytics error:", error);

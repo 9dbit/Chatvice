@@ -88,6 +88,11 @@ interface PerformanceAnalytics {
   period: string;
   agents: PerformanceData[];
   supervisors: PerformanceData[];
+  dailyData: Array<{
+    date: string;
+    dateLabel: string;
+    [key: string]: number | string;
+  }>;
   comparison: {
     agents: {
       totalMessages: number;
@@ -102,6 +107,18 @@ interface PerformanceAnalytics {
   };
   needsUpgrade: boolean;
 }
+
+// Color palette for team members
+const TEAM_COLORS = [
+  "#3b82f6", // blue
+  "#eab308", // yellow
+  "#22c55e", // green
+  "#f97316", // orange
+  "#a855f7", // purple
+  "#ec4899", // pink
+  "#14b8a6", // teal
+  "#f43f5e", // rose
+];
 
 const CHART_COLORS = ["#6b5dfc", "#8b7dfc", "#ab9dfc", "#cbbdfc", "#ebddfc"];
 const AGENT_COLOR = "#6b5dfc";
@@ -665,128 +682,213 @@ export default function AnalyticsPage() {
               </Card>
             </div>
 
-            {/* Tower Bar Charts */}
-            <div className="grid gap-6 lg:grid-cols-2">
-              {/* Messages Handled Chart */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Messages Handled</CardTitle>
-                  <CardDescription>Total messages per agent/supervisor ({performancePeriod})</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {performanceLoading ? (
-                    <div className="h-[300px] flex items-center justify-center">
-                      <Skeleton className="h-full w-full" />
-                    </div>
-                  ) : (
-                    <div className="h-[300px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                          data={[
-                            ...(performanceAnalytics?.agents || []).map(a => ({
-                              name: a.name,
-                              messages: a.messagesHandled,
-                              type: "agent",
-                            })),
-                            ...(performanceAnalytics?.supervisors || []).map(s => ({
-                              name: s.name,
-                              messages: s.messagesHandled,
-                              type: "supervisor",
-                            })),
-                          ]}
-                          layout="vertical"
-                          margin={{ left: 20, right: 20 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                          <XAxis type="number" className="text-xs" />
-                          <YAxis dataKey="name" type="category" width={80} className="text-xs" />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: "hsl(var(--card))",
-                              border: "1px solid hsl(var(--border))",
-                              borderRadius: "8px",
-                            }}
+            {/* Total Messages Time-Series Chart */}
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base">Total Messages</CardTitle>
+                    <CardDescription>Messages handled per day</CardDescription>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    {[...(performanceAnalytics?.agents || []), ...(performanceAnalytics?.supervisors || [])].map((member, idx) => (
+                      <div key={member.id} className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-sm" 
+                          style={{ backgroundColor: TEAM_COLORS[idx % TEAM_COLORS.length] }} 
+                        />
+                        <span className="text-xs text-muted-foreground">{member.name}</span>
+                        <span className="text-sm font-bold">{member.messagesHandled}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {performanceLoading ? (
+                  <div className="h-[280px] flex items-center justify-center">
+                    <Skeleton className="h-full w-full" />
+                  </div>
+                ) : (
+                  <div className="h-[280px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={performanceAnalytics?.dailyData || []}
+                        margin={{ left: 0, right: 20, top: 10, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+                        <XAxis dataKey="dateLabel" className="text-xs" tick={{ fontSize: 11 }} />
+                        <YAxis className="text-xs" tick={{ fontSize: 11 }} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "hsl(var(--card))",
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "8px",
+                          }}
+                        />
+                        {[...(performanceAnalytics?.agents || []), ...(performanceAnalytics?.supervisors || [])].map((member, idx) => (
+                          <Bar
+                            key={member.id}
+                            dataKey={member.type === "agent" ? `agent_${member.id}_messages` : `supervisor_${member.id}_messages`}
+                            fill={TEAM_COLORS[idx % TEAM_COLORS.length]}
+                            radius={[4, 4, 0, 0]}
+                            name={member.name}
                           />
-                          <Bar 
-                            dataKey="messages" 
-                            fill={AGENT_COLOR}
-                            radius={[0, 4, 4, 0]}
-                            name="Messages"
-                          >
-                            {[...(performanceAnalytics?.agents || []), ...(performanceAnalytics?.supervisors || [])].map((entry, index) => (
-                              <Cell 
-                                key={`cell-${index}`} 
-                                fill={entry.type === "agent" ? AGENT_COLOR : SUPERVISOR_COLOR} 
-                              />
+                        ))}
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+                
+                {/* Breakdown Table */}
+                <div className="mt-4 border rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="text-left p-2 font-medium">Series</th>
+                          <th className="text-left p-2 font-medium">Member</th>
+                          {(performanceAnalytics?.dailyData || []).map(d => (
+                            <th key={d.date} className="text-center p-2 font-medium min-w-[60px]">{d.dateLabel}</th>
+                          ))}
+                          <th className="text-right p-2 font-medium">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...(performanceAnalytics?.agents || []), ...(performanceAnalytics?.supervisors || [])].map((member, idx) => (
+                          <tr key={member.id} className="border-t">
+                            <td className="p-2 text-muted-foreground">Messages</td>
+                            <td className="p-2">
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-5 w-5">
+                                  {member.photoUrl && <AvatarImage src={member.photoUrl} />}
+                                  <AvatarFallback style={{ backgroundColor: TEAM_COLORS[idx % TEAM_COLORS.length] }} className="text-white text-[8px]">
+                                    {member.name.charAt(0)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span>{member.name}</span>
+                              </div>
+                            </td>
+                            {(performanceAnalytics?.dailyData || []).map(d => (
+                              <td key={d.date} className="text-center p-2">
+                                {d[member.type === "agent" ? `agent_${member.id}_messages` : `supervisor_${member.id}_messages`] || 0}
+                              </td>
                             ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                            <td className="text-right p-2 font-medium">{member.messagesHandled}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-              {/* Response Time Chart */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Average Response Time</CardTitle>
-                  <CardDescription>Time to respond in seconds ({performancePeriod})</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {performanceLoading ? (
-                    <div className="h-[300px] flex items-center justify-center">
-                      <Skeleton className="h-full w-full" />
-                    </div>
-                  ) : (
-                    <div className="h-[300px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                          data={[
-                            ...(performanceAnalytics?.agents || []).map(a => ({
-                              name: a.name,
-                              responseTime: a.avgResponseTime,
-                              type: "agent",
-                            })),
-                            ...(performanceAnalytics?.supervisors || []).map(s => ({
-                              name: s.name,
-                              responseTime: s.avgResponseTime,
-                              type: "supervisor",
-                            })),
-                          ]}
-                          layout="vertical"
-                          margin={{ left: 20, right: 20 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                          <XAxis type="number" className="text-xs" unit="s" />
-                          <YAxis dataKey="name" type="category" width={80} className="text-xs" />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: "hsl(var(--card))",
-                              border: "1px solid hsl(var(--border))",
-                              borderRadius: "8px",
-                            }}
+            {/* Response Time Time-Series Chart */}
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base">Response Time</CardTitle>
+                    <CardDescription>Average response time per day (seconds)</CardDescription>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    {[...(performanceAnalytics?.agents || []), ...(performanceAnalytics?.supervisors || [])].map((member, idx) => (
+                      <div key={member.id} className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-sm" 
+                          style={{ backgroundColor: TEAM_COLORS[idx % TEAM_COLORS.length] }} 
+                        />
+                        <span className="text-xs text-muted-foreground">{member.name}</span>
+                        <span className="text-sm font-bold">{member.avgResponseTimeFormatted}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {performanceLoading ? (
+                  <div className="h-[280px] flex items-center justify-center">
+                    <Skeleton className="h-full w-full" />
+                  </div>
+                ) : (
+                  <div className="h-[280px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={performanceAnalytics?.dailyData || []}
+                        margin={{ left: 0, right: 20, top: 10, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+                        <XAxis dataKey="dateLabel" className="text-xs" tick={{ fontSize: 11 }} />
+                        <YAxis className="text-xs" tick={{ fontSize: 11 }} unit="s" />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "hsl(var(--card))",
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "8px",
+                          }}
+                          formatter={(value: number) => [`${value}s`, '']}
+                        />
+                        {[...(performanceAnalytics?.agents || []), ...(performanceAnalytics?.supervisors || [])].map((member, idx) => (
+                          <Bar
+                            key={member.id}
+                            dataKey={member.type === "agent" ? `agent_${member.id}_responseTime` : `supervisor_${member.id}_responseTime`}
+                            fill={TEAM_COLORS[idx % TEAM_COLORS.length]}
+                            radius={[4, 4, 0, 0]}
+                            name={member.name}
                           />
-                          <Bar 
-                            dataKey="responseTime" 
-                            fill={AGENT_COLOR}
-                            radius={[0, 4, 4, 0]}
-                            name="Response Time"
-                          >
-                            {[...(performanceAnalytics?.agents || []), ...(performanceAnalytics?.supervisors || [])].map((entry, index) => (
-                              <Cell 
-                                key={`cell-${index}`} 
-                                fill={entry.type === "agent" ? AGENT_COLOR : SUPERVISOR_COLOR} 
-                              />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+                        ))}
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+                
+                {/* Response Time Breakdown Table */}
+                <div className="mt-4 border rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="text-left p-2 font-medium">Series</th>
+                          <th className="text-left p-2 font-medium">Member</th>
+                          {(performanceAnalytics?.dailyData || []).map(d => (
+                            <th key={d.date} className="text-center p-2 font-medium min-w-[60px]">{d.dateLabel}</th>
+                          ))}
+                          <th className="text-right p-2 font-medium">Avg</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...(performanceAnalytics?.agents || []), ...(performanceAnalytics?.supervisors || [])].map((member, idx) => (
+                          <tr key={member.id} className="border-t">
+                            <td className="p-2 text-muted-foreground">Response</td>
+                            <td className="p-2">
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-5 w-5">
+                                  {member.photoUrl && <AvatarImage src={member.photoUrl} />}
+                                  <AvatarFallback style={{ backgroundColor: TEAM_COLORS[idx % TEAM_COLORS.length] }} className="text-white text-[8px]">
+                                    {member.name.charAt(0)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span>{member.name}</span>
+                              </div>
+                            </td>
+                            {(performanceAnalytics?.dailyData || []).map(d => {
+                              const val = d[member.type === "agent" ? `agent_${member.id}_responseTime` : `supervisor_${member.id}_responseTime`];
+                              return (
+                                <td key={d.date} className="text-center p-2">
+                                  {val ? `${val}s` : '-'}
+                                </td>
+                              );
+                            })}
+                            <td className="text-right p-2 font-medium">{member.avgResponseTimeFormatted}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Individual Performance List */}
             <Card>
