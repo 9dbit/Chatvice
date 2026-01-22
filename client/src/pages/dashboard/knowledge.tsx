@@ -154,6 +154,26 @@ export default function KnowledgePage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // File preview confirmation state
+  const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
+  const [filePreview, setFilePreview] = useState<{
+    fileName: string;
+    fileSize: number;
+    content: string;
+    url?: string;
+    type: string;
+    metadata: {
+      pageCount?: number;
+      sheetCount?: number;
+      wordCount?: number;
+      charCount?: number;
+      lineCount?: number;
+      fileType?: string;
+      summary?: string;
+    };
+  } | null>(null);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  
   const sourceSchema = z.object({
     type: z.enum(["file", "text", "website", "google-doc", "google-sheet"]),
     name: z.string().min(1, "Name is required"),
@@ -827,13 +847,106 @@ export default function KnowledgePage() {
     handleSaveWithAnalysis();
   };
 
+  const previewFile = async (file: File) => {
+    setIsPreviewing(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("preview", "true");
+      const response = await fetch("/api/sources/upload", { method: "POST", body: formData, credentials: "include" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || data.error || "Preview failed");
+      setFilePreview({
+        fileName: data.fileName || file.name,
+        fileSize: file.size,
+        content: data.content,
+        type: "file",
+        metadata: data.metadata || {},
+      });
+      setIsPreviewDialogOpen(true);
+    } catch (error: any) {
+      toast({ title: "Preview failed", description: error.message || "Could not preview file", variant: "destructive" });
+    } finally {
+      setIsPreviewing(false);
+    }
+  };
+
+  const previewGoogleDoc = async (url: string) => {
+    setIsPreviewing(true);
+    try {
+      const response = await fetch("/api/sources/google-doc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, preview: true }),
+        credentials: "include"
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || data.error || "Preview failed");
+      setFilePreview({
+        fileName: data.fileName || "Google Doc",
+        fileSize: data.content?.length || 0,
+        content: data.content,
+        url,
+        type: "google-doc",
+        metadata: data.metadata || {},
+      });
+      setIsPreviewDialogOpen(true);
+    } catch (error: any) {
+      toast({ title: "Preview failed", description: error.message || "Could not preview Google Doc", variant: "destructive" });
+    } finally {
+      setIsPreviewing(false);
+    }
+  };
+
+  const previewGoogleSheet = async (url: string) => {
+    setIsPreviewing(true);
+    try {
+      const response = await fetch("/api/sources/google-sheet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, preview: true }),
+        credentials: "include"
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || data.error || "Preview failed");
+      setFilePreview({
+        fileName: data.fileName || "Google Sheet",
+        fileSize: data.content?.length || 0,
+        content: data.content,
+        url,
+        type: "google-sheet",
+        metadata: data.metadata || {},
+      });
+      setIsPreviewDialogOpen(true);
+    } catch (error: any) {
+      toast({ title: "Preview failed", description: error.message || "Could not preview Google Sheet", variant: "destructive" });
+    } finally {
+      setIsPreviewing(false);
+    }
+  };
+
+  const confirmAndSaveSource = () => {
+    if (!filePreview) return;
+    
+    if (filePreview.type === "file" && selectedFile) {
+      uploadFileMutation.mutate(selectedFile);
+    } else if (filePreview.type === "google-doc" && filePreview.url) {
+      googleDocMutation.mutate(filePreview.url);
+    } else if (filePreview.type === "google-sheet" && filePreview.url) {
+      googleSheetMutation.mutate(filePreview.url);
+    }
+    
+    setIsPreviewDialogOpen(false);
+    setFilePreview(null);
+  };
+
   const onSourceSubmit = async (data: z.infer<typeof sourceSchema>) => {
     if (data.type === "file" && selectedFile) {
-      uploadFileMutation.mutate(selectedFile);
+      await previewFile(selectedFile);
     } else if (data.type === "google-doc" && data.url) {
-      googleDocMutation.mutate(data.url);
+      await previewGoogleDoc(data.url);
     } else if (data.type === "google-sheet" && data.url) {
-      googleSheetMutation.mutate(data.url);
+      await previewGoogleSheet(data.url);
     } else if (data.type === "text" || data.type === "website") {
       createSourceMutation.mutate({
         type: data.type,
@@ -875,7 +988,7 @@ export default function KnowledgePage() {
     }
   };
 
-  const isSourceSubmitting = createSourceMutation.isPending || uploadFileMutation.isPending || googleDocMutation.isPending || googleSheetMutation.isPending;
+  const isSourceSubmitting = createSourceMutation.isPending || uploadFileMutation.isPending || googleDocMutation.isPending || googleSheetMutation.isPending || isPreviewing;
 
   const handleCrawl = () => {
     if (!crawlUrl.trim()) {
@@ -1807,6 +1920,21 @@ Example:
                 Add Source
               </Button>
             </div>
+            
+            {/* Info note about Active Sources auto-sync */}
+            <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg" data-testid="info-active-sources-autosync">
+              <Globe className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                  Active Sources Auto-Sync
+                </p>
+                <p className="text-sm text-blue-600 dark:text-blue-400">
+                  Fitur auto-sync (update otomatis setiap 60 menit) hanya tersedia untuk <strong>Website URL</strong>. 
+                  File upload (Excel, PDF, Word, CSV) dan Google Docs/Sheets tidak mendukung auto-sync - 
+                  data harus di-upload ulang secara manual jika ada perubahan.
+                </p>
+              </div>
+            </div>
 
             {sourcesLoading ? (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -2477,6 +2605,145 @@ Example:
             }}>
               <Edit2 className="w-4 h-4 mr-2" />
               Edit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* File Preview Confirmation Dialog */}
+      <Dialog open={isPreviewDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsPreviewDialogOpen(false);
+          setFilePreview(null);
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-green-500" />
+              File Berhasil Dibaca
+            </DialogTitle>
+            <DialogDescription>
+              Berikut ringkasan file yang akan ditambahkan ke knowledge base AI agent:
+            </DialogDescription>
+          </DialogHeader>
+          
+          {filePreview && (
+            <div className="space-y-4" data-testid="file-preview-content">
+              {/* File Info Card */}
+              <Card className="bg-muted/50" data-testid="card-file-info">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      {filePreview.metadata?.fileType === 'PDF' && <FileText className="w-5 h-5 text-red-500" />}
+                      {filePreview.metadata?.fileType === 'Word' && <FileText className="w-5 h-5 text-blue-500" />}
+                      {filePreview.metadata?.fileType === 'Excel' && <FileText className="w-5 h-5 text-green-500" />}
+                      {filePreview.metadata?.fileType === 'CSV' && <FileText className="w-5 h-5 text-orange-500" />}
+                      {filePreview.metadata?.fileType === 'Google Doc' && <FileText className="w-5 h-5 text-blue-600" />}
+                      {filePreview.metadata?.fileType === 'Google Sheet' && <FileText className="w-5 h-5 text-green-600" />}
+                      {!filePreview.metadata?.fileType && <FileText className="w-5 h-5" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate" data-testid="text-file-name">{filePreview.fileName}</p>
+                      <p className="text-xs text-muted-foreground" data-testid="text-file-type">
+                        {filePreview.metadata?.fileType || 'Document'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Database className="w-3.5 h-3.5" />
+                      <span>Size: {filePreview.fileSize >= 1024 * 1024 
+                        ? `${(filePreview.fileSize / (1024 * 1024)).toFixed(2)} MB`
+                        : `${(filePreview.fileSize / 1024).toFixed(1)} KB`}</span>
+                    </div>
+                    
+                    {filePreview.metadata?.pageCount && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>{filePreview.metadata.pageCount} halaman</span>
+                      </div>
+                    )}
+                    
+                    {filePreview.metadata?.sheetCount && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>{filePreview.metadata.sheetCount} sheet</span>
+                      </div>
+                    )}
+                    
+                    {filePreview.metadata?.lineCount && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Type className="w-3.5 h-3.5" />
+                        <span>{filePreview.metadata.lineCount} baris</span>
+                      </div>
+                    )}
+                    
+                    {filePreview.metadata?.wordCount && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <BookOpen className="w-3.5 h-3.5" />
+                        <span>{filePreview.metadata.wordCount.toLocaleString()} kata</span>
+                      </div>
+                    )}
+                    
+                    {filePreview.metadata?.charCount && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Database className="w-3.5 h-3.5" />
+                        <span>{filePreview.metadata.charCount.toLocaleString()} karakter</span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Summary */}
+              {filePreview.metadata?.summary && (
+                <div className="space-y-2" data-testid="section-file-summary">
+                  <p className="text-sm font-medium">Ringkasan Konten:</p>
+                  <p className="text-sm text-muted-foreground bg-muted p-3 rounded-lg" data-testid="text-file-summary">
+                    {filePreview.metadata.summary}
+                  </p>
+                </div>
+              )}
+              
+              {/* Info note about Active Sources */}
+              <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg text-sm" data-testid="info-file-preview-note">
+                <HelpCircle className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                <p className="text-blue-700 dark:text-blue-300">
+                  File akan ditambahkan ke knowledge base. Untuk auto-sync otomatis, gunakan Active Sources dengan URL website.
+                </p>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => {
+                setIsPreviewDialogOpen(false);
+                setFilePreview(null);
+              }}
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={confirmAndSaveSource}
+              disabled={uploadFileMutation.isPending || googleDocMutation.isPending || googleSheetMutation.isPending}
+              data-testid="button-confirm-source"
+            >
+              {(uploadFileMutation.isPending || googleDocMutation.isPending || googleSheetMutation.isPending) ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Menyimpan...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  Konfirmasi & Simpan
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

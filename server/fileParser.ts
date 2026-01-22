@@ -21,6 +21,35 @@ export interface ParseResult {
   success: boolean;
   content: string;
   error?: string;
+  metadata?: {
+    pageCount?: number;
+    sheetCount?: number;
+    wordCount?: number;
+    charCount?: number;
+    lineCount?: number;
+    fileType?: string;
+    summary?: string;
+  };
+}
+
+function generateSummary(content: string, fileType: string): string {
+  const lines = content.split('\n').filter(l => l.trim().length > 0);
+  const firstFewLines = lines.slice(0, 5).join(' ').substring(0, 200);
+  
+  if (fileType === 'Excel' || fileType === 'CSV' || fileType === 'Google Sheet') {
+    const tableRows = lines.length;
+    return `Data tabel dengan ${tableRows} baris. Preview: ${firstFewLines}...`;
+  }
+  
+  if (fileType === 'PDF') {
+    return `Dokumen PDF. Preview: ${firstFewLines}...`;
+  }
+  
+  if (fileType === 'Word' || fileType === 'Google Doc') {
+    return `Dokumen teks. Preview: ${firstFewLines}...`;
+  }
+  
+  return `File ${fileType}. Preview: ${firstFewLines}...`;
 }
 
 export async function parseFile(filePath: string, mimeType: string): Promise<ParseResult> {
@@ -49,7 +78,23 @@ export async function parseFile(filePath: string, mimeType: string): Promise<Par
     }
     
     if (['.txt', '.md', '.csv', '.json', '.xml', '.html'].includes(ext)) {
-      return { success: true, content: buffer.toString('utf-8') };
+      const content = buffer.toString('utf-8');
+      const wordCount = content.split(/\s+/).filter(w => w.length > 0).length;
+      const lineCount = content.split('\n').length;
+      const fileType = ext === '.csv' ? 'CSV' : ext === '.txt' ? 'Text' : ext.toUpperCase().replace('.', '');
+      const summary = generateSummary(content, fileType);
+      
+      return { 
+        success: true, 
+        content,
+        metadata: {
+          wordCount,
+          charCount: content.length,
+          lineCount,
+          fileType,
+          summary
+        }
+      };
     }
     
     return { success: false, content: '', error: `Unsupported file type: ${ext}` };
@@ -73,7 +118,22 @@ async function parsePDF(buffer: Buffer): Promise<ParseResult> {
       return { success: false, content: '', error: 'PDF appears to be empty or image-based (no extractable text)' };
     }
     
-    return { success: true, content };
+    const wordCount = content.split(/\s+/).filter(w => w.length > 0).length;
+    const lineCount = content.split('\n').length;
+    const summary = generateSummary(content, 'PDF');
+    
+    return { 
+      success: true, 
+      content,
+      metadata: {
+        pageCount: data.numpages || 1,
+        wordCount,
+        charCount: content.length,
+        lineCount,
+        fileType: 'PDF',
+        summary
+      }
+    };
   } catch (error: any) {
     console.error('PDF parsing error:', error);
     return { success: false, content: '', error: 'Failed to parse PDF. It may be corrupted or password-protected.' };
@@ -89,7 +149,23 @@ async function parseDocx(buffer: Buffer): Promise<ParseResult> {
       return { success: false, content: '', error: 'Word document appears to be empty' };
     }
     
-    return { success: true, content };
+    const wordCount = content.split(/\s+/).filter(w => w.length > 0).length;
+    const lineCount = content.split('\n').length;
+    const paragraphs = content.split('\n\n').length;
+    const summary = generateSummary(content, 'Word');
+    
+    return { 
+      success: true, 
+      content,
+      metadata: {
+        pageCount: Math.ceil(paragraphs / 3),
+        wordCount,
+        charCount: content.length,
+        lineCount,
+        fileType: 'Word',
+        summary
+      }
+    };
   } catch (error: any) {
     console.error('DOCX parsing error:', error);
     return { success: false, content: '', error: 'Failed to parse Word document' };
@@ -127,7 +203,22 @@ async function parseXlsx(buffer: Buffer): Promise<ParseResult> {
       return { success: false, content: '', error: 'Excel file appears to be empty' };
     }
     
-    return { success: true, content };
+    const wordCount = content.split(/\s+/).filter(w => w.length > 0).length;
+    const lineCount = content.split('\n').length;
+    const summary = generateSummary(content, 'Excel');
+    
+    return { 
+      success: true, 
+      content,
+      metadata: {
+        sheetCount: workbook.SheetNames.length,
+        wordCount,
+        charCount: content.length,
+        lineCount,
+        fileType: 'Excel',
+        summary
+      }
+    };
   } catch (error: any) {
     console.error('XLSX parsing error:', error);
     return { success: false, content: '', error: 'Failed to parse Excel file' };
@@ -153,8 +244,22 @@ export async function fetchGoogleDoc(url: string): Promise<ParseResult> {
       return { success: false, content: '', error: `Failed to fetch Google Doc: ${response.status}` };
     }
     
-    const content = await response.text();
-    return { success: true, content: content.trim() };
+    const content = (await response.text()).trim();
+    const wordCount = content.split(/\s+/).filter(w => w.length > 0).length;
+    const lineCount = content.split('\n').length;
+    const summary = generateSummary(content, 'Google Doc');
+    
+    return { 
+      success: true, 
+      content,
+      metadata: {
+        wordCount,
+        charCount: content.length,
+        lineCount,
+        fileType: 'Google Doc',
+        summary
+      }
+    };
   } catch (error: any) {
     console.error('Google Docs fetch error:', error);
     return { success: false, content: '', error: 'Failed to fetch Google Doc' };
@@ -188,7 +293,22 @@ export async function fetchGoogleSheet(url: string): Promise<ParseResult> {
       return cells.join(' | ');
     });
     
-    return { success: true, content: formattedLines.join('\n').trim() };
+    const content = formattedLines.join('\n').trim();
+    const wordCount = content.split(/\s+/).filter(w => w.length > 0).length;
+    const lineCount = formattedLines.length;
+    const summary = generateSummary(content, 'Google Sheet');
+    
+    return { 
+      success: true, 
+      content,
+      metadata: {
+        lineCount,
+        wordCount,
+        charCount: content.length,
+        fileType: 'Google Sheet',
+        summary
+      }
+    };
   } catch (error: any) {
     console.error('Google Sheets fetch error:', error);
     return { success: false, content: '', error: 'Failed to fetch Google Sheet' };

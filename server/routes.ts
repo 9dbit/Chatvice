@@ -12169,6 +12169,22 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       
       const merchantId = req.session.merchantId!;
       const name = req.body.name || file.originalname.replace(/\.[^/.]+$/, "");
+      const preview = req.body.preview === "true";
+      
+      if (preview) {
+        return res.json({
+          preview: true,
+          fileName: file.originalname,
+          fileSize: file.size,
+          content: result.content,
+          metadata: result.metadata || {
+            charCount: result.content.length,
+            wordCount: result.content.split(/\s+/).filter((w: string) => w.length > 0).length,
+            lineCount: result.content.split('\n').length,
+            fileType: file.mimetype,
+          }
+        });
+      }
       
       const source = await storage.createSource({
         merchantId,
@@ -12179,7 +12195,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         charCount: result.content.length,
       });
       
-      res.json(source);
+      res.json({ ...source, metadata: result.metadata });
     } catch (error: any) {
       console.error("Source file upload error:", error);
       res.status(500).json({ error: error.message || "Failed to upload file" });
@@ -12206,6 +12222,22 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       }
       
       const merchantId = req.session.merchantId!;
+      const preview = req.body.preview === true;
+      
+      if (preview) {
+        return res.json({
+          preview: true,
+          fileName: "Google Doc",
+          url,
+          content: result.content,
+          metadata: result.metadata || {
+            charCount: result.content.length,
+            wordCount: result.content.split(/\s+/).filter((w: string) => w.length > 0).length,
+            lineCount: result.content.split('\n').length,
+            fileType: 'Google Doc',
+          }
+        });
+      }
       
       const source = await storage.createSource({
         merchantId,
@@ -12216,7 +12248,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         charCount: result.content.length,
       });
       
-      res.json(source);
+      res.json({ ...source, metadata: result.metadata });
     } catch (error: any) {
       console.error("Google Docs import error:", error);
       res.status(500).json({ error: error.message || "Failed to import from Google Docs" });
@@ -12243,6 +12275,22 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       }
       
       const merchantId = req.session.merchantId!;
+      const preview = req.body.preview === true;
+      
+      if (preview) {
+        return res.json({
+          preview: true,
+          fileName: "Google Sheet",
+          url,
+          content: result.content,
+          metadata: result.metadata || {
+            charCount: result.content.length,
+            wordCount: result.content.split(/\s+/).filter((w: string) => w.length > 0).length,
+            lineCount: result.content.split('\n').length,
+            fileType: 'Google Sheet',
+          }
+        });
+      }
       
       const source = await storage.createSource({
         merchantId,
@@ -12253,7 +12301,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         charCount: result.content.length,
       });
       
-      res.json(source);
+      res.json({ ...source, metadata: result.metadata });
     } catch (error: any) {
       console.error("Google Sheets import error:", error);
       res.status(500).json({ error: error.message || "Failed to import from Google Sheets" });
