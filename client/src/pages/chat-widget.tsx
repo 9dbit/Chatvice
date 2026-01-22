@@ -1376,10 +1376,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               dismissWelcomeBubble();
               handleWidgetOpen();
             }}
-            className="flex items-center justify-center transition-transform hover:scale-105 relative"
+            className="flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 relative animate-in zoom-in-75 fade-in duration-500"
             style={{
-              width: merchantConfig?.iconUrl ? iconWidth : iconSize,
-              height: merchantConfig?.iconUrl ? iconHeight : iconSize,
+              width: iconWidth,
+              height: iconHeight,
               backgroundColor: merchantConfig?.iconUrl ? 'transparent' : primaryColor,
               borderRadius: merchantConfig?.iconUrl ? '0' : '50%',
               boxShadow: merchantConfig?.iconUrl ? 'none' : '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',

@@ -233,14 +233,12 @@ export default function LivePreviewPage() {
       {/* Live Preview - Natural widget display like external websites */}
       {showWidget && embedUrl ? (
         <>
-          {/* Widget iframe - natural positioning like external widget */}
+          {/* Widget iframe - responsive for mobile, natural positioning */}
           <iframe
             key={iframeKey}
             src={embedUrl}
-            className="fixed bottom-0 right-0 border-0 pointer-events-auto"
+            className="fixed bottom-0 right-0 border-0 pointer-events-auto w-full sm:w-[420px] h-[100dvh] sm:h-[650px]"
             style={{ 
-              width: '420px',
-              height: '650px',
               background: 'transparent',
               zIndex: 1000
             }}
