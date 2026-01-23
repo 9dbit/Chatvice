@@ -760,8 +760,26 @@ If you don't have specific information to answer, be honest about it and offer t
     // Fetch conversation history from session messages for context continuity
     const sessionMessages = await storage.getMessages(sessionId);
     
+    // Check for recent images in conversation (for vision capability)
+    const recentImages: Array<{ url: string; filename: string }> = [];
+    const imageKeywords = ["gambar", "foto", "image", "picture", "photo", "itu", "ini", "tersebut", "kirim", "upload", "file"];
+    const isAskingAboutImage = imageKeywords.some(kw => message.toLowerCase().includes(kw));
+    
+    // Extract images from recent messages (last 15 messages to capture context)
+    const recentMsgsForImages = sessionMessages.slice(-15);
+    for (const msg of recentMsgsForImages) {
+      // Check if message has media attachment (image type)
+      if (msg.mediaUrl && msg.mediaType === 'image') {
+        recentImages.push({ 
+          url: msg.mediaUrl, 
+          filename: msg.content?.replace(/\[.*?\]\s*/, '') || 'image' 
+        });
+      }
+    }
+    
     // Build messages array with history (limit to last 10 messages for token efficiency)
-    const chatMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+    type ChatContent = string | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string; detail: string } }>;
+    const chatMessages: Array<{ role: "system" | "user" | "assistant"; content: ChatContent }> = [
       { role: "system", content: systemMessage }
     ];
     
@@ -778,12 +796,39 @@ If you don't have specific information to answer, be honest about it and offer t
       }
     }
     
-    // Add current message
-    chatMessages.push({ role: "user", content: message });
+    // Determine if we should use vision model
+    const useVision = isAskingAboutImage && recentImages.length > 0;
+    
+    // Add current message with images if asking about them
+    if (useVision) {
+      // Build content array with text and images
+      const contentArray: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string; detail: string } }> = [
+        { type: "text", text: `${message}\n\n[Customer is asking about images they previously sent. Here are the images:]` }
+      ];
+      
+      // Add recent images (max 3 to avoid token overload)
+      const imagesToInclude = recentImages.slice(-3);
+      for (const img of imagesToInclude) {
+        // Build full URL
+        let fullImageUrl = img.url;
+        if (img.url.startsWith('/')) {
+          fullImageUrl = `https://${process.env.REPLIT_DEV_DOMAIN || 'localhost:5000'}${img.url}`;
+        }
+        contentArray.push({
+          type: "image_url",
+          image_url: { url: fullImageUrl, detail: "auto" }
+        });
+      }
+      
+      chatMessages.push({ role: "user", content: contentArray });
+    } else {
+      // Add current message as plain text
+      chatMessages.push({ role: "user", content: message });
+    }
     
     const completion = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
-      messages: chatMessages,
+      model: useVision ? "gpt-4.1" : "gpt-4.1-mini",
+      messages: chatMessages as any,
       max_completion_tokens: 500,
       temperature: temperature,
     });
