@@ -653,9 +653,9 @@ async function askChatvice(
       const productCards = await storage.getProductCards(merchantId, assignedAgentId);
       const activeProducts = productCards.filter(p => p.isActive);
       if (activeProducts.length > 0) {
-        productCatalogContext = activeProducts.map(p => {
+        productCatalogContext = activeProducts.map((p, index) => {
           const priceText = p.price ? `Rp ${p.price.toLocaleString()}` : "Harga tidak tersedia";
-          return `- ${p.title}: ${p.description || ''} (${priceText})`;
+          return `${index + 1}. "${p.title}": ${p.description || ''} (${priceText})`;
         }).join('\n');
       }
     }
@@ -745,12 +745,11 @@ Jika customer bertanya tentang harga/pricing/paket dan ada info subscription pla
 
 PENTING: Gunakan harga PERSIS seperti yang ada di knowledge (dalam USD).
 ${productCatalogContext ? `
-PRODUCT RECOMMENDATION (SEMANTIC CONTEXT-AWARE):
+PRODUCT RECOMMENDATION (SMART SELECTION):
 Katalog produk yang tersedia:
 ${productCatalogContext}
 
 ANALISIS INTENT CUSTOMER (WAJIB sebelum rekomendasikan):
-Sebelum merekomendasikan produk, ANALISA percakapan dan tanyakan diri sendiri:
 1. Apakah customer SEDANG MENCARI SOLUSI untuk masalah tertentu?
 2. Apakah produk kita BENAR-BENAR RELEVAN dengan kebutuhan mereka?
 3. Apakah customer sudah dalam BUYING MINDSET atau masih tahap tanya-tanya?
@@ -758,23 +757,26 @@ Sebelum merekomendasikan produk, ANALISA percakapan dan tanyakan diri sendiri:
 KAPAN WAJIB REKOMENDASIKAN:
 - Customer secara EKSPLISIT bertanya "ada produk apa?" atau "rekomendasikan produk"
 - Customer mendeskripsikan kebutuhan yang COCOK dengan produk kita
-- Customer sudah membahas fitur/spek dan produk kita memenuhi kriteria tersebut
 - Customer bertanya harga atau availability produk tertentu
 
 KAPAN DILARANG REKOMENDASIKAN:
 - Customer sedang komplain/mengeluh (selesaikan dulu masalahnya)
 - Customer hanya menyebut kata "produk" tanpa konteks kebutuhan
-- Customer bertanya hal general yang tidak terkait pembelian
 - Baru 1-2 pesan pertama percakapan (terlalu awal)
 
-TEKNIK NATURAL RECOMMENDATION:
-Gunakan transisi natural dari percakapan, contoh:
-- "Berdasarkan kebutuhan Kakak tadi, kebetulan kami punya..."
-- "Nah, untuk masalah [X] yang Kakak ceritakan, solusinya ada di..."
-- "Kalau Kakak mau yang [fitur], ini ada pilihan yang pas..."
+CARA MEREKOMENDASIKAN (PILIH PRODUK YANG PALING RELEVAN):
+1. Analisa kebutuhan customer dari percakapan
+2. Pilih SATU produk yang PALING COCOK dari katalog di atas
+3. Akhiri respons dengan tag yang menyebut NAMA PRODUK PERSIS seperti di katalog:
+   [RECOMMEND_PRODUCT:Nama Produk Persis]
 
-JIKA merekomendasikan produk, WAJIB akhiri dengan:
-[RECOMMEND_PRODUCT]
+Contoh penggunaan tag:
+- "Kalau Kakak butuh yang tahan air, coba cek ini ya..."
+  [RECOMMEND_PRODUCT:Tas Ransel Waterproof]
+- "Untuk kebutuhan gaming, ini cocok banget Kak..."
+  [RECOMMEND_PRODUCT:Gaming Mouse RGB Pro]
+
+PENTING: Nama produk di tag HARUS SAMA PERSIS dengan nama di katalog (case-insensitive).
 ` : ""}
 Relevant Company Information:
 ${knowledgeContext || "No specific knowledge base configured yet."}
@@ -3698,10 +3700,14 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
       const result = await askChatvice(sessionId, merchantId, message);
       
-      // Check if AI wants to recommend products (context-aware approach)
-      const hasProductRecommendTag = result.answer.includes("[RECOMMEND_PRODUCT]");
+      // Check if AI wants to recommend products with specific product name
+      // Format: [RECOMMEND_PRODUCT:Product Name] or [RECOMMEND_PRODUCT]
+      const productRecommendMatch = result.answer.match(/\[RECOMMEND_PRODUCT(?::([^\]]+))?\]/i);
+      const hasProductRecommendTag = !!productRecommendMatch;
+      const recommendedProductName = productRecommendMatch?.[1]?.trim() || null;
+      
       // Remove the tag from the displayed answer
-      const cleanAnswer = result.answer.replace(/\[RECOMMEND_PRODUCT\]/g, "").trim();
+      const cleanAnswer = result.answer.replace(/\[RECOMMEND_PRODUCT(?::[^\]]+)?\]/gi, "").trim();
 
       // Only create/broadcast message if there's actual content to send
       // When mode is HUMAN, supervisor will respond manually - no auto-reply needed
@@ -3728,15 +3734,42 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           if (settings?.aiAutoRecommendEnabled) {
             let matchedProductId: string | null = null;
             
-            // Priority 1: AI context-aware recommendation via [RECOMMEND_PRODUCT] tag
+            // Priority 1: AI smart recommendation via [RECOMMEND_PRODUCT:ProductName] tag
             if (hasProductRecommendTag) {
-              console.log(`[Product Trigger] AI decided to recommend product based on context`);
+              console.log(`[Product Trigger] AI decided to recommend product. Specified: "${recommendedProductName || 'none'}"`);
               const productCards = await storage.getProductCards(merchantId, merchant.activeAgentId || undefined);
               const activeCards = productCards.filter(c => c.isActive);
+              
               if (activeCards.length > 0) {
-                // Select best matching product based on conversation context
-                matchedProductId = activeCards[0].id;
-                console.log(`[Product Trigger] Context-based: Selected product "${activeCards[0].title}"`);
+                if (recommendedProductName) {
+                  // Try to match AI's specified product name (case-insensitive, fuzzy match)
+                  const normalizedName = recommendedProductName.toLowerCase().trim();
+                  
+                  // Exact match first
+                  let matchedProduct = activeCards.find(c => 
+                    c.title.toLowerCase().trim() === normalizedName
+                  );
+                  
+                  // Partial match if no exact match
+                  if (!matchedProduct) {
+                    matchedProduct = activeCards.find(c => 
+                      c.title.toLowerCase().includes(normalizedName) || 
+                      normalizedName.includes(c.title.toLowerCase())
+                    );
+                  }
+                  
+                  if (matchedProduct) {
+                    matchedProductId = matchedProduct.id;
+                    console.log(`[Product Trigger] Smart match: "${recommendedProductName}" → "${matchedProduct.title}"`);
+                  } else {
+                    // Skip recommendation if AI's choice not found to avoid incorrect product
+                    console.log(`[Product Trigger] No match for "${recommendedProductName}", skipping recommendation`);
+                  }
+                } else {
+                  // No specific product mentioned in tag, skip recommendation
+                  // AI should always specify product name in the new format
+                  console.log(`[Product Trigger] No product name in tag, skipping recommendation`);
+                }
               }
             }
             
