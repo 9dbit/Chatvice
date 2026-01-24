@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, Redirect, Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -120,6 +120,8 @@ import {
   Key,
   Landmark,
   BookOpen,
+  Star,
+  ArrowUpRight,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -924,6 +926,21 @@ function MerchantsTab({
     customAnnualPrice: 0,
   });
   const [showCustomPlan, setShowCustomPlan] = useState(false);
+  
+  // Filter states for All Merchants
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterJoinDateFrom, setFilterJoinDateFrom] = useState("");
+  const [filterJoinDateTo, setFilterJoinDateTo] = useState("");
+  const [filterSubscribeDateFrom, setFilterSubscribeDateFrom] = useState("");
+  const [filterSubscribeDateTo, setFilterSubscribeDateTo] = useState("");
+  const [filterSortBy, setFilterSortBy] = useState(""); // top_spending, agent_rating, supervisor_rating, etc.
+  const [filterPaymentMethod, setFilterPaymentMethod] = useState(""); // qris, ewallet, credit_card, paypal, crypto, virtual_account, bank_transfer
+  const [filterPromptType, setFilterPromptType] = useState(""); // best, longest, shortest
+  const [filterEscalation, setFilterEscalation] = useState(""); // high, medium, low
+  const [filterMinAgents, setFilterMinAgents] = useState("");
+  const [filterMaxAgents, setFilterMaxAgents] = useState("");
+  const [filterMinSupervisors, setFilterMinSupervisors] = useState("");
+  const [filterMaxSupervisors, setFilterMaxSupervisors] = useState("");
 
   const updatePlanMutation = useMutation({
     mutationFn: async ({ merchantId, planId, customConfig }: { 
@@ -1196,6 +1213,166 @@ function MerchantsTab({
     custom: merchants?.filter(m => m.subscriptionPlanId === 'custom').length || 0,
   };
 
+  // Type for merchant analytics
+  type MerchantAnalytics = {
+    merchantId: string;
+    totalSpending: number;
+    agentCount: number;
+    supervisorCount: number;
+    avgAgentRating: number;
+    avgAgentResponseTime: number;
+    avgSupervisorRating: number;
+    avgSupervisorResponseTime: number;
+    escalationRate: number;
+    promptLength: number;
+    paymentMethods: string[];
+  };
+
+  // Fetch merchant analytics data
+  const { data: merchantAnalytics } = useQuery<MerchantAnalytics[]>({
+    queryKey: ["/api/admin/merchants/analytics"],
+  });
+
+  // Create a map for quick lookup
+  const analyticsMap = useMemo(() => {
+    const map: Record<string, MerchantAnalytics> = {};
+    merchantAnalytics?.forEach(a => { map[a.merchantId] = a; });
+    return map;
+  }, [merchantAnalytics]);
+
+  // Filter and sort merchants
+  const filteredMerchants = useMemo(() => {
+    if (!merchants) return [];
+    
+    let result = [...merchants];
+    
+    // Filter by join date
+    if (filterJoinDateFrom) {
+      const fromDate = new Date(filterJoinDateFrom);
+      result = result.filter(m => m.createdAt && new Date(m.createdAt) >= fromDate);
+    }
+    if (filterJoinDateTo) {
+      const toDate = new Date(filterJoinDateTo);
+      result = result.filter(m => m.createdAt && new Date(m.createdAt) <= toDate);
+    }
+    
+    // Filter by first subscribe date
+    if (filterSubscribeDateFrom) {
+      const fromDate = new Date(filterSubscribeDateFrom);
+      result = result.filter(m => (m as any).firstSubscribedAt && new Date((m as any).firstSubscribedAt) >= fromDate);
+    }
+    if (filterSubscribeDateTo) {
+      const toDate = new Date(filterSubscribeDateTo);
+      result = result.filter(m => (m as any).firstSubscribedAt && new Date((m as any).firstSubscribedAt) <= toDate);
+    }
+    
+    // Filter by payment method
+    if (filterPaymentMethod) {
+      result = result.filter(m => {
+        const analytics = analyticsMap[m.id];
+        return analytics?.paymentMethods?.includes(filterPaymentMethod);
+      });
+    }
+    
+    // Filter by agent count
+    if (filterMinAgents) {
+      result = result.filter(m => {
+        const analytics = analyticsMap[m.id];
+        return (analytics?.agentCount || 0) >= parseInt(filterMinAgents);
+      });
+    }
+    if (filterMaxAgents) {
+      result = result.filter(m => {
+        const analytics = analyticsMap[m.id];
+        return (analytics?.agentCount || 0) <= parseInt(filterMaxAgents);
+      });
+    }
+    
+    // Filter by supervisor count
+    if (filterMinSupervisors) {
+      result = result.filter(m => {
+        const analytics = analyticsMap[m.id];
+        return (analytics?.supervisorCount || 0) >= parseInt(filterMinSupervisors);
+      });
+    }
+    if (filterMaxSupervisors) {
+      result = result.filter(m => {
+        const analytics = analyticsMap[m.id];
+        return (analytics?.supervisorCount || 0) <= parseInt(filterMaxSupervisors);
+      });
+    }
+    
+    // Filter by escalation rate
+    if (filterEscalation) {
+      result = result.filter(m => {
+        const analytics = analyticsMap[m.id];
+        const rate = analytics?.escalationRate || 0;
+        if (filterEscalation === 'high') return rate > 30;
+        if (filterEscalation === 'medium') return rate >= 10 && rate <= 30;
+        if (filterEscalation === 'low') return rate < 10;
+        return true;
+      });
+    }
+    
+    // Filter by prompt type
+    if (filterPromptType) {
+      result = result.filter(m => {
+        const analytics = analyticsMap[m.id];
+        const len = analytics?.promptLength || 0;
+        if (filterPromptType === 'longest') return len > 1000;
+        if (filterPromptType === 'shortest') return len < 200;
+        if (filterPromptType === 'best') return len >= 200 && len <= 1000;
+        return true;
+      });
+    }
+    
+    // Sort
+    if (filterSortBy) {
+      result.sort((a, b) => {
+        const aAnalytics = analyticsMap[a.id];
+        const bAnalytics = analyticsMap[b.id];
+        
+        switch (filterSortBy) {
+          case 'top_spending':
+            return (bAnalytics?.totalSpending || 0) - (aAnalytics?.totalSpending || 0);
+          case 'agent_rating':
+            return (bAnalytics?.avgAgentRating || 0) - (aAnalytics?.avgAgentRating || 0);
+          case 'agent_response':
+            return (aAnalytics?.avgAgentResponseTime || 999999) - (bAnalytics?.avgAgentResponseTime || 999999);
+          case 'supervisor_rating':
+            return (bAnalytics?.avgSupervisorRating || 0) - (aAnalytics?.avgSupervisorRating || 0);
+          case 'supervisor_response':
+            return (aAnalytics?.avgSupervisorResponseTime || 999999) - (bAnalytics?.avgSupervisorResponseTime || 999999);
+          case 'newest':
+            return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+          case 'oldest':
+            return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+          default:
+            return 0;
+        }
+      });
+    }
+    
+    return result;
+  }, [merchants, merchantAnalytics, analyticsMap, filterJoinDateFrom, filterJoinDateTo, filterSubscribeDateFrom, filterSubscribeDateTo, filterPaymentMethod, filterMinAgents, filterMaxAgents, filterMinSupervisors, filterMaxSupervisors, filterEscalation, filterPromptType, filterSortBy]);
+
+  const clearAllFilters = () => {
+    setFilterJoinDateFrom("");
+    setFilterJoinDateTo("");
+    setFilterSubscribeDateFrom("");
+    setFilterSubscribeDateTo("");
+    setFilterSortBy("");
+    setFilterPaymentMethod("");
+    setFilterPromptType("");
+    setFilterEscalation("");
+    setFilterMinAgents("");
+    setFilterMaxAgents("");
+    setFilterMinSupervisors("");
+    setFilterMaxSupervisors("");
+  };
+
+  const hasActiveFilters = filterJoinDateFrom || filterJoinDateTo || filterSubscribeDateFrom || filterSubscribeDateTo || filterSortBy || filterPaymentMethod || filterPromptType || filterEscalation || filterMinAgents || filterMaxAgents || filterMinSupervisors || filterMaxSupervisors;
+
   const subscriptionTrendData = [
     { label: "Daily", free: 2, starter: 1, pro: 1, enterprise: 0, custom: 0 },
     { label: "Weekly", free: 8, starter: 5, pro: 3, enterprise: 1, custom: 0 },
@@ -1271,9 +1448,26 @@ function MerchantsTab({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <CardTitle>All Merchants</CardTitle>
-              <CardDescription>Manage all registered merchants ({merchants?.length || 0} total)</CardDescription>
+              <CardDescription>
+                Manage all registered merchants ({filteredMerchants.length}{hasActiveFilters ? ` of ${merchants?.length || 0}` : ''} total)
+              </CardDescription>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <Button 
+                variant={showFilters ? "default" : "outline"} 
+                size="sm" 
+                onClick={() => setShowFilters(!showFilters)}
+                data-testid="button-toggle-filters"
+              >
+                <Filter className="w-4 h-4 mr-2" />
+                Filters {hasActiveFilters && <Badge variant="secondary" className="ml-1">{[filterJoinDateFrom, filterJoinDateTo, filterSubscribeDateFrom, filterSubscribeDateTo, filterSortBy, filterPaymentMethod, filterPromptType, filterEscalation, filterMinAgents, filterMaxAgents, filterMinSupervisors, filterMaxSupervisors].filter(Boolean).length}</Badge>}
+              </Button>
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={clearAllFilters} data-testid="button-clear-filters">
+                  <X className="w-4 h-4 mr-1" />
+                  Clear
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={handleExportMerchants} data-testid="button-export-merchants-list">
                 <Download className="w-4 h-4 mr-2" />
                 Export CSV
@@ -1284,6 +1478,165 @@ function MerchantsTab({
               </Button>
             </div>
           </div>
+          
+          {showFilters && (
+            <div className="mt-4 p-4 border rounded-lg bg-muted/30 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Join Date Range</Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      type="date" 
+                      value={filterJoinDateFrom} 
+                      onChange={(e) => setFilterJoinDateFrom(e.target.value)}
+                      className="text-xs"
+                      data-testid="input-filter-join-from"
+                    />
+                    <Input 
+                      type="date" 
+                      value={filterJoinDateTo} 
+                      onChange={(e) => setFilterJoinDateTo(e.target.value)}
+                      className="text-xs"
+                      data-testid="input-filter-join-to"
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">First Subscribe Date</Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      type="date" 
+                      value={filterSubscribeDateFrom} 
+                      onChange={(e) => setFilterSubscribeDateFrom(e.target.value)}
+                      className="text-xs"
+                      data-testid="input-filter-subscribe-from"
+                    />
+                    <Input 
+                      type="date" 
+                      value={filterSubscribeDateTo} 
+                      onChange={(e) => setFilterSubscribeDateTo(e.target.value)}
+                      className="text-xs"
+                      data-testid="input-filter-subscribe-to"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Sort By</Label>
+                  <Select value={filterSortBy} onValueChange={setFilterSortBy}>
+                    <SelectTrigger className="text-xs" data-testid="select-filter-sort">
+                      <SelectValue placeholder="Select..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="top_spending">Top Spending</SelectItem>
+                      <SelectItem value="agent_rating">Agent Rating (Best)</SelectItem>
+                      <SelectItem value="agent_response">Agent Response Time (Fastest)</SelectItem>
+                      <SelectItem value="supervisor_rating">Supervisor Rating (Best)</SelectItem>
+                      <SelectItem value="supervisor_response">Supervisor Response Time (Fastest)</SelectItem>
+                      <SelectItem value="newest">Newest First</SelectItem>
+                      <SelectItem value="oldest">Oldest First</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Payment Method</Label>
+                  <Select value={filterPaymentMethod} onValueChange={setFilterPaymentMethod}>
+                    <SelectTrigger className="text-xs" data-testid="select-filter-payment">
+                      <SelectValue placeholder="All Methods" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Methods</SelectItem>
+                      <SelectItem value="qris">QRIS</SelectItem>
+                      <SelectItem value="ewallet">E-Wallet</SelectItem>
+                      <SelectItem value="credit_card">Credit Card</SelectItem>
+                      <SelectItem value="paypal">PayPal</SelectItem>
+                      <SelectItem value="crypto">Crypto</SelectItem>
+                      <SelectItem value="virtual_account">Virtual Account</SelectItem>
+                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Prompt Quality</Label>
+                  <Select value={filterPromptType} onValueChange={setFilterPromptType}>
+                    <SelectTrigger className="text-xs" data-testid="select-filter-prompt">
+                      <SelectValue placeholder="All Prompts" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Prompts</SelectItem>
+                      <SelectItem value="best">Best (200-1000 chars)</SelectItem>
+                      <SelectItem value="longest">Longest (&gt;1000 chars)</SelectItem>
+                      <SelectItem value="shortest">Shortest (&lt;200 chars)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Human Escalation Rate</Label>
+                  <Select value={filterEscalation} onValueChange={setFilterEscalation}>
+                    <SelectTrigger className="text-xs" data-testid="select-filter-escalation">
+                      <SelectValue placeholder="All Rates" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Rates</SelectItem>
+                      <SelectItem value="high">High (&gt;30%)</SelectItem>
+                      <SelectItem value="medium">Medium (10-30%)</SelectItem>
+                      <SelectItem value="low">Low (&lt;10%)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Agent Count</Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      type="number" 
+                      placeholder="Min" 
+                      value={filterMinAgents} 
+                      onChange={(e) => setFilterMinAgents(e.target.value)}
+                      className="text-xs"
+                      data-testid="input-filter-min-agents"
+                    />
+                    <Input 
+                      type="number" 
+                      placeholder="Max" 
+                      value={filterMaxAgents} 
+                      onChange={(e) => setFilterMaxAgents(e.target.value)}
+                      className="text-xs"
+                      data-testid="input-filter-max-agents"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Supervisor Count</Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      type="number" 
+                      placeholder="Min" 
+                      value={filterMinSupervisors} 
+                      onChange={(e) => setFilterMinSupervisors(e.target.value)}
+                      className="text-xs"
+                      data-testid="input-filter-min-supervisors"
+                    />
+                    <Input 
+                      type="number" 
+                      placeholder="Max" 
+                      value={filterMaxSupervisors} 
+                      onChange={(e) => setFilterMaxSupervisors(e.target.value)}
+                      className="text-xs"
+                      data-testid="input-filter-max-supervisors"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {merchantsLoading ? (
@@ -1296,18 +1649,18 @@ function MerchantsTab({
                     <TableHead className="min-w-[80px]">ID</TableHead>
                     <TableHead className="min-w-[150px]">Company</TableHead>
                     <TableHead className="hidden lg:table-cell">PIC</TableHead>
-                    <TableHead className="hidden xl:table-cell">Phone</TableHead>
-                    <TableHead className="hidden xl:table-cell">Location</TableHead>
                     <TableHead>Plan</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="hidden md:table-cell">Expiry</TableHead>
-                    <TableHead className="hidden lg:table-cell">Conversations</TableHead>
+                    <TableHead className="hidden md:table-cell">Spending</TableHead>
+                    <TableHead className="hidden lg:table-cell">Team</TableHead>
+                    <TableHead className="hidden xl:table-cell">Performance</TableHead>
                     <TableHead className="hidden xl:table-cell">Joined</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {merchants?.map((merchant) => {
+                  {filteredMerchants.map((merchant) => {
+                    const analytics = analyticsMap[merchant.id];
                     const expiryInfo = getMerchantExpiryInfo(merchant);
                     return (
                       <TableRow key={merchant.id} data-testid={`row-merchant-${merchant.id}`}>
@@ -1340,41 +1693,44 @@ function MerchantsTab({
                         <TableCell className="hidden lg:table-cell">
                           <p className="text-sm">{merchant.picName || '-'}</p>
                         </TableCell>
-                        <TableCell className="hidden xl:table-cell">
-                          <p className="text-sm">{merchant.phone ? `${merchant.phoneCountryCode || ''}${merchant.phone}` : '-'}</p>
-                        </TableCell>
-                        <TableCell className="hidden xl:table-cell">
-                          <div className="text-sm">
-                            {merchant.city || merchant.region || merchant.country ? (
-                              <>
-                                <p>{[merchant.city, merchant.region].filter(Boolean).join(', ')}</p>
-                                <p className="text-xs text-muted-foreground">{merchant.country}</p>
-                              </>
-                            ) : '-'}
-                          </div>
-                        </TableCell>
                         <TableCell>{getPlanBadge(merchant.subscriptionPlanId)}</TableCell>
                         <TableCell>{getStatusBadge(merchant.subscriptionStatus, merchant)}</TableCell>
                         <TableCell className="hidden md:table-cell">
-                          {expiryInfo ? (
-                            <div className="flex items-center gap-1">
-                              {expiryInfo.expired ? (
-                                <Badge variant="destructive">Expired</Badge>
-                              ) : expiryInfo.isExpiringSoon ? (
-                                <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-400">
-                                  <AlertTriangle className="w-3 h-3 mr-1" />
-                                  {expiryInfo.text}
-                                </Badge>
-                              ) : (
-                                <span className="text-sm text-muted-foreground">{expiryInfo.text}</span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">-</span>
-                          )}
+                          <div className="text-sm">
+                            {analytics?.totalSpending ? (
+                              <span className="font-medium text-green-600 dark:text-green-400">
+                                Rp {(analytics.totalSpending / 1000).toFixed(0)}K
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="hidden lg:table-cell">
-                          {merchant.conversationsUsed || 0} / {merchant.plan.conversationsLimit === -1 ? '∞' : merchant.plan.conversationsLimit}
+                          <div className="text-xs space-y-0.5">
+                            <div className="flex items-center gap-1">
+                              <Bot className="w-3 h-3 text-blue-500" />
+                              <span>{analytics?.agentCount || 0} agents</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <UserCheck className="w-3 h-3 text-purple-500" />
+                              <span>{analytics?.supervisorCount || 0} supervisors</span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden xl:table-cell">
+                          <div className="text-xs space-y-0.5">
+                            <div className="flex items-center gap-1">
+                              <Star className="w-3 h-3 text-yellow-500" />
+                              <span>{analytics?.avgAgentRating?.toFixed(1) || '-'}</span>
+                              <Clock className="w-3 h-3 text-muted-foreground ml-1" />
+                              <span>{analytics?.avgAgentResponseTime ? `${analytics.avgAgentResponseTime}s` : '-'}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <ArrowUpRight className="w-3 h-3" />
+                              <span>Esc: {analytics?.escalationRate?.toFixed(0) || 0}%</span>
+                            </div>
+                          </div>
                         </TableCell>
                         <TableCell className="hidden xl:table-cell text-muted-foreground text-sm">
                           {merchant.createdAt ? format(new Date(merchant.createdAt), 'MMM d, yyyy') : '-'}
@@ -1397,10 +1753,10 @@ function MerchantsTab({
                       </TableRow>
                     );
                   })}
-                  {(!merchants || merchants.length === 0) && (
+                  {filteredMerchants.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
-                        No merchants registered yet
+                      <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                        {hasActiveFilters ? 'No merchants match the current filters' : 'No merchants registered yet'}
                       </TableCell>
                     </TableRow>
                   )}

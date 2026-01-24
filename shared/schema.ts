@@ -107,6 +107,7 @@ export const merchants = pgTable("merchants", {
   welcomeDescription: text("welcome_description").default(""),
   quickMessageOptions: text("quick_message_options").array().default([]),
   createdAt: timestamp("created_at").defaultNow(),
+  firstSubscribedAt: timestamp("first_subscribed_at"), // First time merchant paid for any subscription
 });
 
 // Email verification tokens for merchant registration
@@ -1379,6 +1380,51 @@ export const paymentTransactions = pgTable("payment_transactions", {
 export const insertPaymentTransactionSchema = createInsertSchema(paymentTransactions).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertPaymentTransaction = z.infer<typeof insertPaymentTransactionSchema>;
 export type PaymentTransaction = typeof paymentTransactions.$inferSelect;
+
+// ============ Merchant Saved Payment Methods ============
+// Stores payment methods for future/recurring subscriptions
+export const merchantPaymentMethods = pgTable("merchant_payment_methods", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  // Payment method type
+  type: text("type").notNull(), // credit_card, bank_transfer, ewallet, qris, paypal, crypto, virtual_account
+  isDefault: boolean("is_default").default(false),
+  nickname: text("nickname"), // User-friendly name like "My Visa Card"
+  // Credit Card fields (encrypted/masked)
+  cardNumber: text("card_number"), // Last 4 digits only for display, full number encrypted
+  cardNumberEncrypted: text("card_number_encrypted"), // Full encrypted card number for auto-billing
+  cardHolderName: text("card_holder_name"),
+  cardExpiryMonth: text("card_expiry_month"), // MM
+  cardExpiryYear: text("card_expiry_year"), // YYYY
+  cardCvvEncrypted: text("card_cvv_encrypted"), // Encrypted CVV for auto-billing
+  cardBrand: text("card_brand"), // visa, mastercard, amex, jcb
+  // Bank Transfer fields
+  bankName: text("bank_name"),
+  bankAccountNumber: text("bank_account_number"),
+  bankAccountName: text("bank_account_name"),
+  bankSwiftCode: text("bank_swift_code"), // For international transfers
+  bankCountry: text("bank_country"),
+  // E-Wallet fields
+  ewalletProvider: text("ewallet_provider"), // gopay, ovo, dana, shopeepay, linkaja
+  ewalletPhoneNumber: text("ewallet_phone_number"),
+  // Crypto fields
+  cryptoNetwork: text("crypto_network"), // btc, eth, sol, bnb, usdt, xrp
+  cryptoWalletAddress: text("crypto_wallet_address"),
+  // PayPal fields
+  paypalEmail: text("paypal_email"),
+  // Virtual Account fields
+  vaProvider: text("va_provider"), // bca, bni, bri, mandiri, permata
+  vaNumber: text("va_number"),
+  // Metadata
+  lastUsedAt: timestamp("last_used_at"),
+  timesUsed: integer("times_used").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertMerchantPaymentMethodSchema = createInsertSchema(merchantPaymentMethods).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertMerchantPaymentMethod = z.infer<typeof insertMerchantPaymentMethodSchema>;
+export type MerchantPaymentMethod = typeof merchantPaymentMethods.$inferSelect;
 
 // Admin Notifications - for alerting admin of important events
 export const adminNotifications = pgTable("admin_notifications", {

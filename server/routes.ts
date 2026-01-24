@@ -30,7 +30,7 @@ import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClien
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, isNotNull, gte } from "drizzle-orm";
-import { messages, sessions, chatLogs } from "@shared/schema";
+import { messages, sessions, chatLogs, paymentTransactions } from "@shared/schema";
 import crypto from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
@@ -7863,6 +7863,106 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       res.json({ success: true, message: "Follow-up notification sent" });
     } catch (error) {
       console.error("Error sending follow-up:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ============ Merchant Analytics (Admin) ============
+  
+  // Get merchant analytics data for filtering and display
+  app.get("/api/admin/merchants/analytics", requireAdmin, async (req, res) => {
+    try {
+      const merchants = await storage.getMerchants();
+      const analytics = await Promise.all(
+        merchants.map(async (merchant) => {
+          // Get agents and supervisors count
+          const agents = await storage.getAgentsByMerchant(merchant.id);
+          const supervisors = await storage.getSupervisorsByMerchant(merchant.id);
+          
+          // Get payment transactions for total spending
+          const transactions = await db.select()
+            .from(paymentTransactions)
+            .where(eq(paymentTransactions.merchantId, merchant.id));
+          
+          const completedTransactions = transactions.filter(t => t.status === 'completed');
+          const totalSpending = completedTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+          
+          // Get unique payment methods used
+          const paymentMethods = [...new Set(completedTransactions.map(t => t.paymentMethod).filter(Boolean))] as string[];
+          
+          // Get sessions for escalation rate and ratings
+          const sessions = await storage.getSessionsByMerchant(merchant.id);
+          const escalatedSessions = sessions.filter(s => s.status === 'escalated' || s.assignedSupervisorId);
+          const escalationRate = sessions.length > 0 ? (escalatedSessions.length / sessions.length) * 100 : 0;
+          
+          // Calculate average ratings
+          const ratedSessions = sessions.filter(s => s.customerRating);
+          const avgRating = ratedSessions.length > 0 
+            ? ratedSessions.reduce((sum, s) => sum + (s.customerRating || 0), 0) / ratedSessions.length 
+            : 0;
+          
+          // Get prompt length from active agent
+          let promptLength = 0;
+          const activeAgent = agents.find(a => a.id === merchant.activeAgentId) || agents[0];
+          if (activeAgent?.systemPrompt) {
+            promptLength = activeAgent.systemPrompt.length;
+          }
+          
+          // Calculate average response times from messages
+          let avgAgentResponseTime = 0;
+          let avgSupervisorResponseTime = 0;
+          
+          // Get sample of recent sessions for response time calculation
+          const recentSessions = sessions.slice(0, 50);
+          const responseTimes: number[] = [];
+          const supervisorResponseTimes: number[] = [];
+          
+          for (const session of recentSessions) {
+            const sessionMessages = await storage.getMessages(session.id);
+            for (let i = 1; i < sessionMessages.length; i++) {
+              const prev = sessionMessages[i - 1];
+              const curr = sessionMessages[i];
+              
+              // If previous was customer and current is agent/supervisor, calculate response time
+              if (prev.from === 'customer' && (curr.from === 'agent' || curr.from === 'supervisor')) {
+                const responseTime = (new Date(curr.timestamp!).getTime() - new Date(prev.timestamp!).getTime()) / 1000;
+                if (responseTime > 0 && responseTime < 3600) { // Ignore outliers > 1 hour
+                  if (curr.from === 'agent') {
+                    responseTimes.push(responseTime);
+                  } else {
+                    supervisorResponseTimes.push(responseTime);
+                  }
+                }
+              }
+            }
+          }
+          
+          if (responseTimes.length > 0) {
+            avgAgentResponseTime = responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length;
+          }
+          if (supervisorResponseTimes.length > 0) {
+            avgSupervisorResponseTime = supervisorResponseTimes.reduce((a, b) => a + b, 0) / supervisorResponseTimes.length;
+          }
+          
+          return {
+            merchantId: merchant.id,
+            totalSpending,
+            agentCount: agents.length,
+            supervisorCount: supervisors.length,
+            avgAgentRating: avgRating,
+            avgAgentResponseTime: Math.round(avgAgentResponseTime),
+            avgSupervisorRating: avgRating,
+            avgSupervisorResponseTime: Math.round(avgSupervisorResponseTime),
+            escalationRate,
+            promptLength,
+            paymentMethods,
+          };
+        })
+      );
+      
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching merchant analytics:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
