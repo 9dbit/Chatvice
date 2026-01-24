@@ -5131,7 +5131,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     }
   });
 
-  app.get("/api/billing/status", requireMerchant, async (req, res) => {
+  app.get("/api/billing/status", requireMerchantOrSupervisor, async (req, res) => {
     try {
       const merchant = await storage.getMerchant(req.session.merchantId!);
       if (!merchant) {

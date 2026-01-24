@@ -341,7 +341,7 @@ export function AppSidebar() {
 
   const { data: billingStatus } = useQuery<BillingStatus>({
     queryKey: ["/api/billing/status"],
-    enabled: !!merchantId && isAdmin,
+    enabled: !!merchantId,
     staleTime: 60000,
     refetchOnMount: true,
     retry: 1,
