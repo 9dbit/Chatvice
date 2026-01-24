@@ -681,7 +681,7 @@ HINDARI jawaban yang:
 
 BATASAN PENTING:
 - Maksimal 1 pertanyaan follow-up per respons
-- Jika tidak tahu jawaban PASTI, akui dan tawarkan hubungkan ke human agent
+- Jika tidak tahu jawaban PASTI, akui dan tawarkan hubungkan ke supervisor
 - Jangan membuat informasi yang tidak ada di knowledge base
 
 TONE/STYLE INSTRUCTION:
@@ -709,7 +709,7 @@ KNOWLEDGE BASE USAGE (CRITICAL):
 - SELALU cari jawaban di "Relevant Company Information" di bawah TERLEBIH DAHULU
 - Jika ada informasi relevan, KUTIP secara spesifik dari knowledge base
 - Jangan memberikan jawaban generik jika ada informasi spesifik di knowledge
-- Jika tidak ada informasi di knowledge base, akui dengan jujur dan tawarkan bantuan human agent
+- Jika tidak ada informasi di knowledge base, akui dengan jujur dan tawarkan bantuan supervisor
 
 INTERACTIVE FORMATTING:
 When responding, you can include interactive elements:
@@ -719,7 +719,7 @@ When responding, you can include interactive elements:
 Examples:
 - "Would you like more details? [BTN:Yes, tell me more:Tell me more about this product]"
 - "Check our [LINK:complete catalog:https://example.com/catalog] for more options."
-- [BTN:Contact Support:I want to speak with a human agent]
+- [BTN:Hubungi Supervisor:Saya ingin berbicara dengan supervisor]
 
 Guidelines for buttons:
 - Use buttons for common follow-up questions or actions
@@ -779,7 +779,7 @@ JIKA merekomendasikan produk, WAJIB akhiri dengan:
 Relevant Company Information:
 ${knowledgeContext || "No specific knowledge base configured yet."}
 
-If you don't have specific information to answer, be honest about it and offer to connect with a human agent.`;
+If you don't have specific information to answer, be honest about it and offer to connect with a supervisor.`;
 
   try {
     // Fetch conversation history from session messages for context continuity
