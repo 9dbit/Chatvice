@@ -28,6 +28,7 @@ import {
   Target,
   Zap,
   AlertTriangle,
+  Star,
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
 import type { Merchant } from "@shared/schema";
@@ -82,6 +83,8 @@ interface PerformanceData {
   messagesHandled: number;
   avgResponseTime: number;
   avgResponseTimeFormatted: string;
+  avgRating: number;
+  totalRatings: number;
 }
 
 interface PerformanceAnalytics {
@@ -920,11 +923,20 @@ export default function AnalyticsPage() {
                                 <p className="text-xs text-muted-foreground">{agent.messagesHandled} messages</p>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <p className={`text-sm font-semibold ${agent.avgResponseTime > 3 ? "text-yellow-500" : "text-green-500"}`}>
-                                {agent.avgResponseTimeFormatted}
-                              </p>
-                              <p className="text-xs text-muted-foreground">avg response</p>
+                            <div className="flex items-center gap-4">
+                              <div className="text-center">
+                                <div className="flex items-center gap-1">
+                                  <Star className={`h-3.5 w-3.5 ${agent.avgRating > 0 ? "text-yellow-500 fill-yellow-500" : "text-muted-foreground"}`} />
+                                  <span className="text-sm font-semibold">{agent.avgRating > 0 ? agent.avgRating.toFixed(1) : "-"}</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">{agent.totalRatings} ratings</p>
+                              </div>
+                              <div className="text-right">
+                                <p className={`text-sm font-semibold ${agent.avgResponseTime > 3 ? "text-yellow-500" : "text-green-500"}`}>
+                                  {agent.avgResponseTimeFormatted}
+                                </p>
+                                <p className="text-xs text-muted-foreground">avg response</p>
+                              </div>
                             </div>
                           </div>
                         ))
@@ -956,11 +968,20 @@ export default function AnalyticsPage() {
                                 <p className="text-xs text-muted-foreground">{supervisor.messagesHandled} messages</p>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <p className="text-sm font-semibold text-green-500">
-                                {supervisor.avgResponseTimeFormatted}
-                              </p>
-                              <p className="text-xs text-muted-foreground">avg response</p>
+                            <div className="flex items-center gap-4">
+                              <div className="text-center">
+                                <div className="flex items-center gap-1">
+                                  <Star className={`h-3.5 w-3.5 ${supervisor.avgRating > 0 ? "text-yellow-500 fill-yellow-500" : "text-muted-foreground"}`} />
+                                  <span className="text-sm font-semibold">{supervisor.avgRating > 0 ? supervisor.avgRating.toFixed(1) : "-"}</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">{supervisor.totalRatings} ratings</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-semibold text-green-500">
+                                  {supervisor.avgResponseTimeFormatted}
+                                </p>
+                                <p className="text-xs text-muted-foreground">avg response</p>
+                              </div>
                             </div>
                           </div>
                         ))

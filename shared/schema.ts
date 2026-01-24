@@ -211,6 +211,10 @@ export const sessions = pgTable("sessions", {
   // Device fingerprint and IP for 24-hour session persistence
   deviceFingerprint: text("device_fingerprint"),
   clientIp: text("client_ip"),
+  // Customer rating for session (1-5 stars)
+  customerRating: integer("customer_rating"),
+  ratingComment: text("rating_comment"),
+  ratedAt: timestamp("rated_at"),
 }, (table) => [
   index("sessions_merchant_id_idx").on(table.merchantId),
   index("sessions_created_at_idx").on(table.createdAt),
