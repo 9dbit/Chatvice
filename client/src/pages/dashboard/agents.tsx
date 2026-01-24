@@ -49,6 +49,7 @@ const TONE_PRESETS = {
 const agentSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   description: z.string().optional(),
+  agentType: z.enum(["support", "sales"]).optional(),
   systemPrompt: z.string().optional(),
   toneStyle: z.string().optional(),
   autoEscalateAngry: z.boolean().optional(),
@@ -66,6 +67,19 @@ const agentSchema = z.object({
   followUpSuggestions: z.array(z.string()).optional(),
   followUpIntervalMinutes: z.number().optional(),
 });
+
+const AGENT_TYPES = {
+  support: {
+    label: "Support Agent",
+    description: "Customer service and help desk",
+    icon: MessageSquare,
+  },
+  sales: {
+    label: "Sales Agent",
+    description: "Product sales and lead generation",
+    icon: Zap,
+  },
+};
 
 type AgentFormData = z.infer<typeof agentSchema>;
 
@@ -226,6 +240,7 @@ export default function AgentsPage() {
     form.setValue("description", agent.description || "");
     form.setValue("systemPrompt", agent.systemPrompt || "");
     form.setValue("toneStyle", agent.toneStyle || "formal");
+    form.setValue("agentType", (agent as any).agentType || "support");
     form.setValue("autoEscalateAngry", agent.autoEscalateAngry || false);
     form.setValue("welcomeMessageEnabled", agent.welcomeMessageEnabled || false);
     form.setValue("welcomeMessageText", agent.welcomeMessageText || "Hello! How can I help you?");
@@ -406,6 +421,40 @@ export default function AgentsPage() {
                       </FormItem>
                     )}
                   />
+                  
+                  {/* Agent Type Selector */}
+                  <div className="space-y-2">
+                    <FormLabel className="flex items-center gap-2">
+                      <Zap className="w-4 h-4" />
+                      Agent Type
+                    </FormLabel>
+                    <div className="grid grid-cols-2 gap-2">
+                      {Object.entries(AGENT_TYPES).map(([key, typeInfo]) => {
+                        const Icon = typeInfo.icon;
+                        const isSelected = form.watch("agentType") === key || (!form.watch("agentType") && key === "support");
+                        return (
+                          <Button
+                            key={key}
+                            type="button"
+                            variant={isSelected ? "default" : "outline"}
+                            className="flex flex-col items-center justify-center h-auto py-3 px-2 gap-1"
+                            onClick={() => form.setValue("agentType", key as "support" | "sales")}
+                            data-testid={`button-agent-type-${key}`}
+                          >
+                            <Icon className="w-5 h-5 mb-1" />
+                            <span className="text-sm font-medium">{typeInfo.label}</span>
+                            <span className={`text-[10px] ${isSelected ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                              {typeInfo.description}
+                            </span>
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Sales agents are optimized for lead generation and product recommendations.
+                    </p>
+                  </div>
+                  
                   <Separator />
                   
                   <div className="space-y-2">
@@ -938,6 +987,15 @@ export default function AgentsPage() {
                 
                 {/* Agent Spec Quick View */}
                 <div className="flex flex-wrap gap-1.5 mb-3" data-testid={`agent-specs-${agent.id}`}>
+                  {/* Agent Type */}
+                  <Badge 
+                    variant={(agent as any).agentType === 'sales' ? "default" : "secondary"} 
+                    className={`text-[10px] gap-1 ${(agent as any).agentType === 'sales' ? 'bg-orange-500 hover:bg-orange-600' : ''}`}
+                  >
+                    {(agent as any).agentType === 'sales' ? <Zap className="w-2.5 h-2.5" /> : <MessageSquare className="w-2.5 h-2.5" />}
+                    {(agent as any).agentType === 'sales' ? 'Sales' : 'Support'}
+                  </Badge>
+                  
                   {/* Tone Style */}
                   <Badge variant="outline" className="text-[10px] gap-1">
                     {agent.toneStyle === 'casual' ? <MessageSquare className="w-2.5 h-2.5" /> : 

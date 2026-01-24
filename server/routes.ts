@@ -3957,6 +3957,72 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         }
       }
 
+      // Lead tracking for Sales Agents
+      try {
+        const agent = merchant.activeAgentId ? await storage.getAgent(merchant.activeAgentId) : null;
+        if (agent && (agent as any).agentType === 'sales') {
+          // Check if lead exists for this session
+          let lead = await storage.getLeadBySession(sessionId);
+          
+          if (!lead) {
+            // Create new lead for sales agent session
+            const session = await storage.getSession(sessionId);
+            lead = await storage.createLead({
+              merchantId,
+              sessionId,
+              agentId: agent.id,
+              customerName: session?.customerName || null,
+              source: 'widget',
+              score: 10,
+              stage: 'cold',
+            });
+            console.log(`[Sales Lead] Created new lead for session ${sessionId}`);
+          }
+          
+          // Update lead score based on conversation signals
+          let scoreChange = 0;
+          const lowerMessage = message.toLowerCase();
+          const lowerAnswer = cleanAnswer.toLowerCase();
+          
+          // Positive signals that increase score
+          if (lowerMessage.includes('harga') || lowerMessage.includes('price') || lowerMessage.includes('biaya')) scoreChange += 10;
+          if (lowerMessage.includes('beli') || lowerMessage.includes('buy') || lowerMessage.includes('order')) scoreChange += 15;
+          if (lowerMessage.includes('cara bayar') || lowerMessage.includes('payment') || lowerMessage.includes('pembayaran')) scoreChange += 15;
+          if (lowerMessage.includes('diskon') || lowerMessage.includes('discount') || lowerMessage.includes('promo')) scoreChange += 10;
+          if (lowerMessage.includes('tersedia') || lowerMessage.includes('available') || lowerMessage.includes('stok')) scoreChange += 5;
+          if (lowerMessage.includes('spesifikasi') || lowerMessage.includes('fitur') || lowerMessage.includes('feature')) scoreChange += 5;
+          if (hasProductRecommendTag) scoreChange += 5; // AI recommended a product
+          
+          // Negative signals
+          if (lowerMessage.includes('mahal') || lowerMessage.includes('expensive')) scoreChange -= 5;
+          if (lowerMessage.includes('tidak jadi') || lowerMessage.includes('cancel')) scoreChange -= 10;
+          
+          if (scoreChange !== 0) {
+            const newScore = Math.min(100, Math.max(0, (lead.score || 0) + scoreChange));
+            const currentStage = lead.stage || 'cold';
+            
+            // Only auto-adjust stages for cold/warm/hot. Never overwrite qualified/converted/lost
+            const autoAdjustableStages = ['cold', 'warm', 'hot'];
+            let newStage = currentStage;
+            
+            if (autoAdjustableStages.includes(currentStage)) {
+              if (newScore >= 80) newStage = 'hot';
+              else if (newScore >= 50) newStage = 'warm';
+              else newStage = 'cold';
+            }
+            
+            await storage.updateLead(lead.id, {
+              score: newScore,
+              stage: newStage,
+              lastContactAt: new Date(),
+            });
+            console.log(`[Sales Lead] Updated lead score: ${lead.score} -> ${newScore} (${newStage})`);
+          }
+        }
+      } catch (leadError) {
+        console.error("Lead tracking error:", leadError);
+      }
+
       res.json({ 
         answer: cleanAnswer, 
         mode: result.mode,
@@ -12238,11 +12304,20 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         return res.status(403).json({ error: `Agent limit reached (${plan.agentsLimit}). Please upgrade your plan.` });
       }
       
-      const { name, description } = req.body;
+      const { name, description, agentType } = req.body;
+      
+      // Default prompts based on agent type
+      const defaultPrompts = {
+        support: "Kamu adalah agen customer service yang ramah dan profesional. Bantu pelanggan dengan pertanyaan mereka dengan sopan dan informatif.",
+        sales: "Kamu adalah agen penjualan yang ramah dan persuasif. Bantu pelanggan menemukan produk yang tepat, jelaskan fitur dan manfaat, dan bantu mereka dalam proses pembelian. Identifikasi kebutuhan pelanggan dan rekomendasikan produk yang sesuai. Jika pelanggan tertarik, bantu mereka untuk menyelesaikan pembelian."
+      };
+      
       const agent = await storage.createAgent({
         merchantId,
         name,
         description: description || "",
+        agentType: agentType || "support",
+        systemPrompt: defaultPrompts[agentType as keyof typeof defaultPrompts] || defaultPrompts.support,
       });
       
       res.json(agent);
@@ -12406,6 +12481,169 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       res.json({ success: true, agent: updated });
     } catch (error) {
       console.error("Unassign supervisor error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ============ Leads (Sales Agent) ============
+  
+  app.get("/api/leads", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const leadsList = await storage.getLeads(merchantId);
+      res.json(leadsList);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  app.get("/api/leads/stats", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const allLeads = await storage.getLeads(merchantId);
+      
+      const stats = {
+        total: allLeads.length,
+        byStage: {
+          cold: allLeads.filter(l => l.stage === 'cold').length,
+          warm: allLeads.filter(l => l.stage === 'warm').length,
+          hot: allLeads.filter(l => l.stage === 'hot').length,
+          qualified: allLeads.filter(l => l.stage === 'qualified').length,
+          converted: allLeads.filter(l => l.stage === 'converted').length,
+          lost: allLeads.filter(l => l.stage === 'lost').length,
+        },
+        avgScore: allLeads.length > 0 
+          ? Math.round(allLeads.reduce((sum, l) => sum + (l.score || 0), 0) / allLeads.length)
+          : 0,
+        totalConvertedValue: allLeads
+          .filter(l => l.stage === 'converted')
+          .reduce((sum, l) => sum + (l.convertedValue || 0), 0),
+        conversionRate: allLeads.length > 0
+          ? Math.round((allLeads.filter(l => l.stage === 'converted').length / allLeads.length) * 100)
+          : 0,
+      };
+      
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  app.get("/api/leads/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const lead = await storage.getLead(req.params.id);
+      if (!lead || lead.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+      res.json(lead);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  app.post("/api/leads", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { sessionId, agentId, customerName, customerEmail, customerPhone, source, notes } = req.body;
+      
+      const lead = await storage.createLead({
+        merchantId,
+        sessionId,
+        agentId,
+        customerName,
+        customerEmail,
+        customerPhone,
+        source: source || "widget",
+        notes: notes || "",
+        score: 10, // Initial score
+        stage: "cold",
+      });
+      
+      res.json(lead);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  app.put("/api/leads/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const lead = await storage.getLead(req.params.id);
+      if (!lead || lead.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+      
+      const { score, stage, customerName, customerEmail, customerPhone, notes, assignedSupervisorId, convertedValue } = req.body;
+      
+      const updateData: Record<string, any> = {};
+      if (score !== undefined) updateData.score = score;
+      if (stage !== undefined) updateData.stage = stage;
+      if (customerName !== undefined) updateData.customerName = customerName;
+      if (customerEmail !== undefined) updateData.customerEmail = customerEmail;
+      if (customerPhone !== undefined) updateData.customerPhone = customerPhone;
+      if (notes !== undefined) updateData.notes = notes;
+      if (assignedSupervisorId !== undefined) updateData.assignedSupervisorId = assignedSupervisorId;
+      if (convertedValue !== undefined) updateData.convertedValue = convertedValue;
+      
+      // If stage is converted, set convertedAt
+      if (stage === 'converted') {
+        updateData.convertedAt = new Date();
+      }
+      
+      const updated = await storage.updateLead(req.params.id, updateData);
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  app.delete("/api/leads/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const lead = await storage.getLead(req.params.id);
+      if (!lead || lead.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+      
+      await storage.deleteLead(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Update lead score based on chat activity (called from chat endpoint)
+  app.post("/api/leads/:id/update-score", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const lead = await storage.getLead(req.params.id);
+      if (!lead || lead.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+      
+      const { scoreChange, reason } = req.body;
+      const newScore = Math.min(100, Math.max(0, (lead.score || 0) + scoreChange));
+      const currentStage = lead.stage || 'cold';
+      
+      // Only auto-adjust stages for cold/warm/hot. Never overwrite qualified/converted/lost
+      const autoAdjustableStages = ['cold', 'warm', 'hot'];
+      let newStage = currentStage;
+      
+      if (autoAdjustableStages.includes(currentStage)) {
+        if (newScore >= 80) newStage = 'hot';
+        else if (newScore >= 50) newStage = 'warm';
+        else newStage = 'cold';
+      }
+      
+      const updated = await storage.updateLead(req.params.id, {
+        score: newScore,
+        stage: newStage,
+        lastContactAt: new Date(),
+      });
+      
+      res.json(updated);
+    } catch (error) {
       res.status(500).json({ error: "Server error" });
     }
   });

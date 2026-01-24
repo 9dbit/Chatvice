@@ -471,6 +471,7 @@ export type PlatformSetting = typeof platformSettings.$inferSelect;
 export const agents = pgTable("agents", {
   id: varchar("id", { length: 32 }).primaryKey(),
   merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  agentType: text("agent_type").default("support"), // "support" or "sales"
   name: text("name").notNull(),
   description: text("description").default(""),
   photoUrl: text("photo_url").default(""),
@@ -522,6 +523,36 @@ export type MediaAttachment = typeof mediaAttachments.$inferSelect;
 export const insertAgentSchema = createInsertSchema(agents).omit({ id: true, createdAt: true });
 export type InsertAgent = z.infer<typeof insertAgentSchema>;
 export type Agent = typeof agents.$inferSelect;
+
+// Sales Agent - Leads table for lead scoring
+export const leads = pgTable("leads", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  sessionId: varchar("session_id", { length: 64 }),
+  agentId: varchar("agent_id", { length: 32 }),
+  customerName: text("customer_name"),
+  customerEmail: text("customer_email"),
+  customerPhone: text("customer_phone"),
+  score: integer("score").default(0), // 0-100 lead score
+  stage: text("stage").default("cold"), // cold, warm, hot, qualified, converted, lost
+  source: text("source").default("widget"), // widget, campaign, referral, direct
+  interestedProducts: jsonb("interested_products").default([]), // Array of product IDs
+  notes: text("notes").default(""),
+  lastContactAt: timestamp("last_contact_at"),
+  convertedAt: timestamp("converted_at"),
+  convertedValue: integer("converted_value"), // Value in cents if converted
+  assignedSupervisorId: varchar("assigned_supervisor_id", { length: 32 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("leads_merchant_id_idx").on(table.merchantId),
+  index("leads_stage_idx").on(table.stage),
+  index("leads_score_idx").on(table.score),
+]);
+
+export const insertLeadSchema = createInsertSchema(leads).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertLead = z.infer<typeof insertLeadSchema>;
+export type Lead = typeof leads.$inferSelect;
 
 export const agentWidgetSettingsSchema = z.object({
   primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color").optional(),

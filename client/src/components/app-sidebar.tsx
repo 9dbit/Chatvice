@@ -45,6 +45,7 @@ import {
   BookOpen,
   User,
   DollarSign,
+  Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -126,6 +127,7 @@ const menuItemsMap: Record<string, MenuItem> = {
   "overview": { id: "overview", title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, permission: "overview" },
   "profile": { id: "profile", title: "Profile", url: "/dashboard/profile", icon: User, permission: "overview" },
   "agents": { id: "agents", title: "Agents", url: "/dashboard/agents", icon: Bot, permission: "agents" },
+  "leads": { id: "leads", title: "Sales Leads", url: "/dashboard/leads", icon: Target, permission: "agents" },
   "quick-replies": { id: "quick-replies", title: "Quick Replies", url: "/dashboard/quick-replies", icon: Reply, permission: "quickReplies" },
   "chat-buttons": { id: "chat-buttons", title: "Chat Buttons", url: "/dashboard/chat-buttons", icon: MousePointer2, permission: "widgetSettings" },
   "knowledge-base": { id: "knowledge-base", title: "Knowledge Base", url: "/dashboard/knowledge", icon: Database, permission: "knowledgeBase" },

@@ -58,7 +58,8 @@ import {
   type AffiliatePayout, type InsertAffiliatePayout,
   type AffiliatePaymentMethod, type InsertAffiliatePaymentMethod,
   type AffiliateWithdrawalRequest, type InsertAffiliateWithdrawalRequest,
-  merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings, storedFiles, domainRegistrations,
+  type Lead, type InsertLead,
+  merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings, storedFiles, domainRegistrations, leads,
   workShifts, shiftAssignments, workReports, quickReplies, chatButtons, productCards, productCardButtons, welcomeBubbles, notificationSettings, productRecommendationSettings, productTriggers, supervisorInvitations,
   emailVerificationTokens, passwordResetTokens, promotions, promotionUsage,
   widgetSites, siteDomains, coinOrders, topupNominals, merchantDomains, paymentGateways,
@@ -440,6 +441,15 @@ export interface IStorage {
   getAllMerchantActivityLogs(limit?: number, activityType?: string): Promise<MerchantActivityLog[]>;
   createMerchantActivityLog(data: InsertMerchantActivityLog): Promise<MerchantActivityLog>;
   getMerchantActivityLogsByType(activityType: string, limit?: number): Promise<MerchantActivityLog[]>;
+  
+  // Leads (Sales Agent)
+  getLeads(merchantId: string): Promise<Lead[]>;
+  getLead(id: string): Promise<Lead | undefined>;
+  getLeadBySession(sessionId: string): Promise<Lead | undefined>;
+  createLead(data: InsertLead): Promise<Lead>;
+  updateLead(id: string, data: Partial<Lead>): Promise<Lead | undefined>;
+  deleteLead(id: string): Promise<boolean>;
+  getLeadsByStage(merchantId: string, stage: string): Promise<Lead[]>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -3279,6 +3289,53 @@ export class DatabaseStorage implements IStorage {
       .where(eq(merchantActivityLogs.activityType, activityType))
       .orderBy(desc(merchantActivityLogs.createdAt))
       .limit(limit);
+  }
+  
+  // Leads (Sales Agent)
+  async getLeads(merchantId: string): Promise<Lead[]> {
+    return db.select().from(leads)
+      .where(eq(leads.merchantId, merchantId))
+      .orderBy(desc(leads.createdAt));
+  }
+  
+  async getLead(id: string): Promise<Lead | undefined> {
+    const result = await db.select().from(leads).where(eq(leads.id, id));
+    return result[0];
+  }
+  
+  async getLeadBySession(sessionId: string): Promise<Lead | undefined> {
+    const result = await db.select().from(leads).where(eq(leads.sessionId, sessionId));
+    return result[0];
+  }
+  
+  async createLead(data: InsertLead): Promise<Lead> {
+    const id = generateId("lead_");
+    const result = await db.insert(leads).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+  
+  async updateLead(id: string, data: Partial<Lead>): Promise<Lead | undefined> {
+    const result = await db.update(leads)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(leads.id, id))
+      .returning();
+    return result[0];
+  }
+  
+  async deleteLead(id: string): Promise<boolean> {
+    const result = await db.delete(leads).where(eq(leads.id, id)).returning();
+    return result.length > 0;
+  }
+  
+  async getLeadsByStage(merchantId: string, stage: string): Promise<Lead[]> {
+    return db.select().from(leads)
+      .where(and(eq(leads.merchantId, merchantId), eq(leads.stage, stage)))
+      .orderBy(desc(leads.score));
   }
 }
 

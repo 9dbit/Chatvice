@@ -32,6 +32,7 @@ import CheckoutPage from "./checkout";
 import ChatMonitoringPage from "./chat-monitoring";
 import ProfilePage from "./profile";
 import AffiliatePage from "./affiliate";
+import LeadsPage from "./leads";
 import type { Merchant } from "@shared/schema";
 
 const pageNames: Record<string, string> = {
@@ -39,6 +40,7 @@ const pageNames: Record<string, string> = {
   "profile": "Profile",
   "affiliate": "Affiliate",
   "agents": "Agents",
+  "leads": "Sales Leads",
   "sources": "Sources",
   "analytics": "Analytics",
   "sessions": "Chat Sessions",
@@ -157,6 +159,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/billing" component={BillingDetailsPage} />
               <Route path="/dashboard/settings" component={SettingsPage} />
               <Route path="/dashboard/chat-monitoring" component={ChatMonitoringPage} />
+              <Route path="/dashboard/leads" component={LeadsPage} />
               <Route path="/dashboard/help-articles">
                 <Redirect to="/dashboard/knowledge" />
               </Route>
