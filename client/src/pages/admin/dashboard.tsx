@@ -357,7 +357,7 @@ export default function AdminDashboard() {
     { id: "withdrawals", label: "Withdrawals", icon: Wallet },
     { id: "knowledge-templates", label: "Knowledge Templates", icon: BookOpen },
     { id: "activity-logs", label: "Activity Logs", icon: Activity },
-    { id: "user-data", label: "User Data", icon: Users },
+    { id: "user-data", label: "Customer Data", icon: Users },
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
@@ -12238,7 +12238,7 @@ function AdminUserDataTab({ toast }: { toast: any }) {
           <div>
             <CardTitle className="flex items-center gap-2">
               <Users className="w-5 h-5" />
-              User Data
+              Customer Data
             </CardTitle>
             <CardDescription>
               All registered users from widget and Chatvice app
