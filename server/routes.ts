@@ -5239,6 +5239,8 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     try {
       const { sessionId } = req.body;
       const merchantId = req.session.merchantId!;
+      const userId = req.session.userId!;
+      const userType = req.session.userType;
       
       const session = await storage.getSession(sessionId);
       if (!session) {
@@ -5249,12 +5251,22 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         return res.status(403).json({ error: "Forbidden" });
       }
       
-      const merchant = await storage.getMerchant(merchantId);
-      const agentName = merchant?.companyName || "Support Agent";
+      // Get the actual supervisor/merchant name for the join message
+      let agentName = "Support Agent";
+      if (userType === "supervisor") {
+        const supervisor = await storage.getSupervisor(userId);
+        agentName = supervisor?.name || "Support Agent";
+      } else {
+        const merchant = await storage.getMerchant(merchantId);
+        agentName = merchant?.companyName || "Support Agent";
+      }
+      
+      // Use actual supervisor ID if logged in as supervisor, otherwise use merchant ID
+      const actualSupervisorId = userType === "supervisor" ? userId : merchantId;
       
       const updated = await storage.updateSession(sessionId, {
         mode: "HUMAN",
-        supervisorId: merchantId,
+        supervisorId: actualSupervisorId,
       });
       if (!updated) {
         return res.status(404).json({ error: "Session not found" });
@@ -5283,6 +5295,8 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     try {
       const { sessionId, message } = req.body;
       const merchantId = req.session.merchantId!;
+      const userId = req.session.userId!;
+      const userType = req.session.userType;
       
       if (!sessionId || !message) {
         return res.status(400).json({ error: "Session ID and message are required" });
@@ -5303,7 +5317,9 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         content: message,
       });
       
-      await storage.updateSession(sessionId, { supervisorId: merchantId });
+      // Use actual supervisor ID if logged in as supervisor, otherwise use merchant ID
+      const actualSupervisorId = userType === "supervisor" ? userId : merchantId;
+      await storage.updateSession(sessionId, { supervisorId: actualSupervisorId });
 
       broadcastToSession(sessionId, {
         type: "message",
@@ -5321,6 +5337,8 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     try {
       const { sessionId, productCardId } = req.body;
       const merchantId = req.session.merchantId!;
+      const userId = req.session.userId!;
+      const userType = req.session.userType;
       
       if (!sessionId || !productCardId) {
         return res.status(400).json({ error: "Session ID and product card ID are required" });
@@ -5357,7 +5375,9 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         payload,
       });
       
-      await storage.updateSession(sessionId, { supervisorId: merchantId });
+      // Use actual supervisor ID if logged in as supervisor, otherwise use merchant ID
+      const actualSupervisorId = userType === "supervisor" ? userId : merchantId;
+      await storage.updateSession(sessionId, { supervisorId: actualSupervisorId });
 
       broadcastToSession(sessionId, {
         type: "message",
