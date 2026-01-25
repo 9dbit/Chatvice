@@ -1,178 +1,100 @@
-// Twilio Integration for SMS OTP
+// Twilio Verify Integration for OTP
 import twilio from 'twilio';
 
-let connectionSettings: any;
+// Twilio credentials from environment
+const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
+const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
+const TWILIO_VERIFY_SERVICE_SID = process.env.TWILIO_VERIFY_SERVICE_SID;
 
-async function getCredentials() {
-  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-  const xReplitToken = process.env.REPL_IDENTITY 
-    ? 'repl ' + process.env.REPL_IDENTITY 
-    : process.env.WEB_REPL_RENEWAL 
-    ? 'depl ' + process.env.WEB_REPL_RENEWAL 
-    : null;
-
-  if (!xReplitToken) {
-    console.error('[Twilio] X_REPLIT_TOKEN not found. REPL_IDENTITY:', !!process.env.REPL_IDENTITY, 'WEB_REPL_RENEWAL:', !!process.env.WEB_REPL_RENEWAL);
-    throw new Error('X_REPLIT_TOKEN not found for repl/depl');
+function getTwilioClient() {
+  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN) {
+    throw new Error('Twilio credentials not configured. Please set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN.');
   }
+  return twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
+}
 
-  if (!hostname) {
-    console.error('[Twilio] REPLIT_CONNECTORS_HOSTNAME not set');
-    throw new Error('REPLIT_CONNECTORS_HOSTNAME not set');
+function getVerifyServiceSid() {
+  if (!TWILIO_VERIFY_SERVICE_SID) {
+    throw new Error('Twilio Verify Service SID not configured. Please set TWILIO_VERIFY_SERVICE_SID.');
   }
-
-  try {
-    const response = await fetch(
-      'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=twilio',
-      {
-        headers: {
-          'Accept': 'application/json',
-          'X_REPLIT_TOKEN': xReplitToken
-        }
-      }
-    );
-    
-    const data = await response.json();
-    connectionSettings = data.items?.[0];
-    
-    if (!connectionSettings) {
-      console.error('[Twilio] No connection found. Response:', JSON.stringify(data));
-      throw new Error('Twilio connector not found - please configure Twilio in Replit integrations');
-    }
-    
-    if (!connectionSettings.settings?.account_sid || !connectionSettings.settings?.api_key || !connectionSettings.settings?.api_key_secret) {
-      console.error('[Twilio] Missing credentials. Settings keys:', Object.keys(connectionSettings.settings || {}));
-      throw new Error('Twilio credentials incomplete - please check connector settings');
-    }
-    
-    if (!connectionSettings.settings?.phone_number) {
-      console.error('[Twilio] No phone number configured');
-      throw new Error('Twilio phone number not configured - please add a phone number in connector settings');
-    }
-    
-    return {
-      accountSid: connectionSettings.settings.account_sid,
-      apiKey: connectionSettings.settings.api_key,
-      apiKeySecret: connectionSettings.settings.api_key_secret,
-      phoneNumber: connectionSettings.settings.phone_number
-    };
-  } catch (error) {
-    console.error('[Twilio] Error fetching credentials:', error);
-    throw error;
-  }
+  return TWILIO_VERIFY_SERVICE_SID;
 }
 
-export async function getTwilioClient() {
-  const { accountSid, apiKey, apiKeySecret } = await getCredentials();
-  return twilio(apiKey, apiKeySecret, {
-    accountSid: accountSid
-  });
-}
-
-export async function getTwilioFromPhoneNumber() {
-  const { phoneNumber } = await getCredentials();
-  return phoneNumber;
-}
-
-// Generate 6-digit OTP code
-export function generateOTPCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
-// Send SMS OTP - returns true on success, or throws error with details
-export async function sendSMSOTP(toPhoneNumber: string, otpCode: string): Promise<boolean> {
-  const client = await getTwilioClient();
-  const fromPhoneNumber = await getTwilioFromPhoneNumber();
+// Send OTP via Twilio Verify API
+export async function sendVerifyOTP(toPhoneNumber: string, channel: 'sms' | 'whatsapp' = 'sms'): Promise<{ success: boolean; status: string }> {
+  const client = getTwilioClient();
+  const serviceSid = getVerifyServiceSid();
   
-  if (!fromPhoneNumber) {
-    console.error('[Twilio] No phone number configured');
-    throw new Error('SMS service not configured. Please contact support.');
-  }
-  
-  console.log('[Twilio] Sending OTP to:', toPhoneNumber, 'from:', fromPhoneNumber);
+  console.log(`[Twilio Verify] Sending OTP to ${toPhoneNumber} via ${channel}`);
   
   try {
-    const message = await client.messages.create({
-      body: `Your Chatvice verification code is: ${otpCode}. This code expires in 5 minutes.`,
-      from: fromPhoneNumber,
-      to: toPhoneNumber
-    });
+    const verification = await client.verify.v2
+      .services(serviceSid)
+      .verifications.create({
+        to: toPhoneNumber,
+        channel: channel
+      });
     
-    console.log('[Twilio] OTP sent successfully, SID:', message.sid);
-    return true;
+    console.log(`[Twilio Verify] OTP sent successfully, status: ${verification.status}`);
+    return { success: true, status: verification.status };
   } catch (error: any) {
-    console.error('[Twilio] Error sending OTP:', error);
+    console.error('[Twilio Verify] Error sending OTP:', error);
     
-    // Handle specific Twilio errors
-    if (error.code === 21608) {
-      throw new Error('This phone number is not verified. Please use a verified number for testing.');
-    } else if (error.code === 21211) {
+    // Handle specific Twilio Verify errors
+    if (error.code === 60200) {
       throw new Error('Invalid phone number format. Please check your number.');
-    } else if (error.code === 21614) {
-      throw new Error('Cannot send SMS to this region. Please use WhatsApp instead.');
-    } else if (error.code === 21408) {
-      throw new Error('SMS not available for this region. Please use WhatsApp instead.');
-    } else if (error.code === 21612 || error.message?.includes('current combination')) {
-      throw new Error('SMS not available for international numbers. Please use WhatsApp instead.');
+    } else if (error.code === 60203) {
+      throw new Error('Too many verification attempts. Please try again later.');
+    } else if (error.code === 60212) {
+      throw new Error('This phone number cannot receive SMS. Please try a different number.');
+    } else if (error.code === 60223) {
+      throw new Error('Phone number is blocked. Please contact support.');
+    } else if (error.code === 60205) {
+      throw new Error('SMS delivery failed. Please try again.');
+    } else if (error.code === 60410) {
+      throw new Error('WhatsApp not available for this number. Please use SMS instead.');
     } else {
-      throw new Error(`SMS failed: ${error.message || 'Unknown error'}. Please try WhatsApp.`);
+      throw new Error(`Verification failed: ${error.message || 'Unknown error'}`);
     }
   }
 }
 
-// Send WhatsApp OTP via Twilio - returns true on success, or throws error with details
-export async function sendWhatsAppOTP(toPhoneNumber: string, otpCode: string): Promise<boolean> {
-  const client = await getTwilioClient();
-  const fromPhoneNumber = await getTwilioFromPhoneNumber();
+// Verify OTP code via Twilio Verify API
+export async function checkVerifyOTP(toPhoneNumber: string, code: string): Promise<{ success: boolean; status: string }> {
+  const client = getTwilioClient();
+  const serviceSid = getVerifyServiceSid();
   
-  if (!fromPhoneNumber) {
-    console.error('[Twilio] No phone number configured');
-    throw new Error('WhatsApp service not configured. Please contact support.');
-  }
-  
-  // For WhatsApp, we need to prefix both numbers with 'whatsapp:'
-  const whatsappFrom = `whatsapp:${fromPhoneNumber}`;
-  const whatsappTo = `whatsapp:${toPhoneNumber}`;
-  
-  console.log('[Twilio WhatsApp] Sending OTP to:', whatsappTo, 'from:', whatsappFrom);
+  console.log(`[Twilio Verify] Checking OTP for ${toPhoneNumber}`);
   
   try {
-    const message = await client.messages.create({
-      body: `Your Chatvice verification code is: *${otpCode}*\n\nThis code expires in 5 minutes. Do not share this code with anyone.`,
-      from: whatsappFrom,
-      to: whatsappTo
-    });
+    const verificationCheck = await client.verify.v2
+      .services(serviceSid)
+      .verificationChecks.create({
+        to: toPhoneNumber,
+        code: code
+      });
     
-    console.log('[Twilio WhatsApp] OTP sent successfully, SID:', message.sid);
-    return true;
-  } catch (error: any) {
-    console.error('[Twilio WhatsApp] Error sending OTP:', error);
+    console.log(`[Twilio Verify] Verification check status: ${verificationCheck.status}`);
     
-    // Handle specific Twilio WhatsApp errors
-    if (error.code === 63007) {
-      throw new Error('WhatsApp number not registered. Please use a valid WhatsApp number.');
-    } else if (error.code === 63016) {
-      throw new Error('WhatsApp message failed. The recipient may have blocked messages from unknown senders.');
-    } else if (error.code === 21608) {
-      throw new Error('WhatsApp not configured for this number. Please try SMS instead.');
-    } else if (error.code === 21211) {
-      throw new Error('Invalid phone number format. Please check your number.');
-    } else if (error.code === 63003) {
-      throw new Error('WhatsApp channel not enabled. Please try SMS instead.');
-    } else if (error.code === 21606 || error.code === 63006) {
-      throw new Error('WhatsApp sandbox not joined. Send "join <sandbox-keyword>" to the Twilio WhatsApp number first.');
+    if (verificationCheck.status === 'approved') {
+      return { success: true, status: 'approved' };
     } else {
-      throw new Error(`WhatsApp failed: ${error.message || 'Unknown error'}. Try SMS instead.`);
+      return { success: false, status: verificationCheck.status };
+    }
+  } catch (error: any) {
+    console.error('[Twilio Verify] Error checking OTP:', error);
+    
+    // Handle specific errors
+    if (error.code === 60200) {
+      throw new Error('Invalid phone number format.');
+    } else if (error.code === 60202) {
+      throw new Error('Too many verification attempts. Please request a new code.');
+    } else if (error.code === 20404) {
+      throw new Error('Verification code expired or not found. Please request a new code.');
+    } else {
+      throw new Error(`Verification check failed: ${error.message || 'Unknown error'}`);
     }
   }
-}
-
-// Send OTP via preferred method (SMS or WhatsApp)
-export async function sendOTP(toPhoneNumber: string, otpCode: string, method: 'sms' | 'whatsapp' = 'sms'): Promise<boolean> {
-  if (method === 'whatsapp') {
-    return sendWhatsAppOTP(toPhoneNumber, otpCode);
-  }
-  return sendSMSOTP(toPhoneNumber, otpCode);
 }
 
 // Normalize phone number to E.164 format
@@ -188,4 +110,9 @@ export function normalizePhoneNumber(phone: string, countryCode?: string): strin
   }
   
   return cleaned;
+}
+
+// Legacy functions for backward compatibility (not used with Verify API)
+export function generateOTPCode(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
 }

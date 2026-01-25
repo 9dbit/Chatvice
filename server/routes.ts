@@ -17681,7 +17681,7 @@ Please create a comprehensive help center article that would be useful for custo
   // CUSTOMER APP API (chat.chatvice.app)
   // ============================================================================
   
-  // Request OTP for phone verification
+  // Request OTP for phone verification using Twilio Verify API
   app.post("/api/customer/request-otp", async (req, res) => {
     try {
       const { phoneNumber, countryCode, method } = req.body;
@@ -17690,26 +17690,15 @@ Please create a comprehensive help center article that would be useful for custo
         return res.status(400).json({ error: "Phone number is required" });
       }
       
-      // Validate delivery method
+      // Validate delivery method - Twilio Verify only supports 'sms' and 'whatsapp'
       const deliveryMethod: 'sms' | 'whatsapp' = method === 'whatsapp' ? 'whatsapp' : 'sms';
       
       // Normalize phone number to E.164 format
-      const { normalizePhoneNumber, generateOTPCode, sendOTP } = await import("./twilio");
+      const { normalizePhoneNumber, sendVerifyOTP } = await import("./twilio");
       const normalizedPhone = normalizePhoneNumber(phoneNumber, countryCode || "+1");
       
-      // Generate OTP code
-      const code = generateOTPCode();
-      const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-      
-      // Store OTP in database
-      await storage.createOTPCode({
-        phoneNumber: normalizedPhone,
-        code,
-        expiresAt,
-      });
-      
-      // Send OTP via selected method (SMS or WhatsApp)
-      await sendOTP(normalizedPhone, code, deliveryMethod);
+      // Send OTP via Twilio Verify API
+      const result = await sendVerifyOTP(normalizedPhone, deliveryMethod);
       
       const methodLabel = deliveryMethod === 'whatsapp' ? 'WhatsApp' : 'SMS';
       res.json({ 
@@ -17717,6 +17706,7 @@ Please create a comprehensive help center article that would be useful for custo
         message: `OTP sent via ${methodLabel}`,
         phoneNumber: normalizedPhone,
         method: deliveryMethod,
+        status: result.status,
       });
     } catch (error: any) {
       console.error("Request OTP error:", error);
@@ -17725,7 +17715,7 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
   
-  // Verify OTP and login/register customer
+  // Verify OTP and login/register customer using Twilio Verify API
   app.post("/api/customer/verify-otp", async (req, res) => {
     try {
       const { phoneNumber, code, displayName } = req.body;
@@ -17734,16 +17724,12 @@ Please create a comprehensive help center article that would be useful for custo
         return res.status(400).json({ error: "Phone number and code are required" });
       }
       
-      // Verify OTP
-      const isValid = await storage.verifyOTPCode(phoneNumber, code);
+      // Verify OTP using Twilio Verify API
+      const { checkVerifyOTP } = await import("./twilio");
+      const result = await checkVerifyOTP(phoneNumber, code);
       
-      if (!isValid) {
-        // Check if OTP exists to increment attempts
-        const otp = await storage.getOTPCode(phoneNumber);
-        if (otp) {
-          await storage.incrementOTPAttempts(otp.id);
-        }
-        return res.status(400).json({ error: "Invalid or expired code" });
+      if (!result.success) {
+        return res.status(400).json({ error: "Invalid or expired code. Please try again." });
       }
       
       // Check if customer already exists
