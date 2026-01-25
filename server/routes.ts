@@ -72,7 +72,7 @@ const upload = multer({
 declare module "express-session" {
   interface SessionData {
     userId: string;
-    userType: "merchant" | "supervisor" | "admin";
+    userType: "merchant" | "supervisor" | "admin" | "customer";
     merchantId: string;
     isAdmin?: boolean;
     oauthState?: string;
@@ -17662,12 +17662,8 @@ Please create a comprehensive help center article that would be useful for custo
         expiresAt,
       });
       
-      // Send OTP via SMS
-      const sent = await sendSMSOTP(normalizedPhone, code);
-      
-      if (!sent) {
-        return res.status(500).json({ error: "Failed to send OTP. Please try again." });
-      }
+      // Send OTP via SMS (throws error on failure with specific message)
+      await sendSMSOTP(normalizedPhone, code);
       
       res.json({ 
         success: true, 
@@ -17676,7 +17672,7 @@ Please create a comprehensive help center article that would be useful for custo
       });
     } catch (error: any) {
       console.error("Request OTP error:", error);
-      const errorMessage = error?.message || "Failed to send OTP";
+      const errorMessage = error?.message || "Failed to send OTP. Please try again.";
       res.status(500).json({ error: errorMessage });
     }
   });
@@ -17722,7 +17718,7 @@ Please create a comprehensive help center article that would be useful for custo
       
       // Set session
       req.session.userId = customer!.id;
-      req.session.userType = "customer" as any;
+      req.session.userType = "customer";
       
       res.json({ 
         success: true, 

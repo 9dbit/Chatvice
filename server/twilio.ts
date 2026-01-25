@@ -79,17 +79,19 @@ export function generateOTPCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Send SMS OTP
+// Send SMS OTP - returns true on success, or throws error with details
 export async function sendSMSOTP(toPhoneNumber: string, otpCode: string): Promise<boolean> {
+  const client = await getTwilioClient();
+  const fromPhoneNumber = await getTwilioFromPhoneNumber();
+  
+  if (!fromPhoneNumber) {
+    console.error('[Twilio] No phone number configured');
+    throw new Error('SMS service not configured. Please contact support.');
+  }
+  
+  console.log('[Twilio] Sending OTP to:', toPhoneNumber, 'from:', fromPhoneNumber);
+  
   try {
-    const client = await getTwilioClient();
-    const fromPhoneNumber = await getTwilioFromPhoneNumber();
-    
-    if (!fromPhoneNumber) {
-      console.error('[Twilio] No phone number configured');
-      return false;
-    }
-    
     const message = await client.messages.create({
       body: `Your Chatvice verification code is: ${otpCode}. This code expires in 5 minutes.`,
       from: fromPhoneNumber,
@@ -98,9 +100,21 @@ export async function sendSMSOTP(toPhoneNumber: string, otpCode: string): Promis
     
     console.log('[Twilio] OTP sent successfully, SID:', message.sid);
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Twilio] Error sending OTP:', error);
-    return false;
+    
+    // Handle specific Twilio errors
+    if (error.code === 21608) {
+      throw new Error('This phone number is not verified. Please use a verified number for testing.');
+    } else if (error.code === 21211) {
+      throw new Error('Invalid phone number format. Please check your number.');
+    } else if (error.code === 21614) {
+      throw new Error('Cannot send SMS to this region. Please use a different number.');
+    } else if (error.code === 21408) {
+      throw new Error('SMS permission denied for this region. Please contact support.');
+    } else {
+      throw new Error(`SMS failed: ${error.message || 'Unknown error'}`);
+    }
   }
 }
 
