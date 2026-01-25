@@ -17634,5 +17634,571 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
+  // ============================================================================
+  // CUSTOMER APP API (chat.chatvice.app)
+  // ============================================================================
+  
+  // Request OTP for phone verification
+  app.post("/api/customer/request-otp", async (req, res) => {
+    try {
+      const { phoneNumber, countryCode } = req.body;
+      
+      if (!phoneNumber) {
+        return res.status(400).json({ error: "Phone number is required" });
+      }
+      
+      // Normalize phone number to E.164 format
+      const { normalizePhoneNumber, generateOTPCode, sendSMSOTP } = await import("./twilio");
+      const normalizedPhone = normalizePhoneNumber(phoneNumber, countryCode || "+1");
+      
+      // Generate OTP code
+      const code = generateOTPCode();
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+      
+      // Store OTP in database
+      await storage.createOTPCode({
+        phoneNumber: normalizedPhone,
+        code,
+        expiresAt,
+      });
+      
+      // Send OTP via SMS
+      const sent = await sendSMSOTP(normalizedPhone, code);
+      
+      if (!sent) {
+        return res.status(500).json({ error: "Failed to send OTP. Please try again." });
+      }
+      
+      res.json({ 
+        success: true, 
+        message: "OTP sent successfully",
+        phoneNumber: normalizedPhone,
+      });
+    } catch (error) {
+      console.error("Request OTP error:", error);
+      res.status(500).json({ error: "Failed to send OTP" });
+    }
+  });
+  
+  // Verify OTP and login/register customer
+  app.post("/api/customer/verify-otp", async (req, res) => {
+    try {
+      const { phoneNumber, code, displayName } = req.body;
+      
+      if (!phoneNumber || !code) {
+        return res.status(400).json({ error: "Phone number and code are required" });
+      }
+      
+      // Verify OTP
+      const isValid = await storage.verifyOTPCode(phoneNumber, code);
+      
+      if (!isValid) {
+        // Check if OTP exists to increment attempts
+        const otp = await storage.getOTPCode(phoneNumber);
+        if (otp) {
+          await storage.incrementOTPAttempts(otp.id);
+        }
+        return res.status(400).json({ error: "Invalid or expired code" });
+      }
+      
+      // Check if customer already exists
+      let customer = await storage.getCustomerByPhone(phoneNumber);
+      
+      if (!customer) {
+        // Create new customer
+        customer = await storage.createCustomer({
+          phoneNumber,
+          displayName: displayName || null,
+          isPhoneVerified: true,
+        });
+      } else {
+        // Update existing customer
+        customer = await storage.updateCustomer(customer.id, {
+          isPhoneVerified: true,
+          lastActiveAt: new Date(),
+        });
+      }
+      
+      // Set session
+      req.session.userId = customer!.id;
+      req.session.userType = "customer" as any;
+      
+      res.json({ 
+        success: true, 
+        customer: {
+          id: customer!.id,
+          phoneNumber: customer!.phoneNumber,
+          displayName: customer!.displayName,
+          avatarUrl: customer!.avatarUrl,
+          isPhoneVerified: customer!.isPhoneVerified,
+        },
+      });
+    } catch (error) {
+      console.error("Verify OTP error:", error);
+      res.status(500).json({ error: "Failed to verify OTP" });
+    }
+  });
+  
+  // Get current customer
+  app.get("/api/customer/me", async (req, res) => {
+    try {
+      const customerId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!customerId || userType !== "customer") {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const customer = await storage.getCustomer(customerId);
+      if (!customer) {
+        return res.status(404).json({ error: "Customer not found" });
+      }
+      
+      res.json({
+        id: customer.id,
+        phoneNumber: customer.phoneNumber,
+        displayName: customer.displayName,
+        avatarUrl: customer.avatarUrl,
+        email: customer.email,
+        isPhoneVerified: customer.isPhoneVerified,
+        notificationsEnabled: customer.notificationsEnabled,
+      });
+    } catch (error) {
+      console.error("Get customer error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Update customer profile
+  app.patch("/api/customer/profile", async (req, res) => {
+    try {
+      const customerId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!customerId || userType !== "customer") {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const { displayName, email, avatarUrl, notificationsEnabled } = req.body;
+      
+      const updated = await storage.updateCustomer(customerId, {
+        displayName,
+        email,
+        avatarUrl,
+        notificationsEnabled,
+      });
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Customer not found" });
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Update customer profile error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Customer logout
+  app.post("/api/customer/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ error: "Logout failed" });
+      }
+      res.json({ success: true });
+    });
+  });
+  
+  // Get customer's store chats (inbox)
+  app.get("/api/customer/store-chats", async (req, res) => {
+    try {
+      const customerId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!customerId || userType !== "customer") {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const storeChats = await storage.getCustomerStoreChats(customerId);
+      
+      // Enrich with merchant info
+      const enrichedChats = await Promise.all(storeChats.map(async (chat) => {
+        const merchant = await storage.getMerchant(chat.merchantId);
+        const session = chat.sessionId ? await storage.getSession(chat.sessionId) : null;
+        const messages = chat.sessionId ? await storage.getMessages(chat.sessionId) : [];
+        const lastMessage = messages[messages.length - 1];
+        
+        return {
+          ...chat,
+          merchant: merchant ? {
+            id: merchant.id,
+            companyName: merchant.companyName,
+            profilePhotoUrl: merchant.profilePhotoUrl,
+            online: merchant.online,
+          } : null,
+          lastMessage: lastMessage ? {
+            content: lastMessage.content,
+            from: lastMessage.from,
+            createdAt: lastMessage.createdAt,
+          } : null,
+        };
+      }));
+      
+      res.json(enrichedChats);
+    } catch (error) {
+      console.error("Get store chats error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Get official stores directory
+  app.get("/api/customer/stores", async (req, res) => {
+    try {
+      // Get all merchants with completed profiles that are online
+      const allMerchants = await storage.getAllMerchants();
+      
+      const stores = allMerchants
+        .filter(m => m.profileCompleted && m.online)
+        .map(m => ({
+          id: m.id,
+          companyName: m.companyName,
+          profilePhotoUrl: m.profilePhotoUrl,
+          businessCategory: m.businessCategory,
+          officialWebsiteName: m.officialWebsiteName,
+        }));
+      
+      res.json(stores);
+    } catch (error) {
+      console.error("Get stores error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Get store details
+  app.get("/api/customer/stores/:merchantId", async (req, res) => {
+    try {
+      const { merchantId } = req.params;
+      
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Store not found" });
+      }
+      
+      // Get agents for this merchant
+      const agents = await storage.getAgents(merchantId);
+      
+      res.json({
+        id: merchant.id,
+        companyName: merchant.companyName,
+        profilePhotoUrl: merchant.profilePhotoUrl,
+        businessCategory: merchant.businessCategory,
+        officialWebsiteName: merchant.officialWebsiteName,
+        websiteUrl: merchant.websiteUrl,
+        welcomeMessage: merchant.welcomeMessage,
+        online: merchant.online,
+        agents: agents.map(a => ({
+          id: a.id,
+          name: a.name,
+          photoUrl: a.photoUrl,
+          type: a.type,
+        })),
+      });
+    } catch (error) {
+      console.error("Get store details error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Start or continue chat with a store
+  app.post("/api/customer/stores/:merchantId/chat", async (req, res) => {
+    try {
+      const customerId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!customerId || userType !== "customer") {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const { merchantId } = req.params;
+      const { agentId } = req.body;
+      
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Store not found" });
+      }
+      
+      // Check if customer already has a chat with this merchant
+      let storeChat = await storage.getCustomerStoreChatByMerchant(customerId, merchantId);
+      
+      if (!storeChat) {
+        // Get customer info for the session
+        const customer = await storage.getCustomer(customerId);
+        
+        // Create new session
+        const session = await storage.createSession({
+          merchantId,
+          agentId: agentId || merchant.activeAgentId || undefined,
+          customerName: customer?.displayName || null,
+          mode: "AI",
+        });
+        
+        // Create store chat entry
+        storeChat = await storage.createCustomerStoreChat({
+          customerId,
+          merchantId,
+          agentId: agentId || merchant.activeAgentId || undefined,
+          sessionId: session.id,
+          lastMessageAt: new Date(),
+        });
+      }
+      
+      res.json(storeChat);
+    } catch (error) {
+      console.error("Start store chat error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Get customer contacts
+  app.get("/api/customer/contacts", async (req, res) => {
+    try {
+      const customerId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!customerId || userType !== "customer") {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const contacts = await storage.getCustomerContacts(customerId);
+      res.json(contacts);
+    } catch (error) {
+      console.error("Get contacts error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Add customer contact
+  app.post("/api/customer/contacts", async (req, res) => {
+    try {
+      const customerId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!customerId || userType !== "customer") {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const { displayName, phoneNumber } = req.body;
+      
+      if (!displayName) {
+        return res.status(400).json({ error: "Display name is required" });
+      }
+      
+      // Check if this phone number is a registered customer
+      let contactCustomerId = null;
+      if (phoneNumber) {
+        const contactCustomer = await storage.getCustomerByPhone(phoneNumber);
+        if (contactCustomer) {
+          contactCustomerId = contactCustomer.id;
+        }
+      }
+      
+      const contact = await storage.createCustomerContact({
+        customerId,
+        contactCustomerId,
+        displayName,
+        phoneNumber,
+      });
+      
+      res.json(contact);
+    } catch (error) {
+      console.error("Add contact error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Delete customer contact
+  app.delete("/api/customer/contacts/:contactId", async (req, res) => {
+    try {
+      const customerId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!customerId || userType !== "customer") {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const { contactId } = req.params;
+      
+      // Verify ownership
+      const contacts = await storage.getCustomerContacts(customerId);
+      const contact = contacts.find(c => c.id === contactId);
+      
+      if (!contact) {
+        return res.status(404).json({ error: "Contact not found" });
+      }
+      
+      await storage.deleteCustomerContact(contactId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete contact error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Get personal chats
+  app.get("/api/customer/personal-chats", async (req, res) => {
+    try {
+      const customerId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!customerId || userType !== "customer") {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const chats = await storage.getPersonalChats(customerId);
+      
+      // Enrich with participant info
+      const enrichedChats = await Promise.all(chats.map(async (chat) => {
+        const otherParticipantId = chat.participant1Id === customerId 
+          ? chat.participant2Id 
+          : chat.participant1Id;
+        const otherCustomer = await storage.getCustomer(otherParticipantId);
+        const messages = await storage.getPersonalMessages(chat.id);
+        const lastMessage = messages[messages.length - 1];
+        const unreadCount = messages.filter(m => 
+          m.senderId !== customerId && !m.isRead
+        ).length;
+        
+        return {
+          ...chat,
+          otherParticipant: otherCustomer ? {
+            id: otherCustomer.id,
+            displayName: otherCustomer.displayName,
+            avatarUrl: otherCustomer.avatarUrl,
+            phoneNumber: otherCustomer.phoneNumber,
+          } : null,
+          lastMessage: lastMessage ? {
+            content: lastMessage.content,
+            senderId: lastMessage.senderId,
+            createdAt: lastMessage.createdAt,
+          } : null,
+          unreadCount,
+        };
+      }));
+      
+      res.json(enrichedChats);
+    } catch (error) {
+      console.error("Get personal chats error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Start personal chat with another customer
+  app.post("/api/customer/personal-chats", async (req, res) => {
+    try {
+      const customerId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!customerId || userType !== "customer") {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const { recipientId } = req.body;
+      
+      if (!recipientId) {
+        return res.status(400).json({ error: "Recipient ID is required" });
+      }
+      
+      if (recipientId === customerId) {
+        return res.status(400).json({ error: "Cannot chat with yourself" });
+      }
+      
+      // Check if chat already exists
+      let chat = await storage.getPersonalChatBetween(customerId, recipientId);
+      
+      if (!chat) {
+        chat = await storage.createPersonalChat({
+          participant1Id: customerId,
+          participant2Id: recipientId,
+        });
+      }
+      
+      res.json(chat);
+    } catch (error) {
+      console.error("Start personal chat error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Get personal chat messages
+  app.get("/api/customer/personal-chats/:chatId/messages", async (req, res) => {
+    try {
+      const customerId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!customerId || userType !== "customer") {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const { chatId } = req.params;
+      
+      // Verify access
+      const chat = await storage.getPersonalChat(chatId);
+      if (!chat || (chat.participant1Id !== customerId && chat.participant2Id !== customerId)) {
+        return res.status(404).json({ error: "Chat not found" });
+      }
+      
+      const messages = await storage.getPersonalMessages(chatId);
+      
+      // Mark messages as read
+      await storage.markPersonalMessagesRead(chatId, customerId);
+      
+      res.json(messages);
+    } catch (error) {
+      console.error("Get personal messages error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Send personal message
+  app.post("/api/customer/personal-chats/:chatId/messages", async (req, res) => {
+    try {
+      const customerId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!customerId || userType !== "customer") {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const { chatId } = req.params;
+      const { content, messageType, fileUrl, fileName } = req.body;
+      
+      if (!content && !fileUrl) {
+        return res.status(400).json({ error: "Content or file is required" });
+      }
+      
+      // Verify access
+      const chat = await storage.getPersonalChat(chatId);
+      if (!chat || (chat.participant1Id !== customerId && chat.participant2Id !== customerId)) {
+        return res.status(404).json({ error: "Chat not found" });
+      }
+      
+      const message = await storage.createPersonalMessage({
+        chatId,
+        senderId: customerId,
+        content: content || "",
+        messageType: messageType || "text",
+        fileUrl,
+        fileName,
+      });
+      
+      // Broadcast to WebSocket clients (will implement later)
+      
+      res.json(message);
+    } catch (error) {
+      console.error("Send personal message error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   return httpServer;
 }

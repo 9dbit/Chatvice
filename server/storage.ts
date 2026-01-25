@@ -68,6 +68,12 @@ import {
   customPlanRequests, merchantNotifications, affiliates, affiliateReferrals, affiliateCommissions, affiliatePayouts, affiliatePaymentMethods, affiliateWithdrawalRequests,
   knowledgeTemplates, type KnowledgeTemplate, type InsertKnowledgeTemplate,
   merchantActivityLogs, type MerchantActivityLog, type InsertMerchantActivityLog,
+  customers, type Customer, type InsertCustomer,
+  otpCodes, type OTPCode, type InsertOTPCode,
+  customerContacts, type CustomerContact, type InsertCustomerContact,
+  customerStoreChats, type CustomerStoreChat, type InsertCustomerStoreChat,
+  personalChats, type PersonalChat, type InsertPersonalChat,
+  personalMessages, type PersonalMessage, type InsertPersonalMessage,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, or, lt, isNull, sql, count, inArray, ne } from "drizzle-orm";
@@ -450,6 +456,42 @@ export interface IStorage {
   updateLead(id: string, data: Partial<Lead>): Promise<Lead | undefined>;
   deleteLead(id: string): Promise<boolean>;
   getLeadsByStage(merchantId: string, stage: string): Promise<Lead[]>;
+  
+  // Customer App (chat.chatvice.app)
+  getCustomer(id: string): Promise<Customer | undefined>;
+  getCustomerByPhone(phoneNumber: string): Promise<Customer | undefined>;
+  createCustomer(data: InsertCustomer): Promise<Customer>;
+  updateCustomer(id: string, data: Partial<Customer>): Promise<Customer | undefined>;
+  
+  // OTP Codes
+  createOTPCode(data: InsertOTPCode): Promise<OTPCode>;
+  getOTPCode(phoneNumber: string): Promise<OTPCode | undefined>;
+  verifyOTPCode(phoneNumber: string, code: string): Promise<boolean>;
+  incrementOTPAttempts(id: string): Promise<void>;
+  
+  // Customer Contacts
+  getCustomerContacts(customerId: string): Promise<CustomerContact[]>;
+  createCustomerContact(data: InsertCustomerContact): Promise<CustomerContact>;
+  updateCustomerContact(id: string, data: Partial<CustomerContact>): Promise<CustomerContact | undefined>;
+  deleteCustomerContact(id: string): Promise<boolean>;
+  
+  // Customer Store Chats
+  getCustomerStoreChats(customerId: string): Promise<CustomerStoreChat[]>;
+  getCustomerStoreChat(id: string): Promise<CustomerStoreChat | undefined>;
+  getCustomerStoreChatByMerchant(customerId: string, merchantId: string): Promise<CustomerStoreChat | undefined>;
+  createCustomerStoreChat(data: InsertCustomerStoreChat): Promise<CustomerStoreChat>;
+  updateCustomerStoreChat(id: string, data: Partial<CustomerStoreChat>): Promise<CustomerStoreChat | undefined>;
+  
+  // Personal Chats
+  getPersonalChats(customerId: string): Promise<PersonalChat[]>;
+  getPersonalChat(id: string): Promise<PersonalChat | undefined>;
+  getPersonalChatBetween(customer1Id: string, customer2Id: string): Promise<PersonalChat | undefined>;
+  createPersonalChat(data: InsertPersonalChat): Promise<PersonalChat>;
+  
+  // Personal Messages
+  getPersonalMessages(chatId: string): Promise<PersonalMessage[]>;
+  createPersonalMessage(data: InsertPersonalMessage): Promise<PersonalMessage>;
+  markPersonalMessagesRead(chatId: string, readerId: string): Promise<void>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -3336,6 +3378,229 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(leads)
       .where(and(eq(leads.merchantId, merchantId), eq(leads.stage, stage)))
       .orderBy(desc(leads.score));
+  }
+  
+  // ============================================================================
+  // CUSTOMER APP METHODS (chat.chatvice.app)
+  // ============================================================================
+  
+  async getCustomer(id: string): Promise<Customer | undefined> {
+    const result = await db.select().from(customers).where(eq(customers.id, id));
+    return result[0];
+  }
+  
+  async getCustomerByPhone(phoneNumber: string): Promise<Customer | undefined> {
+    const result = await db.select().from(customers).where(eq(customers.phoneNumber, phoneNumber));
+    return result[0];
+  }
+  
+  async createCustomer(data: InsertCustomer): Promise<Customer> {
+    const id = generateId("cust_");
+    const result = await db.insert(customers).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+  
+  async updateCustomer(id: string, data: Partial<Customer>): Promise<Customer | undefined> {
+    const result = await db.update(customers)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(customers.id, id))
+      .returning();
+    return result[0];
+  }
+  
+  // OTP Codes
+  async createOTPCode(data: InsertOTPCode): Promise<OTPCode> {
+    const id = generateId("otp_");
+    // Delete any existing OTP for this phone number first
+    await db.delete(otpCodes).where(eq(otpCodes.phoneNumber, data.phoneNumber));
+    
+    const result = await db.insert(otpCodes).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+  
+  async getOTPCode(phoneNumber: string): Promise<OTPCode | undefined> {
+    const result = await db.select().from(otpCodes)
+      .where(and(
+        eq(otpCodes.phoneNumber, phoneNumber),
+        gte(otpCodes.expiresAt, new Date()),
+        eq(otpCodes.verified, false)
+      ))
+      .orderBy(desc(otpCodes.createdAt))
+      .limit(1);
+    return result[0];
+  }
+  
+  async verifyOTPCode(phoneNumber: string, code: string): Promise<boolean> {
+    const otp = await this.getOTPCode(phoneNumber);
+    if (!otp || otp.code !== code || (otp.attempts ?? 0) >= 5) {
+      return false;
+    }
+    
+    await db.update(otpCodes)
+      .set({ verified: true })
+      .where(eq(otpCodes.id, otp.id));
+    return true;
+  }
+  
+  async incrementOTPAttempts(id: string): Promise<void> {
+    await db.update(otpCodes)
+      .set({ attempts: sql`${otpCodes.attempts} + 1` })
+      .where(eq(otpCodes.id, id));
+  }
+  
+  // Customer Contacts
+  async getCustomerContacts(customerId: string): Promise<CustomerContact[]> {
+    return db.select().from(customerContacts)
+      .where(eq(customerContacts.customerId, customerId))
+      .orderBy(desc(customerContacts.isFavorite), customerContacts.displayName);
+  }
+  
+  async createCustomerContact(data: InsertCustomerContact): Promise<CustomerContact> {
+    const id = generateId("contact_");
+    const result = await db.insert(customerContacts).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+  
+  async updateCustomerContact(id: string, data: Partial<CustomerContact>): Promise<CustomerContact | undefined> {
+    const result = await db.update(customerContacts)
+      .set(data)
+      .where(eq(customerContacts.id, id))
+      .returning();
+    return result[0];
+  }
+  
+  async deleteCustomerContact(id: string): Promise<boolean> {
+    const result = await db.delete(customerContacts).where(eq(customerContacts.id, id)).returning();
+    return result.length > 0;
+  }
+  
+  // Customer Store Chats
+  async getCustomerStoreChats(customerId: string): Promise<CustomerStoreChat[]> {
+    return db.select().from(customerStoreChats)
+      .where(and(
+        eq(customerStoreChats.customerId, customerId),
+        eq(customerStoreChats.isArchived, false)
+      ))
+      .orderBy(desc(customerStoreChats.isPinned), desc(customerStoreChats.lastMessageAt));
+  }
+  
+  async getCustomerStoreChat(id: string): Promise<CustomerStoreChat | undefined> {
+    const result = await db.select().from(customerStoreChats).where(eq(customerStoreChats.id, id));
+    return result[0];
+  }
+  
+  async getCustomerStoreChatByMerchant(customerId: string, merchantId: string): Promise<CustomerStoreChat | undefined> {
+    const result = await db.select().from(customerStoreChats)
+      .where(and(
+        eq(customerStoreChats.customerId, customerId),
+        eq(customerStoreChats.merchantId, merchantId)
+      ));
+    return result[0];
+  }
+  
+  async createCustomerStoreChat(data: InsertCustomerStoreChat): Promise<CustomerStoreChat> {
+    const id = generateId("storechat_");
+    const result = await db.insert(customerStoreChats).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+  
+  async updateCustomerStoreChat(id: string, data: Partial<CustomerStoreChat>): Promise<CustomerStoreChat | undefined> {
+    const result = await db.update(customerStoreChats)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(customerStoreChats.id, id))
+      .returning();
+    return result[0];
+  }
+  
+  // Personal Chats
+  async getPersonalChats(customerId: string): Promise<PersonalChat[]> {
+    return db.select().from(personalChats)
+      .where(or(
+        eq(personalChats.participant1Id, customerId),
+        eq(personalChats.participant2Id, customerId)
+      ))
+      .orderBy(desc(personalChats.lastMessageAt));
+  }
+  
+  async getPersonalChat(id: string): Promise<PersonalChat | undefined> {
+    const result = await db.select().from(personalChats).where(eq(personalChats.id, id));
+    return result[0];
+  }
+  
+  async getPersonalChatBetween(customer1Id: string, customer2Id: string): Promise<PersonalChat | undefined> {
+    const result = await db.select().from(personalChats)
+      .where(or(
+        and(
+          eq(personalChats.participant1Id, customer1Id),
+          eq(personalChats.participant2Id, customer2Id)
+        ),
+        and(
+          eq(personalChats.participant1Id, customer2Id),
+          eq(personalChats.participant2Id, customer1Id)
+        )
+      ));
+    return result[0];
+  }
+  
+  async createPersonalChat(data: InsertPersonalChat): Promise<PersonalChat> {
+    const id = generateId("pchat_");
+    const result = await db.insert(personalChats).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+  
+  // Personal Messages
+  async getPersonalMessages(chatId: string): Promise<PersonalMessage[]> {
+    return db.select().from(personalMessages)
+      .where(eq(personalMessages.chatId, chatId))
+      .orderBy(personalMessages.createdAt);
+  }
+  
+  async createPersonalMessage(data: InsertPersonalMessage): Promise<PersonalMessage> {
+    const id = generateId("pmsg_");
+    const result = await db.insert(personalMessages).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+    }).returning();
+    
+    // Update last message time on the chat
+    await db.update(personalChats)
+      .set({ lastMessageAt: new Date() })
+      .where(eq(personalChats.id, data.chatId));
+    
+    return result[0];
+  }
+  
+  async markPersonalMessagesRead(chatId: string, readerId: string): Promise<void> {
+    await db.update(personalMessages)
+      .set({ isRead: true, readAt: new Date() })
+      .where(and(
+        eq(personalMessages.chatId, chatId),
+        ne(personalMessages.senderId, readerId),
+        eq(personalMessages.isRead, false)
+      ));
   }
 }
 
