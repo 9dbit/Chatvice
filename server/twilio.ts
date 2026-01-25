@@ -12,28 +12,54 @@ async function getCredentials() {
     : null;
 
   if (!xReplitToken) {
+    console.error('[Twilio] X_REPLIT_TOKEN not found. REPL_IDENTITY:', !!process.env.REPL_IDENTITY, 'WEB_REPL_RENEWAL:', !!process.env.WEB_REPL_RENEWAL);
     throw new Error('X_REPLIT_TOKEN not found for repl/depl');
   }
 
-  connectionSettings = await fetch(
-    'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=twilio',
-    {
-      headers: {
-        'Accept': 'application/json',
-        'X_REPLIT_TOKEN': xReplitToken
-      }
-    }
-  ).then(res => res.json()).then(data => data.items?.[0]);
-
-  if (!connectionSettings || (!connectionSettings.settings.account_sid || !connectionSettings.settings.api_key || !connectionSettings.settings.api_key_secret)) {
-    throw new Error('Twilio not connected');
+  if (!hostname) {
+    console.error('[Twilio] REPLIT_CONNECTORS_HOSTNAME not set');
+    throw new Error('REPLIT_CONNECTORS_HOSTNAME not set');
   }
-  return {
-    accountSid: connectionSettings.settings.account_sid,
-    apiKey: connectionSettings.settings.api_key,
-    apiKeySecret: connectionSettings.settings.api_key_secret,
-    phoneNumber: connectionSettings.settings.phone_number
-  };
+
+  try {
+    const response = await fetch(
+      'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=twilio',
+      {
+        headers: {
+          'Accept': 'application/json',
+          'X_REPLIT_TOKEN': xReplitToken
+        }
+      }
+    );
+    
+    const data = await response.json();
+    connectionSettings = data.items?.[0];
+    
+    if (!connectionSettings) {
+      console.error('[Twilio] No connection found. Response:', JSON.stringify(data));
+      throw new Error('Twilio connector not found - please configure Twilio in Replit integrations');
+    }
+    
+    if (!connectionSettings.settings?.account_sid || !connectionSettings.settings?.api_key || !connectionSettings.settings?.api_key_secret) {
+      console.error('[Twilio] Missing credentials. Settings keys:', Object.keys(connectionSettings.settings || {}));
+      throw new Error('Twilio credentials incomplete - please check connector settings');
+    }
+    
+    if (!connectionSettings.settings?.phone_number) {
+      console.error('[Twilio] No phone number configured');
+      throw new Error('Twilio phone number not configured - please add a phone number in connector settings');
+    }
+    
+    return {
+      accountSid: connectionSettings.settings.account_sid,
+      apiKey: connectionSettings.settings.api_key,
+      apiKeySecret: connectionSettings.settings.api_key_secret,
+      phoneNumber: connectionSettings.settings.phone_number
+    };
+  } catch (error) {
+    console.error('[Twilio] Error fetching credentials:', error);
+    throw error;
+  }
 }
 
 export async function getTwilioClient() {

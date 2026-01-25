@@ -17674,9 +17674,10 @@ Please create a comprehensive help center article that would be useful for custo
         message: "OTP sent successfully",
         phoneNumber: normalizedPhone,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Request OTP error:", error);
-      res.status(500).json({ error: "Failed to send OTP" });
+      const errorMessage = error?.message || "Failed to send OTP";
+      res.status(500).json({ error: errorMessage });
     }
   });
   
