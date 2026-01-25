@@ -61,15 +61,15 @@ export default function CustomerLoginPage() {
     onSuccess: (data) => {
       const methodLabel = data.method === 'whatsapp' ? 'WhatsApp' : 'SMS';
       toast({
-        title: "OTP Terkirim",
-        description: `Cek ${methodLabel} kamu untuk kode verifikasi`,
+        title: "OTP Sent",
+        description: `Check your ${methodLabel} for the verification code`,
       });
       navigate(`/chat/verify?phone=${encodeURIComponent(data.phoneNumber)}&method=${data.method}`);
     },
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Gagal mengirim OTP",
+        description: error.message || "Failed to send OTP",
         variant: "destructive",
       });
     },
@@ -81,7 +81,7 @@ export default function CustomerLoginPage() {
     if (!phoneNumber.trim()) {
       toast({
         title: "Error",
-        description: "Masukkan nomor telepon kamu",
+        description: "Please enter your phone number",
         variant: "destructive",
       });
       return;
@@ -110,7 +110,7 @@ export default function CustomerLoginPage() {
         <Button variant="outline" size="sm" asChild data-testid="button-visit-website">
           <a href="/">
             <Globe className="w-4 h-4 mr-2" />
-            Kunjungi Website
+            Visit Website
           </a>
         </Button>
       </header>
@@ -134,25 +134,25 @@ export default function CustomerLoginPage() {
               
               <div className="space-y-2">
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-primary via-violet-400 to-primary bg-clip-text text-transparent">
-                  Selamat Datang
+                  Welcome
                 </h1>
                 <p className="text-muted-foreground text-sm">
-                  Masuk atau daftar dengan nomor telepon untuk mulai chat dengan toko favoritmu
+                  Sign in or register with your phone number to start chatting with your favorite stores
                 </p>
               </div>
               
               <div className="grid grid-cols-3 gap-3 pt-2">
                 <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
                   <Store className="w-4 h-4 text-primary" />
-                  <span className="text-[10px] text-muted-foreground">Jelajahi Toko</span>
+                  <span className="text-[10px] text-muted-foreground">Browse Stores</span>
                 </div>
                 <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
                   <Users className="w-4 h-4 text-primary" />
-                  <span className="text-[10px] text-muted-foreground">Simpan Kontak</span>
+                  <span className="text-[10px] text-muted-foreground">Save Contacts</span>
                 </div>
                 <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
                   <MessageSquare className="w-4 h-4 text-primary" />
-                  <span className="text-[10px] text-muted-foreground">Riwayat Chat</span>
+                  <span className="text-[10px] text-muted-foreground">Chat History</span>
                 </div>
               </div>
             </CardHeader>
@@ -160,7 +160,7 @@ export default function CustomerLoginPage() {
             <CardContent className="space-y-5">
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-sm font-medium">Nomor Telepon</Label>
+                  <Label htmlFor="phone" className="text-sm font-medium">Phone Number</Label>
                   <div className="flex flex-wrap gap-2">
                     <Select value={countryCode} onValueChange={setCountryCode}>
                       <SelectTrigger className="w-[100px] bg-white/5 border-white/10" data-testid="select-country-code">
@@ -190,7 +190,7 @@ export default function CustomerLoginPage() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Kirim kode verifikasi via:</Label>
+                  <Label className="text-xs text-muted-foreground">Send verification code via:</Label>
                   <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
@@ -215,6 +215,11 @@ export default function CustomerLoginPage() {
                       SMS
                     </Button>
                   </div>
+                  {deliveryMethod === "sms" && countryCode !== "+1" && (
+                    <p className="text-[10px] text-amber-500 dark:text-amber-400" data-testid="text-sms-warning">
+                      SMS may not be available for international numbers. We recommend using WhatsApp.
+                    </p>
+                  )}
                 </div>
                 
                 <Button 
@@ -225,8 +230,8 @@ export default function CustomerLoginPage() {
                   data-testid="button-continue"
                 >
                   {requestOTPMutation.isPending 
-                    ? `Mengirim via ${deliveryMethod === "whatsapp" ? "WhatsApp" : "SMS"}...` 
-                    : "Lanjutkan"}
+                    ? `Sending via ${deliveryMethod === "whatsapp" ? "WhatsApp" : "SMS"}...` 
+                    : "Continue"}
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </form>
@@ -236,38 +241,38 @@ export default function CustomerLoginPage() {
                   <div className="w-full border-t border-white/10" />
                 </div>
                 <div className="relative flex flex-wrap justify-center gap-1 text-xs">
-                  <span className="bg-card px-2 text-muted-foreground">atau</span>
+                  <span className="bg-card px-2 text-muted-foreground">or</span>
                 </div>
               </div>
               
               <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-violet-500/10 border border-primary/20">
                 <div className="flex flex-wrap items-center gap-2 mb-1">
                   <Sparkles className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium">Sudah punya akun?</span>
+                  <span className="text-sm font-medium">Already have an account?</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Masukkan nomor telepon yang terdaftar untuk login ke akun Chatvice kamu
+                  Enter your registered phone number to log in to your Chatvice account
                 </p>
               </div>
               
               <div className="flex flex-wrap items-center justify-center gap-4 text-[10px] text-muted-foreground">
                 <span className="flex flex-wrap items-center gap-1">
                   <Shield className="w-3 h-3" />
-                  Aman & Terenkripsi
+                  Secure & Encrypted
                 </span>
                 <span className="flex flex-wrap items-center gap-1">
                   <Zap className="w-3 h-3" />
-                  Verifikasi Instan
+                  Instant Verification
                 </span>
               </div>
             </CardContent>
           </Card>
           
           <p className="text-center text-[10px] text-muted-foreground">
-            Dengan melanjutkan, kamu menyetujui{" "}
-            <a href="/terms" className="text-primary hover:underline" data-testid="link-terms">Ketentuan Layanan</a>
-            {" "}dan{" "}
-            <a href="/privacy" className="text-primary hover:underline" data-testid="link-privacy">Kebijakan Privasi</a>
+            By continuing, you agree to our{" "}
+            <a href="/terms" className="text-primary hover:underline" data-testid="link-terms">Terms of Service</a>
+            {" "}and{" "}
+            <a href="/privacy" className="text-primary hover:underline" data-testid="link-privacy">Privacy Policy</a>
           </p>
         </div>
       </main>

@@ -109,11 +109,13 @@ export async function sendSMSOTP(toPhoneNumber: string, otpCode: string): Promis
     } else if (error.code === 21211) {
       throw new Error('Invalid phone number format. Please check your number.');
     } else if (error.code === 21614) {
-      throw new Error('Cannot send SMS to this region. Please use a different number.');
+      throw new Error('Cannot send SMS to this region. Please use WhatsApp instead.');
     } else if (error.code === 21408) {
-      throw new Error('SMS permission denied for this region. Please contact support.');
+      throw new Error('SMS not available for this region. Please use WhatsApp instead.');
+    } else if (error.code === 21612 || error.message?.includes('current combination')) {
+      throw new Error('SMS not available for international numbers. Please use WhatsApp instead.');
     } else {
-      throw new Error(`SMS failed: ${error.message || 'Unknown error'}`);
+      throw new Error(`SMS failed: ${error.message || 'Unknown error'}. Please try WhatsApp.`);
     }
   }
 }
