@@ -2004,3 +2004,124 @@ export const insertMerchantActivityLogSchema = createInsertSchema(merchantActivi
 export type InsertMerchantActivityLog = z.infer<typeof insertMerchantActivityLogSchema>;
 export type MerchantActivityLog = typeof merchantActivityLogs.$inferSelect;
 
+// ============================================================================
+// CUSTOMER APP TABLES (chat.chatvice.app)
+// ============================================================================
+
+// Customers - registered users on customer chat platform
+export const customers = pgTable("customers", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  phoneNumber: text("phone_number").notNull().unique(), // E.164 format
+  phoneCountryCode: text("phone_country_code"), // Country code (e.g., +1, +62)
+  displayName: text("display_name"),
+  avatarUrl: text("avatar_url"),
+  email: text("email"),
+  isPhoneVerified: boolean("is_phone_verified").default(false),
+  lastActiveAt: timestamp("last_active_at"),
+  pushSubscription: jsonb("push_subscription"), // Web push subscription object
+  notificationsEnabled: boolean("notifications_enabled").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  phoneNumberIdx: index("customer_phone_idx").on(table.phoneNumber),
+}));
+
+export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
+export type Customer = typeof customers.$inferSelect;
+
+// OTP Codes for phone verification
+export const otpCodes = pgTable("otp_codes", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  phoneNumber: text("phone_number").notNull(),
+  code: text("code").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  verified: boolean("verified").default(false),
+  attempts: integer("attempts").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  phoneNumberIdx: index("otp_phone_idx").on(table.phoneNumber),
+  expiresAtIdx: index("otp_expires_idx").on(table.expiresAt),
+}));
+
+export const insertOTPCodeSchema = createInsertSchema(otpCodes).omit({ id: true, createdAt: true });
+export type InsertOTPCode = z.infer<typeof insertOTPCodeSchema>;
+export type OTPCode = typeof otpCodes.$inferSelect;
+
+// Customer Contacts - contacts saved by customers
+export const customerContacts = pgTable("customer_contacts", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  customerId: varchar("customer_id", { length: 32 }).notNull(),
+  contactCustomerId: varchar("contact_customer_id", { length: 32 }), // If contact is also a Chatvice user
+  displayName: text("display_name").notNull(),
+  phoneNumber: text("phone_number"),
+  avatarUrl: text("avatar_url"),
+  isFavorite: boolean("is_favorite").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  customerIdIdx: index("contact_customer_idx").on(table.customerId),
+}));
+
+export const insertCustomerContactSchema = createInsertSchema(customerContacts).omit({ id: true, createdAt: true });
+export type InsertCustomerContact = z.infer<typeof insertCustomerContactSchema>;
+export type CustomerContact = typeof customerContacts.$inferSelect;
+
+// Customer Store Chats - tracks which official stores customer has chatted with
+export const customerStoreChats = pgTable("customer_store_chats", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  customerId: varchar("customer_id", { length: 32 }).notNull(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  agentId: varchar("agent_id", { length: 32 }), // Which agent the customer chatted with
+  sessionId: varchar("session_id", { length: 32 }), // Link to chat session
+  lastMessageAt: timestamp("last_message_at"),
+  unreadCount: integer("unread_count").default(0),
+  isPinned: boolean("is_pinned").default(false),
+  isArchived: boolean("is_archived").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  customerIdIdx: index("store_chat_customer_idx").on(table.customerId),
+  merchantIdIdx: index("store_chat_merchant_idx").on(table.merchantId),
+}));
+
+export const insertCustomerStoreChatSchema = createInsertSchema(customerStoreChats).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertCustomerStoreChat = z.infer<typeof insertCustomerStoreChatSchema>;
+export type CustomerStoreChat = typeof customerStoreChats.$inferSelect;
+
+// Personal Chats - direct messaging between customers
+export const personalChats = pgTable("personal_chats", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  participant1Id: varchar("participant1_id", { length: 32 }).notNull(),
+  participant2Id: varchar("participant2_id", { length: 32 }).notNull(),
+  lastMessageAt: timestamp("last_message_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  participant1Idx: index("personal_chat_p1_idx").on(table.participant1Id),
+  participant2Idx: index("personal_chat_p2_idx").on(table.participant2Id),
+}));
+
+export const insertPersonalChatSchema = createInsertSchema(personalChats).omit({ id: true, createdAt: true });
+export type InsertPersonalChat = z.infer<typeof insertPersonalChatSchema>;
+export type PersonalChat = typeof personalChats.$inferSelect;
+
+// Personal Chat Messages
+export const personalMessages = pgTable("personal_messages", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  chatId: varchar("chat_id", { length: 32 }).notNull(),
+  senderId: varchar("sender_id", { length: 32 }).notNull(),
+  content: text("content").notNull(),
+  messageType: text("message_type").default("text"), // text, image, file, audio
+  fileUrl: text("file_url"),
+  fileName: text("file_name"),
+  isRead: boolean("is_read").default(false),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  chatIdIdx: index("personal_msg_chat_idx").on(table.chatId),
+  senderIdIdx: index("personal_msg_sender_idx").on(table.senderId),
+}));
+
+export const insertPersonalMessageSchema = createInsertSchema(personalMessages).omit({ id: true, createdAt: true });
+export type InsertPersonalMessage = z.infer<typeof insertPersonalMessageSchema>;
+export type PersonalMessage = typeof personalMessages.$inferSelect;
+
