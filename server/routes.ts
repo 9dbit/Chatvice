@@ -17641,14 +17641,17 @@ Please create a comprehensive help center article that would be useful for custo
   // Request OTP for phone verification
   app.post("/api/customer/request-otp", async (req, res) => {
     try {
-      const { phoneNumber, countryCode } = req.body;
+      const { phoneNumber, countryCode, method } = req.body;
       
       if (!phoneNumber) {
         return res.status(400).json({ error: "Phone number is required" });
       }
       
+      // Validate delivery method
+      const deliveryMethod: 'sms' | 'whatsapp' = method === 'whatsapp' ? 'whatsapp' : 'sms';
+      
       // Normalize phone number to E.164 format
-      const { normalizePhoneNumber, generateOTPCode, sendSMSOTP } = await import("./twilio");
+      const { normalizePhoneNumber, generateOTPCode, sendOTP } = await import("./twilio");
       const normalizedPhone = normalizePhoneNumber(phoneNumber, countryCode || "+1");
       
       // Generate OTP code
@@ -17662,13 +17665,15 @@ Please create a comprehensive help center article that would be useful for custo
         expiresAt,
       });
       
-      // Send OTP via SMS (throws error on failure with specific message)
-      await sendSMSOTP(normalizedPhone, code);
+      // Send OTP via selected method (SMS or WhatsApp)
+      await sendOTP(normalizedPhone, code, deliveryMethod);
       
+      const methodLabel = deliveryMethod === 'whatsapp' ? 'WhatsApp' : 'SMS';
       res.json({ 
         success: true, 
-        message: "OTP sent successfully",
+        message: `OTP sent via ${methodLabel}`,
         phoneNumber: normalizedPhone,
+        method: deliveryMethod,
       });
     } catch (error: any) {
       console.error("Request OTP error:", error);

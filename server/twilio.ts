@@ -118,6 +118,61 @@ export async function sendSMSOTP(toPhoneNumber: string, otpCode: string): Promis
   }
 }
 
+// Send WhatsApp OTP via Twilio - returns true on success, or throws error with details
+export async function sendWhatsAppOTP(toPhoneNumber: string, otpCode: string): Promise<boolean> {
+  const client = await getTwilioClient();
+  const fromPhoneNumber = await getTwilioFromPhoneNumber();
+  
+  if (!fromPhoneNumber) {
+    console.error('[Twilio] No phone number configured');
+    throw new Error('WhatsApp service not configured. Please contact support.');
+  }
+  
+  // For WhatsApp, we need to prefix both numbers with 'whatsapp:'
+  const whatsappFrom = `whatsapp:${fromPhoneNumber}`;
+  const whatsappTo = `whatsapp:${toPhoneNumber}`;
+  
+  console.log('[Twilio WhatsApp] Sending OTP to:', whatsappTo, 'from:', whatsappFrom);
+  
+  try {
+    const message = await client.messages.create({
+      body: `Your Chatvice verification code is: *${otpCode}*\n\nThis code expires in 5 minutes. Do not share this code with anyone.`,
+      from: whatsappFrom,
+      to: whatsappTo
+    });
+    
+    console.log('[Twilio WhatsApp] OTP sent successfully, SID:', message.sid);
+    return true;
+  } catch (error: any) {
+    console.error('[Twilio WhatsApp] Error sending OTP:', error);
+    
+    // Handle specific Twilio WhatsApp errors
+    if (error.code === 63007) {
+      throw new Error('WhatsApp number not registered. Please use a valid WhatsApp number.');
+    } else if (error.code === 63016) {
+      throw new Error('WhatsApp message failed. The recipient may have blocked messages from unknown senders.');
+    } else if (error.code === 21608) {
+      throw new Error('WhatsApp not configured for this number. Please try SMS instead.');
+    } else if (error.code === 21211) {
+      throw new Error('Invalid phone number format. Please check your number.');
+    } else if (error.code === 63003) {
+      throw new Error('WhatsApp channel not enabled. Please try SMS instead.');
+    } else if (error.code === 21606 || error.code === 63006) {
+      throw new Error('WhatsApp sandbox not joined. Send "join <sandbox-keyword>" to the Twilio WhatsApp number first.');
+    } else {
+      throw new Error(`WhatsApp failed: ${error.message || 'Unknown error'}. Try SMS instead.`);
+    }
+  }
+}
+
+// Send OTP via preferred method (SMS or WhatsApp)
+export async function sendOTP(toPhoneNumber: string, otpCode: string, method: 'sms' | 'whatsapp' = 'sms'): Promise<boolean> {
+  if (method === 'whatsapp') {
+    return sendWhatsAppOTP(toPhoneNumber, otpCode);
+  }
+  return sendSMSOTP(toPhoneNumber, otpCode);
+}
+
 // Normalize phone number to E.164 format
 export function normalizePhoneNumber(phone: string, countryCode?: string): string {
   // Remove all non-digit characters except +

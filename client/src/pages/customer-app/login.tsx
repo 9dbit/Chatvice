@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare, Phone, ArrowRight, Globe, Sparkles, Users, Store } from "lucide-react";
+import { MessageSquare, Phone, ArrowRight, Globe, Sparkles, Users, Store, Smartphone } from "lucide-react";
+import { SiWhatsapp } from "react-icons/si";
 import { apiRequest } from "@/lib/queryClient";
 
 const countryCodes = [
@@ -48,18 +49,20 @@ export default function CustomerLoginPage() {
   const { toast } = useToast();
   const [countryCode, setCountryCode] = useState("+1");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [deliveryMethod, setDeliveryMethod] = useState<"sms" | "whatsapp">("whatsapp");
   
   const requestOTPMutation = useMutation({
-    mutationFn: async (data: { phoneNumber: string; countryCode: string }) => {
+    mutationFn: async (data: { phoneNumber: string; countryCode: string; method: string }) => {
       const res = await apiRequest("POST", "/api/customer/request-otp", data);
       return res.json();
     },
     onSuccess: (data) => {
+      const methodLabel = data.method === 'whatsapp' ? 'WhatsApp' : 'SMS';
       toast({
         title: "OTP Sent",
-        description: "Check your phone for the verification code",
+        description: `Check your ${methodLabel} for the verification code`,
       });
-      navigate(`/chat/verify?phone=${encodeURIComponent(data.phoneNumber)}`);
+      navigate(`/chat/verify?phone=${encodeURIComponent(data.phoneNumber)}&method=${data.method}`);
     },
     onError: (error: Error) => {
       toast({
@@ -82,7 +85,7 @@ export default function CustomerLoginPage() {
       return;
     }
     
-    requestOTPMutation.mutate({ phoneNumber, countryCode });
+    requestOTPMutation.mutate({ phoneNumber, countryCode, method: deliveryMethod });
   };
   
   return (
@@ -168,6 +171,44 @@ export default function CustomerLoginPage() {
                 </p>
               </div>
               
+              {/* Delivery Method Toggle */}
+              <div className="space-y-2">
+                <Label className="text-sm">Send verification code via:</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryMethod("whatsapp")}
+                    className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all ${
+                      deliveryMethod === "whatsapp"
+                        ? "border-green-500 bg-green-500/10 text-green-600 dark:text-green-400"
+                        : "border-border hover:border-green-500/50 text-muted-foreground hover:text-foreground"
+                    }`}
+                    data-testid="button-method-whatsapp"
+                  >
+                    <SiWhatsapp className="w-5 h-5" />
+                    <span className="font-medium">WhatsApp</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryMethod("sms")}
+                    className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all ${
+                      deliveryMethod === "sms"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:border-primary/50 text-muted-foreground hover:text-foreground"
+                    }`}
+                    data-testid="button-method-sms"
+                  >
+                    <Smartphone className="w-5 h-5" />
+                    <span className="font-medium">SMS</span>
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  {deliveryMethod === "whatsapp" 
+                    ? "Faster delivery via WhatsApp message" 
+                    : "Standard SMS text message"}
+                </p>
+              </div>
+              
               <Button 
                 type="submit" 
                 className="w-full" 
@@ -175,7 +216,9 @@ export default function CustomerLoginPage() {
                 disabled={requestOTPMutation.isPending}
                 data-testid="button-continue"
               >
-                {requestOTPMutation.isPending ? "Sending..." : "Continue"}
+                {requestOTPMutation.isPending 
+                  ? `Sending via ${deliveryMethod === "whatsapp" ? "WhatsApp" : "SMS"}...` 
+                  : "Continue"}
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </form>

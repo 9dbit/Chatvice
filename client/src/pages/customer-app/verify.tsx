@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare, ShieldCheck, ArrowLeft, RefreshCw } from "lucide-react";
+import { MessageSquare, ShieldCheck, ArrowLeft, RefreshCw, Smartphone } from "lucide-react";
+import { SiWhatsapp } from "react-icons/si";
 import { apiRequest } from "@/lib/queryClient";
 
 export default function CustomerVerifyPage() {
@@ -18,6 +19,7 @@ export default function CustomerVerifyPage() {
   
   const searchParams = new URLSearchParams(window.location.search);
   const phoneNumber = searchParams.get("phone") || "";
+  const deliveryMethod = searchParams.get("method") as "sms" | "whatsapp" || "sms";
   
   useEffect(() => {
     if (!phoneNumber) {
@@ -66,14 +68,16 @@ export default function CustomerVerifyPage() {
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/customer/request-otp", { 
         phoneNumber, 
-        countryCode: "" 
+        countryCode: "",
+        method: deliveryMethod
       });
       return res.json();
     },
     onSuccess: () => {
+      const methodLabel = deliveryMethod === 'whatsapp' ? 'WhatsApp' : 'SMS';
       toast({
         title: "Code Resent",
-        description: "Check your phone for the new verification code",
+        description: `Check your ${methodLabel} for the new verification code`,
       });
       setCountdown(60);
       setCanResend(false);
@@ -145,12 +149,23 @@ export default function CustomerVerifyPage() {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
-            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-green-500 to-green-400 flex items-center justify-center">
-              <ShieldCheck className="w-8 h-8 text-white" />
+            <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center ${
+              deliveryMethod === 'whatsapp' 
+                ? 'bg-gradient-to-br from-green-500 to-green-400' 
+                : 'bg-gradient-to-br from-primary to-primary/60'
+            }`}>
+              {deliveryMethod === 'whatsapp' 
+                ? <SiWhatsapp className="w-8 h-8 text-white" />
+                : <ShieldCheck className="w-8 h-8 text-white" />
+              }
             </div>
             <CardTitle className="text-2xl">Verify Your Phone</CardTitle>
             <CardDescription className="text-base">
-              Enter the 6-digit code sent to{" "}
+              Enter the 6-digit code sent via{" "}
+              <span className={`font-medium ${deliveryMethod === 'whatsapp' ? 'text-green-600 dark:text-green-400' : 'text-primary'}`}>
+                {deliveryMethod === 'whatsapp' ? 'WhatsApp' : 'SMS'}
+              </span>
+              {" "}to{" "}
               <span className="font-medium text-foreground">{phoneNumber}</span>
             </CardDescription>
           </CardHeader>
