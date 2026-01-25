@@ -1088,6 +1088,9 @@ export const notificationSettings = pgTable("notification_settings", {
   angryCustomerSound: text("angry_customer_sound").default("alert"),
   angryCustomerEnabled: boolean("angry_customer_enabled").default(true),
   customSounds: jsonb("custom_sounds").default([]),
+  telegramEnabled: boolean("telegram_enabled").default(false),
+  telegramBotToken: text("telegram_bot_token"),
+  telegramChatId: text("telegram_chat_id"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

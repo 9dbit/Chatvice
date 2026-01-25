@@ -89,6 +89,7 @@ declare module "express-session" {
 
 // Import subscription plan utility with caching
 import { getEffectiveSubscriptionPlan, getAllEffectiveSubscriptionPlans, clearPlanCache } from './subscriptionPlanUtils';
+import { sendTelegramNotification, formatChatNotification, formatEscalationNotification } from './telegram';
 
 function getBaseUrl(req: Request): string {
   if (process.env.REPLIT_DEV_DOMAIN) {
@@ -3822,6 +3823,27 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         content: message,
         clientMessageId: clientMessageId || undefined,
       });
+
+      // Send Telegram notification for new customer message
+      try {
+        const notificationSettings = await storage.getNotificationSettings(merchantId);
+        if (notificationSettings?.telegramEnabled && notificationSettings?.telegramBotToken && notificationSettings?.telegramChatId) {
+          const session = await storage.getSession(sessionId);
+          const telegramMessage = formatChatNotification(
+            session?.customerName || null,
+            message,
+            sessionId,
+            merchant?.businessName || undefined
+          );
+          sendTelegramNotification(
+            notificationSettings.telegramBotToken,
+            notificationSettings.telegramChatId,
+            telegramMessage
+          ).catch(err => console.error('[Telegram] Notification error:', err));
+        }
+      } catch (telegramErr) {
+        console.error('[Telegram] Error checking notification settings:', telegramErr);
+      }
 
       const result = await askChatvice(sessionId, merchantId, message);
       
@@ -15769,6 +15791,40 @@ ${pageHtml.substring(0, 50000)}`
       
       res.json({ url: soundUrl, name: soundName });
     } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/notification-settings/test-telegram", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const settings = await storage.getNotificationSettings(merchantId);
+      
+      if (!settings?.telegramBotToken || !settings?.telegramChatId) {
+        return res.status(400).json({ error: "Telegram not configured" });
+      }
+      
+      const merchant = await storage.getMerchant(merchantId);
+      const testMessage = `🔔 <b>Test Notification</b>
+
+This is a test notification from Chatvice.
+<b>Business:</b> ${merchant?.businessName || 'Your Business'}
+
+Your Telegram integration is working correctly!`;
+      
+      const success = await sendTelegramNotification(
+        settings.telegramBotToken,
+        settings.telegramChatId,
+        testMessage
+      );
+      
+      if (success) {
+        res.json({ success: true });
+      } else {
+        res.status(500).json({ error: "Failed to send notification" });
+      }
+    } catch (error) {
+      console.error("Test telegram error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });

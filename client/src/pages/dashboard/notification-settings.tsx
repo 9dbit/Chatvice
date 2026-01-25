@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Bell, Volume2, Upload, Play, AlertTriangle, MessageCircle, UserPlus, Square } from "lucide-react";
+import { Bell, Volume2, Upload, Play, AlertTriangle, MessageCircle, UserPlus, Square, Send, ExternalLink, CheckCircle, XCircle } from "lucide-react";
 import type { NotificationSetting } from "@shared/schema";
 
 const defaultSounds = [
@@ -391,6 +391,101 @@ export default function NotificationSettingsPage() {
                 </div>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Send className="w-5 h-5" />
+              Telegram Notifications
+            </CardTitle>
+            <CardDescription>
+              Receive chat notifications via Telegram Bot even when browser is closed
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Enable Telegram Notifications</Label>
+                <p className="text-sm text-muted-foreground">
+                  Send new chat alerts to your Telegram
+                </p>
+              </div>
+              <Switch
+                checked={settings?.telegramEnabled || false}
+                onCheckedChange={(checked) => handleUpdate("telegramEnabled", checked)}
+                data-testid="switch-telegram-enabled"
+              />
+            </div>
+
+            <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+              <div className="space-y-2">
+                <Label htmlFor="telegram-bot-token">Bot Token</Label>
+                <Input
+                  id="telegram-bot-token"
+                  type="password"
+                  placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
+                  value={settings?.telegramBotToken || ""}
+                  onChange={(e) => handleUpdate("telegramBotToken", e.target.value)}
+                  data-testid="input-telegram-bot-token"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Create a bot via <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">@BotFather <ExternalLink className="w-3 h-3" /></a>
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="telegram-chat-id">Chat ID</Label>
+                <Input
+                  id="telegram-chat-id"
+                  placeholder="Your chat ID or group ID"
+                  value={settings?.telegramChatId || ""}
+                  onChange={(e) => handleUpdate("telegramChatId", e.target.value)}
+                  data-testid="input-telegram-chat-id"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Get your Chat ID from <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">@userinfobot <ExternalLink className="w-3 h-3" /></a>
+                </p>
+              </div>
+
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={async () => {
+                  if (!settings?.telegramBotToken || !settings?.telegramChatId) {
+                    toast({ title: "Please enter Bot Token and Chat ID first", variant: "destructive" });
+                    return;
+                  }
+                  try {
+                    const res = await apiRequest("POST", "/api/notification-settings/test-telegram");
+                    if (res.ok) {
+                      toast({ title: "Test notification sent! Check your Telegram." });
+                    } else {
+                      toast({ title: "Failed to send test notification", variant: "destructive" });
+                    }
+                  } catch {
+                    toast({ title: "Failed to send test notification", variant: "destructive" });
+                  }
+                }}
+                data-testid="button-test-telegram"
+              >
+                <Send className="w-4 h-4 mr-2" />
+                Send Test Notification
+              </Button>
+            </div>
+
+            <div className="text-sm text-muted-foreground space-y-2">
+              <p className="font-medium">How to set up Telegram notifications:</p>
+              <ol className="list-decimal list-inside space-y-1 text-xs">
+                <li>Open Telegram and search for @BotFather</li>
+                <li>Send /newbot and follow the instructions to create a bot</li>
+                <li>Copy the Bot Token and paste it above</li>
+                <li>Search for @userinfobot to get your Chat ID</li>
+                <li>Start a chat with your new bot (important!)</li>
+                <li>Enable the toggle and test the notification</li>
+              </ol>
+            </div>
           </CardContent>
         </Card>
       </div>
