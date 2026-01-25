@@ -43,6 +43,25 @@ interface NotificationSettings {
   incomingChatSound?: string;
   chatReplySound?: string;
   angryCustomerSound?: string;
+  browserPushEnabled?: boolean;
+}
+
+function sendBrowserNotification(title: string, body: string) {
+  if (!("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+  
+  // Only show notification when tab is in background
+  if (!document.hidden) return;
+  
+  try {
+    new Notification(title, {
+      body,
+      icon: "/favicon.ico",
+      tag: "chatvice-notification",
+    });
+  } catch (e) {
+    console.warn("Browser notification failed:", e);
+  }
 }
 
 let cachedNotificationSettings: NotificationSettings | null = null;
@@ -68,22 +87,38 @@ async function fetchNotificationSettings(): Promise<NotificationSettings | null>
   return null;
 }
 
-export async function playIncomingChatSound() {
+export async function playIncomingChatSound(sessionInfo?: { customerName?: string }) {
   const settings = await fetchNotificationSettings();
   const soundId = settings?.incomingChatSound || "sci-fi-confirm";
   playSound(soundId);
+  
+  if (settings?.browserPushEnabled) {
+    const name = sessionInfo?.customerName || "Customer";
+    sendBrowserNotification("New Chat", `${name} started a new conversation`);
+  }
 }
 
-export async function playChatReplySound() {
+export async function playChatReplySound(messageInfo?: { from?: string; content?: string }) {
   const settings = await fetchNotificationSettings();
   const soundId = settings?.chatReplySound || "live-chat";
   playSound(soundId);
+  
+  if (settings?.browserPushEnabled) {
+    const from = messageInfo?.from || "Customer";
+    const preview = messageInfo?.content?.substring(0, 50) || "New message received";
+    sendBrowserNotification(`Message from ${from}`, preview);
+  }
 }
 
-export async function playAngrySound() {
+export async function playAngrySound(sessionInfo?: { customerName?: string; reason?: string }) {
   const settings = await fetchNotificationSettings();
   const soundId = settings?.angryCustomerSound || "notification-alert";
   playSound(soundId);
+  
+  if (settings?.browserPushEnabled) {
+    const name = sessionInfo?.customerName || "Customer";
+    sendBrowserNotification("Escalated Chat", `${name} needs immediate attention`);
+  }
 }
 
 export { soundUrls };

@@ -1,8 +1,19 @@
 import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { 
   SiSlack, 
   SiWhatsapp, 
@@ -15,107 +26,23 @@ import {
   SiHubspot,
   SiIntercom,
 } from "react-icons/si";
-import { Search, ExternalLink, Check, Clock, Plug } from "lucide-react";
+import { Search, ExternalLink, Check, Clock, Plug, Send, Bell, BellRing } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import type { NotificationSetting } from "@shared/schema";
 
 interface Integration {
   id: string;
   name: string;
   description: string;
   icon: React.ComponentType<{ className?: string }>;
-  category: "messaging" | "crm" | "ecommerce" | "helpdesk";
+  category: "messaging" | "crm" | "ecommerce" | "helpdesk" | "notifications";
   status: "available" | "coming_soon" | "connected";
   popular?: boolean;
+  configurable?: boolean;
 }
 
-const integrations: Integration[] = [
-  {
-    id: "slack",
-    name: "Slack",
-    description: "Receive escalation notifications and manage conversations directly in Slack",
-    icon: SiSlack,
-    category: "messaging",
-    status: "available",
-    popular: true,
-  },
-  {
-    id: "whatsapp",
-    name: "WhatsApp Business",
-    description: "Connect your WhatsApp Business account to handle customer inquiries",
-    icon: SiWhatsapp,
-    category: "messaging",
-    status: "coming_soon",
-    popular: true,
-  },
-  {
-    id: "telegram",
-    name: "Telegram",
-    description: "Integrate Telegram bot for seamless customer communication",
-    icon: SiTelegram,
-    category: "messaging",
-    status: "available",
-  },
-  {
-    id: "messenger",
-    name: "Facebook Messenger",
-    description: "Manage Facebook Messenger conversations through Chatvice",
-    icon: SiMessenger,
-    category: "messaging",
-    status: "coming_soon",
-    popular: true,
-  },
-  {
-    id: "instagram",
-    name: "Instagram DM",
-    description: "Handle Instagram Direct Messages with AI-powered responses",
-    icon: SiInstagram,
-    category: "messaging",
-    status: "coming_soon",
-  },
-  {
-    id: "zendesk",
-    name: "Zendesk",
-    description: "Sync tickets and conversations with your Zendesk helpdesk",
-    icon: SiZendesk,
-    category: "helpdesk",
-    status: "available",
-    popular: true,
-  },
-  {
-    id: "salesforce",
-    name: "Salesforce",
-    description: "Integrate with Salesforce CRM for unified customer data",
-    icon: SiSalesforce,
-    category: "crm",
-    status: "coming_soon",
-  },
-  {
-    id: "hubspot",
-    name: "HubSpot",
-    description: "Connect HubSpot CRM to sync contacts and conversation history",
-    icon: SiHubspot,
-    category: "crm",
-    status: "available",
-  },
-  {
-    id: "intercom",
-    name: "Intercom",
-    description: "Migrate from Intercom or use alongside for enhanced support",
-    icon: SiIntercom,
-    category: "helpdesk",
-    status: "coming_soon",
-  },
-  {
-    id: "shopify",
-    name: "Shopify",
-    description: "Access order data and provide shopping assistance to customers",
-    icon: SiShopify,
-    category: "ecommerce",
-    status: "available",
-    popular: true,
-  },
-];
-
 const categoryLabels: Record<string, string> = {
+  notifications: "Notifications",
   messaging: "Messaging",
   crm: "CRM",
   ecommerce: "E-Commerce",
@@ -123,8 +50,130 @@ const categoryLabels: Record<string, string> = {
 };
 
 export default function IntegrationsPage() {
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [telegramDialogOpen, setTelegramDialogOpen] = useState(false);
+  const [pushDialogOpen, setPushDialogOpen] = useState(false);
+  const [localBotToken, setLocalBotToken] = useState("");
+  const [localChatId, setLocalChatId] = useState("");
+
+  const { data: settings } = useQuery<NotificationSetting>({
+    queryKey: ["/api/notification-settings"],
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: Partial<NotificationSetting>) => {
+      return apiRequest("PUT", "/api/notification-settings", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notification-settings"] });
+      toast({ title: "Settings saved successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to save settings", variant: "destructive" });
+    },
+  });
+
+  const integrations: Integration[] = [
+    {
+      id: "push-notifications",
+      name: "Browser Notifications",
+      description: "Desktop alerts with sound when dashboard tab is open in background",
+      icon: BellRing,
+      category: "notifications",
+      status: settings?.browserPushEnabled ? "connected" : "available",
+      popular: true,
+      configurable: true,
+    },
+    {
+      id: "telegram",
+      name: "Telegram Bot",
+      description: "Receive chat notifications via Telegram even when browser is closed",
+      icon: SiTelegram,
+      category: "notifications",
+      status: settings?.telegramEnabled ? "connected" : "available",
+      popular: true,
+      configurable: true,
+    },
+    {
+      id: "slack",
+      name: "Slack",
+      description: "Receive escalation notifications and manage conversations directly in Slack",
+      icon: SiSlack,
+      category: "messaging",
+      status: "available",
+      popular: true,
+    },
+    {
+      id: "whatsapp",
+      name: "WhatsApp Business",
+      description: "Connect your WhatsApp Business account to handle customer inquiries",
+      icon: SiWhatsapp,
+      category: "messaging",
+      status: "coming_soon",
+      popular: true,
+    },
+    {
+      id: "messenger",
+      name: "Facebook Messenger",
+      description: "Manage Facebook Messenger conversations through Chatvice",
+      icon: SiMessenger,
+      category: "messaging",
+      status: "coming_soon",
+      popular: true,
+    },
+    {
+      id: "instagram",
+      name: "Instagram DM",
+      description: "Handle Instagram Direct Messages with AI-powered responses",
+      icon: SiInstagram,
+      category: "messaging",
+      status: "coming_soon",
+    },
+    {
+      id: "zendesk",
+      name: "Zendesk",
+      description: "Sync tickets and conversations with your Zendesk helpdesk",
+      icon: SiZendesk,
+      category: "helpdesk",
+      status: "available",
+      popular: true,
+    },
+    {
+      id: "salesforce",
+      name: "Salesforce",
+      description: "Integrate with Salesforce CRM for unified customer data",
+      icon: SiSalesforce,
+      category: "crm",
+      status: "coming_soon",
+    },
+    {
+      id: "hubspot",
+      name: "HubSpot",
+      description: "Connect HubSpot CRM to sync contacts and conversation history",
+      icon: SiHubspot,
+      category: "crm",
+      status: "available",
+    },
+    {
+      id: "intercom",
+      name: "Intercom",
+      description: "Migrate from Intercom or use alongside for enhanced support",
+      icon: SiIntercom,
+      category: "helpdesk",
+      status: "coming_soon",
+    },
+    {
+      id: "shopify",
+      name: "Shopify",
+      description: "Access order data and provide shopping assistance to customers",
+      icon: SiShopify,
+      category: "ecommerce",
+      status: "available",
+      popular: true,
+    },
+  ];
 
   const filteredIntegrations = integrations.filter((integration) => {
     const matchesSearch = 
@@ -135,6 +184,61 @@ export default function IntegrationsPage() {
   });
 
   const categories = ["all", ...Array.from(new Set(integrations.map((i) => i.category)))];
+
+  function handleIntegrationClick(integration: Integration) {
+    if (integration.id === "telegram") {
+      setLocalBotToken(settings?.telegramBotToken || "");
+      setLocalChatId(settings?.telegramChatId || "");
+      setTelegramDialogOpen(true);
+    } else if (integration.id === "push-notifications") {
+      setPushDialogOpen(true);
+    }
+  }
+
+  async function handleTestTelegram() {
+    if (!localBotToken || !localChatId) {
+      toast({ title: "Please enter Bot Token and Chat ID first", variant: "destructive" });
+      return;
+    }
+    
+    // Save first
+    await updateMutation.mutateAsync({ 
+      telegramBotToken: localBotToken, 
+      telegramChatId: localChatId 
+    });
+    
+    try {
+      const res = await apiRequest("POST", "/api/notification-settings/test-telegram");
+      if (res.ok) {
+        toast({ title: "Test notification sent! Check your Telegram." });
+      } else {
+        toast({ title: "Failed to send test notification", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Failed to send test notification", variant: "destructive" });
+    }
+  }
+
+  async function requestNotificationPermission() {
+    if (!("Notification" in window)) {
+      toast({ title: "Browser doesn't support notifications", variant: "destructive" });
+      return;
+    }
+
+    const permission = await Notification.requestPermission();
+    if (permission === "granted") {
+      updateMutation.mutate({ browserPushEnabled: true });
+      toast({ title: "Browser notifications enabled!" });
+      
+      // Send test notification
+      new Notification("Chatvice Notifications Enabled", {
+        body: "You'll now receive sound alerts when browser is in background",
+        icon: "/favicon.ico",
+      });
+    } else {
+      toast({ title: "Notification permission denied", variant: "destructive" });
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -215,6 +319,7 @@ export default function IntegrationsPage() {
                 size="sm"
                 className="w-full"
                 disabled={integration.status === "coming_soon"}
+                onClick={() => handleIntegrationClick(integration)}
                 data-testid={`button-connect-${integration.id}`}
               >
                 {integration.status === "connected" ? (
@@ -264,6 +369,181 @@ export default function IntegrationsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Telegram Configuration Dialog */}
+      <Dialog open={telegramDialogOpen} onOpenChange={setTelegramDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <SiTelegram className="w-5 h-5" />
+              Telegram Bot Integration
+            </DialogTitle>
+            <DialogDescription>
+              Receive chat notifications via Telegram even when browser is closed
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Enable Telegram</Label>
+                <p className="text-xs text-muted-foreground">Send alerts to Telegram</p>
+              </div>
+              <Switch
+                checked={settings?.telegramEnabled || false}
+                onCheckedChange={(checked) => updateMutation.mutate({ telegramEnabled: checked })}
+                data-testid="switch-telegram-enabled"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bot-token">Bot Token</Label>
+              <Input
+                id="bot-token"
+                type="password"
+                placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
+                value={localBotToken}
+                onChange={(e) => setLocalBotToken(e.target.value)}
+                onBlur={() => {
+                  if (localBotToken !== settings?.telegramBotToken) {
+                    updateMutation.mutate({ telegramBotToken: localBotToken });
+                  }
+                }}
+                data-testid="input-telegram-bot-token"
+              />
+              <p className="text-xs text-muted-foreground">
+                Create via{" "}
+                <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                  @BotFather
+                </a>
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="chat-id">Chat ID</Label>
+              <Input
+                id="chat-id"
+                placeholder="Your chat ID or group ID"
+                value={localChatId}
+                onChange={(e) => setLocalChatId(e.target.value)}
+                onBlur={() => {
+                  if (localChatId !== settings?.telegramChatId) {
+                    updateMutation.mutate({ telegramChatId: localChatId });
+                  }
+                }}
+                data-testid="input-telegram-chat-id"
+              />
+              <p className="text-xs text-muted-foreground">
+                Get from{" "}
+                <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                  @userinfobot
+                </a>
+              </p>
+            </div>
+
+            <Button 
+              className="w-full" 
+              onClick={handleTestTelegram}
+              disabled={updateMutation.isPending}
+              data-testid="button-test-telegram"
+            >
+              <Send className="w-4 h-4 mr-2" />
+              Send Test Notification
+            </Button>
+
+            <div className="text-xs text-muted-foreground bg-muted p-3 rounded-lg">
+              <p className="font-medium mb-1">Setup Steps:</p>
+              <ol className="list-decimal list-inside space-y-0.5">
+                <li>Open @BotFather, send /newbot</li>
+                <li>Copy the Bot Token here</li>
+                <li>Get your Chat ID from @userinfobot</li>
+                <li>Start a chat with your bot first</li>
+                <li>Enable & test the notification</li>
+              </ol>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Browser Notifications Dialog */}
+      <Dialog open={pushDialogOpen} onOpenChange={setPushDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bell className="w-5 h-5" />
+              Browser Notifications
+            </DialogTitle>
+            <DialogDescription>
+              Get desktop alerts when dashboard tab is open in background
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Enable Desktop Alerts</Label>
+                <p className="text-xs text-muted-foreground">Notifications when tab is in background</p>
+              </div>
+              <Switch
+                checked={settings?.browserPushEnabled || false}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    requestNotificationPermission();
+                  } else {
+                    updateMutation.mutate({ browserPushEnabled: false });
+                  }
+                }}
+                data-testid="switch-push-enabled"
+              />
+            </div>
+
+            <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+              <div className="flex items-start gap-3">
+                <BellRing className="w-5 h-5 text-primary mt-0.5" />
+                <div>
+                  <p className="font-medium text-sm">How it works</p>
+                  <p className="text-xs text-muted-foreground">
+                    Desktop notification popups will appear for new messages when the dashboard tab is open but not focused.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="text-xs text-muted-foreground border-t pt-3">
+                <p className="font-medium mb-1">Note:</p>
+                <ul className="list-disc list-inside space-y-0.5">
+                  <li>Dashboard tab must remain open in browser</li>
+                  <li>For notifications when browser is closed, use Telegram Bot</li>
+                </ul>
+              </div>
+            </div>
+
+            {settings?.browserPushEnabled && (
+              <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                <Check className="w-4 h-4 text-green-500" />
+                <span className="text-sm text-green-600 dark:text-green-400">
+                  Browser notifications are enabled
+                </span>
+              </div>
+            )}
+
+            <Button 
+              variant="outline"
+              className="w-full" 
+              onClick={() => {
+                new Notification("Test Notification", {
+                  body: "This is how notifications will appear",
+                  icon: "/favicon.ico",
+                });
+              }}
+              disabled={!settings?.browserPushEnabled}
+              data-testid="button-test-push"
+            >
+              <Bell className="w-4 h-4 mr-2" />
+              Send Test Notification
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
