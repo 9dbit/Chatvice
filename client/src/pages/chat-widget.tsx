@@ -2390,6 +2390,26 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 Start Chat
               </Button>
               
+              {/* Login with Chatvice Account option */}
+              <div className="flex items-center justify-center gap-1.5 mt-3">
+                <span 
+                  className="text-xs"
+                  style={applyEmbedStyles ? { color: widgetIsDark ? 'rgba(255,255,255,0.7)' : '#6b7280' } : undefined}
+                >
+                  Have a Chatvice account?
+                </span>
+                <a 
+                  href="/chat/login" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-medium hover:underline"
+                  style={applyEmbedStyles ? { color: primaryColor } : undefined}
+                  data-testid="link-login-chatvice"
+                >
+                  Login
+                </a>
+              </div>
+              
               {/* Powered by Chatvice branding */}
               <div className="flex items-center justify-center gap-1.5 mt-4">
                 <span 

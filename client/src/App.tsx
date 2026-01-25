@@ -59,6 +59,7 @@ import {
   CustomerStoresPage,
   CustomerContactsPage,
   CustomerSettingsPage,
+  CustomerStoreChatPage,
 } from "@/pages/customer-app";
 
 function ScrollToTop() {
@@ -192,6 +193,7 @@ function Router() {
       <Route path="/chat/register" component={CustomerRegisterPage} />
       <Route path="/chat/inbox" component={CustomerInboxPage} />
       <Route path="/chat/stores" component={CustomerStoresPage} />
+      <Route path="/chat/store/:merchantId" component={CustomerStoreChatPage} />
       <Route path="/chat/contacts" component={CustomerContactsPage} />
       <Route path="/chat/settings" component={CustomerSettingsPage} />
 

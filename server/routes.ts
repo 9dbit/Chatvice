@@ -17959,6 +17959,154 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
   
+  // Get specific store chat by merchant ID
+  app.get("/api/customer/store-chats/:merchantId", async (req, res) => {
+    try {
+      const customerId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!customerId || userType !== "customer") {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const { merchantId } = req.params;
+      const storeChat = await storage.getCustomerStoreChatByMerchant(customerId, merchantId);
+      
+      if (!storeChat) {
+        return res.status(404).json({ error: "Chat not found" });
+      }
+      
+      // Enrich with merchant info
+      const merchant = await storage.getMerchant(storeChat.merchantId);
+      
+      res.json({
+        ...storeChat,
+        merchant: merchant ? {
+          id: merchant.id,
+          companyName: merchant.companyName,
+          profilePhotoUrl: merchant.profilePhotoUrl,
+          online: merchant.online,
+          welcomeMessage: merchant.welcomeMessage,
+        } : null,
+      });
+    } catch (error) {
+      console.error("Get store chat error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Get messages for a store chat
+  app.get("/api/customer/store-chats/:merchantId/messages", async (req, res) => {
+    try {
+      const customerId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!customerId || userType !== "customer") {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const { merchantId } = req.params;
+      const storeChat = await storage.getCustomerStoreChatByMerchant(customerId, merchantId);
+      
+      if (!storeChat?.sessionId) {
+        return res.json([]);
+      }
+      
+      const messages = await storage.getMessages(storeChat.sessionId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Get store chat messages error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Send message in a store chat
+  const customerMessageSchema = z.object({
+    content: z.string().min(1, "Message content is required").max(5000, "Message too long"),
+    clientMessageId: z.string().optional(),
+  });
+  
+  app.post("/api/customer/store-chats/:merchantId/messages", async (req, res) => {
+    try {
+      const customerId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!customerId || userType !== "customer") {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const { merchantId } = req.params;
+      
+      // Validate request body with Zod
+      const validation = customerMessageSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ 
+          error: "Validation failed", 
+          details: validation.error.errors 
+        });
+      }
+      
+      const { content, clientMessageId } = validation.data;
+      
+      // Get or create store chat
+      let storeChat = await storage.getCustomerStoreChatByMerchant(customerId, merchantId);
+      
+      if (!storeChat) {
+        // Get customer info and create new session
+        const customer = await storage.getCustomer(customerId);
+        const merchant = await storage.getMerchant(merchantId);
+        
+        if (!merchant) {
+          return res.status(404).json({ error: "Store not found" });
+        }
+        
+        const session = await storage.createSession({
+          merchantId,
+          agentId: merchant.activeAgentId || undefined,
+          customerName: customer?.displayName || null,
+          mode: "AI",
+        });
+        
+        storeChat = await storage.createCustomerStoreChat({
+          customerId,
+          merchantId,
+          agentId: merchant.activeAgentId || undefined,
+          sessionId: session.id,
+          lastMessageAt: new Date(),
+        });
+      }
+      
+      if (!storeChat?.sessionId) {
+        return res.status(500).json({ error: "Failed to create chat session" });
+      }
+      
+      // Create the message
+      const message = await storage.createMessage({
+        sessionId: storeChat.sessionId,
+        from: "customer",
+        content: content.trim(),
+        messageType: "text",
+        clientMessageId,
+      });
+      
+      // Update store chat last message time
+      await storage.updateCustomerStoreChat(storeChat.id, {
+        lastMessageAt: new Date(),
+      });
+      
+      // Broadcast message via WebSocket
+      broadcastToSession(storeChat.sessionId, {
+        type: "message",
+        message,
+      });
+      
+      res.json(message);
+    } catch (error) {
+      console.error("Send store chat message error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
   // Get customer contacts
   app.get("/api/customer/contacts", async (req, res) => {
     try {
