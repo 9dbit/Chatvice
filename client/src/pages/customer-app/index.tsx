@@ -1,0 +1,7 @@
+export { default as CustomerLoginPage } from "./login";
+export { default as CustomerVerifyPage } from "./verify";
+export { default as CustomerRegisterPage } from "./register";
+export { default as CustomerInboxPage } from "./inbox";
+export { default as CustomerStoresPage } from "./stores";
+export { default as CustomerContactsPage } from "./contacts";
+export { default as CustomerSettingsPage } from "./settings";

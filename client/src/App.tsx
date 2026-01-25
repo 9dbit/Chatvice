@@ -51,6 +51,15 @@ import CompleteProfilePage from "@/pages/complete-profile";
 import ProfileWizardPage from "@/pages/profile-wizard";
 import { DynamicHead } from "@/components/dynamic-head";
 import { AIHelpBubble } from "@/components/ai-help-bubble";
+import {
+  CustomerLoginPage,
+  CustomerVerifyPage,
+  CustomerRegisterPage,
+  CustomerInboxPage,
+  CustomerStoresPage,
+  CustomerContactsPage,
+  CustomerSettingsPage,
+} from "@/pages/customer-app";
 
 function ScrollToTop() {
   const [location] = useLocation();
@@ -82,6 +91,7 @@ function GlobalHelpBubble() {
     '/profile-wizard',
     '/topup',
     '/demo',
+    '/chat',
   ];
   
   const shouldShow = !excludedPaths.some(path => location.startsWith(path));
@@ -175,6 +185,15 @@ function Router() {
       
       <Route path="/topup" component={TopupPage} />
       <Route path="/demo" component={DemoWidgetPage} />
+
+      {/* Customer Chat App Routes (chat.chatvice.app) */}
+      <Route path="/chat/login" component={CustomerLoginPage} />
+      <Route path="/chat/verify" component={CustomerVerifyPage} />
+      <Route path="/chat/register" component={CustomerRegisterPage} />
+      <Route path="/chat/inbox" component={CustomerInboxPage} />
+      <Route path="/chat/stores" component={CustomerStoresPage} />
+      <Route path="/chat/contacts" component={CustomerContactsPage} />
+      <Route path="/chat/settings" component={CustomerSettingsPage} />
 
       <Route component={NotFound} />
     </Switch>
