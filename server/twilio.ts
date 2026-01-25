@@ -1,14 +1,26 @@
 // Twilio Verify Integration for OTP
 import twilio from 'twilio';
 
-// Twilio credentials from environment
-const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
-const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
-const TWILIO_VERIFY_SERVICE_SID = process.env.TWILIO_VERIFY_SERVICE_SID;
+// Twilio credentials from environment - trim whitespace
+const TWILIO_ACCOUNT_SID = (process.env.TWILIO_ACCOUNT_SID || '').trim();
+const TWILIO_AUTH_TOKEN = (process.env.TWILIO_AUTH_TOKEN || '').trim();
+const TWILIO_VERIFY_SERVICE_SID = (process.env.TWILIO_VERIFY_SERVICE_SID || '').trim();
+
+// Debug logging for Twilio configuration (only log if configured)
+console.log('[Twilio] Configuration check:', {
+  hasAccountSid: !!TWILIO_ACCOUNT_SID && TWILIO_ACCOUNT_SID.startsWith('AC'),
+  accountSidPrefix: TWILIO_ACCOUNT_SID ? TWILIO_ACCOUNT_SID.substring(0, 4) + '...' : 'NOT SET',
+  hasAuthToken: !!TWILIO_AUTH_TOKEN,
+  hasVerifyServiceSid: !!TWILIO_VERIFY_SERVICE_SID,
+  verifyServiceSidPrefix: TWILIO_VERIFY_SERVICE_SID ? TWILIO_VERIFY_SERVICE_SID.substring(0, 4) + '...' : 'NOT SET'
+});
 
 function getTwilioClient() {
   if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN) {
     throw new Error('Twilio credentials not configured. Please set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN.');
+  }
+  if (!TWILIO_ACCOUNT_SID.startsWith('AC')) {
+    throw new Error(`Invalid TWILIO_ACCOUNT_SID format. Must start with 'AC'. Got prefix: '${TWILIO_ACCOUNT_SID.substring(0, 4)}'`);
   }
   return twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
 }
