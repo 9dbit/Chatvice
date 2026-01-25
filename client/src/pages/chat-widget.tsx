@@ -2390,24 +2390,49 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 Start Chat
               </Button>
               
-              {/* Login with Chatvice Account option */}
-              <div className="flex items-center justify-center gap-1.5 mt-3">
-                <span 
-                  className="text-xs"
-                  style={applyEmbedStyles ? { color: widgetIsDark ? 'rgba(255,255,255,0.7)' : '#6b7280' } : undefined}
+              {/* Sign up / Login with Chatvice Account option */}
+              <div 
+                className="mt-4 p-3 rounded-xl text-center"
+                style={applyEmbedStyles ? (widgetIsDark ? {
+                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                } : {
+                  background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.05) 100%)',
+                  border: '1px solid rgba(99, 102, 241, 0.15)',
+                }) : undefined}
+              >
+                <p 
+                  className="text-xs font-medium mb-1"
+                  style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#4f46e5' } : undefined}
                 >
-                  Have a Chatvice account?
-                </span>
-                <a 
-                  href="/chat/login" 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs font-medium hover:underline"
-                  style={applyEmbedStyles ? { color: primaryColor } : undefined}
-                  data-testid="link-login-chatvice"
-                >
-                  Login
-                </a>
+                  Get keep in touch with Chatvice app
+                </p>
+                <div className="flex items-center justify-center gap-2">
+                  <a 
+                    href="/chat/login" 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-medium hover:underline"
+                    style={applyEmbedStyles ? { color: primaryColor } : undefined}
+                    data-testid="link-signup-chatvice"
+                  >
+                    Sign Up Free
+                  </a>
+                  <span 
+                    className="text-xs"
+                    style={applyEmbedStyles ? { color: widgetIsDark ? 'rgba(255,255,255,0.5)' : '#9ca3af' } : undefined}
+                  >|</span>
+                  <a 
+                    href="/chat/login" 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs hover:underline"
+                    style={applyEmbedStyles ? { color: widgetIsDark ? 'rgba(255,255,255,0.7)' : '#6b7280' } : undefined}
+                    data-testid="link-login-chatvice"
+                  >
+                    Login
+                  </a>
+                </div>
               </div>
               
               {/* Powered by Chatvice branding */}

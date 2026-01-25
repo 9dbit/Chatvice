@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare, Phone, ArrowRight, Globe } from "lucide-react";
+import { MessageSquare, Phone, ArrowRight, Globe, Sparkles, Users, Store } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 const countryCodes = [
@@ -112,6 +112,26 @@ export default function CustomerLoginPage() {
             <CardDescription className="text-base">
               Sign in with your phone number to start chatting with your favorite stores
             </CardDescription>
+            
+            {/* Marketing signup banner */}
+            <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-primary/10 via-violet-500/10 to-primary/10 border border-primary/20">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <span className="text-sm font-semibold text-primary">Get keep in touch with Chatvice app</span>
+                <Sparkles className="w-4 h-4 text-primary" />
+              </div>
+              <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Store className="w-3 h-3" /> Browse Stores
+                </span>
+                <span className="flex items-center gap-1">
+                  <Users className="w-3 h-3" /> Save Contacts
+                </span>
+                <span className="flex items-center gap-1">
+                  <MessageSquare className="w-3 h-3" /> Chat History
+                </span>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -160,8 +180,17 @@ export default function CustomerLoginPage() {
               </Button>
             </form>
             
-            <div className="mt-6 text-center">
-              <p className="text-sm text-muted-foreground">
+            <div className="mt-4 p-3 rounded-lg bg-muted/50 text-center">
+              <p className="text-sm font-medium text-foreground mb-1">
+                New to Chatvice? Sign up is free!
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Enter your phone number above to create your account instantly
+              </p>
+            </div>
+            
+            <div className="mt-4 text-center">
+              <p className="text-xs text-muted-foreground">
                 By continuing, you agree to our{" "}
                 <a href="/terms" className="text-primary hover:underline">Terms of Service</a>
                 {" "}and{" "}
