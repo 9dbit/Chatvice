@@ -13277,8 +13277,8 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
           if (merchant) {
             supervisorInfo = {
               id: merchant.id,
-              name: merchant.businessName || merchant.username || "Merchant",
-              photoUrl: merchant.logoUrl || "",
+              name: merchant.companyName || merchant.username || "Merchant",
+              photoUrl: merchant.profilePhotoUrl || "",
             };
           }
         }
