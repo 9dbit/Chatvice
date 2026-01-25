@@ -47,6 +47,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "@/components/theme-provider";
 import { 
@@ -12104,6 +12105,7 @@ function ActivityLogsTab({ toast }: { toast: any }) {
 // Admin User Data Tab - View all customer contact data across all merchants
 function AdminUserDataTab({ toast }: { toast: any }) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState<"all" | "widget" | "chatvice">("all");
   
   interface AdminUserData {
     name: string;
@@ -12112,14 +12114,41 @@ function AdminUserDataTab({ toast }: { toast: any }) {
     merchantId: string;
     merchantName: string;
     lastSeen: string;
+    type: "widget";
   }
   
-  const { data: userData = [], isLoading } = useQuery<AdminUserData[]>({
+  interface ChatviceMember {
+    id: string;
+    phoneNumber: string;
+    phoneCountryCode: string | null;
+    displayName: string | null;
+    email: string | null;
+    avatarUrl: string | null;
+    isPhoneVerified: boolean;
+    lastActiveAt: string | null;
+    notificationsEnabled: boolean;
+    createdAt: string;
+    storeChatsCount: number;
+    contactsCount: number;
+    type: "chatvice";
+  }
+  
+  const { data: widgetUsers = [], isLoading: widgetLoading } = useQuery<AdminUserData[]>({
     queryKey: ["/api/admin/user-data"],
   });
   
-  // Filter data based on search
-  const filteredData = userData.filter((user) => {
+  const { data: chatviceMembers = [], isLoading: membersLoading } = useQuery<ChatviceMember[]>({
+    queryKey: ["/api/admin/chatvice-members"],
+  });
+  
+  const isLoading = widgetLoading || membersLoading;
+  
+  // Add type to widget users
+  const typedWidgetUsers = widgetUsers.map(u => ({ ...u, type: "widget" as const }));
+  const typedMembers = chatviceMembers.map(m => ({ ...m, type: "chatvice" as const }));
+  
+  // Filter data based on search and active filter
+  const filteredWidgetUsers = typedWidgetUsers.filter((user) => {
     const query = searchQuery.toLowerCase();
     return (
       user.name.toLowerCase().includes(query) ||
@@ -12129,14 +12158,31 @@ function AdminUserDataTab({ toast }: { toast: any }) {
     );
   });
   
+  const filteredMembers = typedMembers.filter((member) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      (member.displayName && member.displayName.toLowerCase().includes(query)) ||
+      member.phoneNumber.includes(query) ||
+      (member.email && member.email.toLowerCase().includes(query))
+    );
+  });
+  
+  // Get data based on filter
+  const displayData = activeFilter === "widget" 
+    ? { widget: filteredWidgetUsers, chatvice: [] }
+    : activeFilter === "chatvice"
+    ? { widget: [], chatvice: filteredMembers }
+    : { widget: filteredWidgetUsers, chatvice: filteredMembers };
+  
   // Format phone number for display (add + prefix)
   const formatPhone = (phone: string) => {
-    return phone ? `+${phone}` : "-";
+    return phone ? (phone.startsWith("+") ? phone : `+${phone}`) : "-";
   };
   
   // Download CSV
   const handleDownloadCSV = () => {
-    if (filteredData.length === 0) {
+    const allData = [...displayData.widget, ...displayData.chatvice];
+    if (allData.length === 0) {
       toast({
         title: "Tidak Ada Data",
         description: "Tidak ada data untuk diunduh",
@@ -12145,20 +12191,25 @@ function AdminUserDataTab({ toast }: { toast: any }) {
       return;
     }
     
-    const headers = ["Name", "Phone", "Email", "Merchant", "Last Active"];
-    const rows = filteredData.map((user) => [
-      user.name,
-      formatPhone(user.phone),
-      user.email || "-",
-      user.merchantName,
-      new Date(user.lastSeen).toLocaleDateString("id-ID", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    ]);
+    const headers = ["Type", "Name", "Phone", "Email", "Source/Stats", "Last Active"];
+    const rows = [
+      ...displayData.widget.map((user) => [
+        "Widget User",
+        user.name,
+        formatPhone(user.phone),
+        user.email || "-",
+        user.merchantName,
+        new Date(user.lastSeen).toLocaleDateString("id-ID", { year: "numeric", month: "short", day: "numeric" }),
+      ]),
+      ...displayData.chatvice.map((member) => [
+        "Chatvice Member",
+        member.displayName || "Anonymous",
+        formatPhone(member.phoneNumber),
+        member.email || "-",
+        `${member.storeChatsCount} stores, ${member.contactsCount} contacts`,
+        member.lastActiveAt ? new Date(member.lastActiveAt).toLocaleDateString("id-ID", { year: "numeric", month: "short", day: "numeric" }) : "-",
+      ]),
+    ];
     
     const csvContent = [headers, ...rows]
       .map((row) => row.map((cell) => `"${cell}"`).join(","))
@@ -12168,15 +12219,17 @@ function AdminUserDataTab({ toast }: { toast: any }) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `chatvice-all-user-data-${new Date().toISOString().split("T")[0]}.csv`;
+    link.download = `chatvice-user-data-${activeFilter}-${new Date().toISOString().split("T")[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
     
     toast({
       title: "Success",
-      description: `${filteredData.length} user data downloaded successfully`,
+      description: `${allData.length} user data downloaded successfully`,
     });
   };
+  
+  const totalCount = displayData.widget.length + displayData.chatvice.length;
   
   return (
     <div className="space-y-6">
@@ -12185,21 +12238,21 @@ function AdminUserDataTab({ toast }: { toast: any }) {
           <div>
             <CardTitle className="flex items-center gap-2">
               <Users className="w-5 h-5" />
-              Global User Data
+              User Data
             </CardTitle>
             <CardDescription>
-              All customer contact data from all merchants
+              All registered users from widget and Chatvice app
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="text-sm">
-              {filteredData.length} users
+              {totalCount} users
             </Badge>
             <Button
               variant="outline"
               size="sm"
               onClick={handleDownloadCSV}
-              disabled={filteredData.length === 0}
+              disabled={totalCount === 0}
               data-testid="button-download-csv"
             >
               <Download className="w-4 h-4 mr-2" />
@@ -12208,11 +12261,45 @@ function AdminUserDataTab({ toast }: { toast: any }) {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Filter tabs */}
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <Button
+              variant={activeFilter === "all" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setActiveFilter("all")}
+              data-testid="filter-all"
+            >
+              All Users
+              <Badge variant="secondary" className="ml-2">
+                {widgetUsers.length + chatviceMembers.length}
+              </Badge>
+            </Button>
+            <Button
+              variant={activeFilter === "widget" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setActiveFilter("widget")}
+              data-testid="filter-widget"
+            >
+              Widget Users
+              <Badge variant="secondary" className="ml-2">{widgetUsers.length}</Badge>
+            </Button>
+            <Button
+              variant={activeFilter === "chatvice" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setActiveFilter("chatvice")}
+              data-testid="filter-chatvice-member"
+            >
+              <Crown className="w-4 h-4 mr-1" />
+              Chatvice Member
+              <Badge variant="secondary" className="ml-2">{chatviceMembers.length}</Badge>
+            </Button>
+          </div>
+          
           <div className="flex items-center gap-4 mb-6">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Cari nama, telepon, email, atau merchant..."
+                placeholder="Cari nama, telepon, email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -12225,56 +12312,153 @@ function AdminUserDataTab({ toast }: { toast: any }) {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
             </div>
-          ) : filteredData.length === 0 ? (
+          ) : totalCount === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p className="font-medium">Belum Ada Data Pengguna</p>
-              <p className="text-sm">Data kontak pelanggan akan muncul setelah mereka mengisi formulir di widget</p>
+              <p className="text-sm">Data pengguna akan muncul setelah mereka mendaftar</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nama</TableHead>
-                    <TableHead>Telepon</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Merchant</TableHead>
-                    <TableHead>Terakhir Aktif</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredData.map((user, index) => (
-                    <TableRow key={`${user.phone}-${index}`} data-testid={`row-user-${index}`}>
-                      <TableCell className="font-medium">{user.name}</TableCell>
-                      <TableCell>
-                        <code className="text-sm bg-muted px-2 py-1 rounded">
-                          {formatPhone(user.phone)}
-                        </code>
-                      </TableCell>
-                      <TableCell>
-                        {user.email ? (
-                          <span className="text-sm">{user.email}</span>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{user.merchantName}</Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {new Date(user.lastSeen).toLocaleDateString("id-ID", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <div className="space-y-6">
+              {/* Chatvice Members Section */}
+              {displayData.chatvice.length > 0 && (
+                <div data-testid="section-chatvice-members">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Crown className="w-5 h-5 text-green-600" />
+                    <h3 className="font-semibold text-green-600" data-testid="text-chatvice-members-title">Chatvice Members</h3>
+                    <Badge className="bg-green-600" data-testid="badge-chatvice-members-count">{displayData.chatvice.length}</Badge>
+                  </div>
+                  <div className="overflow-x-auto border rounded-lg">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Member</TableHead>
+                          <TableHead>Phone</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Stats</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Joined</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {displayData.chatvice.map((member) => (
+                          <TableRow key={member.id} data-testid={`row-member-${member.id}`}>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-8 w-8" data-testid={`avatar-member-${member.id}`}>
+                                  <AvatarImage src={member.avatarUrl || undefined} alt={member.displayName || "Member"} />
+                                  <AvatarFallback className="bg-green-100 dark:bg-green-900">
+                                    <Crown className="w-4 h-4 text-green-600" />
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <p className="font-medium" data-testid={`text-member-name-${member.id}`}>{member.displayName || "Anonymous"}</p>
+                                  <Badge className="bg-green-600 text-[10px]" data-testid={`badge-member-${member.id}`}>Chatvice Member</Badge>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <code className="text-sm bg-muted px-2 py-1 rounded">
+                                {formatPhone(member.phoneNumber)}
+                              </code>
+                              {member.isPhoneVerified && (
+                                <CheckCircle className="w-3 h-3 text-green-500 inline ml-1" />
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {member.email ? (
+                                <span className="text-sm">{member.email}</span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2 text-xs">
+                                <Badge variant="outline" data-testid={`badge-stores-${member.id}`}>{member.storeChatsCount} stores</Badge>
+                                <Badge variant="outline" data-testid={`badge-contacts-${member.id}`}>{member.contactsCount} contacts</Badge>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {member.notificationsEnabled ? (
+                                <Badge variant="secondary" className="text-xs" data-testid={`badge-notif-on-${member.id}`}>
+                                  <Bell className="w-3 h-3 mr-1" />
+                                  Notif ON
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs text-muted-foreground" data-testid={`badge-notif-off-${member.id}`}>
+                                  Notif OFF
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {new Date(member.createdAt).toLocaleDateString("id-ID", {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+              
+              {/* Widget Users Section */}
+              {displayData.widget.length > 0 && (
+                <div data-testid="section-widget-users">
+                  <div className="flex items-center gap-2 mb-3">
+                    <MessageSquare className="w-5 h-5 text-blue-600" />
+                    <h3 className="font-semibold" data-testid="text-widget-users-title">Widget Users</h3>
+                    <Badge variant="secondary" data-testid="badge-widget-users-count">{displayData.widget.length}</Badge>
+                  </div>
+                  <div className="overflow-x-auto border rounded-lg">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nama</TableHead>
+                          <TableHead>Telepon</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Merchant</TableHead>
+                          <TableHead>Terakhir Aktif</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {displayData.widget.map((user, index) => (
+                          <TableRow key={`${user.phone}-${index}`} data-testid={`row-user-${index}`}>
+                            <TableCell className="font-medium">{user.name}</TableCell>
+                            <TableCell>
+                              <code className="text-sm bg-muted px-2 py-1 rounded">
+                                {formatPhone(user.phone)}
+                              </code>
+                            </TableCell>
+                            <TableCell>
+                              {user.email ? (
+                                <span className="text-sm">{user.email}</span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{user.merchantName}</Badge>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {new Date(user.lastSeen).toLocaleDateString("id-ID", {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

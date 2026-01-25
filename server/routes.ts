@@ -29,8 +29,8 @@ import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./payp
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient, sendMerchantAuthNotification } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, or, isNotNull, gte } from "drizzle-orm";
-import { messages, sessions, chatLogs, paymentTransactions } from "@shared/schema";
+import { eq, desc, and, or, isNotNull, gte, sql } from "drizzle-orm";
+import { messages, sessions, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts } from "@shared/schema";
 import crypto from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
@@ -13784,6 +13784,49 @@ Generate only the closing statement, nothing else.`;
       res.json(userData);
     } catch (error) {
       console.error("Error fetching admin user data:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get all Chatvice Members (registered customers from customer app)
+  app.get("/api/admin/chatvice-members", requireAdmin, async (req, res) => {
+    try {
+      const allCustomers = await db.select({
+        id: customers.id,
+        phoneNumber: customers.phoneNumber,
+        phoneCountryCode: customers.phoneCountryCode,
+        displayName: customers.displayName,
+        email: customers.email,
+        avatarUrl: customers.avatarUrl,
+        isPhoneVerified: customers.isPhoneVerified,
+        lastActiveAt: customers.lastActiveAt,
+        notificationsEnabled: customers.notificationsEnabled,
+        createdAt: customers.createdAt,
+      }).from(customers)
+        .orderBy(desc(customers.createdAt));
+      
+      // Get chat count for each customer
+      const membersWithStats = await Promise.all(allCustomers.map(async (customer) => {
+        const storeChats = await db.select({
+          count: sql<number>`count(*)::int`
+        }).from(customerStoreChats)
+          .where(eq(customerStoreChats.customerId, customer.id));
+        
+        const contactsCount = await db.select({
+          count: sql<number>`count(*)::int`
+        }).from(customerContacts)
+          .where(eq(customerContacts.customerId, customer.id));
+        
+        return {
+          ...customer,
+          storeChatsCount: storeChats[0]?.count || 0,
+          contactsCount: contactsCount[0]?.count || 0,
+        };
+      }));
+      
+      res.json(membersWithStats);
+    } catch (error) {
+      console.error("Error fetching Chatvice members:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
