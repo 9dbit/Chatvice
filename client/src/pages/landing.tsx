@@ -56,6 +56,9 @@ import {
   DollarSign,
   Gift,
   Wallet,
+  Inbox,
+  Bell,
+  Store,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -278,6 +281,7 @@ function Navbar() {
     { labelKey: "nav.api", href: "/api-docs" },
     { labelKey: "nav.faq", href: "/faq" },
     { labelKey: "nav.about", href: "/about" },
+    { labelKey: "nav.chatPlatform", href: "https://chat.chatvice.app", external: true },
   ];
 
   return (
@@ -291,14 +295,27 @@ function Navbar() {
             
             <div className="hidden lg:flex items-center gap-8">
               {navLinks.map((link) => (
-                <Link 
-                  key={link.href}
-                  href={link.href} 
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                  data-testid={`link-nav-${link.labelKey.split('.')[1]}`}
-                >
-                  {t(link.labelKey)}
-                </Link>
+                link.external ? (
+                  <a 
+                    key={link.href}
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    data-testid={`link-nav-${link.labelKey.split('.')[1]}`}
+                  >
+                    {t(link.labelKey)}
+                  </a>
+                ) : (
+                  <Link 
+                    key={link.href}
+                    href={link.href} 
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    data-testid={`link-nav-${link.labelKey.split('.')[1]}`}
+                  >
+                    {t(link.labelKey)}
+                  </Link>
+                )
               ))}
             </div>
 
@@ -339,14 +356,27 @@ function Navbar() {
         <div className="fixed inset-0 z-40 bg-background pt-20 px-4 lg:hidden">
           <div className="flex flex-col gap-4">
             {navLinks.map((link) => (
-              <Link 
-                key={link.href}
-                href={link.href}
-                className="text-lg font-medium py-3 border-b border-border"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {t(link.labelKey)}
-              </Link>
+              link.external ? (
+                <a 
+                  key={link.href}
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-lg font-medium py-3 border-b border-border"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {t(link.labelKey)}
+                </a>
+              ) : (
+                <Link 
+                  key={link.href}
+                  href={link.href}
+                  className="text-lg font-medium py-3 border-b border-border"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {t(link.labelKey)}
+                </Link>
+              )
             ))}
             <div className="flex flex-col gap-3 pt-4">
               <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
@@ -811,6 +841,148 @@ function HeroSection() {
                     {t('hero.ctaSecondary')}
                   </Button>
                 </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Chat Platform Promo Section */}
+      <div className="relative bg-gradient-to-br from-purple-50 via-indigo-50 to-blue-50 dark:from-purple-950/30 dark:via-indigo-950/30 dark:to-blue-950/30 py-16 md:py-24 overflow-hidden">
+        <div className="absolute inset-0 bg-grid-pattern opacity-5" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-purple-400/20 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-72 h-72 bg-blue-400/20 rounded-full blur-3xl" />
+        
+        <div className="w-full px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="flex flex-col lg:flex-row items-center gap-12">
+            {/* Left Content */}
+            <div className="flex-1 text-center lg:text-left">
+              <Badge className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white mb-4 px-4 py-1" data-testid="badge-chat-platform-promo">
+                <Sparkles className="w-3 h-3 mr-1" />
+                {t('chatPlatformPromo.badge')}
+              </Badge>
+              <h2 className="text-3xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent" style={{ fontFamily: "'D-DIN', sans-serif" }} data-testid="text-chat-platform-title">
+                {t('chatPlatformPromo.title')}
+              </h2>
+              <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto lg:mx-0" data-testid="text-chat-platform-subtitle">
+                {t('chatPlatformPromo.subtitle')}
+              </p>
+              
+              {/* Feature Points */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                <div className="flex items-center gap-3 justify-center lg:justify-start" data-testid="feature-chat-platform-inbox">
+                  <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                    <Inbox className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-sm">{t('chatPlatformPromo.feature1')}</p>
+                    <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.feature1Desc')}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 justify-center lg:justify-start" data-testid="feature-chat-platform-notifications">
+                  <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
+                    <Bell className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-sm">{t('chatPlatformPromo.feature2')}</p>
+                    <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.feature2Desc')}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 justify-center lg:justify-start" data-testid="feature-chat-platform-multistore">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                    <Store className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-sm">{t('chatPlatformPromo.feature3')}</p>
+                    <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.feature3Desc')}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <a 
+                href="https://chat.chatvice.app" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-block"
+                data-testid="link-chat-platform-cta"
+              >
+                <Button 
+                  size="lg" 
+                  className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-8 font-semibold"
+                  data-testid="button-chat-platform-cta"
+                >
+                  {t('chatPlatformPromo.cta')}
+                  <ExternalLink className="w-4 h-4 ml-2" />
+                </Button>
+              </a>
+            </div>
+            
+            {/* Right - Phone Mockup */}
+            <div className="flex-1 flex justify-center">
+              <div className="relative">
+                {/* Phone Frame */}
+                <div className="relative w-[280px] h-[560px] bg-gray-900 rounded-[3rem] p-3 shadow-2xl">
+                  {/* Screen */}
+                  <div className="w-full h-full bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600 rounded-[2.5rem] overflow-hidden relative">
+                    {/* Status Bar */}
+                    <div className="flex items-center justify-between px-6 py-3">
+                      <span className="text-white text-xs font-medium">9:41</span>
+                      <div className="flex items-center gap-1">
+                        <div className="w-4 h-2 border border-white rounded-sm">
+                          <div className="w-3 h-1 bg-white rounded-sm m-0.5" />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* App Content */}
+                    <div className="px-4 pt-2">
+                      <div className="text-center mb-4">
+                        <div className="w-16 h-16 bg-white rounded-2xl mx-auto mb-2 flex items-center justify-center shadow-lg">
+                          <MessageCircle className="w-8 h-8 text-purple-600" />
+                        </div>
+                        <h3 className="text-white font-bold text-lg">Chatvice</h3>
+                        <p className="text-white/70 text-xs">Chat Platform</p>
+                      </div>
+                      
+                      {/* Chat Preview Cards */}
+                      <div className="space-y-2">
+                        <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3 flex items-center gap-3">
+                          <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+                            <Store className="w-5 h-5 text-purple-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white font-semibold text-sm truncate">TechStore ID</p>
+                            <p className="text-white/70 text-xs truncate">Your order has been shipped!</p>
+                          </div>
+                          <div className="w-2 h-2 bg-green-400 rounded-full" />
+                        </div>
+                        <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3 flex items-center gap-3">
+                          <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+                            <Store className="w-5 h-5 text-indigo-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white font-semibold text-sm truncate">Fashion Hub</p>
+                            <p className="text-white/70 text-xs truncate">Thanks for your purchase...</p>
+                          </div>
+                        </div>
+                        <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3 flex items-center gap-3">
+                          <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+                            <Store className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white font-semibold text-sm truncate">Gadget World</p>
+                            <p className="text-white/70 text-xs truncate">Hi! How can we help?</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Home Indicator */}
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 bg-white/50 rounded-full" />
+                </div>
+                {/* Decorative Elements */}
+                <div className="absolute -top-4 -right-4 w-20 h-20 bg-gradient-to-br from-purple-400 to-indigo-400 rounded-full blur-xl opacity-50" />
+                <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-gradient-to-br from-blue-400 to-indigo-400 rounded-full blur-xl opacity-50" />
               </div>
             </div>
           </div>

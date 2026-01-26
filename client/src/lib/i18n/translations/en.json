@@ -6,6 +6,7 @@
     "api": "API",
     "faq": "FAQ",
     "about": "About",
+    "chatPlatform": "Chat Platform",
     "signIn": "Sign in",
     "getStarted": "Get Started Free",
     "dashboard": "Dashboard"
@@ -190,5 +191,17 @@
     "minPayout": "$50 Minimum",
     "minPayoutDesc": "Low payout threshold",
     "joinNow": "Join Affiliate Program"
+  },
+  "chatPlatformPromo": {
+    "badge": "New Feature",
+    "title": "Customer Chat Platform",
+    "subtitle": "A dedicated mobile-first chat experience for your customers. Unified inbox, instant notifications, and seamless connection with all your favorite stores.",
+    "feature1": "Unified Inbox",
+    "feature1Desc": "All your conversations in one place",
+    "feature2": "Instant Notifications",
+    "feature2Desc": "Never miss a message",
+    "feature3": "Multi-Store Support",
+    "feature3Desc": "Connect with multiple businesses",
+    "cta": "Try Chat Platform"
   }
 }

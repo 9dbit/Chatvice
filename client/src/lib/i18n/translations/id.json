@@ -6,6 +6,7 @@
     "api": "API",
     "faq": "FAQ",
     "about": "Tentang",
+    "chatPlatform": "Chat Platform",
     "signIn": "Masuk",
     "getStarted": "Mulai Gratis",
     "dashboard": "Dashboard"
@@ -190,5 +191,17 @@
     "minPayout": "Minimum $50",
     "minPayoutDesc": "Ambang batas pembayaran rendah",
     "joinNow": "Gabung Program Afiliasi"
+  },
+  "chatPlatformPromo": {
+    "badge": "Fitur Baru",
+    "title": "Platform Chat Pelanggan",
+    "subtitle": "Pengalaman chat mobile-first khusus untuk pelanggan Anda. Kotak masuk terpadu, notifikasi instan, dan koneksi mulus dengan semua toko favorit.",
+    "feature1": "Kotak Masuk Terpadu",
+    "feature1Desc": "Semua percakapan dalam satu tempat",
+    "feature2": "Notifikasi Instan",
+    "feature2Desc": "Jangan lewatkan satu pesan pun",
+    "feature3": "Dukungan Multi-Toko",
+    "feature3Desc": "Terhubung dengan banyak bisnis",
+    "cta": "Coba Chat Platform"
   }
 }

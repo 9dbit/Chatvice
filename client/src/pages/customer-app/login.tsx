@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Phone, ArrowRight, Globe, Sparkles, Users, Store, MessageSquare, Smartphone, Shield, Zap, Lock, ArrowLeft } from "lucide-react";
+import { Phone, ArrowRight, Globe, Users, Store, MessageSquare, Smartphone, Shield, Zap, Lock, ArrowLeft } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import { apiRequest } from "@/lib/queryClient";
 import { chatRoutes } from "@/lib/chat-routes";
@@ -192,23 +192,11 @@ export default function CustomerLoginPage() {
     <div className="min-h-screen bg-gradient-to-br from-violet-950 via-background to-primary/20 flex flex-col relative overflow-hidden">
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMtOS45NDEgMC0xOCA4LjA1OS0xOCAxOHM4LjA1OSAxOCAxOCAxOCAxOC04LjA1OSAxOC0xOC04LjA1OS0xOC0xOC0xOHptMCAzMmMtNy43MzIgMC0xNC02LjI2OC0xNC0xNHM2LjI2OC0xNCAxNC0xNCAxNCA2LjI2OCAxNCAxNC02LjI2OCAxNC0xNCAxNHoiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiLz48L2c+PC9zdmc+')] opacity-30" />
       
-      <header className="p-4 flex flex-wrap items-center justify-between gap-4 border-b border-white/10 bg-background/30 backdrop-blur-xl sticky top-0 z-[9999]">
-        <a href="/" className="flex flex-wrap items-center gap-2" data-testid="link-home">
-          <img 
-            src={chatviceLogoLight} 
-            alt="Chatvice" 
-            className="h-8 dark:hidden"
-          />
-          <img 
-            src={chatviceLogoDark} 
-            alt="Chatvice" 
-            className="h-8 hidden dark:block"
-          />
-        </a>
+      <header className="p-4 flex flex-wrap items-center justify-end gap-4 border-b border-white/10 bg-background/30 backdrop-blur-xl sticky top-0 z-[9999]">
         <Button variant="outline" size="sm" asChild data-testid="button-visit-website">
-          <a href="/">
+          <a href="https://chatvice.app">
             <Globe className="w-4 h-4 mr-2" />
-            Visit Website
+            Visit Chatvice.app
           </a>
         </Button>
       </header>
@@ -221,12 +209,12 @@ export default function CustomerLoginPage() {
                 <img 
                   src={chatviceLogoLight} 
                   alt="Chatvice" 
-                  className="h-12 dark:hidden"
+                  className="h-10 dark:hidden"
                 />
                 <img 
                   src={chatviceLogoDark} 
                   alt="Chatvice" 
-                  className="h-12 hidden dark:block"
+                  className="h-10 hidden dark:block"
                 />
               </div>
               
@@ -237,21 +225,21 @@ export default function CustomerLoginPage() {
                       Welcome
                     </h1>
                     <p className="text-muted-foreground text-sm">
-                      Sign in or register with your phone number to start chatting with your favorite stores
+                      Sign in or register with your phone number and continue to Chat platform
                     </p>
                   </div>
                   
                   <div className="grid grid-cols-3 gap-3 pt-2">
                     <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
-                      <Store className="w-4 h-4 text-primary" />
+                      <Store className="w-4 h-4 text-white" />
                       <span className="text-[10px] text-muted-foreground">Browse Stores</span>
                     </div>
                     <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
-                      <Users className="w-4 h-4 text-primary" />
+                      <Users className="w-4 h-4 text-white" />
                       <span className="text-[10px] text-muted-foreground">Save Contacts</span>
                     </div>
                     <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
-                      <MessageSquare className="w-4 h-4 text-primary" />
+                      <MessageSquare className="w-4 h-4 text-white" />
                       <span className="text-[10px] text-muted-foreground">Chat History</span>
                     </div>
                   </div>
@@ -458,7 +446,6 @@ export default function CustomerLoginPage() {
                   
                   <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-violet-500/10 border border-primary/20">
                     <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <Sparkles className="w-4 h-4 text-primary" />
                       <span className="text-sm font-medium">Already have an account?</span>
                     </div>
                     <p className="text-xs text-muted-foreground">
