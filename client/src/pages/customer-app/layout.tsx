@@ -16,9 +16,10 @@ interface CustomerData {
 
 interface CustomerLayoutProps {
   children: React.ReactNode;
+  hideHeader?: boolean;
 }
 
-export default function CustomerLayout({ children }: CustomerLayoutProps) {
+export default function CustomerLayout({ children, hideHeader }: CustomerLayoutProps) {
   const [location] = useLocation();
   
   const { data: customer } = useQuery<CustomerData>({
@@ -34,23 +35,25 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="h-14 px-4 flex flex-wrap items-center justify-between gap-2 glass-header sticky top-0 z-[9999]">
-        <Link href={chatRoutes.inbox()} className="flex flex-wrap items-center gap-2" data-testid="link-chatvice-home">
-          <img 
-            src={chatviceIcon} 
-            alt="Chatvice" 
-            className="h-8 w-8"
-          />
-          <span className="font-semibold text-lg hidden sm:inline bg-gradient-to-r from-primary via-violet-400 to-primary bg-clip-text text-transparent">Chatvice</span>
-        </Link>
-        
-        <div className="flex flex-wrap items-center gap-2">
-          <ThemeToggle />
-          <span className="text-sm font-medium hidden sm:inline text-muted-foreground">
-            {customer?.displayName || "Guest"}
-          </span>
-        </div>
-      </header>
+      {!hideHeader && (
+        <header className="h-14 px-4 flex flex-wrap items-center justify-between gap-2 glass-header sticky top-0 z-[9999]">
+          <Link href={chatRoutes.inbox()} className="flex flex-wrap items-center gap-2" data-testid="link-chatvice-home">
+            <img 
+              src={chatviceIcon} 
+              alt="Chatvice" 
+              className="h-8 w-8"
+            />
+            <span className="font-semibold text-lg hidden sm:inline bg-gradient-to-r from-primary via-violet-400 to-primary bg-clip-text text-transparent">Chatvice</span>
+          </Link>
+          
+          <div className="flex flex-wrap items-center gap-2">
+            <ThemeToggle />
+            <span className="text-sm font-medium hidden sm:inline text-muted-foreground">
+              {customer?.displayName || "Guest"}
+            </span>
+          </div>
+        </header>
+      )}
       
       <main className="flex-1 overflow-auto pb-16 sm:pb-0">
         {children}

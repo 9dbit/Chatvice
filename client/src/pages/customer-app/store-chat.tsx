@@ -444,55 +444,42 @@ export default function StoreChatPage() {
   const messageGroups = groupMessagesByDate(allMessages);
 
   return (
-    <div className="fixed inset-0 flex flex-col chat-background-pattern">
-      <header className="flex items-center gap-3 p-3 glass-header z-10">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => navigate(chatRoutes.inbox())}
-          data-testid="button-back"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div className="relative">
-          <Avatar className="w-10 h-10">
-            <AvatarImage src={store.profilePhotoUrl || undefined} />
-            <AvatarFallback className="bg-gradient-to-br from-primary/20 to-violet-500/20">
-              <Store className="w-5 h-5 text-primary" />
-            </AvatarFallback>
-          </Avatar>
-          {store.online && (
-            <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-background" />
-          )}
+    <div className="fixed inset-0 flex flex-col bg-[#F4F5F7] dark:bg-gray-900">
+      <header className="bg-gradient-to-r from-[#4B2CFF] to-[#5B5CFF] px-4 py-3 z-10">
+        <div className="flex items-center gap-3">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => navigate(chatRoutes.inbox())}
+            className="text-white hover:bg-white/10"
+            data-testid="button-back"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <h2 className="flex-1 text-center font-semibold text-white truncate pr-10">{store.companyName || "Store"}</h2>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" data-testid="button-chat-menu">
+                <MoreVertical className="w-5 h-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="rounded-xl">
+              <DropdownMenuItem onClick={() => navigate(chatRoutes.storeInfo(merchantId!))}>
+                View Store Info
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toast({ title: "Coming Soon", description: "This feature is in development" })}>
+                Clear Chat
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={() => toast({ title: "Coming Soon", description: "This feature is in development" })}
+                className="text-destructive"
+              >
+                Block Store
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-        <div className="flex-1 min-w-0">
-          <h2 className="font-medium truncate">{store.companyName || "Store"}</h2>
-          <p className="text-xs text-muted-foreground">
-            {store.online ? "Online" : "Offline"}
-          </p>
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" data-testid="button-chat-menu">
-              <MoreVertical className="w-5 h-5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => navigate(chatRoutes.storeInfo(merchantId!))}>
-              View Store Info
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => toast({ title: "Coming Soon", description: "This feature is in development" })}>
-              Clear Chat
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              onClick={() => toast({ title: "Coming Soon", description: "This feature is in development" })}
-              className="text-destructive"
-            >
-              Block Store
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -502,11 +489,12 @@ export default function StoreChatPage() {
           </div>
         ) : messagesError ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="glass-card rounded-xl p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
               <p className="text-sm text-destructive mb-2">Failed to load messages</p>
               <Button 
                 variant="outline" 
                 size="sm"
+                className="rounded-xl"
                 onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/customer/store-chats", merchantId, "messages"] })}
               >
                 Retry
@@ -515,15 +503,15 @@ export default function StoreChatPage() {
           </div>
         ) : allMessages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="glass-card rounded-xl p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
               <Avatar className="w-16 h-16 mb-4 mx-auto">
                 <AvatarImage src={store.profilePhotoUrl || undefined} />
-                <AvatarFallback className="bg-gradient-to-br from-primary/20 to-violet-500/20">
-                  <Store className="w-8 h-8 text-primary" />
+                <AvatarFallback className="bg-gradient-to-br from-purple-100 to-indigo-100 text-purple-700">
+                  <Store className="w-8 h-8" />
                 </AvatarFallback>
               </Avatar>
-              <h3 className="font-medium mb-1">{store.companyName}</h3>
-              <p className="text-sm text-muted-foreground max-w-xs">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">{store.companyName}</h3>
+              <p className="text-sm text-gray-500 max-w-xs">
                 {store.welcomeMessage || "Send a message to start the conversation"}
               </p>
             </div>
@@ -533,11 +521,11 @@ export default function StoreChatPage() {
             {messageGroups.map((group) => (
               <div key={group.date}>
                 <div className="flex items-center justify-center my-4">
-                  <span className="text-xs text-muted-foreground glass-card px-3 py-1 rounded-full">
+                  <span className="text-xs text-gray-500 bg-white/80 dark:bg-gray-800/80 px-3 py-1 rounded-full shadow-sm">
                     {formatDateLabel(group.date)}
                   </span>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {group.messages.map((msg) => {
                     const isCustomer = msg.from === "customer";
                     const msgKey = msg.id || msg.clientMessageId || msg.timestamp;
@@ -555,27 +543,27 @@ export default function StoreChatPage() {
                         {!isCustomer && (
                           <Avatar className="w-8 h-8 flex-shrink-0">
                             <AvatarImage src={store.profilePhotoUrl || undefined} />
-                            <AvatarFallback className="bg-gradient-to-br from-primary/20 to-violet-500/20">
-                              <Store className="w-4 h-4 text-primary" />
+                            <AvatarFallback className="bg-gradient-to-br from-purple-100 to-indigo-100 text-purple-700">
+                              <Store className="w-4 h-4" />
                             </AvatarFallback>
                           </Avatar>
                         )}
                         <div
                           className={cn(
-                            "max-w-[75%] rounded-2xl px-4 py-2 shadow-sm",
+                            "max-w-[75%] rounded-2xl px-4 py-2.5 shadow-sm",
                             isCustomer
-                              ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-br-md"
-                              : "glass-card rounded-bl-md"
+                              ? "bg-[#4B2CFF] text-white rounded-br-sm"
+                              : "bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-sm"
                           )}
                         >
                           <MessageContent content={msg.content} />
                           <p
                             className={cn(
                               "text-[10px] mt-1",
-                              isCustomer ? "text-white/70" : "text-muted-foreground"
+                              isCustomer ? "text-white/70" : "text-gray-400"
                             )}
                           >
-                            {format(new Date(msg.timestamp), "HH:mm")}
+                            {format(new Date(msg.timestamp), "h:mma").toLowerCase()}
                             {isPending && " · Sending..."}
                           </p>
                         </div>
@@ -591,34 +579,34 @@ export default function StoreChatPage() {
       </div>
 
       {selectedFile && (
-        <div className="px-3 py-2 glass-header">
-          <div className="flex items-center gap-3 glass-card rounded-lg p-2">
+        <div className="px-4 py-2 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
+          <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-700 rounded-xl p-2">
             {filePreview && filePreview !== "video" && filePreview !== "document" ? (
-              <img src={filePreview} alt="Preview" className="w-12 h-12 rounded object-cover" />
+              <img src={filePreview} alt="Preview" className="w-12 h-12 rounded-lg object-cover" />
             ) : filePreview === "video" ? (
-              <div className="w-12 h-12 rounded bg-muted flex items-center justify-center">
-                <Video className="w-6 h-6 text-muted-foreground" />
+              <div className="w-12 h-12 rounded-lg bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
+                <Video className="w-6 h-6 text-gray-500" />
               </div>
             ) : (
-              <div className="w-12 h-12 rounded bg-muted flex items-center justify-center">
-                <FileText className="w-6 h-6 text-muted-foreground" />
+              <div className="w-12 h-12 rounded-lg bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
+                <FileText className="w-6 h-6 text-gray-500" />
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{selectedFile.name}</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm font-medium truncate text-gray-900 dark:text-white">{selectedFile.name}</p>
+              <p className="text-xs text-gray-500">
                 {(selectedFile.size / 1024).toFixed(1)} KB
               </p>
             </div>
-            <Button variant="ghost" size="icon" onClick={clearSelectedFile} data-testid="button-remove-file">
+            <Button variant="ghost" size="icon" onClick={clearSelectedFile} className="text-gray-500" data-testid="button-remove-file">
               <X className="w-4 h-4" />
             </Button>
           </div>
         </div>
       )}
 
-      <div className="glass-header p-3" style={{ borderTop: '1px solid rgba(0,0,0,0.08)', borderBottom: 'none' }}>
-        <div className="flex items-center gap-2">
+      <div className="bg-white dark:bg-gray-800 px-4 py-3 border-t border-gray-100 dark:border-gray-700">
+        <div className="flex items-center gap-3">
           <input
             ref={fileInputRef}
             type="file"
@@ -632,12 +620,13 @@ export default function StoreChatPage() {
               <Button
                 variant="ghost"
                 size="icon"
+                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                 data-testid="button-attach"
               >
                 <Paperclip className="w-5 h-5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
+            <DropdownMenuContent align="start" className="rounded-xl">
               <DropdownMenuItem onClick={() => {
                 fileInputRef.current?.setAttribute("accept", "image/*");
                 fileInputRef.current?.click();
@@ -661,14 +650,14 @@ export default function StoreChatPage() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <div className="flex-1 relative">
+          <div className="flex-1">
             <Input
               ref={inputRef}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type a message..."
-              className="pr-12 glass-input"
+              placeholder="Type your message here"
+              className="h-11 rounded-full bg-gray-100 dark:bg-gray-700 border-0 px-4"
               disabled={sendMessageMutation.isPending || uploadMediaMutation.isPending}
               data-testid="input-message"
             />
@@ -677,7 +666,7 @@ export default function StoreChatPage() {
             size="icon"
             onClick={handleSend}
             disabled={(!message.trim() && !selectedFile) || sendMessageMutation.isPending || uploadMediaMutation.isPending}
-            className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white border-0"
+            className="w-11 h-11 rounded-full bg-[#4B2CFF] hover:bg-[#3B1CFF] text-white shadow-md"
             data-testid="button-send"
           >
             {(sendMessageMutation.isPending || uploadMediaMutation.isPending) ? (
