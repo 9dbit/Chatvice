@@ -4,7 +4,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageSquare, Store, Users, Pin, Archive, Plus, Search } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { MessageSquare, Store, Users, Pin, Plus, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import CustomerLayout from "./layout";
 import { formatDistanceToNow } from "date-fns";
@@ -47,9 +48,18 @@ interface PersonalChat {
   unreadCount: number;
 }
 
+interface Contact {
+  id: string;
+  displayName: string;
+  phoneNumber: string | null;
+  avatarUrl: string | null;
+  contactCustomerId: string | null;
+}
+
 export default function CustomerInboxPage() {
   const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
+  const [newChatDialogOpen, setNewChatDialogOpen] = useState(false);
   
   const { data: storeChats = [], isLoading: storeChatsLoading } = useQuery<StoreChat[]>({
     queryKey: ["/api/customer/store-chats"],
@@ -57,6 +67,10 @@ export default function CustomerInboxPage() {
   
   const { data: personalChats = [], isLoading: personalChatsLoading } = useQuery<PersonalChat[]>({
     queryKey: ["/api/customer/personal-chats"],
+  });
+  
+  const { data: contacts = [] } = useQuery<Contact[]>({
+    queryKey: ["/api/customer/contacts"],
   });
   
   const filteredStoreChats = storeChats.filter(chat => 
@@ -73,11 +87,20 @@ export default function CustomerInboxPage() {
     0
   );
   
+  const handleStartChat = (contact: Contact) => {
+    setNewChatDialogOpen(false);
+    if (contact.contactCustomerId) {
+      navigate(`/chat/personal/new/${contact.contactCustomerId}`);
+    } else {
+      navigate("/chat/contacts");
+    }
+  };
+  
   return (
     <CustomerLayout>
       <div className="sm:ml-64">
         <div className="max-w-2xl mx-auto p-4">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
             <div>
               <h1 className="text-2xl font-bold">Messages</h1>
               {totalUnread > 0 && (
@@ -86,9 +109,71 @@ export default function CustomerInboxPage() {
                 </p>
               )}
             </div>
-            <Button size="icon" variant="outline" onClick={() => navigate("/chat/stores")}>
-              <Plus className="w-4 h-4" />
-            </Button>
+            
+            <Dialog open={newChatDialogOpen} onOpenChange={setNewChatDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="icon" variant="outline" data-testid="button-new-chat">
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Start New Conversation</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  {contacts.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                      <h3 className="font-medium mb-2">No contacts yet</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Add contacts to start personal conversations
+                      </p>
+                      <Button onClick={() => { setNewChatDialogOpen(false); navigate("/chat/contacts"); }} data-testid="button-add-contacts">
+                        Add Contacts
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="divide-y max-h-[300px] overflow-y-auto">
+                      {contacts.map((contact) => (
+                        <button
+                          key={contact.id}
+                          onClick={() => handleStartChat(contact)}
+                          className="flex flex-wrap items-center gap-3 p-3 w-full hover:bg-muted/50 transition-colors text-left"
+                          data-testid={`contact-${contact.id}`}
+                        >
+                          <Avatar className="w-10 h-10">
+                            <AvatarImage src={contact.avatarUrl || undefined} />
+                            <AvatarFallback>
+                              <Users className="w-4 h-4" />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{contact.displayName}</p>
+                            {contact.phoneNumber && (
+                              <p className="text-sm text-muted-foreground truncate">
+                                {contact.phoneNumber}
+                              </p>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <div className="pt-4 border-t">
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => { setNewChatDialogOpen(false); navigate("/chat/stores"); }}
+                      data-testid="button-browse-stores-dialog"
+                    >
+                      <Store className="w-4 h-4 mr-2" />
+                      Chat with Official Stores
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
           
           <div className="relative mb-4">
@@ -128,7 +213,7 @@ export default function CustomerInboxPage() {
               {storeChatsLoading ? (
                 <div className="space-y-4">
                   {[1, 2, 3].map(i => (
-                    <div key={i} className="animate-pulse flex items-center gap-3 p-3">
+                    <div key={i} className="animate-pulse flex flex-wrap items-center gap-3 p-3">
                       <div className="w-12 h-12 rounded-full bg-muted" />
                       <div className="flex-1 space-y-2">
                         <div className="h-4 bg-muted rounded w-1/3" />
@@ -154,7 +239,7 @@ export default function CustomerInboxPage() {
                     <Link
                       key={chat.id}
                       href={`/chat/store/${chat.merchantId}`}
-                      className="flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors"
+                      className="flex flex-wrap items-center gap-3 p-3 hover:bg-muted/50 transition-colors"
                       data-testid={`chat-store-${chat.merchantId}`}
                     >
                       <div className="relative">
@@ -169,8 +254,8 @@ export default function CustomerInboxPage() {
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2 min-w-0">
                             <span className="font-medium truncate">
                               {chat.merchant?.companyName || "Unknown Store"}
                             </span>
@@ -182,7 +267,7 @@ export default function CustomerInboxPage() {
                             }
                           </span>
                         </div>
-                        <div className="flex items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
                           <p className="text-sm text-muted-foreground truncate">
                             {chat.lastMessage?.content || "No messages yet"}
                           </p>
@@ -203,7 +288,7 @@ export default function CustomerInboxPage() {
               {personalChatsLoading ? (
                 <div className="space-y-4">
                   {[1, 2, 3].map(i => (
-                    <div key={i} className="animate-pulse flex items-center gap-3 p-3">
+                    <div key={i} className="animate-pulse flex flex-wrap items-center gap-3 p-3">
                       <div className="w-12 h-12 rounded-full bg-muted" />
                       <div className="flex-1 space-y-2">
                         <div className="h-4 bg-muted rounded w-1/3" />
@@ -229,7 +314,7 @@ export default function CustomerInboxPage() {
                     <Link
                       key={chat.id}
                       href={`/chat/personal/${chat.id}`}
-                      className="flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors"
+                      className="flex flex-wrap items-center gap-3 p-3 hover:bg-muted/50 transition-colors"
                       data-testid={`chat-personal-${chat.id}`}
                     >
                       <Avatar className="w-12 h-12">
@@ -239,7 +324,7 @@ export default function CustomerInboxPage() {
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
                           <span className="font-medium truncate">
                             {chat.otherParticipant?.displayName || chat.otherParticipant?.phoneNumber || "Unknown"}
                           </span>
@@ -249,7 +334,7 @@ export default function CustomerInboxPage() {
                             }
                           </span>
                         </div>
-                        <div className="flex items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
                           <p className="text-sm text-muted-foreground truncate">
                             {chat.lastMessage?.content || "No messages yet"}
                           </p>

@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Phone, ArrowRight, Globe, Sparkles, Users, Store, MessageSquare, Smartphone, Shield, Zap } from "lucide-react";
+import { Phone, ArrowRight, Globe, Sparkles, Users, Store, MessageSquare, Smartphone, Shield, Zap, Lock, ArrowLeft } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import { apiRequest } from "@/lib/queryClient";
 import chatviceLogoLight from "@assets/Chatvice-02_1764703423166.png";
@@ -46,12 +46,68 @@ const countryCodes = [
   { code: "+234", country: "NG" },
 ];
 
+type LoginStep = "phone" | "pin" | "otp-method";
+
+interface PhoneCheckResult {
+  exists: boolean;
+  hasPIN: boolean;
+  phoneNumber: string;
+  displayName?: string;
+}
+
 export default function CustomerLoginPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [countryCode, setCountryCode] = useState("+62");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [pinCode, setPinCode] = useState("");
   const [deliveryMethod, setDeliveryMethod] = useState<"sms" | "whatsapp">("whatsapp");
+  const [step, setStep] = useState<LoginStep>("phone");
+  const [phoneCheckResult, setPhoneCheckResult] = useState<PhoneCheckResult | null>(null);
+  
+  const checkPhoneMutation = useMutation({
+    mutationFn: async (data: { phoneNumber: string; countryCode: string }) => {
+      const res = await apiRequest("POST", "/api/customer/check-phone", data);
+      return res.json();
+    },
+    onSuccess: (data: PhoneCheckResult) => {
+      setPhoneCheckResult(data);
+      if (data.hasPIN) {
+        setStep("pin");
+      } else {
+        setStep("otp-method");
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to check phone number",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const loginPinMutation = useMutation({
+    mutationFn: async (data: { phoneNumber: string; pinCode: string }) => {
+      const res = await apiRequest("POST", "/api/customer/login-pin", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Welcome back!",
+        description: "Login successful",
+      });
+      navigate("/chat/inbox");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Login Failed",
+        description: error.message || "Invalid PIN code",
+        variant: "destructive",
+      });
+      setPinCode("");
+    },
+  });
   
   const requestOTPMutation = useMutation({
     mutationFn: async (data: { phoneNumber: string; countryCode: string; method: string }) => {
@@ -75,7 +131,7 @@ export default function CustomerLoginPage() {
     },
   });
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handlePhoneSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!phoneNumber.trim()) {
@@ -87,7 +143,48 @@ export default function CustomerLoginPage() {
       return;
     }
     
-    requestOTPMutation.mutate({ phoneNumber, countryCode, method: deliveryMethod });
+    checkPhoneMutation.mutate({ phoneNumber, countryCode });
+  };
+  
+  const handlePinSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!pinCode || pinCode.length !== 6) {
+      toast({
+        title: "Error",
+        description: "Please enter your 6-digit PIN",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (phoneCheckResult) {
+      loginPinMutation.mutate({ phoneNumber: phoneCheckResult.phoneNumber, pinCode });
+    }
+  };
+  
+  const handleOTPSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (phoneCheckResult) {
+      requestOTPMutation.mutate({ 
+        phoneNumber: phoneCheckResult.phoneNumber, 
+        countryCode: "", 
+        method: deliveryMethod 
+      });
+    }
+  };
+  
+  const handleBack = () => {
+    setStep("phone");
+    setPhoneCheckResult(null);
+    setPinCode("");
+  };
+  
+  const handleForgotPIN = () => {
+    if (phoneCheckResult) {
+      setStep("otp-method");
+    }
   };
   
   return (
@@ -132,139 +229,254 @@ export default function CustomerLoginPage() {
                 />
               </div>
               
-              <div className="space-y-2">
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-primary via-violet-400 to-primary bg-clip-text text-transparent">
-                  Welcome
-                </h1>
-                <p className="text-muted-foreground text-sm">
-                  Sign in or register with your phone number to start chatting with your favorite stores
-                </p>
-              </div>
+              {step === "phone" && (
+                <>
+                  <div className="space-y-2">
+                    <h1 className="text-2xl font-bold bg-gradient-to-r from-primary via-violet-400 to-primary bg-clip-text text-transparent">
+                      Welcome
+                    </h1>
+                    <p className="text-muted-foreground text-sm">
+                      Sign in or register with your phone number to start chatting with your favorite stores
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-3 pt-2">
+                    <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
+                      <Store className="w-4 h-4 text-primary" />
+                      <span className="text-[10px] text-muted-foreground">Browse Stores</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
+                      <Users className="w-4 h-4 text-primary" />
+                      <span className="text-[10px] text-muted-foreground">Save Contacts</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
+                      <MessageSquare className="w-4 h-4 text-primary" />
+                      <span className="text-[10px] text-muted-foreground">Chat History</span>
+                    </div>
+                  </div>
+                </>
+              )}
               
-              <div className="grid grid-cols-3 gap-3 pt-2">
-                <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
-                  <Store className="w-4 h-4 text-primary" />
-                  <span className="text-[10px] text-muted-foreground">Browse Stores</span>
+              {step === "pin" && (
+                <div className="space-y-2">
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-primary via-violet-400 to-primary bg-clip-text text-transparent">
+                    Welcome Back{phoneCheckResult?.displayName ? `, ${phoneCheckResult.displayName}` : ''}
+                  </h1>
+                  <p className="text-muted-foreground text-sm">
+                    Enter your 6-digit PIN to continue
+                  </p>
                 </div>
-                <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
-                  <Users className="w-4 h-4 text-primary" />
-                  <span className="text-[10px] text-muted-foreground">Save Contacts</span>
+              )}
+              
+              {step === "otp-method" && (
+                <div className="space-y-2">
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-primary via-violet-400 to-primary bg-clip-text text-transparent">
+                    Verify Your Phone
+                  </h1>
+                  <p className="text-muted-foreground text-sm">
+                    We'll send a verification code to {phoneCheckResult?.phoneNumber}
+                  </p>
                 </div>
-                <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
-                  <MessageSquare className="w-4 h-4 text-primary" />
-                  <span className="text-[10px] text-muted-foreground">Chat History</span>
-                </div>
-              </div>
+              )}
             </CardHeader>
             
             <CardContent className="space-y-5">
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-sm font-medium">Phone Number</Label>
-                  <div className="flex flex-wrap gap-2">
-                    <Select value={countryCode} onValueChange={setCountryCode}>
-                      <SelectTrigger className="w-[100px] bg-white/5 border-white/10" data-testid="select-country-code">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {countryCodes.map((c) => (
-                          <SelectItem key={c.code} value={c.code} data-testid={`select-item-${c.country}`}>
-                            <span className="flex flex-wrap items-center gap-2">
-                              <span className="text-xs text-muted-foreground">{c.country}</span>
-                              <span>{c.code}</span>
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="8123456789"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      className="flex-1 bg-white/5 border-white/10"
-                      data-testid="input-phone"
-                    />
+              {step === "phone" && (
+                <form onSubmit={handlePhoneSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone" className="text-sm font-medium">Phone Number</Label>
+                    <div className="flex flex-wrap gap-2">
+                      <Select value={countryCode} onValueChange={setCountryCode}>
+                        <SelectTrigger className="w-[100px] bg-white/5 border-white/10" data-testid="select-country-code">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {countryCodes.map((c) => (
+                            <SelectItem key={c.code} value={c.code} data-testid={`select-item-${c.country}`}>
+                              <span className="flex flex-wrap items-center gap-2">
+                                <span className="text-xs text-muted-foreground">{c.country}</span>
+                                <span>{c.code}</span>
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="8123456789"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        className="flex-1 bg-white/5 border-white/10"
+                        data-testid="input-phone"
+                      />
+                    </div>
                   </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Send verification code via:</Label>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={deliveryMethod === "whatsapp" ? "default" : "outline"}
-                      onClick={() => setDeliveryMethod("whatsapp")}
-                      className={`flex-1 ${deliveryMethod === "whatsapp" ? "bg-green-600 dark:bg-green-700" : ""}`}
-                      data-testid="button-method-whatsapp"
-                    >
-                      <SiWhatsapp className="w-3.5 h-3.5 mr-1.5" />
-                      WhatsApp
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={deliveryMethod === "sms" ? "default" : "outline"}
-                      onClick={() => setDeliveryMethod("sms")}
-                      className="flex-1"
-                      data-testid="button-method-sms"
-                    >
-                      <Smartphone className="w-3.5 h-3.5 mr-1.5" />
-                      SMS
-                    </Button>
+                  
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    size="lg"
+                    disabled={checkPhoneMutation.isPending}
+                    data-testid="button-continue"
+                  >
+                    {checkPhoneMutation.isPending ? "Checking..." : "Continue"}
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </form>
+              )}
+              
+              {step === "pin" && (
+                <form onSubmit={handlePinSubmit} className="space-y-4">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleBack}
+                    className="mb-2"
+                    data-testid="button-back"
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Back
+                  </Button>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="pin" className="text-sm font-medium">Enter PIN</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="pin"
+                        type="password"
+                        inputMode="numeric"
+                        pattern="\d*"
+                        maxLength={6}
+                        placeholder="Enter 6-digit PIN"
+                        value={pinCode}
+                        onChange={(e) => setPinCode(e.target.value.replace(/\D/g, ''))}
+                        className="pl-10 bg-white/5 border-white/10 text-center tracking-widest text-lg"
+                        data-testid="input-pin"
+                      />
+                    </div>
                   </div>
-                  {deliveryMethod === "sms" && countryCode !== "+1" && (
-                    <p className="text-[10px] text-amber-500 dark:text-amber-400" data-testid="text-sms-warning">
-                      SMS may not be available for international numbers. We recommend using WhatsApp.
+                  
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    size="lg"
+                    disabled={loginPinMutation.isPending || pinCode.length !== 6}
+                    data-testid="button-login"
+                  >
+                    {loginPinMutation.isPending ? "Signing in..." : "Sign In"}
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                  
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full text-sm text-primary hover:text-primary"
+                    onClick={handleForgotPIN}
+                    data-testid="button-forgot-pin"
+                  >
+                    Forgot PIN? Verify with OTP
+                  </Button>
+                </form>
+              )}
+              
+              {step === "otp-method" && (
+                <form onSubmit={handleOTPSubmit} className="space-y-4">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleBack}
+                    className="mb-2"
+                    data-testid="button-back"
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Back
+                  </Button>
+                  
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Send verification code via:</Label>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={deliveryMethod === "whatsapp" ? "default" : "outline"}
+                        onClick={() => setDeliveryMethod("whatsapp")}
+                        className={`flex-1 ${deliveryMethod === "whatsapp" ? "bg-green-600 dark:bg-green-700" : ""}`}
+                        data-testid="button-method-whatsapp"
+                      >
+                        <SiWhatsapp className="w-3.5 h-3.5 mr-1.5" />
+                        WhatsApp
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={deliveryMethod === "sms" ? "default" : "outline"}
+                        onClick={() => setDeliveryMethod("sms")}
+                        className="flex-1"
+                        data-testid="button-method-sms"
+                      >
+                        <Smartphone className="w-3.5 h-3.5 mr-1.5" />
+                        SMS
+                      </Button>
+                    </div>
+                    {deliveryMethod === "sms" && (
+                      <p className="text-[10px] text-amber-500 dark:text-amber-400" data-testid="text-sms-warning">
+                        SMS may not be available for international numbers. We recommend using WhatsApp.
+                      </p>
+                    )}
+                  </div>
+                  
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    size="lg"
+                    disabled={requestOTPMutation.isPending}
+                    data-testid="button-send-otp"
+                  >
+                    {requestOTPMutation.isPending 
+                      ? `Sending via ${deliveryMethod === "whatsapp" ? "WhatsApp" : "SMS"}...` 
+                      : "Send Verification Code"}
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </form>
+              )}
+              
+              {step === "phone" && (
+                <>
+                  <div className="relative">
+                    <div className="absolute inset-0 flex flex-wrap items-center">
+                      <div className="w-full border-t border-white/10" />
+                    </div>
+                    <div className="relative flex flex-wrap justify-center gap-1 text-xs">
+                      <span className="bg-card px-2 text-muted-foreground">or</span>
+                    </div>
+                  </div>
+                  
+                  <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-violet-500/10 border border-primary/20">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <Sparkles className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-medium">Already have an account?</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Enter your registered phone number to log in with your PIN
                     </p>
-                  )}
-                </div>
-                
-                <Button 
-                  type="submit" 
-                  className="w-full" 
-                  size="lg"
-                  disabled={requestOTPMutation.isPending}
-                  data-testid="button-continue"
-                >
-                  {requestOTPMutation.isPending 
-                    ? `Sending via ${deliveryMethod === "whatsapp" ? "WhatsApp" : "SMS"}...` 
-                    : "Continue"}
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </form>
-              
-              <div className="relative">
-                <div className="absolute inset-0 flex flex-wrap items-center">
-                  <div className="w-full border-t border-white/10" />
-                </div>
-                <div className="relative flex flex-wrap justify-center gap-1 text-xs">
-                  <span className="bg-card px-2 text-muted-foreground">or</span>
-                </div>
-              </div>
-              
-              <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-violet-500/10 border border-primary/20">
-                <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <Sparkles className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium">Already have an account?</span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Enter your registered phone number to log in to your Chatvice account
-                </p>
-              </div>
-              
-              <div className="flex flex-wrap items-center justify-center gap-4 text-[10px] text-muted-foreground">
-                <span className="flex flex-wrap items-center gap-1">
-                  <Shield className="w-3 h-3" />
-                  Secure & Encrypted
-                </span>
-                <span className="flex flex-wrap items-center gap-1">
-                  <Zap className="w-3 h-3" />
-                  Instant Verification
-                </span>
-              </div>
+                  </div>
+                  
+                  <div className="flex flex-wrap items-center justify-center gap-4 text-[10px] text-muted-foreground">
+                    <span className="flex flex-wrap items-center gap-1">
+                      <Shield className="w-3 h-3" />
+                      Secure & Encrypted
+                    </span>
+                    <span className="flex flex-wrap items-center gap-1">
+                      <Zap className="w-3 h-3" />
+                      Instant Verification
+                    </span>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
           

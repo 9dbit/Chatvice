@@ -7830,6 +7830,24 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     }
   });
 
+  // Get all Chatvice Members (customers) for admin panel
+  app.get("/api/admin/customers", requireAdmin, async (req, res) => {
+    try {
+      const allCustomers = await storage.getAllCustomers();
+      
+      // Return safe customer data (without pinCode hash)
+      const safeCustomers = allCustomers.map(({ pinCode, ...customer }) => ({
+        ...customer,
+        hasPIN: !!pinCode,
+      }));
+      
+      res.json(safeCustomers);
+    } catch (error) {
+      console.error("Get admin customers error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/admin/merchants", requireAdmin, async (req, res) => {
     try {
       const merchants = await storage.getAllMerchants();
@@ -17715,6 +17733,102 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
   
+  // Check if phone number exists and has PIN set (for login flow decision)
+  app.post("/api/customer/check-phone", async (req, res) => {
+    try {
+      const { phoneNumber, countryCode } = req.body;
+      
+      if (!phoneNumber) {
+        return res.status(400).json({ error: "Phone number is required" });
+      }
+      
+      // Normalize phone number to E.164 format
+      const { normalizePhoneNumber } = await import("./twilio");
+      const normalizedPhone = normalizePhoneNumber(phoneNumber, countryCode || "+62");
+      
+      // Check if customer exists
+      const customer = await storage.getCustomerByPhone(normalizedPhone);
+      
+      if (customer && customer.pinCode && customer.isProfileCompleted) {
+        // Customer exists with PIN - use PIN login
+        return res.json({ 
+          exists: true, 
+          hasPIN: true,
+          phoneNumber: normalizedPhone,
+          displayName: customer.displayName,
+        });
+      } else if (customer) {
+        // Customer exists but no PIN - need OTP + profile completion
+        return res.json({ 
+          exists: true, 
+          hasPIN: false,
+          phoneNumber: normalizedPhone,
+        });
+      } else {
+        // New customer - need OTP signup
+        return res.json({ 
+          exists: false, 
+          hasPIN: false,
+          phoneNumber: normalizedPhone,
+        });
+      }
+    } catch (error) {
+      console.error("Check phone error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Login with phone + PIN
+  app.post("/api/customer/login-pin", async (req, res) => {
+    try {
+      const { phoneNumber, pinCode } = req.body;
+      
+      if (!phoneNumber || !pinCode) {
+        return res.status(400).json({ error: "Phone number and PIN are required" });
+      }
+      
+      // Get customer by phone
+      const customer = await storage.getCustomerByPhone(phoneNumber);
+      
+      if (!customer || !customer.pinCode) {
+        return res.status(401).json({ error: "Invalid phone number or PIN" });
+      }
+      
+      // Verify PIN
+      const bcrypt = await import("bcrypt");
+      const isValid = await bcrypt.compare(pinCode, customer.pinCode);
+      
+      if (!isValid) {
+        return res.status(401).json({ error: "Invalid phone number or PIN" });
+      }
+      
+      // Update last active
+      await storage.updateCustomer(customer.id, {
+        lastActiveAt: new Date(),
+      });
+      
+      // Set session
+      req.session.userId = customer.id;
+      req.session.userType = "customer";
+      
+      res.json({ 
+        success: true, 
+        customer: {
+          id: customer.id,
+          phoneNumber: customer.phoneNumber,
+          displayName: customer.displayName,
+          avatarUrl: customer.avatarUrl,
+          email: customer.email,
+          isPhoneVerified: customer.isPhoneVerified,
+          isProfileCompleted: customer.isProfileCompleted,
+        },
+      });
+    } catch (error) {
+      console.error("Login PIN error:", error);
+      res.status(500).json({ error: "Login failed" });
+    }
+  });
+  
   // Verify OTP and login/register customer using Twilio Verify API
   app.post("/api/customer/verify-otp", async (req, res) => {
     try {
@@ -17761,7 +17875,9 @@ Please create a comprehensive help center article that would be useful for custo
           phoneNumber: customer!.phoneNumber,
           displayName: customer!.displayName,
           avatarUrl: customer!.avatarUrl,
+          email: customer!.email,
           isPhoneVerified: customer!.isPhoneVerified,
+          isProfileCompleted: customer!.isProfileCompleted,
         },
       });
     } catch (error) {
@@ -17792,6 +17908,7 @@ Please create a comprehensive help center article that would be useful for custo
         avatarUrl: customer.avatarUrl,
         email: customer.email,
         isPhoneVerified: customer.isPhoneVerified,
+        isProfileCompleted: customer.isProfileCompleted,
         notificationsEnabled: customer.notificationsEnabled,
       });
     } catch (error) {
@@ -17810,20 +17927,50 @@ Please create a comprehensive help center article that would be useful for custo
         return res.status(401).json({ error: "Not authenticated" });
       }
       
-      const { displayName, email, avatarUrl, notificationsEnabled } = req.body;
+      const { displayName, email, avatarUrl, notificationsEnabled, pinCode } = req.body;
       
-      const updated = await storage.updateCustomer(customerId, {
-        displayName,
-        email,
-        avatarUrl,
-        notificationsEnabled,
-      });
+      const updateData: any = {};
+      
+      if (displayName !== undefined) updateData.displayName = displayName;
+      if (email !== undefined) updateData.email = email;
+      if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
+      if (notificationsEnabled !== undefined) updateData.notificationsEnabled = notificationsEnabled;
+      
+      // Hash PIN if provided
+      if (pinCode) {
+        if (!/^\d{6}$/.test(pinCode)) {
+          return res.status(400).json({ error: "PIN must be exactly 6 digits" });
+        }
+        const bcrypt = await import("bcrypt");
+        updateData.pinCode = await bcrypt.hash(pinCode, 10);
+      }
+      
+      // Check if profile is now complete (has name, email, and PIN)
+      const currentCustomer = await storage.getCustomer(customerId);
+      const finalName = displayName !== undefined ? displayName : currentCustomer?.displayName;
+      const finalEmail = email !== undefined ? email : currentCustomer?.email;
+      const finalPin = pinCode || currentCustomer?.pinCode;
+      
+      if (finalName && finalEmail && finalPin) {
+        updateData.isProfileCompleted = true;
+      }
+      
+      const updated = await storage.updateCustomer(customerId, updateData);
       
       if (!updated) {
         return res.status(404).json({ error: "Customer not found" });
       }
       
-      res.json(updated);
+      res.json({
+        id: updated.id,
+        phoneNumber: updated.phoneNumber,
+        displayName: updated.displayName,
+        avatarUrl: updated.avatarUrl,
+        email: updated.email,
+        isPhoneVerified: updated.isPhoneVerified,
+        isProfileCompleted: updated.isProfileCompleted,
+        notificationsEnabled: updated.notificationsEnabled,
+      });
     } catch (error) {
       console.error("Update customer profile error:", error);
       res.status(500).json({ error: "Server error" });
@@ -17965,8 +18112,10 @@ Please create a comprehensive help center article that would be useful for custo
         // Get customer info for the session
         const customer = await storage.getCustomer(customerId);
         
-        // Create new session
+        // Create new session with generated ID
+        const sessionId = `sc_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
         const session = await storage.createSession({
+          id: sessionId,
           merchantId,
           agentId: agentId || merchant.activeAgentId || undefined,
           customerName: customer?.displayName || null,

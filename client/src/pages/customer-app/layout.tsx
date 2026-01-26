@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MessageSquare, Store, Users, Settings, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import chatviceIcon from "@assets/Chatvice_1769402303791.png";
 
 interface CustomerData {
   id: string;
@@ -31,33 +32,29 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="h-14 px-4 flex items-center justify-between border-b bg-background/95 backdrop-blur-sm sticky top-0 z-20">
-        <Link href="/chat/inbox" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <MessageSquare className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <span className="font-semibold text-lg hidden sm:inline">Chatvice</span>
+      <header className="h-14 px-4 flex flex-wrap items-center justify-between gap-2 border-b bg-background/95 backdrop-blur-sm sticky top-0 z-[9999]">
+        <Link href="/chat/inbox" className="flex flex-wrap items-center gap-2" data-testid="link-chatvice-home">
+          <img 
+            src={chatviceIcon} 
+            alt="Chatvice" 
+            className="h-8 w-8"
+          />
+          <span className="font-semibold text-lg hidden sm:inline bg-gradient-to-r from-primary via-violet-400 to-primary bg-clip-text text-transparent">Chatvice</span>
         </Link>
         
-        <Link href="/chat/settings" className="flex items-center gap-2">
-          <span className="text-sm font-medium hidden sm:inline">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-medium hidden sm:inline text-muted-foreground">
             {customer?.displayName || "Guest"}
           </span>
-          <Avatar className="w-8 h-8">
-            <AvatarImage src={customer?.avatarUrl || undefined} />
-            <AvatarFallback>
-              <User className="w-4 h-4" />
-            </AvatarFallback>
-          </Avatar>
-        </Link>
+        </div>
       </header>
       
       <main className="flex-1 overflow-auto pb-16 sm:pb-0">
         {children}
       </main>
       
-      <nav className="fixed bottom-0 left-0 right-0 h-16 bg-background border-t sm:hidden z-20">
-        <div className="flex items-center justify-around h-full">
+      <nav className="fixed bottom-0 left-0 right-0 h-16 bg-background border-t sm:hidden z-[9999]">
+        <div className="flex flex-wrap items-center justify-around h-full">
           {navItems.map((item) => {
             const isActive = location.startsWith(item.href);
             return (
@@ -80,7 +77,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
         </div>
       </nav>
       
-      <aside className="hidden sm:flex fixed left-0 top-14 bottom-0 w-64 border-r bg-background flex-col">
+      <aside className="hidden sm:flex fixed left-0 top-14 bottom-0 w-64 border-r bg-background flex-col z-[9998]">
         <nav className="flex-1 p-4 space-y-2">
           {navItems.map((item) => {
             const isActive = location.startsWith(item.href);
@@ -89,7 +86,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+                  "flex flex-wrap items-center gap-3 px-3 py-2 rounded-lg transition-colors",
                   isActive 
                     ? "bg-primary text-primary-foreground" 
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -104,7 +101,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
         </nav>
         
         <div className="p-4 border-t">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Avatar className="w-10 h-10">
               <AvatarImage src={customer?.avatarUrl || undefined} />
               <AvatarFallback>

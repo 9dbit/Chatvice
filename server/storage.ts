@@ -458,6 +458,7 @@ export interface IStorage {
   getLeadsByStage(merchantId: string, stage: string): Promise<Lead[]>;
   
   // Customer App (chat.chatvice.app)
+  getAllCustomers(): Promise<Customer[]>;
   getCustomer(id: string): Promise<Customer | undefined>;
   getCustomerByPhone(phoneNumber: string): Promise<Customer | undefined>;
   createCustomer(data: InsertCustomer): Promise<Customer>;
@@ -3383,6 +3384,10 @@ export class DatabaseStorage implements IStorage {
   // ============================================================================
   // CUSTOMER APP METHODS (chat.chatvice.app)
   // ============================================================================
+  
+  async getAllCustomers(): Promise<Customer[]> {
+    return db.select().from(customers).orderBy(desc(customers.createdAt));
+  }
   
   async getCustomer(id: string): Promise<Customer | undefined> {
     const result = await db.select().from(customers).where(eq(customers.id, id));

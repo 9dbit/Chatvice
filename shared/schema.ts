@@ -2016,7 +2016,9 @@ export const customers = pgTable("customers", {
   displayName: text("display_name"),
   avatarUrl: text("avatar_url"),
   email: text("email"),
+  pinCode: text("pin_code"), // 6-digit PIN for login (hashed)
   isPhoneVerified: boolean("is_phone_verified").default(false),
+  isProfileCompleted: boolean("is_profile_completed").default(false), // True when name, email, PIN are set
   lastActiveAt: timestamp("last_active_at"),
   pushSubscription: jsonb("push_subscription"), // Web push subscription object
   notificationsEnabled: boolean("notifications_enabled").default(true),

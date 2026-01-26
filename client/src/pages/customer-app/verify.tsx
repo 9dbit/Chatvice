@@ -47,7 +47,8 @@ export default function CustomerVerifyPage() {
         description: "Welcome to Chatvice!",
       });
       
-      if (!data.customer.displayName) {
+      // Check if profile is complete (has name, email, PIN)
+      if (!data.customer.isProfileCompleted) {
         navigate("/chat/register");
       } else {
         navigate("/chat/inbox");
