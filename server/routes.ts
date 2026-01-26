@@ -18278,7 +18278,45 @@ Please create a comprehensive help center article that would be useful for custo
         message,
       });
       
+      // Send the customer message immediately, then generate AI response asynchronously
       res.json(message);
+      
+      // Generate AI response in the background for all messages
+      // askChatvice handles mode detection, triggers, and escalation internally
+      const sessionId = storeChat.sessionId!;
+      const storeChatId = storeChat.id;
+      
+      (async () => {
+        try {
+          const aiResult = await askChatvice(sessionId, merchantId, content.trim());
+          
+          // Always broadcast the AI response if it exists (includes trigger/escalation messages)
+          if (aiResult.answer && aiResult.answer.trim()) {
+            // Create AI response message
+            const aiMessage = await storage.createMessage({
+              sessionId,
+              from: "chatvice",
+              content: aiResult.answer,
+              messageType: "text",
+            });
+            
+            // Broadcast AI response via WebSocket
+            broadcastToSession(sessionId, {
+              type: "message",
+              message: aiMessage,
+            });
+            
+            // Update store chat last message time
+            await storage.updateCustomerStoreChat(storeChatId, {
+              lastMessageAt: new Date(),
+            });
+          }
+        } catch (aiError) {
+          console.error("AI response error:", aiError);
+        }
+      })();
+      
+      return; // Response already sent
     } catch (error) {
       console.error("Send store chat message error:", error);
       res.status(500).json({ error: "Server error" });
