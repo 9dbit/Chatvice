@@ -346,21 +346,21 @@ export default function CustomerInboxPage() {
           </div>
           
           <Tabs defaultValue="stores" className="w-full">
-            <TabsList className="w-full glass-card mb-4">
-              <TabsTrigger value="stores" className="flex-1 gap-2">
+            <TabsList className="w-full liquid-glass-tabs mb-4 grid grid-cols-2 h-auto p-1">
+              <TabsTrigger value="stores" className="liquid-glass-tab flex items-center justify-center gap-2">
                 <Store className="w-4 h-4" />
                 Stores
                 {storeChats.filter(c => c.unreadCount > 0).length > 0 && (
-                  <Badge className="ml-1 h-5 min-w-5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white border-0">
+                  <Badge className="ml-1 h-5 min-w-5 bg-white/20 text-inherit border-0">
                     {storeChats.filter(c => c.unreadCount > 0).length}
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="personal" className="flex-1 gap-2">
+              <TabsTrigger value="personal" className="liquid-glass-tab flex items-center justify-center gap-2">
                 <Users className="w-4 h-4" />
                 Personal
                 {personalChats.filter(c => c.unreadCount > 0).length > 0 && (
-                  <Badge className="ml-1 h-5 min-w-5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white border-0">
+                  <Badge className="ml-1 h-5 min-w-5 bg-white/20 text-inherit border-0">
                     {personalChats.filter(c => c.unreadCount > 0).length}
                   </Badge>
                 )}

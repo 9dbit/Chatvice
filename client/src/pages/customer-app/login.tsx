@@ -316,7 +316,7 @@ export default function CustomerLoginPage() {
               )}
               
               {step === "pin" && (
-                <form onSubmit={handlePinSubmit} className="space-y-4">
+                <form onSubmit={handlePinSubmit} className="space-y-6">
                   <Button
                     type="button"
                     variant="ghost"
@@ -329,23 +329,49 @@ export default function CustomerLoginPage() {
                     Back
                   </Button>
                   
-                  <div className="space-y-2">
-                    <Label htmlFor="pin" className="text-sm font-medium">Enter PIN</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="pin"
-                        type="password"
-                        inputMode="numeric"
-                        pattern="\d*"
-                        maxLength={6}
-                        placeholder="Enter 6-digit PIN"
-                        value={pinCode}
-                        onChange={(e) => setPinCode(e.target.value.replace(/\D/g, ''))}
-                        className="pl-10 bg-white/5 border-white/10 text-center tracking-widest text-lg"
-                        data-testid="input-pin"
-                      />
+                  <div className="space-y-4">
+                    <div className="flex justify-center gap-2 sm:gap-3">
+                      {[0, 1, 2, 3, 4, 5].map((index) => (
+                        <input
+                          key={index}
+                          id={`pin-${index}`}
+                          type="password"
+                          inputMode="numeric"
+                          pattern="\d*"
+                          maxLength={1}
+                          value={pinCode[index] || ""}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            if (val.length <= 1) {
+                              const newPin = pinCode.split('');
+                              newPin[index] = val;
+                              setPinCode(newPin.join(''));
+                              if (val && index < 5) {
+                                const nextInput = document.getElementById(`pin-${index + 1}`);
+                                nextInput?.focus();
+                              }
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Backspace' && !pinCode[index] && index > 0) {
+                              const prevInput = document.getElementById(`pin-${index - 1}`);
+                              prevInput?.focus();
+                            }
+                          }}
+                          onPaste={(e) => {
+                            e.preventDefault();
+                            const paste = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+                            setPinCode(paste);
+                            const nextIndex = Math.min(paste.length, 5);
+                            const nextInput = document.getElementById(`pin-${nextIndex}`);
+                            nextInput?.focus();
+                          }}
+                          className="w-10 h-12 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-bold rounded-xl bg-white/10 border-2 border-white/20 focus:border-primary focus:ring-2 focus:ring-primary/30 outline-none transition-all duration-200 backdrop-blur-sm"
+                          data-testid={`input-pin-${index}`}
+                        />
+                      ))}
                     </div>
+                    <input type="hidden" name="pin" value={pinCode} data-testid="input-pin" />
                   </div>
                   
                   <Button 

@@ -288,7 +288,7 @@ function Navbar() {
   ];
 
   return (
-    <>
+    <div className="overflow-x-hidden w-full">
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-background ${isScrolled ? "border-b border-border shadow-sm" : ""}`}>
         <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
           <div className="flex items-center justify-between gap-4 h-16">
@@ -392,7 +392,7 @@ function Navbar() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -2411,7 +2411,7 @@ export default function LandingPage() {
   useParallaxScroll();
   
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen overflow-x-hidden">
       <Navbar />
       <HeroSection />
       <StatsSection />
