@@ -17795,7 +17795,6 @@ Please create a comprehensive help center article that would be useful for custo
       }
       
       // Verify PIN
-      const bcrypt = await import("bcrypt");
       const isValid = await bcrypt.compare(pinCode, customer.pinCode);
       
       if (!isValid) {
@@ -17941,7 +17940,6 @@ Please create a comprehensive help center article that would be useful for custo
         if (!/^\d{6}$/.test(pinCode)) {
           return res.status(400).json({ error: "PIN must be exactly 6 digits" });
         }
-        const bcrypt = await import("bcrypt");
         updateData.pinCode = await bcrypt.hash(pinCode, 10);
       }
       
