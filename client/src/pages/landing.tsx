@@ -908,61 +908,150 @@ function HeroSection() {
               </h3>
               
               {/* Horizontal Workflow Steps - Frosted Glass Apple Style */}
-              <div className="flex flex-wrap items-stretch gap-3 mb-6">
+              {/* Desktop: horizontal with arrows, Mobile: stacked vertical */}
+              <div className="hidden md:flex flex-wrap items-stretch gap-3 mb-6">
                 {/* Step 1 */}
-                <div className="flex items-center gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/20 shadow-sm" data-testid="step-chat-platform-signup">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                    <UserPlus className="w-5 h-5 text-white" />
+                <div className="flex items-center gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/20 shadow-sm" data-testid="step-chat-platform-signup-desktop">
+                  <div className="w-10 h-10 rounded-full bg-white dark:bg-white/90 flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <defs><linearGradient id="dgrad1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#a855f7"/><stop offset="100%" stopColor="#6366f1"/></linearGradient></defs>
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" stroke="url(#dgrad1)"/><circle cx="9" cy="7" r="4" stroke="url(#dgrad1)"/><line x1="19" x2="19" y1="8" y2="14" stroke="url(#dgrad1)"/><line x1="22" x2="16" y1="11" y2="11" stroke="url(#dgrad1)"/>
+                    </svg>
                   </div>
                   <div>
                     <p className="text-sm font-semibold">{t('chatPlatformPromo.step1')}</p>
                     <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.step1Desc')}</p>
                   </div>
                 </div>
-                <ChevronRight className="w-5 h-5 text-muted-foreground self-center hidden md:block" />
+                <ChevronRight className="w-5 h-5 text-muted-foreground self-center" />
                 
                 {/* Step 2 */}
-                <div className="flex items-center gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/20 shadow-sm" data-testid="step-chat-platform-login">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
-                    <KeyRound className="w-5 h-5 text-white" />
+                <div className="flex items-center gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/20 shadow-sm" data-testid="step-chat-platform-login-desktop">
+                  <div className="w-10 h-10 rounded-full bg-white dark:bg-white/90 flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <defs><linearGradient id="dgrad2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#a855f7"/><stop offset="100%" stopColor="#6366f1"/></linearGradient></defs>
+                      <path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4" stroke="url(#dgrad2)"/><path d="m21 2-9.6 9.6" stroke="url(#dgrad2)"/><circle cx="7.5" cy="15.5" r="5.5" stroke="url(#dgrad2)"/>
+                    </svg>
                   </div>
                   <div>
                     <p className="text-sm font-semibold">{t('chatPlatformPromo.step2')}</p>
                     <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.step2Desc')}</p>
                   </div>
                 </div>
-                <ChevronRight className="w-5 h-5 text-muted-foreground self-center hidden md:block" />
+                <ChevronRight className="w-5 h-5 text-muted-foreground self-center" />
                 
                 {/* Step 3 */}
-                <div className="flex items-center gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/20 shadow-sm" data-testid="step-chat-platform-chat">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0">
-                    <Store className="w-5 h-5 text-white" />
+                <div className="flex items-center gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/20 shadow-sm" data-testid="step-chat-platform-chat-desktop">
+                  <div className="w-10 h-10 rounded-full bg-white dark:bg-white/90 flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <defs><linearGradient id="dgrad3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#a855f7"/><stop offset="100%" stopColor="#6366f1"/></linearGradient></defs>
+                      <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" stroke="url(#dgrad3)"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" stroke="url(#dgrad3)"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" stroke="url(#dgrad3)"/><path d="M2 7h20" stroke="url(#dgrad3)"/>
+                    </svg>
                   </div>
                   <div>
                     <p className="text-sm font-semibold">{t('chatPlatformPromo.step3')}</p>
                     <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.step3Desc')}</p>
                   </div>
                 </div>
-                <ChevronRight className="w-5 h-5 text-muted-foreground self-center hidden md:block" />
+                <ChevronRight className="w-5 h-5 text-muted-foreground self-center" />
                 
                 {/* Step 4 */}
-                <div className="flex items-center gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/20 shadow-sm" data-testid="step-chat-platform-connected">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center flex-shrink-0">
-                    <Bell className="w-5 h-5 text-white" />
+                <div className="flex items-center gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/20 shadow-sm" data-testid="step-chat-platform-connected-desktop">
+                  <div className="w-10 h-10 rounded-full bg-white dark:bg-white/90 flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <defs><linearGradient id="dgrad4" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#a855f7"/><stop offset="100%" stopColor="#6366f1"/></linearGradient></defs>
+                      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" stroke="url(#dgrad4)"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" stroke="url(#dgrad4)"/>
+                    </svg>
                   </div>
                   <div>
                     <p className="text-sm font-semibold">{t('chatPlatformPromo.step4')}</p>
                     <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.step4Desc')}</p>
                   </div>
                 </div>
-                <ChevronRight className="w-5 h-5 text-muted-foreground self-center hidden md:block" />
+                <ChevronRight className="w-5 h-5 text-muted-foreground self-center" />
                 
                 {/* Step 5 */}
-                <div className="flex items-center gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/20 shadow-sm" data-testid="step-chat-platform-relationships">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center flex-shrink-0">
-                    <Heart className="w-5 h-5 text-white" />
+                <div className="flex items-center gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/20 shadow-sm" data-testid="step-chat-platform-relationships-desktop">
+                  <div className="w-10 h-10 rounded-full bg-white dark:bg-white/90 flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <defs><linearGradient id="dgrad5" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#a855f7"/><stop offset="100%" stopColor="#6366f1"/></linearGradient></defs>
+                      <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" stroke="url(#dgrad5)"/>
+                    </svg>
                   </div>
                   <div>
+                    <p className="text-sm font-semibold">{t('chatPlatformPromo.step5')}</p>
+                    <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.step5Desc')}</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Mobile: Stacked vertical layout with same-size bubbles */}
+              <div className="flex md:hidden flex-col gap-3 mb-6">
+                {/* Step 1 */}
+                <div className="flex items-center gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 min-h-[60px] border border-white/20 shadow-sm" data-testid="step-chat-platform-signup">
+                  <div className="w-10 h-10 rounded-full bg-white dark:bg-white/90 flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <defs><linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#a855f7"/><stop offset="100%" stopColor="#6366f1"/></linearGradient></defs>
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" stroke="url(#grad1)"/><circle cx="9" cy="7" r="4" stroke="url(#grad1)"/><line x1="19" x2="19" y1="8" y2="14" stroke="url(#grad1)"/><line x1="22" x2="16" y1="11" y2="11" stroke="url(#grad1)"/>
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold">{t('chatPlatformPromo.step1')}</p>
+                    <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.step1Desc')}</p>
+                  </div>
+                </div>
+                
+                {/* Step 2 */}
+                <div className="flex items-center gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 min-h-[60px] border border-white/20 shadow-sm" data-testid="step-chat-platform-login">
+                  <div className="w-10 h-10 rounded-full bg-white dark:bg-white/90 flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <defs><linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#a855f7"/><stop offset="100%" stopColor="#6366f1"/></linearGradient></defs>
+                      <path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4" stroke="url(#grad2)"/><path d="m21 2-9.6 9.6" stroke="url(#grad2)"/><circle cx="7.5" cy="15.5" r="5.5" stroke="url(#grad2)"/>
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold">{t('chatPlatformPromo.step2')}</p>
+                    <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.step2Desc')}</p>
+                  </div>
+                </div>
+                
+                {/* Step 3 */}
+                <div className="flex items-center gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 min-h-[60px] border border-white/20 shadow-sm" data-testid="step-chat-platform-chat">
+                  <div className="w-10 h-10 rounded-full bg-white dark:bg-white/90 flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <defs><linearGradient id="grad3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#a855f7"/><stop offset="100%" stopColor="#6366f1"/></linearGradient></defs>
+                      <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" stroke="url(#grad3)"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" stroke="url(#grad3)"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" stroke="url(#grad3)"/><path d="M2 7h20" stroke="url(#grad3)"/>
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold">{t('chatPlatformPromo.step3')}</p>
+                    <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.step3Desc')}</p>
+                  </div>
+                </div>
+                
+                {/* Step 4 */}
+                <div className="flex items-center gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 min-h-[60px] border border-white/20 shadow-sm" data-testid="step-chat-platform-connected">
+                  <div className="w-10 h-10 rounded-full bg-white dark:bg-white/90 flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <defs><linearGradient id="grad4" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#a855f7"/><stop offset="100%" stopColor="#6366f1"/></linearGradient></defs>
+                      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" stroke="url(#grad4)"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" stroke="url(#grad4)"/>
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold">{t('chatPlatformPromo.step4')}</p>
+                    <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.step4Desc')}</p>
+                  </div>
+                </div>
+                
+                {/* Step 5 */}
+                <div className="flex items-center gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 min-h-[60px] border border-white/20 shadow-sm" data-testid="step-chat-platform-relationships">
+                  <div className="w-10 h-10 rounded-full bg-white dark:bg-white/90 flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <defs><linearGradient id="grad5" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#a855f7"/><stop offset="100%" stopColor="#6366f1"/></linearGradient></defs>
+                      <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" stroke="url(#grad5)"/>
+                    </svg>
+                  </div>
+                  <div className="flex-1">
                     <p className="text-sm font-semibold">{t('chatPlatformPromo.step5')}</p>
                     <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.step5Desc')}</p>
                   </div>
@@ -973,12 +1062,12 @@ function HeroSection() {
                 href="https://chat.chatvice.app" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="inline-block"
+                className="block md:inline-block"
                 data-testid="link-chat-platform-cta"
               >
                 <Button 
                   size="lg" 
-                  className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-8 font-semibold"
+                  className="w-full md:w-auto bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-8 font-semibold"
                   data-testid="button-chat-platform-cta"
                 >
                   {t('chatPlatformPromo.cta')}
@@ -1027,14 +1116,14 @@ function HeroSection() {
                           <Bot className="w-4 h-4 text-white" />
                         </div>
                         <div className="bg-muted rounded-2xl rounded-tl-sm px-3 py-2 max-w-[180px]">
-                          <p className="text-xs text-foreground">Halo! Selamat datang di TechStore. Ada yang bisa saya bantu?</p>
+                          <p className="text-xs text-foreground">Hello! Welcome to TechStore. How can I help you?</p>
                         </div>
                       </div>
                       
                       {/* User Message */}
                       <div className="flex justify-end">
                         <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-2xl rounded-tr-sm px-3 py-2 max-w-[180px]">
-                          <p className="text-xs">Saya ingin cek status pesanan saya</p>
+                          <p className="text-xs">I want to check my order status</p>
                         </div>
                       </div>
                       
@@ -1044,7 +1133,7 @@ function HeroSection() {
                           <Bot className="w-4 h-4 text-white" />
                         </div>
                         <div className="bg-muted rounded-2xl rounded-tl-sm px-3 py-2 max-w-[180px]">
-                          <p className="text-xs text-foreground">Tentu! Pesanan #12345 sudah dalam perjalanan. Estimasi tiba besok.</p>
+                          <p className="text-xs text-foreground">Sure! Order #12345 is on the way. Estimated arrival tomorrow.</p>
                         </div>
                       </div>
                       
@@ -1057,8 +1146,8 @@ function HeroSection() {
                               <Cpu className="w-6 h-6 text-purple-600" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold text-foreground truncate">iPhone 15 Pro</p>
-                              <p className="text-xs text-muted-foreground">Rp 18.999.000</p>
+                              <p className="text-xs font-semibold text-foreground truncate">Pro Smartphone</p>
+                              <p className="text-xs text-green-500">View Details</p>
                             </div>
                           </div>
                         </div>
@@ -1068,7 +1157,7 @@ function HeroSection() {
                     {/* Input Area */}
                     <div className="absolute bottom-0 left-0 right-0 px-3 py-3 bg-background border-t border-border">
                       <div className="flex items-center gap-2 bg-muted rounded-full px-4 py-2">
-                        <span className="text-xs text-muted-foreground flex-1">Ketik pesan...</span>
+                        <span className="text-xs text-muted-foreground flex-1">Type a message...</span>
                         <Send className="w-4 h-4 text-purple-600" />
                       </div>
                     </div>

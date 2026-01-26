@@ -201,7 +201,7 @@ export default function CustomerLoginPage() {
         </Button>
       </header>
       
-      <main className="flex-1 flex items-center justify-center p-4 relative z-10">
+      <main className="flex-1 flex items-start justify-center p-4 pt-8 relative z-10">
         <div className="w-full max-w-md space-y-6">
           <Card className="border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl">
             <CardHeader className="text-center pb-4 space-y-4">
