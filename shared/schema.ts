@@ -2127,3 +2127,50 @@ export const insertPersonalMessageSchema = createInsertSchema(personalMessages).
 export type InsertPersonalMessage = z.infer<typeof insertPersonalMessageSchema>;
 export type PersonalMessage = typeof personalMessages.$inferSelect;
 
+// Chat Media - stores uploaded media files for chat messages
+export const chatMedia = pgTable("chat_media", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  uploaderId: varchar("uploader_id", { length: 32 }).notNull(), // customer or session id
+  uploaderType: text("uploader_type").notNull().default("customer"), // "customer" or "supervisor"
+  sessionId: varchar("session_id", { length: 64 }), // Optional link to chat session
+  personalChatId: varchar("personal_chat_id", { length: 32 }), // Optional link to personal chat
+  messageId: varchar("message_id", { length: 32 }), // Optional link to message
+  filename: text("filename").notNull(),
+  mimeType: text("mime_type").notNull(),
+  fileSize: integer("file_size").notNull(), // Size in bytes
+  fileData: text("file_data").notNull(), // Base64 encoded file data
+  thumbnailData: text("thumbnail_data"), // Optional thumbnail for images/videos
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  uploaderIdx: index("chat_media_uploader_idx").on(table.uploaderId),
+  sessionIdx: index("chat_media_session_idx").on(table.sessionId),
+  personalChatIdx: index("chat_media_personal_chat_idx").on(table.personalChatId),
+}));
+
+export const insertChatMediaSchema = createInsertSchema(chatMedia).omit({ id: true, createdAt: true });
+export type InsertChatMedia = z.infer<typeof insertChatMediaSchema>;
+export type ChatMedia = typeof chatMedia.$inferSelect;
+
+// Customer Stories - for profile updates and advertisements shown as circular thumbnails
+export const customerStories = pgTable("customer_stories", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  customerId: varchar("customer_id", { length: 32 }), // Optional - null for merchant/ad stories
+  merchantId: varchar("merchant_id", { length: 32 }), // Optional - for store advertisements
+  type: text("type").notNull().default("profile_update"), // "profile_update", "story", "advertisement"
+  mediaUrl: text("media_url"),
+  thumbnailUrl: text("thumbnail_url"),
+  content: text("content"), // Text content or caption
+  expiresAt: timestamp("expires_at"), // When the story expires (24 hours typically)
+  isActive: boolean("is_active").default(true),
+  viewCount: integer("view_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  customerIdx: index("story_customer_idx").on(table.customerId),
+  merchantIdx: index("story_merchant_idx").on(table.merchantId),
+  expiresIdx: index("story_expires_idx").on(table.expiresAt),
+}));
+
+export const insertCustomerStorySchema = createInsertSchema(customerStories).omit({ id: true, createdAt: true });
+export type InsertCustomerStory = z.infer<typeof insertCustomerStorySchema>;
+export type CustomerStory = typeof customerStories.$inferSelect;
+
