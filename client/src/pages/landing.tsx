@@ -867,83 +867,104 @@ function HeroSection() {
               <h2 className="text-3xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent" style={{ fontFamily: "'D-DIN', sans-serif" }} data-testid="text-chat-platform-title">
                 {t('chatPlatformPromo.title')}
               </h2>
-              <p className="text-lg text-muted-foreground mb-8 max-w-xl" data-testid="text-chat-platform-subtitle">
+              <p className="text-lg text-muted-foreground mb-6 max-w-xl" data-testid="text-chat-platform-subtitle">
                 {t('chatPlatformPromo.subtitle')}
               </p>
               
+              {/* Feature Points - Informative */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                <div className="flex items-center gap-3" data-testid="feature-chat-platform-inbox">
+                  <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center flex-shrink-0">
+                    <Inbox className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-sm">{t('chatPlatformPromo.feature1')}</p>
+                    <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.feature1Desc')}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3" data-testid="feature-chat-platform-notifications">
+                  <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center flex-shrink-0">
+                    <Bell className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-sm">{t('chatPlatformPromo.feature2')}</p>
+                    <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.feature2Desc')}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3" data-testid="feature-chat-platform-multistore">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                    <Store className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-sm">{t('chatPlatformPromo.feature3')}</p>
+                    <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.feature3Desc')}</p>
+                  </div>
+                </div>
+              </div>
+              
               {/* Workflow Title */}
-              <h3 className="text-xl font-semibold mb-6 text-foreground" data-testid="text-workflow-title">
+              <h3 className="text-lg font-semibold mb-4 text-foreground" data-testid="text-workflow-title">
                 {t('chatPlatformPromo.workflowTitle')}
               </h3>
               
-              {/* Workflow Steps */}
-              <div className="space-y-4 mb-8">
-                {/* Step 1 - Sign Up */}
-                <div className="flex items-start gap-4" data-testid="step-chat-platform-signup">
-                  <div className="flex flex-col items-center">
-                    <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center border-2 border-purple-600">
-                      <UserPlus className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <div className="w-0.5 h-8 bg-gradient-to-b from-purple-600 to-indigo-600 mt-2" />
+              {/* Horizontal Workflow Steps - Frosted Glass Apple Style */}
+              <div className="flex flex-wrap items-stretch gap-3 mb-6">
+                {/* Step 1 */}
+                <div className="flex items-center gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/20 shadow-sm" data-testid="step-chat-platform-signup">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                    <UserPlus className="w-5 h-5 text-white" />
                   </div>
-                  <div className="pt-2">
-                    <p className="font-semibold text-base">{t('chatPlatformPromo.step1')}</p>
-                    <p className="text-sm text-muted-foreground">{t('chatPlatformPromo.step1Desc')}</p>
+                  <div>
+                    <p className="text-sm font-semibold">{t('chatPlatformPromo.step1')}</p>
+                    <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.step1Desc')}</p>
                   </div>
                 </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground self-center hidden md:block" />
                 
-                {/* Step 2 - Login */}
-                <div className="flex items-start gap-4" data-testid="step-chat-platform-login">
-                  <div className="flex flex-col items-center">
-                    <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center border-2 border-indigo-600">
-                      <KeyRound className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                    </div>
-                    <div className="w-0.5 h-8 bg-gradient-to-b from-indigo-600 to-blue-600 mt-2" />
+                {/* Step 2 */}
+                <div className="flex items-center gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/20 shadow-sm" data-testid="step-chat-platform-login">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
+                    <KeyRound className="w-5 h-5 text-white" />
                   </div>
-                  <div className="pt-2">
-                    <p className="font-semibold text-base">{t('chatPlatformPromo.step2')}</p>
-                    <p className="text-sm text-muted-foreground">{t('chatPlatformPromo.step2Desc')}</p>
+                  <div>
+                    <p className="text-sm font-semibold">{t('chatPlatformPromo.step2')}</p>
+                    <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.step2Desc')}</p>
                   </div>
                 </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground self-center hidden md:block" />
                 
-                {/* Step 3 - Chat with Stores */}
-                <div className="flex items-start gap-4" data-testid="step-chat-platform-chat">
-                  <div className="flex flex-col items-center">
-                    <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center border-2 border-blue-600">
-                      <Store className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div className="w-0.5 h-8 bg-gradient-to-b from-blue-600 to-cyan-600 mt-2" />
+                {/* Step 3 */}
+                <div className="flex items-center gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/20 shadow-sm" data-testid="step-chat-platform-chat">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0">
+                    <Store className="w-5 h-5 text-white" />
                   </div>
-                  <div className="pt-2">
-                    <p className="font-semibold text-base">{t('chatPlatformPromo.step3')}</p>
-                    <p className="text-sm text-muted-foreground">{t('chatPlatformPromo.step3Desc')}</p>
+                  <div>
+                    <p className="text-sm font-semibold">{t('chatPlatformPromo.step3')}</p>
+                    <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.step3Desc')}</p>
                   </div>
                 </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground self-center hidden md:block" />
                 
-                {/* Step 4 - Stay Connected */}
-                <div className="flex items-start gap-4" data-testid="step-chat-platform-connected">
-                  <div className="flex flex-col items-center">
-                    <div className="w-12 h-12 rounded-full bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center border-2 border-cyan-600">
-                      <Bell className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
-                    </div>
-                    <div className="w-0.5 h-8 bg-gradient-to-b from-cyan-600 to-pink-600 mt-2" />
+                {/* Step 4 */}
+                <div className="flex items-center gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/20 shadow-sm" data-testid="step-chat-platform-connected">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center flex-shrink-0">
+                    <Bell className="w-5 h-5 text-white" />
                   </div>
-                  <div className="pt-2">
-                    <p className="font-semibold text-base">{t('chatPlatformPromo.step4')}</p>
-                    <p className="text-sm text-muted-foreground">{t('chatPlatformPromo.step4Desc')}</p>
+                  <div>
+                    <p className="text-sm font-semibold">{t('chatPlatformPromo.step4')}</p>
+                    <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.step4Desc')}</p>
                   </div>
                 </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground self-center hidden md:block" />
                 
-                {/* Step 5 - Build Relationships */}
-                <div className="flex items-start gap-4" data-testid="step-chat-platform-relationships">
-                  <div className="flex flex-col items-center">
-                    <div className="w-12 h-12 rounded-full bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center border-2 border-pink-600">
-                      <Heart className="w-5 h-5 text-pink-600 dark:text-pink-400" />
-                    </div>
+                {/* Step 5 */}
+                <div className="flex items-center gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/20 shadow-sm" data-testid="step-chat-platform-relationships">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center flex-shrink-0">
+                    <Heart className="w-5 h-5 text-white" />
                   </div>
-                  <div className="pt-2">
-                    <p className="font-semibold text-base">{t('chatPlatformPromo.step5')}</p>
-                    <p className="text-sm text-muted-foreground">{t('chatPlatformPromo.step5Desc')}</p>
+                  <div>
+                    <p className="text-sm font-semibold">{t('chatPlatformPromo.step5')}</p>
+                    <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.step5Desc')}</p>
                   </div>
                 </div>
               </div>
@@ -966,68 +987,94 @@ function HeroSection() {
               </a>
             </div>
             
-            {/* Right - Phone Mockup */}
+            {/* Right - Phone Mockup with Chat Platform UI */}
             <div className="flex-1 flex justify-center lg:justify-end">
               <div className="relative">
                 {/* Phone Frame */}
                 <div className="relative w-[280px] h-[560px] bg-gray-900 rounded-[3rem] p-3 shadow-2xl">
-                  {/* Screen */}
-                  <div className="w-full h-full bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600 rounded-[2.5rem] overflow-hidden relative">
+                  {/* Screen - Chat Platform UI */}
+                  <div className="w-full h-full bg-background rounded-[2.5rem] overflow-hidden relative border border-border">
                     {/* Status Bar */}
-                    <div className="flex items-center justify-between px-6 py-3">
-                      <span className="text-white text-xs font-medium">9:41</span>
+                    <div className="flex items-center justify-between px-6 py-2 bg-muted/50">
+                      <span className="text-foreground text-xs font-medium">9:41</span>
                       <div className="flex items-center gap-1">
-                        <div className="w-4 h-2 border border-white rounded-sm">
-                          <div className="w-3 h-1 bg-white rounded-sm m-0.5" />
+                        <div className="w-4 h-2 border border-foreground/50 rounded-sm">
+                          <div className="w-3 h-1 bg-foreground/50 rounded-sm m-0.5" />
                         </div>
                       </div>
                     </div>
                     
-                    {/* App Content */}
-                    <div className="px-4 pt-2">
-                      <div className="text-center mb-4">
-                        <div className="w-16 h-16 bg-white rounded-2xl mx-auto mb-2 flex items-center justify-center shadow-lg">
-                          <MessageCircle className="w-8 h-8 text-purple-600" />
+                    {/* Chat Header */}
+                    <div className="px-4 py-3 border-b border-border flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center">
+                        <Store className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-sm text-foreground">TechStore ID</p>
+                        <p className="text-xs text-green-500 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                          Online
+                        </p>
+                      </div>
+                      <Phone className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                    
+                    {/* Chat Messages */}
+                    <div className="px-3 py-3 space-y-3 h-[320px] overflow-hidden">
+                      {/* AI Message */}
+                      <div className="flex gap-2">
+                        <div className="w-7 h-7 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center flex-shrink-0">
+                          <Bot className="w-4 h-4 text-white" />
                         </div>
-                        <h3 className="text-white font-bold text-lg">Chatvice</h3>
-                        <p className="text-white/70 text-xs">Chat Platform</p>
+                        <div className="bg-muted rounded-2xl rounded-tl-sm px-3 py-2 max-w-[180px]">
+                          <p className="text-xs text-foreground">Halo! Selamat datang di TechStore. Ada yang bisa saya bantu?</p>
+                        </div>
                       </div>
                       
-                      {/* Chat Preview Cards */}
-                      <div className="space-y-2">
-                        <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3 flex items-center gap-3">
-                          <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-                            <Store className="w-5 h-5 text-purple-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-white font-semibold text-sm truncate">TechStore ID</p>
-                            <p className="text-white/70 text-xs truncate">Your order has been shipped!</p>
-                          </div>
-                          <div className="w-2 h-2 bg-green-400 rounded-full" />
+                      {/* User Message */}
+                      <div className="flex justify-end">
+                        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-2xl rounded-tr-sm px-3 py-2 max-w-[180px]">
+                          <p className="text-xs">Saya ingin cek status pesanan saya</p>
                         </div>
-                        <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3 flex items-center gap-3">
-                          <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-                            <Store className="w-5 h-5 text-indigo-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-white font-semibold text-sm truncate">Fashion Hub</p>
-                            <p className="text-white/70 text-xs truncate">Thanks for your purchase...</p>
-                          </div>
+                      </div>
+                      
+                      {/* AI Response */}
+                      <div className="flex gap-2">
+                        <div className="w-7 h-7 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center flex-shrink-0">
+                          <Bot className="w-4 h-4 text-white" />
                         </div>
-                        <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3 flex items-center gap-3">
-                          <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-                            <Store className="w-5 h-5 text-blue-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-white font-semibold text-sm truncate">Gadget World</p>
-                            <p className="text-white/70 text-xs truncate">Hi! How can we help?</p>
+                        <div className="bg-muted rounded-2xl rounded-tl-sm px-3 py-2 max-w-[180px]">
+                          <p className="text-xs text-foreground">Tentu! Pesanan #12345 sudah dalam perjalanan. Estimasi tiba besok.</p>
+                        </div>
+                      </div>
+                      
+                      {/* Product Card */}
+                      <div className="flex gap-2">
+                        <div className="w-7 h-7 flex-shrink-0"></div>
+                        <div className="bg-muted rounded-xl p-2 max-w-[200px] border border-border">
+                          <div className="flex items-center gap-2">
+                            <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-lg flex items-center justify-center">
+                              <Cpu className="w-6 h-6 text-purple-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-foreground truncate">iPhone 15 Pro</p>
+                              <p className="text-xs text-muted-foreground">Rp 18.999.000</p>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
+                    
+                    {/* Input Area */}
+                    <div className="absolute bottom-0 left-0 right-0 px-3 py-3 bg-background border-t border-border">
+                      <div className="flex items-center gap-2 bg-muted rounded-full px-4 py-2">
+                        <span className="text-xs text-muted-foreground flex-1">Ketik pesan...</span>
+                        <Send className="w-4 h-4 text-purple-600" />
+                      </div>
+                    </div>
                   </div>
                   {/* Home Indicator */}
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 bg-white/50 rounded-full" />
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 bg-foreground/30 rounded-full" />
                 </div>
                 {/* Decorative Elements */}
                 <div className="absolute -top-4 -right-4 w-20 h-20 bg-gradient-to-br from-purple-400 to-indigo-400 rounded-full blur-xl opacity-50" />
