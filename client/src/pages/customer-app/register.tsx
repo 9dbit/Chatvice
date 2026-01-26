@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { User, ArrowRight, Camera, Lock, Mail, UserCircle, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { chatRoutes } from "@/lib/chat-routes";
 import chatviceLogoLight from "@assets/Chatvice-02_1764703423166.png";
 import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
 
@@ -37,10 +38,10 @@ export default function CustomerRegisterPage() {
   
   useEffect(() => {
     if (!isLoading && !customer) {
-      navigate("/chat/login");
+      navigate(chatRoutes.login());
     }
     if (!isLoading && customer?.isProfileCompleted) {
-      navigate("/chat/inbox");
+      navigate(chatRoutes.inbox());
     }
   }, [customer, isLoading, navigate]);
   
@@ -55,7 +56,7 @@ export default function CustomerRegisterPage() {
         title: "Profile Complete",
         description: "Welcome to Chatvice! You can now log in with your PIN.",
       });
-      navigate("/chat/inbox");
+      navigate(chatRoutes.inbox());
     },
     onError: (error: Error) => {
       toast({

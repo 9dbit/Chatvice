@@ -12,6 +12,7 @@ import CustomerLayout from "./layout";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { chatRoutes } from "@/lib/chat-routes";
 
 interface CustomerProfile {
   id: string;
@@ -67,7 +68,7 @@ export default function CustomerSettingsPage() {
     },
     onSuccess: () => {
       queryClient.clear();
-      navigate("/chat/login");
+      navigate(chatRoutes.login());
     },
     onError: (error: Error) => {
       toast({ 

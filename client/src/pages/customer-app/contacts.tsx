@@ -11,6 +11,7 @@ import CustomerLayout from "./layout";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { chatRoutes } from "@/lib/chat-routes";
 
 interface Contact {
   id: string;
@@ -78,7 +79,7 @@ export default function CustomerContactsPage() {
       return res.json();
     },
     onSuccess: (data) => {
-      navigate(`/chat/personal/${data.id}`);
+      navigate(chatRoutes.personal(data.id));
     },
     onError: (error: Error) => {
       toast({ 

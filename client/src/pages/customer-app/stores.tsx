@@ -8,6 +8,7 @@ import { Store, Search, ExternalLink, Star } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import CustomerLayout from "./layout";
 import { useState } from "react";
+import { chatRoutes } from "@/lib/chat-routes";
 
 interface StoreInfo {
   id: string;
@@ -103,7 +104,7 @@ export default function CustomerStoresPage() {
                 <Card 
                   key={store.id} 
                   className="p-4 hover:shadow-md transition-shadow cursor-pointer"
-                  onClick={() => navigate(`/chat/store/${store.id}`)}
+                  onClick={() => navigate(chatRoutes.store(store.id))}
                   data-testid={`store-card-${store.id}`}
                 >
                   <div className="flex items-start gap-3">

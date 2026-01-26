@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MessageSquare, Store, Users, Settings, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { chatRoutes, isChatSubdomain } from "@/lib/chat-routes";
 import chatviceIcon from "@assets/Chatvice_1769402303791.png";
 
 interface CustomerData {
@@ -24,16 +25,16 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   });
   
   const navItems = [
-    { href: "/chat/inbox", icon: MessageSquare, label: "Chats" },
-    { href: "/chat/stores", icon: Store, label: "Stores" },
-    { href: "/chat/contacts", icon: Users, label: "Contacts" },
-    { href: "/chat/settings", icon: Settings, label: "Settings" },
+    { href: chatRoutes.inbox(), icon: MessageSquare, label: "Chats" },
+    { href: chatRoutes.stores(), icon: Store, label: "Stores" },
+    { href: chatRoutes.contacts(), icon: Users, label: "Contacts" },
+    { href: chatRoutes.settings(), icon: Settings, label: "Settings" },
   ];
   
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="h-14 px-4 flex flex-wrap items-center justify-between gap-2 border-b bg-background/95 backdrop-blur-sm sticky top-0 z-[9999]">
-        <Link href="/chat/inbox" className="flex flex-wrap items-center gap-2" data-testid="link-chatvice-home">
+        <Link href={chatRoutes.inbox()} className="flex flex-wrap items-center gap-2" data-testid="link-chatvice-home">
           <img 
             src={chatviceIcon} 
             alt="Chatvice" 

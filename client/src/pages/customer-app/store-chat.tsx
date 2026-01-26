@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { chatRoutes } from "@/lib/chat-routes";
 
 interface Message {
   id: string;
@@ -195,7 +196,7 @@ export default function StoreChatPage() {
     return (
       <div className="fixed inset-0 flex flex-col bg-background">
         <header className="flex items-center gap-3 p-4 border-b bg-card">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/chat/inbox")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(chatRoutes.inbox())}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="animate-pulse flex items-center gap-3 flex-1">
@@ -217,7 +218,7 @@ export default function StoreChatPage() {
     return (
       <div className="fixed inset-0 flex flex-col bg-background">
         <header className="flex items-center gap-3 p-4 border-b bg-card">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/chat/inbox")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(chatRoutes.inbox())}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <span className="font-medium">Store not found</span>
@@ -229,7 +230,7 @@ export default function StoreChatPage() {
             <p className="text-sm text-muted-foreground mb-4">
               This store may no longer be available
             </p>
-            <Button onClick={() => navigate("/chat/stores")} data-testid="button-browse-stores">
+            <Button onClick={() => navigate(chatRoutes.stores())} data-testid="button-browse-stores">
               Browse Stores
             </Button>
           </div>
@@ -278,7 +279,7 @@ export default function StoreChatPage() {
         <Button 
           variant="ghost" 
           size="icon" 
-          onClick={() => navigate("/chat/inbox")}
+          onClick={() => navigate(chatRoutes.inbox())}
           data-testid="button-back"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -307,7 +308,7 @@ export default function StoreChatPage() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => navigate(`/chat/store/${merchantId}/info`)}>
+            <DropdownMenuItem onClick={() => navigate(chatRoutes.storeInfo(merchantId!))}>
               View Store Info
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => toast({ title: "Coming Soon", description: "This feature is in development" })}>

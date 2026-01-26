@@ -102,7 +102,32 @@ function GlobalHelpBubble() {
   return <AIHelpBubble publicMode />;
 }
 
-function Router() {
+// Check if we're on the chat subdomain
+function isChatSubdomain() {
+  const hostname = window.location.hostname;
+  return hostname.startsWith('chat.') || hostname === 'chat.chatvice.app';
+}
+
+// Customer Chat App Router (for chat.chatvice.app subdomain)
+function ChatAppRouter() {
+  return (
+    <Switch>
+      <Route path="/" component={CustomerLoginPage} />
+      <Route path="/login" component={CustomerLoginPage} />
+      <Route path="/verify" component={CustomerVerifyPage} />
+      <Route path="/register" component={CustomerRegisterPage} />
+      <Route path="/inbox" component={CustomerInboxPage} />
+      <Route path="/stores" component={CustomerStoresPage} />
+      <Route path="/store/:merchantId" component={CustomerStoreChatPage} />
+      <Route path="/contacts" component={CustomerContactsPage} />
+      <Route path="/settings" component={CustomerSettingsPage} />
+      <Route component={NotFound} />
+    </Switch>
+  );
+}
+
+// Main Router (for chatvice.app domain)
+function MainRouter() {
   return (
     <Switch>
       <Route path="/" component={LandingPage} />
@@ -187,7 +212,7 @@ function Router() {
       <Route path="/topup" component={TopupPage} />
       <Route path="/demo" component={DemoWidgetPage} />
 
-      {/* Customer Chat App Routes (chat.chatvice.app) */}
+      {/* Customer Chat App Routes (also accessible via /chat/ for backwards compatibility) */}
       <Route path="/chat/login" component={CustomerLoginPage} />
       <Route path="/chat/verify" component={CustomerVerifyPage} />
       <Route path="/chat/register" component={CustomerRegisterPage} />
@@ -200,6 +225,14 @@ function Router() {
       <Route component={NotFound} />
     </Switch>
   );
+}
+
+// Smart Router that selects the appropriate router based on subdomain
+function Router() {
+  if (isChatSubdomain()) {
+    return <ChatAppRouter />;
+  }
+  return <MainRouter />;
 }
 
 function App() {

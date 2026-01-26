@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Phone, ArrowRight, Globe, Sparkles, Users, Store, MessageSquare, Smartphone, Shield, Zap, Lock, ArrowLeft } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import { apiRequest } from "@/lib/queryClient";
+import { chatRoutes } from "@/lib/chat-routes";
 import chatviceLogoLight from "@assets/Chatvice-02_1764703423166.png";
 import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
 
@@ -97,7 +98,7 @@ export default function CustomerLoginPage() {
         title: "Welcome back!",
         description: "Login successful",
       });
-      navigate("/chat/inbox");
+      navigate(chatRoutes.inbox());
     },
     onError: (error: Error) => {
       toast({
@@ -120,7 +121,7 @@ export default function CustomerLoginPage() {
         title: "OTP Sent",
         description: `Check your ${methodLabel} for the verification code`,
       });
-      navigate(`/chat/verify?phone=${encodeURIComponent(data.phoneNumber)}&method=${data.method}`);
+      navigate(chatRoutes.verify(data.phoneNumber, data.method));
     },
     onError: (error: Error) => {
       toast({

@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { MessageSquare, ShieldCheck, ArrowLeft, RefreshCw, Smartphone } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import { apiRequest } from "@/lib/queryClient";
+import { chatRoutes } from "@/lib/chat-routes";
 
 export default function CustomerVerifyPage() {
   const [, navigate] = useLocation();
@@ -23,7 +24,7 @@ export default function CustomerVerifyPage() {
   
   useEffect(() => {
     if (!phoneNumber) {
-      navigate("/chat/login");
+      navigate(chatRoutes.login());
     }
   }, [phoneNumber, navigate]);
   
@@ -49,9 +50,9 @@ export default function CustomerVerifyPage() {
       
       // Check if profile is complete (has name, email, PIN)
       if (!data.customer.isProfileCompleted) {
-        navigate("/chat/register");
+        navigate(chatRoutes.register());
       } else {
-        navigate("/chat/inbox");
+        navigate(chatRoutes.inbox());
       }
     },
     onError: (error: Error) => {
@@ -144,7 +145,7 @@ export default function CustomerVerifyPage() {
               variant="ghost" 
               size="sm" 
               className="w-fit mx-auto mb-2"
-              onClick={() => navigate("/chat/login")}
+              onClick={() => navigate(chatRoutes.login())}
               data-testid="button-back"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />

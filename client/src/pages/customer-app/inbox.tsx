@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import CustomerLayout from "./layout";
 import { formatDistanceToNow } from "date-fns";
 import { useState } from "react";
+import { chatRoutes } from "@/lib/chat-routes";
 
 interface StoreChat {
   id: string;
@@ -90,9 +91,9 @@ export default function CustomerInboxPage() {
   const handleStartChat = (contact: Contact) => {
     setNewChatDialogOpen(false);
     if (contact.contactCustomerId) {
-      navigate(`/chat/personal/new/${contact.contactCustomerId}`);
+      navigate(chatRoutes.personalNew(contact.contactCustomerId));
     } else {
-      navigate("/chat/contacts");
+      navigate(chatRoutes.contacts());
     }
   };
   
@@ -128,7 +129,7 @@ export default function CustomerInboxPage() {
                       <p className="text-sm text-muted-foreground mb-4">
                         Add contacts to start personal conversations
                       </p>
-                      <Button onClick={() => { setNewChatDialogOpen(false); navigate("/chat/contacts"); }} data-testid="button-add-contacts">
+                      <Button onClick={() => { setNewChatDialogOpen(false); navigate(chatRoutes.contacts()); }} data-testid="button-add-contacts">
                         Add Contacts
                       </Button>
                     </div>
@@ -164,7 +165,7 @@ export default function CustomerInboxPage() {
                     <Button
                       variant="outline"
                       className="w-full"
-                      onClick={() => { setNewChatDialogOpen(false); navigate("/chat/stores"); }}
+                      onClick={() => { setNewChatDialogOpen(false); navigate(chatRoutes.stores()); }}
                       data-testid="button-browse-stores-dialog"
                     >
                       <Store className="w-4 h-4 mr-2" />
@@ -229,7 +230,7 @@ export default function CustomerInboxPage() {
                   <p className="text-sm text-muted-foreground mb-4">
                     Start chatting with official stores
                   </p>
-                  <Button onClick={() => navigate("/chat/stores")} data-testid="button-browse-stores">
+                  <Button onClick={() => navigate(chatRoutes.stores())} data-testid="button-browse-stores">
                     Browse Stores
                   </Button>
                 </div>
@@ -238,7 +239,7 @@ export default function CustomerInboxPage() {
                   {filteredStoreChats.map((chat) => (
                     <Link
                       key={chat.id}
-                      href={`/chat/store/${chat.merchantId}`}
+                      href={chatRoutes.store(chat.merchantId)}
                       className="flex flex-wrap items-center gap-3 p-3 hover:bg-muted/50 transition-colors"
                       data-testid={`chat-store-${chat.merchantId}`}
                     >
@@ -304,7 +305,7 @@ export default function CustomerInboxPage() {
                   <p className="text-sm text-muted-foreground mb-4">
                     Start a conversation with your contacts
                   </p>
-                  <Button onClick={() => navigate("/chat/contacts")} data-testid="button-view-contacts">
+                  <Button onClick={() => navigate(chatRoutes.contacts())} data-testid="button-view-contacts">
                     View Contacts
                   </Button>
                 </div>
@@ -313,7 +314,7 @@ export default function CustomerInboxPage() {
                   {filteredPersonalChats.map((chat) => (
                     <Link
                       key={chat.id}
-                      href={`/chat/personal/${chat.id}`}
+                      href={chatRoutes.personal(chat.id)}
                       className="flex flex-wrap items-center gap-3 p-3 hover:bg-muted/50 transition-colors"
                       data-testid={`chat-personal-${chat.id}`}
                     >
