@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MessageSquare, Store, Users, Settings, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { chatRoutes, isChatSubdomain } from "@/lib/chat-routes";
+import { ThemeToggle } from "@/components/theme-toggle";
 import chatviceIcon from "@assets/Chatvice_1769402303791.png";
 
 interface CustomerData {
@@ -33,7 +34,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="h-14 px-4 flex flex-wrap items-center justify-between gap-2 border-b bg-background/95 backdrop-blur-sm sticky top-0 z-[9999]">
+      <header className="h-14 px-4 flex flex-wrap items-center justify-between gap-2 glass-header sticky top-0 z-[9999]">
         <Link href={chatRoutes.inbox()} className="flex flex-wrap items-center gap-2" data-testid="link-chatvice-home">
           <img 
             src={chatviceIcon} 
@@ -44,6 +45,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
         </Link>
         
         <div className="flex flex-wrap items-center gap-2">
+          <ThemeToggle />
           <span className="text-sm font-medium hidden sm:inline text-muted-foreground">
             {customer?.displayName || "Guest"}
           </span>
@@ -54,7 +56,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
         {children}
       </main>
       
-      <nav className="fixed bottom-0 left-0 right-0 h-16 bg-background border-t sm:hidden z-[9999]">
+      <nav className="fixed bottom-0 left-0 right-0 h-16 glass-header sm:hidden z-[9999]" style={{ borderTop: '1px solid rgba(0,0,0,0.08)', borderBottom: 'none' }}>
         <div className="flex flex-wrap items-center justify-around h-full">
           {navItems.map((item) => {
             const isActive = location.startsWith(item.href);
@@ -78,7 +80,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
         </div>
       </nav>
       
-      <aside className="hidden sm:flex fixed left-0 top-14 bottom-0 w-64 border-r bg-background flex-col z-[9998]">
+      <aside className="hidden sm:flex fixed left-0 top-14 bottom-0 w-64 bg-background/95 backdrop-blur-sm flex-col z-[9998]" style={{ borderRight: '1px solid hsl(var(--border))' }}>
         <nav className="flex-1 p-4 space-y-2">
           {navItems.map((item) => {
             const isActive = location.startsWith(item.href);

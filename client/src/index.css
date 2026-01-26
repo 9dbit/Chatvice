@@ -712,3 +712,70 @@ html {
 .crypto-purple-btn:hover {
   background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 50%, #5B21B6 100%);
 }
+
+/* Telegram-like textured chat background */
+.chat-background-pattern {
+  background-color: hsl(var(--background));
+  background-image: 
+    radial-gradient(circle at 20% 20%, hsl(var(--muted) / 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, hsl(var(--muted) / 0.3) 0%, transparent 50%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cg fill='%239C92AC' fill-opacity='0.08'%3E%3Ccircle cx='25' cy='25' r='3'/%3E%3Ccircle cx='75' cy='75' r='3'/%3E%3Ccircle cx='75' cy='25' r='2'/%3E%3Ccircle cx='25' cy='75' r='2'/%3E%3Ccircle cx='50' cy='50' r='2'/%3E%3Cpath d='M10 10l5 5M85 10l5 5M10 85l5 5M85 85l5 5' stroke='%239C92AC' stroke-width='0.5'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+.dark .chat-background-pattern {
+  background-color: hsl(var(--background));
+  background-image: 
+    radial-gradient(circle at 20% 20%, hsl(250 85% 58% / 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, hsl(280 70% 48% / 0.05) 0%, transparent 50%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cg fill='%236366f1' fill-opacity='0.08'%3E%3Ccircle cx='25' cy='25' r='3'/%3E%3Ccircle cx='75' cy='75' r='3'/%3E%3Ccircle cx='75' cy='25' r='2'/%3E%3Ccircle cx='25' cy='75' r='2'/%3E%3Ccircle cx='50' cy='50' r='2'/%3E%3Cpath d='M10 10l5 5M85 10l5 5M10 85l5 5M85 85l5 5' stroke='%236366f1' stroke-width='0.5'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Glassmorphism effects for chat platform */
+.glass-card {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dark .glass-card {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.glass-header {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.dark .glass-header {
+  background: rgba(20, 20, 30, 0.85);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-input {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.dark .glass-input {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Story ring gradient */
+.story-ring {
+  background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
+  padding: 2px;
+  border-radius: 9999px;
+}
+
+.story-ring-inner {
+  background: hsl(var(--background));
+  padding: 2px;
+  border-radius: 9999px;
+}

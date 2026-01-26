@@ -74,6 +74,8 @@ import {
   customerStoreChats, type CustomerStoreChat, type InsertCustomerStoreChat,
   personalChats, type PersonalChat, type InsertPersonalChat,
   personalMessages, type PersonalMessage, type InsertPersonalMessage,
+  chatMedia, type ChatMedia, type InsertChatMedia,
+  customerStories, type CustomerStory, type InsertCustomerStory,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, or, lt, isNull, sql, count, inArray, ne } from "drizzle-orm";
@@ -493,6 +495,15 @@ export interface IStorage {
   getPersonalMessages(chatId: string): Promise<PersonalMessage[]>;
   createPersonalMessage(data: InsertPersonalMessage): Promise<PersonalMessage>;
   markPersonalMessagesRead(chatId: string, readerId: string): Promise<void>;
+  
+  // Chat Media
+  createChatMedia(data: InsertChatMedia): Promise<ChatMedia>;
+  getChatMedia(id: string): Promise<ChatMedia | undefined>;
+  getChatMediaBySession(sessionId: string): Promise<ChatMedia[]>;
+  
+  // Customer Stories
+  getActiveCustomerStories(customerId: string): Promise<CustomerStory[]>;
+  createCustomerStory(data: InsertCustomerStory): Promise<CustomerStory>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -3606,6 +3617,53 @@ export class DatabaseStorage implements IStorage {
         ne(personalMessages.senderId, readerId),
         eq(personalMessages.isRead, false)
       ));
+  }
+
+  // Chat Media
+  async createChatMedia(data: InsertChatMedia): Promise<ChatMedia> {
+    const id = generateId("media_");
+    const result = await db.insert(chatMedia).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+
+  async getChatMedia(id: string): Promise<ChatMedia | undefined> {
+    const result = await db.select().from(chatMedia).where(eq(chatMedia.id, id));
+    return result[0];
+  }
+
+  async getChatMediaBySession(sessionId: string): Promise<ChatMedia[]> {
+    return db.select().from(chatMedia)
+      .where(eq(chatMedia.sessionId, sessionId))
+      .orderBy(desc(chatMedia.createdAt));
+  }
+
+  // Customer Stories
+  async getActiveCustomerStories(customerId: string): Promise<CustomerStory[]> {
+    const now = new Date();
+    return db.select().from(customerStories)
+      .where(and(
+        eq(customerStories.isActive, true),
+        or(
+          isNull(customerStories.expiresAt),
+          gte(customerStories.expiresAt, now)
+        )
+      ))
+      .orderBy(desc(customerStories.createdAt))
+      .limit(20);
+  }
+
+  async createCustomerStory(data: InsertCustomerStory): Promise<CustomerStory> {
+    const id = generateId("story_");
+    const result = await db.insert(customerStories).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
   }
 }
 

@@ -18200,8 +18200,9 @@ Please create a comprehensive help center article that would be useful for custo
   
   // Send message in a store chat
   const customerMessageSchema = z.object({
-    content: z.string().min(1, "Message content is required").max(5000, "Message too long"),
+    content: z.string().max(5000, "Message too long"),
     clientMessageId: z.string().optional(),
+    mediaId: z.string().optional(),
   });
   
   app.post("/api/customer/store-chats/:merchantId/messages", async (req, res) => {
@@ -18224,7 +18225,12 @@ Please create a comprehensive help center article that would be useful for custo
         });
       }
       
-      const { content, clientMessageId } = validation.data;
+      const { content, clientMessageId, mediaId } = validation.data;
+      
+      // Validate that we have either content or mediaId
+      if (!content && !mediaId) {
+        return res.status(400).json({ error: "Message content or media is required" });
+      }
       
       // Get or create store chat
       let storeChat = await storage.getCustomerStoreChatByMerchant(customerId, merchantId);
@@ -18258,13 +18264,32 @@ Please create a comprehensive help center article that would be useful for custo
         return res.status(500).json({ error: "Failed to create chat session" });
       }
       
+      // Get media info if provided
+      let messageType = "text";
+      let payload: any = undefined;
+      
+      if (mediaId) {
+        const media = await storage.getChatMedia(mediaId);
+        if (media) {
+          messageType = "media";
+          payload = {
+            mediaId: media.id,
+            filename: media.filename,
+            mimeType: media.mimeType,
+            fileSize: media.fileSize,
+            mediaUrl: `/api/customer/media/${media.id}`,
+          };
+        }
+      }
+      
       // Create the message
       const message = await storage.createMessage({
         sessionId: storeChat.sessionId,
         from: "customer",
-        content: content.trim(),
-        messageType: "text",
+        content: (content || "").trim() || (payload?.filename || "[Media]"),
+        messageType,
         clientMessageId,
+        payload,
       });
       
       // Update store chat last message time
@@ -18560,6 +18585,141 @@ Please create a comprehensive help center article that would be useful for custo
       res.json(message);
     } catch (error) {
       console.error("Send personal message error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get customer stories (profile updates and advertisements)
+  app.get("/api/customer/stories", async (req, res) => {
+    try {
+      const customerId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!customerId || userType !== "customer") {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      // Return active stories (could be from contacts, stores, or ads)
+      const stories = await storage.getActiveCustomerStories(customerId);
+      res.json(stories);
+    } catch (error) {
+      console.error("Get stories error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Upload media file for chat (max 3MB) - accepts JSON with base64 data
+  const mediaUploadSchema = z.object({
+    filename: z.string().min(1, "Filename is required"),
+    mimeType: z.string().min(1, "MIME type is required"),
+    fileData: z.string().min(1, "File data is required"), // base64 encoded
+    sessionId: z.string().optional(),
+  });
+  
+  app.post("/api/customer/media/upload", async (req, res) => {
+    try {
+      const customerId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!customerId || userType !== "customer") {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const MAX_SIZE = 3 * 1024 * 1024; // 3MB
+      
+      // Validate request body
+      const validation = mediaUploadSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ 
+          error: "Validation failed", 
+          details: validation.error.errors 
+        });
+      }
+      
+      const { filename, mimeType, fileData, sessionId } = validation.data;
+      
+      // Validate MIME type
+      const allowedTypes = [
+        "image/jpeg", "image/png", "image/gif", "image/webp",
+        "video/mp4", "video/webm", "video/quicktime",
+        "application/pdf", "text/plain",
+        "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      ];
+      
+      if (!allowedTypes.includes(mimeType)) {
+        return res.status(400).json({ error: "File type not allowed" });
+      }
+      
+      // Decode base64 to calculate actual file size
+      let fileBuffer: Buffer;
+      try {
+        fileBuffer = Buffer.from(fileData, "base64");
+      } catch {
+        return res.status(400).json({ error: "Invalid base64 file data" });
+      }
+      
+      if (fileBuffer.length > MAX_SIZE) {
+        return res.status(413).json({ error: "File too large. Maximum size is 3MB" });
+      }
+      
+      // Store file in database
+      const media = await storage.createChatMedia({
+        uploaderId: customerId,
+        uploaderType: "customer",
+        sessionId: sessionId || undefined,
+        filename,
+        mimeType,
+        fileSize: fileBuffer.length,
+        fileData: fileData, // Already base64
+      });
+      
+      res.json({ id: media.id, filename, mimeType, fileSize: fileBuffer.length });
+    } catch (error) {
+      console.error("Media upload error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get uploaded media file with authorization checks
+  app.get("/api/customer/media/:mediaId", async (req, res) => {
+    try {
+      const customerId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!customerId || userType !== "customer") {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const { mediaId } = req.params;
+      
+      const media = await storage.getChatMedia(mediaId);
+      if (!media) {
+        return res.status(404).json({ error: "Media not found" });
+      }
+      
+      // Authorization: customer can access media if:
+      // 1. They uploaded it themselves, OR
+      // 2. The media is associated with a session they are part of
+      
+      const customerStoreChats = await storage.getCustomerStoreChats(customerId);
+      const customerSessionIds = new Set(customerStoreChats?.map(chat => chat.sessionId).filter(Boolean) || []);
+      
+      const isOwnUpload = media.uploaderType === "customer" && media.uploaderId === customerId;
+      const hasSessionAccess = media.sessionId && customerSessionIds.has(media.sessionId);
+      
+      if (!isOwnUpload && !hasSessionAccess) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      // Return file data as binary
+      const fileBuffer = Buffer.from(media.fileData, "base64");
+      res.setHeader("Content-Type", media.mimeType);
+      res.setHeader("Content-Disposition", `inline; filename="${media.filename}"`);
+      res.setHeader("Content-Length", fileBuffer.length);
+      res.send(fileBuffer);
+    } catch (error) {
+      console.error("Get media error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
