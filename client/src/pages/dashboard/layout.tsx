@@ -34,6 +34,10 @@ import ProfilePage from "./profile";
 import AffiliatePage from "./affiliate";
 import LeadsPage from "./leads";
 import DataUsagePage from "./data-usage";
+import WABlastChannelsPage from "./wa-blast/channels";
+import WABlastContactsPage from "./wa-blast/contacts";
+import WABlastTemplatesPage from "./wa-blast/templates";
+import WABlastCampaignsPage from "./wa-blast/campaigns";
 import type { Merchant } from "@shared/schema";
 
 const pageNames: Record<string, string> = {
@@ -65,6 +69,11 @@ const pageNames: Record<string, string> = {
   "checkout": "Checkout",
   "chat-monitoring": "Chat Monitoring",
   "data-usage": "Data Usage",
+  "wa-blast": "WhatsApp Blast",
+  "wa-blast/channels": "WA Channels",
+  "wa-blast/contacts": "WA Contacts",
+  "wa-blast/templates": "WA Templates",
+  "wa-blast/campaigns": "WA Campaigns",
 };
 
 function Breadcrumb({ location }: { location: string }) {
@@ -135,7 +144,13 @@ export default function DashboardLayout() {
           </header>
           <main className="flex-1 overflow-auto p-3 sm:p-6 bg-background">
             <Switch>
-              <Route path="/dashboard" component={DashboardOverview} />
+              <Route path="/dashboard/wa-blast/channels" component={WABlastChannelsPage} />
+              <Route path="/dashboard/wa-blast/contacts" component={WABlastContactsPage} />
+              <Route path="/dashboard/wa-blast/templates" component={WABlastTemplatesPage} />
+              <Route path="/dashboard/wa-blast/campaigns" component={WABlastCampaignsPage} />
+              <Route path="/dashboard/wa-blast">
+                <Redirect to="/dashboard/wa-blast/channels" />
+              </Route>
               <Route path="/dashboard/profile" component={ProfilePage} />
               <Route path="/dashboard/affiliate" component={AffiliatePage} />
               <Route path="/dashboard/agents" component={AgentsPage} />
@@ -166,6 +181,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/help-articles">
                 <Redirect to="/dashboard/knowledge" />
               </Route>
+              <Route path="/dashboard" component={DashboardOverview} />
             </Switch>
           </main>
           <AIHelpBubble />

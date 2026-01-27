@@ -2185,3 +2185,306 @@ export const insertCustomerStorySchema = createInsertSchema(customerStories).omi
 export type InsertCustomerStory = z.infer<typeof insertCustomerStorySchema>;
 export type CustomerStory = typeof customerStories.$inferSelect;
 
+// ============================================
+// WhatsApp Blast Feature Tables
+// ============================================
+
+// WhatsApp Channels - Meta API or WhatsApp Web connections
+export const waChannels = pgTable("wa_channels", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  type: text("type").notNull().default("meta_api"), // "meta_api" or "wa_web"
+  name: text("name").notNull(), // Display name for the channel
+  phoneNumber: text("phone_number"), // Phone number associated
+  // Meta API specific fields
+  metaPhoneNumberId: text("meta_phone_number_id"),
+  metaAccessToken: text("meta_access_token"),
+  metaWabaId: text("meta_waba_id"), // WhatsApp Business Account ID
+  // WhatsApp Web specific fields
+  waWebSessionData: text("wa_web_session_data"), // Encrypted session data
+  // Status and metrics
+  status: text("status").default("disconnected"), // connected, disconnected, pending
+  lastConnectedAt: timestamp("last_connected_at"),
+  messagesQuota: integer("messages_quota").default(1000), // Monthly quota based on tier
+  messagesUsed: integer("messages_used").default(0),
+  quotaResetAt: timestamp("quota_reset_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  merchantIdx: index("wa_channel_merchant_idx").on(table.merchantId),
+}));
+
+export const insertWaChannelSchema = createInsertSchema(waChannels).omit({ id: true, createdAt: true });
+export type InsertWaChannel = z.infer<typeof insertWaChannelSchema>;
+export type WaChannel = typeof waChannels.$inferSelect;
+
+// WhatsApp Contact Lists - for organizing contacts
+export const waContactLists = pgTable("wa_contact_lists", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  contactCount: integer("contact_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at"),
+}, (table) => ({
+  merchantIdx: index("wa_list_merchant_idx").on(table.merchantId),
+}));
+
+export const insertWaContactListSchema = createInsertSchema(waContactLists).omit({ id: true, createdAt: true });
+export type InsertWaContactList = z.infer<typeof insertWaContactListSchema>;
+export type WaContactList = typeof waContactLists.$inferSelect;
+
+// WhatsApp Contacts - individual contacts for blast
+export const waContacts = pgTable("wa_contacts", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  listId: varchar("list_id", { length: 32 }), // Optional - can belong to a list
+  phoneNumber: text("phone_number").notNull(),
+  name: text("name"),
+  email: text("email"),
+  customFields: jsonb("custom_fields").default({}), // For variable personalization
+  optInStatus: text("opt_in_status").default("active"), // active, unsubscribed
+  optInAt: timestamp("opt_in_at"),
+  optOutAt: timestamp("opt_out_at"),
+  lastContactedAt: timestamp("last_contacted_at"),
+  totalCampaigns: integer("total_campaigns").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  merchantIdx: index("wa_contact_merchant_idx").on(table.merchantId),
+  listIdx: index("wa_contact_list_idx").on(table.listId),
+  phoneIdx: index("wa_contact_phone_idx").on(table.phoneNumber),
+}));
+
+export const insertWaContactSchema = createInsertSchema(waContacts).omit({ id: true, createdAt: true });
+export type InsertWaContact = z.infer<typeof insertWaContactSchema>;
+export type WaContact = typeof waContacts.$inferSelect;
+
+// WhatsApp Templates - reusable message templates
+export const waTemplates = pgTable("wa_templates", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  name: text("name").notNull(),
+  category: text("category").default("marketing"), // marketing, utility, otp
+  content: text("content").notNull(), // Message content with {{variable}} placeholders
+  variables: text("variables").array().default([]), // List of variable names used
+  mediaType: text("media_type"), // image, video, document, null for text only
+  mediaUrl: text("media_url"),
+  // For Meta API approved templates
+  metaTemplateName: text("meta_template_name"),
+  metaTemplateStatus: text("meta_template_status"), // approved, pending, rejected
+  isActive: boolean("is_active").default(true),
+  usageCount: integer("usage_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at"),
+}, (table) => ({
+  merchantIdx: index("wa_template_merchant_idx").on(table.merchantId),
+}));
+
+export const insertWaTemplateSchema = createInsertSchema(waTemplates).omit({ id: true, createdAt: true });
+export type InsertWaTemplate = z.infer<typeof insertWaTemplateSchema>;
+export type WaTemplate = typeof waTemplates.$inferSelect;
+
+// WhatsApp Campaigns - blast campaigns
+export const waCampaigns = pgTable("wa_campaigns", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  channelId: varchar("channel_id", { length: 32 }).notNull(),
+  templateId: varchar("template_id", { length: 32 }), // Optional template
+  name: text("name").notNull(),
+  messageContent: text("message_content").notNull(),
+  mediaType: text("media_type"), // image, video, document
+  mediaUrl: text("media_url"),
+  // Targeting
+  listIds: text("list_ids").array().default([]), // Target contact lists
+  totalRecipients: integer("total_recipients").default(0),
+  // Scheduling
+  scheduledAt: timestamp("scheduled_at"), // null = immediate
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  // Status
+  status: text("status").default("draft"), // draft, scheduled, sending, paused, completed, failed
+  // Metrics
+  sentCount: integer("sent_count").default(0),
+  deliveredCount: integer("delivered_count").default(0),
+  readCount: integer("read_count").default(0),
+  failedCount: integer("failed_count").default(0),
+  // Settings
+  sendDelay: integer("send_delay").default(3), // Seconds between messages
+  retryFailed: boolean("retry_failed").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at"),
+}, (table) => ({
+  merchantIdx: index("wa_campaign_merchant_idx").on(table.merchantId),
+  channelIdx: index("wa_campaign_channel_idx").on(table.channelId),
+  statusIdx: index("wa_campaign_status_idx").on(table.status),
+}));
+
+export const insertWaCampaignSchema = createInsertSchema(waCampaigns).omit({ id: true, createdAt: true });
+export type InsertWaCampaign = z.infer<typeof insertWaCampaignSchema>;
+export type WaCampaign = typeof waCampaigns.$inferSelect;
+
+// WhatsApp Campaign Recipients - individual recipients in a campaign
+export const waCampaignRecipients = pgTable("wa_campaign_recipients", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  campaignId: varchar("campaign_id", { length: 32 }).notNull(),
+  contactId: varchar("contact_id", { length: 32 }).notNull(),
+  phoneNumber: text("phone_number").notNull(),
+  name: text("name"),
+  // Personalized message (after variable replacement)
+  personalizedMessage: text("personalized_message"),
+  // Status tracking
+  status: text("status").default("pending"), // pending, sent, delivered, read, failed
+  sentAt: timestamp("sent_at"),
+  deliveredAt: timestamp("delivered_at"),
+  readAt: timestamp("read_at"),
+  failedAt: timestamp("failed_at"),
+  errorMessage: text("error_message"),
+  // Meta API message ID for tracking
+  metaMessageId: text("meta_message_id"),
+  retryCount: integer("retry_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  campaignIdx: index("wa_recipient_campaign_idx").on(table.campaignId),
+  contactIdx: index("wa_recipient_contact_idx").on(table.contactId),
+  statusIdx: index("wa_recipient_status_idx").on(table.status),
+}));
+
+export const insertWaCampaignRecipientSchema = createInsertSchema(waCampaignRecipients).omit({ id: true, createdAt: true });
+export type InsertWaCampaignRecipient = z.infer<typeof insertWaCampaignRecipientSchema>;
+export type WaCampaignRecipient = typeof waCampaignRecipients.$inferSelect;
+
+// WhatsApp Message Logs - detailed log of all messages
+export const waMessageLogs = pgTable("wa_message_logs", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  channelId: varchar("channel_id", { length: 32 }).notNull(),
+  campaignId: varchar("campaign_id", { length: 32 }),
+  recipientId: varchar("recipient_id", { length: 32 }),
+  direction: text("direction").notNull().default("outgoing"), // outgoing, incoming
+  phoneNumber: text("phone_number").notNull(),
+  messageContent: text("message_content"),
+  messageType: text("message_type").default("text"), // text, image, video, document, template
+  status: text("status").default("sent"), // sent, delivered, read, failed
+  metaMessageId: text("meta_message_id"),
+  errorCode: text("error_code"),
+  errorMessage: text("error_message"),
+  // Cost tracking
+  templateCategory: text("template_category"), // marketing, utility, otp
+  cost: integer("cost").default(0), // Cost in cents
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  merchantIdx: index("wa_log_merchant_idx").on(table.merchantId),
+  channelIdx: index("wa_log_channel_idx").on(table.channelId),
+  campaignIdx: index("wa_log_campaign_idx").on(table.campaignId),
+}));
+
+export const insertWaMessageLogSchema = createInsertSchema(waMessageLogs).omit({ id: true, createdAt: true });
+export type InsertWaMessageLog = z.infer<typeof insertWaMessageLogSchema>;
+export type WaMessageLog = typeof waMessageLogs.$inferSelect;
+
+// WhatsApp Chat Sessions - for handling replies from blast recipients
+export const waChatSessions = pgTable("wa_chat_sessions", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  channelId: varchar("channel_id", { length: 32 }).notNull(),
+  contactId: varchar("contact_id", { length: 32 }),
+  phoneNumber: text("phone_number").notNull(),
+  contactName: text("contact_name"),
+  originCampaignId: varchar("origin_campaign_id", { length: 32 }), // If started from a blast reply
+  status: text("status").default("active"), // active, closed
+  assignedTo: varchar("assigned_to", { length: 32 }), // Supervisor ID if assigned
+  lastMessageAt: timestamp("last_message_at"),
+  unreadCount: integer("unread_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  closedAt: timestamp("closed_at"),
+}, (table) => ({
+  merchantIdx: index("wa_session_merchant_idx").on(table.merchantId),
+  channelIdx: index("wa_session_channel_idx").on(table.channelId),
+  phoneIdx: index("wa_session_phone_idx").on(table.phoneNumber),
+}));
+
+export const insertWaChatSessionSchema = createInsertSchema(waChatSessions).omit({ id: true, createdAt: true });
+export type InsertWaChatSession = z.infer<typeof insertWaChatSessionSchema>;
+export type WaChatSession = typeof waChatSessions.$inferSelect;
+
+// WhatsApp Chat Messages - messages within a chat session
+export const waChatMessages = pgTable("wa_chat_messages", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  sessionId: varchar("session_id", { length: 32 }).notNull(),
+  direction: text("direction").notNull(), // inbound, outbound
+  senderType: text("sender_type").notNull(), // customer, supervisor, system
+  senderId: varchar("sender_id", { length: 32 }), // Supervisor ID if outbound
+  content: text("content"),
+  messageType: text("message_type").default("text"), // text, image, video, document
+  mediaUrl: text("media_url"),
+  metaMessageId: text("meta_message_id"),
+  status: text("status").default("sent"), // sent, delivered, read, failed
+  isRead: boolean("is_read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  sessionIdx: index("wa_chat_msg_session_idx").on(table.sessionId),
+}));
+
+export const insertWaChatMessageSchema = createInsertSchema(waChatMessages).omit({ id: true, createdAt: true });
+export type InsertWaChatMessage = z.infer<typeof insertWaChatMessageSchema>;
+export type WaChatMessage = typeof waChatMessages.$inferSelect;
+
+// WhatsApp Blast Pricing Settings - Admin configurable pricing
+export const waBlastPricing = pgTable("wa_blast_pricing", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  // Platform subscription pricing (monthly)
+  platformBasicPrice: integer("platform_basic_price").default(0), // Free tier
+  platformProPrice: integer("platform_pro_price").default(299000), // ~$19/month in IDR
+  platformEnterprisePrice: integer("platform_enterprise_price").default(999000), // ~$65/month in IDR
+  // Per-message pricing by template category (in IDR per message)
+  priceMarketingTemplate: integer("price_marketing_template").default(500), // ~$0.03
+  priceUtilityTemplate: integer("price_utility_template").default(300), // ~$0.02
+  priceOtpTemplate: integer("price_otp_template").default(200), // ~$0.01
+  priceTextMessage: integer("price_text_message").default(100), // WhatsApp Web text
+  // Quota limits per plan
+  quotaBasic: integer("quota_basic").default(500), // Messages per month
+  quotaPro: integer("quota_pro").default(5000),
+  quotaEnterprise: integer("quota_enterprise").default(50000),
+  // Channel limits per plan
+  channelsBasic: integer("channels_basic").default(1),
+  channelsPro: integer("channels_pro").default(3),
+  channelsEnterprise: integer("channels_enterprise").default(10),
+  // Contact limits per plan
+  contactsBasic: integer("contacts_basic").default(500),
+  contactsPro: integer("contacts_pro").default(10000),
+  contactsEnterprise: integer("contacts_enterprise").default(100000),
+  // Active status
+  isActive: boolean("is_active").default(true),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedBy: varchar("updated_by", { length: 32 }),
+});
+
+export const insertWaBlastPricingSchema = createInsertSchema(waBlastPricing).omit({ id: true });
+export type InsertWaBlastPricing = z.infer<typeof insertWaBlastPricingSchema>;
+export type WaBlastPricing = typeof waBlastPricing.$inferSelect;
+
+// Merchant WhatsApp Blast Subscription - tracks merchant's WA Blast plan
+export const merchantWaSubscription = pgTable("merchant_wa_subscription", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull().unique(),
+  planType: text("plan_type").default("basic"), // basic, pro, enterprise
+  status: text("status").default("active"), // active, cancelled, expired
+  messagesUsed: integer("messages_used").default(0),
+  messagesLimit: integer("messages_limit").default(500),
+  channelsUsed: integer("channels_used").default(0),
+  channelsLimit: integer("channels_limit").default(1),
+  contactsUsed: integer("contacts_used").default(0),
+  contactsLimit: integer("contacts_limit").default(500),
+  currentPeriodStart: timestamp("current_period_start"),
+  currentPeriodEnd: timestamp("current_period_end"),
+  totalSpent: integer("total_spent").default(0), // Total spent on messages in IDR
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at"),
+}, (table) => ({
+  merchantIdx: index("wa_sub_merchant_idx").on(table.merchantId),
+}));
+
+export const insertMerchantWaSubscriptionSchema = createInsertSchema(merchantWaSubscription).omit({ id: true, createdAt: true });
+export type InsertMerchantWaSubscription = z.infer<typeof insertMerchantWaSubscriptionSchema>;
+export type MerchantWaSubscription = typeof merchantWaSubscription.$inferSelect;
+

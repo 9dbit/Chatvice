@@ -147,12 +147,12 @@ function MainRouter() {
       <Route path="/complete-profile" component={CompleteProfilePage} />
       <Route path="/profile-wizard" component={ProfileWizardPage} />
       <Route path="/select-agent" component={SelectAgentPage} />
+      <Route path="/dashboard/*" component={DashboardLayout} />
       <Route path="/dashboard" component={DashboardLayout} />
-      <Route path="/dashboard/:page*" component={DashboardLayout} />
       <Route path="/supervisor" component={SupervisorPanel} />
       <Route path="/admin/login" component={AdminLogin} />
+      <Route path="/admin/*" component={AdminDashboard} />
       <Route path="/admin" component={AdminDashboard} />
-      <Route path="/admin/:page*" component={AdminDashboard} />
       <Route path="/widget-demo" component={WidgetDemoPage} />
       <Route path="/widget/:merchantId">
         {(params) => {

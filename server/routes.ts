@@ -33,6 +33,7 @@ import { eq, desc, and, or, isNotNull, gte, sql } from "drizzle-orm";
 import { messages, sessions, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts } from "@shared/schema";
 import crypto from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import waBlastRouter from "./routes/wa-blast";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -1229,6 +1230,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   };
   
   app.use(session(sessionConfig));
+  
+  // Mount WA Blast routes
+  app.use("/api/wa-blast", waBlastRouter);
 
   const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
   const clients = new Map<string, Set<WebSocket>>();

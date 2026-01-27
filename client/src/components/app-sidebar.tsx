@@ -47,6 +47,11 @@ import {
   DollarSign,
   Target,
   HardDrive,
+  Send,
+  Phone,
+  Megaphone,
+  TrendingUp,
+  FileStack,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -123,7 +128,14 @@ const iconMap: Record<string, any> = {
   ShieldAlert,
   DollarSign,
   HardDrive,
+  Send,
+  Phone,
+  FileStack,
+  Megaphone,
+  TrendingUp,
 };
+
+const FileTemplateIcon = FileStack;
 
 const menuItemsMap: Record<string, MenuItem> = {
   "overview": { id: "overview", title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, permission: "overview" },
@@ -151,6 +163,11 @@ const menuItemsMap: Record<string, MenuItem> = {
   "chat-monitoring": { id: "chat-monitoring", title: "Chat Monitoring", url: "/dashboard/chat-monitoring", icon: ShieldAlert, permission: "settings" },
   "affiliate": { id: "affiliate", title: "Affiliate", url: "/dashboard/affiliate", icon: DollarSign, permission: "overview" },
   "data-usage": { id: "data-usage", title: "Data Usage", url: "/dashboard/data-usage", icon: HardDrive, permission: "billing" },
+  "wa-blast": { id: "wa-blast", title: "WhatsApp Blast", url: "/dashboard/wa-blast", icon: Send, permission: "settings" },
+  "wa-channels": { id: "wa-channels", title: "WA Channels", url: "/dashboard/wa-blast/channels", icon: Phone, permission: "settings" },
+  "wa-contacts": { id: "wa-contacts", title: "WA Contacts", url: "/dashboard/wa-blast/contacts", icon: Users, permission: "settings" },
+  "wa-templates": { id: "wa-templates", title: "WA Templates", url: "/dashboard/wa-blast/templates", icon: FileTemplateIcon, permission: "settings" },
+  "wa-campaigns": { id: "wa-campaigns", title: "WA Campaigns", url: "/dashboard/wa-blast/campaigns", icon: Megaphone, permission: "settings" },
 };
 
 const defaultMainMenuItems: MenuItem[] = [
@@ -184,6 +201,7 @@ const defaultManagementItems: MenuItem[] = [
   menuItemsMap["user-data"],
   menuItemsMap["integrations"],
   menuItemsMap["chat-monitoring"],
+  menuItemsMap["wa-blast"],
   menuItemsMap["data-usage"],
   menuItemsMap["plans"],
   menuItemsMap["billing"],
@@ -212,6 +230,11 @@ const defaultGroupForItem: Record<string, "main" | "widgetSetting" | "messageSet
   "user-data": "management",
   "integrations": "management",
   "chat-monitoring": "management",
+  "wa-blast": "management",
+  "wa-channels": "management",
+  "wa-contacts": "management",
+  "wa-templates": "management",
+  "wa-campaigns": "management",
   "data-usage": "management",
   "plans": "management",
   "billing": "management",
