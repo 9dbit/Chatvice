@@ -6,7 +6,8 @@ import { MessageSquare, Store, Users, Settings, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { chatRoutes, isChatSubdomain } from "@/lib/chat-routes";
 import { ThemeToggle } from "@/components/theme-toggle";
-import chatviceIcon from "@assets/Chatvice_1769402303791.png";
+import chatviceLogoLight from "@assets/Chatvice-02_1769512484349.png";
+import chatviceLogoDark from "@assets/Chatvice-04_1769512484349.png";
 
 interface CustomerData {
   id: string;
@@ -64,11 +65,15 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
       <header className="h-14 px-4 flex flex-wrap items-center justify-between gap-2 glass-header sticky top-0 z-[9999]">
         <Link href={chatRoutes.inbox()} className="flex flex-wrap items-center gap-2" data-testid="link-chatvice-home">
           <img 
-            src={chatviceIcon} 
+            src={chatviceLogoLight} 
             alt="Chatvice" 
-            className="h-8 w-8"
+            className="h-7 dark:hidden"
           />
-          <span className="font-semibold bg-gradient-to-r from-primary via-violet-400 to-primary bg-clip-text text-transparent">Chatvice</span>
+          <img 
+            src={chatviceLogoDark} 
+            alt="Chatvice" 
+            className="h-7 hidden dark:block"
+          />
         </Link>
         
         <div className="flex flex-wrap items-center gap-2">

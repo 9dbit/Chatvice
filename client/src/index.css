@@ -828,13 +828,17 @@ html {
 .liquid-glass-tab {
   position: relative;
   z-index: 2;
-  padding: 4px 12px;
-  border-radius: 10px;
+  padding: 3px 8px;
+  border-radius: 8px;
   font-weight: 500;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   color: hsl(var(--muted-foreground));
   background: transparent;
+}
+
+.liquid-glass-tab.text-white {
+  color: white !important;
 }
 
 
@@ -844,9 +848,9 @@ html {
 
 .liquid-glass-slider {
   position: absolute;
-  top: 3px;
-  bottom: 3px;
-  border-radius: 10px;
+  top: 2px;
+  bottom: 2px;
+  border-radius: 8px;
   background: hsl(var(--primary));
   box-shadow: 0 2px 8px hsl(var(--primary) / 0.3);
   transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
