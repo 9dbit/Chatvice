@@ -34,6 +34,7 @@ import { messages, sessions, chatLogs, paymentTransactions, customers, customerS
 import crypto from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import waBlastRouter from "./routes/wa-blast";
+import { waBlastService } from "./services/wa-blast";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -1236,11 +1237,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
   const clients = new Map<string, Set<WebSocket>>();
+  // Merchant-level connections for WA Blast updates
+  const merchantClients = new Map<string, Set<WebSocket>>();
 
   wss.on("connection", (ws, req) => {
     const url = new URL(req.url || "", `http://${req.headers.host}`);
     const sessionId = url.searchParams.get("session");
+    const merchantId = url.searchParams.get("merchant");
     
+    // Session-level connection (for chat)
     if (sessionId) {
       if (!clients.has(sessionId)) {
         clients.set(sessionId, new Set());
@@ -1251,6 +1256,39 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         clients.get(sessionId)?.delete(ws);
         if (clients.get(sessionId)?.size === 0) {
           clients.delete(sessionId);
+        }
+      });
+    }
+    
+    // Merchant-level connection (for WA Blast campaign updates)
+    // Requires auth token from query param for security
+    if (merchantId) {
+      const authToken = url.searchParams.get("token");
+      
+      // Verify auth token matches merchant session
+      // Token is a simple hash: merchantId + session secret (first 8 chars)
+      // Client must request this token from a protected API endpoint
+      const expectedToken = crypto
+        .createHash("sha256")
+        .update(merchantId + (process.env.SESSION_SECRET || "chatvice-dev").slice(0, 8))
+        .digest("hex")
+        .slice(0, 16);
+      
+      if (authToken !== expectedToken) {
+        console.log("[WS] Merchant auth failed:", { merchantId, tokenProvided: !!authToken });
+        ws.close(4001, "Unauthorized");
+        return;
+      }
+      
+      if (!merchantClients.has(merchantId)) {
+        merchantClients.set(merchantId, new Set());
+      }
+      merchantClients.get(merchantId)!.add(ws);
+      
+      ws.on("close", () => {
+        merchantClients.get(merchantId)?.delete(ws);
+        if (merchantClients.get(merchantId)?.size === 0) {
+          merchantClients.delete(merchantId);
         }
       });
     }
@@ -1267,6 +1305,25 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       });
     }
   }
+
+  // Broadcast WA Blast updates to merchant dashboard
+  function broadcastToMerchant(merchantId: string, data: any) {
+    const clients = merchantClients.get(merchantId);
+    if (clients) {
+      const message = JSON.stringify(data);
+      clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(message);
+        }
+      });
+    }
+  }
+
+  // Export for use in WA Blast routes
+  (app as any).broadcastToMerchant = broadcastToMerchant;
+  
+  // Set broadcast callback on WA Blast service for real-time updates
+  waBlastService.setBroadcastCallback(broadcastToMerchant);
 
   // Dynamic favicon route - serves from Object Storage, local uploads, or falls back to default
   app.get("/favicon.ico", async (req, res) => {
@@ -2572,6 +2629,22 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     } catch (error) {
       console.error("GitHub OAuth callback error:", error);
       res.redirect("/login?error=oauth_failed");
+    }
+  });
+
+  // WebSocket authentication token for real-time updates
+  app.get("/api/merchant/ws-token", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const token = crypto
+        .createHash("sha256")
+        .update(merchantId + (process.env.SESSION_SECRET || "chatvice-dev").slice(0, 8))
+        .digest("hex")
+        .slice(0, 16);
+      res.json({ token, merchantId });
+    } catch (error) {
+      console.error("Error generating WS token:", error);
+      res.status(500).json({ error: "Failed to generate token" });
     }
   });
 

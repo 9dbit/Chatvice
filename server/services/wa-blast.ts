@@ -7,7 +7,23 @@ import {
 import { eq, and, desc, sql, inArray, like, or } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
+// Type for WebSocket broadcast callback
+type BroadcastCallback = (merchantId: string, data: any) => void;
+
 export class WaBlastService {
+  // WebSocket broadcast callback for real-time updates
+  private broadcastCallback?: BroadcastCallback;
+  
+  setBroadcastCallback(callback: BroadcastCallback) {
+    this.broadcastCallback = callback;
+  }
+  
+  private broadcast(merchantId: string, eventType: string, data: any) {
+    if (this.broadcastCallback) {
+      this.broadcastCallback(merchantId, { type: eventType, ...data });
+    }
+  }
+  
   // ============================================
   // Channel Management
   // ============================================
@@ -546,6 +562,13 @@ export class WaBlastService {
       queue.paused = true;
     }
     await this.updateCampaign(campaignId, merchantId, { status: "paused" });
+    
+    // Broadcast pause event
+    this.broadcast(merchantId, "wa_blast_campaign_status", {
+      campaignId,
+      status: "paused",
+    });
+    
     return { success: true };
   }
   
@@ -562,6 +585,12 @@ export class WaBlastService {
     
     await this.updateCampaign(campaignId, merchantId, { status: "running" });
     
+    // Broadcast resume event
+    this.broadcast(merchantId, "wa_blast_campaign_status", {
+      campaignId,
+      status: "running",
+    });
+    
     if (!queue) {
       return this.startCampaign(campaignId, merchantId);
     }
@@ -576,6 +605,13 @@ export class WaBlastService {
     }
     await this.updateCampaign(campaignId, merchantId, { status: "cancelled" });
     this.campaignQueues.delete(campaignId);
+    
+    // Broadcast stop event
+    this.broadcast(merchantId, "wa_blast_campaign_status", {
+      campaignId,
+      status: "cancelled",
+    });
+    
     return { success: true };
   }
   
@@ -649,9 +685,30 @@ export class WaBlastService {
             status: "sent",
           });
           sentCount++;
+          
+          // Broadcast progress update
+          this.broadcast(merchantId, "wa_blast_progress", {
+            campaignId,
+            recipientId: recipient.id,
+            status: "sent",
+            sentCount,
+            failedCount,
+            total: recipients.length,
+          });
         } else {
           await this.updateRecipientStatus(recipient.id, "failed", undefined, result.error);
           failedCount++;
+          
+          // Broadcast failure update
+          this.broadcast(merchantId, "wa_blast_progress", {
+            campaignId,
+            recipientId: recipient.id,
+            status: "failed",
+            error: result.error,
+            sentCount,
+            failedCount,
+            total: recipients.length,
+          });
         }
         
         const randomDelay = Math.floor(Math.random() * (maxDelay - minDelay) + minDelay);
@@ -667,13 +724,23 @@ export class WaBlastService {
     const allProcessed = (stats.sent || 0) + (stats.failed || 0) >= (stats.total || 0);
     
     if (allProcessed || queue?.aborted) {
+      const finalStatus = queue?.aborted ? "cancelled" : "completed";
       await this.updateCampaign(campaignId, merchantId, { 
-        status: queue?.aborted ? "cancelled" : "completed",
+        status: finalStatus,
         completedAt: new Date(),
         sentCount: stats.sent || 0,
         failedCount: stats.failed || 0,
       });
       this.campaignQueues.delete(campaignId);
+      
+      // Broadcast campaign completion
+      this.broadcast(merchantId, "wa_blast_campaign_status", {
+        campaignId,
+        status: finalStatus,
+        sentCount: stats.sent || 0,
+        failedCount: stats.failed || 0,
+        total: stats.total || 0,
+      });
     }
   }
   
@@ -810,6 +877,15 @@ export class WaBlastService {
     console.log("[WA Webhook] Incoming message processed:", { 
       sessionId: existingSession.id, 
       from: normalizedPhone 
+    });
+    
+    // Broadcast incoming message notification to merchant dashboard
+    this.broadcast(channel.merchantId, "wa_blast_incoming_message", {
+      sessionId: existingSession.id,
+      phoneNumber: normalizedPhone,
+      content: data.text || "",
+      messageType: data.type,
+      timestamp: data.timestamp,
     });
   }
   
