@@ -2149,6 +2149,9 @@ export const chatMedia = pgTable("chat_media", {
   fileData: text("file_data").notNull(), // Base64 encoded file data
   thumbnailData: text("thumbnail_data"), // Optional thumbnail for images/videos
   storageUrl: text("storage_url"), // URL if stored in object storage
+  imageWidth: integer("image_width"), // For images: original width in pixels
+  imageHeight: integer("image_height"), // For images: original height in pixels
+  expiresAt: timestamp("expires_at"), // Auto-delete after 7 days
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   uploaderIdx: index("chat_media_uploader_idx").on(table.uploaderId),
@@ -2156,6 +2159,7 @@ export const chatMedia = pgTable("chat_media", {
   personalChatIdx: index("chat_media_personal_chat_idx").on(table.personalChatId),
   merchantIdx: index("chat_media_merchant_idx").on(table.merchantId),
   customerIdx: index("chat_media_customer_idx").on(table.customerId),
+  expiresAtIdx: index("chat_media_expires_at_idx").on(table.expiresAt),
 }));
 
 export const insertChatMediaSchema = createInsertSchema(chatMedia).omit({ id: true, createdAt: true });

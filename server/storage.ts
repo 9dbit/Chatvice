@@ -78,7 +78,7 @@ import {
   customerStories, type CustomerStory, type InsertCustomerStory,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, gte, and, or, lt, isNull, sql, count, inArray, ne } from "drizzle-orm";
+import { eq, desc, gte, and, or, lt, lte, isNull, isNotNull, sql, count, inArray, ne } from "drizzle-orm";
 import { randomBytes } from "crypto";
 
 export interface AnalyticsData {
@@ -501,6 +501,8 @@ export interface IStorage {
   getChatMedia(id: string): Promise<ChatMedia | undefined>;
   getChatMediaBySession(sessionId: string): Promise<ChatMedia[]>;
   getChatMediaByMerchant(merchantId: string): Promise<ChatMedia[]>;
+  deleteExpiredChatMedia(): Promise<number>;
+  deleteChatMedia(id: string): Promise<void>;
   
   // Customer Stories
   getActiveCustomerStories(customerId: string): Promise<CustomerStory[]>;
@@ -3623,10 +3625,13 @@ export class DatabaseStorage implements IStorage {
   // Chat Media
   async createChatMedia(data: InsertChatMedia): Promise<ChatMedia> {
     const id = generateId("media_");
+    const now = new Date();
+    const expiresAt = data.expiresAt || new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
     const result = await db.insert(chatMedia).values({
       ...data,
       id,
-      createdAt: new Date(),
+      expiresAt,
+      createdAt: now,
     }).returning();
     return result[0];
   }
@@ -3646,6 +3651,21 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(chatMedia)
       .where(eq(chatMedia.merchantId, merchantId))
       .orderBy(desc(chatMedia.createdAt));
+  }
+
+  async deleteExpiredChatMedia(): Promise<number> {
+    const now = new Date();
+    const result = await db.delete(chatMedia)
+      .where(and(
+        isNotNull(chatMedia.expiresAt),
+        lte(chatMedia.expiresAt, now)
+      ))
+      .returning({ id: chatMedia.id });
+    return result.length;
+  }
+
+  async deleteChatMedia(id: string): Promise<void> {
+    await db.delete(chatMedia).where(eq(chatMedia.id, id));
   }
 
   // Customer Stories
