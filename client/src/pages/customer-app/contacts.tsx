@@ -116,7 +116,7 @@ export default function CustomerContactsPage() {
                   <Plus className="w-4 h-4" />
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="mx-4 rounded-2xl max-w-[calc(100%-2rem)] sm:max-w-md glass-card border-white/20">
                 <DialogHeader>
                   <DialogTitle>Add Contact</DialogTitle>
                 </DialogHeader>
@@ -138,6 +138,7 @@ export default function CustomerContactsPage() {
                       placeholder="Contact name"
                       value={newContactName}
                       onChange={(e) => setNewContactName(e.target.value)}
+                      className="glass-input"
                       data-testid="input-contact-name"
                     />
                   </div>
@@ -149,6 +150,7 @@ export default function CustomerContactsPage() {
                       placeholder="+1234567890"
                       value={newContactPhone}
                       onChange={(e) => setNewContactPhone(e.target.value)}
+                      className="glass-input"
                       data-testid="input-contact-phone"
                     />
                     <p className="text-xs text-muted-foreground">

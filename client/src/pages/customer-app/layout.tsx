@@ -24,6 +24,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   const [location] = useLocation();
   const navRef = useRef<HTMLDivElement>(null);
   const [sliderStyle, setSliderStyle] = useState({ left: 0, width: 0 });
+  const [isInitialized, setIsInitialized] = useState(false);
   
   const { data: customer } = useQuery<CustomerData>({
     queryKey: ["/api/customer/me"],
@@ -47,18 +48,27 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   const activeIndex = navItems.findIndex(item => location.startsWith(item.href));
   
   useEffect(() => {
-    if (navRef.current && activeIndex >= 0) {
-      const activeButton = navRef.current.querySelector(`[data-nav-index="${activeIndex}"]`) as HTMLElement;
-      if (activeButton) {
-        const containerRect = navRef.current.getBoundingClientRect();
-        const buttonRect = activeButton.getBoundingClientRect();
-        setSliderStyle({
-          left: buttonRect.left - containerRect.left,
-          width: buttonRect.width,
-        });
+    const updateSlider = () => {
+      if (navRef.current && activeIndex >= 0) {
+        const activeButton = navRef.current.querySelector(`[data-nav-index="${activeIndex}"]`) as HTMLElement;
+        if (activeButton) {
+          const containerRect = navRef.current.getBoundingClientRect();
+          const buttonRect = activeButton.getBoundingClientRect();
+          setSliderStyle({
+            left: buttonRect.left - containerRect.left,
+            width: buttonRect.width,
+          });
+          if (!isInitialized) {
+            requestAnimationFrame(() => setIsInitialized(true));
+          }
+        }
       }
-    }
-  }, [activeIndex, location]);
+    };
+    
+    updateSlider();
+    window.addEventListener('resize', updateSlider);
+    return () => window.removeEventListener('resize', updateSlider);
+  }, [activeIndex, location, isInitialized]);
   
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -94,7 +104,10 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
           className="flex items-center justify-around gap-2 h-full px-2 relative"
         >
           <div 
-            className="absolute top-1.5 bottom-1.5 rounded-2xl bg-primary transition-all duration-300 ease-out"
+            className={cn(
+              "absolute top-1.5 bottom-1.5 rounded-2xl bg-primary",
+              isInitialized ? "transition-all duration-300 ease-out" : "transition-none"
+            )}
             style={{ 
               left: `${sliderStyle.left}px`, 
               width: `${sliderStyle.width}px`,

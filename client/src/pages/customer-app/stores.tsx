@@ -99,38 +99,32 @@ export default function CustomerStoresPage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {filteredStores.map((store) => (
                 <Card 
                   key={store.id} 
-                  className="p-4 hover:shadow-md transition-shadow cursor-pointer"
+                  className="p-2.5 hover:shadow-md transition-shadow cursor-pointer glass-card"
                   onClick={() => navigate(chatRoutes.store(store.id))}
                   data-testid={`store-card-${store.id}`}
                 >
-                  <div className="flex items-start gap-3">
-                    <Avatar className="w-14 h-14">
+                  <div className="flex items-center gap-2.5">
+                    <Avatar className="w-10 h-10">
                       <AvatarImage src={store.profilePhotoUrl || undefined} />
                       <AvatarFallback className="bg-primary/10">
-                        <Store className="w-6 h-6 text-primary" />
+                        <Store className="w-4 h-4 text-primary" />
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold truncate">
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="font-medium text-sm truncate">
                           {store.companyName || "Unnamed Store"}
                         </h3>
-                        <Badge variant="secondary" className="text-xs">Official</Badge>
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Official</Badge>
                       </div>
                       {store.businessCategory && (
-                        <p className="text-sm text-muted-foreground mb-2">
+                        <p className="text-xs text-muted-foreground truncate">
                           {store.businessCategory}
                         </p>
-                      )}
-                      {store.officialWebsiteName && (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <ExternalLink className="w-3 h-3" />
-                          {store.officialWebsiteName}
-                        </div>
                       )}
                     </div>
                   </div>
