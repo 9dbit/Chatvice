@@ -7,9 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { User, Camera, LogOut, Bell, Shield, Trash2 } from "lucide-react";
+import { User, Camera, LogOut, Bell, Shield, Trash2, Loader2 } from "lucide-react";
 import CustomerLayout from "./layout";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { chatRoutes } from "@/lib/chat-routes";
@@ -27,6 +27,7 @@ interface CustomerProfile {
 export default function CustomerSettingsPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const photoInputRef = useRef<HTMLInputElement>(null);
   
   const { data: customer, isLoading } = useQuery<CustomerProfile>({
     queryKey: ["/api/customer/me"],
@@ -35,6 +36,8 @@ export default function CustomerSettingsPage() {
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
   
   useEffect(() => {
     if (customer) {
@@ -78,6 +81,128 @@ export default function CustomerSettingsPage() {
       });
     },
   });
+  
+  const uploadPhotoMutation = useMutation({
+    mutationFn: async (file: File) => {
+      setIsUploading(true);
+      setUploadProgress(0);
+      
+      return new Promise<{ avatarUrl: string }>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          try {
+            const base64 = (e.target?.result as string).split(",")[1];
+            
+            const xhr = new XMLHttpRequest();
+            
+            xhr.upload.addEventListener("progress", (event) => {
+              if (event.lengthComputable) {
+                const percent = Math.round((event.loaded / event.total) * 100);
+                setUploadProgress(percent);
+              }
+            });
+            
+            xhr.addEventListener("load", () => {
+              setIsUploading(false);
+              setUploadProgress(0);
+              if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                  resolve(JSON.parse(xhr.responseText));
+                } catch {
+                  reject(new Error("Invalid server response"));
+                }
+              } else {
+                try {
+                  const error = JSON.parse(xhr.responseText);
+                  reject(new Error(error.error || error.message || "Upload failed"));
+                } catch {
+                  reject(new Error("Upload failed"));
+                }
+              }
+            });
+            
+            xhr.addEventListener("error", () => {
+              setIsUploading(false);
+              setUploadProgress(0);
+              reject(new Error("Network error during upload"));
+            });
+            
+            xhr.addEventListener("abort", () => {
+              setIsUploading(false);
+              setUploadProgress(0);
+              reject(new Error("Upload cancelled"));
+            });
+            
+            xhr.open("POST", "/api/customer/profile/photo");
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.withCredentials = true;
+            xhr.send(JSON.stringify({
+              filename: file.name,
+              mimeType: file.type,
+              fileData: base64,
+            }));
+          } catch (err: any) {
+            setIsUploading(false);
+            setUploadProgress(0);
+            reject(err);
+          }
+        };
+        reader.onerror = () => {
+          setIsUploading(false);
+          setUploadProgress(0);
+          reject(new Error("Failed to read file"));
+        };
+        reader.readAsDataURL(file);
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customer/me"] });
+      toast({ title: "Profile photo updated" });
+    },
+    onError: (error: Error) => {
+      setIsUploading(false);
+      setUploadProgress(0);
+      toast({ 
+        title: "Upload failed", 
+        description: error.message,
+        variant: "destructive" 
+      });
+    },
+  });
+  
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Validate file type
+    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select a JPEG, PNG, GIF, or WebP image",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Validate file size (3MB limit)
+    const MAX_SIZE = 3 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      toast({
+        title: "File too large",
+        description: "Maximum file size is 3MB",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    uploadPhotoMutation.mutate(file);
+    
+    // Reset input
+    if (photoInputRef.current) {
+      photoInputRef.current.value = "";
+    }
+  };
   
   const handleSaveProfile = () => {
     updateProfileMutation.mutate({
@@ -123,30 +248,53 @@ export default function CustomerSettingsPage() {
             <CardContent className="space-y-6">
               <div className="flex items-center gap-4">
                 <div className="relative">
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    onChange={handlePhotoSelect}
+                    className="hidden"
+                    data-testid="input-profile-photo"
+                  />
                   <Avatar className="w-20 h-20">
                     <AvatarImage src={customer.avatarUrl || undefined} />
                     <AvatarFallback className="text-xl">
                       <User className="w-8 h-8" />
                     </AvatarFallback>
                   </Avatar>
-                  <button 
-                    type="button"
-                    className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:bg-primary/90 transition-colors"
-                    onClick={() => {
-                      toast({
-                        title: "Coming Soon",
-                        description: "Profile photo upload will be available soon",
-                      });
-                    }}
+                  <Button 
+                    size="icon"
+                    className="absolute bottom-0 right-0 rounded-full"
+                    onClick={() => photoInputRef.current?.click()}
+                    disabled={isUploading}
+                    data-testid="button-change-photo"
                   >
-                    <Camera className="w-3.5 h-3.5" />
-                  </button>
+                    {isUploading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Camera className="w-4 h-4" />
+                    )}
+                  </Button>
+                  {isUploading && (
+                    <div className="absolute -bottom-3 left-0 right-0 flex flex-col items-center">
+                      <div className="h-1 w-16 bg-muted rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-primary transition-all duration-300 ease-out"
+                          style={{ width: `${uploadProgress}%` }}
+                          data-testid="profile-upload-progress-bar"
+                        />
+                      </div>
+                      <span className="text-[10px] text-muted-foreground mt-0.5" data-testid="profile-upload-progress-text">
+                        {uploadProgress}%
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div>
-                  <p className="font-medium">{customer.displayName || "Guest"}</p>
-                  <p className="text-sm text-muted-foreground">{customer.phoneNumber}</p>
+                  <p className="font-medium" data-testid="text-display-name">{customer.displayName || "Guest"}</p>
+                  <p className="text-sm text-muted-foreground" data-testid="text-phone-number">{customer.phoneNumber}</p>
                   {customer.isPhoneVerified && (
-                    <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
+                    <p className="text-xs text-green-600 flex items-center gap-1 mt-1" data-testid="text-verified-badge">
                       <Shield className="w-3 h-3" /> Verified
                     </p>
                   )}

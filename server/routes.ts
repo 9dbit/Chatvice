@@ -18044,6 +18044,79 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
   
+  // Upload profile photo
+  const profilePhotoSchema = z.object({
+    filename: z.string().min(1, "Filename is required"),
+    mimeType: z.string().min(1, "MIME type is required"),
+    fileData: z.string().min(1, "File data is required"),
+  });
+  
+  app.post("/api/customer/profile/photo", async (req, res) => {
+    try {
+      const customerId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!customerId || userType !== "customer") {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      // Validate request body with Zod
+      const validation = profilePhotoSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ 
+          error: "Validation failed", 
+          details: validation.error.errors 
+        });
+      }
+      
+      const { filename, mimeType, fileData } = validation.data;
+      
+      const MAX_SIZE = 3 * 1024 * 1024; // 3MB
+      
+      // Validate MIME type - only allow images
+      const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+      
+      if (!allowedTypes.includes(mimeType)) {
+        return res.status(400).json({ error: "Only image files are allowed" });
+      }
+      
+      // Decode base64 to calculate actual file size
+      let fileBuffer: Buffer;
+      try {
+        fileBuffer = Buffer.from(fileData, "base64");
+      } catch {
+        return res.status(400).json({ error: "Invalid base64 file data" });
+      }
+      
+      if (fileBuffer.length > MAX_SIZE) {
+        return res.status(413).json({ error: "File too large. Maximum size is 3MB" });
+      }
+      
+      // Store file in database
+      const media = await storage.createChatMedia({
+        uploaderId: customerId,
+        uploaderType: "customer",
+        filename,
+        mimeType,
+        fileSize: fileBuffer.length,
+        fileData: fileData,
+      });
+      
+      // Update customer avatar URL
+      const avatarUrl = `/api/media/${media.id}`;
+      await storage.updateCustomer(customerId, { avatarUrl });
+      
+      res.json({ 
+        success: true, 
+        avatarUrl,
+        mediaId: media.id 
+      });
+    } catch (error) {
+      console.error("Upload profile photo error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
   // Customer logout
   app.post("/api/customer/logout", (req, res) => {
     req.session.destroy((err) => {
