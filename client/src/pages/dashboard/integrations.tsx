@@ -201,26 +201,80 @@ export default function IntegrationsPage() {
       return;
     }
     
+    // Validate Bot Token format (should be like 123456789:ABC-DEF...)
+    const tokenParts = localBotToken.split(':');
+    if (tokenParts.length !== 2 || !tokenParts[0].match(/^\d+$/)) {
+      toast({ 
+        title: "Invalid Bot Token format", 
+        description: "Token should be like: 123456789:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
+        variant: "destructive" 
+      });
+      return;
+    }
+    
+    // Warn if Chat ID looks like the bot ID (common mistake)
+    const botId = tokenParts[0];
+    if (localChatId.trim() === botId) {
+      toast({ 
+        title: "Warning: Chat ID sama dengan Bot ID", 
+        description: "Chat ID harus ID user Anda (dapatkan dari @userinfobot), bukan ID bot",
+        variant: "destructive" 
+      });
+      return;
+    }
+    
     // Save first
-    await updateMutation.mutateAsync({ 
-      telegramBotToken: localBotToken, 
-      telegramChatId: localChatId 
-    });
+    try {
+      await updateMutation.mutateAsync({ 
+        telegramBotToken: localBotToken.trim(), 
+        telegramChatId: localChatId.trim() 
+      });
+    } catch (saveError) {
+      toast({ 
+        title: "Failed to save settings", 
+        description: saveError instanceof Error ? saveError.message : "Unknown error",
+        variant: "destructive" 
+      });
+      return;
+    }
     
     try {
-      const res = await apiRequest("POST", "/api/notification-settings/test-telegram");
-      if (res.ok) {
+      const res = await fetch("/api/notification-settings/test-telegram", {
+        method: "POST",
+        credentials: "include"
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
         toast({ title: "Test notification sent! Check your Telegram." });
       } else {
-        const data = await res.json();
+        // Parse Telegram API errors for better user feedback
+        let errorDescription = data.error || "Please check your Bot Token and Chat ID";
+        
+        if (errorDescription.includes("chat not found")) {
+          errorDescription = "Chat not found. Make sure you've started a chat with your bot first (click START in Telegram)";
+        } else if (errorDescription.includes("bot was blocked")) {
+          errorDescription = "Bot was blocked by user. Unblock the bot in Telegram and try again";
+        } else if (errorDescription.includes("Unauthorized") || errorDescription.includes("401")) {
+          errorDescription = "Invalid Bot Token. Please check the token from @BotFather";
+        } else if (errorDescription.includes("Bad Request: chat_id is empty")) {
+          errorDescription = "Chat ID is empty or invalid";
+        }
+        
         toast({ 
           title: "Failed to send test notification", 
-          description: data.error || "Please check your Bot Token and Chat ID",
+          description: errorDescription,
           variant: "destructive" 
         });
       }
-    } catch {
-      toast({ title: "Failed to send test notification", variant: "destructive" });
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "Network error";
+      toast({ 
+        title: "Failed to send test notification", 
+        description: errorMsg,
+        variant: "destructive" 
+      });
     }
   }
 
@@ -425,10 +479,10 @@ export default function IntegrationsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="chat-id">Chat ID</Label>
+              <Label htmlFor="chat-id">Your Chat ID (User ID)</Label>
               <Input
                 id="chat-id"
-                placeholder="Your chat ID or group ID"
+                placeholder="e.g. 123456789 (your personal ID)"
                 value={localChatId}
                 onChange={(e) => setLocalChatId(e.target.value)}
                 onBlur={() => {
@@ -439,10 +493,11 @@ export default function IntegrationsPage() {
                 data-testid="input-telegram-chat-id"
               />
               <p className="text-xs text-muted-foreground">
-                Get from{" "}
+                Get YOUR personal ID from{" "}
                 <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                   @userinfobot
                 </a>
+                {" "}- send /start and copy your ID (bukan ID bot!)
               </p>
             </div>
 
@@ -459,12 +514,15 @@ export default function IntegrationsPage() {
             <div className="text-xs text-muted-foreground bg-muted p-3 rounded-lg">
               <p className="font-medium mb-1">Setup Steps:</p>
               <ol className="list-decimal list-inside space-y-0.5">
-                <li>Open @BotFather, send /newbot</li>
-                <li>Copy the Bot Token here</li>
-                <li>Get your Chat ID from @userinfobot</li>
-                <li>Start a chat with your bot first</li>
-                <li>Enable & test the notification</li>
+                <li>Open @BotFather, send /newbot, copy Bot Token</li>
+                <li>Open @userinfobot, send /start, copy YOUR ID</li>
+                <li>Open your new bot and click START</li>
+                <li>Paste Bot Token and YOUR ID above</li>
+                <li>Click "Send Test Notification"</li>
               </ol>
+              <p className="mt-2 text-yellow-600 dark:text-yellow-400 font-medium">
+                Note: Chat ID = YOUR ID, bukan ID bot!
+              </p>
             </div>
           </div>
         </DialogContent>
