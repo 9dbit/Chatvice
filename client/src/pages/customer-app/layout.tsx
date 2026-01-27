@@ -26,10 +26,15 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   });
   
   const navItems = [
+    { href: chatRoutes.settings(), icon: User, label: "Profile" },
+    { href: chatRoutes.inbox(), icon: MessageSquare, label: "Chats" },
+  ];
+  
+  const sidebarNavItems = [
     { href: chatRoutes.inbox(), icon: MessageSquare, label: "Chats" },
     { href: chatRoutes.stores(), icon: Store, label: "Stores" },
     { href: chatRoutes.contacts(), icon: Users, label: "Contacts" },
-    { href: chatRoutes.settings(), icon: Settings, label: "Settings" },
+    { href: chatRoutes.settings(), icon: User, label: "Profile" },
   ];
   
   return (
@@ -56,8 +61,8 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
         {children}
       </main>
       
-      <nav className="fixed bottom-0 left-0 right-0 h-16 glass-header sm:hidden z-[9999]" style={{ borderTop: '1px solid rgba(0,0,0,0.08)', borderBottom: 'none' }}>
-        <div className="flex flex-wrap items-center justify-around h-full">
+      <nav className="fixed bottom-4 left-4 right-4 h-14 sm:hidden z-[9999] rounded-md bg-white/80 dark:bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg">
+        <div className="flex items-center justify-between gap-4 h-full px-8">
           {navItems.map((item) => {
             const isActive = location.startsWith(item.href);
             return (
@@ -65,10 +70,10 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-colors",
+                  "flex flex-col items-center gap-1 px-4 py-2 rounded-md transition-colors hover-elevate",
                   isActive 
                     ? "text-primary" 
-                    : "text-muted-foreground hover:text-foreground"
+                    : "text-muted-foreground"
                 )}
                 data-testid={`nav-${item.label.toLowerCase()}`}
               >
@@ -82,7 +87,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
       
       <aside className="hidden sm:flex fixed left-0 top-14 bottom-0 w-64 bg-background/95 backdrop-blur-sm flex-col z-[9998]" style={{ borderRight: '1px solid hsl(var(--border))' }}>
         <nav className="flex-1 p-4 space-y-2">
-          {navItems.map((item) => {
+          {sidebarNavItems.map((item) => {
             const isActive = location.startsWith(item.href);
             return (
               <Link

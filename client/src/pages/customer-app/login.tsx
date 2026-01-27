@@ -296,7 +296,7 @@ export default function CustomerLoginPage() {
                         placeholder="8123456789"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
-                        className="flex-1 bg-white/5 border-white/10"
+                        className="flex-1 bg-white/5 border-white/10 tracking-[0.3em]"
                         data-testid="input-phone"
                       />
                     </div>

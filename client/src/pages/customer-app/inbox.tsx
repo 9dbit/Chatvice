@@ -3,14 +3,14 @@ import { useLocation, Link } from "wouter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { MessageSquare, Store, Users, Pin, Plus, Search, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import CustomerLayout from "./layout";
 import { formatDistanceToNow } from "date-fns";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { chatRoutes } from "@/lib/chat-routes";
+import { cn } from "@/lib/utils";
 
 interface StoreChat {
   id: string;
@@ -192,6 +192,23 @@ export default function CustomerInboxPage() {
   const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [newChatDialogOpen, setNewChatDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"stores" | "personal">("stores");
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [sliderStyle, setSliderStyle] = useState({ left: 0, width: 0 });
+  
+  useEffect(() => {
+    if (tabsRef.current) {
+      const activeButton = tabsRef.current.querySelector(`[data-tab="${activeTab}"]`) as HTMLButtonElement;
+      if (activeButton) {
+        const containerRect = tabsRef.current.getBoundingClientRect();
+        const buttonRect = activeButton.getBoundingClientRect();
+        setSliderStyle({
+          left: buttonRect.left - containerRect.left,
+          width: buttonRect.width,
+        });
+      }
+    }
+  }, [activeTab]);
   
   const { data: storeChats = [], isLoading: storeChatsLoading } = useQuery<StoreChat[]>({
     queryKey: ["/api/customer/store-chats"],
@@ -345,29 +362,62 @@ export default function CustomerInboxPage() {
             />
           </div>
           
-          <Tabs defaultValue="stores" className="w-full">
-            <TabsList className="w-full liquid-glass-tabs mb-4 grid grid-cols-2 h-auto p-1">
-              <TabsTrigger value="stores" className="liquid-glass-tab flex items-center justify-center gap-2">
+          <div className="w-full">
+            <div 
+              ref={tabsRef}
+              className="w-full liquid-glass-tabs mb-4 grid grid-cols-2 h-auto p-1 relative"
+            >
+              <div 
+                className="liquid-glass-slider"
+                style={{ 
+                  left: `${sliderStyle.left}px`, 
+                  width: `${sliderStyle.width}px` 
+                }}
+              />
+              <button
+                data-tab="stores"
+                onClick={() => setActiveTab("stores")}
+                className={cn(
+                  "liquid-glass-tab flex items-center justify-center gap-2",
+                  activeTab === "stores" && "text-white"
+                )}
+                data-testid="tab-stores"
+              >
                 <Store className="w-4 h-4" />
                 Stores
                 {storeChats.filter(c => c.unreadCount > 0).length > 0 && (
-                  <Badge className="ml-1 h-5 min-w-5 bg-white/20 text-inherit border-0">
+                  <Badge className={cn(
+                    "ml-1 h-5 min-w-5 border-0",
+                    activeTab === "stores" ? "bg-white/30 text-white" : "bg-primary/20 text-primary"
+                  )}>
                     {storeChats.filter(c => c.unreadCount > 0).length}
                   </Badge>
                 )}
-              </TabsTrigger>
-              <TabsTrigger value="personal" className="liquid-glass-tab flex items-center justify-center gap-2">
+              </button>
+              <button
+                data-tab="personal"
+                onClick={() => setActiveTab("personal")}
+                className={cn(
+                  "liquid-glass-tab flex items-center justify-center gap-2",
+                  activeTab === "personal" && "text-white"
+                )}
+                data-testid="tab-personal"
+              >
                 <Users className="w-4 h-4" />
                 Personal
                 {personalChats.filter(c => c.unreadCount > 0).length > 0 && (
-                  <Badge className="ml-1 h-5 min-w-5 bg-white/20 text-inherit border-0">
+                  <Badge className={cn(
+                    "ml-1 h-5 min-w-5 border-0",
+                    activeTab === "personal" ? "bg-white/30 text-white" : "bg-primary/20 text-primary"
+                  )}>
                     {personalChats.filter(c => c.unreadCount > 0).length}
                   </Badge>
                 )}
-              </TabsTrigger>
-            </TabsList>
+              </button>
+            </div>
             
-            <TabsContent value="stores" className="mt-0 space-y-3">
+            {activeTab === "stores" && (
+            <div className="mt-0 space-y-3">
               {storeChatsLoading ? (
                 <div className="space-y-3">
                   {[1, 2, 3].map(i => (
@@ -417,9 +467,11 @@ export default function CustomerInboxPage() {
                   ))}
                 </div>
               )}
-            </TabsContent>
+            </div>
+            )}
             
-            <TabsContent value="personal" className="mt-0 space-y-3">
+            {activeTab === "personal" && (
+            <div className="mt-0 space-y-3">
               {personalChatsLoading ? (
                 <div className="space-y-3">
                   {[1, 2, 3].map(i => (
@@ -467,8 +519,9 @@ export default function CustomerInboxPage() {
                   ))}
                 </div>
               )}
-            </TabsContent>
-          </Tabs>
+            </div>
+            )}
+          </div>
         </div>
       </div>
     </CustomerLayout>
