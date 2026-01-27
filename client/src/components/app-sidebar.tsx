@@ -46,6 +46,7 @@ import {
   User,
   DollarSign,
   Target,
+  HardDrive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -121,6 +122,7 @@ const iconMap: Record<string, any> = {
   Receipt,
   ShieldAlert,
   DollarSign,
+  HardDrive,
 };
 
 const menuItemsMap: Record<string, MenuItem> = {
@@ -148,6 +150,7 @@ const menuItemsMap: Record<string, MenuItem> = {
   "billing": { id: "billing", title: "Billing", url: "/dashboard/billing", icon: Receipt, permission: "billing" },
   "chat-monitoring": { id: "chat-monitoring", title: "Chat Monitoring", url: "/dashboard/chat-monitoring", icon: ShieldAlert, permission: "settings" },
   "affiliate": { id: "affiliate", title: "Affiliate", url: "/dashboard/affiliate", icon: DollarSign, permission: "overview" },
+  "data-usage": { id: "data-usage", title: "Data Usage", url: "/dashboard/data-usage", icon: HardDrive, permission: "billing" },
 };
 
 const defaultMainMenuItems: MenuItem[] = [
@@ -181,6 +184,7 @@ const defaultManagementItems: MenuItem[] = [
   menuItemsMap["user-data"],
   menuItemsMap["integrations"],
   menuItemsMap["chat-monitoring"],
+  menuItemsMap["data-usage"],
   menuItemsMap["plans"],
   menuItemsMap["billing"],
 ];
@@ -208,6 +212,7 @@ const defaultGroupForItem: Record<string, "main" | "widgetSetting" | "messageSet
   "user-data": "management",
   "integrations": "management",
   "chat-monitoring": "management",
+  "data-usage": "management",
   "plans": "management",
   "billing": "management",
 };

@@ -3572,6 +3572,75 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  app.get("/api/merchant/storage-usage", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      const mediaFiles = await storage.getChatMediaByMerchant(merchantId);
+      
+      const totalStorageUsed = mediaFiles.reduce((sum, file) => sum + (file.fileSize || 0), 0);
+      
+      const mediaByType = {
+        images: mediaFiles.filter(f => f.mimeType?.startsWith("image/")).length,
+        documents: mediaFiles.filter(f => 
+          f.mimeType?.includes("pdf") || 
+          f.mimeType?.includes("document") ||
+          f.mimeType?.includes("text/")
+        ).length,
+        videos: mediaFiles.filter(f => f.mimeType?.startsWith("video/")).length,
+        other: mediaFiles.filter(f => 
+          !f.mimeType?.startsWith("image/") &&
+          !f.mimeType?.startsWith("video/") &&
+          !f.mimeType?.includes("pdf") &&
+          !f.mimeType?.includes("document") &&
+          !f.mimeType?.includes("text/")
+        ).length,
+      };
+      
+      const recentUploads = mediaFiles
+        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+        .slice(0, 10)
+        .map(file => ({
+          id: file.id,
+          filename: file.filename,
+          fileSize: file.fileSize,
+          mimeType: file.mimeType,
+          createdAt: file.createdAt,
+        }));
+      
+      const planLimits: Record<string, number> = {
+        free: 100 * 1024 * 1024,
+        starter: 500 * 1024 * 1024,
+        pro: 2 * 1024 * 1024 * 1024,
+        enterprise: 10 * 1024 * 1024 * 1024,
+      };
+      
+      const planId = merchant.subscriptionPlanId || "free";
+      const storageLimit = merchant.storageLimit || planLimits[planId] || planLimits.free;
+      
+      res.json({
+        totalStorageUsed,
+        storageLimit,
+        mediaCount: mediaFiles.length,
+        mediaByType,
+        recentUploads,
+        usageBySession: [],
+        planInfo: {
+          planName: planId.charAt(0).toUpperCase() + planId.slice(1),
+          storageLimitMB: Math.round(storageLimit / (1024 * 1024)),
+        },
+      });
+    } catch (error) {
+      console.error("Storage usage error:", error);
+      res.status(500).json({ error: "Failed to fetch storage usage" });
+    }
+  });
+
   app.get("/api/merchant/export-data", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;

@@ -106,6 +106,9 @@ export const merchants = pgTable("merchants", {
   // Pre-chat form customization
   welcomeDescription: text("welcome_description").default(""),
   quickMessageOptions: text("quick_message_options").array().default([]),
+  // Storage usage tracking (in bytes)
+  storageUsed: integer("storage_used").default(0),
+  storageLimit: integer("storage_limit").default(104857600), // 100MB default
   createdAt: timestamp("created_at").defaultNow(),
   firstSubscribedAt: timestamp("first_subscribed_at"), // First time merchant paid for any subscription
 });
@@ -2022,6 +2025,9 @@ export const customers = pgTable("customers", {
   lastActiveAt: timestamp("last_active_at"),
   pushSubscription: jsonb("push_subscription"), // Web push subscription object
   notificationsEnabled: boolean("notifications_enabled").default(true),
+  // Storage usage tracking (in bytes)
+  storageUsed: integer("storage_used").default(0),
+  storageLimit: integer("storage_limit").default(52428800), // 50MB default for personal chats
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
@@ -2130,6 +2136,8 @@ export type PersonalMessage = typeof personalMessages.$inferSelect;
 // Chat Media - stores uploaded media files for chat messages
 export const chatMedia = pgTable("chat_media", {
   id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }), // For tracking merchant storage usage
+  customerId: varchar("customer_id", { length: 32 }), // For tracking customer storage usage (personal chats)
   uploaderId: varchar("uploader_id", { length: 32 }).notNull(), // customer or session id
   uploaderType: text("uploader_type").notNull().default("customer"), // "customer" or "supervisor"
   sessionId: varchar("session_id", { length: 64 }), // Optional link to chat session
@@ -2140,11 +2148,14 @@ export const chatMedia = pgTable("chat_media", {
   fileSize: integer("file_size").notNull(), // Size in bytes
   fileData: text("file_data").notNull(), // Base64 encoded file data
   thumbnailData: text("thumbnail_data"), // Optional thumbnail for images/videos
+  storageUrl: text("storage_url"), // URL if stored in object storage
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   uploaderIdx: index("chat_media_uploader_idx").on(table.uploaderId),
   sessionIdx: index("chat_media_session_idx").on(table.sessionId),
   personalChatIdx: index("chat_media_personal_chat_idx").on(table.personalChatId),
+  merchantIdx: index("chat_media_merchant_idx").on(table.merchantId),
+  customerIdx: index("chat_media_customer_idx").on(table.customerId),
 }));
 
 export const insertChatMediaSchema = createInsertSchema(chatMedia).omit({ id: true, createdAt: true });

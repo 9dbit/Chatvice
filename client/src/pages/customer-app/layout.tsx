@@ -48,7 +48,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
             alt="Chatvice" 
             className="h-8 w-8"
           />
-          <span className="font-semibold text-lg hidden sm:inline bg-gradient-to-r from-primary via-violet-400 to-primary bg-clip-text text-transparent">Chatvice</span>
+          <span className="font-semibold bg-gradient-to-r from-primary via-violet-400 to-primary bg-clip-text text-transparent">Chatvice</span>
         </Link>
         
         <div className="flex flex-wrap items-center gap-2">

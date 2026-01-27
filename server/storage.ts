@@ -500,6 +500,7 @@ export interface IStorage {
   createChatMedia(data: InsertChatMedia): Promise<ChatMedia>;
   getChatMedia(id: string): Promise<ChatMedia | undefined>;
   getChatMediaBySession(sessionId: string): Promise<ChatMedia[]>;
+  getChatMediaByMerchant(merchantId: string): Promise<ChatMedia[]>;
   
   // Customer Stories
   getActiveCustomerStories(customerId: string): Promise<CustomerStory[]>;
@@ -3638,6 +3639,12 @@ export class DatabaseStorage implements IStorage {
   async getChatMediaBySession(sessionId: string): Promise<ChatMedia[]> {
     return db.select().from(chatMedia)
       .where(eq(chatMedia.sessionId, sessionId))
+      .orderBy(desc(chatMedia.createdAt));
+  }
+
+  async getChatMediaByMerchant(merchantId: string): Promise<ChatMedia[]> {
+    return db.select().from(chatMedia)
+      .where(eq(chatMedia.merchantId, merchantId))
       .orderBy(desc(chatMedia.createdAt));
   }
 

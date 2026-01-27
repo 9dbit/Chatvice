@@ -147,24 +147,24 @@ function ChatCard({
   return (
     <Link
       href={href}
-      className="glass-card rounded-xl p-3 flex items-center gap-3 hover-elevate transition-all"
+      className="glass-card rounded-md p-2.5 flex items-center gap-2.5 hover-elevate transition-all"
       data-testid={testId}
     >
       <div className="relative flex-shrink-0">
-        <Avatar className="w-12 h-12">
+        <Avatar className="w-10 h-10">
           <AvatarImage src={avatarUrl || undefined} />
           <AvatarFallback className="bg-gradient-to-br from-primary/20 to-violet-500/20">
-            {Icon ? <Icon className="w-5 h-5 text-primary" /> : name.charAt(0).toUpperCase()}
+            {Icon ? <Icon className="w-4 h-4 text-primary" /> : name.charAt(0).toUpperCase()}
           </AvatarFallback>
         </Avatar>
         {isOnline && (
-          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
+          <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-background" />
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="font-medium truncate">{name}</span>
+        <div className="flex items-center justify-between gap-1.5">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="font-medium text-sm truncate">{name}</span>
             {isPinned && <Pin className="w-3 h-3 text-muted-foreground flex-shrink-0" />}
           </div>
           {time && (
@@ -173,12 +173,12 @@ function ChatCard({
             </span>
           )}
         </div>
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-sm text-muted-foreground truncate">
+        <div className="flex items-center justify-between gap-1.5">
+          <p className="text-xs text-muted-foreground truncate leading-tight">
             {lastMessage}
           </p>
           {unreadCount > 0 && (
-            <Badge className="h-5 min-w-5 flex-shrink-0 bg-gradient-to-r from-purple-500 to-indigo-500 text-white border-0">
+            <Badge className="h-4 min-w-4 text-[10px] flex-shrink-0 bg-primary text-primary-foreground border-0">
               {unreadCount}
             </Badge>
           )}
@@ -417,14 +417,14 @@ export default function CustomerInboxPage() {
             </div>
             
             {activeTab === "stores" && (
-            <div className="mt-0 space-y-3">
+            <div className="mt-0 space-y-2">
               {storeChatsLoading ? (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {[1, 2, 3].map(i => (
-                    <div key={i} className="glass-card animate-pulse rounded-xl p-3 flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-muted" />
-                      <div className="flex-1 space-y-2">
-                        <div className="h-4 bg-muted rounded w-1/3" />
+                    <div key={i} className="glass-card animate-pulse rounded-md p-2.5 flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-full bg-muted" />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-3.5 bg-muted rounded w-1/3" />
                         <div className="h-3 bg-muted rounded w-2/3" />
                       </div>
                     </div>
@@ -446,7 +446,7 @@ export default function CustomerInboxPage() {
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {filteredStoreChats.map((chat) => (
                     <ChatCard
                       key={chat.id}
@@ -471,14 +471,14 @@ export default function CustomerInboxPage() {
             )}
             
             {activeTab === "personal" && (
-            <div className="mt-0 space-y-3">
+            <div className="mt-0 space-y-2">
               {personalChatsLoading ? (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {[1, 2, 3].map(i => (
-                    <div key={i} className="glass-card animate-pulse rounded-xl p-3 flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-muted" />
-                      <div className="flex-1 space-y-2">
-                        <div className="h-4 bg-muted rounded w-1/3" />
+                    <div key={i} className="glass-card animate-pulse rounded-md p-2.5 flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-full bg-muted" />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-3.5 bg-muted rounded w-1/3" />
                         <div className="h-3 bg-muted rounded w-2/3" />
                       </div>
                     </div>
@@ -500,7 +500,7 @@ export default function CustomerInboxPage() {
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {filteredPersonalChats.map((chat) => (
                     <ChatCard
                       key={chat.id}
