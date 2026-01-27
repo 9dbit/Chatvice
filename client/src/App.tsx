@@ -25,6 +25,7 @@ import AboutPage from "@/pages/about";
 import APIDocsPage from "@/pages/api-docs";
 import ChangelogPage from "@/pages/changelog";
 import IntegrationsPage from "@/pages/integrations";
+import WhatsAppBlastPage from "@/pages/whatsapp-blast";
 
 import PrivacyPolicyPage from "@/pages/legal/privacy";
 import TermsOfServicePage from "@/pages/legal/terms";
@@ -190,6 +191,7 @@ function MainRouter() {
 
       <Route path="/faq" component={FAQPage} />
       <Route path="/features" component={FeaturesPage} />
+      <Route path="/whatsapp-blast" component={WhatsAppBlastPage} />
       <Route path="/pricing" component={PricingPage} />
       <Route path="/about" component={AboutPage} />
       <Route path="/api-docs" component={APIDocsPage} />
