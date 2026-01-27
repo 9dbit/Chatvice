@@ -26,8 +26,10 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   });
   
   const navItems = [
-    { href: chatRoutes.settings(), icon: User, label: "Profile" },
     { href: chatRoutes.inbox(), icon: MessageSquare, label: "Chats" },
+    { href: chatRoutes.stores(), icon: Store, label: "Stores" },
+    { href: chatRoutes.contacts(), icon: Users, label: "Contacts" },
+    { href: chatRoutes.settings(), icon: User, label: "Profile" },
   ];
   
   const sidebarNavItems = [
@@ -62,7 +64,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
       </main>
       
       <nav className="fixed bottom-4 left-4 right-4 h-14 sm:hidden z-[9999] rounded-md bg-white/80 dark:bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg">
-        <div className="flex items-center justify-between gap-4 h-full px-8">
+        <div className="flex items-center justify-around gap-2 h-full px-2">
           {navItems.map((item) => {
             const isActive = location.startsWith(item.href);
             return (
@@ -70,7 +72,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center gap-1 px-4 py-2 rounded-md transition-colors hover-elevate",
+                  "flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-md transition-colors hover-elevate",
                   isActive 
                     ? "text-primary" 
                     : "text-muted-foreground"
@@ -78,7 +80,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 data-testid={`nav-${item.label.toLowerCase()}`}
               >
                 <item.icon className="w-5 h-5" />
-                <span className="text-xs font-medium">{item.label}</span>
+                <span className="text-[10px] font-medium">{item.label}</span>
               </Link>
             );
           })}
