@@ -154,7 +154,7 @@ function ChatCard({
       href={href}
       onClick={onClick}
       className={cn(
-        "glass-card rounded-md p-2.5 flex items-center gap-2.5 hover-elevate transition-all",
+        "glass-card rounded-xl p-2.5 flex items-center gap-2.5 hover-elevate transition-all",
         isSelected && "ring-2 ring-primary bg-primary/5"
       )}
       data-testid={testId}
@@ -453,7 +453,7 @@ export default function CustomerInboxPage() {
               {storeChatsLoading ? (
                 <div className="space-y-2">
                   {[1, 2, 3].map(i => (
-                    <div key={i} className="glass-card animate-pulse rounded-md p-2.5 flex items-center gap-2.5">
+                    <div key={i} className="glass-card animate-pulse rounded-xl p-2.5 flex items-center gap-2.5">
                       <div className="w-10 h-10 rounded-full bg-muted" />
                       <div className="flex-1 space-y-1.5">
                         <div className="h-3.5 bg-muted rounded w-1/3" />
@@ -509,7 +509,7 @@ export default function CustomerInboxPage() {
               {personalChatsLoading ? (
                 <div className="space-y-2">
                   {[1, 2, 3].map(i => (
-                    <div key={i} className="glass-card animate-pulse rounded-md p-2.5 flex items-center gap-2.5">
+                    <div key={i} className="glass-card animate-pulse rounded-xl p-2.5 flex items-center gap-2.5">
                       <div className="w-10 h-10 rounded-full bg-muted" />
                       <div className="flex-1 space-y-1.5">
                         <div className="h-3.5 bg-muted rounded w-1/3" />

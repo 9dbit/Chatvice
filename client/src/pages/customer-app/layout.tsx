@@ -1,5 +1,6 @@
 import { useLocation, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect, useRef } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MessageSquare, Store, Users, Settings, User } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,8 @@ interface CustomerLayoutProps {
 
 export default function CustomerLayout({ children }: CustomerLayoutProps) {
   const [location] = useLocation();
+  const navRef = useRef<HTMLDivElement>(null);
+  const [sliderStyle, setSliderStyle] = useState({ left: 0, width: 0 });
   
   const { data: customer } = useQuery<CustomerData>({
     queryKey: ["/api/customer/me"],
@@ -38,6 +41,23 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
     { href: chatRoutes.contacts(), icon: Users, label: "Contacts" },
     { href: chatRoutes.settings(), icon: User, label: "Profile" },
   ];
+  
+  // Find active nav item index
+  const activeIndex = navItems.findIndex(item => location.startsWith(item.href));
+  
+  useEffect(() => {
+    if (navRef.current && activeIndex >= 0) {
+      const activeButton = navRef.current.querySelector(`[data-nav-index="${activeIndex}"]`) as HTMLElement;
+      if (activeButton) {
+        const containerRect = navRef.current.getBoundingClientRect();
+        const buttonRect = activeButton.getBoundingClientRect();
+        setSliderStyle({
+          left: buttonRect.left - containerRect.left,
+          width: buttonRect.width,
+        });
+      }
+    }
+  }, [activeIndex, location]);
   
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -63,19 +83,32 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
         {children}
       </main>
       
-      <nav className="fixed bottom-4 left-4 right-4 h-14 sm:hidden z-[9999] rounded-md bg-white/80 dark:bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg">
-        <div className="flex items-center justify-around gap-2 h-full px-2">
-          {navItems.map((item) => {
+      <nav className="fixed bottom-4 left-4 right-4 h-14 sm:hidden z-[9999] rounded-3xl bg-white/80 dark:bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg">
+        <div 
+          ref={navRef}
+          className="flex items-center justify-around gap-2 h-full px-2 relative"
+        >
+          <div 
+            className="absolute top-1.5 bottom-1.5 rounded-2xl bg-primary transition-all duration-300 ease-out"
+            style={{ 
+              left: `${sliderStyle.left}px`, 
+              width: `${sliderStyle.width}px`,
+              opacity: activeIndex >= 0 ? 1 : 0
+            }}
+            data-testid="nav-slider"
+          />
+          {navItems.map((item, index) => {
             const isActive = location.startsWith(item.href);
             return (
               <Link
                 key={item.href}
                 href={item.href}
+                data-nav-index={index}
                 className={cn(
-                  "flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-md transition-colors hover-elevate",
+                  "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-2xl transition-colors z-10 relative",
                   isActive 
-                    ? "text-primary" 
-                    : "text-muted-foreground"
+                    ? "text-primary-foreground" 
+                    : "text-muted-foreground hover-elevate"
                 )}
                 data-testid={`nav-${item.label.toLowerCase()}`}
               >

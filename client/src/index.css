@@ -786,7 +786,7 @@ html {
   background: rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-radius: 16px;
+  border-radius: 1rem;
   padding: 4px;
   border: 1px solid rgba(255, 255, 255, 0.3);
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
@@ -802,7 +802,7 @@ html {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 16px;
+  border-radius: 1rem;
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, 0.4) 0%,
@@ -828,9 +828,10 @@ html {
 .liquid-glass-tab {
   position: relative;
   z-index: 2;
-  padding: 6px 16px;
-  border-radius: 6px;
+  padding: 4px 12px;
+  border-radius: 10px;
   font-weight: 500;
+  font-size: 0.875rem;
   transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   color: hsl(var(--muted-foreground));
   background: transparent;
@@ -845,7 +846,7 @@ html {
   position: absolute;
   top: 3px;
   bottom: 3px;
-  border-radius: 6px;
+  border-radius: 10px;
   background: hsl(var(--primary));
   box-shadow: 0 2px 8px hsl(var(--primary) / 0.3);
   transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);

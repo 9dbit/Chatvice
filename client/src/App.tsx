@@ -75,6 +75,12 @@ function ScrollToTop() {
 function GlobalHelpBubble() {
   const [location] = useLocation();
   
+  // Hide on chat subdomain (customer chat platform)
+  const hostname = window.location.hostname;
+  if (hostname.startsWith('chat.') || hostname === 'chat.chatvice.app') {
+    return null;
+  }
+  
   const excludedPaths = [
     '/dashboard',
     '/supervisor',
