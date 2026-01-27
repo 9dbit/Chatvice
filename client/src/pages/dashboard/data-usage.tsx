@@ -151,29 +151,29 @@ export default function DataUsagePage() {
             <div className="space-y-4" data-testid="storage-breakdown">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-primary" />
-                  <span className="text-sm">Images</span>
+                  <div className="w-3 h-3 rounded-full bg-primary" data-testid="dot-breakdown-images" />
+                  <span className="text-sm" data-testid="text-breakdown-images">Images</span>
                 </div>
                 <Badge variant="secondary" data-testid="badge-images">{usage?.mediaByType?.images || 0} files</Badge>
               </div>
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-destructive" />
-                  <span className="text-sm">Documents</span>
+                  <div className="w-3 h-3 rounded-full bg-destructive" data-testid="dot-breakdown-documents" />
+                  <span className="text-sm" data-testid="text-breakdown-documents">Documents</span>
                 </div>
                 <Badge variant="secondary" data-testid="badge-documents">{usage?.mediaByType?.documents || 0} files</Badge>
               </div>
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-secondary" />
-                  <span className="text-sm">Videos</span>
+                  <div className="w-3 h-3 rounded-full bg-secondary" data-testid="dot-breakdown-videos" />
+                  <span className="text-sm" data-testid="text-breakdown-videos">Videos</span>
                 </div>
                 <Badge variant="secondary" data-testid="badge-videos">{usage?.mediaByType?.videos || 0} files</Badge>
               </div>
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-muted" />
-                  <span className="text-sm">Other</span>
+                  <div className="w-3 h-3 rounded-full bg-muted" data-testid="dot-breakdown-other" />
+                  <span className="text-sm" data-testid="text-breakdown-other">Other</span>
                 </div>
                 <Badge variant="secondary" data-testid="badge-other">{usage?.mediaByType?.other || 0} files</Badge>
               </div>
@@ -192,15 +192,15 @@ export default function DataUsagePage() {
           <CardContent>
             <div className="space-y-4" data-testid="plan-info">
               <div className="flex items-center justify-between gap-4">
-                <span className="text-sm text-muted-foreground">Current Plan</span>
+                <span className="text-sm text-muted-foreground" data-testid="label-current-plan">Current Plan</span>
                 <Badge data-testid="badge-plan-name">{usage?.planInfo?.planName || "Free"}</Badge>
               </div>
               <div className="flex items-center justify-between gap-4">
-                <span className="text-sm text-muted-foreground">Storage Limit</span>
+                <span className="text-sm text-muted-foreground" data-testid="label-storage-limit">Storage Limit</span>
                 <span className="font-medium" data-testid="text-storage-limit-mb">{usage?.planInfo?.storageLimitMB || 100} MB</span>
               </div>
               <div className="flex items-center justify-between gap-4">
-                <span className="text-sm text-muted-foreground">Usage</span>
+                <span className="text-sm text-muted-foreground" data-testid="label-usage">Usage</span>
                 <span className={`font-medium ${isOverLimit ? "text-destructive" : ""}`} data-testid="text-usage-percent">
                   {usedPercentage.toFixed(1)}%
                 </span>
@@ -235,7 +235,7 @@ export default function DataUsagePage() {
         <CardContent>
           {!usage?.recentUploads?.length ? (
             <div className="text-center py-8 text-muted-foreground" data-testid="empty-uploads">
-              <Upload className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <Upload className="w-12 h-12 mx-auto mb-4 opacity-50" data-testid="icon-empty-uploads" />
               <p data-testid="text-no-files">No files uploaded yet</p>
             </div>
           ) : (
@@ -247,7 +247,9 @@ export default function DataUsagePage() {
                   data-testid={`file-${file.id}`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    {getFileTypeIcon(file.mimeType)}
+                    <span data-testid={`icon-filetype-${file.id}`}>
+                      {getFileTypeIcon(file.mimeType)}
+                    </span>
                     <div className="min-w-0">
                       <p className="font-medium truncate text-sm" data-testid={`filename-${file.id}`}>{file.filename}</p>
                       <p className="text-xs text-muted-foreground" data-testid={`fileinfo-${file.id}`}>
