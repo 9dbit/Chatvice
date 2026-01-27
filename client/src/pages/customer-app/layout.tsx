@@ -105,7 +105,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
         >
           <div 
             className={cn(
-              "absolute top-1.5 bottom-1.5 rounded-2xl bg-primary",
+              "absolute top-1.5 bottom-1.5 rounded-[1.25rem] bg-primary",
               isInitialized ? "transition-all duration-300 ease-out" : "transition-none"
             )}
             style={{ 
