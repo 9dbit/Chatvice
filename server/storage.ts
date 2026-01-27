@@ -3652,6 +3652,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(chatMedia.merchantId, merchantId))
       .orderBy(desc(chatMedia.createdAt));
   }
+  
+  async updateChatMedia(id: string, updates: Partial<InsertChatMedia>): Promise<ChatMedia | undefined> {
+    const result = await db.update(chatMedia)
+      .set(updates)
+      .where(eq(chatMedia.id, id))
+      .returning();
+    return result[0];
+  }
 
   async deleteExpiredChatMedia(): Promise<number> {
     const now = new Date();

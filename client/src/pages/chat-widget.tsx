@@ -72,6 +72,19 @@ interface PendingMessage {
 
 const generateClientId = () => `client_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
+const formatFileSize = (bytes: number | null | undefined): string => {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const formatMediaTimestamp = (timestamp: Date | string | null | undefined): string => {
+  if (!timestamp) return "";
+  const date = typeof timestamp === "string" ? new Date(timestamp) : timestamp;
+  return date.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+};
+
 interface ParsedPart {
   type: "text" | "button" | "link";
   content: string;
@@ -422,9 +435,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const videoInputRef = useRef<HTMLInputElement>(null);
   const documentInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [showUploadMenu, setShowUploadMenu] = useState(false);
   const [productCarouselIndex, setProductCarouselIndex] = useState(0);
-  const [viewingImage, setViewingImage] = useState<{ url: string; filename: string } | null>(null);
+  const [viewingImage, setViewingImage] = useState<{ url: string; filename: string; imageWidth?: number | null; imageHeight?: number | null } | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastProcessedServerMsgId = useRef<string | null>(null);
   const processedMsgIdsSet = useRef<Set<string>>(new Set()); // Track all processed message IDs
@@ -1059,6 +1073,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     if (!file) return;
     
     setIsUploadingMedia(true);
+    setUploadProgress(0);
     
     try {
       let locationData: LocationData | null = null;
@@ -1077,26 +1092,41 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         formData.append("locationData", JSON.stringify(locationData));
       }
       
-      const response = await fetch("/api/chat/upload", {
-        method: "POST",
-        body: formData,
-        credentials: "include",
+      // Use XMLHttpRequest for progress tracking
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.addEventListener("progress", (e) => {
+          if (e.lengthComputable) {
+            const progress = Math.round((e.loaded / e.total) * 100);
+            setUploadProgress(progress);
+          }
+        });
+        
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            queryClient.invalidateQueries({ queryKey: ["/api/messages", sessionId] });
+            resolve();
+          } else {
+            reject(new Error("Upload failed"));
+          }
+        });
+        
+        xhr.addEventListener("error", () => reject(new Error("Upload failed")));
+        
+        xhr.open("POST", "/api/chat/upload");
+        xhr.withCredentials = true;
+        xhr.send(formData);
       });
       
-      if (!response.ok) {
-        throw new Error("Upload failed");
-      }
-      
-      const data = await response.json();
-      
-      queryClient.invalidateQueries({ queryKey: ["/api/messages", sessionId] });
     } catch {
       setPendingMessages((prev) => [
         ...prev,
-        { clientId: generateClientId(), from: "chatvice", content: "Sorry, I couldn't upload that file. Please try again.", timestamp: new Date() },
+        { clientId: generateClientId(), from: "chatvice", content: "Maaf, file tidak bisa diunggah. Silakan coba lagi.", timestamp: new Date() },
       ]);
     } finally {
       setIsUploadingMedia(false);
+      setUploadProgress(0);
       if (fileInputRef.current) fileInputRef.current.value = "";
       if (videoInputRef.current) videoInputRef.current.value = "";
       if (documentInputRef.current) documentInputRef.current.value = "";
@@ -2656,24 +2686,52 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                     );
                   })()}
                   {(msg as any).messageType === "media" && (msg as any).payload && (
-                    <div>
+                    <div className="mt-1">
                       {(msg as any).payload.type === "photo" && (
-                        <img 
-                          src={(msg as any).payload.url} 
-                          alt={(msg as any).payload.filename || "Image"}
-                          className="max-w-[160px] max-h-[160px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setViewingImage({ url: (msg as any).payload.url, filename: (msg as any).payload.filename || "Image" });
-                          }}
-                          data-testid="img-chat-media"
-                        />
+                        <div className="space-y-1">
+                          <div 
+                            className="relative w-[120px] h-[120px] rounded-lg overflow-hidden border-2 border-border/50 cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setViewingImage({ 
+                                url: (msg as any).payload.url, 
+                                filename: (msg as any).payload.filename || "Image",
+                                imageWidth: (msg as any).payload.imageWidth,
+                                imageHeight: (msg as any).payload.imageHeight,
+                              });
+                            }}
+                            data-testid="img-chat-media-container"
+                          >
+                            <img 
+                              src={(msg as any).payload.url} 
+                              alt={(msg as any).payload.filename || "Image"}
+                              className="w-full h-full object-cover"
+                              data-testid="img-chat-media"
+                            />
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 text-[9px] text-muted-foreground">
+                            {(msg as any).payload.imageWidth && (msg as any).payload.imageHeight && (
+                              <span className="bg-background/60 px-1.5 py-0.5 rounded" data-testid="text-media-resolution">
+                                {(msg as any).payload.imageWidth}×{(msg as any).payload.imageHeight}
+                              </span>
+                            )}
+                            {(msg as any).payload.fileSize && (
+                              <span className="bg-background/60 px-1.5 py-0.5 rounded" data-testid="text-media-filesize">
+                                {formatFileSize((msg as any).payload.fileSize)}
+                              </span>
+                            )}
+                            <span className="bg-background/60 px-1.5 py-0.5 rounded" data-testid="text-media-time">
+                              {formatMediaTimestamp(msg.timestamp)}
+                            </span>
+                          </div>
+                        </div>
                       )}
                       {(msg as any).payload.type === "video" && (
                         <video 
                           src={(msg as any).payload.url}
                           controls
-                          className="max-w-[200px] max-h-[150px] rounded-lg"
+                          className="max-w-[200px] max-h-[150px] rounded-lg border-2 border-border/50"
+                          data-testid="video-chat-media"
                         />
                       )}
                       {(msg as any).payload.type === "document" && (
@@ -2682,11 +2740,17 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="flex items-center gap-2 p-2 bg-background/50 rounded-lg border hover:bg-background transition-colors"
+                          data-testid="link-chat-document"
                         >
                           <FileText className="w-4 h-4" style={{ color: primaryColor }} />
                           <span className="text-xs text-foreground truncate max-w-[120px]">
                             {(msg as any).payload.filename || "Document"}
                           </span>
+                          {(msg as any).payload.fileSize && (
+                            <span className="text-[9px] text-muted-foreground">
+                              ({formatFileSize((msg as any).payload.fileSize)})
+                            </span>
+                          )}
                         </a>
                       )}
                     </div>
@@ -2833,6 +2897,37 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       )}
 
       <div className={`p-4 ${applyEmbedStyles ? '' : 'border-t border-border'}`} style={frostedFooterStyle}>
+        {/* Upload Progress Bar */}
+        {isUploadingMedia && (
+          <div 
+            className="mb-2 px-3 py-2 rounded-lg"
+            style={applyEmbedStyles ? (widgetIsDark ? {
+              background: 'rgba(255, 255, 255, 0.1)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+            } : {
+              background: 'rgba(0, 0, 0, 0.05)',
+              border: '1px solid rgba(0, 0, 0, 0.1)',
+            }) : undefined}
+            data-testid="upload-progress-container"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Loader2 className="w-4 h-4 animate-spin" style={{ color: primaryColor }} />
+              <span className="text-xs" style={{ color: widgetIsDark ? 'white' : '#374151' }}>
+                Mengunggah... {uploadProgress}%
+              </span>
+            </div>
+            <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: widgetIsDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)' }}>
+              <div 
+                className="h-full rounded-full transition-all duration-300 ease-out"
+                style={{ 
+                  width: `${uploadProgress}%`,
+                  backgroundColor: primaryColor,
+                }}
+                data-testid="upload-progress-bar"
+              />
+            </div>
+          </div>
+        )}
         <input
           type="file"
           ref={fileInputRef}
@@ -3070,35 +3165,62 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       
       {viewingImage && (
         <div 
-          className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center"
+          className="fixed inset-0 z-[9999] bg-black/95 flex flex-col items-center justify-center p-4"
           onClick={() => setViewingImage(null)}
           data-testid="modal-image-viewer"
         >
-          <div 
-            className="relative flex items-center justify-center"
-            onClick={(e) => e.stopPropagation()}
-          >
+          {/* Header with close and info */}
+          <div className="absolute top-4 left-0 right-0 flex items-center justify-between px-4 z-[10000]">
+            <div className="flex items-center gap-3">
+              {viewingImage.imageWidth && viewingImage.imageHeight && (
+                <span className="text-sm text-white/70 bg-white/10 px-3 py-1 rounded-full" data-testid="text-viewer-resolution">
+                  {viewingImage.imageWidth}×{viewingImage.imageHeight}
+                </span>
+              )}
+              <span className="text-sm text-white/70 truncate max-w-[150px]" data-testid="text-viewer-filename">
+                {viewingImage.filename}
+              </span>
+            </div>
             <button
-              className="absolute -top-12 right-0 z-[10000] p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-              onClick={() => setViewingImage(null)}
+              className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                setViewingImage(null);
+              }}
               data-testid="button-close-image-viewer"
             >
               <X className="w-6 h-6 text-white" />
             </button>
+          </div>
+          
+          {/* Image container with original proportions */}
+          <div 
+            className="relative flex items-center justify-center flex-1 w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
             <img 
               src={viewingImage.url} 
               alt={viewingImage.filename}
-              className="max-w-[90vw] max-h-[80vh] object-contain rounded-lg"
+              className="max-w-full max-h-[80vh] object-contain rounded-lg touch-none"
+              style={{
+                touchAction: 'none',
+              }}
               data-testid="img-fullscreen-view"
             />
+          </div>
+          
+          {/* Footer with open in new tab */}
+          <div className="absolute bottom-4 right-4 z-[10000]">
             <a
               href={viewingImage.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="absolute -bottom-12 right-0 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+              className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white text-sm"
+              onClick={(e) => e.stopPropagation()}
               data-testid="button-open-image-new-tab"
             >
-              <ExternalLink className="w-5 h-5 text-white" />
+              <ExternalLink className="w-4 h-4" />
+              <span className="hidden sm:inline">Buka di tab baru</span>
             </a>
           </div>
         </div>

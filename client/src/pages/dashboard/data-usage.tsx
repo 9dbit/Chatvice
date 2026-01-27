@@ -1,10 +1,24 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { HardDrive, Image, FileText, Database, TrendingUp, Users, MessageSquare, Upload } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { HardDrive, Image, FileText, Database, TrendingUp, Upload, X, ExternalLink, Clock } from "lucide-react";
+import { formatDistanceToNow, format } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
+
+interface MediaGalleryItem {
+  id: string;
+  filename: string;
+  fileSize: number;
+  mimeType: string;
+  url: string;
+  imageWidth: number | null;
+  imageHeight: number | null;
+  expiresAt: string | null;
+  createdAt: string;
+}
 
 interface StorageUsageData {
   totalStorageUsed: number;
@@ -23,6 +37,7 @@ interface StorageUsageData {
     mimeType: string;
     createdAt: string;
   }>;
+  mediaGallery: MediaGalleryItem[];
   usageBySession: Array<{
     sessionId: string;
     totalSize: number;
@@ -53,6 +68,8 @@ export default function DataUsagePage() {
   const { data: usage, isLoading } = useQuery<StorageUsageData>({
     queryKey: ["/api/merchant/storage-usage"],
   });
+  
+  const [viewingImage, setViewingImage] = useState<MediaGalleryItem | null>(null);
 
   if (isLoading) {
     return (
@@ -77,9 +94,9 @@ export default function DataUsagePage() {
   return (
     <div className="p-6 space-y-6" data-testid="page-data-usage">
       <div>
-        <h1 className="text-2xl font-bold" data-testid="text-page-title">Data Usage</h1>
+        <h1 className="text-2xl font-bold" data-testid="text-page-title">Usage Info & Media</h1>
         <p className="text-muted-foreground" data-testid="text-page-description">
-          Monitor your storage usage and media uploads
+          Monitor penyimpanan dan kelola media yang diunggah
         </p>
       </div>
 
@@ -266,6 +283,141 @@ export default function DataUsagePage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Media Gallery */}
+      <Card data-testid="card-media-gallery">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2" data-testid="title-media-gallery">
+            <Image className="w-5 h-5" />
+            Galeri Media
+          </CardTitle>
+          <CardDescription data-testid="desc-media-gallery">
+            Semua gambar yang diunggah di chat (otomatis terhapus setelah 7 hari)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!usage?.mediaGallery?.length ? (
+            <div className="text-center py-8 text-muted-foreground" data-testid="empty-gallery">
+              <Image className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>Belum ada gambar yang diunggah</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3" data-testid="gallery-grid">
+              {usage.mediaGallery.map((media) => (
+                <div 
+                  key={media.id}
+                  className="group relative aspect-square rounded-lg overflow-hidden border-2 border-border/50 cursor-pointer hover:border-primary/50 transition-all"
+                  onClick={() => setViewingImage(media)}
+                  data-testid={`gallery-image-${media.id}`}
+                >
+                  <img 
+                    src={media.url}
+                    alt={media.filename}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                  {/* Overlay with info on hover */}
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2">
+                    <p className="text-[10px] text-white truncate">{media.filename}</p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {media.imageWidth && media.imageHeight && (
+                        <span className="text-[9px] text-white/70 bg-white/20 px-1.5 py-0.5 rounded">
+                          {media.imageWidth}×{media.imageHeight}
+                        </span>
+                      )}
+                      <span className="text-[9px] text-white/70 bg-white/20 px-1.5 py-0.5 rounded">
+                        {formatBytes(media.fileSize)}
+                      </span>
+                    </div>
+                  </div>
+                  {/* Expiry indicator */}
+                  {media.expiresAt && (
+                    <div className="absolute top-1 right-1">
+                      <div 
+                        className="flex items-center gap-0.5 text-[8px] text-white bg-black/50 px-1.5 py-0.5 rounded-full"
+                        title={`Kedaluwarsa: ${format(new Date(media.expiresAt), "dd MMM yyyy HH:mm", { locale: idLocale })}`}
+                      >
+                        <Clock className="w-2.5 h-2.5" />
+                        <span>{formatDistanceToNow(new Date(media.expiresAt), { addSuffix: false, locale: idLocale })}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Image Viewer Modal */}
+      {viewingImage && (
+        <div 
+          className="fixed inset-0 z-[9999] bg-black/95 flex flex-col items-center justify-center p-4"
+          onClick={() => setViewingImage(null)}
+          data-testid="modal-gallery-viewer"
+        >
+          {/* Header with close and info */}
+          <div className="absolute top-4 left-0 right-0 flex items-center justify-between px-4 z-[10000]">
+            <div className="flex items-center gap-3">
+              {viewingImage.imageWidth && viewingImage.imageHeight && (
+                <span className="text-sm text-white/70 bg-white/10 px-3 py-1 rounded-full">
+                  {viewingImage.imageWidth}×{viewingImage.imageHeight}
+                </span>
+              )}
+              <span className="text-sm text-white/70 bg-white/10 px-3 py-1 rounded-full">
+                {formatBytes(viewingImage.fileSize)}
+              </span>
+              <span className="text-sm text-white/70 truncate max-w-[150px]">
+                {viewingImage.filename}
+              </span>
+            </div>
+            <button
+              className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                setViewingImage(null);
+              }}
+              data-testid="button-close-gallery-viewer"
+            >
+              <X className="w-6 h-6 text-white" />
+            </button>
+          </div>
+          
+          {/* Image container */}
+          <div 
+            className="relative flex items-center justify-center flex-1 w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img 
+              src={viewingImage.url} 
+              alt={viewingImage.filename}
+              className="max-w-full max-h-[80vh] object-contain rounded-lg"
+              data-testid="img-gallery-fullscreen"
+            />
+          </div>
+          
+          {/* Footer with info */}
+          <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between z-[10000]">
+            {viewingImage.expiresAt && (
+              <span className="text-xs text-white/60 flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                Kedaluwarsa {format(new Date(viewingImage.expiresAt), "dd MMM yyyy HH:mm", { locale: idLocale })}
+              </span>
+            )}
+            <a
+              href={viewingImage.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white text-sm"
+              onClick={(e) => e.stopPropagation()}
+              data-testid="button-open-gallery-new-tab"
+            >
+              <ExternalLink className="w-4 h-4" />
+              <span className="hidden sm:inline">Buka di tab baru</span>
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

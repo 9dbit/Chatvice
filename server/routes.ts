@@ -21,6 +21,7 @@ import MemoryStore from "memorystore";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import sizeOf from "image-size";
 import { processKnowledgeBase, searchKnowledge } from "./embeddings";
 import { extractFAQContent, syncKnowledgeFromUrl, fetchWebContent } from "./crawler";
 import { parseFile, fetchGoogleDoc, fetchGoogleSheet } from "./fileParser";
@@ -3690,6 +3691,23 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           createdAt: file.createdAt,
         }));
       
+      // Media gallery with full details for image viewer
+      const mediaGallery = mediaFiles
+        .filter(f => f.mimeType?.startsWith("image/"))
+        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+        .slice(0, 50)
+        .map(file => ({
+          id: file.id,
+          filename: file.filename,
+          fileSize: file.fileSize,
+          mimeType: file.mimeType,
+          url: file.data, // The URL is stored in the data field for local storage
+          imageWidth: file.imageWidth,
+          imageHeight: file.imageHeight,
+          expiresAt: file.expiresAt,
+          createdAt: file.createdAt,
+        }));
+      
       const planLimits: Record<string, number> = {
         free: 100 * 1024 * 1024,
         starter: 500 * 1024 * 1024,
@@ -3706,6 +3724,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         mediaCount: mediaFiles.length,
         mediaByType,
         recentUploads,
+        mediaGallery,
         usageBySession: [],
         planInfo: {
           planName: planId.charAt(0).toUpperCase() + planId.slice(1),
@@ -4261,6 +4280,37 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
       const mediaType = type === "video" ? "video" : type === "document" ? "document" : "photo";
       
+      // Get image dimensions if it's a photo
+      let imageWidth: number | undefined;
+      let imageHeight: number | undefined;
+      
+      if (mediaType === "photo") {
+        try {
+          const filePath = path.join(uploadDir, file.filename);
+          const dimensions = sizeOf(filePath);
+          imageWidth = dimensions.width;
+          imageHeight = dimensions.height;
+          console.log(`[Upload] Image dimensions: ${imageWidth}x${imageHeight}`);
+        } catch (dimErr) {
+          console.error("[Upload] Could not get image dimensions:", dimErr);
+        }
+      }
+      
+      // Store in chatMedia table for tracking with 7-day expiry
+      const chatMediaEntry = await storage.createChatMedia({
+        merchantId,
+        sessionId,
+        messageId: null, // Will be updated after message creation
+        filename: file.originalname,
+        mimeType: file.mimetype,
+        fileSize: file.size,
+        storageType: "local",
+        data: fileUrl, // Store the URL path for local storage
+        imageWidth: imageWidth || null,
+        imageHeight: imageHeight || null,
+        // expiresAt is automatically set to 7 days in storage.createChatMedia
+      });
+      
       await storage.createMediaAttachment({
         sessionId,
         agentId: merchant.activeAgentId,
@@ -4277,18 +4327,30 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         document: "Document"
       };
       
+      const mediaPayload = {
+        type: mediaType,
+        url: fileUrl,
+        filename: file.originalname,
+        fileSize: file.size,
+        imageWidth: imageWidth || null,
+        imageHeight: imageHeight || null,
+        mediaId: chatMediaEntry.id,
+        expiresAt: chatMediaEntry.expiresAt?.toISOString() || null,
+      };
+      
       const message = await storage.createMessage({
         sessionId,
         from: messageFrom,
         content: `[${typeLabels[mediaType]} sent]`,
         messageType: "media",
-        payload: {
-          type: mediaType,
-          url: fileUrl,
-          filename: file.originalname,
-        },
+        payload: mediaPayload,
         locationData: locationData,
       });
+      
+      // Update chatMedia with the messageId
+      if (chatMediaEntry.id) {
+        await storage.updateChatMedia(chatMediaEntry.id, { messageId: message.id });
+      }
 
       broadcastToSession(sessionId, {
         type: "message",
@@ -4297,11 +4359,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           from: messageFrom,
           content: `[${typeLabels[mediaType]} sent]`,
           messageType: "media",
-          payload: {
-            type: mediaType,
-            url: fileUrl,
-            filename: file.originalname,
-          },
+          payload: mediaPayload,
           locationData: locationData,
           timestamp: message.timestamp,
         },
@@ -4361,6 +4419,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         filename: file.filename,
         type: mediaType,
         messageId: message.id,
+        mediaId: chatMediaEntry.id,
+        fileSize: file.size,
+        imageWidth: imageWidth || null,
+        imageHeight: imageHeight || null,
+        expiresAt: chatMediaEntry.expiresAt?.toISOString() || null,
       });
     } catch (error: any) {
       console.error("Upload error:", error);

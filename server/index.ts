@@ -358,6 +358,19 @@ async function runAutomaticChatCleanup(): Promise<void> {
   }
 }
 
+// Delete expired chat media (7-day auto-delete)
+async function runExpiredMediaCleanup(): Promise<void> {
+  try {
+    console.log("[media-cleanup] Starting expired media cleanup");
+    const deletedCount = await storage.deleteExpiredChatMedia();
+    if (deletedCount > 0) {
+      console.log(`[media-cleanup] Deleted ${deletedCount} expired media files`);
+    }
+  } catch (error) {
+    console.error("[media-cleanup] Expired media cleanup error:", error);
+  }
+}
+
 // Sync sources to agent knowledge content
 async function syncSourceToKnowledge(sourceId: string): Promise<void> {
   try {
@@ -474,6 +487,7 @@ function startBackgroundSync(): void {
     runBackgroundSync();
     runSourceSync();
     runAutomaticChatCleanup();
+    runExpiredMediaCleanup();
   }, 5 * 60 * 1000);
   
   // Then run every 60 minutes
@@ -482,6 +496,7 @@ function startBackgroundSync(): void {
     runSourceSync();
     runProductSourceSync();
     runAutomaticChatCleanup();
+    runExpiredMediaCleanup();
   }, 60 * 60 * 1000);
   
   console.log("[sync] Background sync scheduler started (60 min interval)");

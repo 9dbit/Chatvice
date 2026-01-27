@@ -162,7 +162,7 @@ const menuItemsMap: Record<string, MenuItem> = {
   "billing": { id: "billing", title: "Billing", url: "/dashboard/billing", icon: Receipt, permission: "billing" },
   "chat-monitoring": { id: "chat-monitoring", title: "Chat Monitoring", url: "/dashboard/chat-monitoring", icon: ShieldAlert, permission: "settings" },
   "affiliate": { id: "affiliate", title: "Affiliate", url: "/dashboard/affiliate", icon: DollarSign, permission: "overview" },
-  "data-usage": { id: "data-usage", title: "Data Usage", url: "/dashboard/data-usage", icon: HardDrive, permission: "billing" },
+  "data-usage": { id: "data-usage", title: "Usage Info & Media", url: "/dashboard/data-usage", icon: HardDrive, permission: "billing" },
   "wa-blast": { id: "wa-blast", title: "WhatsApp Blast", url: "/dashboard/wa-blast", icon: Send, permission: "settings" },
   "wa-channels": { id: "wa-channels", title: "WA Channels", url: "/dashboard/wa-blast/channels", icon: Phone, permission: "settings" },
   "wa-contacts": { id: "wa-contacts", title: "WA Contacts", url: "/dashboard/wa-blast/contacts", icon: Users, permission: "settings" },

@@ -68,7 +68,7 @@ const pageNames: Record<string, string> = {
   "live-preview": "Live Preview",
   "checkout": "Checkout",
   "chat-monitoring": "Chat Monitoring",
-  "data-usage": "Data Usage",
+  "data-usage": "Usage Info & Media",
   "wa-blast": "WhatsApp Blast",
   "wa-blast/channels": "WA Channels",
   "wa-blast/contacts": "WA Contacts",
