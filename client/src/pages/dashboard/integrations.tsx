@@ -212,7 +212,12 @@ export default function IntegrationsPage() {
       if (res.ok) {
         toast({ title: "Test notification sent! Check your Telegram." });
       } else {
-        toast({ title: "Failed to send test notification", variant: "destructive" });
+        const data = await res.json();
+        toast({ 
+          title: "Failed to send test notification", 
+          description: data.error || "Please check your Bot Token and Chat ID",
+          variant: "destructive" 
+        });
       }
     } catch {
       toast({ title: "Failed to send test notification", variant: "destructive" });

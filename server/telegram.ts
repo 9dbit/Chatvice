@@ -9,9 +9,23 @@ export async function sendTelegramNotification(
   botToken: string,
   chatId: string,
   message: string
-): Promise<boolean> {
+): Promise<{ success: boolean; error?: string }> {
   try {
-    const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+    // Validate inputs
+    if (!botToken || botToken.trim() === '') {
+      console.error('[Telegram] Bot token is empty');
+      return { success: false, error: 'Bot token is required' };
+    }
+    if (!chatId || chatId.trim() === '') {
+      console.error('[Telegram] Chat ID is empty');
+      return { success: false, error: 'Chat ID is required' };
+    }
+    
+    const cleanToken = botToken.trim();
+    const cleanChatId = chatId.trim();
+    
+    const url = `https://api.telegram.org/bot${cleanToken}/sendMessage`;
+    console.log('[Telegram] Sending to chat ID:', cleanChatId);
     
     const response = await fetch(url, {
       method: 'POST',
@@ -19,23 +33,26 @@ export async function sendTelegramNotification(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        chat_id: chatId,
+        chat_id: cleanChatId,
         text: message,
         parse_mode: 'HTML',
       }),
     });
     
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('[Telegram] Failed to send notification:', error);
-      return false;
+    const responseData = await response.json();
+    
+    if (!response.ok || !responseData.ok) {
+      const errorDesc = responseData.description || 'Unknown error';
+      console.error('[Telegram] Failed to send notification:', JSON.stringify(responseData));
+      return { success: false, error: errorDesc };
     }
     
     console.log('[Telegram] Notification sent successfully');
-    return true;
+    return { success: true };
   } catch (error) {
-    console.error('[Telegram] Error sending notification:', error);
-    return false;
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[Telegram] Error sending notification:', errorMsg);
+    return { success: false, error: errorMsg };
   }
 }
 

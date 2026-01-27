@@ -3979,13 +3979,17 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             session?.customerName || null,
             message,
             sessionId,
-            merchant?.businessName || undefined
+            merchant?.companyName || merchant?.officialWebsiteName || undefined
           );
           sendTelegramNotification(
             notificationSettings.telegramBotToken,
             notificationSettings.telegramChatId,
             telegramMessage
-          ).catch(err => console.error('[Telegram] Notification error:', err));
+          ).then(result => {
+            if (!result.success) {
+              console.error('[Telegram] Notification error:', result.error);
+            }
+          });
         }
       } catch (telegramErr) {
         console.error('[Telegram] Error checking notification settings:', telegramErr);
@@ -16035,20 +16039,20 @@ ${pageHtml.substring(0, 50000)}`
       const testMessage = `🔔 <b>Test Notification</b>
 
 This is a test notification from Chatvice.
-<b>Business:</b> ${merchant?.businessName || 'Your Business'}
+<b>Business:</b> ${merchant?.companyName || merchant?.officialWebsiteName || 'Your Business'}
 
 Your Telegram integration is working correctly!`;
       
-      const success = await sendTelegramNotification(
+      const result = await sendTelegramNotification(
         settings.telegramBotToken,
         settings.telegramChatId,
         testMessage
       );
       
-      if (success) {
+      if (result.success) {
         res.json({ success: true });
       } else {
-        res.status(500).json({ error: "Failed to send notification" });
+        res.status(500).json({ error: result.error || "Failed to send notification" });
       }
     } catch (error) {
       console.error("Test telegram error:", error);
