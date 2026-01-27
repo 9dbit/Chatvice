@@ -4,9 +4,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { MessageSquare, Store, Users, Pin, Plus, Search, Sparkles } from "lucide-react";
+import { MessageSquare, Store, Users, Pin, Plus, Search, Sparkles, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import CustomerLayout from "./layout";
+import ChatPanel from "./chat-panel";
 import { formatDistanceToNow } from "date-fns";
 import { useState, useRef, useEffect } from "react";
 import { chatRoutes } from "@/lib/chat-routes";
@@ -131,7 +132,9 @@ function ChatCard({
   isOnline, 
   href,
   testId,
-  icon: Icon
+  icon: Icon,
+  isSelected,
+  onClick
 }: { 
   avatarUrl?: string | null; 
   name: string; 
@@ -143,11 +146,17 @@ function ChatCard({
   href: string;
   testId: string;
   icon?: typeof Store;
+  isSelected?: boolean;
+  onClick?: (e: React.MouseEvent) => void;
 }) {
   return (
     <Link
       href={href}
-      className="glass-card rounded-md p-2.5 flex items-center gap-2.5 hover-elevate transition-all"
+      onClick={onClick}
+      className={cn(
+        "glass-card rounded-md p-2.5 flex items-center gap-2.5 hover-elevate transition-all",
+        isSelected && "ring-2 ring-primary bg-primary/5"
+      )}
       data-testid={testId}
     >
       <div className="relative flex-shrink-0">
@@ -195,6 +204,19 @@ export default function CustomerInboxPage() {
   const [activeTab, setActiveTab] = useState<"stores" | "personal">("stores");
   const tabsRef = useRef<HTMLDivElement>(null);
   const [sliderStyle, setSliderStyle] = useState({ left: 0, width: 0 });
+  const [selectedChat, setSelectedChat] = useState<{ type: "store" | "personal"; id: string } | null>(null);
+  const [isDesktop, setIsDesktop] = useState(false);
+  
+  useEffect(() => {
+    const checkDesktop = () => setIsDesktop(window.innerWidth >= 1024);
+    checkDesktop();
+    window.addEventListener("resize", checkDesktop);
+    return () => window.removeEventListener("resize", checkDesktop);
+  }, []);
+  
+  useEffect(() => {
+    setSelectedChat(null);
+  }, [activeTab]);
   
   useEffect(() => {
     if (tabsRef.current) {
@@ -254,10 +276,20 @@ export default function CustomerInboxPage() {
   const hasStories = stories.length > 0;
   const hasFavorites = favoriteContacts.length > 0;
   
+  const handleChatClick = (type: "store" | "personal", id: string, href: string) => (e: React.MouseEvent) => {
+    if (isDesktop) {
+      e.preventDefault();
+      setSelectedChat({ type, id });
+    }
+  };
+  
   return (
     <CustomerLayout>
-      <div className="sm:ml-64">
-        <div className="max-w-2xl mx-auto p-4">
+      <div className="sm:ml-64 lg:flex lg:h-[calc(100vh-3.5rem)]">
+        <div className={cn(
+          "p-4 lg:w-[400px] lg:flex-shrink-0 lg:border-r lg:border-border/50 lg:overflow-y-auto",
+          isDesktop && selectedChat ? "lg:block" : "max-w-2xl mx-auto lg:max-w-none"
+        )}>
           <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
             <div>
               <h1 className="text-2xl font-bold">Messages</h1>
@@ -463,6 +495,8 @@ export default function CustomerInboxPage() {
                       isOnline={chat.merchant?.online}
                       testId={`chat-store-${chat.merchantId}`}
                       icon={Store}
+                      isSelected={selectedChat?.type === "store" && selectedChat?.id === chat.merchantId}
+                      onClick={handleChatClick("store", chat.merchantId, chatRoutes.store(chat.merchantId))}
                     />
                   ))}
                 </div>
@@ -515,6 +549,8 @@ export default function CustomerInboxPage() {
                       unreadCount={chat.unreadCount}
                       testId={`chat-personal-${chat.id}`}
                       icon={Users}
+                      isSelected={selectedChat?.type === "personal" && selectedChat?.id === chat.id}
+                      onClick={handleChatClick("personal", chat.id, chatRoutes.personal(chat.id))}
                     />
                   ))}
                 </div>
@@ -523,6 +559,34 @@ export default function CustomerInboxPage() {
             )}
           </div>
         </div>
+        
+        {isDesktop && (
+          <div 
+            className="flex-1 hidden lg:flex transition-all duration-300 ease-out"
+            data-testid="desktop-chat-panel"
+          >
+            {selectedChat ? (
+              <div className="flex-1 h-full animate-in slide-in-from-right-4 duration-300">
+                <ChatPanel
+                  chatId={selectedChat.id}
+                  chatType={selectedChat.type}
+                  onClose={() => setSelectedChat(null)}
+                  isEmbedded
+                />
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center p-8 glass-card rounded-xl">
+                  <MessageSquare className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">Select a conversation</h3>
+                  <p className="text-sm text-muted-foreground max-w-xs">
+                    Choose a conversation from the list to start chatting
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </CustomerLayout>
   );

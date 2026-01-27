@@ -18658,6 +18658,41 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
+  // Get personal chat info
+  app.get("/api/customer/personal-chats/:chatId/info", async (req, res) => {
+    try {
+      const customerId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!customerId || userType !== "customer") {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const { chatId } = req.params;
+      
+      const chat = await storage.getPersonalChat(chatId);
+      if (!chat || (chat.participant1Id !== customerId && chat.participant2Id !== customerId)) {
+        return res.status(404).json({ error: "Chat not found" });
+      }
+      
+      const otherParticipantId = chat.participant1Id === customerId 
+        ? chat.participant2Id 
+        : chat.participant1Id;
+      const otherCustomer = await storage.getCustomer(otherParticipantId);
+      
+      res.json({
+        id: chat.id,
+        participantId: otherParticipantId,
+        participantName: otherCustomer?.displayName || "Unknown User",
+        participantPhoto: otherCustomer?.avatarUrl || null,
+        lastMessageAt: chat.lastMessageAt,
+      });
+    } catch (error) {
+      console.error("Get personal chat info error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
   // Get customer stories (profile updates and advertisements)
   app.get("/api/customer/stories", async (req, res) => {
     try {

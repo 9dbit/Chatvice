@@ -1,15 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams, useLocation } from "wouter";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Store, Send, Paperclip, MoreVertical, Loader2, Image, FileText, Video, X } from "lucide-react";
+import { Store, Send, Paperclip, MoreVertical, Loader2, Image, FileText, Video, X, Users } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import { chatRoutes } from "@/lib/chat-routes";
 
 interface Message {
@@ -30,6 +30,14 @@ interface StoreInfo {
   online: boolean;
   welcomeMessage?: string;
   businessCategory?: string;
+}
+
+interface PersonalChatInfo {
+  id: string;
+  participantId: string;
+  participantName: string;
+  participantPhoto: string | null;
+  lastMessageAt: string | null;
 }
 
 interface StoreChatData {
@@ -104,10 +112,16 @@ function MessageContent({ content }: { content: string }) {
   );
 }
 
-const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
+const MAX_FILE_SIZE = 3 * 1024 * 1024;
 
-export default function StoreChatPage() {
-  const { merchantId } = useParams<{ merchantId: string }>();
+interface ChatPanelProps {
+  chatId: string;
+  chatType: "store" | "personal";
+  onClose?: () => void;
+  isEmbedded?: boolean;
+}
+
+export default function ChatPanel({ chatId, chatType, onClose, isEmbedded }: ChatPanelProps) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -121,19 +135,37 @@ export default function StoreChatPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: storeChat, isLoading: chatLoading, error: chatError } = useQuery<StoreChatData>({
-    queryKey: ["/api/customer/store-chats", merchantId],
-    enabled: !!merchantId,
+  const { data: storeChat, isLoading: chatLoading } = useQuery<StoreChatData>({
+    queryKey: ["/api/customer/store-chats", chatId],
+    enabled: !!chatId && chatType === "store",
   });
 
-  const { data: storeInfo, isLoading: storeLoading, error: storeError } = useQuery<StoreInfo>({
-    queryKey: ["/api/customer/stores", merchantId],
-    enabled: !!merchantId,
+  const { data: storeInfo, isLoading: storeLoading } = useQuery<StoreInfo>({
+    queryKey: ["/api/customer/stores", chatId],
+    enabled: !!chatId && chatType === "store",
   });
+
+  const { data: personalChatInfo, isLoading: personalChatLoading } = useQuery<PersonalChatInfo>({
+    queryKey: ["/api/customer/personal-chats", chatId, "info"],
+    enabled: !!chatId && chatType === "personal",
+  });
+
+  const chatInfo = chatType === "store" 
+    ? storeInfo 
+    : personalChatInfo 
+      ? { 
+          companyName: personalChatInfo.participantName, 
+          profilePhotoUrl: personalChatInfo.participantPhoto,
+          online: false 
+        } 
+      : null;
+  const chatInfoLoading = chatType === "store" ? storeLoading : personalChatLoading;
 
   const { data: serverMessages = [], isLoading: messagesLoading, error: messagesError } = useQuery<Message[]>({
-    queryKey: ["/api/customer/store-chats", merchantId, "messages"],
-    enabled: !!storeChat?.sessionId,
+    queryKey: chatType === "store" 
+      ? ["/api/customer/store-chats", chatId, "messages"]
+      : ["/api/customer/personal-chats", chatId, "messages"],
+    enabled: chatType === "store" ? !!storeChat?.sessionId : !!chatId,
   });
 
   const allMessages = [...serverMessages, ...pendingMessages.filter(
@@ -142,7 +174,10 @@ export default function StoreChatPage() {
 
   const sendMessageMutation = useMutation({
     mutationFn: async ({ content, clientMessageId, mediaId }: { content: string; clientMessageId: string; mediaId?: string }) => {
-      return apiRequest("POST", `/api/customer/store-chats/${merchantId}/messages`, {
+      const endpoint = chatType === "store" 
+        ? `/api/customer/store-chats/${chatId}/messages`
+        : `/api/customer/personal-chats/${chatId}/messages`;
+      return apiRequest("POST", endpoint, {
         content,
         clientMessageId,
         mediaId,
@@ -153,8 +188,13 @@ export default function StoreChatPage() {
       setSelectedFile(null);
       setFilePreview(null);
       setPendingMessages(prev => prev.filter(pm => pm.clientMessageId !== variables.clientMessageId));
-      queryClient.invalidateQueries({ queryKey: ["/api/customer/store-chats", merchantId, "messages"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/customer/store-chats"] });
+      if (chatType === "store") {
+        queryClient.invalidateQueries({ queryKey: ["/api/customer/store-chats", chatId, "messages"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/customer/store-chats"] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/customer/personal-chats", chatId, "messages"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/customer/personal-chats"] });
+      }
     },
     onError: (error: any, variables) => {
       setPendingMessages(prev => prev.filter(pm => pm.clientMessageId !== variables.clientMessageId));
@@ -224,7 +264,8 @@ export default function StoreChatPage() {
               filename: file.name,
               mimeType: file.type,
               fileData: base64,
-              sessionId: storeChat?.sessionId || undefined,
+              sessionId: chatType === "store" ? storeChat?.sessionId : chatId,
+              chatType,
             }));
           } catch (err: any) {
             setIsUploading(false);
@@ -253,29 +294,30 @@ export default function StoreChatPage() {
 
   const initializeChatMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("POST", `/api/customer/stores/${merchantId}/chat`, {});
+      return apiRequest("POST", `/api/customer/stores/${chatId}/chat`, {});
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/customer/store-chats", merchantId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customer/store-chats", chatId] });
       queryClient.invalidateQueries({ queryKey: ["/api/customer/store-chats"] });
     },
   });
 
   useEffect(() => {
-    if (!chatLoading && !storeChat && merchantId) {
+    if (!chatLoading && !storeChat && chatId && chatType === "store") {
       initializeChatMutation.mutate();
     }
-  }, [chatLoading, storeChat, merchantId]);
+  }, [chatLoading, storeChat, chatId, chatType]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [allMessages]);
 
   useEffect(() => {
-    if (!storeChat?.sessionId) return;
+    const sessionId = chatType === "store" ? storeChat?.sessionId : chatId;
+    if (!sessionId) return;
 
     const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${wsProtocol}//${window.location.host}/ws?session=${storeChat.sessionId}`;
+    const wsUrl = `${wsProtocol}//${window.location.host}/ws?session=${sessionId}`;
     let ws: WebSocket | null = null;
     let reconnectTimeout: ReturnType<typeof setTimeout>;
 
@@ -286,7 +328,11 @@ export default function StoreChatPage() {
         try {
           const data = JSON.parse(event.data);
           if (data.type === "message") {
-            queryClient.invalidateQueries({ queryKey: ["/api/customer/store-chats", merchantId, "messages"] });
+            if (chatType === "store") {
+              queryClient.invalidateQueries({ queryKey: ["/api/customer/store-chats", chatId, "messages"] });
+            } else {
+              queryClient.invalidateQueries({ queryKey: ["/api/customer/personal-chats", chatId, "messages"] });
+            }
           }
         } catch (e) {
           console.error("WebSocket message parse error:", e);
@@ -308,7 +354,7 @@ export default function StoreChatPage() {
       clearTimeout(reconnectTimeout);
       ws?.close();
     };
-  }, [storeChat?.sessionId, merchantId, queryClient]);
+  }, [storeChat?.sessionId, chatId, chatType, queryClient]);
 
   const allowedMimeTypes = [
     "image/jpeg", "image/png", "image/gif", "image/webp",
@@ -401,16 +447,17 @@ export default function StoreChatPage() {
     }
   };
 
-  const store = storeChat?.merchant || storeInfo;
-  const isLoading = chatLoading || storeLoading;
+  const displayInfo = chatType === "store" 
+    ? (storeChat?.merchant || storeInfo) 
+    : chatInfo;
+  const isLoading = chatType === "store" 
+    ? (chatLoading || storeLoading) 
+    : (personalChatLoading);
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 flex flex-col chat-background-pattern">
-        <header className="flex items-center gap-3 p-4 glass-header z-10">
-          <Button variant="ghost" size="icon" onClick={() => navigate(chatRoutes.inbox())}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
+      <div className="flex flex-col h-full chat-background-pattern">
+        <header className="flex items-center gap-3 p-3 glass-header z-10">
           <div className="animate-pulse flex items-center gap-3 flex-1">
             <div className="w-10 h-10 rounded-full bg-muted" />
             <div className="flex-1 space-y-2">
@@ -426,25 +473,24 @@ export default function StoreChatPage() {
     );
   }
 
-  if (!store) {
+  if (!displayInfo) {
     return (
-      <div className="fixed inset-0 flex flex-col chat-background-pattern">
-        <header className="flex items-center gap-3 p-4 glass-header z-10">
-          <Button variant="ghost" size="icon" onClick={() => navigate(chatRoutes.inbox())}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <span className="font-medium">Store not found</span>
+      <div className="flex flex-col h-full chat-background-pattern">
+        <header className="flex items-center gap-3 p-3 glass-header z-10">
+          <span className="font-medium">{chatType === "store" ? "Store not found" : "Chat not found"}</span>
         </header>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center p-6 glass-card rounded-xl">
             <Store className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="font-medium mb-2">Store not found</h3>
+            <h3 className="font-medium mb-2">{chatType === "store" ? "Store not found" : "Chat not found"}</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              This store may no longer be available
+              {chatType === "store" ? "This store may no longer be available" : "This conversation may no longer be available"}
             </p>
-            <Button onClick={() => navigate(chatRoutes.stores())} data-testid="button-browse-stores">
-              Browse Stores
-            </Button>
+            {chatType === "store" && (
+              <Button onClick={() => navigate(chatRoutes.stores())} data-testid="button-browse-stores-panel">
+                Browse Stores
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -486,42 +532,34 @@ export default function StoreChatPage() {
   const messageGroups = groupMessagesByDate(allMessages);
 
   return (
-    <div className="fixed inset-0 flex flex-col chat-background-pattern">
-      <header className="flex items-center gap-3 p-3 glass-header z-10">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => navigate(chatRoutes.inbox())}
-          data-testid="button-back"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
+    <div className="flex flex-col h-full chat-background-pattern">
+      <header className="flex items-center gap-3 p-3 glass-header z-10 border-b border-border/50">
         <div className="relative">
           <Avatar className="w-10 h-10">
-            <AvatarImage src={store.profilePhotoUrl || undefined} />
+            <AvatarImage src={displayInfo.profilePhotoUrl || undefined} />
             <AvatarFallback className="bg-gradient-to-br from-primary/20 to-violet-500/20">
-              <Store className="w-5 h-5 text-primary" />
+              {chatType === "store" ? <Store className="w-5 h-5 text-primary" /> : <Users className="w-5 h-5 text-primary" />}
             </AvatarFallback>
           </Avatar>
-          {store.online && (
+          {displayInfo.online && (
             <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-background" />
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="font-medium truncate">{store.companyName || "Store"}</h2>
+          <h2 className="font-medium truncate" data-testid="panel-store-name">{displayInfo.companyName || (chatType === "store" ? "Store" : "User")}</h2>
           <p className="text-xs text-muted-foreground">
-            {store.online ? "Online" : "Offline"}
+            {displayInfo.online ? "Online" : "Offline"}
           </p>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" data-testid="button-chat-menu">
+            <Button variant="ghost" size="icon" data-testid="button-panel-menu">
               <MoreVertical className="w-5 h-5" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => navigate(chatRoutes.storeInfo(merchantId!))}>
-              View Store Info
+            <DropdownMenuItem onClick={() => chatType === "store" && navigate(chatRoutes.storeInfo(chatId))}>
+              {chatType === "store" ? "View Store Info" : "View Profile"}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => toast({ title: "Coming Soon", description: "This feature is in development" })}>
               Clear Chat
@@ -535,6 +573,11 @@ export default function StoreChatPage() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        {isEmbedded && onClose && (
+          <Button variant="ghost" size="icon" onClick={onClose} data-testid="button-close-panel">
+            <X className="w-5 h-5" />
+          </Button>
+        )}
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -549,7 +592,11 @@ export default function StoreChatPage() {
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/customer/store-chats", merchantId, "messages"] })}
+                onClick={() => queryClient.invalidateQueries({ 
+                  queryKey: chatType === "store" 
+                    ? ["/api/customer/store-chats", chatId, "messages"]
+                    : ["/api/customer/personal-chats", chatId, "messages"]
+                })}
               >
                 Retry
               </Button>
@@ -559,14 +606,14 @@ export default function StoreChatPage() {
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="glass-card rounded-xl p-6">
               <Avatar className="w-16 h-16 mb-4 mx-auto">
-                <AvatarImage src={store.profilePhotoUrl || undefined} />
+                <AvatarImage src={displayInfo.profilePhotoUrl || undefined} />
                 <AvatarFallback className="bg-gradient-to-br from-primary/20 to-violet-500/20">
                   <Store className="w-8 h-8 text-primary" />
                 </AvatarFallback>
               </Avatar>
-              <h3 className="font-medium mb-1">{store.companyName}</h3>
+              <h3 className="font-medium mb-1">{displayInfo.companyName}</h3>
               <p className="text-sm text-muted-foreground max-w-xs">
-                {store.welcomeMessage || "Send a message to start the conversation"}
+                {chatType === "store" && storeInfo?.welcomeMessage ? storeInfo.welcomeMessage : "Send a message to start the conversation"}
               </p>
             </div>
           </div>
@@ -592,11 +639,11 @@ export default function StoreChatPage() {
                           isCustomer ? "justify-end" : "justify-start",
                           isPending && "opacity-70"
                         )}
-                        data-testid={`message-${msgKey}`}
+                        data-testid={`panel-message-${msgKey}`}
                       >
                         {!isCustomer && (
                           <Avatar className="w-8 h-8 flex-shrink-0">
-                            <AvatarImage src={store.profilePhotoUrl || undefined} />
+                            <AvatarImage src={displayInfo.profilePhotoUrl || undefined} />
                             <AvatarFallback className="bg-gradient-to-br from-primary/20 to-violet-500/20">
                               <Store className="w-4 h-4 text-primary" />
                             </AvatarFallback>
@@ -652,15 +699,15 @@ export default function StoreChatPage() {
                 {(selectedFile.size / 1024).toFixed(1)} KB
               </p>
               {isUploading && (
-                <div className="mt-1" data-testid="upload-progress-container">
+                <div className="mt-1" data-testid="panel-upload-progress-container">
                   <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-primary transition-all duration-300 ease-out"
                       style={{ width: `${uploadProgress}%` }}
-                      data-testid="upload-progress-bar"
+                      data-testid="panel-upload-progress-bar"
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5" data-testid="upload-progress-text">
+                  <p className="text-xs text-muted-foreground mt-0.5" data-testid="panel-upload-progress-text">
                     Uploading... {uploadProgress}%
                   </p>
                 </div>
@@ -671,7 +718,7 @@ export default function StoreChatPage() {
               size="icon" 
               onClick={clearSelectedFile} 
               disabled={isUploading}
-              data-testid="button-remove-file"
+              data-testid="button-panel-remove-file"
             >
               <X className="w-4 h-4" />
             </Button>
@@ -687,65 +734,74 @@ export default function StoreChatPage() {
             accept="image/*,video/*,.pdf,.doc,.docx,.txt"
             onChange={handleFileSelect}
             className="hidden"
-            data-testid="input-file"
+            data-testid="input-panel-file"
           />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
+              <Button 
+                variant="ghost" 
                 size="icon"
-                data-testid="button-attach"
+                disabled={uploadMediaMutation.isPending}
+                data-testid="button-panel-attach"
               >
-                <Paperclip className="w-5 h-5" />
+                {uploadMediaMutation.isPending ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Paperclip className="w-5 h-5" />
+                )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               <DropdownMenuItem onClick={() => {
-                fileInputRef.current?.setAttribute("accept", "image/*");
-                fileInputRef.current?.click();
+                if (fileInputRef.current) {
+                  fileInputRef.current.accept = "image/*";
+                  fileInputRef.current.click();
+                }
               }}>
                 <Image className="w-4 h-4 mr-2" />
                 Photo
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => {
-                fileInputRef.current?.setAttribute("accept", "video/*");
-                fileInputRef.current?.click();
+                if (fileInputRef.current) {
+                  fileInputRef.current.accept = "video/*";
+                  fileInputRef.current.click();
+                }
               }}>
                 <Video className="w-4 h-4 mr-2" />
                 Video
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => {
-                fileInputRef.current?.setAttribute("accept", ".pdf,.doc,.docx,.txt,.xls,.xlsx");
-                fileInputRef.current?.click();
+                if (fileInputRef.current) {
+                  fileInputRef.current.accept = ".pdf,.doc,.docx,.txt,.xls,.xlsx";
+                  fileInputRef.current.click();
+                }
               }}>
                 <FileText className="w-4 h-4 mr-2" />
                 Document
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <div className="flex-1 relative">
-            <Input
-              ref={inputRef}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Type a message..."
-              className="pr-12 glass-input"
-              disabled={sendMessageMutation.isPending || uploadMediaMutation.isPending}
-              data-testid="input-message"
-            />
-          </div>
-          <Button
+          <Input
+            ref={inputRef}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type a message..."
+            className="flex-1 glass-input"
+            disabled={sendMessageMutation.isPending}
+            data-testid="input-panel-message"
+          />
+          <Button 
             size="icon"
             onClick={handleSend}
             disabled={(!message.trim() && !selectedFile) || sendMessageMutation.isPending || uploadMediaMutation.isPending}
             className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white border-0"
-            data-testid="button-send"
+            data-testid="button-panel-send"
           >
-            {(sendMessageMutation.isPending || uploadMediaMutation.isPending) ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
+            {sendMessageMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <Send className="w-5 h-5" />
+              <Send className="w-4 h-4" />
             )}
           </Button>
         </div>
