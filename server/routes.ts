@@ -18213,6 +18213,7 @@ Please create a comprehensive help center article that would be useful for custo
         officialWebsiteName: merchant.officialWebsiteName,
         websiteUrl: merchant.websiteUrl,
         welcomeMessage: merchant.welcomeMessage,
+        welcomeDescription: merchant.welcomeDescription,
         online: merchant.online,
         agents: agents.map(a => ({
           id: a.id,

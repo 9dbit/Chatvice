@@ -29,6 +29,7 @@ interface StoreInfo {
   profilePhotoUrl: string | null;
   online: boolean;
   welcomeMessage?: string;
+  welcomeDescription?: string;
   businessCategory?: string;
 }
 
@@ -619,6 +620,15 @@ export default function ChatPanel({ chatId, chatType, onClose, isEmbedded }: Cha
           </div>
         ) : (
           <>
+            {chatType === "store" && storeInfo?.welcomeDescription && (
+              <div className="flex justify-center mb-4" data-testid="panel-store-welcome-description">
+                <div className="glass-card rounded-xl p-4 max-w-sm text-center">
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                    {storeInfo.welcomeDescription}
+                  </p>
+                </div>
+              </div>
+            )}
             {messageGroups.map((group) => (
               <div key={group.date}>
                 <div className="flex items-center justify-center my-4">
