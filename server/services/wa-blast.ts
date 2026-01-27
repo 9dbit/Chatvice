@@ -400,9 +400,67 @@ export class WaBlastService {
   // Message Sending (Meta API)
   // ============================================
   
-  async sendMessage(channel: typeof waChannels.$inferSelect, phoneNumber: string, message: string, mediaUrl?: string) {
+  async sendTemplateMessage(
+    channel: typeof waChannels.$inferSelect,
+    phoneNumber: string,
+    templateName: string,
+    languageCode: string,
+    components?: Array<{
+      type: string;
+      parameters: Array<{ type: string; text?: string; image?: { link: string } }>;
+    }>
+  ): Promise<{ success: boolean; messageId?: string; error?: string }> {
     if (channel.type !== "meta_api" || !channel.metaPhoneNumberId || !channel.metaAccessToken) {
-      throw new Error("Invalid channel configuration");
+      return { success: false, error: "Invalid channel configuration" };
+    }
+    
+    const payload: any = {
+      messaging_product: "whatsapp",
+      to: phoneNumber.replace(/\D/g, ""),
+      type: "template",
+      template: {
+        name: templateName,
+        language: { code: languageCode },
+      },
+    };
+    
+    if (components && components.length > 0) {
+      payload.template.components = components;
+    }
+    
+    try {
+      const response = await fetch(
+        `https://graph.facebook.com/v18.0/${channel.metaPhoneNumberId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${channel.metaAccessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        return { success: false, error: result.error?.message || "Failed to send template message" };
+      }
+      
+      return { success: true, messageId: result.messages?.[0]?.id };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  }
+  
+  async sendMessage(
+    channel: typeof waChannels.$inferSelect, 
+    phoneNumber: string, 
+    message: string, 
+    mediaUrl?: string
+  ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    if (channel.type !== "meta_api" || !channel.metaPhoneNumberId || !channel.metaAccessToken) {
+      return { success: false, error: "Invalid channel configuration" };
     }
     
     const payload: any = {
@@ -417,25 +475,381 @@ export class WaBlastService {
       payload.text = { body: message };
     }
     
-    const response = await fetch(
-      `https://graph.facebook.com/v18.0/${channel.metaPhoneNumberId}/messages`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${channel.metaAccessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+    try {
+      const response = await fetch(
+        `https://graph.facebook.com/v18.0/${channel.metaPhoneNumberId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${channel.metaAccessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        return { success: false, error: result.error?.message || "Failed to send message" };
       }
-    );
-    
-    const result = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(result.error?.message || "Failed to send message");
+      
+      return { success: true, messageId: result.messages?.[0]?.id };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  }
+  
+  // ============================================
+  // Blast Engine: Campaign Execution
+  // ============================================
+  
+  private campaignQueues: Map<string, { paused: boolean; aborted: boolean }> = new Map();
+  
+  async startCampaign(campaignId: string, merchantId: string): Promise<{ success: boolean; error?: string }> {
+    const campaign = await this.getCampaign(campaignId, merchantId);
+    if (!campaign) {
+      return { success: false, error: "Campaign not found" };
     }
     
+    if (campaign.status === "running") {
+      return { success: false, error: "Campaign is already running" };
+    }
+    
+    const channel = await this.getChannel(campaign.channelId, merchantId);
+    if (!channel) {
+      return { success: false, error: "Channel not found" };
+    }
+    
+    const recipients = await db.select().from(waCampaignRecipients)
+      .where(and(
+        eq(waCampaignRecipients.campaignId, campaignId),
+        eq(waCampaignRecipients.status, "pending")
+      ));
+    
+    if (recipients.length === 0) {
+      return { success: false, error: "No pending recipients found" };
+    }
+    
+    await this.updateCampaign(campaignId, merchantId, { status: "running", startedAt: new Date() });
+    
+    this.campaignQueues.set(campaignId, { paused: false, aborted: false });
+    
+    this.executeCampaignQueue(campaignId, merchantId, channel, campaign, recipients);
+    
+    return { success: true };
+  }
+  
+  async pauseCampaign(campaignId: string, merchantId: string): Promise<{ success: boolean }> {
+    const queue = this.campaignQueues.get(campaignId);
+    if (queue) {
+      queue.paused = true;
+    }
+    await this.updateCampaign(campaignId, merchantId, { status: "paused" });
+    return { success: true };
+  }
+  
+  async resumeCampaign(campaignId: string, merchantId: string): Promise<{ success: boolean; error?: string }> {
+    const campaign = await this.getCampaign(campaignId, merchantId);
+    if (!campaign || campaign.status !== "paused") {
+      return { success: false, error: "Campaign is not paused" };
+    }
+    
+    const queue = this.campaignQueues.get(campaignId);
+    if (queue) {
+      queue.paused = false;
+    }
+    
+    await this.updateCampaign(campaignId, merchantId, { status: "running" });
+    
+    if (!queue) {
+      return this.startCampaign(campaignId, merchantId);
+    }
+    
+    return { success: true };
+  }
+  
+  async stopCampaign(campaignId: string, merchantId: string): Promise<{ success: boolean }> {
+    const queue = this.campaignQueues.get(campaignId);
+    if (queue) {
+      queue.aborted = true;
+    }
+    await this.updateCampaign(campaignId, merchantId, { status: "cancelled" });
+    this.campaignQueues.delete(campaignId);
+    return { success: true };
+  }
+  
+  private async executeCampaignQueue(
+    campaignId: string,
+    merchantId: string,
+    channel: typeof waChannels.$inferSelect,
+    campaign: typeof waCampaigns.$inferSelect,
+    recipients: Array<typeof waCampaignRecipients.$inferSelect>
+  ) {
+    const queue = this.campaignQueues.get(campaignId);
+    const rateLimit = 80;
+    const minDelay = 750;
+    const maxDelay = 1500;
+    
+    let sentCount = 0;
+    let failedCount = 0;
+    
+    for (const recipient of recipients) {
+      if (!queue || queue.aborted) {
+        break;
+      }
+      
+      while (queue?.paused) {
+        await this.delay(1000);
+        if (queue.aborted) break;
+      }
+      
+      if (queue?.aborted) break;
+      
+      try {
+        let result: { success: boolean; messageId?: string; error?: string };
+        
+        if (campaign.templateId) {
+          const template = await this.getTemplate(campaign.templateId, merchantId);
+          if (template) {
+            const processedContent = this.processTemplateVariables(template.content, {
+              name: recipient.name || "",
+            });
+            result = await this.sendTemplateMessage(
+              channel,
+              recipient.phoneNumber,
+              template.metaTemplateName || template.name,
+              "id",
+              [{
+                type: "body",
+                parameters: [{ type: "text", text: processedContent }]
+              }]
+            );
+          } else {
+            result = { success: false, error: "Template not found" };
+          }
+        } else if (campaign.messageContent) {
+          result = await this.sendMessage(channel, recipient.phoneNumber, campaign.messageContent, campaign.mediaUrl || undefined);
+        } else {
+          result = { success: false, error: "No message content" };
+        }
+        
+        if (result.success) {
+          await this.updateRecipientStatus(recipient.id, "sent", result.messageId);
+          await this.logMessage({
+            merchantId,
+            channelId: channel.id,
+            campaignId,
+            contactId: recipient.contactId || undefined,
+            phoneNumber: recipient.phoneNumber,
+            direction: "outgoing",
+            messageType: campaign.templateId ? "template" : "text",
+            content: campaign.messageContent || "",
+            metaMessageId: result.messageId,
+            status: "sent",
+          });
+          sentCount++;
+        } else {
+          await this.updateRecipientStatus(recipient.id, "failed", undefined, result.error);
+          failedCount++;
+        }
+        
+        const randomDelay = Math.floor(Math.random() * (maxDelay - minDelay) + minDelay);
+        await this.delay(randomDelay);
+        
+      } catch (err: any) {
+        await this.updateRecipientStatus(recipient.id, "failed", undefined, err.message);
+        failedCount++;
+      }
+    }
+    
+    const stats = await this.getCampaignStats(campaignId);
+    const allProcessed = (stats.sent || 0) + (stats.failed || 0) >= (stats.total || 0);
+    
+    if (allProcessed || queue?.aborted) {
+      await this.updateCampaign(campaignId, merchantId, { 
+        status: queue?.aborted ? "cancelled" : "completed",
+        completedAt: new Date(),
+        sentCount: stats.sent || 0,
+        failedCount: stats.failed || 0,
+      });
+      this.campaignQueues.delete(campaignId);
+    }
+  }
+  
+  private async updateRecipientStatus(recipientId: string, status: string, messageId?: string, errorMessage?: string) {
+    await db.update(waCampaignRecipients)
+      .set({ 
+        status, 
+        metaMessageId: messageId,
+        errorMessage,
+        sentAt: status === "sent" ? new Date() : undefined,
+      })
+      .where(eq(waCampaignRecipients.id, recipientId));
+  }
+  
+  private processTemplateVariables(content: string, variables: Record<string, string>): string {
+    let result = content;
+    for (const [key, value] of Object.entries(variables)) {
+      result = result.replace(new RegExp(`{{${key}}}`, "g"), value);
+    }
     return result;
+  }
+  
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+  
+  private async logMessage(data: {
+    merchantId: string;
+    channelId: string;
+    campaignId?: string;
+    contactId?: string;
+    phoneNumber: string;
+    direction: string;
+    messageType: string;
+    content: string;
+    metaMessageId?: string;
+    status: string;
+  }) {
+    await db.insert(waMessageLogs).values({
+      id: nanoid(16),
+      ...data,
+    });
+  }
+  
+  // ============================================
+  // Webhook Handlers (Incoming Messages & Status Updates)
+  // ============================================
+  
+  async handleIncomingMessage(data: {
+    phoneNumberId: string;
+    fromNumber: string;
+    messageId: string;
+    timestamp: string;
+    type: string;
+    text?: string;
+    mediaId?: string;
+  }) {
+    // Find the channel by phoneNumberId
+    const [channel] = await db.select().from(waChannels)
+      .where(eq(waChannels.metaPhoneNumberId, data.phoneNumberId));
+    
+    if (!channel) {
+      console.log("[WA Webhook] Channel not found for phoneNumberId:", data.phoneNumberId);
+      return;
+    }
+    
+    // Find or create a chat session for this contact
+    const normalizedPhone = data.fromNumber.replace(/\D/g, "");
+    
+    let [existingSession] = await db.select().from(waChatSessions)
+      .where(and(
+        eq(waChatSessions.channelId, channel.id),
+        eq(waChatSessions.phoneNumber, normalizedPhone),
+        eq(waChatSessions.status, "active")
+      ));
+    
+    if (!existingSession) {
+      // Check if this is a reply to a blast campaign
+      const [recentMessage] = await db.select().from(waMessageLogs)
+        .where(and(
+          eq(waMessageLogs.channelId, channel.id),
+          eq(waMessageLogs.phoneNumber, normalizedPhone),
+          eq(waMessageLogs.direction, "outgoing")
+        ))
+        .orderBy(desc(waMessageLogs.createdAt))
+        .limit(1);
+      
+      // Create new chat session
+      const sessionId = nanoid(16);
+      await db.insert(waChatSessions).values({
+        id: sessionId,
+        merchantId: channel.merchantId,
+        channelId: channel.id,
+        phoneNumber: normalizedPhone,
+        contactName: null,
+        status: "active",
+        originCampaignId: recentMessage?.campaignId || null,
+        lastMessageAt: new Date(),
+      });
+      
+      [existingSession] = await db.select().from(waChatSessions)
+        .where(eq(waChatSessions.id, sessionId));
+    } else {
+      // Update last message timestamp
+      await db.update(waChatSessions)
+        .set({ lastMessageAt: new Date() })
+        .where(eq(waChatSessions.id, existingSession.id));
+    }
+    
+    // Store the incoming message
+    await db.insert(waChatMessages).values({
+      id: nanoid(16),
+      sessionId: existingSession.id,
+      direction: "inbound",
+      senderType: "customer",
+      content: data.text || "",
+      messageType: data.type,
+      metaMessageId: data.messageId,
+      status: "received",
+    });
+    
+    // Log the message
+    await this.logMessage({
+      merchantId: channel.merchantId,
+      channelId: channel.id,
+      phoneNumber: normalizedPhone,
+      direction: "incoming",
+      messageType: data.type,
+      content: data.text || "",
+      metaMessageId: data.messageId,
+      status: "received",
+    });
+    
+    console.log("[WA Webhook] Incoming message processed:", { 
+      sessionId: existingSession.id, 
+      from: normalizedPhone 
+    });
+  }
+  
+  async handleStatusUpdate(data: {
+    messageId: string;
+    status: string;
+    timestamp: string;
+    recipientId?: string;
+    errors?: Array<{ code: number; title: string }>;
+  }) {
+    // Update recipient status if this is a campaign message
+    const [recipient] = await db.select().from(waCampaignRecipients)
+      .where(eq(waCampaignRecipients.metaMessageId, data.messageId));
+    
+    if (recipient) {
+      const newStatus = data.status === "sent" ? "sent" 
+        : data.status === "delivered" ? "delivered"
+        : data.status === "read" ? "read"
+        : data.status === "failed" ? "failed"
+        : recipient.status;
+      
+      await db.update(waCampaignRecipients)
+        .set({ 
+          status: newStatus,
+          deliveredAt: data.status === "delivered" ? new Date() : undefined,
+          readAt: data.status === "read" ? new Date() : undefined,
+          errorMessage: data.errors?.[0]?.title,
+        })
+        .where(eq(waCampaignRecipients.id, recipient.id));
+    }
+    
+    // Update message log status
+    await db.update(waMessageLogs)
+      .set({ status: data.status })
+      .where(eq(waMessageLogs.metaMessageId, data.messageId));
+    
+    // Update chat message status
+    await db.update(waChatMessages)
+      .set({ status: data.status })
+      .where(eq(waChatMessages.metaMessageId, data.messageId));
   }
   
   // ============================================

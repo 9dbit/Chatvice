@@ -1,8 +1,56 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
+import crypto from "crypto";
 import { waBlastService } from "../services/wa-blast";
 
 const router = Router();
+
+// Extend Request to include rawBody
+declare global {
+  namespace Express {
+    interface Request {
+      rawBody?: Buffer;
+    }
+  }
+}
+
+// Verify Meta webhook signature (X-Hub-Signature-256)
+function verifyWebhookSignature(req: Request): boolean {
+  const signature = req.headers["x-hub-signature-256"] as string;
+  const appSecret: string | undefined = process.env.META_APP_SECRET;
+  const isProduction = process.env.NODE_ENV === "production";
+  
+  if (!appSecret) {
+    if (isProduction) {
+      console.error("[WA Webhook] CRITICAL: META_APP_SECRET not configured in production, rejecting request");
+      return false;
+    }
+    console.log("[WA Webhook] Warning: META_APP_SECRET not configured, skipping signature verification in development");
+    return true;
+  }
+  
+  if (!signature) {
+    console.log("[WA Webhook] Warning: No signature provided");
+    return false;
+  }
+  
+  // Use rawBody if available (set by middleware), otherwise fall back to JSON stringify
+  const bodyString: string = JSON.stringify(req.body);
+  const rawBody: Buffer = req.rawBody || Buffer.from(bodyString, "utf8");
+  const hmac = crypto.createHmac("sha256", appSecret);
+  hmac.update(rawBody);
+  const expectedSignature: string = "sha256=" + hmac.digest("hex");
+  
+  // Ensure same length for timingSafeEqual
+  if (signature.length !== expectedSignature.length) {
+    return false;
+  }
+  
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expectedSignature)
+  );
+}
 
 // Helper to get merchantId with proper type
 function getMerchantId(req: Request): string {
@@ -421,6 +469,53 @@ router.get("/campaigns/:id/recipients", requireMerchant, async (req: Request, re
   }
 });
 
+// Campaign Control (Start/Pause/Resume/Stop)
+router.post("/campaigns/:id/start", requireMerchant, async (req: Request, res: Response) => {
+  try {
+    const merchantId = getMerchantId(req);
+    const result = await waBlastService.startCampaign(req.params.id, merchantId);
+    if (!result.success) {
+      return res.status(400).json({ message: result.error });
+    }
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.post("/campaigns/:id/pause", requireMerchant, async (req: Request, res: Response) => {
+  try {
+    const merchantId = getMerchantId(req);
+    const result = await waBlastService.pauseCampaign(req.params.id, merchantId);
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.post("/campaigns/:id/resume", requireMerchant, async (req: Request, res: Response) => {
+  try {
+    const merchantId = getMerchantId(req);
+    const result = await waBlastService.resumeCampaign(req.params.id, merchantId);
+    if (!result.success) {
+      return res.status(400).json({ message: result.error });
+    }
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.post("/campaigns/:id/stop", requireMerchant, async (req: Request, res: Response) => {
+  try {
+    const merchantId = getMerchantId(req);
+    const result = await waBlastService.stopCampaign(req.params.id, merchantId);
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // ============================================
 // Admin: Pricing Management
 // ============================================
@@ -461,6 +556,83 @@ router.get("/admin/contacts", requireAdmin, async (req: Request, res: Response) 
     res.json({ contacts, total });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
+  }
+});
+
+// ============================================
+// Meta Webhook Handler (Incoming Messages)
+// ============================================
+
+// Webhook verification (GET request from Meta)
+router.get("/webhook", (req: Request, res: Response) => {
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+  
+  // Verify token should be configured per-merchant or as a global secret
+  const verifyToken = process.env.META_WEBHOOK_VERIFY_TOKEN || "chatvice_wa_webhook";
+  
+  if (mode === "subscribe" && token === verifyToken) {
+    console.log("[WA Webhook] Verified successfully");
+    return res.status(200).send(challenge);
+  }
+  
+  res.sendStatus(403);
+});
+
+// Incoming message webhook (POST request from Meta)
+router.post("/webhook", async (req: Request, res: Response) => {
+  try {
+    // Verify webhook signature
+    if (!verifyWebhookSignature(req)) {
+      console.log("[WA Webhook] Invalid signature, rejecting request");
+      return res.sendStatus(403);
+    }
+    
+    const body = req.body;
+    
+    if (body.object !== "whatsapp_business_account") {
+      return res.sendStatus(404);
+    }
+    
+    // Process each entry
+    for (const entry of body.entry || []) {
+      for (const change of entry.changes || []) {
+        if (change.field !== "messages") continue;
+        
+        const value = change.value;
+        const phoneNumberId = value.metadata?.phone_number_id;
+        
+        // Process incoming messages
+        for (const message of value.messages || []) {
+          await waBlastService.handleIncomingMessage({
+            phoneNumberId,
+            fromNumber: message.from,
+            messageId: message.id,
+            timestamp: message.timestamp,
+            type: message.type,
+            text: message.text?.body,
+            mediaId: message.image?.id || message.video?.id || message.document?.id,
+          });
+        }
+        
+        // Process status updates (sent, delivered, read)
+        for (const status of value.statuses || []) {
+          await waBlastService.handleStatusUpdate({
+            messageId: status.id,
+            status: status.status,
+            timestamp: status.timestamp,
+            recipientId: status.recipient_id,
+            errors: status.errors,
+          });
+        }
+      }
+    }
+    
+    res.sendStatus(200);
+  } catch (error: any) {
+    console.error("[WA Webhook] Error processing:", error);
+    res.sendStatus(500);
   }
 });
 
