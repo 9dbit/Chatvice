@@ -11,6 +11,16 @@ import { storage } from './storage';
 import { extractFAQContent } from './crawler';
 import { processKnowledgeBase } from './embeddings';
 
+// Global error handlers for deployment stability
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 const app = express();
 
 // Health check endpoint - must be defined early for deployment health checks
@@ -191,6 +201,21 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
+  
+  // Add error handler for httpServer
+  httpServer.on('error', (error: NodeJS.ErrnoException) => {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`Port ${port} is already in use. Retrying...`);
+      setTimeout(() => {
+        httpServer.close();
+        httpServer.listen({ port, host: "0.0.0.0" });
+      }, 1000);
+    } else {
+      console.error('Server error:', error);
+      process.exit(1);
+    }
+  });
+  
   httpServer.listen(
     {
       port,
@@ -204,7 +229,10 @@ app.use((req, res, next) => {
       startBackgroundSync();
     },
   );
-})();
+})().catch((error) => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
+});
 
 // Background sync for crawled website sources
 async function syncCrawledLink(linkId: string): Promise<void> {
