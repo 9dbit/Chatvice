@@ -1888,6 +1888,22 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         req.session.userType = "merchant";
         req.session.merchantId = merchant.id;
         
+        // Log session creation for debugging
+        console.log(`[auth] Login success for merchant ${merchant.id}, session ID: ${req.sessionID?.substring(0, 8)}...`);
+        
+        // Explicitly save session to ensure it's persisted
+        await new Promise<void>((resolve, reject) => {
+          req.session.save((err) => {
+            if (err) {
+              console.error("[auth] Failed to save session:", err);
+              reject(err);
+            } else {
+              console.log(`[auth] Session saved successfully for merchant ${merchant.id}`);
+              resolve();
+            }
+          });
+        });
+        
         // Check for expiring subscription and send notification if needed (non-blocking)
         checkExpiringSubscription(merchant).catch(err => console.error("Failed to check expiring subscription:", err));
         
