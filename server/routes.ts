@@ -1215,7 +1215,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
   
   // Configure session with proper production settings
-  const isProduction = process.env.NODE_ENV === "production";
+  // Detect production by NODE_ENV or by checking if we're on a production domain
+  const isProduction = process.env.NODE_ENV === "production" || 
+                       process.env.REPLIT_DEPLOYMENT === "1" ||
+                       process.env.REPL_SLUG !== undefined;
+  
+  console.log(`[session] Configuring session store (production mode: ${isProduction})`);
+  
   // Don't set cookie domain - SSO between subdomains is handled via token-based approach
   // Setting domain can break Google OAuth, so we leave it unset
   
@@ -1227,11 +1233,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       conString: process.env.DATABASE_URL,
       tableName: "session",
       createTableIfMissing: true,
+      errorLog: (err: Error) => {
+        console.error("[session] PgStore error:", err);
+      },
     }),
     cookie: {
-      secure: isProduction,
+      // Use 'auto' detection: secure when behind proxy with x-forwarded-proto: https
+      // This works because we set trust proxy = true above
+      secure: "auto" as any,
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
       sameSite: "lax",
       // No domain set - allows each subdomain to have its own session
       // Cross-subdomain SSO is handled via token-based approach
@@ -1239,6 +1250,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   };
   
   app.use(session(sessionConfig));
+  
+  // Debug middleware to log session state on auth endpoints
+  app.use((req, res, next) => {
+    if (req.path.includes("/api/auth/")) {
+      console.log(`[session] ${req.method} ${req.path} - Session ID: ${req.sessionID?.substring(0, 8)}..., Has userId: ${!!req.session?.userId}`);
+    }
+    next();
+  });
   
   // Mount WA Blast routes
   app.use("/api/wa-blast", waBlastRouter);
