@@ -575,13 +575,84 @@ export default function CustomerInboxPage() {
                 />
               </div>
             ) : (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="text-center p-8 glass-card rounded-xl">
-                  <MessageSquare className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Select a conversation</h3>
-                  <p className="text-sm text-muted-foreground max-w-xs">
-                    Choose a conversation from the list to start chatting
-                  </p>
+              <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto">
+                <div className="max-w-lg w-full space-y-8">
+                  <div className="text-center">
+                    <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-primary/20 to-violet-500/20 flex items-center justify-center">
+                      <MessageSquare className="w-10 h-10 text-primary" />
+                    </div>
+                    <h2 className="text-2xl font-bold mb-2">Selamat Datang di Chatvice</h2>
+                    <p className="text-muted-foreground">
+                      Platform chat cerdas untuk terhubung dengan bisnis favorit Anda
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="glass-card rounded-xl p-4 text-center">
+                      <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                        <Store className="w-6 h-6 text-blue-500" />
+                      </div>
+                      <h3 className="font-semibold text-sm mb-1">Official Stores</h3>
+                      <p className="text-xs text-muted-foreground">Chat langsung dengan toko resmi</p>
+                    </div>
+                    
+                    <div className="glass-card rounded-xl p-4 text-center">
+                      <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-green-500/10 flex items-center justify-center">
+                        <Sparkles className="w-6 h-6 text-green-500" />
+                      </div>
+                      <h3 className="font-semibold text-sm mb-1">AI Assistant</h3>
+                      <p className="text-xs text-muted-foreground">Respon cepat & pintar 24/7</p>
+                    </div>
+                    
+                    <div className="glass-card rounded-xl p-4 text-center">
+                      <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                        <Users className="w-6 h-6 text-purple-500" />
+                      </div>
+                      <h3 className="font-semibold text-sm mb-1">Personal Chat</h3>
+                      <p className="text-xs text-muted-foreground">Hubungi teman & keluarga</p>
+                    </div>
+                    
+                    <div className="glass-card rounded-xl p-4 text-center">
+                      <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                        <Pin className="w-6 h-6 text-orange-500" />
+                      </div>
+                      <h3 className="font-semibold text-sm mb-1">Pin Favorit</h3>
+                      <p className="text-xs text-muted-foreground">Akses cepat chat penting</p>
+                    </div>
+                  </div>
+                  
+                  <div className="glass-card rounded-xl p-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center">
+                        <MessageSquare className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-sm">Mulai Percakapan</h4>
+                        <p className="text-xs text-muted-foreground">Pilih chat dari daftar di sebelah kiri</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm"
+                        className="flex-1 bg-gradient-to-r from-primary to-violet-500 text-white border-0"
+                        onClick={() => navigate(chatRoutes.stores())}
+                        data-testid="button-explore-stores"
+                      >
+                        <Store className="w-4 h-4 mr-2" />
+                        Jelajahi Stores
+                      </Button>
+                      <Button 
+                        size="sm"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => setNewChatDialogOpen(true)}
+                        data-testid="button-start-chat-desktop"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Chat Baru
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
