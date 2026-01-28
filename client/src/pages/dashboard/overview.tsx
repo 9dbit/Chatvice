@@ -61,14 +61,14 @@ export default function DashboardOverview() {
       await navigator.clipboard.writeText(embedCode);
       setCopied(true);
       toast({
-        title: "Berhasil disalin!",
-        description: "Kode embed sudah disalin ke clipboard.",
+        title: "Copied successfully!",
+        description: "The embed code has been copied to your clipboard.",
       });
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       toast({
-        title: "Gagal menyalin",
-        description: "Silakan salin kode secara manual.",
+        title: "Failed to copy",
+        description: "Please copy the code manually.",
         variant: "destructive",
       });
     }
@@ -141,10 +141,10 @@ export default function DashboardOverview() {
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Code className="w-5 h-5 text-primary" />
-            Pasang Widget Chatvice
+            Install Chatvice Widget
           </CardTitle>
           <CardDescription>
-            Tambahkan chatbot AI ke website Anda dalam 3 langkah mudah
+            Add the AI chatbot to your website in 3 easy steps
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -156,16 +156,16 @@ export default function DashboardOverview() {
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
                   1
                 </div>
-                <h4 className="font-medium text-sm">Salin Kode Script</h4>
+                <h4 className="font-medium text-sm">Copy the Script Code</h4>
               </div>
               <p className="text-xs text-muted-foreground mb-3">
-                Klik tombol "Salin Script" di bawah untuk menyalin kode embed widget.
+                Click the "Copy Script" button below to copy the widget embed code.
               </p>
               {/* Visual illustration - Copy button simulation */}
               <div className="bg-muted/30 rounded-lg p-3 border border-dashed border-primary/30" data-testid="img-step-1">
                 <div className="flex items-center justify-center gap-2 text-primary text-sm font-medium">
                   <Copy className="w-5 h-5" />
-                  <span>Salin Script</span>
+                  <span>Copy Script</span>
                 </div>
                 <div className="mt-2 h-1.5 bg-primary/20 rounded-full overflow-hidden">
                   <div className="h-full w-full bg-primary/50 rounded-full animate-pulse" />
@@ -179,10 +179,10 @@ export default function DashboardOverview() {
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
                   2
                 </div>
-                <h4 className="font-medium text-sm">Buka File HTML</h4>
+                <h4 className="font-medium text-sm">Open Your HTML File</h4>
               </div>
               <p className="text-xs text-muted-foreground mb-3">
-                Buka file HTML utama website Anda (index.html atau layout utama).
+                Open your website's main HTML file (usually index.html or main layout).
               </p>
               {/* Visual illustration - File editor simulation */}
               <div className="bg-muted/30 rounded-lg overflow-hidden border border-dashed border-primary/30" data-testid="img-step-2">
@@ -207,16 +207,16 @@ export default function DashboardOverview() {
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
                   3
                 </div>
-                <h4 className="font-medium text-sm">Tempel Sebelum &lt;/body&gt;</h4>
+                <h4 className="font-medium text-sm">Paste Before &lt;/body&gt;</h4>
               </div>
               <p className="text-xs text-muted-foreground mb-3">
-                Tempel kode script tepat sebelum tag penutup &lt;/body&gt; dan simpan.
+                Paste the script code just before the closing &lt;/body&gt; tag and save.
               </p>
               {/* Visual illustration - Code placement */}
               <div className="bg-muted/30 rounded-lg overflow-hidden border border-dashed border-primary/30" data-testid="img-step-3">
                 <div className="bg-muted/50 px-3 py-1.5 border-b border-white/10 flex items-center gap-2">
                   <Check className="w-4 h-4 text-green-500" />
-                  <span className="text-xs text-green-600 dark:text-green-400">Posisi yang benar</span>
+                  <span className="text-xs text-green-600 dark:text-green-400">Correct placement</span>
                 </div>
                 <div className="p-2 font-mono text-[10px] leading-relaxed">
                   <div className="text-muted-foreground/50 pl-2">...</div>
@@ -232,7 +232,7 @@ export default function DashboardOverview() {
             <div className="flex items-center justify-between flex-wrap gap-2">
               <h4 className="font-medium text-sm flex items-center gap-2" data-testid="text-embed-title">
                 <Globe className="w-4 h-4 text-muted-foreground" />
-                Kode Embed Widget
+                Widget Embed Code
               </h4>
               {activeAgent && (
                 <Badge variant="outline" className="text-xs" data-testid="badge-active-agent">
@@ -255,12 +255,12 @@ export default function DashboardOverview() {
                   {copied ? (
                     <>
                       <Check className="w-4 h-4 mr-1" />
-                      Tersalin!
+                      Copied!
                     </>
                   ) : (
                     <>
                       <Copy className="w-4 h-4 mr-1" />
-                      Salin Script
+                      Copy Script
                     </>
                   )}
                 </Button>
@@ -268,13 +268,13 @@ export default function DashboardOverview() {
             ) : (
               <div className="bg-muted/30 p-4 rounded-lg text-center text-sm text-muted-foreground" data-testid="container-no-agent">
                 <Bot className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p>Belum ada AI Agent aktif.</p>
+                <p>No active AI Agent found.</p>
                 <a 
                   href="/dashboard/agents" 
                   className="text-primary hover:underline inline-flex items-center gap-1 mt-1"
                   data-testid="link-create-agent"
                 >
-                  Buat Agent Pertama <ChevronRight className="w-3 h-3" />
+                  Create Your First Agent <ChevronRight className="w-3 h-3" />
                 </a>
               </div>
             )}
@@ -282,13 +282,13 @@ export default function DashboardOverview() {
 
           {/* Additional Info */}
           <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-white/10 text-xs text-muted-foreground">
-            <p data-testid="text-widget-info">Widget akan muncul di pojok kanan bawah website Anda.</p>
+            <p data-testid="text-widget-info">The widget will appear at the bottom-right corner of your website.</p>
             <a 
               href="/dashboard/widget" 
               className="text-primary hover:underline inline-flex items-center gap-1"
               data-testid="link-widget-settings"
             >
-              Kustomisasi Widget <ExternalLink className="w-3 h-3" />
+              Customize Widget <ExternalLink className="w-3 h-3" />
             </a>
           </div>
         </CardContent>
