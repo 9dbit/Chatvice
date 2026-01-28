@@ -396,11 +396,19 @@ export default function StoreChatPage() {
     const clientMessageId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     let mediaId: string | undefined;
+    let uploadedMediaInfo: any = null;
     
     if (selectedFile) {
       try {
         const uploadResult = await uploadMediaMutation.mutateAsync(selectedFile);
         mediaId = uploadResult.id;
+        uploadedMediaInfo = {
+          mediaId: uploadResult.id,
+          filename: uploadResult.filename || selectedFile.name,
+          mimeType: uploadResult.mimeType || selectedFile.type,
+          fileSize: uploadResult.fileSize || selectedFile.size,
+          mediaUrl: `/api/customer/media/${uploadResult.id}`,
+        };
       } catch {
         return;
       }
@@ -415,6 +423,7 @@ export default function StoreChatPage() {
       timestamp: new Date().toISOString(),
       isPending: true,
       messageType: selectedFile ? "media" : "text",
+      payload: uploadedMediaInfo,
     };
     
     setPendingMessages(prev => [...prev, pendingMsg]);
@@ -465,7 +474,7 @@ export default function StoreChatPage() {
     if (msg.messageType === "media" && msg.payload?.mediaId) {
       return {
         id: msg.payload.mediaId,
-        url: `/api/customer/media/${msg.payload.mediaId}`,
+        url: msg.payload.mediaUrl || `/api/customer/media/${msg.payload.mediaId}`,
         filename: msg.payload.filename || "image",
         fileSize: msg.payload.fileSize || 0,
         mimeType: msg.payload.mimeType || "image/jpeg",
@@ -831,7 +840,7 @@ export default function StoreChatPage() {
         </div>
       )}
 
-      <div className="glass-header p-3 relative" style={{ borderTop: '1px solid rgba(0,0,0,0.08)', borderBottom: 'none' }}>
+      <div className="glass-header p-3 relative z-40" style={{ borderTop: '1px solid rgba(0,0,0,0.08)', borderBottom: 'none' }}>
         <StickerPicker
           isOpen={showStickerPicker}
           onClose={() => setShowStickerPicker(false)}

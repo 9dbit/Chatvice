@@ -223,11 +223,21 @@ export function StickerPicker({
 
   return (
     <div 
-      className="absolute bottom-full left-0 right-0 mb-2 mx-2 glass-card rounded-xl border border-white/20 shadow-lg overflow-hidden"
+      className="absolute bottom-full left-0 right-0 mb-2 mx-2 rounded-xl border border-white/30 dark:border-white/20 shadow-xl overflow-hidden z-50"
+      style={{
+        backdropFilter: 'blur(20px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+      }}
       data-testid="sticker-picker"
     >
-      <div className="flex items-center justify-between p-2 border-b border-white/10">
-        <h4 className="text-sm font-medium">Stickers</h4>
+      <style>{`
+        .dark [data-testid="sticker-picker"] {
+          background-color: rgba(30, 30, 30, 0.92) !important;
+        }
+      `}</style>
+      <div className="flex items-center justify-between p-2 border-b border-black/10 dark:border-white/10">
+        <h4 className="text-sm font-medium text-foreground">Stickers</h4>
         <Button 
           variant="ghost" 
           size="icon" 
@@ -240,7 +250,7 @@ export function StickerPicker({
       </div>
 
       <ScrollArea className="w-full">
-        <div className="flex gap-1 p-2 border-b border-white/10">
+        <div className="flex gap-1 p-2 border-b border-black/10 dark:border-white/10">
           {STICKER_CATEGORIES.map((category) => (
             <Button
               key={category.id}
@@ -248,7 +258,7 @@ export function StickerPicker({
               size="sm"
               onClick={() => setActiveCategory(category.id)}
               className={cn(
-                "flex-shrink-0 px-3 py-1.5 h-auto gap-1.5 rounded-lg",
+                "flex-shrink-0 px-3 py-1.5 h-auto gap-1.5 rounded-lg text-foreground",
                 activeCategory === category.id && "bg-primary/20 text-primary"
               )}
               data-testid={`category-${category.id}`}
@@ -267,11 +277,11 @@ export function StickerPicker({
             <button
               key={sticker.id}
               onClick={() => handleStickerClick(sticker)}
-              className="relative aspect-square rounded-lg overflow-hidden hover:bg-white/10 transition-colors p-1"
+              className="relative aspect-square rounded-lg overflow-hidden hover:bg-black/5 dark:hover:bg-white/10 transition-colors p-1"
               data-testid={`sticker-${sticker.id}`}
             >
               {loadingStates[sticker.id] !== false && (
-                <div className="absolute inset-0 flex items-center justify-center bg-muted/50 animate-pulse">
+                <div className="absolute inset-0 flex items-center justify-center bg-black/5 dark:bg-white/10 animate-pulse rounded-lg">
                   <Smile className="w-6 h-6 text-muted-foreground" />
                 </div>
               )}
