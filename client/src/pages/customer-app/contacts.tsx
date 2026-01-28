@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Users, Search, Plus, Star, Trash2, MessageSquare, User, QrCode, Camera, X } from "lucide-react";
+import { Users, Search, Plus, Star, Trash2, MessageSquare, User, QrCode, Camera, X, Check, Loader2, Phone } from "lucide-react";
 import CustomerLayout from "./layout";
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +23,13 @@ interface Contact {
   createdAt: string;
 }
 
+interface ScannedContact {
+  personalId: string;
+  displayName: string;
+  phoneNumber: string | null;
+  avatarUrl: string | null;
+}
+
 export default function CustomerContactsPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -34,6 +41,9 @@ export default function CustomerContactsPage() {
   const [personalIdInput, setPersonalIdInput] = useState("");
   const [isScanning, setIsScanning] = useState(false);
   const [lastScannedCode, setLastScannedCode] = useState<string | null>(null);
+  const [confirmMode, setConfirmMode] = useState(false);
+  const [scannedContact, setScannedContact] = useState<ScannedContact | null>(null);
+  const [isLookingUp, setIsLookingUp] = useState(false);
   const scannerRef = useRef<any>(null);
   const videoRef = useRef<HTMLDivElement>(null);
   
@@ -96,7 +106,30 @@ export default function CustomerContactsPage() {
     },
   });
   
-  // Add contact by Personal ID
+  // Lookup contact by Personal ID (for confirmation step)
+  const lookupContactMutation = useMutation({
+    mutationFn: async (personalId: string) => {
+      const res = await apiRequest("POST", "/api/customer/lookup-by-personal-id", { personalId });
+      return res.json();
+    },
+    onSuccess: (data: ScannedContact) => {
+      setScannedContact(data);
+      setConfirmMode(true);
+      setIsLookingUp(false);
+    },
+    onError: (error: Error) => {
+      setIsLookingUp(false);
+      toast({ 
+        title: "Error", 
+        description: error.message,
+        variant: "destructive" 
+      });
+      // Reset after 3 seconds to allow retry
+      setTimeout(() => setLastScannedCode(null), 3000);
+    },
+  });
+  
+  // Add contact by Personal ID (after confirmation)
   const addContactByIdMutation = useMutation({
     mutationFn: async (personalId: string) => {
       const res = await apiRequest("POST", "/api/customer/contacts/by-personal-id", { personalId });
@@ -105,8 +138,7 @@ export default function CustomerContactsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/customer/contacts"] });
       toast({ title: "Contact added successfully!" });
-      setScannerOpen(false);
-      setPersonalIdInput("");
+      handleCloseScanner();
     },
     onError: (error: Error) => {
       toast({ 
@@ -119,7 +151,7 @@ export default function CustomerContactsPage() {
   
   // QR Scanner effect
   useEffect(() => {
-    if (scannerOpen && videoRef.current && !scannerRef.current) {
+    if (scannerOpen && videoRef.current && !scannerRef.current && !confirmMode) {
       initScanner();
     }
     
@@ -129,7 +161,7 @@ export default function CustomerContactsPage() {
         scannerRef.current = null;
       }
     };
-  }, [scannerOpen]);
+  }, [scannerOpen, confirmMode]);
   
   const initScanner = async () => {
     try {
@@ -144,7 +176,7 @@ export default function CustomerContactsPage() {
         { facingMode: "environment" },
         {
           fps: 10,
-          qrbox: { width: 250, height: 250 },
+          qrbox: { width: 200, height: 200 },
         },
         (decodedText) => {
           // Debounce: Skip if same code was just scanned
@@ -156,7 +188,8 @@ export default function CustomerContactsPage() {
             html5QrCode.stop().then(() => {
               scannerRef.current = null;
               setIsScanning(false);
-              addContactByIdMutation.mutate(decodedText);
+              setIsLookingUp(true);
+              lookupContactMutation.mutate(decodedText);
             });
           } else {
             toast({
@@ -181,7 +214,7 @@ export default function CustomerContactsPage() {
     }
   };
   
-  const handleStopScanner = () => {
+  const handleCloseScanner = () => {
     if (scannerRef.current) {
       scannerRef.current.stop().then(() => {
         scannerRef.current = null;
@@ -194,6 +227,9 @@ export default function CustomerContactsPage() {
     setScannerOpen(false);
     setPersonalIdInput("");
     setLastScannedCode(null);
+    setConfirmMode(false);
+    setScannedContact(null);
+    setIsLookingUp(false);
   };
   
   const handleAddByPersonalId = () => {
@@ -206,7 +242,20 @@ export default function CustomerContactsPage() {
       });
       return;
     }
-    addContactByIdMutation.mutate(trimmedId);
+    setIsLookingUp(true);
+    lookupContactMutation.mutate(trimmedId);
+  };
+  
+  const handleConfirmAddContact = () => {
+    if (scannedContact) {
+      addContactByIdMutation.mutate(scannedContact.personalId);
+    }
+  };
+  
+  const handleBackToScanner = () => {
+    setConfirmMode(false);
+    setScannedContact(null);
+    setLastScannedCode(null);
   };
   
   const filteredContacts = contacts.filter(contact => 
@@ -302,59 +351,135 @@ export default function CustomerContactsPage() {
           </div>
           
           {/* QR Scanner Dialog */}
-          <Dialog open={scannerOpen} onOpenChange={(open) => { if (!open) handleStopScanner(); }}>
-            <DialogContent className="mx-4 rounded-2xl max-w-[calc(100%-2rem)] sm:max-w-md glass-card border-white/20">
+          <Dialog open={scannerOpen} onOpenChange={(open) => { if (!open) handleCloseScanner(); }}>
+            <DialogContent className="mx-4 rounded-2xl max-w-[calc(100%-2rem)] sm:max-w-md glass-card border-white/20 max-h-[calc(100vh-120px)] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <QrCode className="w-5 h-5 text-primary" />
-                  Scan Personal ID
+                  {confirmMode ? "Confirm Contact" : "Scan Personal ID"}
                 </DialogTitle>
               </DialogHeader>
-              <div className="space-y-4">
-                {/* QR Scanner View */}
-                <div className="relative w-full aspect-square bg-black/90 rounded-xl overflow-hidden">
-                  <div id="qr-reader" ref={videoRef} className="w-full h-full" data-testid="container-qr-scanner" />
-                  {!isScanning && (
-                    <div className="absolute inset-0 flex items-center justify-center text-white">
-                      <Camera className="w-12 h-12 animate-pulse" />
-                    </div>
-                  )}
+              
+              {/* Loading State */}
+              {isLookingUp && (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <Loader2 className="w-10 h-10 animate-spin text-primary mb-3" />
+                  <p className="text-sm text-muted-foreground">Looking up contact...</p>
                 </div>
-                
-                <p className="text-center text-sm text-muted-foreground">
-                  Point your camera at a Personal ID QR code to add them as a contact
-                </p>
-                
-                {/* Manual Entry Option */}
-                <div className="space-y-2">
-                  <Label>Or enter Personal ID manually</Label>
+              )}
+              
+              {/* Confirmation Mode */}
+              {confirmMode && scannedContact && !isLookingUp && (
+                <div className="space-y-4">
+                  {/* Contact Preview Card */}
+                  <div className="p-4 rounded-xl bg-muted/30 border border-white/10 space-y-4">
+                    <div className="flex items-center gap-4">
+                      <Avatar className="w-16 h-16">
+                        <AvatarImage src={scannedContact.avatarUrl || undefined} />
+                        <AvatarFallback className="text-xl">
+                          <User className="w-6 h-6" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-lg font-semibold truncate" data-testid="text-scanned-name">
+                          {scannedContact.displayName || "Unnamed User"}
+                        </p>
+                        {scannedContact.phoneNumber && (
+                          <p className="text-sm text-muted-foreground flex items-center gap-1" data-testid="text-scanned-phone">
+                            <Phone className="w-3 h-3" />
+                            {scannedContact.phoneNumber}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground font-mono mt-1" data-testid="text-scanned-id">
+                          {scannedContact.personalId}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <p className="text-center text-sm text-muted-foreground">
+                    Add this person to your contacts?
+                  </p>
+                  
                   <div className="flex gap-2">
-                    <Input
-                      placeholder="P-A01-00001"
-                      value={personalIdInput}
-                      onChange={(e) => setPersonalIdInput(e.target.value.toUpperCase())}
-                      className="font-mono"
-                      data-testid="input-personal-id"
-                    />
                     <Button 
-                      onClick={handleAddByPersonalId}
-                      disabled={addContactByIdMutation.isPending}
-                      data-testid="button-add-by-id"
+                      variant="outline" 
+                      className="flex-1" 
+                      onClick={handleBackToScanner}
+                      data-testid="button-back-to-scanner"
                     >
-                      {addContactByIdMutation.isPending ? "Adding..." : "Add"}
+                      <X className="w-4 h-4 mr-2" /> Cancel
+                    </Button>
+                    <Button 
+                      className="flex-1" 
+                      onClick={handleConfirmAddContact}
+                      disabled={addContactByIdMutation.isPending}
+                      data-testid="button-confirm-add"
+                    >
+                      {addContactByIdMutation.isPending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4 mr-2" /> Save Contact
+                        </>
+                      )}
                     </Button>
                   </div>
                 </div>
-                
-                <Button 
-                  variant="outline" 
-                  className="w-full" 
-                  onClick={handleStopScanner}
-                  data-testid="button-close-scanner"
-                >
-                  <X className="w-4 h-4 mr-2" /> Cancel
-                </Button>
-              </div>
+              )}
+              
+              {/* Scanner Mode */}
+              {!confirmMode && !isLookingUp && (
+                <div className="space-y-3">
+                  {/* QR Scanner View - smaller on mobile */}
+                  <div className="relative w-full aspect-[4/3] bg-black/90 rounded-xl overflow-hidden">
+                    <div id="qr-reader" ref={videoRef} className="w-full h-full" data-testid="container-qr-scanner" />
+                    {!isScanning && (
+                      <div className="absolute inset-0 flex items-center justify-center text-white">
+                        <Camera className="w-10 h-10 animate-pulse" />
+                      </div>
+                    )}
+                  </div>
+                  
+                  <p className="text-center text-xs text-muted-foreground">
+                    Point your camera at a Personal ID QR code to add them as a contact
+                  </p>
+                  
+                  {/* Manual Entry Option */}
+                  <div className="space-y-2">
+                    <Label className="text-sm">Or enter Personal ID manually</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="P-A01-00001"
+                        value={personalIdInput}
+                        onChange={(e) => setPersonalIdInput(e.target.value.toUpperCase())}
+                        className="font-mono text-sm h-9"
+                        data-testid="input-personal-id"
+                      />
+                      <Button 
+                        size="sm"
+                        onClick={handleAddByPersonalId}
+                        disabled={lookupContactMutation.isPending}
+                        data-testid="button-add-by-id"
+                      >
+                        Add
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="w-full" 
+                    onClick={handleCloseScanner}
+                    data-testid="button-close-scanner"
+                  >
+                    <X className="w-4 h-4 mr-2" /> Cancel
+                  </Button>
+                </div>
+              )}
             </DialogContent>
           </Dialog>
           

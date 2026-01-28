@@ -7,12 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { User, Camera, LogOut, Bell, Shield, Trash2, Loader2, QrCode, Copy, Check } from "lucide-react";
+import { User, Camera, LogOut, Bell, Shield, Trash2, Loader2, QrCode, Copy, Check, Volume2 } from "lucide-react";
 import CustomerLayout from "./layout";
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { chatRoutes } from "@/lib/chat-routes";
+import { useChatNotificationSound } from "@/hooks/use-chat-notification-sound";
 
 interface CustomerProfile {
   id: string;
@@ -29,6 +30,7 @@ export default function CustomerSettingsPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const { playSound, setEnabled: setSoundEnabled, isEnabled: isSoundEnabled } = useChatNotificationSound();
   
   const { data: customer, isLoading } = useQuery<CustomerProfile>({
     queryKey: ["/api/customer/me"],
@@ -37,9 +39,15 @@ export default function CustomerSettingsPage() {
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabledState] = useState(true);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
+  
+  // Initialize sound setting from localStorage
+  useEffect(() => {
+    setSoundEnabledState(isSoundEnabled());
+  }, [isSoundEnabled]);
   
   // Fetch QR code for personal ID
   const { data: qrCodeData } = useQuery<{ qrCode: string }>({
@@ -236,6 +244,15 @@ export default function CustomerSettingsPage() {
     updateProfileMutation.mutate({ notificationsEnabled: enabled });
   };
   
+  const handleToggleSound = (enabled: boolean) => {
+    setSoundEnabledState(enabled);
+    setSoundEnabled(enabled);
+    // Play a test sound if enabled
+    if (enabled) {
+      playSound("reply");
+    }
+  };
+  
   if (isLoading) {
     return (
       <CustomerLayout>
@@ -422,7 +439,7 @@ export default function CustomerSettingsPage() {
               <CardTitle>Notifications</CardTitle>
               <CardDescription>Control how you receive updates</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Bell className="w-5 h-5 text-muted-foreground" />
@@ -437,6 +454,25 @@ export default function CustomerSettingsPage() {
                   checked={notificationsEnabled}
                   onCheckedChange={handleToggleNotifications}
                   data-testid="switch-notifications"
+                />
+              </div>
+              
+              <Separator />
+              
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Volume2 className="w-5 h-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">Notification Sound</p>
+                    <p className="text-sm text-muted-foreground">
+                      Play sound for new messages
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={soundEnabled}
+                  onCheckedChange={handleToggleSound}
+                  data-testid="switch-notification-sound"
                 />
               </div>
             </CardContent>
