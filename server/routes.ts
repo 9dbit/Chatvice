@@ -2638,6 +2638,106 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // ============================================================================
+  // CROSS-SUBDOMAIN SSO (chatvice.app <-> blaster.chatvice.app)
+  // ============================================================================
+  
+  // In-memory store for SSO tokens (with automatic cleanup)
+  const ssoTokens = new Map<string, { merchantId: string; email: string; expiresAt: number }>();
+  
+  // Cleanup expired SSO tokens every 5 minutes
+  setInterval(() => {
+    const now = Date.now();
+    for (const [token, data] of ssoTokens.entries()) {
+      if (data.expiresAt < now) {
+        ssoTokens.delete(token);
+      }
+    }
+  }, 5 * 60 * 1000);
+  
+  // Generate SSO token for cross-subdomain authentication
+  app.post("/api/sso/generate-token", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      // Generate a secure random token
+      const token = crypto.randomBytes(32).toString("hex");
+      
+      // Store token with 60 second expiration (short-lived for security)
+      ssoTokens.set(token, {
+        merchantId,
+        email: merchant.email,
+        expiresAt: Date.now() + 60 * 1000, // 60 seconds
+      });
+      
+      res.json({ token });
+    } catch (error) {
+      console.error("SSO token generation error:", error);
+      res.status(500).json({ error: "Failed to generate SSO token" });
+    }
+  });
+  
+  // Validate SSO token and create session
+  app.post("/api/sso/validate-token", async (req, res) => {
+    try {
+      const { token } = req.body;
+      
+      if (!token || typeof token !== "string") {
+        return res.status(400).json({ error: "Token required" });
+      }
+      
+      const tokenData = ssoTokens.get(token);
+      
+      if (!tokenData) {
+        return res.status(401).json({ error: "Invalid or expired token" });
+      }
+      
+      // Check if token is expired
+      if (tokenData.expiresAt < Date.now()) {
+        ssoTokens.delete(token);
+        return res.status(401).json({ error: "Token expired" });
+      }
+      
+      // Delete token after use (one-time use)
+      ssoTokens.delete(token);
+      
+      // Get merchant data
+      const merchant = await storage.getMerchant(tokenData.merchantId);
+      
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      // Create session for the merchant (same as regular login)
+      req.session.userId = merchant.id;
+      req.session.merchantId = merchant.id;
+      req.session.userType = "merchant";
+      
+      // Save session explicitly
+      req.session.save((err) => {
+        if (err) {
+          console.error("SSO session save error:", err);
+          return res.status(500).json({ error: "Failed to create session" });
+        }
+        
+        res.json({
+          success: true,
+          merchantId: merchant.id,
+          email: merchant.email,
+          companyName: merchant.companyName,
+        });
+      });
+    } catch (error) {
+      console.error("SSO token validation error:", error);
+      res.status(500).json({ error: "Failed to validate SSO token" });
+    }
+  });
+
   // WebSocket authentication token for real-time updates
   app.get("/api/merchant/ws-token", requireMerchant, async (req, res) => {
     try {

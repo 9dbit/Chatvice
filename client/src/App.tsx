@@ -28,6 +28,7 @@ import IntegrationsPage from "@/pages/integrations";
 import WhatsAppBlastPage from "@/pages/whatsapp-blast";
 import BlasterLandingPage from "@/pages/blaster-landing";
 import BlasterBillingPage from "@/pages/blaster-billing";
+import SSOCallback from "@/pages/sso-callback";
 import { isBlasterSubdomain } from "@/lib/blaster-routes";
 
 import PrivacyPolicyPage from "@/pages/legal/privacy";
@@ -126,6 +127,7 @@ function BlasterAppRouter() {
   return (
     <Switch>
       <Route path="/" component={BlasterLandingPage} />
+      <Route path="/sso-callback" component={SSOCallback} />
       <Route path="/login">
         {() => {
           window.location.href = 'https://chatvice.app/login';

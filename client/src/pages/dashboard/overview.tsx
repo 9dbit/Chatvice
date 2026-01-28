@@ -1,13 +1,15 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageSquare, Users, Clock, TrendingUp, Bot, HeadphonesIcon, Activity, BarChart3, Zap, Target, ThumbsUp, UserCheck, MessageCircle, AlertCircle, ArrowRight, Send } from "lucide-react";
+import { MessageSquare, Users, Clock, TrendingUp, Bot, HeadphonesIcon, Activity, BarChart3, Zap, Target, ThumbsUp, UserCheck, MessageCircle, AlertCircle, ArrowRight, Send, Loader2 } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 import { getBlasterUrl } from "@/lib/blaster-routes";
+import { useToast } from "@/hooks/use-toast";
 import type { Session } from "@shared/schema";
 
 interface AnalyticsData {
@@ -24,6 +26,8 @@ interface AnalyticsData {
 
 export default function DashboardOverview() {
   const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const [isNavigatingToBlaster, setIsNavigatingToBlaster] = useState(false);
   const merchantId = localStorage.getItem("merchantId") || "";
 
   const { data: sessions, isLoading: sessionsLoading } = useQuery<Session[]>({
@@ -97,9 +101,43 @@ export default function DashboardOverview() {
     navigate("/select-agent");
   };
 
-  const handleWhatsAppBlast = () => {
-    const blasterUrl = getBlasterUrl("/dashboard");
-    window.location.href = blasterUrl;
+  const handleWhatsAppBlast = async () => {
+    // Check if we're on chatvice.app - need SSO token for cross-subdomain
+    const hostname = window.location.hostname;
+    const isProduction = hostname.includes("chatvice.app") && !hostname.startsWith("blaster.");
+    
+    if (isProduction) {
+      setIsNavigatingToBlaster(true);
+      try {
+        // Generate SSO token for cross-subdomain authentication
+        const response = await fetch("/api/sso/generate-token", {
+          method: "POST",
+          credentials: "include",
+        });
+        
+        if (!response.ok) {
+          throw new Error("Failed to generate SSO token");
+        }
+        
+        const { token } = await response.json();
+        
+        // Redirect to blaster with SSO token
+        const blasterUrl = `https://blaster.chatvice.app/sso-callback?token=${token}`;
+        window.location.href = blasterUrl;
+      } catch (error) {
+        console.error("SSO error:", error);
+        setIsNavigatingToBlaster(false);
+        toast({
+          title: "Navigation Error",
+          description: "Failed to navigate to WhatsApp Blast. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } else {
+      // In development, just navigate directly (same origin)
+      const blasterUrl = getBlasterUrl("/dashboard");
+      window.location.href = blasterUrl;
+    }
   };
 
   return (
