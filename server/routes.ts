@@ -1217,7 +1217,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // Configure session with proper production settings
   // Enable cross-subdomain SSO between chatvice.app and blaster.chatvice.app
   const isProduction = process.env.NODE_ENV === "production";
-  const cookieDomain = isProduction ? ".chatvice.app" : undefined; // Share cookies across subdomains in production
+  // Don't set cookie domain for OAuth to work - SSO between subdomains can be handled via token-based approach
+const cookieDomain = undefined;
   
   const sessionConfig: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "chatvice-secret-key-change-in-production",
