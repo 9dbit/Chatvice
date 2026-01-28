@@ -31,7 +31,7 @@ import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClien
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, isNotNull, gte, lt, sql } from "drizzle-orm";
-import { messages, sessions, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts } from "@shared/schema";
+import { messages, sessions, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts, ssoTokens } from "@shared/schema";
 import crypto from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import waBlastRouter from "./routes/wa-blast";
@@ -2646,7 +2646,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   setInterval(async () => {
     try {
       const now = new Date();
-      await db.delete(schema.ssoTokens).where(lt(schema.ssoTokens.expiresAt, now));
+      await db.delete(ssoTokens).where(lt(ssoTokens.expiresAt, now));
     } catch (error) {
       console.error("SSO token cleanup error:", error);
     }
@@ -2668,7 +2668,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       // Store token in database with 5 minute expiration (increased for network latency)
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
       
-      await db.insert(schema.ssoTokens).values({
+      await db.insert(ssoTokens).values({
         token,
         merchantId,
         email: merchant.email,
@@ -2692,7 +2692,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       }
       
       // Get token from database
-      const [tokenData] = await db.select().from(schema.ssoTokens).where(eq(schema.ssoTokens.token, token)).limit(1);
+      const [tokenData] = await db.select().from(ssoTokens).where(eq(ssoTokens.token, token)).limit(1);
       
       if (!tokenData) {
         return res.status(401).json({ error: "Invalid or expired token" });
@@ -2700,12 +2700,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       
       // Check if token is expired
       if (tokenData.expiresAt < new Date()) {
-        await db.delete(schema.ssoTokens).where(eq(schema.ssoTokens.token, token));
+        await db.delete(ssoTokens).where(eq(ssoTokens.token, token));
         return res.status(401).json({ error: "Token expired" });
       }
       
       // Delete token after use (one-time use)
-      await db.delete(schema.ssoTokens).where(eq(schema.ssoTokens.token, token));
+      await db.delete(ssoTokens).where(eq(ssoTokens.token, token));
       
       // Get merchant data
       const merchant = await storage.getMerchant(tokenData.merchantId);
