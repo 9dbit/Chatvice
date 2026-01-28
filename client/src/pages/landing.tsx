@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SiWhatsapp } from "react-icons/si";
+import { getBlasterUrl } from "@/lib/blaster-routes";
 import {
   MessageSquare,
   Zap,
@@ -281,7 +282,7 @@ function Navbar() {
   const navLinks = [
     { labelKey: "nav.home", href: "/" },
     { labelKey: "nav.features", href: "/features" },
-    { labelKey: "nav.waBlast", href: "/whatsapp-blast" },
+    { labelKey: "nav.waBlast", href: getBlasterUrl("/"), external: true },
     { labelKey: "nav.pricing", href: "/pricing" },
     { labelKey: "nav.api", href: "/api-docs" },
     { labelKey: "nav.faq", href: "/faq" },
@@ -1876,18 +1877,18 @@ function BenefitsSections() {
                 ))}
               </ul>
               <div className="flex flex-wrap gap-3">
-                <Link href="/whatsapp-blast">
+                <a href={getBlasterUrl("/")}>
                   <Button className="bg-green-600 border-green-700" data-testid="button-wa-blast-learn">
                     <SiWhatsapp className="w-4 h-4 mr-2" />
                     Pelajari Lebih Lanjut
                   </Button>
-                </Link>
-                <Link href="/register">
+                </a>
+                <a href={getBlasterUrl("/")}>
                   <Button variant="outline" data-testid="button-wa-blast-start">
                     Mulai Gratis
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
-                </Link>
+                </a>
               </div>
             </div>
             <div className="relative">

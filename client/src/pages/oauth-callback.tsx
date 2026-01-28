@@ -29,7 +29,7 @@ export default function OAuthCallback() {
           } else if (data.hasActiveAgent) {
             setLocation("/dashboard");
           } else {
-            setLocation("/select-agent");
+            setLocation("/merchant-home");
           }
         } else {
           throw new Error("Not authenticated");

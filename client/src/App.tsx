@@ -26,6 +26,9 @@ import APIDocsPage from "@/pages/api-docs";
 import ChangelogPage from "@/pages/changelog";
 import IntegrationsPage from "@/pages/integrations";
 import WhatsAppBlastPage from "@/pages/whatsapp-blast";
+import BlasterLandingPage from "@/pages/blaster-landing";
+import MerchantHomePage from "@/pages/merchant-home";
+import { isBlasterSubdomain } from "@/lib/blaster-routes";
 
 import PrivacyPolicyPage from "@/pages/legal/privacy";
 import TermsOfServicePage from "@/pages/legal/terms";
@@ -76,9 +79,12 @@ function ScrollToTop() {
 function GlobalHelpBubble() {
   const [location] = useLocation();
   
-  // Hide on chat subdomain (customer chat platform)
+  // Hide on chat subdomain (customer chat platform) and blaster subdomain
   const hostname = window.location.hostname;
   if (hostname.startsWith('chat.') || hostname === 'chat.chatvice.app') {
+    return null;
+  }
+  if (hostname.startsWith('blaster.') || hostname === 'blaster.chatvice.app') {
     return null;
   }
   
@@ -115,6 +121,24 @@ function isChatSubdomain() {
   return hostname.startsWith('chat.') || hostname === 'chat.chatvice.app';
 }
 
+// Blaster App Router (for blaster.chatvice.app subdomain)
+function BlasterAppRouter() {
+  return (
+    <Switch>
+      <Route path="/" component={BlasterLandingPage} />
+      <Route path="/login">
+        {() => {
+          window.location.href = 'https://chatvice.app/login';
+          return null;
+        }}
+      </Route>
+      <Route path="/dashboard/*" component={DashboardLayout} />
+      <Route path="/dashboard" component={DashboardLayout} />
+      <Route component={NotFound} />
+    </Switch>
+  );
+}
+
 // Customer Chat App Router (for chat.chatvice.app subdomain)
 function ChatAppRouter() {
   return (
@@ -147,6 +171,7 @@ function MainRouter() {
       <Route path="/oauth-callback" component={OAuthCallback} />
       <Route path="/complete-profile" component={CompleteProfilePage} />
       <Route path="/profile-wizard" component={ProfileWizardPage} />
+      <Route path="/merchant-home" component={MerchantHomePage} />
       <Route path="/select-agent" component={SelectAgentPage} />
       <Route path="/dashboard/*" component={DashboardLayout} />
       <Route path="/dashboard" component={DashboardLayout} />
@@ -239,6 +264,9 @@ function MainRouter() {
 function Router() {
   if (isChatSubdomain()) {
     return <ChatAppRouter />;
+  }
+  if (isBlasterSubdomain()) {
+    return <BlasterAppRouter />;
   }
   return <MainRouter />;
 }

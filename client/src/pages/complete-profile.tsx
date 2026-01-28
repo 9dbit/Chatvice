@@ -55,7 +55,7 @@ export default function CompleteProfilePage() {
         title: "Profile completed!",
         description: "Welcome to Chatvice. Let's set up your chatbot.",
       });
-      setLocation("/select-agent");
+      setLocation("/merchant-home");
     },
     onError: (error: any) => {
       if (error.errorCode === "DOMAIN_ALREADY_REGISTERED") {
