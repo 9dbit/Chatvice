@@ -17,7 +17,7 @@ import {
 import OpenAI from "openai";
 import bcrypt from "bcryptjs";
 import session from "express-session";
-import MemoryStore from "memorystore";
+import pgSession from "connect-pg-simple";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -1165,7 +1165,7 @@ ${knowledgeContext || "No specific knowledge base configured yet."}`
 }
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
-  const MemoryStoreSession = MemoryStore(session);
+  const PgStore = pgSession(session);
   
   // Trust proxy for production (required for secure cookies behind load balancer/reverse proxy)
   app.set("trust proxy", true);
@@ -1223,8 +1223,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     secret: process.env.SESSION_SECRET || "chatvice-secret-key-change-in-production",
     resave: false,
     saveUninitialized: false,
-    store: new MemoryStoreSession({
-      checkPeriod: 86400000,
+    store: new PgStore({
+      conString: process.env.DATABASE_URL,
+      tableName: "session",
+      createTableIfMissing: true,
     }),
     cookie: {
       secure: isProduction,
