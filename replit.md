@@ -61,7 +61,8 @@ Chatvice is a monorepo application structured with `/client`, `/server`, and `/s
   - **Admin Control**: Master panel to view all WA contacts across merchants and configure pricing.
   - **Hybrid Payment System**: Two payment modes for different merchant needs:
     - **BSP Mode (Default)**: Merchants top up to Chatvice wallet (waBlastWallet table). Per-message deduction: Marketing Rp500, Utility Rp300, OTP Rp200. Supports PayPal (credit card) with auto-topup feature and Kompas Pay (QRIS, E-wallet, VA). 7-day refund policy to original payment method.
-    - **BYOWABA Mode (Enterprise)**: Merchants connect their own Meta WABA credentials (merchantWabaAccounts table). Pay directly to Meta for message costs. Chatvice charges Rp50/message platform fee. Tables: waBlastWallet, waBlastTransactions, merchantWabaAccounts, waBlastTopupPackages.
+    - **BYOWABA Mode (Enterprise)**: Merchants connect their own Meta WABA credentials (merchantWabaAccounts table). Pay directly to Meta for message costs. Chatvice charges Rp50/message platform fee. Tables: waBlastWallet, waBlastTransactions, merchantWabaAccounts, waBlastTopupPackages, waBlastTopupOrders.
+  - **Secure Payment Flow**: Top-up creates pending order → User completes payment via gateway → Webhook callback verifies signature (HMAC-SHA256 with PAYMENT_WEBHOOK_SECRET), validates amount/provider → Atomically marks order complete and credits balance. Idempotency key prevents duplicate credits. Orders expire after 24 hours.
 
 **Data Model Highlights**: Core entities include Merchants, Supervisors, Sessions, Messages, Triggers, Knowledge Base content, Subscription Plans, and Agents.
 **Chat Widget Message Reconciliation**: Optimistic UI updates using `clientId` with server-side reconciliation.
