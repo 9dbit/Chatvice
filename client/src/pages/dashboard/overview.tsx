@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Users, Clock, TrendingUp, Bot, HeadphonesIcon, Activity, BarChart3, Zap, Target, ThumbsUp, UserCheck, MessageCircle, AlertCircle, Code, Copy, Check, ChevronRight, Globe, FileCode, ExternalLink } from "lucide-react";
+import { MessageSquare, Users, Clock, TrendingUp, Bot, HeadphonesIcon, Activity, BarChart3, Zap, Target, ThumbsUp, UserCheck, MessageCircle, AlertCircle, Code, Copy, Check, ChevronRight, FileCode, ExternalLink } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 import type { Session, Agent, Merchant } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -147,30 +147,66 @@ export default function DashboardOverview() {
             Add the AI chatbot to your website in 3 easy steps
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-4">
           {/* Step-by-step guide with visual images */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Step 1 */}
+            {/* Step 1 - Copy Script with Embed Code */}
             <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-4 border border-white/10 dark:border-white/5" data-testid="install-step-1">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
-                  1
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
+                    1
+                  </div>
+                  <h4 className="font-medium text-sm">Copy the Script Code</h4>
                 </div>
-                <h4 className="font-medium text-sm">Copy the Script Code</h4>
+                {activeAgent && (
+                  <Badge variant="outline" className="text-xs" data-testid="badge-active-agent">
+                    Agent: {activeAgent.name}
+                  </Badge>
+                )}
               </div>
               <p className="text-xs text-muted-foreground mb-3">
                 Click the "Copy Script" button below to copy the widget embed code.
               </p>
-              {/* Visual illustration - Copy button simulation */}
-              <div className="bg-muted/30 rounded-lg p-3 border border-dashed border-primary/30" data-testid="img-step-1">
-                <div className="flex items-center justify-center gap-2 text-primary text-sm font-medium">
-                  <Copy className="w-5 h-5" />
-                  <span>Copy Script</span>
+              
+              {/* Embed Code Display */}
+              {embedCode ? (
+                <div className="space-y-2" data-testid="container-embed-code">
+                  <pre className="bg-muted/50 dark:bg-muted/30 p-3 rounded-lg font-mono text-[10px] overflow-x-auto whitespace-pre-wrap break-all border border-white/10" data-testid="text-embed-code">
+                    {embedCode}
+                  </pre>
+                  <Button
+                    onClick={handleCopyScript}
+                    className="w-full"
+                    size="sm"
+                    data-testid="button-copy-embed-script"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-4 h-4 mr-1" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4 mr-1" />
+                        Copy Script
+                      </>
+                    )}
+                  </Button>
                 </div>
-                <div className="mt-2 h-1.5 bg-primary/20 rounded-full overflow-hidden">
-                  <div className="h-full w-full bg-primary/50 rounded-full animate-pulse" />
+              ) : (
+                <div className="bg-muted/30 p-3 rounded-lg text-center text-xs text-muted-foreground" data-testid="container-no-agent">
+                  <Bot className="w-6 h-6 mx-auto mb-1 opacity-50" />
+                  <p>No active AI Agent found.</p>
+                  <a 
+                    href="/dashboard/agents" 
+                    className="text-primary hover:underline inline-flex items-center gap-1 mt-1"
+                    data-testid="link-create-agent"
+                  >
+                    Create Your First Agent <ChevronRight className="w-3 h-3" />
+                  </a>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Step 2 */}
@@ -225,59 +261,6 @@ export default function DashboardOverview() {
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Embed Code Section */}
-          <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-4 border border-white/10 dark:border-white/5 space-y-3">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <h4 className="font-medium text-sm flex items-center gap-2" data-testid="text-embed-title">
-                <Globe className="w-4 h-4 text-muted-foreground" />
-                Widget Embed Code
-              </h4>
-              {activeAgent && (
-                <Badge variant="outline" className="text-xs" data-testid="badge-active-agent">
-                  Agent: {activeAgent.name}
-                </Badge>
-              )}
-            </div>
-            
-            {embedCode ? (
-              <div className="relative" data-testid="container-embed-code">
-                <pre className="bg-muted/80 dark:bg-muted/40 backdrop-blur-sm p-4 pr-28 rounded-lg font-mono text-xs overflow-x-auto whitespace-pre-wrap break-all border" data-testid="text-embed-code">
-                  {embedCode}
-                </pre>
-                <Button
-                  onClick={handleCopyScript}
-                  className="absolute top-2 right-2"
-                  size="sm"
-                  data-testid="button-copy-embed-script"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="w-4 h-4 mr-1" />
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-4 h-4 mr-1" />
-                      Copy Script
-                    </>
-                  )}
-                </Button>
-              </div>
-            ) : (
-              <div className="bg-muted/30 p-4 rounded-lg text-center text-sm text-muted-foreground" data-testid="container-no-agent">
-                <Bot className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p>No active AI Agent found.</p>
-                <a 
-                  href="/dashboard/agents" 
-                  className="text-primary hover:underline inline-flex items-center gap-1 mt-1"
-                  data-testid="link-create-agent"
-                >
-                  Create Your First Agent <ChevronRight className="w-3 h-3" />
-                </a>
-              </div>
-            )}
           </div>
 
           {/* Additional Info */}
