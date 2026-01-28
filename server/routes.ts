@@ -30,7 +30,7 @@ import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./payp
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient, sendMerchantAuthNotification } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, or, isNotNull, gte, sql } from "drizzle-orm";
+import { eq, desc, and, or, isNotNull, gte, lt, sql } from "drizzle-orm";
 import { messages, sessions, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts } from "@shared/schema";
 import crypto from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
@@ -2642,16 +2642,13 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   // CROSS-SUBDOMAIN SSO (chatvice.app <-> blaster.chatvice.app)
   // ============================================================================
   
-  // In-memory store for SSO tokens (with automatic cleanup)
-  const ssoTokens = new Map<string, { merchantId: string; email: string; expiresAt: number }>();
-  
-  // Cleanup expired SSO tokens every 5 minutes
-  setInterval(() => {
-    const now = Date.now();
-    for (const [token, data] of ssoTokens.entries()) {
-      if (data.expiresAt < now) {
-        ssoTokens.delete(token);
-      }
+  // Cleanup expired SSO tokens every 5 minutes (database-backed)
+  setInterval(async () => {
+    try {
+      const now = new Date();
+      await db.delete(schema.ssoTokens).where(lt(schema.ssoTokens.expiresAt, now));
+    } catch (error) {
+      console.error("SSO token cleanup error:", error);
     }
   }, 5 * 60 * 1000);
   
@@ -2668,11 +2665,14 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       // Generate a secure random token
       const token = crypto.randomBytes(32).toString("hex");
       
-      // Store token with 60 second expiration (short-lived for security)
-      ssoTokens.set(token, {
+      // Store token in database with 5 minute expiration (increased for network latency)
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+      
+      await db.insert(schema.ssoTokens).values({
+        token,
         merchantId,
         email: merchant.email,
-        expiresAt: Date.now() + 60 * 1000, // 60 seconds
+        expiresAt,
       });
       
       res.json({ token });
@@ -2691,20 +2691,21 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(400).json({ error: "Token required" });
       }
       
-      const tokenData = ssoTokens.get(token);
+      // Get token from database
+      const [tokenData] = await db.select().from(schema.ssoTokens).where(eq(schema.ssoTokens.token, token)).limit(1);
       
       if (!tokenData) {
         return res.status(401).json({ error: "Invalid or expired token" });
       }
       
       // Check if token is expired
-      if (tokenData.expiresAt < Date.now()) {
-        ssoTokens.delete(token);
+      if (tokenData.expiresAt < new Date()) {
+        await db.delete(schema.ssoTokens).where(eq(schema.ssoTokens.token, token));
         return res.status(401).json({ error: "Token expired" });
       }
       
       // Delete token after use (one-time use)
-      ssoTokens.delete(token);
+      await db.delete(schema.ssoTokens).where(eq(schema.ssoTokens.token, token));
       
       // Get merchant data
       const merchant = await storage.getMerchant(tokenData.merchantId);

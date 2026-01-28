@@ -2619,3 +2619,17 @@ export const insertWaBlastTopupOrderSchema = createInsertSchema(waBlastTopupOrde
 export type InsertWaBlastTopupOrder = z.infer<typeof insertWaBlastTopupOrderSchema>;
 export type WaBlastTopupOrder = typeof waBlastTopupOrders.$inferSelect;
 
+export const ssoTokens = pgTable("sso_tokens", {
+  token: varchar("token", { length: 64 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  email: text("email").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  expiresIdx: index("sso_token_expires_idx").on(table.expiresAt),
+}));
+
+export const insertSsoTokenSchema = createInsertSchema(ssoTokens);
+export type InsertSsoToken = z.infer<typeof insertSsoTokenSchema>;
+export type SsoToken = typeof ssoTokens.$inferSelect;
+
