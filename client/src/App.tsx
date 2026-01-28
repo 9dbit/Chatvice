@@ -28,7 +28,6 @@ import IntegrationsPage from "@/pages/integrations";
 import WhatsAppBlastPage from "@/pages/whatsapp-blast";
 import BlasterLandingPage from "@/pages/blaster-landing";
 import BlasterBillingPage from "@/pages/blaster-billing";
-import MerchantHomePage from "@/pages/merchant-home";
 import { isBlasterSubdomain } from "@/lib/blaster-routes";
 
 import PrivacyPolicyPage from "@/pages/legal/privacy";
@@ -173,7 +172,13 @@ function MainRouter() {
       <Route path="/oauth-callback" component={OAuthCallback} />
       <Route path="/complete-profile" component={CompleteProfilePage} />
       <Route path="/profile-wizard" component={ProfileWizardPage} />
-      <Route path="/merchant-home" component={MerchantHomePage} />
+      {/* Redirect merchant-home to dashboard */}
+      <Route path="/merchant-home">
+        {() => {
+          window.location.href = '/dashboard';
+          return null;
+        }}
+      </Route>
       <Route path="/select-agent" component={SelectAgentPage} />
       <Route path="/dashboard/*" component={DashboardLayout} />
       <Route path="/dashboard" component={DashboardLayout} />

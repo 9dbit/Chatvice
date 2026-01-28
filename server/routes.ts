@@ -1215,7 +1215,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
   
   // Configure session with proper production settings
+  // Enable cross-subdomain SSO between chatvice.app and blaster.chatvice.app
   const isProduction = process.env.NODE_ENV === "production";
+  const cookieDomain = isProduction ? ".chatvice.app" : undefined; // Share cookies across subdomains in production
+  
   const sessionConfig: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "chatvice-secret-key-change-in-production",
     resave: false,
@@ -1228,6 +1231,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000,
       sameSite: "lax",
+      domain: cookieDomain, // Cross-subdomain SSO
     },
   };
   
@@ -3718,6 +3722,35 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const planId = merchant.subscriptionPlanId || "free";
       const storageLimit = merchant.storageLimit || planLimits[planId] || planLimits.free;
       
+      // Get subscription limits
+      const effectiveLimits = await getEffectivePlanLimitsAsync(merchant);
+      
+      // Get usage counts
+      const agents = await storage.getAgents(merchantId);
+      const supervisors = await storage.getSupervisorsByMerchant(merchantId);
+      const sessions = await storage.getSessionsByMerchant(merchantId);
+      
+      // Count messages this month
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      
+      let totalMessagesThisMonth = 0;
+      for (const session of sessions) {
+        if (session.createdAt && new Date(session.createdAt) >= startOfMonth) {
+          const messages = await storage.getMessages(session.id);
+          totalMessagesThisMonth += messages.length;
+        }
+      }
+      
+      // Count knowledge sources from active web sources
+      const knowledgeSources = await storage.getSources(merchantId);
+      const knowledgeSourcesCount = knowledgeSources.filter(s => s.isActive).length;
+      
+      // Get chat retention hours from plan
+      const basePlan = subscriptionPlans[planId as keyof typeof subscriptionPlans] || subscriptionPlans.free;
+      const chatRetentionHours = basePlan.chatRetentionHours || 1;
+      
       res.json({
         totalStorageUsed,
         storageLimit,
@@ -3729,6 +3762,21 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         planInfo: {
           planName: planId.charAt(0).toUpperCase() + planId.slice(1),
           storageLimitMB: Math.round(storageLimit / (1024 * 1024)),
+        },
+        // Subscription usage
+        subscriptionUsage: {
+          conversationsUsed: merchant.conversationsUsed || 0,
+          conversationsLimit: effectiveLimits.conversationsLimit,
+          messagesThisMonth: totalMessagesThisMonth,
+          agentsUsed: agents.length,
+          agentsLimit: effectiveLimits.agentsLimit,
+          supervisorsUsed: supervisors.length,
+          supervisorsLimit: effectiveLimits.supervisorsLimit,
+          sourcesUsed: knowledgeSourcesCount,
+          sourcesLimit: effectiveLimits.sourcesLimit,
+          suggestedQuestionsLimit: effectiveLimits.suggestedQuestionsLimit,
+          chatRetentionHours,
+          domainsLimit: basePlan.domainsLimit || 1,
         },
       });
     } catch (error) {

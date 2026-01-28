@@ -1,9 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageSquare, Users, Clock, TrendingUp, Bot, HeadphonesIcon, Activity, BarChart3, Zap, Target, ThumbsUp, UserCheck, MessageCircle, AlertCircle } from "lucide-react";
+import { MessageSquare, Users, Clock, TrendingUp, Bot, HeadphonesIcon, Activity, BarChart3, Zap, Target, ThumbsUp, UserCheck, MessageCircle, AlertCircle, ArrowRight, Send } from "lucide-react";
+import { SiWhatsapp } from "react-icons/si";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
+import { getBlasterUrl } from "@/lib/blaster-routes";
 import type { Session } from "@shared/schema";
 
 interface AnalyticsData {
@@ -19,6 +23,7 @@ interface AnalyticsData {
 }
 
 export default function DashboardOverview() {
+  const [, navigate] = useLocation();
   const merchantId = localStorage.getItem("merchantId") || "";
 
   const { data: sessions, isLoading: sessionsLoading } = useQuery<Session[]>({
@@ -88,11 +93,57 @@ export default function DashboardOverview() {
   // Simulated visitor satisfaction (based on AI resolution rate)
   const satisfactionRate = stats?.aiResolutionRate ? Math.min(95, Math.round(stats.aiResolutionRate * 0.8 + 20)) : 0;
 
+  const handleCreateAgent = () => {
+    navigate("/select-agent");
+  };
+
+  const handleWhatsAppBlast = () => {
+    const blasterUrl = getBlasterUrl("/dashboard");
+    window.location.href = blasterUrl;
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <div>
         <h1 className="text-xl sm:text-2xl font-bold" data-testid="text-dashboard-title">Dashboard Overview</h1>
         <p className="text-sm text-muted-foreground hidden sm:block">Monitor your AI chatbot performance and customer interactions.</p>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Card 
+          className="hover-elevate cursor-pointer border hover:border-primary/50 transition-colors"
+          onClick={handleCreateAgent}
+          data-testid="card-quick-agent"
+        >
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="p-2.5 rounded-lg bg-primary/10 shrink-0">
+              <Bot className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm" data-testid="text-quick-agent-title">Create AI Agent</p>
+              <p className="text-xs text-muted-foreground truncate">Build AI chatbot for your website</p>
+            </div>
+            <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
+          </CardContent>
+        </Card>
+
+        <Card 
+          className="hover-elevate cursor-pointer border hover:border-green-500/50 transition-colors"
+          onClick={handleWhatsAppBlast}
+          data-testid="card-quick-wa"
+        >
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="p-2.5 rounded-lg bg-green-500/10 shrink-0">
+              <SiWhatsapp className="h-5 w-5 text-green-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm" data-testid="text-quick-wa-title">WhatsApp Blast</p>
+              <p className="text-xs text-muted-foreground truncate">Broadcast messages to customers</p>
+            </div>
+            <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
+          </CardContent>
+        </Card>
       </div>
 
       {/* Real-time and Last 7 Days Grid - Frosted Glass Style */}

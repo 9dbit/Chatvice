@@ -4,9 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { HardDrive, Image, FileText, Database, TrendingUp, Upload, X, ExternalLink, Clock } from "lucide-react";
+import { HardDrive, Image, FileText, Database, TrendingUp, Upload, X, ExternalLink, Clock, MessageSquare, Bot, Users, BookOpen, Globe, Sparkles } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
-import { id as idLocale } from "date-fns/locale";
 
 interface MediaGalleryItem {
   id: string;
@@ -18,6 +17,21 @@ interface MediaGalleryItem {
   imageHeight: number | null;
   expiresAt: string | null;
   createdAt: string;
+}
+
+interface SubscriptionUsage {
+  conversationsUsed: number;
+  conversationsLimit: number;
+  messagesThisMonth: number;
+  agentsUsed: number;
+  agentsLimit: number;
+  supervisorsUsed: number;
+  supervisorsLimit: number;
+  sourcesUsed: number;
+  sourcesLimit: number;
+  suggestedQuestionsLimit: number;
+  chatRetentionHours: number;
+  domainsLimit: number;
 }
 
 interface StorageUsageData {
@@ -47,6 +61,7 @@ interface StorageUsageData {
     planName: string;
     storageLimitMB: number;
   };
+  subscriptionUsage?: SubscriptionUsage;
 }
 
 function formatBytes(bytes: number): string {
@@ -55,6 +70,16 @@ function formatBytes(bytes: number): string {
   const sizes = ["B", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+}
+
+function formatLimit(value: number): string {
+  if (value === -1) return "Unlimited";
+  return value.toLocaleString();
+}
+
+function getUsagePercentage(used: number, limit: number): number {
+  if (limit === -1) return 0;
+  return Math.min((used / limit) * 100, 100);
 }
 
 function getFileTypeIcon(mimeType: string) {
@@ -90,69 +115,214 @@ export default function DataUsagePage() {
   const usedPercentage = usage ? (usage.totalStorageUsed / usage.storageLimit) * 100 : 0;
   const isNearLimit = usedPercentage > 80;
   const isOverLimit = usedPercentage > 100;
+  
+  const sub = usage?.subscriptionUsage;
+  const conversationPct = sub ? getUsagePercentage(sub.conversationsUsed, sub.conversationsLimit) : 0;
 
   return (
     <div className="p-6 space-y-6" data-testid="page-data-usage">
       <div>
-        <h1 className="text-2xl font-bold" data-testid="text-page-title">Usage Info & Media</h1>
+        <h1 className="text-2xl font-bold" data-testid="text-page-title">Usage & Limits</h1>
         <p className="text-muted-foreground" data-testid="text-page-description">
-          Monitor penyimpanan dan kelola media yang diunggah
+          Monitor your subscription usage and storage
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card data-testid="card-storage-used">
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium" data-testid="title-storage-used">Total Storage Used</CardTitle>
-            <HardDrive className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-storage-used">
-              {formatBytes(usage?.totalStorageUsed || 0)}
-            </div>
-            <p className="text-xs text-muted-foreground" data-testid="text-storage-limit">
-              of {formatBytes(usage?.storageLimit || 0)} limit
-            </p>
-            <Progress 
-              value={Math.min(usedPercentage, 100)} 
-              className={`mt-2 ${isOverLimit ? "bg-destructive/20" : isNearLimit ? "bg-accent" : ""}`}
-              data-testid="progress-storage"
-            />
-          </CardContent>
-        </Card>
+      {/* Subscription Usage Section */}
+      {sub && (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-primary" />
+            Plan Usage
+          </h2>
+          
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {/* Conversations */}
+            <Card data-testid="card-conversations">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Conversations</CardTitle>
+                <MessageSquare className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold" data-testid="text-conversations-used">
+                  {sub.conversationsUsed.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  of {formatLimit(sub.conversationsLimit)} this month
+                </p>
+                {sub.conversationsLimit !== -1 && (
+                  <Progress 
+                    value={conversationPct} 
+                    className={`mt-2 ${conversationPct > 90 ? "bg-destructive/20" : conversationPct > 70 ? "bg-accent" : ""}`}
+                    data-testid="progress-conversations"
+                  />
+                )}
+              </CardContent>
+            </Card>
 
-        <Card data-testid="card-total-files">
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium" data-testid="title-total-files">Total Files</CardTitle>
-            <Upload className="w-4 h-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-total-files">{usage?.mediaCount || 0}</div>
-            <p className="text-xs text-muted-foreground" data-testid="text-uploaded-files">uploaded files</p>
-          </CardContent>
-        </Card>
+            {/* Messages */}
+            <Card data-testid="card-messages">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Messages This Month</CardTitle>
+                <MessageSquare className="w-4 h-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold" data-testid="text-messages-count">
+                  {sub.messagesThisMonth.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">total messages sent</p>
+              </CardContent>
+            </Card>
 
-        <Card data-testid="card-images">
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium" data-testid="title-images">Images</CardTitle>
-            <Image className="w-4 h-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-image-count">{usage?.mediaByType?.images || 0}</div>
-            <p className="text-xs text-muted-foreground" data-testid="text-image-files">image files</p>
-          </CardContent>
-        </Card>
+            {/* AI Agents */}
+            <Card data-testid="card-agents">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">AI Agents</CardTitle>
+                <Bot className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold" data-testid="text-agents-used">
+                  {sub.agentsUsed} <span className="text-sm font-normal text-muted-foreground">/ {formatLimit(sub.agentsLimit)}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">agents created</p>
+                {sub.agentsLimit !== -1 && (
+                  <Progress 
+                    value={getUsagePercentage(sub.agentsUsed, sub.agentsLimit)} 
+                    className="mt-2"
+                    data-testid="progress-agents"
+                  />
+                )}
+              </CardContent>
+            </Card>
 
-        <Card data-testid="card-documents">
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium" data-testid="title-documents">Documents</CardTitle>
-            <FileText className="w-4 h-4 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-document-count">{usage?.mediaByType?.documents || 0}</div>
-            <p className="text-xs text-muted-foreground" data-testid="text-document-files">document files</p>
-          </CardContent>
-        </Card>
+            {/* Supervisors */}
+            <Card data-testid="card-supervisors">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Supervisors</CardTitle>
+                <Users className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold" data-testid="text-supervisors-used">
+                  {sub.supervisorsUsed} <span className="text-sm font-normal text-muted-foreground">/ {formatLimit(sub.supervisorsLimit)}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">team members</p>
+                {sub.supervisorsLimit !== -1 && (
+                  <Progress 
+                    value={getUsagePercentage(sub.supervisorsUsed, sub.supervisorsLimit)} 
+                    className="mt-2"
+                    data-testid="progress-supervisors"
+                  />
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Knowledge Sources */}
+            <Card data-testid="card-sources">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Knowledge Sources</CardTitle>
+                <BookOpen className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold" data-testid="text-sources-used">
+                  {sub.sourcesUsed} <span className="text-sm font-normal text-muted-foreground">/ {formatLimit(sub.sourcesLimit)}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">crawled URLs</p>
+                {sub.sourcesLimit !== -1 && (
+                  <Progress 
+                    value={getUsagePercentage(sub.sourcesUsed, sub.sourcesLimit)} 
+                    className="mt-2"
+                    data-testid="progress-sources"
+                  />
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Plan Limits */}
+            <Card data-testid="card-limits">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Plan Limits</CardTitle>
+                <Globe className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Allowed Domains</span>
+                  <Badge variant="secondary" data-testid="badge-domains">{sub.domainsLimit}</Badge>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Chat Retention</span>
+                  <Badge variant="secondary" data-testid="badge-retention">{sub.chatRetentionHours}h</Badge>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Suggested Questions</span>
+                  <Badge variant="secondary" data-testid="badge-suggested">{formatLimit(sub.suggestedQuestionsLimit)}</Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {/* Storage Section */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <HardDrive className="w-5 h-5 text-primary" />
+          Storage & Media
+        </h2>
+        
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card data-testid="card-storage-used">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium" data-testid="title-storage-used">Total Storage Used</CardTitle>
+              <HardDrive className="w-4 h-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold" data-testid="text-storage-used">
+                {formatBytes(usage?.totalStorageUsed || 0)}
+              </div>
+              <p className="text-xs text-muted-foreground" data-testid="text-storage-limit">
+                of {formatBytes(usage?.storageLimit || 0)} limit
+              </p>
+              <Progress 
+                value={Math.min(usedPercentage, 100)} 
+                className={`mt-2 ${isOverLimit ? "bg-destructive/20" : isNearLimit ? "bg-accent" : ""}`}
+                data-testid="progress-storage"
+              />
+            </CardContent>
+          </Card>
+
+          <Card data-testid="card-total-files">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium" data-testid="title-total-files">Total Files</CardTitle>
+              <Upload className="w-4 h-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold" data-testid="text-total-files">{usage?.mediaCount || 0}</div>
+              <p className="text-xs text-muted-foreground" data-testid="text-uploaded-files">uploaded files</p>
+            </CardContent>
+          </Card>
+
+          <Card data-testid="card-images">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium" data-testid="title-images">Images</CardTitle>
+              <Image className="w-4 h-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold" data-testid="text-image-count">{usage?.mediaByType?.images || 0}</div>
+              <p className="text-xs text-muted-foreground" data-testid="text-image-files">image files</p>
+            </CardContent>
+          </Card>
+
+          <Card data-testid="card-documents">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium" data-testid="title-documents">Documents</CardTitle>
+              <FileText className="w-4 h-4 text-destructive" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold" data-testid="text-document-count">{usage?.mediaByType?.documents || 0}</div>
+              <p className="text-xs text-muted-foreground" data-testid="text-document-files">document files</p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -289,17 +459,17 @@ export default function DataUsagePage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2" data-testid="title-media-gallery">
             <Image className="w-5 h-5" />
-            Galeri Media
+            Media Gallery
           </CardTitle>
           <CardDescription data-testid="desc-media-gallery">
-            Semua gambar yang diunggah di chat (otomatis terhapus setelah 7 hari)
+            All images uploaded in chat (automatically deleted after 7 days)
           </CardDescription>
         </CardHeader>
         <CardContent>
           {!usage?.mediaGallery?.length ? (
             <div className="text-center py-8 text-muted-foreground" data-testid="empty-gallery">
               <Image className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Belum ada gambar yang diunggah</p>
+              <p>No images uploaded yet</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3" data-testid="gallery-grid">
@@ -322,7 +492,7 @@ export default function DataUsagePage() {
                     <div className="flex flex-wrap gap-1 mt-1">
                       {media.imageWidth && media.imageHeight && (
                         <span className="text-[9px] text-white/70 bg-white/20 px-1.5 py-0.5 rounded">
-                          {media.imageWidth}×{media.imageHeight}
+                          {media.imageWidth}x{media.imageHeight}
                         </span>
                       )}
                       <span className="text-[9px] text-white/70 bg-white/20 px-1.5 py-0.5 rounded">
@@ -335,10 +505,10 @@ export default function DataUsagePage() {
                     <div className="absolute top-1 right-1">
                       <div 
                         className="flex items-center gap-0.5 text-[8px] text-white bg-black/50 px-1.5 py-0.5 rounded-full"
-                        title={`Kedaluwarsa: ${format(new Date(media.expiresAt), "dd MMM yyyy HH:mm", { locale: idLocale })}`}
+                        title={`Expires: ${format(new Date(media.expiresAt), "dd MMM yyyy HH:mm")}`}
                       >
                         <Clock className="w-2.5 h-2.5" />
-                        <span>{formatDistanceToNow(new Date(media.expiresAt), { addSuffix: false, locale: idLocale })}</span>
+                        <span>{formatDistanceToNow(new Date(media.expiresAt), { addSuffix: false })}</span>
                       </div>
                     </div>
                   )}
@@ -361,7 +531,7 @@ export default function DataUsagePage() {
             <div className="flex items-center gap-3">
               {viewingImage.imageWidth && viewingImage.imageHeight && (
                 <span className="text-sm text-white/70 bg-white/10 px-3 py-1 rounded-full">
-                  {viewingImage.imageWidth}×{viewingImage.imageHeight}
+                  {viewingImage.imageWidth}x{viewingImage.imageHeight}
                 </span>
               )}
               <span className="text-sm text-white/70 bg-white/10 px-3 py-1 rounded-full">
@@ -401,7 +571,7 @@ export default function DataUsagePage() {
             {viewingImage.expiresAt && (
               <span className="text-xs text-white/60 flex items-center gap-1">
                 <Clock className="w-3 h-3" />
-                Kedaluwarsa {format(new Date(viewingImage.expiresAt), "dd MMM yyyy HH:mm", { locale: idLocale })}
+                Expires {format(new Date(viewingImage.expiresAt), "dd MMM yyyy HH:mm")}
               </span>
             )}
             <a
@@ -413,7 +583,7 @@ export default function DataUsagePage() {
               data-testid="button-open-gallery-new-tab"
             >
               <ExternalLink className="w-4 h-4" />
-              <span className="hidden sm:inline">Buka di tab baru</span>
+              <span className="hidden sm:inline">Open in new tab</span>
             </a>
           </div>
         </div>
