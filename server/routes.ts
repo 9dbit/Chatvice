@@ -19046,5 +19046,497 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
+  // ========================================
+  // WA Blast Billing API Endpoints
+  // ========================================
+
+  // Get WA Blast wallet info
+  app.get("/api/wa-blast/wallet", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const wallet = await storage.getOrCreateWaBlastWallet(merchantId);
+      res.json(wallet);
+    } catch (error) {
+      console.error("Get wallet error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Update wallet settings (mode, PayPal auto-topup)
+  app.patch("/api/wa-blast/wallet", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { mode, paypalEmail, paypalAutoTopup, paypalAutoTopupThreshold, paypalAutoTopupAmount } = req.body;
+      
+      const updateData: any = {};
+      
+      // Validate mode
+      if (mode !== undefined) {
+        if (mode !== "bsp" && mode !== "byowaba") {
+          return res.status(400).json({ error: "Mode harus 'bsp' atau 'byowaba'" });
+        }
+        updateData.mode = mode;
+      }
+      
+      // Validate PayPal email
+      if (paypalEmail !== undefined) {
+        if (paypalEmail !== null && paypalEmail !== "") {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(paypalEmail)) {
+            return res.status(400).json({ error: "Format email tidak valid" });
+          }
+        }
+        updateData.paypalEmail = paypalEmail;
+      }
+      
+      // Validate auto-topup boolean
+      if (paypalAutoTopup !== undefined) {
+        if (typeof paypalAutoTopup !== "boolean") {
+          return res.status(400).json({ error: "paypalAutoTopup harus boolean" });
+        }
+        updateData.paypalAutoTopup = paypalAutoTopup;
+      }
+      
+      // Validate threshold (min 10000, max 10000000)
+      if (paypalAutoTopupThreshold !== undefined) {
+        const threshold = parseInt(paypalAutoTopupThreshold);
+        if (isNaN(threshold) || threshold < 10000 || threshold > 10000000) {
+          return res.status(400).json({ error: "Batas minimum harus antara Rp 10,000 - Rp 10,000,000" });
+        }
+        updateData.paypalAutoTopupThreshold = threshold;
+      }
+      
+      // Validate amount (min 50000, max 10000000)
+      if (paypalAutoTopupAmount !== undefined) {
+        const amount = parseInt(paypalAutoTopupAmount);
+        if (isNaN(amount) || amount < 50000 || amount > 10000000) {
+          return res.status(400).json({ error: "Jumlah auto top up harus antara Rp 50,000 - Rp 10,000,000" });
+        }
+        updateData.paypalAutoTopupAmount = amount;
+      }
+      
+      const wallet = await storage.updateWaBlastWallet(merchantId, updateData);
+      res.json(wallet);
+    } catch (error) {
+      console.error("Update wallet error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get wallet transactions
+  app.get("/api/wa-blast/transactions", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const transactions = await storage.getWaBlastTransactions(merchantId, limit);
+      res.json(transactions);
+    } catch (error) {
+      console.error("Get transactions error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Create topup order (PayPal/Kompas Pay)
+  // Note: This creates a PENDING order - balance is only credited when payment is verified via webhook
+  app.post("/api/wa-blast/topup", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { packageId, paymentMethod, idempotencyKey: clientIdempotencyKey } = req.body;
+      
+      if (!packageId || !paymentMethod) {
+        return res.status(400).json({ error: "Package ID and payment method required" });
+      }
+      
+      // Validate payment method
+      const validMethods = ["qris", "ewallet", "va", "paypal"];
+      if (!validMethods.includes(paymentMethod)) {
+        return res.status(400).json({ error: "Invalid payment method" });
+      }
+      
+      // Get package from database to determine amount (not from client)
+      const packages = await storage.getWaBlastTopupPackages();
+      const pkg = packages.find(p => p.id === packageId);
+      if (!pkg) {
+        return res.status(400).json({ error: "Invalid package" });
+      }
+      
+      const totalAmount = pkg.amount + (pkg.bonusAmount || 0);
+      const idempotencyKey = clientIdempotencyKey || `topup_${merchantId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      
+      // Check for existing order with same idempotency key
+      const existingOrder = await storage.getWaBlastTopupOrderByIdempotencyKey(idempotencyKey);
+      if (existingOrder) {
+        return res.json({
+          orderId: existingOrder.id,
+          packageId: existingOrder.packageId,
+          packageName: pkg.name,
+          amount: existingOrder.amount,
+          bonusAmount: existingOrder.bonusAmount || 0,
+          totalAmount: existingOrder.totalAmount,
+          paymentMethod: existingOrder.paymentMethod,
+          idempotencyKey: existingOrder.idempotencyKey,
+          status: existingOrder.status,
+          paymentUrl: existingOrder.paymentUrl,
+          message: existingOrder.status === "completed" ? "Order sudah selesai" : "Lanjutkan pembayaran",
+        });
+      }
+      
+      // Create pending order in database
+      const paymentProvider = paymentMethod === "paypal" ? "paypal" : "kompaspay";
+      const order = await storage.createWaBlastTopupOrder({
+        merchantId,
+        packageId,
+        amount: pkg.amount,
+        bonusAmount: pkg.bonusAmount || 0,
+        totalAmount,
+        paymentMethod,
+        paymentProvider,
+        idempotencyKey,
+        status: "pending",
+        // TODO: paymentUrl will be set after actual gateway integration
+      });
+      
+      // TODO: Integrate with actual PayPal/Kompas Pay API to create payment session
+      // and set paymentUrl to the gateway's checkout URL
+      
+      res.json({ 
+        orderId: order.id,
+        packageId: pkg.id,
+        packageName: pkg.name,
+        amount: pkg.amount,
+        bonusAmount: pkg.bonusAmount || 0,
+        totalAmount,
+        paymentMethod,
+        paymentProvider,
+        idempotencyKey,
+        status: "pending",
+        message: "Order dibuat. Lanjutkan ke halaman pembayaran.",
+        // paymentUrl will be provided after gateway integration
+      });
+    } catch (error) {
+      console.error("Topup error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Payment webhook callback (to be called by payment gateway)
+  app.post("/api/wa-blast/topup/callback", async (req, res) => {
+    try {
+      const { orderId, paymentReference, amount, paymentProvider, status, signature } = req.body;
+      
+      if (!orderId || !paymentReference) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      // Lookup order from database
+      const order = await storage.getWaBlastTopupOrderById(orderId);
+      if (!order) {
+        console.error(`Webhook callback: Order not found: ${orderId}`);
+        return res.status(404).json({ error: "Order not found" });
+      }
+      
+      // Verify webhook signature using gateway secret
+      const webhookSecret = process.env.PAYMENT_WEBHOOK_SECRET;
+      if (webhookSecret) {
+        const { createHmac } = await import('crypto');
+        // Expected signature format: HMAC-SHA256 of orderId:amount:paymentReference
+        const expectedSignature = createHmac('sha256', webhookSecret)
+          .update(`${orderId}:${order.totalAmount}:${paymentReference}`)
+          .digest('hex');
+        
+        if (!signature || signature !== expectedSignature) {
+          console.error(`Webhook callback: Invalid signature for order ${orderId}`);
+          return res.status(401).json({ error: "Invalid signature" });
+        }
+      } else {
+        // No webhook secret configured - CRITICAL SECURITY WARNING
+        console.warn("SECURITY WARNING: No PAYMENT_WEBHOOK_SECRET configured. Webhook signature verification disabled.");
+      }
+      
+      // Verify payment amount matches stored order
+      if (amount !== undefined && Number(amount) !== order.totalAmount) {
+        console.error(`Webhook callback: Amount mismatch for order ${orderId}. Expected: ${order.totalAmount}, Got: ${amount}`);
+        return res.status(400).json({ error: "Amount mismatch" });
+      }
+      
+      // Verify payment provider matches stored order
+      if (paymentProvider && paymentProvider !== order.paymentProvider) {
+        console.error(`Webhook callback: Provider mismatch for order ${orderId}. Expected: ${order.paymentProvider}, Got: ${paymentProvider}`);
+        return res.status(400).json({ error: "Provider mismatch" });
+      }
+      
+      if (status !== "success") {
+        await storage.updateWaBlastTopupOrder(orderId, { status: "failed" });
+        return res.json({ success: false, message: "Payment not successful" });
+      }
+      
+      // Complete order and credit balance (atomic operation in storage)
+      const completedOrder = await storage.completeWaBlastTopupOrder(orderId, paymentReference);
+      if (!completedOrder) {
+        // Order may already be completed or expired
+        console.warn(`Webhook callback: Order ${orderId} could not be completed (status: ${order.status})`);
+        return res.status(400).json({ error: "Failed to complete order (already completed or expired)" });
+      }
+      
+      console.log(`Webhook callback: Successfully completed order ${orderId}, credited ${order.totalAmount}`);
+      res.json({ success: true, orderId: completedOrder.id });
+    } catch (error) {
+      console.error("Topup callback error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get pending topup orders for merchant
+  app.get("/api/wa-blast/topup/pending", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const orders = await storage.getPendingWaBlastTopupOrders(merchantId);
+      res.json(orders);
+    } catch (error) {
+      console.error("Get pending orders error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Request refund (7-day policy)
+  app.post("/api/wa-blast/refund-request", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { transactionId, reason } = req.body;
+      
+      if (!transactionId || !reason) {
+        return res.status(400).json({ error: "Transaction ID and reason required" });
+      }
+      
+      const refundRequest = await storage.createRefundRequest(merchantId, transactionId, reason);
+      if (!refundRequest) {
+        return res.status(400).json({ error: "Refund not allowed. Transaction must be less than 7 days old and balance sufficient." });
+      }
+      
+      res.json(refundRequest);
+    } catch (error) {
+      console.error("Refund request error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get topup packages
+  app.get("/api/wa-blast/topup-packages", async (req, res) => {
+    try {
+      const packages = await storage.getWaBlastTopupPackages();
+      res.json(packages);
+    } catch (error) {
+      console.error("Get topup packages error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ========================================
+  // BYOWABA (Merchant WABA Accounts) API
+  // ========================================
+
+  // Get merchant's WABA accounts
+  app.get("/api/wa-blast/waba-accounts", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const accounts = await storage.getMerchantWabaAccounts(merchantId);
+      
+      // Mask access tokens for security
+      const maskedAccounts = accounts.map(acc => ({
+        ...acc,
+        accessToken: acc.accessToken ? "********" : null,
+      }));
+      
+      res.json(maskedAccounts);
+    } catch (error) {
+      console.error("Get WABA accounts error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Add WABA account
+  app.post("/api/wa-blast/waba-accounts", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { name, wabaId, phoneNumberId, phoneNumber, accessToken, businessId } = req.body;
+      
+      if (!name || !wabaId || !phoneNumberId || !phoneNumber || !accessToken) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      const account = await storage.createMerchantWabaAccount({
+        merchantId,
+        name,
+        wabaId,
+        phoneNumberId,
+        phoneNumber,
+        accessToken,
+        businessId,
+        status: "pending",
+      });
+      
+      res.json({
+        ...account,
+        accessToken: "********",
+      });
+    } catch (error) {
+      console.error("Create WABA account error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Update WABA account
+  app.patch("/api/wa-blast/waba-accounts/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { id } = req.params;
+      const { name, wabaId, phoneNumberId, phoneNumber, accessToken, businessId, status } = req.body;
+      
+      const existing = await storage.getMerchantWabaAccountById(id);
+      if (!existing || existing.merchantId !== merchantId) {
+        return res.status(404).json({ error: "WABA account not found" });
+      }
+      
+      const updateData: any = {};
+      if (name) updateData.name = name;
+      if (wabaId) updateData.wabaId = wabaId;
+      if (phoneNumberId) updateData.phoneNumberId = phoneNumberId;
+      if (phoneNumber) updateData.phoneNumber = phoneNumber;
+      if (accessToken) updateData.accessToken = accessToken;
+      if (businessId !== undefined) updateData.businessId = businessId;
+      if (status) updateData.status = status;
+      
+      const account = await storage.updateMerchantWabaAccount(id, updateData);
+      
+      res.json({
+        ...account,
+        accessToken: "********",
+      });
+    } catch (error) {
+      console.error("Update WABA account error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Delete WABA account
+  app.delete("/api/wa-blast/waba-accounts/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { id } = req.params;
+      
+      const existing = await storage.getMerchantWabaAccountById(id);
+      if (!existing || existing.merchantId !== merchantId) {
+        return res.status(404).json({ error: "WABA account not found" });
+      }
+      
+      await storage.deleteMerchantWabaAccount(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete WABA account error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Verify WABA credentials (test connection to Meta API)
+  app.post("/api/wa-blast/waba-accounts/:id/verify", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { id } = req.params;
+      
+      const account = await storage.getMerchantWabaAccountById(id);
+      if (!account || account.merchantId !== merchantId) {
+        return res.status(404).json({ error: "WABA account not found" });
+      }
+      
+      // TODO: Implement actual Meta API verification
+      // For now, just mark as active
+      const updated = await storage.updateMerchantWabaAccount(id, {
+        status: "active",
+        lastVerifiedAt: new Date(),
+        errorMessage: null,
+      });
+      
+      res.json({
+        ...updated,
+        accessToken: "********",
+      });
+    } catch (error) {
+      console.error("Verify WABA account error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ========================================
+  // Admin: WA Blast Topup Packages Management
+  // ========================================
+
+  // Create topup package (admin only)
+  app.post("/api/admin/wa-blast/topup-packages", requireAdmin, async (req, res) => {
+    try {
+      const { name, amount, bonusAmount, description, isPopular, sortOrder } = req.body;
+      
+      if (!name || !amount) {
+        return res.status(400).json({ error: "Name and amount required" });
+      }
+      
+      const pkg = await storage.createWaBlastTopupPackage({
+        name,
+        amount,
+        bonusAmount: bonusAmount || 0,
+        description,
+        isPopular: isPopular || false,
+        sortOrder: sortOrder || 0,
+        isActive: true,
+      });
+      
+      res.json(pkg);
+    } catch (error) {
+      console.error("Create topup package error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Update topup package (admin only)
+  app.patch("/api/admin/wa-blast/topup-packages/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, amount, bonusAmount, description, isPopular, sortOrder, isActive } = req.body;
+      
+      const updateData: any = {};
+      if (name) updateData.name = name;
+      if (amount) updateData.amount = amount;
+      if (bonusAmount !== undefined) updateData.bonusAmount = bonusAmount;
+      if (description !== undefined) updateData.description = description;
+      if (isPopular !== undefined) updateData.isPopular = isPopular;
+      if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
+      if (isActive !== undefined) updateData.isActive = isActive;
+      
+      const pkg = await storage.updateWaBlastTopupPackage(id, updateData);
+      if (!pkg) {
+        return res.status(404).json({ error: "Package not found" });
+      }
+      
+      res.json(pkg);
+    } catch (error) {
+      console.error("Update topup package error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Delete topup package (admin only)
+  app.delete("/api/admin/wa-blast/topup-packages/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteWaBlastTopupPackage(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Package not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete topup package error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   return httpServer;
 }

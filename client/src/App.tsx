@@ -27,6 +27,7 @@ import ChangelogPage from "@/pages/changelog";
 import IntegrationsPage from "@/pages/integrations";
 import WhatsAppBlastPage from "@/pages/whatsapp-blast";
 import BlasterLandingPage from "@/pages/blaster-landing";
+import BlasterBillingPage from "@/pages/blaster-billing";
 import MerchantHomePage from "@/pages/merchant-home";
 import { isBlasterSubdomain } from "@/lib/blaster-routes";
 
@@ -132,6 +133,7 @@ function BlasterAppRouter() {
           return null;
         }}
       </Route>
+      <Route path="/blaster/billing" component={BlasterBillingPage} />
       <Route path="/dashboard/*" component={DashboardLayout} />
       <Route path="/dashboard" component={DashboardLayout} />
       <Route component={NotFound} />

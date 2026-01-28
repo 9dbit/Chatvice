@@ -2593,3 +2593,29 @@ export const insertWaBlastTopupPackageSchema = createInsertSchema(waBlastTopupPa
 export type InsertWaBlastTopupPackage = z.infer<typeof insertWaBlastTopupPackageSchema>;
 export type WaBlastTopupPackage = typeof waBlastTopupPackages.$inferSelect;
 
+// WA Blast Pending Topup Orders - For tracking payment orders before completion
+export const waBlastTopupOrders = pgTable("wa_blast_topup_orders", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  packageId: varchar("package_id", { length: 32 }).notNull(),
+  amount: integer("amount").notNull(), // Package amount
+  bonusAmount: integer("bonus_amount").default(0),
+  totalAmount: integer("total_amount").notNull(), // Amount + bonus
+  paymentMethod: text("payment_method").notNull(), // "qris", "ewallet", "va", "paypal"
+  paymentProvider: text("payment_provider"), // "kompaspay", "paypal"
+  paymentUrl: text("payment_url"), // URL to redirect user for payment
+  paymentReference: text("payment_reference"), // External payment ID from gateway
+  idempotencyKey: text("idempotency_key").notNull().unique(),
+  status: text("status").default("pending"), // "pending", "completed", "failed", "expired"
+  createdAt: timestamp("created_at").defaultNow(),
+  expiresAt: timestamp("expires_at"), // Orders expire after 24 hours
+  completedAt: timestamp("completed_at"),
+}, (table) => ({
+  merchantIdx: index("wa_topup_order_merchant_idx").on(table.merchantId),
+  statusIdx: index("wa_topup_order_status_idx").on(table.status),
+}));
+
+export const insertWaBlastTopupOrderSchema = createInsertSchema(waBlastTopupOrders).omit({ id: true, createdAt: true });
+export type InsertWaBlastTopupOrder = z.infer<typeof insertWaBlastTopupOrderSchema>;
+export type WaBlastTopupOrder = typeof waBlastTopupOrders.$inferSelect;
+

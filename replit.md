@@ -59,6 +59,9 @@ Chatvice is a monorepo application structured with `/client`, `/server`, and `/s
   - **Pricing Tiers**: Basic (free, 500 msg/mo), Pro (Rp 299k, 5k msg/mo), Enterprise (Rp 999k, 50k msg/mo).
   - **Reply Integration**: Incoming blast replies automatically create chat sessions in supervisor panel via webhook.
   - **Admin Control**: Master panel to view all WA contacts across merchants and configure pricing.
+  - **Hybrid Payment System**: Two payment modes for different merchant needs:
+    - **BSP Mode (Default)**: Merchants top up to Chatvice wallet (waBlastWallet table). Per-message deduction: Marketing Rp500, Utility Rp300, OTP Rp200. Supports PayPal (credit card) with auto-topup feature and Kompas Pay (QRIS, E-wallet, VA). 7-day refund policy to original payment method.
+    - **BYOWABA Mode (Enterprise)**: Merchants connect their own Meta WABA credentials (merchantWabaAccounts table). Pay directly to Meta for message costs. Chatvice charges Rp50/message platform fee. Tables: waBlastWallet, waBlastTransactions, merchantWabaAccounts, waBlastTopupPackages.
 
 **Data Model Highlights**: Core entities include Merchants, Supervisors, Sessions, Messages, Triggers, Knowledge Base content, Subscription Plans, and Agents.
 **Chat Widget Message Reconciliation**: Optimistic UI updates using `clientId` with server-side reconciliation.

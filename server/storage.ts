@@ -80,6 +80,7 @@ import {
   waBlastTransactions, type WaBlastTransaction, type InsertWaBlastTransaction,
   merchantWabaAccounts, type MerchantWabaAccount, type InsertMerchantWabaAccount,
   waBlastTopupPackages, type WaBlastTopupPackage, type InsertWaBlastTopupPackage,
+  waBlastTopupOrders, type WaBlastTopupOrder, type InsertWaBlastTopupOrder,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, or, lt, lte, isNull, isNotNull, sql, count, inArray, ne } from "drizzle-orm";
@@ -3923,6 +3924,97 @@ export class DatabaseStorage implements IStorage {
       .where(eq(waBlastTopupPackages.id, id))
       .returning();
     return result.length > 0;
+  }
+
+  // WA Blast Topup Orders
+  async createWaBlastTopupOrder(data: InsertWaBlastTopupOrder): Promise<WaBlastTopupOrder> {
+    const id = generateId("waord_");
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24); // Orders expire in 24 hours
+    
+    const result = await db.insert(waBlastTopupOrders).values({
+      ...data,
+      id,
+      expiresAt,
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+
+  async getWaBlastTopupOrderById(id: string): Promise<WaBlastTopupOrder | undefined> {
+    const result = await db.select().from(waBlastTopupOrders)
+      .where(eq(waBlastTopupOrders.id, id))
+      .limit(1);
+    return result[0];
+  }
+
+  async getWaBlastTopupOrderByIdempotencyKey(key: string): Promise<WaBlastTopupOrder | undefined> {
+    const result = await db.select().from(waBlastTopupOrders)
+      .where(eq(waBlastTopupOrders.idempotencyKey, key))
+      .limit(1);
+    return result[0];
+  }
+
+  async updateWaBlastTopupOrder(id: string, data: Partial<InsertWaBlastTopupOrder>): Promise<WaBlastTopupOrder | undefined> {
+    const result = await db.update(waBlastTopupOrders)
+      .set(data)
+      .where(eq(waBlastTopupOrders.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async completeWaBlastTopupOrder(orderId: string, paymentReference: string): Promise<WaBlastTopupOrder | null> {
+    // Use atomic conditional update to prevent race conditions
+    // Only update if status is currently 'pending'
+    const updatedOrder = await db.update(waBlastTopupOrders)
+      .set({ 
+        status: "completed", 
+        paymentReference,
+        completedAt: new Date(),
+      })
+      .where(and(
+        eq(waBlastTopupOrders.id, orderId),
+        eq(waBlastTopupOrders.status, "pending"),
+        // Also check not expired
+        or(
+          isNull(waBlastTopupOrders.expiresAt),
+          gte(waBlastTopupOrders.expiresAt, new Date())
+        )
+      ))
+      .returning();
+
+    if (updatedOrder.length === 0) {
+      // Check if expired and update status
+      const order = await this.getWaBlastTopupOrderById(orderId);
+      if (order && order.status === "pending" && order.expiresAt && new Date() > new Date(order.expiresAt)) {
+        await db.update(waBlastTopupOrders)
+          .set({ status: "expired" })
+          .where(eq(waBlastTopupOrders.id, orderId));
+      }
+      return null;
+    }
+
+    const order = updatedOrder[0];
+    
+    // Credit balance after order is marked complete
+    await this.addWaBlastBalance(order.merchantId, order.totalAmount, {
+      description: `Top up via ${order.paymentProvider || order.paymentMethod}`,
+      paymentMethod: order.paymentMethod,
+      paymentProvider: order.paymentProvider || undefined,
+      paymentReference,
+      paymentStatus: "completed",
+    });
+
+    return order;
+  }
+
+  async getPendingWaBlastTopupOrders(merchantId: string): Promise<WaBlastTopupOrder[]> {
+    return db.select().from(waBlastTopupOrders)
+      .where(and(
+        eq(waBlastTopupOrders.merchantId, merchantId),
+        eq(waBlastTopupOrders.status, "pending"),
+      ))
+      .orderBy(desc(waBlastTopupOrders.createdAt));
   }
 }
 
