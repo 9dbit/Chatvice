@@ -18346,6 +18346,8 @@ Please create a comprehensive help center article that would be useful for custo
     content: z.string().max(5000, "Message too long"),
     clientMessageId: z.string().optional(),
     mediaId: z.string().optional(),
+    messageType: z.string().optional(),
+    payload: z.any().optional(),
   });
   
   app.post("/api/customer/store-chats/:merchantId/messages", async (req, res) => {
@@ -18368,7 +18370,7 @@ Please create a comprehensive help center article that would be useful for custo
         });
       }
       
-      const { content, clientMessageId, mediaId } = validation.data;
+      const { content, clientMessageId, mediaId, messageType: requestMessageType, payload: requestPayload } = validation.data;
       
       // Validate that we have either content or mediaId
       if (!content && !mediaId) {
@@ -18407,10 +18409,11 @@ Please create a comprehensive help center article that would be useful for custo
         return res.status(500).json({ error: "Failed to create chat session" });
       }
       
-      // Get media info if provided
-      let messageType = "text";
-      let payload: any = undefined;
+      // Determine message type and payload
+      let messageType = requestMessageType || "text";
+      let payload: any = requestPayload || undefined;
       
+      // Override with media info if mediaId is provided
       if (mediaId) {
         const media = await storage.getChatMedia(mediaId);
         if (media) {

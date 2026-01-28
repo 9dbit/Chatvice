@@ -162,11 +162,19 @@ export default function StoreChatPage() {
   )];
 
   const sendMessageMutation = useMutation({
-    mutationFn: async ({ content, clientMessageId, mediaId }: { content: string; clientMessageId: string; mediaId?: string }) => {
+    mutationFn: async ({ content, clientMessageId, mediaId, messageType, payload }: { 
+      content: string; 
+      clientMessageId: string; 
+      mediaId?: string;
+      messageType?: string;
+      payload?: any;
+    }) => {
       return apiRequest("POST", `/api/customer/store-chats/${merchantId}/messages`, {
         content,
         clientMessageId,
         mediaId,
+        messageType,
+        payload,
       });
     },
     onSuccess: (_, variables) => {
@@ -425,6 +433,7 @@ export default function StoreChatPage() {
   const handleStickerSelect = useCallback((sticker: Sticker) => {
     const clientMessageId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const content = `[sticker:${sticker.id}]`;
+    const stickerPayload = { stickerUrl: sticker.url, stickerAlt: sticker.alt };
     
     const pendingMsg: PendingMessage = {
       clientMessageId,
@@ -433,11 +442,16 @@ export default function StoreChatPage() {
       timestamp: new Date().toISOString(),
       isPending: true,
       messageType: "sticker",
-      payload: { stickerUrl: sticker.url, stickerAlt: sticker.alt },
+      payload: stickerPayload,
     };
     
     setPendingMessages(prev => [...prev, pendingMsg]);
-    sendMessageMutation.mutate({ content, clientMessageId });
+    sendMessageMutation.mutate({ 
+      content, 
+      clientMessageId, 
+      messageType: "sticker",
+      payload: stickerPayload,
+    });
     setShowStickerPicker(false);
   }, [sendMessageMutation]);
 
