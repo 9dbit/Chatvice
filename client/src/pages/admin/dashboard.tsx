@@ -928,6 +928,9 @@ function MerchantsTab({
   });
   const [showCustomPlan, setShowCustomPlan] = useState(false);
   
+  // Search state for All Merchants
+  const [searchQuery, setSearchQuery] = useState("");
+  
   // Filter states for All Merchants
   const [showFilters, setShowFilters] = useState(false);
   const [filterJoinDateFrom, setFilterJoinDateFrom] = useState("");
@@ -1161,6 +1164,27 @@ function MerchantsTab({
     },
   });
 
+  const extendTrialMutation = useMutation({
+    mutationFn: async ({ merchantId, days }: { merchantId: string; days: number }) => {
+      return apiRequest("POST", `/api/admin/merchants/${merchantId}/extend-trial`, { days });
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: "Trial Extended",
+        description: data.message || "Trial period has been extended successfully.",
+      });
+      refetchMerchants();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to extend trial period.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleFollowUp = (merchant: MerchantWithPlan) => {
     setSelectedMerchant(merchant);
     const timeInfo = getTimeRemaining(merchant.trialEndsAt || merchant.currentPeriodEnd);
@@ -1246,6 +1270,15 @@ function MerchantsTab({
     if (!merchants) return [];
     
     let result = [...merchants];
+    
+    // Search by company name or merchant ID
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter(m => 
+        m.companyName?.toLowerCase().includes(query) || 
+        m.id.toLowerCase().includes(query)
+      );
+    }
     
     // Filter by join date
     if (filterJoinDateFrom) {
@@ -1355,9 +1388,10 @@ function MerchantsTab({
     }
     
     return result;
-  }, [merchants, merchantAnalytics, analyticsMap, filterJoinDateFrom, filterJoinDateTo, filterSubscribeDateFrom, filterSubscribeDateTo, filterPaymentMethod, filterMinAgents, filterMaxAgents, filterMinSupervisors, filterMaxSupervisors, filterEscalation, filterPromptType, filterSortBy]);
+  }, [merchants, merchantAnalytics, analyticsMap, searchQuery, filterJoinDateFrom, filterJoinDateTo, filterSubscribeDateFrom, filterSubscribeDateTo, filterPaymentMethod, filterMinAgents, filterMaxAgents, filterMinSupervisors, filterMaxSupervisors, filterEscalation, filterPromptType, filterSortBy]);
 
   const clearAllFilters = () => {
+    setSearchQuery("");
     setFilterJoinDateFrom("");
     setFilterJoinDateTo("");
     setFilterSubscribeDateFrom("");
@@ -1372,7 +1406,7 @@ function MerchantsTab({
     setFilterMaxSupervisors("");
   };
 
-  const hasActiveFilters = filterJoinDateFrom || filterJoinDateTo || filterSubscribeDateFrom || filterSubscribeDateTo || filterSortBy || filterPaymentMethod || filterPromptType || filterEscalation || filterMinAgents || filterMaxAgents || filterMinSupervisors || filterMaxSupervisors;
+  const hasActiveFilters = searchQuery || filterJoinDateFrom || filterJoinDateTo || filterSubscribeDateFrom || filterSubscribeDateTo || filterSortBy || filterPaymentMethod || filterPromptType || filterEscalation || filterMinAgents || filterMaxAgents || filterMinSupervisors || filterMaxSupervisors;
 
   const subscriptionTrendData = [
     { label: "Daily", free: 2, starter: 1, pro: 1, enterprise: 0, custom: 0 },
@@ -1453,7 +1487,18 @@ function MerchantsTab({
                 Manage all registered merchants ({filteredMerchants.length}{hasActiveFilters ? ` of ${merchants?.length || 0}` : ''} total)
               </CardDescription>
             </div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap items-center">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search company name or ID..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 w-48 sm:w-64 h-8 text-sm"
+                  data-testid="input-search-merchants"
+                />
+              </div>
               <Button 
                 variant={showFilters ? "default" : "outline"} 
                 size="sm" 
@@ -1461,7 +1506,7 @@ function MerchantsTab({
                 data-testid="button-toggle-filters"
               >
                 <Filter className="w-4 h-4 mr-2" />
-                Filters {hasActiveFilters && <Badge variant="secondary" className="ml-1">{[filterJoinDateFrom, filterJoinDateTo, filterSubscribeDateFrom, filterSubscribeDateTo, filterSortBy, filterPaymentMethod, filterPromptType, filterEscalation, filterMinAgents, filterMaxAgents, filterMinSupervisors, filterMaxSupervisors].filter(Boolean).length}</Badge>}
+                Filters {hasActiveFilters && <Badge variant="secondary" className="ml-1">{[searchQuery, filterJoinDateFrom, filterJoinDateTo, filterSubscribeDateFrom, filterSubscribeDateTo, filterSortBy, filterPaymentMethod, filterPromptType, filterEscalation, filterMinAgents, filterMaxAgents, filterMinSupervisors, filterMaxSupervisors].filter(Boolean).length}</Badge>}
               </Button>
               {hasActiveFilters && (
                 <Button variant="ghost" size="sm" onClick={clearAllFilters} data-testid="button-clear-filters">
@@ -1652,6 +1697,7 @@ function MerchantsTab({
                     <TableHead className="hidden lg:table-cell">PIC</TableHead>
                     <TableHead>Plan</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="hidden sm:table-cell">Trial/Sub Ends</TableHead>
                     <TableHead className="hidden md:table-cell">Spending</TableHead>
                     <TableHead className="hidden lg:table-cell">Team</TableHead>
                     <TableHead className="hidden xl:table-cell">Performance</TableHead>
@@ -1696,6 +1742,29 @@ function MerchantsTab({
                         </TableCell>
                         <TableCell>{getPlanBadge(merchant.subscriptionPlanId)}</TableCell>
                         <TableCell>{getStatusBadge(merchant.subscriptionStatus, merchant)}</TableCell>
+                        <TableCell className="hidden sm:table-cell" data-testid={`cell-trial-info-${merchant.id}`}>
+                          {(merchant.subscriptionStatus === 'trial' || merchant.subscriptionStatus === 'trial_expired') && merchant.trialEndsAt ? (
+                            <div className="text-xs space-y-0.5">
+                              <div className={`font-medium ${new Date(merchant.trialEndsAt) < new Date() ? 'text-red-500' : expiryInfo?.isExpiringSoon ? 'text-amber-500' : 'text-green-600 dark:text-green-400'}`} data-testid={`text-trial-remaining-${merchant.id}`}>
+                                {expiryInfo?.text || 'Expired'}
+                              </div>
+                              <div className="text-muted-foreground" data-testid={`text-trial-enddate-${merchant.id}`}>
+                                {format(new Date(merchant.trialEndsAt), 'MMM d, yyyy')}
+                              </div>
+                            </div>
+                          ) : merchant.subscriptionStatus === 'active' && merchant.currentPeriodEnd ? (
+                            <div className="text-xs space-y-0.5">
+                              <div className={`font-medium ${expiryInfo?.isExpiringSoon ? 'text-amber-500' : 'text-muted-foreground'}`} data-testid={`text-sub-remaining-${merchant.id}`}>
+                                {expiryInfo?.text || '-'}
+                              </div>
+                              <div className="text-muted-foreground" data-testid={`text-sub-enddate-${merchant.id}`}>
+                                {format(new Date(merchant.currentPeriodEnd), 'MMM d, yyyy')}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground" data-testid={`text-no-expiry-${merchant.id}`}>-</span>
+                          )}
+                        </TableCell>
                         <TableCell className="hidden md:table-cell">
                           <div className="text-sm">
                             {analytics?.totalSpending ? (
@@ -1756,7 +1825,7 @@ function MerchantsTab({
                   })}
                   {filteredMerchants.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
                         {hasActiveFilters ? 'No merchants match the current filters' : 'No merchants registered yet'}
                       </TableCell>
                     </TableRow>
@@ -1782,9 +1851,79 @@ function MerchantsTab({
               <p className="text-sm text-muted-foreground">{selectedMerchant?.companyName}</p>
             </div>
             <div>
+              <Label>Merchant ID</Label>
+              <p className="text-xs text-muted-foreground font-mono">{selectedMerchant?.id}</p>
+            </div>
+            <div>
               <Label>Email</Label>
               <p className="text-sm text-muted-foreground">{selectedMerchant?.email}</p>
             </div>
+            
+            {(selectedMerchant?.subscriptionStatus === 'trial' || selectedMerchant?.subscriptionStatus === 'trial_expired') && (
+              <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg space-y-3" data-testid="dialog-trial-info">
+                <h4 className="font-medium text-sm flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-500" />
+                  Trial Period
+                </h4>
+                <div className="text-sm">
+                  {selectedMerchant?.trialEndsAt ? (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Ends at:</span>
+                        <span className="font-medium" data-testid="text-dialog-trial-enddate">{format(new Date(selectedMerchant.trialEndsAt), 'MMM d, yyyy HH:mm')}</span>
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span className="text-muted-foreground">Remaining:</span>
+                        <span className={`font-medium ${new Date(selectedMerchant.trialEndsAt) < new Date() ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`} data-testid="text-dialog-trial-remaining">
+                          {(() => {
+                            const diff = new Date(selectedMerchant.trialEndsAt).getTime() - new Date().getTime();
+                            if (diff <= 0) return 'Expired';
+                            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                            return days > 0 ? `${days} days ${hours} hours` : `${hours} hours`;
+                          })()}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground" data-testid="text-dialog-trial-nodate">No trial date set</p>
+                  )}
+                </div>
+                <div className="pt-2 border-t border-amber-500/20">
+                  <Label className="text-xs font-medium mb-2 block">Extend Trial Period</Label>
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => extendTrialMutation.mutate({ merchantId: selectedMerchant.id, days: 3 })}
+                      disabled={extendTrialMutation.isPending}
+                      data-testid="button-extend-trial-3"
+                    >
+                      +3 Days
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => extendTrialMutation.mutate({ merchantId: selectedMerchant.id, days: 7 })}
+                      disabled={extendTrialMutation.isPending}
+                      data-testid="button-extend-trial-7"
+                    >
+                      +7 Days
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => extendTrialMutation.mutate({ merchantId: selectedMerchant.id, days: 14 })}
+                      disabled={extendTrialMutation.isPending}
+                      data-testid="button-extend-trial-14"
+                    >
+                      +14 Days
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div>
               <Label htmlFor="edit-plan">Subscription Plan</Label>
               <Select value={editPlan} onValueChange={setEditPlan}>
@@ -2407,6 +2546,7 @@ function ActiveSubscribersTab({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedMerchant, setSelectedMerchant] = useState<MerchantWithPlan | null>(null);
   const [editPlan, setEditPlan] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [editCustomConfig, setEditCustomConfig] = useState({
     customConversationsLimit: 1000,
     customAgentsLimit: 3,
@@ -2417,9 +2557,18 @@ function ActiveSubscribersTab({
     customAnnualPrice: 0,
   });
 
-  const activeSubscribers = merchants?.filter(m => 
+  const allActiveSubscribers = merchants?.filter(m => 
     m.subscriptionStatus === 'active' && m.subscriptionPlanId !== 'free'
   ) || [];
+  
+  const activeSubscribers = useMemo(() => {
+    if (!searchQuery.trim()) return allActiveSubscribers;
+    const query = searchQuery.toLowerCase().trim();
+    return allActiveSubscribers.filter(m => 
+      m.companyName?.toLowerCase().includes(query) || 
+      m.id.toLowerCase().includes(query)
+    );
+  }, [allActiveSubscribers, searchQuery]);
 
   const updatePlanMutation = useMutation({
     mutationFn: async ({ merchantId, planId, customConfig }: { 
@@ -2544,13 +2693,26 @@ function ActiveSubscribersTab({
                 Active Subscribers
               </CardTitle>
               <CardDescription>
-                Merchants with paid active subscriptions ({activeSubscribers.length} subscribers)
+                Merchants with paid active subscriptions ({activeSubscribers.length}{searchQuery ? ` of ${allActiveSubscribers.length}` : ''} subscribers)
               </CardDescription>
             </div>
-            <Button variant="outline" size="sm" onClick={handleExportSubscribers} data-testid="button-export-subscribers">
-              <Download className="w-4 h-4 mr-2" />
-              Export CSV
-            </Button>
+            <div className="flex gap-2 flex-wrap items-center">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search company name or ID..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 w-48 sm:w-64 h-8 text-sm"
+                  data-testid="input-search-subscribers"
+                />
+              </div>
+              <Button variant="outline" size="sm" onClick={handleExportSubscribers} data-testid="button-export-subscribers">
+                <Download className="w-4 h-4 mr-2" />
+                Export CSV
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>

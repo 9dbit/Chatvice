@@ -1175,6 +1175,7 @@ export class DatabaseStorage implements IStorage {
     scheduledBillingInterval?: string | null;
     scheduledPlanActivatesAt?: Date | null;
     scheduledPlanTransactionId?: string | null;
+    trialEndsAt?: Date;
   }): Promise<Merchant | undefined> {
     const result = await db.update(merchants)
       .set(data)

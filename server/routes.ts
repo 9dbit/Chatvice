@@ -8057,7 +8057,50 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       
       res.json({ success: true, message: "Follow-up notification sent" });
     } catch (error) {
-      console.error("Error sending follow-up:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Extend trial period for a merchant
+  app.post("/api/admin/merchants/:merchantId/extend-trial", requireAdmin, async (req, res) => {
+    try {
+      const { days } = req.body;
+      const merchant = await storage.getMerchant(req.params.merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      if (!days || ![3, 7, 14].includes(days)) {
+        return res.status(400).json({ error: "Invalid days value. Must be 3, 7, or 14." });
+      }
+      
+      // Calculate new trial end date
+      let newTrialEndsAt: Date;
+      if (merchant.trialEndsAt && new Date(merchant.trialEndsAt) > new Date()) {
+        // If trial hasn't expired, extend from current end date
+        newTrialEndsAt = new Date(merchant.trialEndsAt);
+      } else {
+        // If trial expired or never set, extend from now
+        newTrialEndsAt = new Date();
+      }
+      newTrialEndsAt.setDate(newTrialEndsAt.getDate() + days);
+      
+      // Update merchant trial
+      const updated = await storage.updateMerchantSubscription(merchant.id, {
+        trialEndsAt: newTrialEndsAt,
+        subscriptionStatus: 'trial',
+      });
+      
+      console.log(`[Admin] Extended trial for merchant ${merchant.companyName} (${merchant.id}) by ${days} days. New trial ends: ${newTrialEndsAt.toISOString()}`);
+      
+      res.json({ 
+        success: true, 
+        message: `Trial extended by ${days} days`,
+        trialEndsAt: newTrialEndsAt.toISOString(),
+        merchant: updated
+      });
+    } catch (error) {
+      console.error("Error extending trial:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
