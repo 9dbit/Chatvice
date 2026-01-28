@@ -18792,6 +18792,7 @@ Please create a comprehensive help center article that would be useful for custo
     mimeType: z.string().min(1, "MIME type is required"),
     fileData: z.string().min(1, "File data is required"), // base64 encoded
     sessionId: z.string().optional(),
+    merchantId: z.string().optional(), // For attributing storage to merchant
   });
   
   app.post("/api/customer/media/upload", async (req, res) => {
@@ -18803,7 +18804,7 @@ Please create a comprehensive help center article that would be useful for custo
         return res.status(401).json({ error: "Not authenticated" });
       }
       
-      const MAX_SIZE = 3 * 1024 * 1024; // 3MB
+      const MAX_SIZE = 5 * 1024 * 1024; // 5MB for images
       
       // Validate request body
       const validation = mediaUploadSchema.safeParse(req.body);
@@ -18814,7 +18815,7 @@ Please create a comprehensive help center article that would be useful for custo
         });
       }
       
-      const { filename, mimeType, fileData, sessionId } = validation.data;
+      const { filename, mimeType, fileData, sessionId, merchantId: providedMerchantId } = validation.data;
       
       // Validate MIME type
       const allowedTypes = [
@@ -18838,13 +18839,26 @@ Please create a comprehensive help center article that would be useful for custo
       }
       
       if (fileBuffer.length > MAX_SIZE) {
-        return res.status(413).json({ error: "File too large. Maximum size is 3MB" });
+        return res.status(413).json({ error: "File too large. Maximum size is 5MB" });
       }
       
-      // Store file in database
+      // Determine if this is a store chat - storage should be attributed to merchant
+      let merchantId: string | undefined = providedMerchantId;
+      
+      // If sessionId provided but no merchantId, look up the session to get merchantId
+      if (sessionId && !merchantId) {
+        const session = await storage.getSession(sessionId);
+        if (session) {
+          merchantId = session.merchantId;
+        }
+      }
+      
+      // Store file in database with merchant attribution
       const media = await storage.createChatMedia({
         uploaderId: customerId,
         uploaderType: "customer",
+        customerId: customerId,
+        merchantId: merchantId, // Attribute to merchant for storage billing
         sessionId: sessionId || undefined,
         filename,
         mimeType,
@@ -18852,7 +18866,25 @@ Please create a comprehensive help center article that would be useful for custo
         fileData: fileData, // Already base64
       });
       
-      res.json({ id: media.id, filename, mimeType, fileSize: fileBuffer.length });
+      // Update merchant storage usage if attributing to a merchant
+      if (merchantId) {
+        const merchant = await storage.getMerchant(merchantId);
+        if (merchant) {
+          const currentStorage = merchant.storageUsed || 0;
+          await storage.updateMerchant(merchantId, {
+            storageUsed: currentStorage + fileBuffer.length,
+          });
+        }
+      }
+      
+      res.json({ 
+        id: media.id, 
+        filename, 
+        mimeType, 
+        fileSize: fileBuffer.length,
+        merchantAttributed: !!merchantId,
+        url: `/api/customer/media/${media.id}`,
+      });
     } catch (error) {
       console.error("Media upload error:", error);
       res.status(500).json({ error: "Server error" });

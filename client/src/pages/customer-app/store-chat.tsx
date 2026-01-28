@@ -4,13 +4,14 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Store, Send, Paperclip, MoreVertical, Loader2, Image, FileText, Video, X } from "lucide-react";
+import { ArrowLeft, Store, Send, Paperclip, MoreVertical, Loader2, Image, FileText, Video, X, Smile } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { chatRoutes } from "@/lib/chat-routes";
+import { ImageViewer, StickerPicker, type Sticker } from "@/components/chat-media";
 
 interface Message {
   id: string;
@@ -105,7 +106,22 @@ function MessageContent({ content }: { content: string }) {
   );
 }
 
-const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+function formatFileSizeInline(bytes: number): string {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+interface MediaInfo {
+  id: string;
+  url: string;
+  filename: string;
+  fileSize: number;
+  mimeType: string;
+  createdAt?: string;
+}
 
 export default function StoreChatPage() {
   const { merchantId } = useParams<{ merchantId: string }>();
@@ -118,6 +134,10 @@ export default function StoreChatPage() {
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [showStickerPicker, setShowStickerPicker] = useState(false);
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [viewerImages, setViewerImages] = useState<MediaInfo[]>([]);
+  const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -402,6 +422,56 @@ export default function StoreChatPage() {
     }
   };
 
+  const handleStickerSelect = useCallback((sticker: Sticker) => {
+    const clientMessageId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const content = `[sticker:${sticker.id}]`;
+    
+    const pendingMsg: PendingMessage = {
+      clientMessageId,
+      content,
+      from: "customer",
+      timestamp: new Date().toISOString(),
+      isPending: true,
+      messageType: "sticker",
+      payload: { stickerUrl: sticker.url, stickerAlt: sticker.alt },
+    };
+    
+    setPendingMessages(prev => [...prev, pendingMsg]);
+    sendMessageMutation.mutate({ content, clientMessageId });
+    setShowStickerPicker(false);
+  }, [sendMessageMutation]);
+
+  const openImageViewer = useCallback((images: MediaInfo[], initialIndex: number = 0) => {
+    setViewerImages(images);
+    setViewerInitialIndex(initialIndex);
+    setImageViewerOpen(true);
+  }, []);
+
+  const parseMediaFromMessage = (msg: DisplayMessage): MediaInfo | null => {
+    if (msg.messageType === "media" && msg.payload?.mediaId) {
+      return {
+        id: msg.payload.mediaId,
+        url: `/api/customer/media/${msg.payload.mediaId}`,
+        filename: msg.payload.filename || "image",
+        fileSize: msg.payload.fileSize || 0,
+        mimeType: msg.payload.mimeType || "image/jpeg",
+        createdAt: msg.timestamp,
+      };
+    }
+    return null;
+  };
+
+  const isImageMessage = (msg: DisplayMessage): boolean => {
+    if (msg.messageType === "media" && msg.payload?.mimeType?.startsWith("image/")) {
+      return true;
+    }
+    return false;
+  };
+
+  const isStickerMessage = (msg: DisplayMessage): boolean => {
+    return msg.messageType === "sticker" || msg.content.startsWith("[sticker:");
+  };
+
   const store = storeChat?.merchant || storeInfo;
   const isLoading = chatLoading || storeLoading;
 
@@ -594,6 +664,10 @@ export default function StoreChatPage() {
                     const isCustomer = msg.from === "customer";
                     const msgKey = msg.id || msg.clientMessageId || msg.timestamp;
                     const isPending = "isPending" in msg && msg.isPending;
+                    const mediaInfo = parseMediaFromMessage(msg);
+                    const isImage = isImageMessage(msg);
+                    const isSticker = isStickerMessage(msg);
+                    
                     return (
                       <div
                         key={msgKey}
@@ -612,25 +686,79 @@ export default function StoreChatPage() {
                             </AvatarFallback>
                           </Avatar>
                         )}
-                        <div
-                          className={cn(
-                            "max-w-[75%] rounded-2xl px-4 py-2 shadow-sm",
-                            isCustomer
-                              ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-br-md"
-                              : "glass-card rounded-bl-md"
-                          )}
-                        >
-                          <MessageContent content={msg.content} />
-                          <p
+                        
+                        {isSticker ? (
+                          <div className="max-w-[120px]" data-testid="sticker-message">
+                            <img 
+                              src={msg.payload?.stickerUrl || ""} 
+                              alt={msg.payload?.stickerAlt || "sticker"} 
+                              className="w-full h-auto"
+                            />
+                            <p className={cn(
+                              "text-[10px] mt-1 text-center",
+                              "text-muted-foreground"
+                            )}>
+                              {format(new Date(msg.timestamp), "HH:mm")}
+                              {isPending && " · Sending..."}
+                            </p>
+                          </div>
+                        ) : isImage && mediaInfo ? (
+                          <div 
+                            className="cursor-pointer"
+                            onClick={() => openImageViewer([mediaInfo], 0)}
+                            data-testid="image-message"
+                          >
+                            <div className="w-48 md:w-56 rounded-xl overflow-hidden border border-white/20 shadow-sm">
+                              <div className="relative aspect-square bg-black/5 dark:bg-white/5">
+                                <img
+                                  src={mediaInfo.url}
+                                  alt={mediaInfo.filename}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <div className={cn(
+                                "p-2",
+                                isCustomer ? "bg-gradient-to-r from-purple-500 to-indigo-500" : "bg-black/5 dark:bg-white/5"
+                              )}>
+                                <p className={cn(
+                                  "text-xs font-medium truncate",
+                                  isCustomer && "text-white"
+                                )} title={mediaInfo.filename}>
+                                  {mediaInfo.filename}
+                                </p>
+                                <div className={cn(
+                                  "flex items-center gap-1 text-[10px]",
+                                  isCustomer ? "text-white/70" : "text-muted-foreground"
+                                )}>
+                                  <span>{formatFileSizeInline(mediaInfo.fileSize)}</span>
+                                  <span>•</span>
+                                  <span>{format(new Date(msg.timestamp), "HH:mm")}</span>
+                                  {isPending && <span>· Sending...</span>}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div
                             className={cn(
-                              "text-[10px] mt-1",
-                              isCustomer ? "text-white/70" : "text-muted-foreground"
+                              "max-w-[75%] rounded-2xl px-4 py-2 shadow-sm",
+                              isCustomer
+                                ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-br-md"
+                                : "glass-card rounded-bl-md"
                             )}
                           >
-                            {format(new Date(msg.timestamp), "HH:mm")}
-                            {isPending && " · Sending..."}
-                          </p>
-                        </div>
+                            <MessageContent content={msg.content} />
+                            <p
+                              className={cn(
+                                "text-[10px] mt-1",
+                                isCustomer ? "text-white/70" : "text-muted-foreground"
+                              )}
+                            >
+                              {format(new Date(msg.timestamp), "HH:mm")}
+                              {isPending && " · Sending..."}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -689,7 +817,12 @@ export default function StoreChatPage() {
         </div>
       )}
 
-      <div className="glass-header p-3" style={{ borderTop: '1px solid rgba(0,0,0,0.08)', borderBottom: 'none' }}>
+      <div className="glass-header p-3 relative" style={{ borderTop: '1px solid rgba(0,0,0,0.08)', borderBottom: 'none' }}>
+        <StickerPicker
+          isOpen={showStickerPicker}
+          onClose={() => setShowStickerPicker(false)}
+          onStickerSelect={handleStickerSelect}
+        />
         <div className="flex items-center gap-2">
           <input
             ref={fileInputRef}
@@ -733,6 +866,14 @@ export default function StoreChatPage() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowStickerPicker(!showStickerPicker)}
+            data-testid="button-stickers"
+          >
+            <Smile className="w-5 h-5" />
+          </Button>
           <div className="flex-1 relative">
             <Input
               ref={inputRef}
@@ -760,6 +901,13 @@ export default function StoreChatPage() {
           </Button>
         </div>
       </div>
+
+      <ImageViewer
+        images={viewerImages}
+        initialIndex={viewerInitialIndex}
+        isOpen={imageViewerOpen}
+        onClose={() => setImageViewerOpen(false)}
+      />
     </div>
   );
 }
