@@ -265,9 +265,21 @@ export default function AdminDashboard() {
     setLocation("/admin/login");
   };
 
+  const sidebarNavRef = useRef<HTMLElement>(null);
+  
   const handleTabChange = (tabId: string) => {
+    // Save scroll position before changing tab
+    const scrollPosition = sidebarNavRef.current?.scrollTop;
     setActiveTab(tabId);
     setMobileMenuOpen(false);
+    // Restore scroll position after render
+    if (scrollPosition !== undefined) {
+      requestAnimationFrame(() => {
+        if (sidebarNavRef.current) {
+          sidebarNavRef.current.scrollTop = scrollPosition;
+        }
+      });
+    }
   };
 
   if (!adminId) {
@@ -358,6 +370,7 @@ export default function AdminDashboard() {
     { id: "knowledge-templates", label: "Knowledge Templates", icon: BookOpen },
     { id: "activity-logs", label: "Activity Logs", icon: Activity },
     { id: "user-data", label: "Customer Data", icon: Users },
+    { id: "chat-sessions", label: "Chat Sessions", icon: MessageSquare },
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
@@ -370,7 +383,7 @@ export default function AdminDashboard() {
         <p className="text-xs text-muted-foreground mt-1">Admin Panel</p>
       </div>
       
-      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+      <nav ref={sidebarNavRef} className="flex-1 p-3 space-y-1 overflow-y-auto">
         {sidebarItems.map((item) => {
           // Get badge count for specific items
           let badgeCount = 0;
@@ -553,6 +566,8 @@ export default function AdminDashboard() {
             {activeTab === "activity-logs" && <ActivityLogsTab toast={toast} />}
             
             {activeTab === "user-data" && <AdminUserDataTab toast={toast} />}
+            
+            {activeTab === "chat-sessions" && <ChatSessionsTab toast={toast} />}
           </div>
         </div>
       </main>
@@ -12621,6 +12636,316 @@ function AdminUserDataTab({ toast }: { toast: any }) {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Chat Sessions Tab - View all active chat sessions across merchants for support
+function ChatSessionsTab({ toast }: { toast: any }) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSession, setSelectedSession] = useState<any>(null);
+  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "escalated" | "closed">("all");
+  
+  interface ChatSession {
+    id: string;
+    merchantId: string;
+    merchantName: string;
+    agentName: string | null;
+    customerName: string | null;
+    customerPhone: string | null;
+    customerEmail: string | null;
+    mode: string;
+    status: string;
+    escalatedAt: string | null;
+    closedAt: string | null;
+    createdAt: string;
+    lastMessageAt: string | null;
+    messageCount: number;
+  }
+  
+  interface ChatMessage {
+    id: string;
+    sessionId: string;
+    from: string;
+    content: string;
+    messageType: string;
+    payload: any;
+    createdAt: string;
+  }
+  
+  const { data: sessions = [], isLoading, refetch } = useQuery<ChatSession[]>({
+    queryKey: ["/api/admin/chat-sessions"],
+  });
+  
+  const { data: sessionMessages = [], isLoading: messagesLoading } = useQuery<ChatMessage[]>({
+    queryKey: ["/api/admin/chat-sessions", selectedSession?.id, "messages"],
+    enabled: !!selectedSession?.id,
+  });
+  
+  const filteredSessions = useMemo(() => {
+    return sessions.filter((session) => {
+      const query = searchQuery.toLowerCase();
+      const matchesSearch = 
+        (session.customerName && session.customerName.toLowerCase().includes(query)) ||
+        (session.customerPhone && session.customerPhone.includes(query)) ||
+        (session.customerEmail && session.customerEmail.toLowerCase().includes(query)) ||
+        session.merchantName.toLowerCase().includes(query) ||
+        session.id.toLowerCase().includes(query);
+      
+      let matchesFilter = true;
+      if (filterStatus === "active") {
+        matchesFilter = session.status === "active" && !session.closedAt;
+      } else if (filterStatus === "escalated") {
+        matchesFilter = session.mode === "HUMAN" || !!session.escalatedAt;
+      } else if (filterStatus === "closed") {
+        matchesFilter = !!session.closedAt;
+      }
+      
+      return matchesSearch && matchesFilter;
+    });
+  }, [sessions, searchQuery, filterStatus]);
+  
+  const getStatusBadge = (session: ChatSession) => {
+    if (session.closedAt) {
+      return <Badge variant="outline">Closed</Badge>;
+    }
+    if (session.mode === "HUMAN" || session.escalatedAt) {
+      return <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-400">Escalated</Badge>;
+    }
+    return <Badge className="bg-green-500/20 text-green-700 dark:text-green-400">Active</Badge>;
+  };
+  
+  const formatTimestamp = (timestamp: string | null) => {
+    if (!timestamp) return "-";
+    return new Date(timestamp).toLocaleString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+  
+  const getMessageBubbleClass = (from: string) => {
+    switch (from) {
+      case "customer":
+        return "bg-muted text-foreground ml-auto";
+      case "ai":
+        return "bg-primary/10 text-foreground";
+      case "supervisor":
+        return "bg-blue-500/20 text-foreground";
+      default:
+        return "bg-muted text-foreground";
+    }
+  };
+  
+  const getMessageLabel = (from: string) => {
+    switch (from) {
+      case "customer":
+        return "Customer";
+      case "ai":
+        return "AI Agent";
+      case "supervisor":
+        return "Supervisor";
+      default:
+        return from;
+    }
+  };
+  
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <MessageSquare className="w-5 h-5" />
+              Chat Sessions
+            </CardTitle>
+            <CardDescription>
+              Monitor all active chat sessions across merchants for support
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-sm">
+              {filteredSessions.length} sessions
+            </Badge>
+            <Button variant="outline" size="sm" onClick={() => refetch()} data-testid="button-refresh-sessions">
+              <RefreshCw className="w-4 h-4 mr-1" />
+              Refresh
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col md:flex-row gap-4 mb-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by customer name, phone, email, or merchant..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                  data-testid="input-search-sessions"
+                />
+              </div>
+            </div>
+            <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as typeof filterStatus)}>
+              <SelectTrigger className="w-[180px]" data-testid="select-session-filter">
+                <SelectValue placeholder="Filter status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sessions</SelectItem>
+                <SelectItem value="active">Active Only</SelectItem>
+                <SelectItem value="escalated">Escalated</SelectItem>
+                <SelectItem value="closed">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {isLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          ) : filteredSessions.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p>No chat sessions found</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="border rounded-lg overflow-hidden">
+                <div className="max-h-[500px] overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Merchant</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Messages</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredSessions.map((session) => (
+                        <TableRow 
+                          key={session.id}
+                          className={`cursor-pointer hover:bg-muted/50 ${selectedSession?.id === session.id ? "bg-primary/10" : ""}`}
+                          onClick={() => setSelectedSession(session)}
+                          data-testid={`session-row-${session.id}`}
+                        >
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-medium text-sm">
+                                {session.customerName || "Anonymous"}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {session.customerPhone || session.customerEmail || "-"}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm">{session.merchantName}</span>
+                          </TableCell>
+                          <TableCell>{getStatusBadge(session)}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {session.messageCount} msgs
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+              
+              <div className="border rounded-lg overflow-hidden">
+                {selectedSession ? (
+                  <div className="flex flex-col h-[500px]">
+                    <div className="p-3 border-b bg-muted/50">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-medium">
+                            {selectedSession.customerName || "Anonymous Customer"}
+                          </h4>
+                          <p className="text-xs text-muted-foreground">
+                            {selectedSession.merchantName} • {selectedSession.agentName || "No agent"}
+                          </p>
+                        </div>
+                        {getStatusBadge(selectedSession)}
+                      </div>
+                      <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
+                        <span>Started: {formatTimestamp(selectedSession.createdAt)}</span>
+                        {selectedSession.escalatedAt && (
+                          <span className="text-amber-600">
+                            Escalated: {formatTimestamp(selectedSession.escalatedAt)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                      {messagesLoading ? (
+                        <div className="space-y-2">
+                          {[1, 2, 3].map((i) => (
+                            <Skeleton key={i} className="h-12 w-3/4" />
+                          ))}
+                        </div>
+                      ) : sessionMessages.length === 0 ? (
+                        <div className="text-center text-muted-foreground py-8">
+                          <p>No messages in this session</p>
+                        </div>
+                      ) : (
+                        sessionMessages.map((msg) => (
+                          <div
+                            key={msg.id}
+                            className={`max-w-[80%] p-2 rounded-lg text-sm ${getMessageBubbleClass(msg.from)}`}
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-medium opacity-70">
+                                {getMessageLabel(msg.from)}
+                              </span>
+                              <span className="text-xs opacity-50">
+                                {new Date(msg.createdAt).toLocaleTimeString("id-ID", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            </div>
+                            {msg.messageType === "sticker" ? (
+                              <img 
+                                src={msg.payload?.stickerUrl} 
+                                alt="Sticker" 
+                                className="w-20 h-20 object-contain"
+                              />
+                            ) : msg.messageType === "media" && msg.payload?.mimeType?.startsWith("image/") ? (
+                              <img 
+                                src={msg.payload?.mediaUrl || msg.payload?.url} 
+                                alt="Media" 
+                                className="max-w-full max-h-40 rounded object-contain"
+                              />
+                            ) : (
+                              <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-[500px] flex items-center justify-center text-muted-foreground">
+                    <div className="text-center">
+                      <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p>Select a session to view messages</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </CardContent>

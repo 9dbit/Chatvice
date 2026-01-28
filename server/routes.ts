@@ -13961,6 +13961,81 @@ Generate only the closing statement, nothing else.`;
     }
   });
 
+  // Admin Chat Sessions - View all chat sessions across merchants
+  app.get("/api/admin/chat-sessions", requireAdmin, async (req, res) => {
+    try {
+      const allSessions = await db.select({
+        id: sessions.id,
+        merchantId: sessions.merchantId,
+        agentId: sessions.agentId,
+        customerName: sessions.customerName,
+        customerPhone: sessions.customerPhone,
+        customerEmail: sessions.customerEmail,
+        mode: sessions.mode,
+        status: sessions.status,
+        escalatedAt: sessions.escalatedAt,
+        closedAt: sessions.closedAt,
+        createdAt: sessions.createdAt,
+      }).from(sessions)
+        .orderBy(desc(sessions.createdAt))
+        .limit(500);
+      
+      // Enrich with merchant names and message counts
+      const enrichedSessions = await Promise.all(allSessions.map(async (session) => {
+        const merchant = await storage.getMerchant(session.merchantId);
+        const agent = session.agentId ? await storage.getAgent(session.agentId) : null;
+        const messageCount = await db.select({
+          count: sql<number>`count(*)::int`
+        }).from(messages)
+          .where(eq(messages.sessionId, session.id));
+        
+        const lastMessage = await db.select({
+          createdAt: messages.createdAt,
+        }).from(messages)
+          .where(eq(messages.sessionId, session.id))
+          .orderBy(desc(messages.createdAt))
+          .limit(1);
+        
+        return {
+          ...session,
+          merchantName: merchant?.companyName || "Unknown",
+          agentName: agent?.name || null,
+          messageCount: messageCount[0]?.count || 0,
+          lastMessageAt: lastMessage[0]?.createdAt || null,
+        };
+      }));
+      
+      res.json(enrichedSessions);
+    } catch (error) {
+      console.error("Error fetching admin chat sessions:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Admin Chat Session Messages - Get messages for a specific session
+  app.get("/api/admin/chat-sessions/:sessionId/messages", requireAdmin, async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      
+      const sessionMessages = await db.select({
+        id: messages.id,
+        sessionId: messages.sessionId,
+        from: messages.from,
+        content: messages.content,
+        messageType: messages.messageType,
+        payload: messages.payload,
+        createdAt: messages.createdAt,
+      }).from(messages)
+        .where(eq(messages.sessionId, sessionId))
+        .orderBy(messages.createdAt);
+      
+      res.json(sessionMessages);
+    } catch (error) {
+      console.error("Error fetching session messages:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
 // User Data API - Customer contact data collected from widget
   app.get("/api/user-data", requireMerchantOrSupervisor, async (req, res) => {
     try {
@@ -18357,7 +18432,7 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
   
-  // Get specific store chat by merchant ID
+  // Get specific store chat by merchant ID (creates one if doesn't exist)
   app.get("/api/customer/store-chats/:merchantId", async (req, res) => {
     try {
       const customerId = req.session.userId;
@@ -18368,10 +18443,33 @@ Please create a comprehensive help center article that would be useful for custo
       }
       
       const { merchantId } = req.params;
-      const storeChat = await storage.getCustomerStoreChatByMerchant(customerId, merchantId);
+      let storeChat = await storage.getCustomerStoreChatByMerchant(customerId, merchantId);
       
+      // If no store chat exists, create one with a new session
       if (!storeChat) {
-        return res.status(404).json({ error: "Chat not found" });
+        const merchant = await storage.getMerchant(merchantId);
+        if (!merchant) {
+          return res.status(404).json({ error: "Store not found" });
+        }
+        
+        const customer = await storage.getCustomer(customerId);
+        
+        // Create a new session for this customer-merchant pair
+        const session = await storage.createSession({
+          merchantId,
+          agentId: merchant.activeAgentId || undefined,
+          customerName: customer?.displayName || null,
+          mode: "AI",
+        });
+        
+        // Create store chat entry
+        storeChat = await storage.createCustomerStoreChat({
+          customerId,
+          merchantId,
+          agentId: merchant.activeAgentId || undefined,
+          sessionId: session.id,
+          lastMessageAt: new Date(),
+        });
       }
       
       // Enrich with merchant info
@@ -18385,6 +18483,7 @@ Please create a comprehensive help center article that would be useful for custo
           profilePhotoUrl: merchant.profilePhotoUrl,
           online: merchant.online,
           welcomeMessage: merchant.welcomeMessage,
+          welcomeDescription: merchant.welcomeDescription,
         } : null,
       });
     } catch (error) {
