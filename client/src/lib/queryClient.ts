@@ -1,11 +1,19 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { isChatSubdomain, chatRoutes } from "./chat-routes";
+
+function getLoginRedirectUrl(): string {
+  if (isChatSubdomain()) {
+    return chatRoutes.login();
+  }
+  return "/login";
+}
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     if (res.status === 401) {
       localStorage.removeItem("merchantId");
       localStorage.removeItem("userType");
-      window.location.href = "/login";
+      window.location.href = getLoginRedirectUrl();
       throw new Error("Session expired. Please login again.");
     }
     const text = (await res.text()) || res.statusText;
@@ -46,7 +54,7 @@ export const getQueryFn: <T>(options: {
       }
       localStorage.removeItem("merchantId");
       localStorage.removeItem("userType");
-      window.location.href = "/login";
+      window.location.href = getLoginRedirectUrl();
       throw new Error("Session expired");
     }
 
