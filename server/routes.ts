@@ -17,11 +17,10 @@ import {
 import OpenAI from "openai";
 import bcrypt from "bcryptjs";
 import session from "express-session";
-import pgSession from "connect-pg-simple";
+import MemoryStore from "memorystore";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import sizeOf from "image-size";
 import { processKnowledgeBase, searchKnowledge } from "./embeddings";
 import { extractFAQContent, syncKnowledgeFromUrl, fetchWebContent } from "./crawler";
 import { parseFile, fetchGoogleDoc, fetchGoogleSheet } from "./fileParser";
@@ -30,12 +29,10 @@ import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./payp
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient, sendMerchantAuthNotification } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, or, isNotNull, gte, lt, sql } from "drizzle-orm";
-import { messages, sessions, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts, ssoTokens } from "@shared/schema";
+import { eq, desc, and, or, isNotNull, gte, sql } from "drizzle-orm";
+import { messages, sessions, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts } from "@shared/schema";
 import crypto from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
-import waBlastRouter from "./routes/wa-blast";
-import { waBlastService } from "./services/wa-blast";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -1165,7 +1162,7 @@ ${knowledgeContext || "No specific knowledge base configured yet."}`
 }
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
-  const PgStore = pgSession(session);
+  const MemoryStoreSession = MemoryStore(session);
   
   // Trust proxy for production (required for secure cookies behind load balancer/reverse proxy)
   app.set("trust proxy", true);
@@ -1215,64 +1212,31 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
   
   // Configure session with proper production settings
-  // Detect production by NODE_ENV or by checking if we're on a production domain
-  const isProduction = process.env.NODE_ENV === "production" || 
-                       process.env.REPLIT_DEPLOYMENT === "1" ||
-                       process.env.REPL_SLUG !== undefined;
-  
-  console.log(`[session] Configuring session store (production mode: ${isProduction})`);
-  
-  // Don't set cookie domain - SSO between subdomains is handled via token-based approach
-  // Setting domain can break Google OAuth, so we leave it unset
-  
+  const isProduction = process.env.NODE_ENV === "production";
   const sessionConfig: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "chatvice-secret-key-change-in-production",
     resave: false,
     saveUninitialized: false,
-    store: new PgStore({
-      conString: process.env.DATABASE_URL,
-      tableName: "session",
-      createTableIfMissing: true,
-      errorLog: (err: Error) => {
-        console.error("[session] PgStore error:", err);
-      },
+    store: new MemoryStoreSession({
+      checkPeriod: 86400000,
     }),
     cookie: {
-      // Use 'auto' detection: secure when behind proxy with x-forwarded-proto: https
-      // This works because we set trust proxy = true above
-      secure: "auto" as any,
+      secure: isProduction,
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      maxAge: 24 * 60 * 60 * 1000,
       sameSite: "lax",
-      // No domain set - allows each subdomain to have its own session
-      // Cross-subdomain SSO is handled via token-based approach
     },
   };
   
   app.use(session(sessionConfig));
-  
-  // Debug middleware to log session state on auth endpoints
-  app.use((req, res, next) => {
-    if (req.path.includes("/api/auth/")) {
-      console.log(`[session] ${req.method} ${req.path} - Session ID: ${req.sessionID?.substring(0, 8)}..., Has userId: ${!!req.session?.userId}`);
-    }
-    next();
-  });
-  
-  // Mount WA Blast routes
-  app.use("/api/wa-blast", waBlastRouter);
 
   const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
   const clients = new Map<string, Set<WebSocket>>();
-  // Merchant-level connections for WA Blast updates
-  const merchantClients = new Map<string, Set<WebSocket>>();
 
   wss.on("connection", (ws, req) => {
     const url = new URL(req.url || "", `http://${req.headers.host}`);
     const sessionId = url.searchParams.get("session");
-    const merchantId = url.searchParams.get("merchant");
     
-    // Session-level connection (for chat)
     if (sessionId) {
       if (!clients.has(sessionId)) {
         clients.set(sessionId, new Set());
@@ -1283,39 +1247,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         clients.get(sessionId)?.delete(ws);
         if (clients.get(sessionId)?.size === 0) {
           clients.delete(sessionId);
-        }
-      });
-    }
-    
-    // Merchant-level connection (for WA Blast campaign updates)
-    // Requires auth token from query param for security
-    if (merchantId) {
-      const authToken = url.searchParams.get("token");
-      
-      // Verify auth token matches merchant session
-      // Token is a simple hash: merchantId + session secret (first 8 chars)
-      // Client must request this token from a protected API endpoint
-      const expectedToken = crypto
-        .createHash("sha256")
-        .update(merchantId + (process.env.SESSION_SECRET || "chatvice-dev").slice(0, 8))
-        .digest("hex")
-        .slice(0, 16);
-      
-      if (authToken !== expectedToken) {
-        console.log("[WS] Merchant auth failed:", { merchantId, tokenProvided: !!authToken });
-        ws.close(4001, "Unauthorized");
-        return;
-      }
-      
-      if (!merchantClients.has(merchantId)) {
-        merchantClients.set(merchantId, new Set());
-      }
-      merchantClients.get(merchantId)!.add(ws);
-      
-      ws.on("close", () => {
-        merchantClients.get(merchantId)?.delete(ws);
-        if (merchantClients.get(merchantId)?.size === 0) {
-          merchantClients.delete(merchantId);
         }
       });
     }
@@ -1332,25 +1263,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       });
     }
   }
-
-  // Broadcast WA Blast updates to merchant dashboard
-  function broadcastToMerchant(merchantId: string, data: any) {
-    const clients = merchantClients.get(merchantId);
-    if (clients) {
-      const message = JSON.stringify(data);
-      clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(message);
-        }
-      });
-    }
-  }
-
-  // Export for use in WA Blast routes
-  (app as any).broadcastToMerchant = broadcastToMerchant;
-  
-  // Set broadcast callback on WA Blast service for real-time updates
-  waBlastService.setBroadcastCallback(broadcastToMerchant);
 
   // Dynamic favicon route - serves from Object Storage, local uploads, or falls back to default
   app.get("/favicon.ico", async (req, res) => {
@@ -1887,18 +1799,6 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         req.session.userId = merchant.id;
         req.session.userType = "merchant";
         req.session.merchantId = merchant.id;
-        
-        // Explicitly save session to ensure it's persisted
-        await new Promise<void>((resolve, reject) => {
-          req.session.save((err) => {
-            if (err) {
-              console.error("[auth] Failed to save session:", err);
-              reject(err);
-            } else {
-              resolve();
-            }
-          });
-        });
         
         // Check for expiring subscription and send notification if needed (non-blocking)
         checkExpiringSubscription(merchant).catch(err => console.error("Failed to check expiring subscription:", err));
@@ -2668,123 +2568,6 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     } catch (error) {
       console.error("GitHub OAuth callback error:", error);
       res.redirect("/login?error=oauth_failed");
-    }
-  });
-
-  // ============================================================================
-  // CROSS-SUBDOMAIN SSO (chatvice.app <-> blaster.chatvice.app)
-  // ============================================================================
-  
-  // Cleanup expired SSO tokens every 5 minutes (database-backed)
-  setInterval(async () => {
-    try {
-      const now = new Date();
-      await db.delete(ssoTokens).where(lt(ssoTokens.expiresAt, now));
-    } catch (error) {
-      console.error("SSO token cleanup error:", error);
-    }
-  }, 5 * 60 * 1000);
-  
-  // Generate SSO token for cross-subdomain authentication
-  app.post("/api/sso/generate-token", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const merchant = await storage.getMerchant(merchantId);
-      
-      if (!merchant) {
-        return res.status(404).json({ error: "Merchant not found" });
-      }
-      
-      // Generate a secure random token
-      const token = crypto.randomBytes(32).toString("hex");
-      
-      // Store token in database with 5 minute expiration (increased for network latency)
-      const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-      
-      await db.insert(ssoTokens).values({
-        token,
-        merchantId,
-        email: merchant.email,
-        expiresAt,
-      });
-      
-      res.json({ token });
-    } catch (error) {
-      console.error("SSO token generation error:", error);
-      res.status(500).json({ error: "Failed to generate SSO token" });
-    }
-  });
-  
-  // Validate SSO token and create session
-  app.post("/api/sso/validate-token", async (req, res) => {
-    try {
-      const { token } = req.body;
-      
-      if (!token || typeof token !== "string") {
-        return res.status(400).json({ error: "Token required" });
-      }
-      
-      // Get token from database
-      const [tokenData] = await db.select().from(ssoTokens).where(eq(ssoTokens.token, token)).limit(1);
-      
-      if (!tokenData) {
-        return res.status(401).json({ error: "Invalid or expired token" });
-      }
-      
-      // Check if token is expired
-      if (tokenData.expiresAt < new Date()) {
-        await db.delete(ssoTokens).where(eq(ssoTokens.token, token));
-        return res.status(401).json({ error: "Token expired" });
-      }
-      
-      // Delete token after use (one-time use)
-      await db.delete(ssoTokens).where(eq(ssoTokens.token, token));
-      
-      // Get merchant data
-      const merchant = await storage.getMerchant(tokenData.merchantId);
-      
-      if (!merchant) {
-        return res.status(404).json({ error: "Merchant not found" });
-      }
-      
-      // Create session for the merchant (same as regular login)
-      req.session.userId = merchant.id;
-      req.session.merchantId = merchant.id;
-      req.session.userType = "merchant";
-      
-      // Save session explicitly
-      req.session.save((err) => {
-        if (err) {
-          console.error("SSO session save error:", err);
-          return res.status(500).json({ error: "Failed to create session" });
-        }
-        
-        res.json({
-          success: true,
-          merchantId: merchant.id,
-          email: merchant.email,
-          companyName: merchant.companyName,
-        });
-      });
-    } catch (error) {
-      console.error("SSO token validation error:", error);
-      res.status(500).json({ error: "Failed to validate SSO token" });
-    }
-  });
-
-  // WebSocket authentication token for real-time updates
-  app.get("/api/merchant/ws-token", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const token = crypto
-        .createHash("sha256")
-        .update(merchantId + (process.env.SESSION_SECRET || "chatvice-dev").slice(0, 8))
-        .digest("hex")
-        .slice(0, 16);
-      res.json({ token, merchantId });
-    } catch (error) {
-      console.error("Error generating WS token:", error);
-      res.status(500).json({ error: "Failed to generate token" });
     }
   });
 
@@ -3830,23 +3613,6 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           createdAt: file.createdAt,
         }));
       
-      // Media gallery with full details for image viewer
-      const mediaGallery = mediaFiles
-        .filter(f => f.mimeType?.startsWith("image/"))
-        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-        .slice(0, 50)
-        .map(file => ({
-          id: file.id,
-          filename: file.filename,
-          fileSize: file.fileSize,
-          mimeType: file.mimeType,
-          url: file.data, // The URL is stored in the data field for local storage
-          imageWidth: file.imageWidth,
-          imageHeight: file.imageHeight,
-          expiresAt: file.expiresAt,
-          createdAt: file.createdAt,
-        }));
-      
       const planLimits: Record<string, number> = {
         free: 100 * 1024 * 1024,
         starter: 500 * 1024 * 1024,
@@ -3857,61 +3623,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const planId = merchant.subscriptionPlanId || "free";
       const storageLimit = merchant.storageLimit || planLimits[planId] || planLimits.free;
       
-      // Get subscription limits
-      const effectiveLimits = await getEffectivePlanLimitsAsync(merchant);
-      
-      // Get usage counts
-      const agents = await storage.getAgents(merchantId);
-      const supervisors = await storage.getSupervisorsByMerchant(merchantId);
-      const sessions = await storage.getSessionsByMerchant(merchantId);
-      
-      // Count messages this month
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
-      
-      let totalMessagesThisMonth = 0;
-      for (const session of sessions) {
-        if (session.createdAt && new Date(session.createdAt) >= startOfMonth) {
-          const messages = await storage.getMessages(session.id);
-          totalMessagesThisMonth += messages.length;
-        }
-      }
-      
-      // Count knowledge sources from active web sources
-      const knowledgeSources = await storage.getSources(merchantId);
-      const knowledgeSourcesCount = knowledgeSources.filter(s => s.isActive).length;
-      
-      // Get chat retention hours from plan
-      const basePlan = subscriptionPlans[planId as keyof typeof subscriptionPlans] || subscriptionPlans.free;
-      const chatRetentionHours = basePlan.chatRetentionHours || 1;
-      
       res.json({
         totalStorageUsed,
         storageLimit,
         mediaCount: mediaFiles.length,
         mediaByType,
         recentUploads,
-        mediaGallery,
         usageBySession: [],
         planInfo: {
           planName: planId.charAt(0).toUpperCase() + planId.slice(1),
           storageLimitMB: Math.round(storageLimit / (1024 * 1024)),
-        },
-        // Subscription usage
-        subscriptionUsage: {
-          conversationsUsed: merchant.conversationsUsed || 0,
-          conversationsLimit: effectiveLimits.conversationsLimit,
-          messagesThisMonth: totalMessagesThisMonth,
-          agentsUsed: agents.length,
-          agentsLimit: effectiveLimits.agentsLimit,
-          supervisorsUsed: supervisors.length,
-          supervisorsLimit: effectiveLimits.supervisorsLimit,
-          sourcesUsed: knowledgeSourcesCount,
-          sourcesLimit: effectiveLimits.sourcesLimit,
-          suggestedQuestionsLimit: effectiveLimits.suggestedQuestionsLimit,
-          chatRetentionHours,
-          domainsLimit: basePlan.domainsLimit || 1,
         },
       });
     } catch (error) {
@@ -4181,17 +3902,13 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             session?.customerName || null,
             message,
             sessionId,
-            merchant?.companyName || merchant?.officialWebsiteName || undefined
+            merchant?.businessName || undefined
           );
           sendTelegramNotification(
             notificationSettings.telegramBotToken,
             notificationSettings.telegramChatId,
             telegramMessage
-          ).then(result => {
-            if (!result.success) {
-              console.error('[Telegram] Notification error:', result.error);
-            }
-          });
+          ).catch(err => console.error('[Telegram] Notification error:', err));
         }
       } catch (telegramErr) {
         console.error('[Telegram] Error checking notification settings:', telegramErr);
@@ -4463,37 +4180,6 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
       const mediaType = type === "video" ? "video" : type === "document" ? "document" : "photo";
       
-      // Get image dimensions if it's a photo
-      let imageWidth: number | undefined;
-      let imageHeight: number | undefined;
-      
-      if (mediaType === "photo") {
-        try {
-          const filePath = path.join(uploadDir, file.filename);
-          const dimensions = sizeOf(filePath);
-          imageWidth = dimensions.width;
-          imageHeight = dimensions.height;
-          console.log(`[Upload] Image dimensions: ${imageWidth}x${imageHeight}`);
-        } catch (dimErr) {
-          console.error("[Upload] Could not get image dimensions:", dimErr);
-        }
-      }
-      
-      // Store in chatMedia table for tracking with 7-day expiry
-      const chatMediaEntry = await storage.createChatMedia({
-        merchantId,
-        sessionId,
-        messageId: null, // Will be updated after message creation
-        filename: file.originalname,
-        mimeType: file.mimetype,
-        fileSize: file.size,
-        storageType: "local",
-        data: fileUrl, // Store the URL path for local storage
-        imageWidth: imageWidth || null,
-        imageHeight: imageHeight || null,
-        // expiresAt is automatically set to 7 days in storage.createChatMedia
-      });
-      
       await storage.createMediaAttachment({
         sessionId,
         agentId: merchant.activeAgentId,
@@ -4510,30 +4196,18 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         document: "Document"
       };
       
-      const mediaPayload = {
-        type: mediaType,
-        url: fileUrl,
-        filename: file.originalname,
-        fileSize: file.size,
-        imageWidth: imageWidth || null,
-        imageHeight: imageHeight || null,
-        mediaId: chatMediaEntry.id,
-        expiresAt: chatMediaEntry.expiresAt?.toISOString() || null,
-      };
-      
       const message = await storage.createMessage({
         sessionId,
         from: messageFrom,
         content: `[${typeLabels[mediaType]} sent]`,
         messageType: "media",
-        payload: mediaPayload,
+        payload: {
+          type: mediaType,
+          url: fileUrl,
+          filename: file.originalname,
+        },
         locationData: locationData,
       });
-      
-      // Update chatMedia with the messageId
-      if (chatMediaEntry.id) {
-        await storage.updateChatMedia(chatMediaEntry.id, { messageId: message.id });
-      }
 
       broadcastToSession(sessionId, {
         type: "message",
@@ -4542,7 +4216,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           from: messageFrom,
           content: `[${typeLabels[mediaType]} sent]`,
           messageType: "media",
-          payload: mediaPayload,
+          payload: {
+            type: mediaType,
+            url: fileUrl,
+            filename: file.originalname,
+          },
           locationData: locationData,
           timestamp: message.timestamp,
         },
@@ -4602,11 +4280,6 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         filename: file.filename,
         type: mediaType,
         messageId: message.id,
-        mediaId: chatMediaEntry.id,
-        fileSize: file.size,
-        imageWidth: imageWidth || null,
-        imageHeight: imageHeight || null,
-        expiresAt: chatMediaEntry.expiresAt?.toISOString() || null,
       });
     } catch (error: any) {
       console.error("Upload error:", error);
@@ -16285,20 +15958,20 @@ ${pageHtml.substring(0, 50000)}`
       const testMessage = `🔔 <b>Test Notification</b>
 
 This is a test notification from Chatvice.
-<b>Business:</b> ${merchant?.companyName || merchant?.officialWebsiteName || 'Your Business'}
+<b>Business:</b> ${merchant?.businessName || 'Your Business'}
 
 Your Telegram integration is working correctly!`;
       
-      const result = await sendTelegramNotification(
+      const success = await sendTelegramNotification(
         settings.telegramBotToken,
         settings.telegramChatId,
         testMessage
       );
       
-      if (result.success) {
+      if (success) {
         res.json({ success: true });
       } else {
-        res.status(500).json({ error: result.error || "Failed to send notification" });
+        res.status(500).json({ error: "Failed to send notification" });
       }
     } catch (error) {
       console.error("Test telegram error:", error);
@@ -19225,592 +18898,6 @@ Please create a comprehensive help center article that would be useful for custo
       res.send(fileBuffer);
     } catch (error) {
       console.error("Get media error:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // ========================================
-  // WA Blast Billing API Endpoints
-  // ========================================
-
-  // Get WA Blast wallet info
-  app.get("/api/wa-blast/wallet", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const wallet = await storage.getOrCreateWaBlastWallet(merchantId);
-      res.json(wallet);
-    } catch (error) {
-      console.error("Get wallet error:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Update wallet settings (mode, PayPal auto-topup)
-  app.patch("/api/wa-blast/wallet", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const { mode, paypalEmail, paypalAutoTopup, paypalAutoTopupThreshold, paypalAutoTopupAmount } = req.body;
-      
-      const updateData: any = {};
-      
-      // Validate mode
-      if (mode !== undefined) {
-        if (mode !== "bsp" && mode !== "byowaba") {
-          return res.status(400).json({ error: "Mode harus 'bsp' atau 'byowaba'" });
-        }
-        updateData.mode = mode;
-      }
-      
-      // Validate PayPal email
-      if (paypalEmail !== undefined) {
-        if (paypalEmail !== null && paypalEmail !== "") {
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          if (!emailRegex.test(paypalEmail)) {
-            return res.status(400).json({ error: "Format email tidak valid" });
-          }
-        }
-        updateData.paypalEmail = paypalEmail;
-      }
-      
-      // Validate auto-topup boolean
-      if (paypalAutoTopup !== undefined) {
-        if (typeof paypalAutoTopup !== "boolean") {
-          return res.status(400).json({ error: "paypalAutoTopup harus boolean" });
-        }
-        updateData.paypalAutoTopup = paypalAutoTopup;
-      }
-      
-      // Validate threshold (min 10000, max 10000000)
-      if (paypalAutoTopupThreshold !== undefined) {
-        const threshold = parseInt(paypalAutoTopupThreshold);
-        if (isNaN(threshold) || threshold < 10000 || threshold > 10000000) {
-          return res.status(400).json({ error: "Batas minimum harus antara Rp 10,000 - Rp 10,000,000" });
-        }
-        updateData.paypalAutoTopupThreshold = threshold;
-      }
-      
-      // Validate amount (min 50000, max 10000000)
-      if (paypalAutoTopupAmount !== undefined) {
-        const amount = parseInt(paypalAutoTopupAmount);
-        if (isNaN(amount) || amount < 50000 || amount > 10000000) {
-          return res.status(400).json({ error: "Jumlah auto top up harus antara Rp 50,000 - Rp 10,000,000" });
-        }
-        updateData.paypalAutoTopupAmount = amount;
-      }
-      
-      const wallet = await storage.updateWaBlastWallet(merchantId, updateData);
-      res.json(wallet);
-    } catch (error) {
-      console.error("Update wallet error:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Get wallet transactions
-  app.get("/api/wa-blast/transactions", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const limit = parseInt(req.query.limit as string) || 50;
-      const transactions = await storage.getWaBlastTransactions(merchantId, limit);
-      res.json(transactions);
-    } catch (error) {
-      console.error("Get transactions error:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Create topup order (PayPal/Kompas Pay)
-  // Note: This creates a PENDING order - balance is only credited when payment is verified via webhook
-  app.post("/api/wa-blast/topup", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const { packageId, paymentMethod, bankCode, idempotencyKey: clientIdempotencyKey } = req.body;
-      
-      if (!packageId || !paymentMethod) {
-        return res.status(400).json({ error: "Package ID and payment method required" });
-      }
-      
-      // Validate payment method
-      const validMethods = ["qris", "va", "paymentlink"];
-      if (!validMethods.includes(paymentMethod)) {
-        return res.status(400).json({ error: "Invalid payment method" });
-      }
-      
-      // VA requires bank code
-      if (paymentMethod === "va" && !bankCode) {
-        return res.status(400).json({ error: "Bank code required for VA payment" });
-      }
-      
-      // Get package from database to determine amount (not from client)
-      const packages = await storage.getWaBlastTopupPackages();
-      const pkg = packages.find(p => p.id === packageId);
-      if (!pkg) {
-        return res.status(400).json({ error: "Invalid package" });
-      }
-      
-      const totalCredits = pkg.amount + (pkg.bonusAmount || 0);
-      const idempotencyKey = clientIdempotencyKey || `topup_${merchantId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      
-      // Check for existing order with same idempotency key
-      const existingOrder = await storage.getWaBlastTopupOrderByIdempotencyKey(idempotencyKey);
-      if (existingOrder) {
-        // For existing orders, return the stored payment URL for user to continue payment
-        return res.json({
-          orderId: existingOrder.id,
-          packageId: existingOrder.packageId,
-          packageName: pkg.name,
-          amount: existingOrder.amount,
-          bonusAmount: existingOrder.bonusAmount || 0,
-          totalAmount: existingOrder.totalAmount,
-          paymentMethod: existingOrder.paymentMethod,
-          paymentProvider: existingOrder.paymentProvider,
-          idempotencyKey: existingOrder.idempotencyKey,
-          status: existingOrder.status,
-          paymentUrl: existingOrder.paymentUrl,
-          paymentData: {
-            paymentUrl: existingOrder.paymentUrl,
-          },
-          message: existingOrder.status === "completed" ? "Order sudah selesai" : "Lanjutkan pembayaran. Gunakan link pembayaran yang sama.",
-        });
-      }
-      
-      // Create pending order in database
-      const paymentProvider = "kompaspay";
-      const order = await storage.createWaBlastTopupOrder({
-        merchantId,
-        packageId,
-        amount: pkg.amount,
-        bonusAmount: pkg.bonusAmount || 0,
-        totalAmount: totalCredits,
-        paymentMethod,
-        paymentProvider,
-        idempotencyKey,
-        status: "pending",
-      });
-      
-      // Get merchant info for payment
-      const merchant = await storage.getMerchantById(merchantId);
-      
-      // Initialize payment based on method
-      let paymentData: any = null;
-      let paymentUrl: string | null = null;
-      
-      if (paymentMethod === "qris") {
-        // Create QRIS payment via Kompas Pay
-        const qrisResult = await createQRISPayment({
-          merchantId,
-          orderId: order.id,
-          amount: pkg.amount,
-          customerName: merchant?.businessName || "Customer",
-          customerEmail: merchant?.email || "customer@example.com",
-          description: `WA Blast Top Up - ${pkg.name}`,
-          expiryMinutes: 30,
-          callbackUrl: `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : ''}/api/wa-blast/topup/callback`,
-        });
-        
-        if (!qrisResult.success) {
-          await storage.updateWaBlastTopupOrder(order.id, { status: "failed" });
-          return res.status(400).json({ error: qrisResult.error || "Failed to create QRIS payment" });
-        }
-        
-        paymentData = {
-          qrisImageUrl: qrisResult.data?.qrisImageUrl,
-          qrisString: qrisResult.data?.qrisString,
-          expiryTime: qrisResult.data?.expiryTime,
-          transactionId: qrisResult.data?.transactionId,
-        };
-      } else if (paymentMethod === "va") {
-        // Create VA payment via Kompas Pay
-        const vaResult = await createVAPayment({
-          merchantId,
-          orderId: order.id,
-          amount: pkg.amount,
-          bankCode: bankCode,
-          customerName: merchant?.businessName || "Customer",
-          customerEmail: merchant?.email || "customer@example.com",
-          description: `WA Blast Top Up - ${pkg.name}`,
-          expiryMinutes: 1440,
-          callbackUrl: `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : ''}/api/wa-blast/topup/callback`,
-        });
-        
-        if (!vaResult.success) {
-          await storage.updateWaBlastTopupOrder(order.id, { status: "failed" });
-          return res.status(400).json({ error: vaResult.error || "Failed to create VA payment" });
-        }
-        
-        paymentData = {
-          vaNumber: vaResult.data?.vaNumber,
-          bankCode: vaResult.data?.bankCode,
-          expiryTime: vaResult.data?.expiryTime,
-          transactionId: vaResult.data?.transactionId,
-        };
-      } else if (paymentMethod === "paymentlink") {
-        // Create Payment Link via Kompas Pay
-        const linkResult = await createPaymentLinkPayment({
-          merchantId,
-          orderId: order.id,
-          amount: pkg.amount,
-          customerName: merchant?.businessName || "Customer",
-          customerEmail: merchant?.email || "customer@example.com",
-          description: `WA Blast Top Up - ${pkg.name}`,
-          expiryMinutes: 1440,
-          callbackUrl: `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : ''}/api/wa-blast/topup/callback`,
-        });
-        
-        if (!linkResult.success) {
-          await storage.updateWaBlastTopupOrder(order.id, { status: "failed" });
-          return res.status(400).json({ error: linkResult.error || "Failed to create payment link" });
-        }
-        
-        paymentUrl = linkResult.data?.paymentUrl || null;
-        paymentData = {
-          paymentUrl: linkResult.data?.paymentUrl,
-          expiryTime: linkResult.data?.expiryTime,
-          transactionId: linkResult.data?.transactionId,
-        };
-      }
-      
-      // Update order with payment URL if available
-      if (paymentUrl) {
-        await storage.updateWaBlastTopupOrder(order.id, { paymentUrl });
-      }
-      
-      res.json({ 
-        orderId: order.id,
-        packageId: pkg.id,
-        packageName: pkg.name,
-        amount: pkg.amount,
-        bonusAmount: pkg.bonusAmount || 0,
-        totalAmount: totalCredits,
-        paymentMethod,
-        paymentProvider,
-        idempotencyKey,
-        status: "pending",
-        paymentUrl,
-        paymentData,
-        message: "Order dibuat. Lanjutkan pembayaran.",
-      });
-    } catch (error) {
-      console.error("Topup error:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Payment webhook callback (to be called by payment gateway)
-  app.post("/api/wa-blast/topup/callback", async (req, res) => {
-    try {
-      const { orderId, paymentReference, amount, paymentProvider, status, signature } = req.body;
-      
-      if (!orderId || !paymentReference) {
-        return res.status(400).json({ error: "Missing required fields" });
-      }
-      
-      // Lookup order from database
-      const order = await storage.getWaBlastTopupOrderById(orderId);
-      if (!order) {
-        console.error(`Webhook callback: Order not found: ${orderId}`);
-        return res.status(404).json({ error: "Order not found" });
-      }
-      
-      // Verify webhook signature using gateway secret
-      const webhookSecret = process.env.PAYMENT_WEBHOOK_SECRET;
-      if (webhookSecret) {
-        const { createHmac } = await import('crypto');
-        // Expected signature format: HMAC-SHA256 of orderId:amount:paymentReference
-        const expectedSignature = createHmac('sha256', webhookSecret)
-          .update(`${orderId}:${order.totalAmount}:${paymentReference}`)
-          .digest('hex');
-        
-        if (!signature || signature !== expectedSignature) {
-          console.error(`Webhook callback: Invalid signature for order ${orderId}`);
-          return res.status(401).json({ error: "Invalid signature" });
-        }
-      } else {
-        // No webhook secret configured - CRITICAL SECURITY WARNING
-        console.warn("SECURITY WARNING: No PAYMENT_WEBHOOK_SECRET configured. Webhook signature verification disabled.");
-      }
-      
-      // Verify payment amount matches stored order
-      if (amount !== undefined && Number(amount) !== order.totalAmount) {
-        console.error(`Webhook callback: Amount mismatch for order ${orderId}. Expected: ${order.totalAmount}, Got: ${amount}`);
-        return res.status(400).json({ error: "Amount mismatch" });
-      }
-      
-      // Verify payment provider matches stored order
-      if (paymentProvider && paymentProvider !== order.paymentProvider) {
-        console.error(`Webhook callback: Provider mismatch for order ${orderId}. Expected: ${order.paymentProvider}, Got: ${paymentProvider}`);
-        return res.status(400).json({ error: "Provider mismatch" });
-      }
-      
-      if (status !== "success") {
-        await storage.updateWaBlastTopupOrder(orderId, { status: "failed" });
-        return res.json({ success: false, message: "Payment not successful" });
-      }
-      
-      // Complete order and credit balance (atomic operation in storage)
-      const completedOrder = await storage.completeWaBlastTopupOrder(orderId, paymentReference);
-      if (!completedOrder) {
-        // Order may already be completed or expired
-        console.warn(`Webhook callback: Order ${orderId} could not be completed (status: ${order.status})`);
-        return res.status(400).json({ error: "Failed to complete order (already completed or expired)" });
-      }
-      
-      console.log(`Webhook callback: Successfully completed order ${orderId}, credited ${order.totalAmount}`);
-      res.json({ success: true, orderId: completedOrder.id });
-    } catch (error) {
-      console.error("Topup callback error:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Get pending topup orders for merchant
-  app.get("/api/wa-blast/topup/pending", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const orders = await storage.getPendingWaBlastTopupOrders(merchantId);
-      res.json(orders);
-    } catch (error) {
-      console.error("Get pending orders error:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Request refund (7-day policy)
-  app.post("/api/wa-blast/refund-request", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const { transactionId, reason } = req.body;
-      
-      if (!transactionId || !reason) {
-        return res.status(400).json({ error: "Transaction ID and reason required" });
-      }
-      
-      const refundRequest = await storage.createRefundRequest(merchantId, transactionId, reason);
-      if (!refundRequest) {
-        return res.status(400).json({ error: "Refund not allowed. Transaction must be less than 7 days old and balance sufficient." });
-      }
-      
-      res.json(refundRequest);
-    } catch (error) {
-      console.error("Refund request error:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Get topup packages
-  app.get("/api/wa-blast/topup-packages", async (req, res) => {
-    try {
-      const packages = await storage.getWaBlastTopupPackages();
-      res.json(packages);
-    } catch (error) {
-      console.error("Get topup packages error:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // ========================================
-  // BYOWABA (Merchant WABA Accounts) API
-  // ========================================
-
-  // Get merchant's WABA accounts
-  app.get("/api/wa-blast/waba-accounts", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const accounts = await storage.getMerchantWabaAccounts(merchantId);
-      
-      // Mask access tokens for security
-      const maskedAccounts = accounts.map(acc => ({
-        ...acc,
-        accessToken: acc.accessToken ? "********" : null,
-      }));
-      
-      res.json(maskedAccounts);
-    } catch (error) {
-      console.error("Get WABA accounts error:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Add WABA account
-  app.post("/api/wa-blast/waba-accounts", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const { name, wabaId, phoneNumberId, phoneNumber, accessToken, businessId } = req.body;
-      
-      if (!name || !wabaId || !phoneNumberId || !phoneNumber || !accessToken) {
-        return res.status(400).json({ error: "Missing required fields" });
-      }
-      
-      const account = await storage.createMerchantWabaAccount({
-        merchantId,
-        name,
-        wabaId,
-        phoneNumberId,
-        phoneNumber,
-        accessToken,
-        businessId,
-        status: "pending",
-      });
-      
-      res.json({
-        ...account,
-        accessToken: "********",
-      });
-    } catch (error) {
-      console.error("Create WABA account error:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Update WABA account
-  app.patch("/api/wa-blast/waba-accounts/:id", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const { id } = req.params;
-      const { name, wabaId, phoneNumberId, phoneNumber, accessToken, businessId, status } = req.body;
-      
-      const existing = await storage.getMerchantWabaAccountById(id);
-      if (!existing || existing.merchantId !== merchantId) {
-        return res.status(404).json({ error: "WABA account not found" });
-      }
-      
-      const updateData: any = {};
-      if (name) updateData.name = name;
-      if (wabaId) updateData.wabaId = wabaId;
-      if (phoneNumberId) updateData.phoneNumberId = phoneNumberId;
-      if (phoneNumber) updateData.phoneNumber = phoneNumber;
-      if (accessToken) updateData.accessToken = accessToken;
-      if (businessId !== undefined) updateData.businessId = businessId;
-      if (status) updateData.status = status;
-      
-      const account = await storage.updateMerchantWabaAccount(id, updateData);
-      
-      res.json({
-        ...account,
-        accessToken: "********",
-      });
-    } catch (error) {
-      console.error("Update WABA account error:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Delete WABA account
-  app.delete("/api/wa-blast/waba-accounts/:id", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const { id } = req.params;
-      
-      const existing = await storage.getMerchantWabaAccountById(id);
-      if (!existing || existing.merchantId !== merchantId) {
-        return res.status(404).json({ error: "WABA account not found" });
-      }
-      
-      await storage.deleteMerchantWabaAccount(id);
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Delete WABA account error:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Verify WABA credentials (test connection to Meta API)
-  app.post("/api/wa-blast/waba-accounts/:id/verify", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const { id } = req.params;
-      
-      const account = await storage.getMerchantWabaAccountById(id);
-      if (!account || account.merchantId !== merchantId) {
-        return res.status(404).json({ error: "WABA account not found" });
-      }
-      
-      // TODO: Implement actual Meta API verification
-      // For now, just mark as active
-      const updated = await storage.updateMerchantWabaAccount(id, {
-        status: "active",
-        lastVerifiedAt: new Date(),
-        errorMessage: null,
-      });
-      
-      res.json({
-        ...updated,
-        accessToken: "********",
-      });
-    } catch (error) {
-      console.error("Verify WABA account error:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // ========================================
-  // Admin: WA Blast Topup Packages Management
-  // ========================================
-
-  // Create topup package (admin only)
-  app.post("/api/admin/wa-blast/topup-packages", requireAdmin, async (req, res) => {
-    try {
-      const { name, amount, bonusAmount, description, isPopular, sortOrder } = req.body;
-      
-      if (!name || !amount) {
-        return res.status(400).json({ error: "Name and amount required" });
-      }
-      
-      const pkg = await storage.createWaBlastTopupPackage({
-        name,
-        amount,
-        bonusAmount: bonusAmount || 0,
-        description,
-        isPopular: isPopular || false,
-        sortOrder: sortOrder || 0,
-        isActive: true,
-      });
-      
-      res.json(pkg);
-    } catch (error) {
-      console.error("Create topup package error:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Update topup package (admin only)
-  app.patch("/api/admin/wa-blast/topup-packages/:id", requireAdmin, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { name, amount, bonusAmount, description, isPopular, sortOrder, isActive } = req.body;
-      
-      const updateData: any = {};
-      if (name) updateData.name = name;
-      if (amount) updateData.amount = amount;
-      if (bonusAmount !== undefined) updateData.bonusAmount = bonusAmount;
-      if (description !== undefined) updateData.description = description;
-      if (isPopular !== undefined) updateData.isPopular = isPopular;
-      if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
-      if (isActive !== undefined) updateData.isActive = isActive;
-      
-      const pkg = await storage.updateWaBlastTopupPackage(id, updateData);
-      if (!pkg) {
-        return res.status(404).json({ error: "Package not found" });
-      }
-      
-      res.json(pkg);
-    } catch (error) {
-      console.error("Update topup package error:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Delete topup package (admin only)
-  app.delete("/api/admin/wa-blast/topup-packages/:id", requireAdmin, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const deleted = await storage.deleteWaBlastTopupPackage(id);
-      if (!deleted) {
-        return res.status(404).json({ error: "Package not found" });
-      }
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Delete topup package error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });

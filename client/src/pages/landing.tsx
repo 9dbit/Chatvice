@@ -4,8 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { SiWhatsapp } from "react-icons/si";
-import { getBlasterUrl } from "@/lib/blaster-routes";
 import {
   MessageSquare,
   Zap,
@@ -282,7 +280,6 @@ function Navbar() {
   const navLinks = [
     { labelKey: "nav.home", href: "/" },
     { labelKey: "nav.features", href: "/features" },
-    { labelKey: "nav.waBlast", href: getBlasterUrl("/"), external: true },
     { labelKey: "nav.pricing", href: "/pricing" },
     { labelKey: "nav.api", href: "/api-docs" },
     { labelKey: "nav.faq", href: "/faq" },
@@ -340,7 +337,7 @@ function Navbar() {
                     <Button variant="ghost" data-testid="button-login">{t('nav.signIn')}</Button>
                   </Link>
                   <Link href="/register">
-                    <Button className="bg-purple-600 border-purple-700" data-testid="button-get-started">
+                    <Button className="bg-purple-600 hover:bg-purple-700" data-testid="button-get-started">
                       {t('nav.getStarted')}
                     </Button>
                   </Link>
@@ -389,7 +386,7 @@ function Navbar() {
                 <Button variant="outline" className="w-full">{t('nav.signIn')}</Button>
               </Link>
               <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
-                <Button className="w-full bg-purple-600 border-purple-700">{t('nav.getStarted')}</Button>
+                <Button className="w-full bg-purple-600 hover:bg-purple-700">{t('nav.getStarted')}</Button>
               </Link>
             </div>
           </div>
@@ -837,13 +834,13 @@ function HeroSection() {
               <FlippingHeroText />
               <div className="flex flex-col sm:flex-row gap-2">
                 <Link href="/register">
-                  <Button size="lg" className="bg-[#7c3aed] border-[#6d28d9] text-white px-6 md:px-8 font-semibold text-sm md:text-base" data-testid="button-hero-start">
+                  <Button size="lg" className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white px-6 md:px-8 font-semibold text-sm md:text-base" data-testid="button-hero-start">
                     {t('hero.cta')}
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </Link>
                 <Link href="/features">
-                  <Button size="lg" variant="outline" className="border-white/50 text-white backdrop-blur-sm px-6 md:px-8 text-sm md:text-base" data-testid="button-hero-features">
+                  <Button size="lg" variant="outline" className="border-white/50 text-white hover:bg-white/10 backdrop-blur-sm px-6 md:px-8 text-sm md:text-base" data-testid="button-hero-features">
                     {t('hero.ctaSecondary')}
                   </Button>
                 </Link>
@@ -1843,113 +1840,6 @@ function BenefitsSections() {
         </div>
       </section>
 
-      {/* WhatsApp Blast Section */}
-      <section className="py-12 md:py-20" data-testid="section-wa-blast">
-        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-            <div>
-              <Badge className="mb-4 bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20" data-testid="badge-wa-marketing">
-                <SiWhatsapp className="w-3 h-3 mr-1" />
-                WhatsApp Marketing
-              </Badge>
-              <h2 className="text-2xl md:text-4xl font-bold mb-4 leading-tight" data-testid="text-wa-blast-title">
-                Jangkau Ribuan Pelanggan dengan{" "}
-                <span className="text-green-500">WhatsApp Blast</span>
-              </h2>
-              <p className="text-muted-foreground mb-6 leading-relaxed" data-testid="text-wa-blast-desc">
-                Kirim pesan broadcast ke ribuan kontak sekaligus. Tingkatkan engagement, penjualan, 
-                dan loyalitas pelanggan dengan platform WhatsApp marketing terpadu.
-              </p>
-              <ul className="space-y-3 mb-6">
-                {[
-                  { text: "Broadcast massal ke ribuan kontak" },
-                  { text: "Template pesan dengan personalisasi" },
-                  { text: "Analitik pengiriman real-time" },
-                  { text: "Integrasi Meta Cloud API resmi" },
-                  { text: "Balasan otomatis masuk ke supervisor" },
-                ].map((item, index) => (
-                  <li key={index} className="flex items-center gap-3 text-sm" data-testid={`text-wa-feature-${index}`}>
-                    <div className="w-5 h-5 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0">
-                      <Check className="w-3 h-3 text-green-500" />
-                    </div>
-                    <span>{item.text}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="flex flex-wrap gap-3">
-                <a href={getBlasterUrl("/")}>
-                  <Button className="bg-green-600 border-green-700" data-testid="button-wa-blast-learn">
-                    <SiWhatsapp className="w-4 h-4 mr-2" />
-                    Pelajari Lebih Lanjut
-                  </Button>
-                </a>
-                <a href={getBlasterUrl("/")}>
-                  <Button variant="outline" data-testid="button-wa-blast-start">
-                    Mulai Gratis
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </a>
-              </div>
-            </div>
-            <div className="relative">
-              <div className="absolute -inset-4 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-3xl blur-2xl" />
-              <Card className="relative border-green-500/30 overflow-hidden" data-testid="card-wa-blast-demo">
-                <div className="bg-green-500 text-white p-4">
-                  <div className="flex items-center gap-3">
-                    <SiWhatsapp className="w-8 h-8" />
-                    <div>
-                      <h3 className="font-semibold" data-testid="text-wa-card-title">WhatsApp Blast</h3>
-                      <p className="text-sm text-white/80" data-testid="text-wa-card-subtitle">Broadcast Campaign</p>
-                    </div>
-                  </div>
-                </div>
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg" data-testid="stat-wa-total-sent">
-                    <div>
-                      <p className="text-xs text-muted-foreground" data-testid="text-wa-stat-label-sent">Total Terkirim</p>
-                      <p className="text-xl font-bold text-green-500" data-testid="text-wa-stat-value-sent">2,847</p>
-                    </div>
-                    <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
-                      <Send className="w-5 h-5 text-green-500" />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="text-center p-2 bg-muted rounded-lg" data-testid="stat-wa-delivery">
-                      <p className="text-lg font-bold text-green-500" data-testid="text-wa-stat-delivery">98%</p>
-                      <p className="text-[10px] text-muted-foreground" data-testid="text-wa-label-delivery">Terkirim</p>
-                    </div>
-                    <div className="text-center p-2 bg-muted rounded-lg" data-testid="stat-wa-read">
-                      <p className="text-lg font-bold text-blue-500" data-testid="text-wa-stat-read">72%</p>
-                      <p className="text-[10px] text-muted-foreground" data-testid="text-wa-label-read">Dibaca</p>
-                    </div>
-                    <div className="text-center p-2 bg-muted rounded-lg" data-testid="stat-wa-response">
-                      <p className="text-lg font-bold text-purple-500" data-testid="text-wa-stat-response">15%</p>
-                      <p className="text-[10px] text-muted-foreground" data-testid="text-wa-label-response">Respons</p>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    {[
-                      { name: "Promo Akhir Tahun", status: "Selesai", count: "1,245" },
-                      { name: "Flash Sale Weekend", status: "Berjalan", count: "892" },
-                    ].map((campaign, i) => (
-                      <div key={i} className="flex items-center justify-between p-2 border rounded-lg" data-testid={`card-wa-campaign-${i}`}>
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${i === 0 ? 'bg-green-500' : 'bg-amber-500 animate-pulse'}`} />
-                          <span className="text-sm" data-testid={`text-wa-campaign-name-${i}`}>{campaign.name}</span>
-                        </div>
-                        <Badge variant={i === 0 ? "secondary" : "default"} className="text-[10px]" data-testid={`badge-wa-campaign-count-${i}`}>
-                          {campaign.count}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* 24/7/365 Support Section */}
       <section className="py-12 md:py-20 bg-muted/30">
         <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
@@ -1973,7 +1863,7 @@ function BenefitsSections() {
                 </div>
               ))}
             </div>
-            <Button asChild className="bg-purple-600 border-purple-700 text-sm" data-testid="button-chat-expert">
+            <Button asChild className="bg-purple-600 hover:bg-purple-700 text-sm" data-testid="button-chat-expert">
               <a href="mailto:hello@chatvice.app">
                 <MessageSquare className="w-4 h-4 mr-2" />
                 {t('support247.chatExpert')}
@@ -2175,7 +2065,7 @@ function FeaturesPreview() {
 
         <div className="text-left mt-12 parallax-fade-in">
           <Link href="/features">
-            <Button size="lg" variant="outline" className="border-purple-300 text-purple-600 dark:border-purple-700 dark:text-purple-400">
+            <Button size="lg" variant="outline" className="border-purple-300 text-purple-600 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-950/30">
               {t('features.viewAll')}
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
@@ -2331,7 +2221,7 @@ function AffiliateSection() {
 
         <div className="text-center parallax-fade-in">
           <Link href="/affiliate">
-            <Button size="lg" className="bg-purple-600 border-purple-700" data-testid="button-affiliate-cta">
+            <Button size="lg" className="bg-purple-600 hover:bg-purple-700" data-testid="button-affiliate-cta">
               Join Affiliate Program
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
@@ -2359,13 +2249,13 @@ function CTASection() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
             <Link href="/register">
-              <Button size="lg" className="bg-white text-purple-600 border-purple-50 px-8 font-semibold">
+              <Button size="lg" className="bg-white text-purple-600 hover:bg-purple-50 px-8 font-semibold">
                 Get Started Free
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </Link>
             <a href="mailto:hello@chatvice.app">
-              <Button size="lg" variant="outline" className="border-white/30 text-white px-8">
+              <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 px-8">
                 Talk to Sales
               </Button>
             </a>

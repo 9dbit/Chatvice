@@ -76,14 +76,9 @@ import {
   personalMessages, type PersonalMessage, type InsertPersonalMessage,
   chatMedia, type ChatMedia, type InsertChatMedia,
   customerStories, type CustomerStory, type InsertCustomerStory,
-  waBlastWallet, type WaBlastWallet, type InsertWaBlastWallet,
-  waBlastTransactions, type WaBlastTransaction, type InsertWaBlastTransaction,
-  merchantWabaAccounts, type MerchantWabaAccount, type InsertMerchantWabaAccount,
-  waBlastTopupPackages, type WaBlastTopupPackage, type InsertWaBlastTopupPackage,
-  waBlastTopupOrders, type WaBlastTopupOrder, type InsertWaBlastTopupOrder,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, gte, and, or, lt, lte, isNull, isNotNull, sql, count, inArray, ne } from "drizzle-orm";
+import { eq, desc, gte, and, or, lt, isNull, sql, count, inArray, ne } from "drizzle-orm";
 import { randomBytes } from "crypto";
 
 export interface AnalyticsData {
@@ -506,8 +501,6 @@ export interface IStorage {
   getChatMedia(id: string): Promise<ChatMedia | undefined>;
   getChatMediaBySession(sessionId: string): Promise<ChatMedia[]>;
   getChatMediaByMerchant(merchantId: string): Promise<ChatMedia[]>;
-  deleteExpiredChatMedia(): Promise<number>;
-  deleteChatMedia(id: string): Promise<void>;
   
   // Customer Stories
   getActiveCustomerStories(customerId: string): Promise<CustomerStory[]>;
@@ -3630,13 +3623,10 @@ export class DatabaseStorage implements IStorage {
   // Chat Media
   async createChatMedia(data: InsertChatMedia): Promise<ChatMedia> {
     const id = generateId("media_");
-    const now = new Date();
-    const expiresAt = data.expiresAt || new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
     const result = await db.insert(chatMedia).values({
       ...data,
       id,
-      expiresAt,
-      createdAt: now,
+      createdAt: new Date(),
     }).returning();
     return result[0];
   }
@@ -3656,29 +3646,6 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(chatMedia)
       .where(eq(chatMedia.merchantId, merchantId))
       .orderBy(desc(chatMedia.createdAt));
-  }
-  
-  async updateChatMedia(id: string, updates: Partial<InsertChatMedia>): Promise<ChatMedia | undefined> {
-    const result = await db.update(chatMedia)
-      .set(updates)
-      .where(eq(chatMedia.id, id))
-      .returning();
-    return result[0];
-  }
-
-  async deleteExpiredChatMedia(): Promise<number> {
-    const now = new Date();
-    const result = await db.delete(chatMedia)
-      .where(and(
-        isNotNull(chatMedia.expiresAt),
-        lte(chatMedia.expiresAt, now)
-      ))
-      .returning({ id: chatMedia.id });
-    return result.length;
-  }
-
-  async deleteChatMedia(id: string): Promise<void> {
-    await db.delete(chatMedia).where(eq(chatMedia.id, id));
   }
 
   // Customer Stories
@@ -3704,317 +3671,6 @@ export class DatabaseStorage implements IStorage {
       createdAt: new Date(),
     }).returning();
     return result[0];
-  }
-
-  // WA Blast Wallet Operations
-  async getWaBlastWallet(merchantId: string): Promise<WaBlastWallet | undefined> {
-    const result = await db.select().from(waBlastWallet)
-      .where(eq(waBlastWallet.merchantId, merchantId))
-      .limit(1);
-    return result[0];
-  }
-
-  async createWaBlastWallet(merchantId: string): Promise<WaBlastWallet> {
-    const id = generateId("waw_");
-    const result = await db.insert(waBlastWallet).values({
-      id,
-      merchantId,
-      balance: 0,
-      totalTopup: 0,
-      totalSpent: 0,
-      mode: "bsp",
-      createdAt: new Date(),
-    }).returning();
-    return result[0];
-  }
-
-  async getOrCreateWaBlastWallet(merchantId: string): Promise<WaBlastWallet> {
-    let wallet = await this.getWaBlastWallet(merchantId);
-    if (!wallet) {
-      wallet = await this.createWaBlastWallet(merchantId);
-    }
-    return wallet;
-  }
-
-  async updateWaBlastWallet(merchantId: string, data: Partial<InsertWaBlastWallet>): Promise<WaBlastWallet | undefined> {
-    const result = await db.update(waBlastWallet)
-      .set({ ...data, updatedAt: new Date() })
-      .where(eq(waBlastWallet.merchantId, merchantId))
-      .returning();
-    return result[0];
-  }
-
-  async addWaBlastBalance(merchantId: string, amount: number, transactionData: Partial<InsertWaBlastTransaction>): Promise<WaBlastTransaction> {
-    const wallet = await this.getOrCreateWaBlastWallet(merchantId);
-    const newBalance = (wallet.balance || 0) + amount;
-    
-    await db.update(waBlastWallet)
-      .set({ 
-        balance: newBalance,
-        totalTopup: (wallet.totalTopup || 0) + amount,
-        updatedAt: new Date(),
-      })
-      .where(eq(waBlastWallet.merchantId, merchantId));
-
-    const txId = generateId("watx_");
-    const result = await db.insert(waBlastTransactions).values({
-      id: txId,
-      merchantId,
-      type: "topup",
-      amount,
-      balanceAfter: newBalance,
-      ...transactionData,
-      createdAt: new Date(),
-    }).returning();
-    return result[0];
-  }
-
-  async deductWaBlastBalance(merchantId: string, amount: number, transactionData: Partial<InsertWaBlastTransaction>): Promise<WaBlastTransaction | null> {
-    const wallet = await this.getOrCreateWaBlastWallet(merchantId);
-    if ((wallet.balance || 0) < amount) {
-      return null;
-    }
-
-    const newBalance = (wallet.balance || 0) - amount;
-    
-    await db.update(waBlastWallet)
-      .set({ 
-        balance: newBalance,
-        totalSpent: (wallet.totalSpent || 0) + amount,
-        updatedAt: new Date(),
-      })
-      .where(eq(waBlastWallet.merchantId, merchantId));
-
-    const txId = generateId("watx_");
-    const result = await db.insert(waBlastTransactions).values({
-      id: txId,
-      merchantId,
-      type: "debit",
-      amount: -amount,
-      balanceAfter: newBalance,
-      ...transactionData,
-      createdAt: new Date(),
-    }).returning();
-    return result[0];
-  }
-
-  async getWaBlastTransactions(merchantId: string, limit: number = 50): Promise<WaBlastTransaction[]> {
-    return db.select().from(waBlastTransactions)
-      .where(eq(waBlastTransactions.merchantId, merchantId))
-      .orderBy(desc(waBlastTransactions.createdAt))
-      .limit(limit);
-  }
-
-  async getWaBlastTransactionById(id: string): Promise<WaBlastTransaction | undefined> {
-    const result = await db.select().from(waBlastTransactions)
-      .where(eq(waBlastTransactions.id, id))
-      .limit(1);
-    return result[0];
-  }
-
-  async updateWaBlastTransaction(id: string, data: Partial<InsertWaBlastTransaction>): Promise<WaBlastTransaction | undefined> {
-    const result = await db.update(waBlastTransactions)
-      .set(data)
-      .where(eq(waBlastTransactions.id, id))
-      .returning();
-    return result[0];
-  }
-
-  async createRefundRequest(merchantId: string, originalTransactionId: string, reason: string): Promise<WaBlastTransaction | null> {
-    const originalTx = await this.getWaBlastTransactionById(originalTransactionId);
-    if (!originalTx || originalTx.merchantId !== merchantId || originalTx.type !== "topup") {
-      return null;
-    }
-    
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    if (originalTx.createdAt && originalTx.createdAt < sevenDaysAgo) {
-      return null;
-    }
-
-    const wallet = await this.getWaBlastWallet(merchantId);
-    if (!wallet || (wallet.balance || 0) < Math.abs(originalTx.amount)) {
-      return null;
-    }
-
-    const txId = generateId("watx_");
-    const result = await db.insert(waBlastTransactions).values({
-      id: txId,
-      merchantId,
-      type: "refund",
-      amount: 0,
-      balanceAfter: wallet.balance || 0,
-      description: `Refund request for transaction ${originalTransactionId}`,
-      originalTransactionId,
-      refundReason: reason,
-      refundStatus: "pending",
-      paymentMethod: originalTx.paymentMethod,
-      paymentProvider: originalTx.paymentProvider,
-      createdAt: new Date(),
-    }).returning();
-    return result[0];
-  }
-
-  // BYOWABA Operations
-  async getMerchantWabaAccounts(merchantId: string): Promise<MerchantWabaAccount[]> {
-    return db.select().from(merchantWabaAccounts)
-      .where(eq(merchantWabaAccounts.merchantId, merchantId))
-      .orderBy(desc(merchantWabaAccounts.createdAt));
-  }
-
-  async getMerchantWabaAccountById(id: string): Promise<MerchantWabaAccount | undefined> {
-    const result = await db.select().from(merchantWabaAccounts)
-      .where(eq(merchantWabaAccounts.id, id))
-      .limit(1);
-    return result[0];
-  }
-
-  async createMerchantWabaAccount(data: InsertMerchantWabaAccount): Promise<MerchantWabaAccount> {
-    const id = generateId("waba_");
-    const result = await db.insert(merchantWabaAccounts).values({
-      ...data,
-      id,
-      createdAt: new Date(),
-    }).returning();
-    return result[0];
-  }
-
-  async updateMerchantWabaAccount(id: string, data: Partial<InsertMerchantWabaAccount>): Promise<MerchantWabaAccount | undefined> {
-    const result = await db.update(merchantWabaAccounts)
-      .set({ ...data, updatedAt: new Date() })
-      .where(eq(merchantWabaAccounts.id, id))
-      .returning();
-    return result[0];
-  }
-
-  async deleteMerchantWabaAccount(id: string): Promise<boolean> {
-    const result = await db.delete(merchantWabaAccounts)
-      .where(eq(merchantWabaAccounts.id, id))
-      .returning();
-    return result.length > 0;
-  }
-
-  // WA Blast Topup Packages
-  async getWaBlastTopupPackages(): Promise<WaBlastTopupPackage[]> {
-    return db.select().from(waBlastTopupPackages)
-      .where(eq(waBlastTopupPackages.isActive, true))
-      .orderBy(waBlastTopupPackages.sortOrder);
-  }
-
-  async createWaBlastTopupPackage(data: InsertWaBlastTopupPackage): Promise<WaBlastTopupPackage> {
-    const id = generateId("pkg_");
-    const result = await db.insert(waBlastTopupPackages).values({
-      ...data,
-      id,
-      createdAt: new Date(),
-    }).returning();
-    return result[0];
-  }
-
-  async updateWaBlastTopupPackage(id: string, data: Partial<InsertWaBlastTopupPackage>): Promise<WaBlastTopupPackage | undefined> {
-    const result = await db.update(waBlastTopupPackages)
-      .set(data)
-      .where(eq(waBlastTopupPackages.id, id))
-      .returning();
-    return result[0];
-  }
-
-  async deleteWaBlastTopupPackage(id: string): Promise<boolean> {
-    const result = await db.delete(waBlastTopupPackages)
-      .where(eq(waBlastTopupPackages.id, id))
-      .returning();
-    return result.length > 0;
-  }
-
-  // WA Blast Topup Orders
-  async createWaBlastTopupOrder(data: InsertWaBlastTopupOrder): Promise<WaBlastTopupOrder> {
-    const id = generateId("waord_");
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24); // Orders expire in 24 hours
-    
-    const result = await db.insert(waBlastTopupOrders).values({
-      ...data,
-      id,
-      expiresAt,
-      createdAt: new Date(),
-    }).returning();
-    return result[0];
-  }
-
-  async getWaBlastTopupOrderById(id: string): Promise<WaBlastTopupOrder | undefined> {
-    const result = await db.select().from(waBlastTopupOrders)
-      .where(eq(waBlastTopupOrders.id, id))
-      .limit(1);
-    return result[0];
-  }
-
-  async getWaBlastTopupOrderByIdempotencyKey(key: string): Promise<WaBlastTopupOrder | undefined> {
-    const result = await db.select().from(waBlastTopupOrders)
-      .where(eq(waBlastTopupOrders.idempotencyKey, key))
-      .limit(1);
-    return result[0];
-  }
-
-  async updateWaBlastTopupOrder(id: string, data: Partial<InsertWaBlastTopupOrder>): Promise<WaBlastTopupOrder | undefined> {
-    const result = await db.update(waBlastTopupOrders)
-      .set(data)
-      .where(eq(waBlastTopupOrders.id, id))
-      .returning();
-    return result[0];
-  }
-
-  async completeWaBlastTopupOrder(orderId: string, paymentReference: string): Promise<WaBlastTopupOrder | null> {
-    // Use atomic conditional update to prevent race conditions
-    // Only update if status is currently 'pending'
-    const updatedOrder = await db.update(waBlastTopupOrders)
-      .set({ 
-        status: "completed", 
-        paymentReference,
-        completedAt: new Date(),
-      })
-      .where(and(
-        eq(waBlastTopupOrders.id, orderId),
-        eq(waBlastTopupOrders.status, "pending"),
-        // Also check not expired
-        or(
-          isNull(waBlastTopupOrders.expiresAt),
-          gte(waBlastTopupOrders.expiresAt, new Date())
-        )
-      ))
-      .returning();
-
-    if (updatedOrder.length === 0) {
-      // Check if expired and update status
-      const order = await this.getWaBlastTopupOrderById(orderId);
-      if (order && order.status === "pending" && order.expiresAt && new Date() > new Date(order.expiresAt)) {
-        await db.update(waBlastTopupOrders)
-          .set({ status: "expired" })
-          .where(eq(waBlastTopupOrders.id, orderId));
-      }
-      return null;
-    }
-
-    const order = updatedOrder[0];
-    
-    // Credit balance after order is marked complete
-    await this.addWaBlastBalance(order.merchantId, order.totalAmount, {
-      description: `Top up via ${order.paymentProvider || order.paymentMethod}`,
-      paymentMethod: order.paymentMethod,
-      paymentProvider: order.paymentProvider || undefined,
-      paymentReference,
-      paymentStatus: "completed",
-    });
-
-    return order;
-  }
-
-  async getPendingWaBlastTopupOrders(merchantId: string): Promise<WaBlastTopupOrder[]> {
-    return db.select().from(waBlastTopupOrders)
-      .where(and(
-        eq(waBlastTopupOrders.merchantId, merchantId),
-        eq(waBlastTopupOrders.status, "pending"),
-      ))
-      .orderBy(desc(waBlastTopupOrders.createdAt));
   }
 }
 

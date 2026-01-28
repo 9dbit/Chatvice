@@ -474,7 +474,7 @@ export default function ProfileWizardPage() {
         title: "Profile Complete!",
         description: "Welcome to Chatvice. Let's set up your first AI agent.",
       });
-      setLocation("/merchant-home");
+      setLocation("/select-agent");
     },
     onError: (error: any) => {
       toast({

@@ -25,12 +25,6 @@ import AboutPage from "@/pages/about";
 import APIDocsPage from "@/pages/api-docs";
 import ChangelogPage from "@/pages/changelog";
 import IntegrationsPage from "@/pages/integrations";
-import WhatsAppBlastPage from "@/pages/whatsapp-blast";
-import BlasterLandingPage from "@/pages/blaster-landing";
-import BlasterBillingPage from "@/pages/blaster-billing";
-import BlasterDashboard from "@/pages/blaster-dashboard";
-import SSOCallback from "@/pages/sso-callback";
-import { isBlasterSubdomain } from "@/lib/blaster-routes";
 
 import PrivacyPolicyPage from "@/pages/legal/privacy";
 import TermsOfServicePage from "@/pages/legal/terms";
@@ -81,12 +75,9 @@ function ScrollToTop() {
 function GlobalHelpBubble() {
   const [location] = useLocation();
   
-  // Hide on chat subdomain (customer chat platform) and blaster subdomain
+  // Hide on chat subdomain (customer chat platform)
   const hostname = window.location.hostname;
   if (hostname.startsWith('chat.') || hostname === 'chat.chatvice.app') {
-    return null;
-  }
-  if (hostname.startsWith('blaster.') || hostname === 'blaster.chatvice.app') {
     return null;
   }
   
@@ -123,25 +114,6 @@ function isChatSubdomain() {
   return hostname.startsWith('chat.') || hostname === 'chat.chatvice.app';
 }
 
-// Blaster App Router (for blaster.chatvice.app subdomain)
-function BlasterAppRouter() {
-  return (
-    <Switch>
-      <Route path="/" component={BlasterLandingPage} />
-      <Route path="/sso-callback" component={SSOCallback} />
-      <Route path="/login">
-        {() => {
-          window.location.href = 'https://chatvice.app/login';
-          return null;
-        }}
-      </Route>
-      <Route path="/dashboard/*" component={BlasterDashboard} />
-      <Route path="/dashboard" component={BlasterDashboard} />
-      <Route component={NotFound} />
-    </Switch>
-  );
-}
-
 // Customer Chat App Router (for chat.chatvice.app subdomain)
 function ChatAppRouter() {
   return (
@@ -174,20 +146,13 @@ function MainRouter() {
       <Route path="/oauth-callback" component={OAuthCallback} />
       <Route path="/complete-profile" component={CompleteProfilePage} />
       <Route path="/profile-wizard" component={ProfileWizardPage} />
-      {/* Redirect merchant-home to dashboard */}
-      <Route path="/merchant-home">
-        {() => {
-          window.location.href = '/dashboard';
-          return null;
-        }}
-      </Route>
       <Route path="/select-agent" component={SelectAgentPage} />
-      <Route path="/dashboard/*" component={DashboardLayout} />
       <Route path="/dashboard" component={DashboardLayout} />
+      <Route path="/dashboard/:page*" component={DashboardLayout} />
       <Route path="/supervisor" component={SupervisorPanel} />
       <Route path="/admin/login" component={AdminLogin} />
-      <Route path="/admin/*" component={AdminDashboard} />
       <Route path="/admin" component={AdminDashboard} />
+      <Route path="/admin/:page*" component={AdminDashboard} />
       <Route path="/widget-demo" component={WidgetDemoPage} />
       <Route path="/widget/:merchantId">
         {(params) => {
@@ -225,7 +190,6 @@ function MainRouter() {
 
       <Route path="/faq" component={FAQPage} />
       <Route path="/features" component={FeaturesPage} />
-      <Route path="/whatsapp-blast" component={WhatsAppBlastPage} />
       <Route path="/pricing" component={PricingPage} />
       <Route path="/about" component={AboutPage} />
       <Route path="/api-docs" component={APIDocsPage} />
@@ -273,9 +237,6 @@ function MainRouter() {
 function Router() {
   if (isChatSubdomain()) {
     return <ChatAppRouter />;
-  }
-  if (isBlasterSubdomain()) {
-    return <BlasterAppRouter />;
   }
   return <MainRouter />;
 }
