@@ -2492,3 +2492,104 @@ export const insertMerchantWaSubscriptionSchema = createInsertSchema(merchantWaS
 export type InsertMerchantWaSubscription = z.infer<typeof insertMerchantWaSubscriptionSchema>;
 export type MerchantWaSubscription = typeof merchantWaSubscription.$inferSelect;
 
+// WA Blast Wallet - Merchant's balance for BSP mode
+export const waBlastWallet = pgTable("wa_blast_wallet", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull().unique(),
+  balance: integer("balance").default(0), // Balance in IDR
+  totalTopup: integer("total_topup").default(0), // Total amount ever topped up
+  totalSpent: integer("total_spent").default(0), // Total amount spent on messages
+  mode: text("mode").default("bsp"), // "bsp" (Chatvice wallet) or "byowaba" (own WABA)
+  // PayPal auto-topup settings
+  paypalEmail: text("paypal_email"),
+  paypalAutoTopup: boolean("paypal_auto_topup").default(false),
+  paypalAutoTopupThreshold: integer("paypal_auto_topup_threshold").default(50000), // Auto topup when balance below this
+  paypalAutoTopupAmount: integer("paypal_auto_topup_amount").default(100000), // Amount to auto topup
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at"),
+}, (table) => ({
+  merchantIdx: index("wa_wallet_merchant_idx").on(table.merchantId),
+}));
+
+export const insertWaBlastWalletSchema = createInsertSchema(waBlastWallet).omit({ id: true, createdAt: true });
+export type InsertWaBlastWallet = z.infer<typeof insertWaBlastWalletSchema>;
+export type WaBlastWallet = typeof waBlastWallet.$inferSelect;
+
+// WA Blast Transactions - All wallet transactions (topup, debit, refund)
+export const waBlastTransactions = pgTable("wa_blast_transactions", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  type: text("type").notNull(), // "topup", "debit", "refund", "platform_fee"
+  amount: integer("amount").notNull(), // Positive for topup/refund, negative for debit
+  balanceAfter: integer("balance_after").notNull(), // Balance after transaction
+  description: text("description"), // Human readable description
+  // Payment details (for topup)
+  paymentMethod: text("payment_method"), // "paypal", "qris", "ewallet", "va", "crypto"
+  paymentProvider: text("payment_provider"), // "kompaspay", "paypal"
+  paymentReference: text("payment_reference"), // External payment ID
+  paymentStatus: text("payment_status").default("pending"), // "pending", "completed", "failed", "refunded"
+  // Message details (for debit)
+  messageCategory: text("message_category"), // "marketing", "utility", "otp", "text"
+  messageCount: integer("message_count"), // Number of messages
+  campaignId: varchar("campaign_id", { length: 32 }), // Link to campaign if applicable
+  // Refund details
+  originalTransactionId: varchar("original_transaction_id", { length: 32 }),
+  refundReason: text("refund_reason"),
+  refundStatus: text("refund_status"), // "pending", "approved", "rejected", "completed"
+  refundApprovedBy: varchar("refund_approved_by", { length: 32 }),
+  refundApprovedAt: timestamp("refund_approved_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  merchantIdx: index("wa_tx_merchant_idx").on(table.merchantId),
+  typeIdx: index("wa_tx_type_idx").on(table.type),
+  createdAtIdx: index("wa_tx_created_at_idx").on(table.createdAt),
+}));
+
+export const insertWaBlastTransactionSchema = createInsertSchema(waBlastTransactions).omit({ id: true, createdAt: true });
+export type InsertWaBlastTransaction = z.infer<typeof insertWaBlastTransactionSchema>;
+export type WaBlastTransaction = typeof waBlastTransactions.$inferSelect;
+
+// BYOWABA - Merchant's own WhatsApp Business Account credentials
+export const merchantWabaAccounts = pgTable("merchant_waba_accounts", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  name: text("name").notNull(), // Friendly name for this WABA
+  wabaId: text("waba_id").notNull(), // WhatsApp Business Account ID
+  phoneNumberId: text("phone_number_id").notNull(), // Phone number ID from Meta
+  phoneNumber: text("phone_number").notNull(), // Display phone number
+  accessToken: text("access_token").notNull(), // Meta API access token (encrypted)
+  businessId: text("business_id"), // Meta Business ID
+  // Status
+  status: text("status").default("pending"), // "pending", "active", "disconnected", "error"
+  lastVerifiedAt: timestamp("last_verified_at"),
+  errorMessage: text("error_message"),
+  // Platform fee settings
+  platformFeePerMessage: integer("platform_fee_per_message").default(50), // Chatvice fee per message in IDR
+  platformFeePaid: integer("platform_fee_paid").default(0), // Total platform fee paid
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at"),
+}, (table) => ({
+  merchantIdx: index("waba_merchant_idx").on(table.merchantId),
+}));
+
+export const insertMerchantWabaAccountSchema = createInsertSchema(merchantWabaAccounts).omit({ id: true, createdAt: true });
+export type InsertMerchantWabaAccount = z.infer<typeof insertMerchantWabaAccountSchema>;
+export type MerchantWabaAccount = typeof merchantWabaAccounts.$inferSelect;
+
+// WA Blast Topup Packages - Pre-defined topup amounts
+export const waBlastTopupPackages = pgTable("wa_blast_topup_packages", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  name: text("name").notNull(), // "Starter", "Popular", "Business", etc.
+  amount: integer("amount").notNull(), // Amount in IDR
+  bonusAmount: integer("bonus_amount").default(0), // Bonus amount for this package
+  description: text("description"),
+  isPopular: boolean("is_popular").default(false),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertWaBlastTopupPackageSchema = createInsertSchema(waBlastTopupPackages).omit({ id: true, createdAt: true });
+export type InsertWaBlastTopupPackage = z.infer<typeof insertWaBlastTopupPackageSchema>;
+export type WaBlastTopupPackage = typeof waBlastTopupPackages.$inferSelect;
+

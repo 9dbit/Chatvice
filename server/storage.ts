@@ -76,6 +76,10 @@ import {
   personalMessages, type PersonalMessage, type InsertPersonalMessage,
   chatMedia, type ChatMedia, type InsertChatMedia,
   customerStories, type CustomerStory, type InsertCustomerStory,
+  waBlastWallet, type WaBlastWallet, type InsertWaBlastWallet,
+  waBlastTransactions, type WaBlastTransaction, type InsertWaBlastTransaction,
+  merchantWabaAccounts, type MerchantWabaAccount, type InsertMerchantWabaAccount,
+  waBlastTopupPackages, type WaBlastTopupPackage, type InsertWaBlastTopupPackage,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, or, lt, lte, isNull, isNotNull, sql, count, inArray, ne } from "drizzle-orm";
@@ -3699,6 +3703,226 @@ export class DatabaseStorage implements IStorage {
       createdAt: new Date(),
     }).returning();
     return result[0];
+  }
+
+  // WA Blast Wallet Operations
+  async getWaBlastWallet(merchantId: string): Promise<WaBlastWallet | undefined> {
+    const result = await db.select().from(waBlastWallet)
+      .where(eq(waBlastWallet.merchantId, merchantId))
+      .limit(1);
+    return result[0];
+  }
+
+  async createWaBlastWallet(merchantId: string): Promise<WaBlastWallet> {
+    const id = generateId("waw_");
+    const result = await db.insert(waBlastWallet).values({
+      id,
+      merchantId,
+      balance: 0,
+      totalTopup: 0,
+      totalSpent: 0,
+      mode: "bsp",
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+
+  async getOrCreateWaBlastWallet(merchantId: string): Promise<WaBlastWallet> {
+    let wallet = await this.getWaBlastWallet(merchantId);
+    if (!wallet) {
+      wallet = await this.createWaBlastWallet(merchantId);
+    }
+    return wallet;
+  }
+
+  async updateWaBlastWallet(merchantId: string, data: Partial<InsertWaBlastWallet>): Promise<WaBlastWallet | undefined> {
+    const result = await db.update(waBlastWallet)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(waBlastWallet.merchantId, merchantId))
+      .returning();
+    return result[0];
+  }
+
+  async addWaBlastBalance(merchantId: string, amount: number, transactionData: Partial<InsertWaBlastTransaction>): Promise<WaBlastTransaction> {
+    const wallet = await this.getOrCreateWaBlastWallet(merchantId);
+    const newBalance = (wallet.balance || 0) + amount;
+    
+    await db.update(waBlastWallet)
+      .set({ 
+        balance: newBalance,
+        totalTopup: (wallet.totalTopup || 0) + amount,
+        updatedAt: new Date(),
+      })
+      .where(eq(waBlastWallet.merchantId, merchantId));
+
+    const txId = generateId("watx_");
+    const result = await db.insert(waBlastTransactions).values({
+      id: txId,
+      merchantId,
+      type: "topup",
+      amount,
+      balanceAfter: newBalance,
+      ...transactionData,
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+
+  async deductWaBlastBalance(merchantId: string, amount: number, transactionData: Partial<InsertWaBlastTransaction>): Promise<WaBlastTransaction | null> {
+    const wallet = await this.getOrCreateWaBlastWallet(merchantId);
+    if ((wallet.balance || 0) < amount) {
+      return null;
+    }
+
+    const newBalance = (wallet.balance || 0) - amount;
+    
+    await db.update(waBlastWallet)
+      .set({ 
+        balance: newBalance,
+        totalSpent: (wallet.totalSpent || 0) + amount,
+        updatedAt: new Date(),
+      })
+      .where(eq(waBlastWallet.merchantId, merchantId));
+
+    const txId = generateId("watx_");
+    const result = await db.insert(waBlastTransactions).values({
+      id: txId,
+      merchantId,
+      type: "debit",
+      amount: -amount,
+      balanceAfter: newBalance,
+      ...transactionData,
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+
+  async getWaBlastTransactions(merchantId: string, limit: number = 50): Promise<WaBlastTransaction[]> {
+    return db.select().from(waBlastTransactions)
+      .where(eq(waBlastTransactions.merchantId, merchantId))
+      .orderBy(desc(waBlastTransactions.createdAt))
+      .limit(limit);
+  }
+
+  async getWaBlastTransactionById(id: string): Promise<WaBlastTransaction | undefined> {
+    const result = await db.select().from(waBlastTransactions)
+      .where(eq(waBlastTransactions.id, id))
+      .limit(1);
+    return result[0];
+  }
+
+  async updateWaBlastTransaction(id: string, data: Partial<InsertWaBlastTransaction>): Promise<WaBlastTransaction | undefined> {
+    const result = await db.update(waBlastTransactions)
+      .set(data)
+      .where(eq(waBlastTransactions.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async createRefundRequest(merchantId: string, originalTransactionId: string, reason: string): Promise<WaBlastTransaction | null> {
+    const originalTx = await this.getWaBlastTransactionById(originalTransactionId);
+    if (!originalTx || originalTx.merchantId !== merchantId || originalTx.type !== "topup") {
+      return null;
+    }
+    
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    if (originalTx.createdAt && originalTx.createdAt < sevenDaysAgo) {
+      return null;
+    }
+
+    const wallet = await this.getWaBlastWallet(merchantId);
+    if (!wallet || (wallet.balance || 0) < Math.abs(originalTx.amount)) {
+      return null;
+    }
+
+    const txId = generateId("watx_");
+    const result = await db.insert(waBlastTransactions).values({
+      id: txId,
+      merchantId,
+      type: "refund",
+      amount: 0,
+      balanceAfter: wallet.balance || 0,
+      description: `Refund request for transaction ${originalTransactionId}`,
+      originalTransactionId,
+      refundReason: reason,
+      refundStatus: "pending",
+      paymentMethod: originalTx.paymentMethod,
+      paymentProvider: originalTx.paymentProvider,
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+
+  // BYOWABA Operations
+  async getMerchantWabaAccounts(merchantId: string): Promise<MerchantWabaAccount[]> {
+    return db.select().from(merchantWabaAccounts)
+      .where(eq(merchantWabaAccounts.merchantId, merchantId))
+      .orderBy(desc(merchantWabaAccounts.createdAt));
+  }
+
+  async getMerchantWabaAccountById(id: string): Promise<MerchantWabaAccount | undefined> {
+    const result = await db.select().from(merchantWabaAccounts)
+      .where(eq(merchantWabaAccounts.id, id))
+      .limit(1);
+    return result[0];
+  }
+
+  async createMerchantWabaAccount(data: InsertMerchantWabaAccount): Promise<MerchantWabaAccount> {
+    const id = generateId("waba_");
+    const result = await db.insert(merchantWabaAccounts).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+
+  async updateMerchantWabaAccount(id: string, data: Partial<InsertMerchantWabaAccount>): Promise<MerchantWabaAccount | undefined> {
+    const result = await db.update(merchantWabaAccounts)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(merchantWabaAccounts.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteMerchantWabaAccount(id: string): Promise<boolean> {
+    const result = await db.delete(merchantWabaAccounts)
+      .where(eq(merchantWabaAccounts.id, id))
+      .returning();
+    return result.length > 0;
+  }
+
+  // WA Blast Topup Packages
+  async getWaBlastTopupPackages(): Promise<WaBlastTopupPackage[]> {
+    return db.select().from(waBlastTopupPackages)
+      .where(eq(waBlastTopupPackages.isActive, true))
+      .orderBy(waBlastTopupPackages.sortOrder);
+  }
+
+  async createWaBlastTopupPackage(data: InsertWaBlastTopupPackage): Promise<WaBlastTopupPackage> {
+    const id = generateId("pkg_");
+    const result = await db.insert(waBlastTopupPackages).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+
+  async updateWaBlastTopupPackage(id: string, data: Partial<InsertWaBlastTopupPackage>): Promise<WaBlastTopupPackage | undefined> {
+    const result = await db.update(waBlastTopupPackages)
+      .set(data)
+      .where(eq(waBlastTopupPackages.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteWaBlastTopupPackage(id: string): Promise<boolean> {
+    const result = await db.delete(waBlastTopupPackages)
+      .where(eq(waBlastTopupPackages.id, id))
+      .returning();
+    return result.length > 0;
   }
 }
 
