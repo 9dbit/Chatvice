@@ -19141,16 +19141,21 @@ Please create a comprehensive help center article that would be useful for custo
   app.post("/api/wa-blast/topup", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
-      const { packageId, paymentMethod, idempotencyKey: clientIdempotencyKey } = req.body;
+      const { packageId, paymentMethod, bankCode, idempotencyKey: clientIdempotencyKey } = req.body;
       
       if (!packageId || !paymentMethod) {
         return res.status(400).json({ error: "Package ID and payment method required" });
       }
       
       // Validate payment method
-      const validMethods = ["qris", "ewallet", "va", "paypal"];
+      const validMethods = ["qris", "va", "paymentlink"];
       if (!validMethods.includes(paymentMethod)) {
         return res.status(400).json({ error: "Invalid payment method" });
+      }
+      
+      // VA requires bank code
+      if (paymentMethod === "va" && !bankCode) {
+        return res.status(400).json({ error: "Bank code required for VA payment" });
       }
       
       // Get package from database to determine amount (not from client)
@@ -19160,12 +19165,13 @@ Please create a comprehensive help center article that would be useful for custo
         return res.status(400).json({ error: "Invalid package" });
       }
       
-      const totalAmount = pkg.amount + (pkg.bonusAmount || 0);
+      const totalCredits = pkg.amount + (pkg.bonusAmount || 0);
       const idempotencyKey = clientIdempotencyKey || `topup_${merchantId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       
       // Check for existing order with same idempotency key
       const existingOrder = await storage.getWaBlastTopupOrderByIdempotencyKey(idempotencyKey);
       if (existingOrder) {
+        // For existing orders, return the stored payment URL for user to continue payment
         return res.json({
           orderId: existingOrder.id,
           packageId: existingOrder.packageId,
@@ -19174,30 +19180,117 @@ Please create a comprehensive help center article that would be useful for custo
           bonusAmount: existingOrder.bonusAmount || 0,
           totalAmount: existingOrder.totalAmount,
           paymentMethod: existingOrder.paymentMethod,
+          paymentProvider: existingOrder.paymentProvider,
           idempotencyKey: existingOrder.idempotencyKey,
           status: existingOrder.status,
           paymentUrl: existingOrder.paymentUrl,
-          message: existingOrder.status === "completed" ? "Order sudah selesai" : "Lanjutkan pembayaran",
+          paymentData: {
+            paymentUrl: existingOrder.paymentUrl,
+          },
+          message: existingOrder.status === "completed" ? "Order sudah selesai" : "Lanjutkan pembayaran. Gunakan link pembayaran yang sama.",
         });
       }
       
       // Create pending order in database
-      const paymentProvider = paymentMethod === "paypal" ? "paypal" : "kompaspay";
+      const paymentProvider = "kompaspay";
       const order = await storage.createWaBlastTopupOrder({
         merchantId,
         packageId,
         amount: pkg.amount,
         bonusAmount: pkg.bonusAmount || 0,
-        totalAmount,
+        totalAmount: totalCredits,
         paymentMethod,
         paymentProvider,
         idempotencyKey,
         status: "pending",
-        // TODO: paymentUrl will be set after actual gateway integration
       });
       
-      // TODO: Integrate with actual PayPal/Kompas Pay API to create payment session
-      // and set paymentUrl to the gateway's checkout URL
+      // Get merchant info for payment
+      const merchant = await storage.getMerchantById(merchantId);
+      
+      // Initialize payment based on method
+      let paymentData: any = null;
+      let paymentUrl: string | null = null;
+      
+      if (paymentMethod === "qris") {
+        // Create QRIS payment via Kompas Pay
+        const qrisResult = await createQRISPayment({
+          merchantId,
+          orderId: order.id,
+          amount: pkg.amount,
+          customerName: merchant?.businessName || "Customer",
+          customerEmail: merchant?.email || "customer@example.com",
+          description: `WA Blast Top Up - ${pkg.name}`,
+          expiryMinutes: 30,
+          callbackUrl: `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : ''}/api/wa-blast/topup/callback`,
+        });
+        
+        if (!qrisResult.success) {
+          await storage.updateWaBlastTopupOrder(order.id, { status: "failed" });
+          return res.status(400).json({ error: qrisResult.error || "Failed to create QRIS payment" });
+        }
+        
+        paymentData = {
+          qrisImageUrl: qrisResult.data?.qrisImageUrl,
+          qrisString: qrisResult.data?.qrisString,
+          expiryTime: qrisResult.data?.expiryTime,
+          transactionId: qrisResult.data?.transactionId,
+        };
+      } else if (paymentMethod === "va") {
+        // Create VA payment via Kompas Pay
+        const vaResult = await createVAPayment({
+          merchantId,
+          orderId: order.id,
+          amount: pkg.amount,
+          bankCode: bankCode,
+          customerName: merchant?.businessName || "Customer",
+          customerEmail: merchant?.email || "customer@example.com",
+          description: `WA Blast Top Up - ${pkg.name}`,
+          expiryMinutes: 1440,
+          callbackUrl: `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : ''}/api/wa-blast/topup/callback`,
+        });
+        
+        if (!vaResult.success) {
+          await storage.updateWaBlastTopupOrder(order.id, { status: "failed" });
+          return res.status(400).json({ error: vaResult.error || "Failed to create VA payment" });
+        }
+        
+        paymentData = {
+          vaNumber: vaResult.data?.vaNumber,
+          bankCode: vaResult.data?.bankCode,
+          expiryTime: vaResult.data?.expiryTime,
+          transactionId: vaResult.data?.transactionId,
+        };
+      } else if (paymentMethod === "paymentlink") {
+        // Create Payment Link via Kompas Pay
+        const linkResult = await createPaymentLinkPayment({
+          merchantId,
+          orderId: order.id,
+          amount: pkg.amount,
+          customerName: merchant?.businessName || "Customer",
+          customerEmail: merchant?.email || "customer@example.com",
+          description: `WA Blast Top Up - ${pkg.name}`,
+          expiryMinutes: 1440,
+          callbackUrl: `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : ''}/api/wa-blast/topup/callback`,
+        });
+        
+        if (!linkResult.success) {
+          await storage.updateWaBlastTopupOrder(order.id, { status: "failed" });
+          return res.status(400).json({ error: linkResult.error || "Failed to create payment link" });
+        }
+        
+        paymentUrl = linkResult.data?.paymentUrl || null;
+        paymentData = {
+          paymentUrl: linkResult.data?.paymentUrl,
+          expiryTime: linkResult.data?.expiryTime,
+          transactionId: linkResult.data?.transactionId,
+        };
+      }
+      
+      // Update order with payment URL if available
+      if (paymentUrl) {
+        await storage.updateWaBlastTopupOrder(order.id, { paymentUrl });
+      }
       
       res.json({ 
         orderId: order.id,
@@ -19205,13 +19298,14 @@ Please create a comprehensive help center article that would be useful for custo
         packageName: pkg.name,
         amount: pkg.amount,
         bonusAmount: pkg.bonusAmount || 0,
-        totalAmount,
+        totalAmount: totalCredits,
         paymentMethod,
         paymentProvider,
         idempotencyKey,
         status: "pending",
-        message: "Order dibuat. Lanjutkan ke halaman pembayaran.",
-        // paymentUrl will be provided after gateway integration
+        paymentUrl,
+        paymentData,
+        message: "Order dibuat. Lanjutkan pembayaran.",
       });
     } catch (error) {
       console.error("Topup error:", error);

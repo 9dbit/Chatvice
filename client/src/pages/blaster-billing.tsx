@@ -13,8 +13,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, Wallet, CreditCard, Building2, History, Plus, RefreshCcw, AlertCircle, CheckCircle2, Clock, ExternalLink, TrendingUp, Server, Smartphone } from "lucide-react";
+import { ArrowLeft, Wallet, CreditCard, Building2, History, Plus, RefreshCcw, AlertCircle, CheckCircle2, Clock, ExternalLink, TrendingUp, Server, Smartphone, QrCode, Loader2, Copy, Check, X, CreditCard as CardIcon } from "lucide-react";
 import { SiPaypal, SiWhatsapp, SiMeta } from "react-icons/si";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { WaBlastWallet, WaBlastTransaction, MerchantWabaAccount, WaBlastTopupPackage } from "@shared/schema";
 
 function formatCurrency(amount: number) {
@@ -36,6 +37,28 @@ function formatDate(date: string | Date | null | undefined) {
   }).format(new Date(date));
 }
 
+type PaymentResult = {
+  orderId: string;
+  packageName: string;
+  amount: number;
+  bonusAmount: number;
+  totalAmount: number;
+  paymentMethod: "qris" | "va" | "paymentlink";
+  paymentProvider: string;
+  status: string;
+  message?: string;
+  paymentUrl?: string;
+  paymentData?: {
+    qrisImageUrl?: string;
+    qrisString?: string;
+    vaNumber?: string;
+    bankCode?: string;
+    paymentUrl?: string;
+    expiryTime?: string;
+    transactionId?: string;
+  };
+};
+
 export default function BlasterBillingPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -44,6 +67,14 @@ export default function BlasterBillingPage() {
   const [refundDialogOpen, setRefundDialogOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<WaBlastTransaction | null>(null);
   const [refundReason, setRefundReason] = useState("");
+  
+  // Payment flow states
+  const [selectedPackage, setSelectedPackage] = useState<WaBlastTopupPackage | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<string>("qris");
+  const [bankCode, setBankCode] = useState<string>("");
+  const [paymentResult, setPaymentResult] = useState<PaymentResult | null>(null);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [copiedText, setCopiedText] = useState(false);
 
   const { data: wallet, isLoading: walletLoading } = useQuery<WaBlastWallet>({
     queryKey: ["/api/wa-blast/wallet"],
@@ -75,19 +106,35 @@ export default function BlasterBillingPage() {
   });
 
   const topupMutation = useMutation({
-    mutationFn: async (data: { packageId: string; paymentMethod: string }) => {
+    mutationFn: async (data: { packageId: string; paymentMethod: string; bankCode?: string }) => {
       return await apiRequest("/api/wa-blast/topup", "POST", data);
     },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/wa-blast/wallet"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/wa-blast/transactions"] });
+    onSuccess: (data: PaymentResult) => {
+      setPaymentResult(data);
+      setTopupDialogOpen(false);
+      setPaymentDialogOpen(true);
+      
+      // For payment link, also open in new tab as convenience
+      if (data.paymentMethod === "paymentlink" && data.paymentUrl) {
+        window.open(data.paymentUrl, "_blank");
+        toast({ 
+          title: "Order dibuat", 
+          description: "Halaman pembayaran dibuka di tab baru. Jika tidak terbuka, klik tombol di dialog." 
+        });
+        return;
+      }
+      
       toast({ 
         title: "Order dibuat", 
-        description: `Silakan lanjutkan pembayaran untuk ${data.packageName}` 
+        description: data.message || `Silakan lanjutkan pembayaran untuk ${data.packageName}` 
       });
     },
-    onError: () => {
-      toast({ title: "Gagal membuat order", variant: "destructive" });
+    onError: (error: any) => {
+      toast({ 
+        title: "Gagal membuat order", 
+        description: error?.message || "Terjadi kesalahan",
+        variant: "destructive" 
+      });
     },
   });
 
@@ -111,11 +158,44 @@ export default function BlasterBillingPage() {
     updateWalletMutation.mutate({ mode: newMode });
   };
 
-  const handleTopup = (pkg: WaBlastTopupPackage, paymentMethod: string = "qris") => {
-    topupMutation.mutate({
-      packageId: pkg.id,
+  const openTopupDialog = (pkg: WaBlastTopupPackage) => {
+    setSelectedPackage(pkg);
+    setPaymentMethod("qris");
+    setBankCode("");
+    setTopupDialogOpen(true);
+  };
+
+  const handleTopup = () => {
+    if (!selectedPackage) return;
+    
+    const data: { packageId: string; paymentMethod: string; bankCode?: string } = {
+      packageId: selectedPackage.id,
       paymentMethod,
-    });
+    };
+    
+    if (paymentMethod === "va" && bankCode) {
+      data.bankCode = bankCode;
+    }
+    
+    topupMutation.mutate(data);
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedText(true);
+      setTimeout(() => setCopiedText(false), 2000);
+      toast({ title: "Disalin ke clipboard" });
+    } catch {
+      toast({ title: "Gagal menyalin", variant: "destructive" });
+    }
+  };
+
+  const closePaymentDialog = () => {
+    setPaymentDialogOpen(false);
+    setPaymentResult(null);
+    queryClient.invalidateQueries({ queryKey: ["/api/wa-blast/wallet"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/wa-blast/transactions"] });
   };
 
   // Debounced settings update
@@ -377,7 +457,7 @@ export default function BlasterBillingPage() {
                               </div>
                               <Button
                                 className="w-full"
-                                onClick={() => handleTopup(pkg)}
+                                onClick={() => openTopupDialog(pkg)}
                                 disabled={topupMutation.isPending}
                                 data-testid={`button-topup-${pkg.id}`}
                               >
@@ -622,6 +702,192 @@ export default function BlasterBillingPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Top Up Method Selection Dialog */}
+      <Dialog open={topupDialogOpen} onOpenChange={setTopupDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Pilih Metode Pembayaran</DialogTitle>
+            <DialogDescription>
+              Top up {selectedPackage?.name} - {formatCurrency(selectedPackage?.amount || 0)}
+              {(selectedPackage?.bonusAmount || 0) > 0 && (
+                <span className="text-green-600"> (+{formatCurrency(selectedPackage?.bonusAmount || 0)} bonus)</span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Metode Pembayaran</Label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger data-testid="select-payment-method">
+                  <SelectValue placeholder="Pilih metode" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="qris" data-testid="option-qris">
+                    <div className="flex items-center gap-2">
+                      <QrCode className="h-4 w-4" />
+                      QRIS
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="va" data-testid="option-va">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      Virtual Account
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="paymentlink" data-testid="option-paymentlink">
+                    <div className="flex items-center gap-2">
+                      <CardIcon className="h-4 w-4" />
+                      Payment Link (Semua Metode)
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {paymentMethod === "va" && (
+              <div className="space-y-2">
+                <Label>Pilih Bank</Label>
+                <Select value={bankCode} onValueChange={setBankCode}>
+                  <SelectTrigger data-testid="select-bank">
+                    <SelectValue placeholder="Pilih bank" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BCA" data-testid="option-bank-bca">BCA</SelectItem>
+                    <SelectItem value="BNI" data-testid="option-bank-bni">BNI</SelectItem>
+                    <SelectItem value="BRI" data-testid="option-bank-bri">BRI</SelectItem>
+                    <SelectItem value="MANDIRI" data-testid="option-bank-mandiri">Mandiri</SelectItem>
+                    <SelectItem value="PERMATA" data-testid="option-bank-permata">Permata</SelectItem>
+                    <SelectItem value="CIMB" data-testid="option-bank-cimb">CIMB Niaga</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <DialogClose asChild>
+              <Button variant="outline" data-testid="button-cancel-topup">Batal</Button>
+            </DialogClose>
+            <Button
+              onClick={handleTopup}
+              disabled={topupMutation.isPending || (paymentMethod === "va" && !bankCode)}
+              data-testid="button-confirm-topup"
+            >
+              {topupMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Memproses...
+                </>
+              ) : (
+                "Lanjutkan Pembayaran"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Result Dialog */}
+      <Dialog open={paymentDialogOpen} onOpenChange={(open) => { if (!open) closePaymentDialog(); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {paymentResult?.paymentMethod === "qris" && <QrCode className="h-5 w-5" />}
+              {paymentResult?.paymentMethod === "va" && <Building2 className="h-5 w-5" />}
+              {paymentResult?.paymentMethod === "paymentlink" && <CardIcon className="h-5 w-5" />}
+              Pembayaran {paymentResult?.packageName}
+            </DialogTitle>
+            <DialogDescription>
+              Order ID: {paymentResult?.orderId}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="p-4 rounded-lg bg-muted">
+              <div className="flex justify-between mb-2">
+                <span className="text-muted-foreground">Jumlah</span>
+                <span className="font-bold">{formatCurrency(paymentResult?.amount || 0)}</span>
+              </div>
+              {(paymentResult?.bonusAmount || 0) > 0 && (
+                <div className="flex justify-between mb-2">
+                  <span className="text-muted-foreground">Bonus</span>
+                  <span className="font-bold text-green-600">+{formatCurrency(paymentResult?.bonusAmount || 0)}</span>
+                </div>
+              )}
+              <Separator className="my-2" />
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total Saldo</span>
+                <span className="font-bold text-lg">{formatCurrency(paymentResult?.totalAmount || 0)}</span>
+              </div>
+            </div>
+
+            {/* QRIS Display */}
+            {paymentResult?.paymentMethod === "qris" && paymentResult?.paymentData?.qrisImageUrl && (
+              <div className="text-center space-y-3">
+                <img 
+                  src={paymentResult.paymentData.qrisImageUrl} 
+                  alt="QRIS Code" 
+                  className="mx-auto max-w-[200px] rounded-lg border"
+                />
+                {paymentResult.paymentData.expiryTime && (
+                  <p className="text-sm text-muted-foreground">
+                    Berlaku sampai: {formatDate(paymentResult.paymentData.expiryTime)}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* VA Display */}
+            {paymentResult?.paymentMethod === "va" && paymentResult?.paymentData?.vaNumber && (
+              <div className="space-y-3">
+                <div className="p-4 rounded-lg border bg-card">
+                  <p className="text-sm text-muted-foreground mb-1">Bank {paymentResult.paymentData.bankCode}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl font-mono font-bold">{paymentResult.paymentData.vaNumber}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyToClipboard(paymentResult.paymentData?.vaNumber || "")}
+                      data-testid="button-copy-va"
+                    >
+                      {copiedText ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+                {paymentResult.paymentData.expiryTime && (
+                  <p className="text-sm text-muted-foreground text-center">
+                    Berlaku sampai: {formatDate(paymentResult.paymentData.expiryTime)}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Payment Link */}
+            {paymentResult?.paymentMethod === "paymentlink" && paymentResult?.paymentUrl && (
+              <div className="text-center">
+                <Button asChild className="w-full" data-testid="button-open-payment-link">
+                  <a href={paymentResult.paymentUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Buka Halaman Pembayaran
+                  </a>
+                </Button>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800">
+              <AlertCircle className="h-4 w-4 text-yellow-600 flex-shrink-0" />
+              <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                Saldo akan otomatis ditambahkan setelah pembayaran berhasil.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closePaymentDialog} data-testid="button-close-payment">
+              Tutup
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
         <DialogContent>
