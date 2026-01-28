@@ -463,6 +463,7 @@ export interface IStorage {
   getAllCustomers(): Promise<Customer[]>;
   getCustomer(id: string): Promise<Customer | undefined>;
   getCustomerByPhone(phoneNumber: string): Promise<Customer | undefined>;
+  getCustomerByPersonalId(personalId: string): Promise<Customer | undefined>;
   createCustomer(data: InsertCustomer): Promise<Customer>;
   updateCustomer(id: string, data: Partial<Customer>): Promise<Customer | undefined>;
   
@@ -3412,15 +3413,35 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
   
+  async getCustomerByPersonalId(personalId: string): Promise<Customer | undefined> {
+    const result = await db.select().from(customers).where(eq(customers.personalId, personalId));
+    return result[0];
+  }
+  
   async createCustomer(data: InsertCustomer): Promise<Customer> {
     const id = generateId("cust_");
+    
+    // Generate personal ID in format P-A01-XXXXX
+    const personalId = await this.generatePersonalId();
+    
     const result = await db.insert(customers).values({
       ...data,
       id,
+      personalId,
       createdAt: new Date(),
       updatedAt: new Date(),
     }).returning();
     return result[0];
+  }
+  
+  async generatePersonalId(): Promise<string> {
+    // Get the count of existing customers to generate sequential ID
+    const countResult = await db.select({ count: sql<number>`count(*)::int` }).from(customers);
+    const count = (countResult[0]?.count || 0) + 1;
+    
+    // Format: P-A01-XXXXX (P = Personal, A01 = Area code, XXXXX = 5-digit sequential)
+    const sequentialNumber = count.toString().padStart(5, '0');
+    return `P-A01-${sequentialNumber}`;
   }
   
   async updateCustomer(id: string, data: Partial<Customer>): Promise<Customer | undefined> {

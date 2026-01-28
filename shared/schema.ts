@@ -2014,6 +2014,7 @@ export type MerchantActivityLog = typeof merchantActivityLogs.$inferSelect;
 // Customers - registered users on customer chat platform
 export const customers = pgTable("customers", {
   id: varchar("id", { length: 32 }).primaryKey(),
+  personalId: text("personal_id").unique(), // Format: P-A01-00001 (P = Personal, auto-generated)
   phoneNumber: text("phone_number").notNull().unique(), // E.164 format
   phoneCountryCode: text("phone_country_code"), // Country code (e.g., +1, +62)
   displayName: text("display_name"),
@@ -2032,6 +2033,7 @@ export const customers = pgTable("customers", {
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
   phoneNumberIdx: index("customer_phone_idx").on(table.phoneNumber),
+  personalIdIdx: index("customer_personal_id_idx").on(table.personalId),
 }));
 
 export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true, updatedAt: true });

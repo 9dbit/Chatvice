@@ -18014,6 +18014,7 @@ Please create a comprehensive help center article that would be useful for custo
       
       res.json({
         id: customer.id,
+        personalId: customer.personalId,
         phoneNumber: customer.phoneNumber,
         displayName: customer.displayName,
         avatarUrl: customer.avatarUrl,
@@ -18025,6 +18026,39 @@ Please create a comprehensive help center article that would be useful for custo
     } catch (error) {
       console.error("Get customer error:", error);
       res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Get QR code for personal ID
+  app.get("/api/customer/qr-code", async (req, res) => {
+    try {
+      const customerId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!customerId || userType !== "customer") {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const customer = await storage.getCustomer(customerId);
+      if (!customer || !customer.personalId) {
+        return res.status(404).json({ error: "Personal ID not found" });
+      }
+      
+      // Generate QR code as data URL
+      const QRCode = require("qrcode");
+      const qrCode = await QRCode.toDataURL(customer.personalId, {
+        width: 200,
+        margin: 2,
+        color: {
+          dark: "#000000",
+          light: "#ffffff",
+        },
+      });
+      
+      res.json({ qrCode });
+    } catch (error) {
+      console.error("Get QR code error:", error);
+      res.status(500).json({ error: "Failed to generate QR code" });
     }
   });
   
@@ -18590,6 +18624,60 @@ Please create a comprehensive help center article that would be useful for custo
       res.json(contact);
     } catch (error) {
       console.error("Add contact error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
+  // Add contact by Personal ID (from QR code)
+  app.post("/api/customer/contacts/by-personal-id", async (req, res) => {
+    try {
+      const customerId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!customerId || userType !== "customer") {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const { personalId } = req.body;
+      
+      if (!personalId) {
+        return res.status(400).json({ error: "Personal ID is required" });
+      }
+      
+      // Validate Personal ID format
+      if (!personalId.match(/^P-[A-Z]\d{2}-\d{5}$/)) {
+        return res.status(400).json({ error: "Invalid Personal ID format" });
+      }
+      
+      // Find the customer with this Personal ID
+      const contactCustomer = await storage.getCustomerByPersonalId(personalId);
+      if (!contactCustomer) {
+        return res.status(404).json({ error: "No user found with this Personal ID" });
+      }
+      
+      // Prevent adding yourself
+      if (contactCustomer.id === customerId) {
+        return res.status(400).json({ error: "You cannot add yourself as a contact" });
+      }
+      
+      // Check if already added
+      const existingContacts = await storage.getCustomerContacts(customerId);
+      const alreadyAdded = existingContacts.find(c => c.contactCustomerId === contactCustomer.id);
+      if (alreadyAdded) {
+        return res.status(400).json({ error: "This person is already in your contacts" });
+      }
+      
+      // Create the contact
+      const contact = await storage.createCustomerContact({
+        customerId,
+        contactCustomerId: contactCustomer.id,
+        displayName: contactCustomer.name || `User ${personalId}`,
+        phoneNumber: contactCustomer.phone,
+      });
+      
+      res.json(contact);
+    } catch (error) {
+      console.error("Add contact by Personal ID error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });

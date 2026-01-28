@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { User, Camera, LogOut, Bell, Shield, Trash2, Loader2 } from "lucide-react";
+import { User, Camera, LogOut, Bell, Shield, Trash2, Loader2, QrCode, Copy, Check } from "lucide-react";
 import CustomerLayout from "./layout";
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +16,7 @@ import { chatRoutes } from "@/lib/chat-routes";
 
 interface CustomerProfile {
   id: string;
+  personalId: string | null;
   phoneNumber: string;
   displayName: string | null;
   avatarUrl: string | null;
@@ -38,6 +39,25 @@ export default function CustomerSettingsPage() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
+  
+  // Fetch QR code for personal ID
+  const { data: qrCodeData } = useQuery<{ qrCode: string }>({
+    queryKey: ["/api/customer/qr-code"],
+    enabled: !!customer?.personalId,
+  });
+  
+  const handleCopyPersonalId = async () => {
+    if (!customer?.personalId) return;
+    try {
+      await navigator.clipboard.writeText(customer.personalId);
+      setCopiedId(true);
+      toast({ title: "Personal ID copied!" });
+      setTimeout(() => setCopiedId(false), 2000);
+    } catch {
+      toast({ title: "Failed to copy", variant: "destructive" });
+    }
+  };
   
   useEffect(() => {
     if (customer) {
@@ -335,6 +355,65 @@ export default function CustomerSettingsPage() {
                   {updateProfileMutation.isPending ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+          
+          {/* Personal ID & QR Code Section */}
+          <Card className="backdrop-blur-xl bg-white/5 dark:bg-white/[0.03] border-white/10 dark:border-white/5">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <QrCode className="w-5 h-5 text-primary" />
+                Personal ID
+              </CardTitle>
+              <CardDescription>Share your Personal ID or QR code to connect with others</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {customer.personalId ? (
+                <>
+                  {/* Personal ID Display */}
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-white/10">
+                    <div className="flex-1">
+                      <p className="text-xs text-muted-foreground mb-1">Your Personal ID</p>
+                      <p className="font-mono text-lg font-semibold" data-testid="text-personal-id">{customer.personalId}</p>
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={handleCopyPersonalId}
+                      data-testid="button-copy-personal-id"
+                    >
+                      {copiedId ? (
+                        <Check className="w-4 h-4 text-green-500" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                  
+                  {/* QR Code Display */}
+                  <div className="flex flex-col items-center gap-3">
+                    <p className="text-sm text-muted-foreground">Scan this QR code to add as contact</p>
+                    {qrCodeData?.qrCode ? (
+                      <div className="p-4 bg-white rounded-xl" data-testid="container-qr-code">
+                        <img 
+                          src={qrCodeData.qrCode} 
+                          alt="Personal QR Code" 
+                          className="w-48 h-48"
+                          data-testid="img-personal-qr"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-48 h-48 bg-muted/30 rounded-xl flex items-center justify-center">
+                        <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" />
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-4 text-muted-foreground">
+                  <p>Personal ID is being generated...</p>
+                </div>
+              )}
             </CardContent>
           </Card>
           

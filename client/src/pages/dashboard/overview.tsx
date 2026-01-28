@@ -131,17 +131,14 @@ export default function DashboardOverview() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold" data-testid="text-dashboard-title">Dashboard Overview</h1>
-        <p className="text-sm text-muted-foreground hidden sm:block">Monitor your AI chatbot performance and customer interactions.</p>
-      </div>
-
       {/* Install Chatvice Widget Section */}
       <Card className="backdrop-blur-xl bg-white/5 dark:bg-white/[0.03] border-white/10 dark:border-white/5" data-testid="card-install-widget">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Code className="w-5 h-5 text-primary" />
-            Install Chatvice Widget
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-primary via-purple-500 to-primary bg-[length:200%_100%] animate-gradient-x text-primary-foreground font-semibold text-sm" data-testid="button-install-widget-title">
+              <Code className="w-4 h-4" />
+              Install Chatvice Widget
+            </div>
           </CardTitle>
           <CardDescription>
             Add the AI chatbot to your website in 3 easy steps
@@ -177,7 +174,7 @@ export default function DashboardOverview() {
                   </pre>
                   <Button
                     onClick={handleCopyScript}
-                    className="w-full"
+                    className={`w-full ${!copied ? 'bg-gradient-to-r from-primary via-purple-500 to-primary bg-[length:200%_100%] animate-gradient-x hover:opacity-90' : ''}`}
                     size="sm"
                     data-testid="button-copy-embed-script"
                   >
@@ -276,6 +273,12 @@ export default function DashboardOverview() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Dashboard Overview Title - Moved below Install Widget */}
+      <div>
+        <h1 className="text-xl sm:text-2xl font-bold" data-testid="text-dashboard-title">Dashboard Overview</h1>
+        <p className="text-sm text-muted-foreground hidden sm:block">Monitor your AI chatbot performance and customer interactions.</p>
+      </div>
 
       {/* Real-time and Last 7 Days Grid - Frosted Glass Style */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
