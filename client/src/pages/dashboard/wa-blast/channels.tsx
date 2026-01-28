@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Smartphone, Link2, CheckCircle2, XCircle, Loader2, Settings, Trash2, RefreshCw } from "lucide-react";
+import { Plus, Smartphone, Link2, CheckCircle2, XCircle, Loader2, Settings, Trash2, RefreshCw, BookOpen, ChevronDown, ChevronUp } from "lucide-react";
+import { InfoTooltip, StepIndicator } from "@/components/info-tooltip";
 
 interface Channel {
   id: string;
@@ -24,6 +25,7 @@ interface Channel {
 export default function WABlastChannelsPage() {
   const { toast } = useToast();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(true);
   const [newChannel, setNewChannel] = useState({
     type: "meta_api" as "meta_api" | "wa_web",
     name: "",
@@ -113,12 +115,22 @@ export default function WABlastChannelsPage() {
     }
   };
 
+  const hasConnectedChannel = channels.some(c => c.status === "connected");
+
   return (
     <div className="flex-1 p-6 space-y-6 overflow-y-auto">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold" data-testid="text-page-title">WhatsApp Channels</h1>
-          <p className="text-muted-foreground">Kelola koneksi WhatsApp Business API</p>
+        <div className="flex items-center gap-2">
+          <div>
+            <h1 className="text-2xl font-semibold" data-testid="text-page-title">WhatsApp Channels</h1>
+            <p className="text-muted-foreground">Manage your WhatsApp Business API connections</p>
+          </div>
+          <InfoTooltip 
+            title="WhatsApp Channels" 
+            description="Channels are your WhatsApp Business connections. You need at least one connected channel to send broadcasts."
+            nextStep="Add your first channel to get started"
+            id="channels"
+          />
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
@@ -211,6 +223,53 @@ export default function WABlastChannelsPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-blue-200 dark:border-blue-800">
+        <button 
+          onClick={() => setShowTutorial(!showTutorial)}
+          className="w-full"
+          data-testid="button-toggle-tutorial"
+        >
+          <CardHeader className="flex flex-row items-center justify-between gap-2 py-3">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-blue-600" />
+              <CardTitle className="text-base text-blue-900 dark:text-blue-100">Step-by-Step Tutorial</CardTitle>
+            </div>
+            {showTutorial ? <ChevronUp className="w-5 h-5 text-blue-600" /> : <ChevronDown className="w-5 h-5 text-blue-600" />}
+          </CardHeader>
+        </button>
+        {showTutorial && (
+          <CardContent className="pt-0 pb-4">
+            <div className="grid gap-3 md:grid-cols-4">
+              <StepIndicator 
+                step={1} 
+                title="Add Channel" 
+                description="Click 'Add Channel' and enter your WhatsApp Business API credentials"
+                isActive={channels.length === 0}
+                isCompleted={channels.length > 0}
+              />
+              <StepIndicator 
+                step={2} 
+                title="Test Connection" 
+                description="Click the refresh button to verify your channel is connected"
+                isActive={channels.length > 0 && !hasConnectedChannel}
+                isCompleted={hasConnectedChannel}
+              />
+              <StepIndicator 
+                step={3} 
+                title="Add Contacts" 
+                description="Go to Contacts page to add recipients for your broadcasts"
+                isActive={hasConnectedChannel}
+              />
+              <StepIndicator 
+                step={4} 
+                title="Create Campaign" 
+                description="Create and send your first WhatsApp broadcast campaign"
+              />
+            </div>
+          </CardContent>
+        )}
+      </Card>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">

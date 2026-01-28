@@ -9,8 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, FileText, Loader2, Pencil, Trash2, Copy, Megaphone, Wrench, Key, Image, Video, FileType } from "lucide-react";
+import { Plus, FileText, Loader2, Pencil, Trash2, Copy, Megaphone, Wrench, Key, Image, Video, FileType, BookOpen, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { InfoTooltip, StepIndicator } from "@/components/info-tooltip";
 
 interface Template {
   id: string;
@@ -24,9 +26,66 @@ interface Template {
   createdAt: string;
 }
 
+const PREBUILT_TEMPLATES = {
+  marketing: [
+    {
+      name: "Flash Sale Announcement",
+      content: "Hi {{name}}! Flash Sale is here! Get up to 50% OFF on all products. Valid today only!\n\nShop now: {{link}}\n\nDon't miss out!",
+      description: "Announce limited-time promotions"
+    },
+    {
+      name: "New Product Launch",
+      content: "Hello {{name}},\n\nWe're excited to introduce our newest product: {{product}}!\n\nKey features:\n- Premium quality\n- Best price guarantee\n- Free shipping\n\nOrder now: {{link}}",
+      description: "Introduce new products to customers"
+    },
+    {
+      name: "Loyalty Reward",
+      content: "Dear {{name}},\n\nThank you for being a valued customer! As our appreciation, here's a special {{discount}}% discount just for you.\n\nUse code: {{code}}\nValid until: {{expiry}}\n\nShop now: {{link}}",
+      description: "Reward loyal customers with discounts"
+    },
+  ],
+  utility: [
+    {
+      name: "Order Confirmation",
+      content: "Hi {{name}},\n\nYour order #{{order_id}} has been confirmed!\n\nItems: {{items}}\nTotal: {{total}}\n\nEstimated delivery: {{delivery_date}}\n\nTrack your order: {{tracking_link}}",
+      description: "Confirm customer orders"
+    },
+    {
+      name: "Shipping Update",
+      content: "Hello {{name}},\n\nGreat news! Your order #{{order_id}} has been shipped.\n\nTracking number: {{tracking}}\nCarrier: {{carrier}}\n\nTrack here: {{link}}",
+      description: "Notify about shipping status"
+    },
+    {
+      name: "Appointment Reminder",
+      content: "Hi {{name}},\n\nThis is a reminder for your appointment:\n\nDate: {{date}}\nTime: {{time}}\nLocation: {{location}}\n\nReply YES to confirm or contact us to reschedule.",
+      description: "Remind customers of appointments"
+    },
+  ],
+  otp: [
+    {
+      name: "Login Verification",
+      content: "Your verification code is: {{code}}\n\nThis code expires in 5 minutes.\n\nDo not share this code with anyone.",
+      description: "Secure login verification"
+    },
+    {
+      name: "Transaction OTP",
+      content: "Your transaction code: {{code}}\n\nAmount: {{amount}}\n\nValid for 3 minutes. Never share this code.",
+      description: "Verify financial transactions"
+    },
+    {
+      name: "Password Reset",
+      content: "Your password reset code: {{code}}\n\nExpires in 10 minutes.\n\nIf you didn't request this, please ignore.",
+      description: "Reset account password"
+    },
+  ],
+};
+
 export default function WABlastTemplatesPage() {
   const { toast } = useToast();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(true);
+  const [showPrebuilt, setShowPrebuilt] = useState(true);
+  const [prebuiltTab, setPrebuiltTab] = useState<"marketing" | "utility" | "otp">("marketing");
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [newTemplate, setNewTemplate] = useState({
     name: "",
@@ -128,12 +187,30 @@ export default function WABlastTemplatesPage() {
     toast({ title: "Template disalin ke clipboard" });
   };
 
+  const usePrebuiltTemplate = (template: { name: string; content: string }, category: "marketing" | "utility" | "otp") => {
+    setNewTemplate({
+      ...newTemplate,
+      name: template.name,
+      content: template.content,
+      category,
+    });
+    setIsAddDialogOpen(true);
+  };
+
   return (
     <div className="flex-1 p-6 space-y-6 overflow-y-auto">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold" data-testid="text-page-title">Template Pesan</h1>
-          <p className="text-muted-foreground">Buat dan kelola template untuk broadcast</p>
+        <div className="flex items-center gap-2">
+          <div>
+            <h1 className="text-2xl font-semibold" data-testid="text-page-title">Message Templates</h1>
+            <p className="text-muted-foreground">Create and manage templates for broadcasts</p>
+          </div>
+          <InfoTooltip 
+            title="Message Templates" 
+            description="Templates allow you to create reusable messages with variables like {{name}} for personalization. Different categories have different costs."
+            nextStep="Use pre-built templates or create your own"
+            id="templates"
+          />
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
@@ -231,6 +308,145 @@ export default function WABlastTemplatesPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      <Card className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 border-purple-200 dark:border-purple-800">
+        <button 
+          onClick={() => setShowTutorial(!showTutorial)}
+          className="w-full"
+          data-testid="button-toggle-tutorial"
+        >
+          <CardHeader className="flex flex-row items-center justify-between gap-2 py-3">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-purple-600" />
+              <CardTitle className="text-base text-purple-900 dark:text-purple-100">Step-by-Step Tutorial</CardTitle>
+            </div>
+            {showTutorial ? <ChevronUp className="w-5 h-5 text-purple-600" /> : <ChevronDown className="w-5 h-5 text-purple-600" />}
+          </CardHeader>
+        </button>
+        {showTutorial && (
+          <CardContent className="pt-0 pb-4">
+            <div className="grid gap-3 md:grid-cols-4">
+              <StepIndicator 
+                step={1} 
+                title="Choose Category" 
+                description="Select Marketing (promos), Utility (notifications), or OTP (verification)"
+                isActive={templates.length === 0}
+                isCompleted={templates.length > 0}
+              />
+              <StepIndicator 
+                step={2} 
+                title="Create Template" 
+                description="Use pre-built templates below or create custom ones with variables"
+                isActive={templates.length > 0}
+              />
+              <StepIndicator 
+                step={3} 
+                title="Add Variables" 
+                description="Use {{name}}, {{product}}, etc. for personalization"
+              />
+              <StepIndicator 
+                step={4} 
+                title="Use in Campaign" 
+                description="Select your template when creating a new campaign"
+              />
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
+      <Card>
+        <button 
+          onClick={() => setShowPrebuilt(!showPrebuilt)}
+          className="w-full"
+          data-testid="button-toggle-prebuilt"
+        >
+          <CardHeader className="flex flex-row items-center justify-between gap-2 py-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-amber-500" />
+              <CardTitle className="text-base">Pre-built Templates</CardTitle>
+              <Badge variant="secondary" className="text-xs">Ready to Use</Badge>
+            </div>
+            {showPrebuilt ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+          </CardHeader>
+        </button>
+        {showPrebuilt && (
+          <CardContent className="pt-0 pb-4">
+            <Tabs value={prebuiltTab} onValueChange={(v) => setPrebuiltTab(v as typeof prebuiltTab)}>
+              <TabsList className="mb-4">
+                <TabsTrigger value="marketing" className="gap-1">
+                  <Megaphone className="w-3 h-3" /> Marketing
+                </TabsTrigger>
+                <TabsTrigger value="utility" className="gap-1">
+                  <Wrench className="w-3 h-3" /> Utility
+                </TabsTrigger>
+                <TabsTrigger value="otp" className="gap-1">
+                  <Key className="w-3 h-3" /> OTP
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="marketing" className="mt-0">
+                <div className="grid gap-3 md:grid-cols-3">
+                  {PREBUILT_TEMPLATES.marketing.map((template, idx) => (
+                    <Card key={idx} className="hover-elevate cursor-pointer" onClick={() => usePrebuiltTemplate(template, "marketing")} data-testid={`card-prebuilt-marketing-${idx}`}>
+                      <CardHeader className="py-3">
+                        <CardTitle className="text-sm">{template.name}</CardTitle>
+                        <CardDescription className="text-xs">{template.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="py-0 pb-3">
+                        <p className="text-xs text-muted-foreground line-clamp-3 font-mono bg-muted/50 p-2 rounded">
+                          {template.content}
+                        </p>
+                      </CardContent>
+                      <CardFooter className="pt-0 pb-3">
+                        <Badge className="bg-blue-600 text-xs">Rp 500/msg</Badge>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              </TabsContent>
+              <TabsContent value="utility" className="mt-0">
+                <div className="grid gap-3 md:grid-cols-3">
+                  {PREBUILT_TEMPLATES.utility.map((template, idx) => (
+                    <Card key={idx} className="hover-elevate cursor-pointer" onClick={() => usePrebuiltTemplate(template, "utility")} data-testid={`card-prebuilt-utility-${idx}`}>
+                      <CardHeader className="py-3">
+                        <CardTitle className="text-sm">{template.name}</CardTitle>
+                        <CardDescription className="text-xs">{template.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="py-0 pb-3">
+                        <p className="text-xs text-muted-foreground line-clamp-3 font-mono bg-muted/50 p-2 rounded">
+                          {template.content}
+                        </p>
+                      </CardContent>
+                      <CardFooter className="pt-0 pb-3">
+                        <Badge className="bg-green-600 text-xs">Rp 300/msg</Badge>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              </TabsContent>
+              <TabsContent value="otp" className="mt-0">
+                <div className="grid gap-3 md:grid-cols-3">
+                  {PREBUILT_TEMPLATES.otp.map((template, idx) => (
+                    <Card key={idx} className="hover-elevate cursor-pointer" onClick={() => usePrebuiltTemplate(template, "otp")} data-testid={`card-prebuilt-otp-${idx}`}>
+                      <CardHeader className="py-3">
+                        <CardTitle className="text-sm">{template.name}</CardTitle>
+                        <CardDescription className="text-xs">{template.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="py-0 pb-3">
+                        <p className="text-xs text-muted-foreground line-clamp-3 font-mono bg-muted/50 p-2 rounded">
+                          {template.content}
+                        </p>
+                      </CardContent>
+                      <CardFooter className="pt-0 pb-3">
+                        <Badge className="bg-orange-600 text-xs">Rp 200/msg</Badge>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        )}
+      </Card>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">

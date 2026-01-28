@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Users, Search, Upload, Trash2, Loader2, FolderPlus, Pencil } from "lucide-react";
+import { Plus, Users, Search, Upload, Trash2, Loader2, FolderPlus, Pencil, BookOpen, ChevronDown, ChevronUp } from "lucide-react";
+import { InfoTooltip, StepIndicator } from "@/components/info-tooltip";
 
 interface Contact {
   id: string;
@@ -38,6 +39,7 @@ export default function WABlastContactsPage() {
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [isAddContactOpen, setIsAddContactOpen] = useState(false);
   const [isAddListOpen, setIsAddListOpen] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(true);
   const [newContact, setNewContact] = useState({ phoneNumber: "", name: "", email: "" });
   const [newList, setNewList] = useState({ name: "", description: "" });
 
@@ -128,9 +130,17 @@ export default function WABlastContactsPage() {
   return (
     <div className="flex-1 p-6 space-y-6 overflow-y-auto">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold" data-testid="text-page-title">Kontak</h1>
-          <p className="text-muted-foreground">Kelola daftar kontak untuk WhatsApp Blast</p>
+        <div className="flex items-center gap-2">
+          <div>
+            <h1 className="text-2xl font-semibold" data-testid="text-page-title">Contacts</h1>
+            <p className="text-muted-foreground">Manage contact lists for WhatsApp Blast</p>
+          </div>
+          <InfoTooltip 
+            title="Contact Management" 
+            description="Organize your contacts into lists for targeted broadcasts. You can add contacts manually or import from CSV."
+            nextStep="Create a list first, then add contacts to it"
+            id="contacts"
+          />
         </div>
         <div className="flex gap-2">
           <Dialog open={isAddListOpen} onOpenChange={setIsAddListOpen}>
@@ -230,6 +240,53 @@ export default function WABlastContactsPage() {
           </Dialog>
         </div>
       </div>
+
+      <Card className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-green-200 dark:border-green-800">
+        <button 
+          onClick={() => setShowTutorial(!showTutorial)}
+          className="w-full"
+          data-testid="button-toggle-tutorial"
+        >
+          <CardHeader className="flex flex-row items-center justify-between gap-2 py-3">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-green-600" />
+              <CardTitle className="text-base text-green-900 dark:text-green-100">Step-by-Step Tutorial</CardTitle>
+            </div>
+            {showTutorial ? <ChevronUp className="w-5 h-5 text-green-600" /> : <ChevronDown className="w-5 h-5 text-green-600" />}
+          </CardHeader>
+        </button>
+        {showTutorial && (
+          <CardContent className="pt-0 pb-4">
+            <div className="grid gap-3 md:grid-cols-4">
+              <StepIndicator 
+                step={1} 
+                title="Create List" 
+                description="Click 'Create List' to organize contacts by category (VIP, Leads, etc.)"
+                isActive={lists.length === 0}
+                isCompleted={lists.length > 0}
+              />
+              <StepIndicator 
+                step={2} 
+                title="Add Contacts" 
+                description="Add contacts manually or import from CSV file"
+                isActive={lists.length > 0 && totalContacts === 0}
+                isCompleted={totalContacts > 0}
+              />
+              <StepIndicator 
+                step={3} 
+                title="Create Template" 
+                description="Go to Templates page to create message templates"
+                isActive={totalContacts > 0}
+              />
+              <StepIndicator 
+                step={4} 
+                title="Launch Campaign" 
+                description="Create a campaign using your contacts and templates"
+              />
+            </div>
+          </CardContent>
+        )}
+      </Card>
 
       <div className="flex gap-6">
         <div className="w-64 shrink-0 space-y-2">

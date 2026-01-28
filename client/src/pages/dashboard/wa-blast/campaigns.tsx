@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Send, Loader2, Play, Pause, Eye, Trash2, Calendar, Clock, CheckCircle2, XCircle, AlertCircle, Users } from "lucide-react";
+import { Plus, Send, Loader2, Play, Pause, Eye, Trash2, Calendar, Clock, CheckCircle2, XCircle, AlertCircle, Users, BookOpen, ChevronDown, ChevronUp } from "lucide-react";
+import { InfoTooltip, StepIndicator } from "@/components/info-tooltip";
 
 interface Campaign {
   id: string;
@@ -56,6 +57,7 @@ interface ContactList {
 export default function WABlastCampaignsPage() {
   const { toast } = useToast();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   const [newCampaign, setNewCampaign] = useState({
     channelId: "",
@@ -172,9 +174,17 @@ export default function WABlastCampaignsPage() {
   return (
     <div className="flex-1 p-6 space-y-6 overflow-y-auto">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold" data-testid="text-page-title">Campaign</h1>
-          <p className="text-muted-foreground">Buat dan kelola broadcast WhatsApp</p>
+        <div className="flex items-center gap-2">
+          <div>
+            <h1 className="text-2xl font-semibold" data-testid="text-page-title">Campaigns</h1>
+            <p className="text-muted-foreground">Create and manage WhatsApp broadcasts</p>
+          </div>
+          <InfoTooltip 
+            title="Campaign Management" 
+            description="Campaigns let you send messages to your contact lists. You can send immediately or schedule for later."
+            nextStep="Create your first campaign to start sending broadcasts"
+            id="campaigns"
+          />
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
@@ -306,6 +316,53 @@ export default function WABlastCampaignsPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      <Card className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border-orange-200 dark:border-orange-800">
+        <button 
+          onClick={() => setShowTutorial(!showTutorial)}
+          className="w-full"
+          data-testid="button-toggle-tutorial"
+        >
+          <CardHeader className="flex flex-row items-center justify-between gap-2 py-3">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-orange-600" />
+              <CardTitle className="text-base text-orange-900 dark:text-orange-100">Step-by-Step Tutorial</CardTitle>
+            </div>
+            {showTutorial ? <ChevronUp className="w-5 h-5 text-orange-600" /> : <ChevronDown className="w-5 h-5 text-orange-600" />}
+          </CardHeader>
+        </button>
+        {showTutorial && (
+          <CardContent className="pt-0 pb-4">
+            <div className="grid gap-3 md:grid-cols-4">
+              <StepIndicator 
+                step={1} 
+                title="Select Channel" 
+                description="Choose a connected WhatsApp channel to send from"
+                isActive={channels.filter(c => c.status === "connected").length === 0}
+                isCompleted={channels.filter(c => c.status === "connected").length > 0}
+              />
+              <StepIndicator 
+                step={2} 
+                title="Choose Recipients" 
+                description="Select contact lists to receive your broadcast"
+                isActive={channels.filter(c => c.status === "connected").length > 0 && lists.length === 0}
+                isCompleted={lists.length > 0}
+              />
+              <StepIndicator 
+                step={3} 
+                title="Compose Message" 
+                description="Use a template or write a custom message"
+                isActive={lists.length > 0}
+              />
+              <StepIndicator 
+                step={4} 
+                title="Send or Schedule" 
+                description="Send immediately or schedule for optimal timing"
+              />
+            </div>
+          </CardContent>
+        )}
+      </Card>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
