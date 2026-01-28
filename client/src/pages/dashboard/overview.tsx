@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageSquare, Users, Clock, TrendingUp, Bot, HeadphonesIcon, Activity, BarChart3, Zap, Target, ThumbsUp, UserCheck, MessageCircle, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { MessageSquare, Users, Clock, TrendingUp, Bot, HeadphonesIcon, Activity, BarChart3, Zap, Target, ThumbsUp, UserCheck, MessageCircle, AlertCircle, Code, Copy, Check, ChevronRight, Globe, FileCode, ExternalLink } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
-import type { Session } from "@shared/schema";
+import type { Session, Agent, Merchant } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 interface AnalyticsData {
   totalSessions: number;
@@ -20,6 +23,8 @@ interface AnalyticsData {
 
 export default function DashboardOverview() {
   const merchantId = localStorage.getItem("merchantId") || "";
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
 
   const { data: sessions, isLoading: sessionsLoading } = useQuery<Session[]>({
     queryKey: ["/api/sessions", merchantId],
@@ -31,7 +36,43 @@ export default function DashboardOverview() {
     enabled: !!merchantId,
   });
 
+  const { data: merchant } = useQuery<Merchant>({
+    queryKey: ["/api/merchant/profile"],
+  });
+
+  const { data: agents = [] } = useQuery<Agent[]>({
+    queryKey: ["/api/agents"],
+  });
+
   const isLoading = sessionsLoading || statsLoading;
+
+  // Get the first agent or active agent for embed code
+  const activeAgent = agents.find(a => a.id === merchant?.activeAgentId) || agents[0];
+  
+  // Generate embed code
+  const baseUrl = window.location.origin;
+  const embedCode = activeAgent 
+    ? `<!-- Chatvice Chat Widget -->\n<script src="${baseUrl}/api/widget/chatvice.js?merchant=${merchantId}" async></script>`
+    : null;
+
+  const handleCopyScript = async () => {
+    if (!embedCode) return;
+    try {
+      await navigator.clipboard.writeText(embedCode);
+      setCopied(true);
+      toast({
+        title: "Berhasil disalin!",
+        description: "Kode embed sudah disalin ke clipboard.",
+      });
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      toast({
+        title: "Gagal menyalin",
+        description: "Silakan salin kode secara manual.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -94,6 +135,164 @@ export default function DashboardOverview() {
         <h1 className="text-xl sm:text-2xl font-bold" data-testid="text-dashboard-title">Dashboard Overview</h1>
         <p className="text-sm text-muted-foreground hidden sm:block">Monitor your AI chatbot performance and customer interactions.</p>
       </div>
+
+      {/* Install Chatvice Widget Section */}
+      <Card className="backdrop-blur-xl bg-white/5 dark:bg-white/[0.03] border-white/10 dark:border-white/5" data-testid="card-install-widget">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Code className="w-5 h-5 text-primary" />
+            Pasang Widget Chatvice
+          </CardTitle>
+          <CardDescription>
+            Tambahkan chatbot AI ke website Anda dalam 3 langkah mudah
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Step-by-step guide with visual images */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Step 1 */}
+            <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-4 border border-white/10 dark:border-white/5" data-testid="install-step-1">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
+                  1
+                </div>
+                <h4 className="font-medium text-sm">Salin Kode Script</h4>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                Klik tombol "Salin Script" di bawah untuk menyalin kode embed widget.
+              </p>
+              {/* Visual illustration - Copy button simulation */}
+              <div className="bg-muted/30 rounded-lg p-3 border border-dashed border-primary/30" data-testid="img-step-1">
+                <div className="flex items-center justify-center gap-2 text-primary text-sm font-medium">
+                  <Copy className="w-5 h-5" />
+                  <span>Salin Script</span>
+                </div>
+                <div className="mt-2 h-1.5 bg-primary/20 rounded-full overflow-hidden">
+                  <div className="h-full w-full bg-primary/50 rounded-full animate-pulse" />
+                </div>
+              </div>
+            </div>
+
+            {/* Step 2 */}
+            <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-4 border border-white/10 dark:border-white/5" data-testid="install-step-2">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
+                  2
+                </div>
+                <h4 className="font-medium text-sm">Buka File HTML</h4>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                Buka file HTML utama website Anda (index.html atau layout utama).
+              </p>
+              {/* Visual illustration - File editor simulation */}
+              <div className="bg-muted/30 rounded-lg overflow-hidden border border-dashed border-primary/30" data-testid="img-step-2">
+                <div className="bg-muted/50 px-3 py-1.5 border-b border-white/10 flex items-center gap-2">
+                  <FileCode className="w-4 h-4 text-primary" />
+                  <span className="text-xs font-mono">index.html</span>
+                </div>
+                <div className="p-2 font-mono text-[10px] text-muted-foreground leading-relaxed">
+                  <div>&lt;html&gt;</div>
+                  <div className="pl-2">&lt;head&gt;...&lt;/head&gt;</div>
+                  <div className="pl-2">&lt;body&gt;</div>
+                  <div className="pl-4 text-muted-foreground/50">...</div>
+                  <div className="pl-2">&lt;/body&gt;</div>
+                  <div>&lt;/html&gt;</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 3 */}
+            <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-4 border border-white/10 dark:border-white/5" data-testid="install-step-3">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
+                  3
+                </div>
+                <h4 className="font-medium text-sm">Tempel Sebelum &lt;/body&gt;</h4>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                Tempel kode script tepat sebelum tag penutup &lt;/body&gt; dan simpan.
+              </p>
+              {/* Visual illustration - Code placement */}
+              <div className="bg-muted/30 rounded-lg overflow-hidden border border-dashed border-primary/30" data-testid="img-step-3">
+                <div className="bg-muted/50 px-3 py-1.5 border-b border-white/10 flex items-center gap-2">
+                  <Check className="w-4 h-4 text-green-500" />
+                  <span className="text-xs text-green-600 dark:text-green-400">Posisi yang benar</span>
+                </div>
+                <div className="p-2 font-mono text-[10px] leading-relaxed">
+                  <div className="text-muted-foreground/50 pl-2">...</div>
+                  <div className="text-primary bg-primary/10 px-1 rounded">&lt;script src="chatvice.js"&gt;&lt;/script&gt;</div>
+                  <div className="text-muted-foreground pl-0">&lt;/body&gt;</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Embed Code Section */}
+          <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-4 border border-white/10 dark:border-white/5 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h4 className="font-medium text-sm flex items-center gap-2" data-testid="text-embed-title">
+                <Globe className="w-4 h-4 text-muted-foreground" />
+                Kode Embed Widget
+              </h4>
+              {activeAgent && (
+                <Badge variant="outline" className="text-xs" data-testid="badge-active-agent">
+                  Agent: {activeAgent.name}
+                </Badge>
+              )}
+            </div>
+            
+            {embedCode ? (
+              <div className="relative" data-testid="container-embed-code">
+                <pre className="bg-muted/80 dark:bg-muted/40 backdrop-blur-sm p-4 pr-28 rounded-lg font-mono text-xs overflow-x-auto whitespace-pre-wrap break-all border" data-testid="text-embed-code">
+                  {embedCode}
+                </pre>
+                <Button
+                  onClick={handleCopyScript}
+                  className="absolute top-2 right-2"
+                  size="sm"
+                  data-testid="button-copy-embed-script"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-4 h-4 mr-1" />
+                      Tersalin!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 mr-1" />
+                      Salin Script
+                    </>
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <div className="bg-muted/30 p-4 rounded-lg text-center text-sm text-muted-foreground" data-testid="container-no-agent">
+                <Bot className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p>Belum ada AI Agent aktif.</p>
+                <a 
+                  href="/dashboard/agents" 
+                  className="text-primary hover:underline inline-flex items-center gap-1 mt-1"
+                  data-testid="link-create-agent"
+                >
+                  Buat Agent Pertama <ChevronRight className="w-3 h-3" />
+                </a>
+              </div>
+            )}
+          </div>
+
+          {/* Additional Info */}
+          <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-white/10 text-xs text-muted-foreground">
+            <p data-testid="text-widget-info">Widget akan muncul di pojok kanan bawah website Anda.</p>
+            <a 
+              href="/dashboard/widget" 
+              className="text-primary hover:underline inline-flex items-center gap-1"
+              data-testid="link-widget-settings"
+            >
+              Kustomisasi Widget <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Real-time and Last 7 Days Grid - Frosted Glass Style */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
