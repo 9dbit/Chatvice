@@ -828,7 +828,7 @@ html {
 .liquid-glass-tab {
   position: relative;
   z-index: 2;
-  padding: 3px 8px;
+  padding: 2px 8px;
   border-radius: 8px;
   font-weight: 500;
   font-size: 0.8125rem;

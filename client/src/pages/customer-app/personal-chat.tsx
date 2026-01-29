@@ -682,9 +682,9 @@ export default function PersonalChatPage() {
                                   ? "bg-gradient-to-r from-purple-700 to-indigo-700 text-white rounded-br-md"
                                   : "glass-card rounded-bl-md"
                               )}>
-                                <p className="text-xs">{msg.content}</p>
+                                <p className="text-sm">{msg.content}</p>
                                 <p className={cn(
-                                  "text-[10px] mt-1",
+                                  "text-xs mt-1",
                                   isMe ? "text-white/70" : "text-muted-foreground"
                                 )}>
                                   {format(new Date(msg.createdAt), "HH:mm")}
@@ -729,19 +729,19 @@ export default function PersonalChatPage() {
                         ) : (
                           <div
                             className={cn(
-                              "max-w-[75%] rounded-2xl px-3 py-1.5 shadow-sm",
+                              "max-w-[75%] rounded-2xl px-3 py-2 shadow-sm",
                               isMe
                                 ? "bg-gradient-to-r from-purple-700 to-indigo-700 text-white rounded-br-md"
                                 : "glass-card rounded-bl-md"
                             )}
                           >
-                            <p className="text-xs whitespace-pre-wrap break-words">{msg.content}</p>
+                            <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
                             <div className={cn(
                               "flex items-center gap-1 mt-1",
                               isMe ? "justify-end" : "justify-start"
                             )}>
                               <span className={cn(
-                                "text-[10px]",
+                                "text-xs",
                                 isMe ? "text-white/70" : "text-muted-foreground"
                               )}>
                                 {format(new Date(msg.createdAt), "HH:mm")}

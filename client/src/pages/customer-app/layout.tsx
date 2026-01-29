@@ -123,7 +123,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 href={item.href}
                 data-nav-index={index}
                 className={cn(
-                  "flex items-center justify-center w-10 h-10 rounded-full transition-colors duration-200 z-10 relative",
+                  "flex items-center justify-center w-14 h-10 rounded-full transition-colors duration-200 z-10 relative",
                   isActive 
                     ? "text-primary-foreground" 
                     : "text-muted-foreground"

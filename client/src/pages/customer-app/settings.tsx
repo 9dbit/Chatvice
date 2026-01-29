@@ -267,7 +267,7 @@ export default function CustomerSettingsPage() {
     <CustomerLayout>
       <div className="sm:ml-64">
         <div className="max-w-2xl mx-auto p-4 space-y-6">
-          <h1 className="text-lg font-semibold">Profile</h1>
+          <h1 className="text-xl font-semibold">Profile</h1>
           
           <div className="rounded-lg border bg-card p-3 space-y-3">
             <div className="flex items-center gap-3">
@@ -301,8 +301,8 @@ export default function CustomerSettingsPage() {
                 </Button>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate" data-testid="text-display-name">{customer.displayName || "Guest"}</p>
-                <p className="text-xs text-muted-foreground" data-testid="text-phone-number">{customer.phoneNumber}</p>
+                <p className="text-base font-medium truncate" data-testid="text-display-name">{customer.displayName || "Guest"}</p>
+                <p className="text-sm text-muted-foreground" data-testid="text-phone-number">{customer.phoneNumber}</p>
                 {customer.isPhoneVerified && (
                   <p className="text-[10px] text-green-600 flex items-center gap-1" data-testid="text-verified-badge">
                     <Shield className="w-2.5 h-2.5" /> Verified
@@ -358,18 +358,18 @@ export default function CustomerSettingsPage() {
             
             {customer.personalId ? (
               <div className="flex flex-col items-center">
-                <div className="relative p-4 rounded-xl bg-white dark:bg-white shadow-md" data-testid="container-qr-code">
+                <div className="relative p-4 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 shadow-md" data-testid="container-qr-code">
                   <QRCodeSVG 
                     value={customer.personalId}
                     size={140}
                     level="H"
                     includeMargin={false}
                     bgColor="transparent"
-                    fgColor="#1e1b4b"
+                    fgColor="#ffffff"
                     data-testid="img-personal-qr"
                   />
                 </div>
-                <p className="mt-2 font-mono text-xs font-medium text-muted-foreground" data-testid="text-personal-id">
+                <p className="mt-2 font-mono text-sm font-medium text-foreground" data-testid="text-personal-id">
                   {customer.personalId}
                 </p>
                 <Button
