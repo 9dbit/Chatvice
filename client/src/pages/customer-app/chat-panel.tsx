@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Store, Send, Paperclip, MoreVertical, Loader2, Image, FileText, Video, X, Users } from "lucide-react";
+import { Store, Send, Paperclip, MoreVertical, Loader2, Image, FileText, Video, X, Users, ArrowLeft } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -692,6 +692,11 @@ export default function ChatPanel({ chatId, chatType, onClose, isEmbedded }: Cha
   return (
     <div className="flex flex-col h-full chat-background-pattern">
       <header className="flex items-center gap-3 p-3 glass-header z-10 border-b border-border/50">
+        {!isEmbedded && onClose && (
+          <Button variant="ghost" size="icon" onClick={onClose} data-testid="button-back-panel">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+        )}
         <div className="relative">
           <Avatar className="w-10 h-10">
             <AvatarImage src={displayInfo.profilePhotoUrl || undefined} />

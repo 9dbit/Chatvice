@@ -16,7 +16,7 @@ export default function PersonalChatPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className="fixed inset-0 flex flex-col">
       <ChatPanel 
         chatId={params.chatId}
         chatType="personal"
