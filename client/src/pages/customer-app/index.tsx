@@ -6,3 +6,4 @@ export { default as CustomerStoresPage } from "./stores";
 export { default as CustomerContactsPage } from "./contacts";
 export { default as CustomerSettingsPage } from "./settings";
 export { default as CustomerStoreChatPage } from "./store-chat";
+export { default as CustomerPersonalChatPage } from "./personal-chat";
