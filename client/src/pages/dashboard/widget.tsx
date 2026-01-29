@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { cn } from "@/lib/utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1138,6 +1139,54 @@ async function handleLogin() {
                             Supports PNG, GIF, JPG, SVG, WebP. Max 2MB.
                           </p>
                         </div>
+                      </div>
+                      
+                      {/* Icon Templates Section */}
+                      <div className="pt-3 border-t">
+                        <Label className="text-sm font-medium mb-2 block">Choose from Templates</Label>
+                        <div className="grid grid-cols-5 gap-2">
+                          {[
+                            { id: 'male-cs-blue-shirt', name: 'CS Blue Shirt' },
+                            { id: 'male-cs-suit', name: 'CS Suit' },
+                            { id: 'male-casual-gray', name: 'Casual Gray' },
+                            { id: 'male-cs-blue-standing', name: 'CS Standing' },
+                            { id: 'astronaut', name: 'Astronaut' },
+                            { id: 'rocket', name: 'Rocket' },
+                            { id: 'female-cs-red', name: 'CS Red' },
+                            { id: 'female-cs-white', name: 'CS White' },
+                            { id: 'female-cs-red-shirt', name: 'CS Red Shirt' },
+                            { id: 'female-cs-purple', name: 'CS Purple' },
+                          ].map((template) => (
+                            <button
+                              key={template.id}
+                              type="button"
+                              className={cn(
+                                "relative w-full aspect-square rounded-lg overflow-hidden border-2 transition-all",
+                                config.iconUrl === `/icon-templates/${template.id}.png`
+                                  ? "border-primary ring-2 ring-primary/30"
+                                  : "border-muted hover:border-primary/50"
+                              )}
+                              onClick={() => setConfig({ ...config, iconUrl: `/icon-templates/${template.id}.png` })}
+                              title={template.name}
+                              data-testid={`button-template-${template.id}`}
+                            >
+                              <img
+                                src={`/icon-templates/${template.id}.png`}
+                                alt={template.name}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                              />
+                              {config.iconUrl === `/icon-templates/${template.id}.png` && (
+                                <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
+                                  <Check className="w-5 h-5 text-primary" />
+                                </div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Click to use a pre-designed icon template
+                        </p>
                       </div>
                     </div>
 
