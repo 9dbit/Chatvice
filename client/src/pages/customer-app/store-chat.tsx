@@ -477,21 +477,62 @@ export default function StoreChatPage() {
   }, []);
 
   const parseMediaFromMessage = (msg: DisplayMessage): MediaInfo | null => {
+    // Handle messages with proper media payload
     if (msg.messageType === "media" && msg.payload?.mediaId) {
       return {
         id: msg.payload.mediaId,
-        url: msg.payload.mediaUrl || `/api/customer/media/${msg.payload.mediaId}`,
+        url: msg.payload.mediaUrl || msg.payload.url || `/api/customer/media/${msg.payload.mediaId}`,
         filename: msg.payload.filename || "image",
         fileSize: msg.payload.fileSize || 0,
         mimeType: msg.payload.mimeType || "image/jpeg",
         createdAt: msg.timestamp,
       };
     }
+    
+    // Handle legacy messages with [image:] format in content
+    if (msg.content?.startsWith("[image:") && msg.content?.endsWith("]")) {
+      const filename = msg.content.slice(7, -1).trim();
+      // Check if payload has url or mediaUrl
+      const url = msg.payload?.mediaUrl || msg.payload?.url || "";
+      if (url) {
+        return {
+          id: msg.id?.toString() || "",
+          url: url,
+          filename: filename,
+          fileSize: msg.payload?.fileSize || 0,
+          mimeType: msg.payload?.mimeType || "image/jpeg",
+          createdAt: msg.timestamp,
+        };
+      }
+    }
+    
+    // Handle image messages from widget with url in payload
+    if (msg.payload?.url && msg.payload?.mimeType?.startsWith("image/")) {
+      return {
+        id: msg.id?.toString() || msg.payload.mediaId || "",
+        url: msg.payload.url,
+        filename: msg.payload.filename || "image",
+        fileSize: msg.payload.fileSize || 0,
+        mimeType: msg.payload.mimeType,
+        createdAt: msg.timestamp,
+      };
+    }
+    
     return null;
   };
 
   const isImageMessage = (msg: DisplayMessage): boolean => {
+    // Check for proper media type with mimeType
     if (msg.messageType === "media" && msg.payload?.mimeType?.startsWith("image/")) {
+      return true;
+    }
+    // Check for legacy format with [image:] in content
+    if (msg.content?.startsWith("[image:") && msg.content?.endsWith("]")) {
+      const url = msg.payload?.mediaUrl || msg.payload?.url;
+      return !!url;
+    }
+    // Check for payload with image mimeType even if messageType is not "media"
+    if (msg.payload?.url && msg.payload?.mimeType?.startsWith("image/")) {
       return true;
     }
     return false;
