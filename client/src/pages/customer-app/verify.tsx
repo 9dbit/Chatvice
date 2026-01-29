@@ -9,10 +9,15 @@ import { MessageSquare, ShieldCheck, ArrowLeft, RefreshCw, Smartphone } from "lu
 import { SiWhatsapp } from "react-icons/si";
 import { apiRequest } from "@/lib/queryClient";
 import { chatRoutes } from "@/lib/chat-routes";
+import { useTheme } from "@/components/theme-provider";
+import chatviceLogoLight from "@assets/Chatvice-02_1769691434945.png";
+import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
 
 export default function CustomerVerifyPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { resolvedTheme } = useTheme();
+  const chatviceLogo = resolvedTheme === "dark" ? chatviceLogoDark : chatviceLogoLight;
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [countdown, setCountdown] = useState(60);
   const [canResend, setCanResend] = useState(false);
@@ -131,10 +136,7 @@ export default function CustomerVerifyPage() {
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/50 flex flex-col">
       <header className="p-4 flex items-center justify-between border-b bg-background/80 backdrop-blur-sm sticky top-0 z-10">
         <a href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <MessageSquare className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <span className="font-semibold text-lg">Chatvice</span>
+          <img src={chatviceLogo} alt="Chatvice" className="h-8 object-contain" />
         </a>
       </header>
       

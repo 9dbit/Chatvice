@@ -3436,12 +3436,17 @@ export class DatabaseStorage implements IStorage {
   }
   
   async generatePersonalId(): Promise<string> {
-    // Get the count of existing customers to generate sequential ID
-    const countResult = await db.select({ count: sql<number>`count(*)::int` }).from(customers);
-    const count = (countResult[0]?.count || 0) + 1;
+    // Get the max personal ID number to generate the next sequential ID
+    // This prevents duplicate key issues when using count
+    const maxResult = await db.select({ 
+      maxId: sql<string>`MAX(SUBSTRING(personal_id FROM 'P-A01-([0-9]+)')::int)` 
+    }).from(customers).where(sql`personal_id IS NOT NULL`);
+    
+    const maxNumber = maxResult[0]?.maxId ? parseInt(maxResult[0].maxId) : 0;
+    const nextNumber = maxNumber + 1;
     
     // Format: P-A01-XXXXX (P = Personal, A01 = Area code, XXXXX = 5-digit sequential)
-    const sequentialNumber = count.toString().padStart(5, '0');
+    const sequentialNumber = nextNumber.toString().padStart(5, '0');
     return `P-A01-${sequentialNumber}`;
   }
   
