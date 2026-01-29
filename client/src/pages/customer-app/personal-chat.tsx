@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Users, Send, Paperclip, MoreVertical, Loader2, Image, FileText, Video, X, Smile } from "lucide-react";
+import { ArrowLeft, Users, Send, Paperclip, MoreVertical, Loader2, X, Smile, Image, FileText, Video } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -201,20 +201,35 @@ export default function PersonalChatPage() {
 
   const uploadMediaMutation = useMutation({
     mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append("file", file);
-      
-      const response = await fetch("/api/customer/media/upload", {
-        method: "POST",
-        body: formData,
-        credentials: "include",
+      return new Promise<{ url: string; filename: string }>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          try {
+            const base64 = (reader.result as string).split(',')[1];
+            const response = await fetch("/api/customer/media/upload", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                filename: file.name,
+                mimeType: file.type,
+                fileData: base64,
+              }),
+              credentials: "include",
+            });
+            
+            if (!response.ok) {
+              throw new Error("Upload failed");
+            }
+            
+            const data = await response.json();
+            resolve(data);
+          } catch (error) {
+            reject(error);
+          }
+        };
+        reader.onerror = () => reject(new Error("Failed to read file"));
+        reader.readAsDataURL(file);
       });
-      
-      if (!response.ok) {
-        throw new Error("Upload failed");
-      }
-      
-      return response.json();
     },
     onSuccess: (data) => {
       const clientMessageId = generateClientId();
@@ -710,45 +725,19 @@ export default function PersonalChatPage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,video/*,.pdf,.doc,.docx,.txt"
+            accept="image/*,video/*,.pdf,.doc,.docx,.txt,.xls,.xlsx"
             onChange={handleFileSelect}
             className="hidden"
             data-testid="input-file"
           />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                data-testid="button-attach"
-              >
-                <Paperclip className="w-5 h-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem onClick={() => {
-                fileInputRef.current?.setAttribute("accept", "image/*");
-                fileInputRef.current?.click();
-              }}>
-                <Image className="w-4 h-4 mr-2" />
-                Foto
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {
-                fileInputRef.current?.setAttribute("accept", "video/*");
-                fileInputRef.current?.click();
-              }}>
-                <Video className="w-4 h-4 mr-2" />
-                Video
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {
-                fileInputRef.current?.setAttribute("accept", ".pdf,.doc,.docx,.txt,.xls,.xlsx");
-                fileInputRef.current?.click();
-              }}>
-                <FileText className="w-4 h-4 mr-2" />
-                Dokumen
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => fileInputRef.current?.click()}
+            data-testid="button-attach"
+          >
+            <Paperclip className="w-5 h-5" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
