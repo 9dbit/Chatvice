@@ -59,6 +59,7 @@ import {
   CustomerStoresPage,
   CustomerContactsPage,
   CustomerSettingsPage,
+  CustomerSoundSettingsPage,
   CustomerStoreChatPage,
   CustomerPersonalChatPage,
 } from "@/pages/customer-app";
@@ -128,6 +129,7 @@ function ChatAppRouter() {
       <Route path="/store/:merchantId" component={CustomerStoreChatPage} />
       <Route path="/contacts" component={CustomerContactsPage} />
       <Route path="/settings" component={CustomerSettingsPage} />
+      <Route path="/settings/sounds" component={CustomerSoundSettingsPage} />
       <Route path="/personal/:chatId" component={CustomerPersonalChatPage} />
       <Route component={NotFound} />
     </Switch>
@@ -229,6 +231,7 @@ function MainRouter() {
       <Route path="/chat/store/:merchantId" component={CustomerStoreChatPage} />
       <Route path="/chat/contacts" component={CustomerContactsPage} />
       <Route path="/chat/settings" component={CustomerSettingsPage} />
+      <Route path="/chat/settings/sounds" component={CustomerSoundSettingsPage} />
       <Route path="/chat/personal/:chatId" component={CustomerPersonalChatPage} />
 
       <Route component={NotFound} />

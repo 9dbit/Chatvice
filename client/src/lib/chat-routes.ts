@@ -21,6 +21,7 @@ export const chatRoutes = {
   storeInfo: (merchantId: string) => getChatPath(`/chat/store/${merchantId}/info`),
   contacts: () => getChatPath('/chat/contacts'),
   settings: () => getChatPath('/chat/settings'),
+  soundSettings: () => getChatPath('/chat/settings/sounds'),
   personalNew: (contactId: string) => getChatPath(`/chat/personal/new/${contactId}`),
   personal: (chatId: string) => getChatPath(`/chat/personal/${chatId}`),
 };

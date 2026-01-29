@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { User, Camera, LogOut, Bell, Shield, Trash2, Loader2, QrCode, Copy, Check, Volume2 } from "lucide-react";
+import { User, Camera, LogOut, Bell, Shield, Trash2, Loader2, QrCode, Copy, Check, Volume2, ChevronRight } from "lucide-react";
 import CustomerLayout from "./layout";
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -490,6 +490,25 @@ export default function CustomerSettingsPage() {
                   onCheckedChange={handleToggleSound}
                   data-testid="switch-notification-sound"
                 />
+              </div>
+              
+              <Separator />
+              
+              <div 
+                className="flex items-center justify-between cursor-pointer"
+                onClick={() => navigate(chatRoutes.soundSettings())}
+                data-testid="button-sound-settings"
+              >
+                <div className="flex items-center gap-3">
+                  <Volume2 className="w-5 h-5 text-primary" />
+                  <div>
+                    <p className="font-medium">Pengaturan Suara Lengkap</p>
+                    <p className="text-sm text-muted-foreground">
+                      Atur suara mengetik, terkirim, dan masuk
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground" />
               </div>
             </CardContent>
           </Card>

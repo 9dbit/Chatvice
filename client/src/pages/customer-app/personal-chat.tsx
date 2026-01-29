@@ -1,16 +1,51 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Users, Send, Paperclip, MoreVertical, Loader2, Image, FileText, Video, X } from "lucide-react";
+import { ArrowLeft, Users, Send, Paperclip, MoreVertical, Loader2, Image, FileText, Video, X, Smile } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { chatRoutes } from "@/lib/chat-routes";
+import { ImageViewer, StickerPicker, type Sticker } from "@/components/chat-media";
+
+const STICKER_URL_MAP: Record<string, string> = {
+  "happy_1": "https://media.giphy.com/media/WUq1cg9K7uzHa/giphy.gif",
+  "happy_2": "https://media.giphy.com/media/DhstvI3zZ598Nb1rFf/giphy.gif",
+  "happy_3": "https://media.giphy.com/media/tXL4FHPSnVJ0A/giphy.gif",
+  "happy_4": "https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif",
+  "happy_5": "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
+  "love_1": "https://media.giphy.com/media/l4pTfx2qLszoacZRS/giphy.gif",
+  "love_2": "https://media.giphy.com/media/26BRv0ThflsHCqDrG/giphy.gif",
+  "love_3": "https://media.giphy.com/media/l0HlN5Y28D9MzzcRy/giphy.gif",
+  "celebrate_1": "https://media.giphy.com/media/26tOZ42Mg6r8b8iac/giphy.gif",
+  "celebrate_2": "https://media.giphy.com/media/l0MYJnJQ4EiYLxvW/giphy.gif",
+  "angry_1": "https://media.giphy.com/media/d10dMmzqCYqQ0/giphy.gif",
+  "angry_2": "https://media.giphy.com/media/l1J9EdzfOSgfyueLm/giphy.gif",
+  "thanks_1": "https://media.giphy.com/media/3oz8xIsloV320wXWE0/giphy.gif",
+  "thanks_2": "https://media.giphy.com/media/BPJmthQ3YRwD6QqcVD/giphy.gif",
+  "hi_1": "https://media.giphy.com/media/xUPGGDNsLvqsBOhuU0/giphy.gif",
+  "hi_2": "https://media.giphy.com/media/Vbtc9VG51NtzT1Qnv1/giphy.gif",
+  "bye_1": "https://media.giphy.com/media/KctrWMQ7u9D2du0YmD/giphy.gif",
+  "bye_2": "https://media.giphy.com/media/m9eG1qVjvN56H0MXt8/giphy.gif",
+  "laugh_1": "https://media.giphy.com/media/xUA7aM09ByyR1w5YWc/giphy.gif",
+  "laugh_2": "https://media.giphy.com/media/26xBwdIuRCiYoCLHi/giphy.gif",
+  "wow_1": "https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif",
+  "wow_2": "https://media.giphy.com/media/xT0xeJpnrWC4XWblEk/giphy.gif",
+};
+
+function getStickerUrlFromContent(content: string): string | null {
+  if (!content?.startsWith("[sticker:")) return null;
+  const match = content.match(/\[sticker:([^\]]+)\]/);
+  if (match && match[1]) {
+    return STICKER_URL_MAP[match[1]] || null;
+  }
+  return null;
+}
 
 interface Message {
   id: string;
@@ -21,6 +56,8 @@ interface Message {
   payload?: any;
   createdAt: string;
   clientMessageId?: string;
+  fileUrl?: string;
+  fileName?: string;
 }
 
 interface PersonalChatInfo {
@@ -29,6 +66,13 @@ interface PersonalChatInfo {
   participantName: string;
   participantPhoto: string | null;
   lastMessageAt: string | null;
+}
+
+interface CustomerData {
+  id: string;
+  phoneNumber: string;
+  displayName: string;
+  email?: string;
 }
 
 interface PendingMessage {
@@ -49,6 +93,41 @@ function generateClientId(): string {
   return `client_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
+function isStickerMessage(msg: DisplayMessage): boolean {
+  return msg.messageType === "sticker" || msg.content?.startsWith("[sticker:");
+}
+
+function isImageMessage(msg: DisplayMessage): boolean {
+  if (msg.messageType === "media" || msg.messageType === "image") return true;
+  if (msg.content?.startsWith("[image:")) return true;
+  if ('fileUrl' in msg && msg.fileUrl) {
+    const ext = msg.fileUrl.split('.').pop()?.toLowerCase();
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '');
+  }
+  return false;
+}
+
+interface MediaInfo {
+  url: string;
+  filename: string;
+}
+
+function parseMediaFromMessage(msg: DisplayMessage): MediaInfo | null {
+  if ('fileUrl' in msg && msg.fileUrl) {
+    return {
+      url: msg.fileUrl,
+      filename: ('fileName' in msg && msg.fileName) || 'image',
+    };
+  }
+  if (msg.payload?.url) {
+    return {
+      url: msg.payload.url,
+      filename: msg.payload.filename || 'image',
+    };
+  }
+  return null;
+}
+
 export default function PersonalChatPage() {
   const params = useParams<{ chatId: string }>();
   const [, navigate] = useLocation();
@@ -56,9 +135,22 @@ export default function PersonalChatPage() {
   const queryClient = useQueryClient();
   const [message, setMessage] = useState("");
   const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
+  const [showStickerPicker, setShowStickerPicker] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [viewerImages, setViewerImages] = useState<MediaInfo[]>([]);
+  const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const chatId = params.chatId;
+
+  const { data: currentUser } = useQuery<CustomerData>({
+    queryKey: ["/api/customer/me"],
+  });
 
   const { data: chatInfo, isLoading: chatLoading } = useQuery<PersonalChatInfo>({
     queryKey: ["/api/customer/personal-chats", chatId, "info"],
@@ -76,10 +168,19 @@ export default function PersonalChatPage() {
   )];
 
   const sendMessageMutation = useMutation({
-    mutationFn: async ({ content, clientMessageId }: { content: string; clientMessageId: string }) => {
+    mutationFn: async ({ content, clientMessageId, messageType, fileUrl, fileName }: { 
+      content: string; 
+      clientMessageId: string;
+      messageType?: string;
+      fileUrl?: string;
+      fileName?: string;
+    }) => {
       return apiRequest("POST", `/api/customer/personal-chats/${chatId}/messages`, {
         content,
         clientMessageId,
+        messageType: messageType || "text",
+        fileUrl,
+        fileName,
       });
     },
     onSuccess: (_, variables) => {
@@ -91,10 +192,58 @@ export default function PersonalChatPage() {
     onError: (error, variables) => {
       setPendingMessages(prev => prev.filter(pm => pm.clientMessageId !== variables.clientMessageId));
       toast({
-        title: "Failed to send message",
+        title: "Gagal mengirim pesan",
         description: String(error),
         variant: "destructive",
       });
+    },
+  });
+
+  const uploadMediaMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      
+      const response = await fetch("/api/customer/media/upload", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      const clientMessageId = generateClientId();
+      const pendingMsg: PendingMessage = {
+        clientMessageId,
+        content: `[image:${data.filename || 'image'}]`,
+        senderId: currentUser?.id || "me",
+        createdAt: new Date().toISOString(),
+        messageType: "media",
+        payload: { url: data.url },
+        isPending: true,
+      };
+      setPendingMessages(prev => [...prev, pendingMsg]);
+      sendMessageMutation.mutate({ 
+        content: `[image:${data.filename || 'image'}]`,
+        clientMessageId,
+        messageType: "media",
+        fileUrl: data.url,
+        fileName: data.filename,
+      });
+      clearSelectedFile();
+    },
+    onError: (error) => {
+      toast({
+        title: "Gagal upload",
+        description: String(error),
+        variant: "destructive",
+      });
+      setIsUploading(false);
     },
   });
 
@@ -106,7 +255,7 @@ export default function PersonalChatPage() {
     const pendingMsg: PendingMessage = {
       clientMessageId,
       content: trimmedMessage,
-      senderId: "me",
+      senderId: currentUser?.id || "me",
       createdAt: new Date().toISOString(),
       messageType: "text",
       isPending: true,
@@ -115,6 +264,83 @@ export default function PersonalChatPage() {
     setPendingMessages(prev => [...prev, pendingMsg]);
     setMessage("");
     sendMessageMutation.mutate({ content: trimmedMessage, clientMessageId });
+  };
+
+  const handleStickerSelect = useCallback((sticker: Sticker) => {
+    const clientMessageId = generateClientId();
+    const pendingMsg: PendingMessage = {
+      clientMessageId,
+      content: `[sticker:${sticker.id}]`,
+      senderId: currentUser?.id || "me",
+      createdAt: new Date().toISOString(),
+      messageType: "sticker",
+      payload: { stickerUrl: sticker.url, stickerAlt: sticker.alt },
+      isPending: true,
+    };
+    setPendingMessages(prev => [...prev, pendingMsg]);
+    sendMessageMutation.mutate({
+      content: `[sticker:${sticker.id}]`,
+      clientMessageId,
+      messageType: "sticker",
+    });
+    setShowStickerPicker(false);
+  }, [currentUser?.id, sendMessageMutation]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const maxSize = 10 * 1024 * 1024;
+      if (file.size > maxSize) {
+        toast({
+          title: "File terlalu besar",
+          description: "Maksimal ukuran file adalah 10MB",
+          variant: "destructive",
+        });
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
+  const clearSelectedFile = () => {
+    setSelectedFile(null);
+    setUploadProgress(0);
+    setIsUploading(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleSend = () => {
+    if (selectedFile) {
+      setIsUploading(true);
+      setUploadProgress(0);
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return prev;
+          }
+          return prev + 10;
+        });
+      }, 200);
+      uploadMediaMutation.mutate(selectedFile);
+    } else if (message.trim()) {
+      handleSendMessage();
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const openImageViewer = (images: MediaInfo[], index: number) => {
+    setViewerImages(images);
+    setViewerInitialIndex(index);
+    setImageViewerOpen(true);
   };
 
   useEffect(() => {
@@ -157,12 +383,12 @@ export default function PersonalChatPage() {
     yesterday.setDate(yesterday.getDate() - 1);
 
     if (format(date, "yyyy-MM-dd") === format(today, "yyyy-MM-dd")) {
-      return "Today";
+      return "Hari ini";
     }
     if (format(date, "yyyy-MM-dd") === format(yesterday, "yyyy-MM-dd")) {
-      return "Yesterday";
+      return "Kemarin";
     }
-    return format(date, "MMMM d, yyyy");
+    return format(date, "d MMMM yyyy");
   };
 
   if (!chatId) {
@@ -199,17 +425,17 @@ export default function PersonalChatPage() {
           <Button variant="ghost" size="icon" onClick={() => navigate(chatRoutes.contacts())} data-testid="button-back">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <span className="font-medium">Chat not found</span>
+          <span className="font-medium">Chat tidak ditemukan</span>
         </header>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center p-6 glass-card rounded-xl">
             <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="font-medium mb-2">Chat not found</h3>
+            <h3 className="font-medium mb-2">Chat tidak ditemukan</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              This conversation may have been deleted or is no longer available.
+              Percakapan ini mungkin telah dihapus atau tidak tersedia.
             </p>
             <Button onClick={() => navigate(chatRoutes.contacts())}>
-              Back to Contacts
+              Kembali ke Kontak
             </Button>
           </div>
         </div>
@@ -249,18 +475,18 @@ export default function PersonalChatPage() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => toast({ title: "Coming Soon", description: "This feature is in development" })}>
-              View Profile
+            <DropdownMenuItem onClick={() => toast({ title: "Segera Hadir", description: "Fitur ini sedang dikembangkan" })}>
+              Lihat Profil
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => toast({ title: "Coming Soon", description: "This feature is in development" })}>
-              Clear Chat
+            <DropdownMenuItem onClick={() => toast({ title: "Segera Hadir", description: "Fitur ini sedang dikembangkan" })}>
+              Hapus Chat
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem 
-              onClick={() => toast({ title: "Coming Soon", description: "This feature is in development" })}
+              onClick={() => toast({ title: "Segera Hadir", description: "Fitur ini sedang dikembangkan" })}
               className="text-destructive"
             >
-              Block User
+              Blokir User
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -274,13 +500,13 @@ export default function PersonalChatPage() {
         ) : messagesError ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="glass-card rounded-xl p-6">
-              <p className="text-sm text-destructive mb-2">Failed to load messages</p>
+              <p className="text-sm text-destructive mb-2">Gagal memuat pesan</p>
               <Button 
                 variant="outline" 
                 size="sm"
                 onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/customer/personal-chats", chatId, "messages"] })}
               >
-                Retry
+                Coba Lagi
               </Button>
             </div>
           </div>
@@ -288,9 +514,9 @@ export default function PersonalChatPage() {
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="glass-card rounded-xl p-6">
               <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="font-medium mb-2">Start the conversation</h3>
+              <h3 className="font-medium mb-2">Mulai percakapan</h3>
               <p className="text-sm text-muted-foreground">
-                Say hi to {chatInfo.participantName}!
+                Sapa {chatInfo.participantName}!
               </p>
             </div>
           </div>
@@ -298,48 +524,130 @@ export default function PersonalChatPage() {
           <>
             {messageGroups.map((group) => (
               <div key={group.date}>
-                <div className="flex items-center justify-center mb-4">
-                  <span className="text-xs text-muted-foreground bg-background/80 px-3 py-1 rounded-full">
+                <div className="flex items-center justify-center my-4">
+                  <span className="text-xs text-muted-foreground glass-card px-3 py-1 rounded-full">
                     {formatDateLabel(group.date)}
                   </span>
                 </div>
-                {group.messages.map((msg, idx) => {
-                  const isMe = msg.senderId === "me" || ('isPending' in msg);
-                  return (
-                    <div
-                      key={msg.clientMessageId || msg.id || idx}
-                      className={cn(
-                        "flex mb-2",
-                        isMe ? "justify-end" : "justify-start"
-                      )}
-                    >
+                <div className="space-y-2">
+                  {group.messages.map((msg) => {
+                    const isMe = msg.senderId === currentUser?.id || msg.senderId === "me" || ('isPending' in msg && msg.isPending);
+                    const msgKey = ('id' in msg && msg.id) || msg.clientMessageId || msg.createdAt;
+                    const isPending = "isPending" in msg && msg.isPending;
+                    const mediaInfo = parseMediaFromMessage(msg);
+                    const isImage = isImageMessage(msg);
+                    const isSticker = isStickerMessage(msg);
+
+                    return (
                       <div
+                        key={msgKey}
                         className={cn(
-                          "max-w-[80%] rounded-2xl px-4 py-2",
-                          isMe
-                            ? "bg-primary text-primary-foreground rounded-br-md"
-                            : "glass-card rounded-bl-md"
+                          "flex gap-2",
+                          isMe ? "justify-end" : "justify-start",
+                          isPending && "opacity-70"
                         )}
+                        data-testid={`message-${msgKey}`}
                       >
-                        <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
-                        <div className={cn(
-                          "flex items-center gap-1 mt-1",
-                          isMe ? "justify-end" : "justify-start"
-                        )}>
-                          <span className={cn(
-                            "text-[10px]",
-                            isMe ? "text-primary-foreground/70" : "text-muted-foreground"
-                          )}>
-                            {format(new Date(msg.createdAt), "HH:mm")}
-                          </span>
-                          {'isPending' in msg && msg.isPending && (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          )}
-                        </div>
+                        {!isMe && (
+                          <Avatar className="w-8 h-8 flex-shrink-0">
+                            <AvatarImage src={chatInfo.participantPhoto || undefined} />
+                            <AvatarFallback className="bg-gradient-to-br from-primary/20 to-violet-500/20">
+                              <Users className="w-4 h-4 text-primary" />
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+
+                        {isSticker ? (
+                          (() => {
+                            const stickerUrl = msg.payload?.stickerUrl || getStickerUrlFromContent(msg.content);
+                            return stickerUrl ? (
+                              <div className="max-w-[120px]" data-testid="sticker-message">
+                                <img 
+                                  src={stickerUrl} 
+                                  alt={msg.payload?.stickerAlt || "sticker"} 
+                                  className="w-full h-auto"
+                                  loading="lazy"
+                                />
+                                <p className="text-[10px] mt-1 text-center text-muted-foreground">
+                                  {format(new Date(msg.createdAt), "HH:mm")}
+                                  {isPending && " · Mengirim..."}
+                                </p>
+                              </div>
+                            ) : (
+                              <div className={cn(
+                                "max-w-[75%] rounded-2xl px-4 py-2 shadow-sm",
+                                isMe
+                                  ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-br-md"
+                                  : "glass-card rounded-bl-md"
+                              )}>
+                                <p className="text-sm">{msg.content}</p>
+                                <p className={cn(
+                                  "text-[10px] mt-1",
+                                  isMe ? "text-white/70" : "text-muted-foreground"
+                                )}>
+                                  {format(new Date(msg.createdAt), "HH:mm")}
+                                </p>
+                              </div>
+                            );
+                          })()
+                        ) : isImage && mediaInfo ? (
+                          <div 
+                            className="cursor-pointer"
+                            onClick={() => openImageViewer([mediaInfo], 0)}
+                            data-testid="image-message"
+                          >
+                            <div className="w-48 md:w-56 rounded-xl overflow-hidden border border-white/20 shadow-sm">
+                              <div className="relative aspect-square bg-black/5 dark:bg-white/5">
+                                <img
+                                  src={mediaInfo.url}
+                                  alt={mediaInfo.filename}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <div className={cn(
+                                "p-2",
+                                isMe ? "bg-gradient-to-r from-purple-500 to-indigo-500" : "glass-card"
+                              )}>
+                                <p className={cn(
+                                  "text-[10px]",
+                                  isMe ? "text-white/70" : "text-muted-foreground"
+                                )}>
+                                  {format(new Date(msg.createdAt), "HH:mm")}
+                                  {isPending && " · Mengirim..."}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div
+                            className={cn(
+                              "max-w-[75%] rounded-2xl px-4 py-2 shadow-sm",
+                              isMe
+                                ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-br-md"
+                                : "glass-card rounded-bl-md"
+                            )}
+                          >
+                            <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                            <div className={cn(
+                              "flex items-center gap-1 mt-1",
+                              isMe ? "justify-end" : "justify-start"
+                            )}>
+                              <span className={cn(
+                                "text-[10px]",
+                                isMe ? "text-white/70" : "text-muted-foreground"
+                              )}>
+                                {format(new Date(msg.createdAt), "HH:mm")}
+                              </span>
+                              {isPending && (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             ))}
             <div ref={messagesEndRef} />
@@ -347,36 +655,142 @@ export default function PersonalChatPage() {
         )}
       </div>
 
-      <div className="p-3 glass-footer border-t border-border/50">
-        <form 
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSendMessage();
-          }}
-          className="flex items-center gap-2"
-        >
-          <Input
-            ref={inputRef}
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Type a message..."
-            className="flex-1 bg-background/50"
-            data-testid="input-message"
+      {selectedFile && (
+        <div className="p-3 border-t border-border/50 glass-card mx-3 mb-2 rounded-xl">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
+              {selectedFile.type.startsWith("image/") ? (
+                <Image className="w-6 h-6 text-muted-foreground" />
+              ) : selectedFile.type.startsWith("video/") ? (
+                <Video className="w-6 h-6 text-muted-foreground" />
+              ) : (
+                <FileText className="w-6 h-6 text-muted-foreground" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{selectedFile.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {(selectedFile.size / 1024).toFixed(1)} KB
+              </p>
+              {isUploading && (
+                <div className="mt-1" data-testid="upload-progress-container">
+                  <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-primary transition-all duration-300 ease-out"
+                      style={{ width: `${uploadProgress}%` }}
+                      data-testid="upload-progress-bar"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5" data-testid="upload-progress-text">
+                    Mengupload... {uploadProgress}%
+                  </p>
+                </div>
+              )}
+            </div>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={clearSelectedFile} 
+              disabled={isUploading}
+              data-testid="button-remove-file"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="glass-header p-3 relative z-40" style={{ borderTop: '1px solid rgba(0,0,0,0.08)', borderBottom: 'none' }}>
+        <StickerPicker
+          isOpen={showStickerPicker}
+          onClose={() => setShowStickerPicker(false)}
+          onStickerSelect={handleStickerSelect}
+        />
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/*,.pdf,.doc,.docx,.txt"
+            onChange={handleFileSelect}
+            className="hidden"
+            data-testid="input-file"
           />
-          <Button 
-            type="submit" 
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                data-testid="button-attach"
+              >
+                <Paperclip className="w-5 h-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => {
+                fileInputRef.current?.setAttribute("accept", "image/*");
+                fileInputRef.current?.click();
+              }}>
+                <Image className="w-4 h-4 mr-2" />
+                Foto
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                fileInputRef.current?.setAttribute("accept", "video/*");
+                fileInputRef.current?.click();
+              }}>
+                <Video className="w-4 h-4 mr-2" />
+                Video
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                fileInputRef.current?.setAttribute("accept", ".pdf,.doc,.docx,.txt,.xls,.xlsx");
+                fileInputRef.current?.click();
+              }}>
+                <FileText className="w-4 h-4 mr-2" />
+                Dokumen
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            variant="ghost"
             size="icon"
-            disabled={!message.trim() || sendMessageMutation.isPending}
+            onClick={() => setShowStickerPicker(!showStickerPicker)}
+            data-testid="button-stickers"
+          >
+            <Smile className="w-5 h-5" />
+          </Button>
+          <div className="flex-1 relative">
+            <Input
+              ref={inputRef}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ketik pesan..."
+              className="pr-12 glass-input"
+              disabled={sendMessageMutation.isPending || uploadMediaMutation.isPending}
+              data-testid="input-message"
+            />
+          </div>
+          <Button
+            size="icon"
+            onClick={handleSend}
+            disabled={(!message.trim() && !selectedFile) || sendMessageMutation.isPending || uploadMediaMutation.isPending}
+            className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white border-0"
             data-testid="button-send"
           >
-            {sendMessageMutation.isPending ? (
+            {(sendMessageMutation.isPending || uploadMediaMutation.isPending) ? (
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               <Send className="w-5 h-5" />
             )}
           </Button>
-        </form>
+        </div>
       </div>
+
+      <ImageViewer
+        images={viewerImages}
+        initialIndex={viewerInitialIndex}
+        isOpen={imageViewerOpen}
+        onClose={() => setImageViewerOpen(false)}
+      />
     </div>
   );
 }
