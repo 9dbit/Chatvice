@@ -14,6 +14,65 @@ import { chatRoutes } from "@/lib/chat-routes";
 import { ImageViewer, StickerPicker, type Sticker } from "@/components/chat-media";
 import { useChatNotificationSound } from "@/hooks/use-chat-notification-sound";
 
+// Sticker URL mapping for fallback when payload is missing
+const STICKER_URL_MAP: Record<string, string> = {
+  "happy_1": "https://media.giphy.com/media/WUq1cg9K7uzHa/giphy.gif",
+  "happy_2": "https://media.giphy.com/media/DhstvI3zZ598Nb1rFf/giphy.gif",
+  "happy_3": "https://media.giphy.com/media/tXL4FHPSnVJ0A/giphy.gif",
+  "happy_4": "https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif",
+  "happy_5": "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
+  "happy_6": "https://media.giphy.com/media/xT9IgG50Fb7Mi0prBC/giphy.gif",
+  "happy_7": "https://media.giphy.com/media/3oriNZoNvn73MZaFYk/giphy.gif",
+  "happy_8": "https://media.giphy.com/media/l41lUJ1YoZB1lHVPG/giphy.gif",
+  "happy_9": "https://media.giphy.com/media/kyLYXonQYYtl6/giphy.gif",
+  "happy_10": "https://media.giphy.com/media/13dHtsq7BHJJ4s/giphy.gif",
+  "love_1": "https://media.giphy.com/media/l4pTfx2qLszoacZRS/giphy.gif",
+  "love_2": "https://media.giphy.com/media/26BRv0ThflsHCqDrG/giphy.gif",
+  "love_3": "https://media.giphy.com/media/l0HlN5Y28D9MzzcRy/giphy.gif",
+  "love_4": "https://media.giphy.com/media/3oEdv4hwWTzBhWvaU0/giphy.gif",
+  "love_5": "https://media.giphy.com/media/MEF1JnhNr66Db0Uk6/giphy.gif",
+  "love_6": "https://media.giphy.com/media/l0HlxJMw7rkPTN8sg/giphy.gif",
+  "love_7": "https://media.giphy.com/media/3oz8xLd9DJq2l2VFtu/giphy.gif",
+  "love_8": "https://media.giphy.com/media/108M7gCS1JSoO4/giphy.gif",
+  "love_9": "https://media.giphy.com/media/3oEjHV0z8S7WM4MwnK/giphy.gif",
+  "love_10": "https://media.giphy.com/media/jErnybNlfE1lm/giphy.gif",
+  "celebrate_1": "https://media.giphy.com/media/26tOZ42Mg6r8b8iac/giphy.gif",
+  "celebrate_2": "https://media.giphy.com/media/l0MYJnJQ4EiYLxvW/giphy.gif",
+  "celebrate_3": "https://media.giphy.com/media/artj92V8o75VPL7AeQ/giphy.gif",
+  "celebrate_4": "https://media.giphy.com/media/g9582DNuQppxC/giphy.gif",
+  "celebrate_5": "https://media.giphy.com/media/kyLYXonQYYtl6/giphy.gif",
+  "angry_1": "https://media.giphy.com/media/d10dMmzqCYqQ0/giphy.gif",
+  "angry_2": "https://media.giphy.com/media/l1J9EdzfOSgfyueLm/giphy.gif",
+  "angry_3": "https://media.giphy.com/media/3og0INyCmHlNylks9O/giphy.gif",
+  "angry_4": "https://media.giphy.com/media/TJawtKM6OCKkvwCIqX/giphy.gif",
+  "angry_5": "https://media.giphy.com/media/l41YqKTI3pFKuI9CE/giphy.gif",
+  "thanks_1": "https://media.giphy.com/media/3oz8xIsloV320wXWE0/giphy.gif",
+  "thanks_2": "https://media.giphy.com/media/BPJmthQ3YRwD6QqcVD/giphy.gif",
+  "thanks_3": "https://media.giphy.com/media/26u4b45b8KlgAB7iM/giphy.gif",
+  "hi_1": "https://media.giphy.com/media/xUPGGDNsLvqsBOhuU0/giphy.gif",
+  "hi_2": "https://media.giphy.com/media/Vbtc9VG51NtzT1Qnv1/giphy.gif",
+  "hi_3": "https://media.giphy.com/media/3ornk57KwDXf81rjWM/giphy.gif",
+  "bye_1": "https://media.giphy.com/media/KctrWMQ7u9D2du0YmD/giphy.gif",
+  "bye_2": "https://media.giphy.com/media/m9eG1qVjvN56H0MXt8/giphy.gif",
+  "bye_3": "https://media.giphy.com/media/42D3CxaINsAFemFuId/giphy.gif",
+  "laugh_1": "https://media.giphy.com/media/xUA7aM09ByyR1w5YWc/giphy.gif",
+  "laugh_2": "https://media.giphy.com/media/26xBwdIuRCiYoCLHi/giphy.gif",
+  "laugh_3": "https://media.giphy.com/media/3oEjI4sFlp73fvEYgw/giphy.gif",
+  "wow_1": "https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif",
+  "wow_2": "https://media.giphy.com/media/xT0xeJpnrWC4XWblEk/giphy.gif",
+  "wow_3": "https://media.giphy.com/media/3o7TKTDn976rzVgky4/giphy.gif",
+};
+
+function getStickerUrlFromContent(content: string): string | null {
+  if (!content?.startsWith("[sticker:")) return null;
+  const match = content.match(/\[sticker:([^\]]+)\]/);
+  if (match && match[1]) {
+    const stickerId = match[1];
+    return STICKER_URL_MAP[stickerId] || null;
+  }
+  return null;
+}
+
 interface Message {
   id: string;
   sessionId: string;
@@ -492,11 +551,20 @@ export default function StoreChatPage() {
     // Handle legacy messages with [image:] format in content
     if (msg.content?.startsWith("[image:") && msg.content?.endsWith("]")) {
       const filename = msg.content.slice(7, -1).trim();
-      // Check if payload has url or mediaUrl
-      const url = msg.payload?.mediaUrl || msg.payload?.url || "";
+      // Check if payload has url, mediaUrl, or mediaId
+      let url = msg.payload?.mediaUrl || msg.payload?.url || "";
+      // If no URL but has mediaId, construct the URL
+      if (!url && msg.payload?.mediaId) {
+        url = `/api/customer/media/${msg.payload.mediaId}`;
+      }
+      // If still no URL but we have the message ID, try using it as media reference
+      if (!url && msg.id) {
+        // Skip - we can't construct a valid URL without proper reference
+        return null;
+      }
       if (url) {
         return {
-          id: msg.id?.toString() || "",
+          id: msg.payload?.mediaId || msg.id?.toString() || "",
           url: url,
           filename: filename,
           fileSize: msg.payload?.fileSize || 0,
@@ -758,20 +826,41 @@ export default function StoreChatPage() {
                         )}
                         
                         {isSticker ? (
-                          <div className="max-w-[120px]" data-testid="sticker-message">
-                            <img 
-                              src={msg.payload?.stickerUrl || ""} 
-                              alt={msg.payload?.stickerAlt || "sticker"} 
-                              className="w-full h-auto"
-                            />
-                            <p className={cn(
-                              "text-[10px] mt-1 text-center",
-                              "text-muted-foreground"
-                            )}>
-                              {format(new Date(msg.timestamp), "HH:mm")}
-                              {isPending && " · Sending..."}
-                            </p>
-                          </div>
+                          (() => {
+                            const stickerUrl = msg.payload?.stickerUrl || getStickerUrlFromContent(msg.content);
+                            return stickerUrl ? (
+                              <div className="max-w-[120px]" data-testid="sticker-message">
+                                <img 
+                                  src={stickerUrl} 
+                                  alt={msg.payload?.stickerAlt || "sticker"} 
+                                  className="w-full h-auto"
+                                  loading="lazy"
+                                />
+                                <p className={cn(
+                                  "text-[10px] mt-1 text-center",
+                                  "text-muted-foreground"
+                                )}>
+                                  {format(new Date(msg.timestamp), "HH:mm")}
+                                  {isPending && " · Sending..."}
+                                </p>
+                              </div>
+                            ) : (
+                              <div className={cn(
+                                "max-w-[75%] rounded-2xl px-4 py-2 shadow-sm",
+                                isCustomer
+                                  ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-br-md"
+                                  : "glass-card rounded-bl-md"
+                              )}>
+                                <p className="text-sm">{msg.content}</p>
+                                <p className={cn(
+                                  "text-[10px] mt-1",
+                                  isCustomer ? "text-white/70" : "text-muted-foreground"
+                                )}>
+                                  {format(new Date(msg.timestamp), "HH:mm")}
+                                </p>
+                              </div>
+                            );
+                          })()
                         ) : isImage && mediaInfo ? (
                           <div 
                             className="cursor-pointer"
