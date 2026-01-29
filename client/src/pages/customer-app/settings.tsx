@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { chatRoutes } from "@/lib/chat-routes";
 import { useChatNotificationSound } from "@/hooks/use-chat-notification-sound";
+import { QRCodeSVG } from "qrcode.react";
 
 interface CustomerProfile {
   id: string;
@@ -48,12 +49,6 @@ export default function CustomerSettingsPage() {
   useEffect(() => {
     setSoundEnabledState(isSoundEnabled());
   }, [isSoundEnabled]);
-  
-  // Fetch QR code for personal ID
-  const { data: qrCodeData } = useQuery<{ qrCode: string }>({
-    queryKey: ["/api/customer/qr-code"],
-    enabled: !!customer?.personalId,
-  });
   
   const handleCopyPersonalId = async () => {
     if (!customer?.personalId) return;
@@ -375,60 +370,81 @@ export default function CustomerSettingsPage() {
             </CardContent>
           </Card>
           
-          {/* Personal ID & QR Code Section */}
-          <Card className="backdrop-blur-xl bg-white/5 dark:bg-white/[0.03] border-white/10 dark:border-white/5">
-            <CardHeader>
+          {/* Personal ID & QR Code Section - Frosted Glass Design */}
+          <Card className="relative overflow-hidden backdrop-blur-2xl bg-gradient-to-br from-purple-500/10 via-indigo-500/10 to-blue-500/10 border-white/20 dark:border-white/10 shadow-xl">
+            {/* Decorative gradient blur */}
+            <div className="absolute -top-20 -right-20 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
+            
+            <CardHeader className="relative z-10">
               <CardTitle className="flex items-center gap-2">
-                <QrCode className="w-5 h-5 text-primary" />
+                <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600">
+                  <QrCode className="w-5 h-5 text-white" />
+                </div>
                 Personal ID
               </CardTitle>
               <CardDescription>Share your Personal ID or QR code to connect with others</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="relative z-10 space-y-6">
               {customer.personalId ? (
                 <>
-                  {/* Personal ID Display */}
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-white/10">
-                    <div className="flex-1">
-                      <p className="text-xs text-muted-foreground mb-1">Your Personal ID</p>
-                      <p className="font-mono text-lg font-semibold" data-testid="text-personal-id">{customer.personalId}</p>
-                    </div>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={handleCopyPersonalId}
-                      data-testid="button-copy-personal-id"
-                    >
-                      {copiedId ? (
-                        <Check className="w-4 h-4 text-green-500" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                    </Button>
-                  </div>
-                  
-                  {/* QR Code Display */}
-                  <div className="flex flex-col items-center gap-3">
-                    <p className="text-sm text-muted-foreground">Scan this QR code to add as contact</p>
-                    {qrCodeData?.qrCode ? (
-                      <div className="p-4 bg-white rounded-xl" data-testid="container-qr-code">
-                        <img 
-                          src={qrCodeData.qrCode} 
-                          alt="Personal QR Code" 
-                          className="w-48 h-48"
+                  {/* Frosted Glass QR Code Frame */}
+                  <div className="flex flex-col items-center">
+                    <div className="relative p-6 rounded-3xl backdrop-blur-xl bg-white/80 dark:bg-white/90 shadow-2xl border border-white/50" data-testid="container-qr-code">
+                      {/* Inner glow effect */}
+                      <div className="absolute inset-2 rounded-2xl bg-gradient-to-br from-purple-100/50 to-indigo-100/50 dark:from-purple-200/30 dark:to-indigo-200/30 pointer-events-none" />
+                      
+                      <div className="relative">
+                        <QRCodeSVG 
+                          value={customer.personalId}
+                          size={180}
+                          level="H"
+                          includeMargin={false}
+                          bgColor="transparent"
+                          fgColor="#1e1b4b"
                           data-testid="img-personal-qr"
                         />
                       </div>
-                    ) : (
-                      <div className="w-48 h-48 bg-muted/30 rounded-xl flex items-center justify-center">
-                        <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" />
+                      
+                      {/* Personal ID below QR */}
+                      <div className="mt-4 text-center">
+                        <p className="font-mono text-sm font-bold text-indigo-900 tracking-wider" data-testid="text-personal-id">
+                          {customer.personalId}
+                        </p>
                       </div>
-                    )}
+                    </div>
+                    
+                    <p className="mt-4 text-sm text-muted-foreground text-center">
+                      Scan this QR code to add as contact
+                    </p>
+                  </div>
+                  
+                  {/* Copy Button */}
+                  <div className="flex justify-center">
+                    <Button
+                      variant="outline"
+                      onClick={handleCopyPersonalId}
+                      className="backdrop-blur-sm bg-white/10 border-white/20"
+                      data-testid="button-copy-personal-id"
+                    >
+                      {copiedId ? (
+                        <>
+                          <Check className="w-4 h-4 mr-2 text-green-500" />
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4 mr-2" />
+                          Copy Personal ID
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </>
               ) : (
-                <div className="text-center py-4 text-muted-foreground">
-                  <p>Personal ID is being generated...</p>
+                <div className="flex flex-col items-center py-8 text-muted-foreground">
+                  <div className="animate-spin w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full mb-3" />
+                  <p>Generating Personal ID...</p>
                 </div>
               )}
             </CardContent>

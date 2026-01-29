@@ -341,94 +341,98 @@ export default function CustomerContactsPage() {
             </Button>
           </div>
           
-          {/* Add Contact Dialog - Centered */}
+          {/* Add Contact Dialog - Centered & Scrollable */}
           <Dialog open={addDialogOpen} onOpenChange={(open) => { if (!open) handleCloseDialog(); }}>
-            <DialogContent className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-md rounded-2xl glass-card border-white/20 max-h-[85vh] overflow-y-auto p-0">
-              <DialogHeader className="p-4 pb-2">
+            <DialogContent className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-md rounded-2xl glass-card border-white/20 p-0 flex flex-col max-h-[85vh]">
+              <DialogHeader className="p-4 pb-2 flex-shrink-0">
                 <DialogTitle className="flex items-center gap-2 text-lg">
-                  <Plus className="w-5 h-5 text-primary" />
+                  <div className="p-1.5 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600">
+                    <Plus className="w-4 h-4 text-white" />
+                  </div>
                   Add New Contact
                 </DialogTitle>
               </DialogHeader>
               
-              {/* Loading State */}
-              {isLookingUp && (
-                <div className="flex flex-col items-center justify-center py-12 px-4">
-                  <Loader2 className="w-10 h-10 animate-spin text-primary mb-3" />
-                  <p className="text-sm text-muted-foreground">Looking up contact...</p>
-                </div>
-              )}
-              
-              {/* Confirmation Mode */}
-              {confirmMode && scannedContact && !isLookingUp && (
-                <div className="space-y-4 p-4">
-                  <div className="p-4 rounded-xl bg-muted/30 border border-white/10 space-y-4">
-                    <div className="flex items-center gap-4">
-                      <Avatar className="w-16 h-16">
-                        <AvatarImage src={scannedContact.avatarUrl || undefined} />
-                        <AvatarFallback className="text-xl">
-                          <User className="w-6 h-6" />
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-lg font-semibold truncate" data-testid="text-scanned-name">
-                          {scannedContact.displayName || "Unnamed User"}
-                        </p>
-                        {scannedContact.phoneNumber && (
-                          <p className="text-sm text-muted-foreground flex items-center gap-1" data-testid="text-scanned-phone">
-                            <Phone className="w-3 h-3" />
-                            {scannedContact.phoneNumber}
+              {/* Scrollable Content Container */}
+              <div className="flex-1 overflow-y-auto min-h-0">
+                {/* Loading State */}
+                {isLookingUp && (
+                  <div className="flex flex-col items-center justify-center py-12 px-4">
+                    <Loader2 className="w-10 h-10 animate-spin text-primary mb-3" />
+                    <p className="text-sm text-muted-foreground">Looking up contact...</p>
+                  </div>
+                )}
+                
+                {/* Confirmation Mode */}
+                {confirmMode && scannedContact && !isLookingUp && (
+                  <div className="space-y-4 p-4">
+                    <div className="p-4 rounded-xl bg-muted/30 border border-white/10 space-y-4">
+                      <div className="flex items-center gap-4">
+                        <Avatar className="w-16 h-16">
+                          <AvatarImage src={scannedContact.avatarUrl || undefined} />
+                          <AvatarFallback className="text-xl">
+                            <User className="w-6 h-6" />
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-lg font-semibold truncate" data-testid="text-scanned-name">
+                            {scannedContact.displayName || "Unnamed User"}
                           </p>
-                        )}
-                        <p className="text-xs text-muted-foreground font-mono mt-1" data-testid="text-scanned-id">
-                          {scannedContact.personalId}
-                        </p>
+                          {scannedContact.phoneNumber && (
+                            <p className="text-sm text-muted-foreground flex items-center gap-1" data-testid="text-scanned-phone">
+                              <Phone className="w-3 h-3" />
+                              {scannedContact.phoneNumber}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground font-mono mt-1" data-testid="text-scanned-id">
+                            {scannedContact.personalId}
+                          </p>
+                        </div>
                       </div>
                     </div>
+                    
+                    <p className="text-center text-sm text-muted-foreground">
+                      Add this person to your contacts?
+                    </p>
+                    
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        className="flex-1" 
+                        onClick={handleBackToInput}
+                        data-testid="button-back-to-input"
+                      >
+                        <X className="w-4 h-4 mr-2" /> Cancel
+                      </Button>
+                      <Button 
+                        className="flex-1" 
+                        onClick={handleConfirmAddContact}
+                        disabled={addContactByIdMutation.isPending}
+                        data-testid="button-confirm-add"
+                      >
+                        {addContactByIdMutation.isPending ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Check className="w-4 h-4 mr-2" /> Save Contact
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
-                  
-                  <p className="text-center text-sm text-muted-foreground">
-                    Add this person to your contacts?
-                  </p>
-                  
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      className="flex-1" 
-                      onClick={handleBackToInput}
-                      data-testid="button-back-to-input"
-                    >
-                      <X className="w-4 h-4 mr-2" /> Cancel
-                    </Button>
-                    <Button 
-                      className="flex-1 bg-purple-600" 
-                      onClick={handleConfirmAddContact}
-                      disabled={addContactByIdMutation.isPending}
-                      data-testid="button-confirm-add"
-                    >
-                      {addContactByIdMutation.isPending ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Check className="w-4 h-4 mr-2" /> Save Contact
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              )}
-              
-              {/* Main Content with Custom Tabs */}
-              {!confirmMode && !isLookingUp && (
-                <div className="w-full">
+                )}
+                
+                {/* Main Content with Custom Tabs */}
+                {!confirmMode && !isLookingUp && (
+                  <div className="w-full">
                   {/* Custom Sliding Tabs */}
-                  <div className="px-4 pt-2">
+                  <div className="px-4 pt-2 flex-shrink-0">
                     <div className="relative flex bg-muted/50 rounded-xl p-1">
-                      {/* Sliding background */}
+                      {/* Sliding background - Purple-Blue gradient */}
                       <div 
-                        className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-purple-600 rounded-lg transition-all duration-300 ease-out"
+                        className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg transition-all duration-300 ease-out shadow-lg"
                         style={{ 
                           left: activeTab === "phone" ? "4px" : "calc(50% + 2px)",
                         }}
@@ -473,7 +477,7 @@ export default function CustomerContactsPage() {
                             placeholder="+62812345678"
                             value={phoneInput}
                             onChange={(e) => setPhoneInput(e.target.value)}
-                            className="text-center text-lg tracking-wider h-12 border-purple-500/30 focus:border-purple-500"
+                            className="text-center text-lg tracking-wider h-12 border-indigo-500/30 focus:border-indigo-500"
                             data-testid="input-phone-number"
                           />
                           <p className="text-xs text-muted-foreground text-center">
@@ -482,7 +486,7 @@ export default function CustomerContactsPage() {
                         </div>
                         
                         <Button 
-                          className="w-full bg-purple-600 h-11"
+                          className="w-full h-11"
                           onClick={handleAddByPhone}
                           disabled={lookupContactMutation.isPending || !phoneInput.trim()}
                           data-testid="button-find-contact"
@@ -554,13 +558,13 @@ export default function CustomerContactsPage() {
                             </div>
                           )}
                           
-                          {/* Scanner overlay corners */}
+                          {/* Scanner overlay corners - Purple-Blue gradient effect */}
                           {isScanning && (
                             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                               <div className="relative w-48 h-48">
                                 <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-purple-500 rounded-tl-lg" />
-                                <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-purple-500 rounded-tr-lg" />
-                                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-purple-500 rounded-bl-lg" />
+                                <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-indigo-500 rounded-tr-lg" />
+                                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-indigo-500 rounded-bl-lg" />
                                 <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-purple-500 rounded-br-lg" />
                               </div>
                             </div>
@@ -605,8 +609,9 @@ export default function CustomerContactsPage() {
                       <X className="w-4 h-4 mr-2" /> Cancel
                     </Button>
                   </div>
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
             </DialogContent>
           </Dialog>
           
@@ -642,7 +647,7 @@ export default function CustomerContactsPage() {
               <p className="text-sm text-muted-foreground mb-4">
                 Add contacts to start personal conversations
               </p>
-              <Button onClick={() => setAddDialogOpen(true)} className="bg-purple-600">
+              <Button onClick={() => setAddDialogOpen(true)}>
                 <Plus className="w-4 h-4 mr-2" /> Add Contact
               </Button>
             </div>
