@@ -132,7 +132,7 @@ export default function DashboardOverview() {
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Install Chatvice Widget Section */}
-      <Card className="backdrop-blur-xl bg-white/5 dark:bg-white/[0.03] border-white/10 dark:border-white/5" data-testid="card-install-widget">
+      <Card className="backdrop-blur-xl bg-white/5 dark:bg-white/[0.03] border-white/10 dark:border-white/5 shadow-lg dark:shadow-purple-500/10 dark:shadow-xl" data-testid="card-install-widget">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-lg">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-primary via-purple-500 to-primary bg-[length:200%_100%] animate-gradient-x text-primary-foreground font-semibold text-sm" data-testid="button-install-widget-title">
