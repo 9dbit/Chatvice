@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Users, Search, Plus, Star, Trash2, MessageSquare, User, QrCode, Camera, X, Check, Loader2, Phone, ScanLine } from "lucide-react";
 import CustomerLayout from "./layout";
 import { useState, useEffect, useRef } from "react";
@@ -44,13 +43,14 @@ export default function CustomerContactsPage() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>("personal-id");
-  const [personalIdInput, setPersonalIdInput] = useState("");
+  const [activeTab, setActiveTab] = useState<"phone" | "scan">("phone");
+  const [phoneInput, setPhoneInput] = useState("");
   const [isScanning, setIsScanning] = useState(false);
   const [lastScannedCode, setLastScannedCode] = useState<string | null>(null);
   const [confirmMode, setConfirmMode] = useState(false);
   const [scannedContact, setScannedContact] = useState<ScannedContact | null>(null);
   const [isLookingUp, setIsLookingUp] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const scannerRef = useRef<any>(null);
   const videoRef = useRef<HTMLDivElement>(null);
   
@@ -96,8 +96,30 @@ export default function CustomerContactsPage() {
     },
   });
   
-  // Lookup contact by Personal ID (for confirmation step)
+  // Lookup contact by phone number
   const lookupContactMutation = useMutation({
+    mutationFn: async (phoneNumber: string) => {
+      const res = await apiRequest("POST", "/api/customer/lookup-by-phone", { phoneNumber });
+      return res.json();
+    },
+    onSuccess: (data: ScannedContact) => {
+      setScannedContact(data);
+      setConfirmMode(true);
+      setIsLookingUp(false);
+    },
+    onError: (error: Error) => {
+      setIsLookingUp(false);
+      toast({ 
+        title: "Error", 
+        description: error.message,
+        variant: "destructive" 
+      });
+      setTimeout(() => setLastScannedCode(null), 3000);
+    },
+  });
+  
+  // Lookup by Personal ID (for QR scan)
+  const lookupByIdMutation = useMutation({
     mutationFn: async (personalId: string) => {
       const res = await apiRequest("POST", "/api/customer/lookup-by-personal-id", { personalId });
       return res.json();
@@ -138,13 +160,19 @@ export default function CustomerContactsPage() {
     },
   });
   
-  // QR Scanner effect - only start when scan-qr tab is active
+  // QR Scanner effect - only start when scan tab is active
   useEffect(() => {
-    if (addDialogOpen && activeTab === "scan-qr" && videoRef.current && !scannerRef.current && !confirmMode && !isLookingUp) {
+    if (addDialogOpen && activeTab === "scan" && !confirmMode && !isLookingUp) {
+      setCameraError(null);
       const timer = setTimeout(() => {
         initScanner();
-      }, 300);
-      return () => clearTimeout(timer);
+      }, 500);
+      return () => {
+        clearTimeout(timer);
+        stopScanner();
+      };
+    } else {
+      stopScanner();
     }
     
     return () => {
@@ -154,18 +182,37 @@ export default function CustomerContactsPage() {
   
   const initScanner = async () => {
     try {
+      if (scannerRef.current) {
+        await scannerRef.current.stop().catch(() => {});
+        scannerRef.current = null;
+      }
+      
       const { Html5Qrcode } = await import("html5-qrcode");
-      if (!videoRef.current) return;
+      
+      const readerElement = document.getElementById("qr-reader");
+      if (!readerElement) {
+        setCameraError("Scanner element not found");
+        return;
+      }
       
       const html5QrCode = new Html5Qrcode("qr-reader");
       scannerRef.current = html5QrCode;
+      
+      const cameras = await Html5Qrcode.getCameras();
+      if (cameras.length === 0) {
+        setCameraError("No camera found on this device");
+        return;
+      }
+      
       setIsScanning(true);
+      setCameraError(null);
       
       await html5QrCode.start(
         { facingMode: "environment" },
         {
           fps: 10,
           qrbox: { width: 200, height: 200 },
+          aspectRatio: 1,
         },
         (decodedText) => {
           if (decodedText === lastScannedCode) return;
@@ -176,7 +223,7 @@ export default function CustomerContactsPage() {
               scannerRef.current = null;
               setIsScanning(false);
               setIsLookingUp(true);
-              lookupContactMutation.mutate(decodedText);
+              lookupByIdMutation.mutate(decodedText);
             });
           } else {
             toast({
@@ -189,20 +236,28 @@ export default function CustomerContactsPage() {
         },
         () => {}
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to start scanner:", error);
       setIsScanning(false);
-      toast({
-        title: "Camera Error",
-        description: "Failed to access camera. Please check permissions.",
-        variant: "destructive",
-      });
+      
+      if (error.name === "NotAllowedError") {
+        setCameraError("Camera permission denied. Please allow camera access in your browser settings.");
+      } else if (error.name === "NotFoundError") {
+        setCameraError("No camera found on this device.");
+      } else {
+        setCameraError("Failed to start camera. Please try again.");
+      }
     }
   };
   
-  const stopScanner = () => {
+  const stopScanner = async () => {
     if (scannerRef.current) {
-      scannerRef.current.stop().catch(() => {});
+      try {
+        await scannerRef.current.stop();
+        await scannerRef.current.clear?.();
+      } catch (e) {
+        // Ignore errors when stopping
+      }
       scannerRef.current = null;
       setIsScanning(false);
     }
@@ -211,34 +266,37 @@ export default function CustomerContactsPage() {
   const handleCloseDialog = () => {
     stopScanner();
     setAddDialogOpen(false);
-    setPersonalIdInput("");
+    setPhoneInput("");
     setLastScannedCode(null);
     setConfirmMode(false);
     setScannedContact(null);
     setIsLookingUp(false);
-    setActiveTab("personal-id");
+    setActiveTab("phone");
+    setCameraError(null);
   };
   
-  const handleTabChange = (tab: string) => {
+  const handleTabChange = (tab: "phone" | "scan") => {
     stopScanner();
     setActiveTab(tab);
     setConfirmMode(false);
     setScannedContact(null);
     setLastScannedCode(null);
+    setCameraError(null);
   };
   
-  const handleAddByPersonalId = () => {
-    const trimmedId = personalIdInput.trim().toUpperCase();
-    if (!trimmedId.match(/^P-[A-Z]\d{2}-\d{5}$/)) {
+  const handleAddByPhone = () => {
+    // Normalize: remove spaces, dashes, parentheses
+    const normalizedPhone = phoneInput.trim().replace(/[\s\-\(\)]/g, "");
+    if (!normalizedPhone || normalizedPhone.length < 10) {
       toast({
-        title: "Invalid Personal ID",
-        description: "Personal ID format should be P-A01-00001",
+        title: "Invalid Phone Number",
+        description: "Please enter a valid phone number",
         variant: "destructive",
       });
       return;
     }
     setIsLookingUp(true);
-    lookupContactMutation.mutate(trimmedId);
+    lookupContactMutation.mutate(normalizedPhone);
   };
   
   const handleConfirmAddContact = () => {
@@ -283,11 +341,11 @@ export default function CustomerContactsPage() {
             </Button>
           </div>
           
-          {/* Add Contact Dialog - Single Card with Tabs */}
+          {/* Add Contact Dialog - Centered */}
           <Dialog open={addDialogOpen} onOpenChange={(open) => { if (!open) handleCloseDialog(); }}>
-            <DialogContent className="mx-4 rounded-2xl max-w-[calc(100%-2rem)] sm:max-w-md glass-card border-white/20 max-h-[calc(100vh-120px)] overflow-y-auto p-0">
-              <DialogHeader className="p-4 pb-0">
-                <DialogTitle className="flex items-center gap-2">
+            <DialogContent className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-w-md rounded-2xl glass-card border-white/20 max-h-[85vh] overflow-y-auto p-0">
+              <DialogHeader className="p-4 pb-2">
+                <DialogTitle className="flex items-center gap-2 text-lg">
                   <Plus className="w-5 h-5 text-primary" />
                   Add New Contact
                 </DialogTitle>
@@ -295,7 +353,7 @@ export default function CustomerContactsPage() {
               
               {/* Loading State */}
               {isLookingUp && (
-                <div className="flex flex-col items-center justify-center py-8 px-4">
+                <div className="flex flex-col items-center justify-center py-12 px-4">
                   <Loader2 className="w-10 h-10 animate-spin text-primary mb-3" />
                   <p className="text-sm text-muted-foreground">Looking up contact...</p>
                 </div>
@@ -343,7 +401,7 @@ export default function CustomerContactsPage() {
                       <X className="w-4 h-4 mr-2" /> Cancel
                     </Button>
                     <Button 
-                      className="flex-1" 
+                      className="flex-1 bg-purple-600" 
                       onClick={handleConfirmAddContact}
                       disabled={addContactByIdMutation.isPending}
                       data-testid="button-confirm-add"
@@ -362,141 +420,191 @@ export default function CustomerContactsPage() {
                 </div>
               )}
               
-              {/* Main Content with Tabs */}
+              {/* Main Content with Custom Tabs */}
               {!confirmMode && !isLookingUp && (
-                <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 mx-4 mt-2" style={{ width: "calc(100% - 2rem)" }}>
-                    <TabsTrigger value="personal-id" className="text-xs sm:text-sm" data-testid="tab-personal-id">
-                      <User className="w-4 h-4 mr-1.5" />
-                      Personal ID
-                    </TabsTrigger>
-                    <TabsTrigger value="scan-qr" className="text-xs sm:text-sm" data-testid="tab-scan-qr">
-                      <ScanLine className="w-4 h-4 mr-1.5" />
-                      Scan QR
-                    </TabsTrigger>
-                  </TabsList>
-                  
-                  {/* Personal ID Tab */}
-                  <TabsContent value="personal-id" className="p-4 space-y-4">
-                    <div className="space-y-2">
-                      <Label className="text-sm">Enter Personal ID</Label>
-                      <Input
-                        placeholder="P-A01-00001"
-                        value={personalIdInput}
-                        onChange={(e) => setPersonalIdInput(e.target.value.toUpperCase())}
-                        className="font-mono text-center text-lg tracking-wider"
-                        data-testid="input-personal-id"
+                <div className="w-full">
+                  {/* Custom Sliding Tabs */}
+                  <div className="px-4 pt-2">
+                    <div className="relative flex bg-muted/50 rounded-xl p-1">
+                      {/* Sliding background */}
+                      <div 
+                        className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-purple-600 rounded-lg transition-all duration-300 ease-out"
+                        style={{ 
+                          left: activeTab === "phone" ? "4px" : "calc(50% + 2px)",
+                        }}
                       />
-                      <p className="text-xs text-muted-foreground text-center">
-                        Enter your friend's Personal ID to add them
-                      </p>
+                      
+                      <button
+                        onClick={() => handleTabChange("phone")}
+                        className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                          activeTab === "phone" ? "text-white" : "text-muted-foreground"
+                        }`}
+                        data-testid="tab-phone"
+                      >
+                        <Phone className="w-4 h-4" />
+                        Phone Number
+                      </button>
+                      
+                      <button
+                        onClick={() => handleTabChange("scan")}
+                        className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                          activeTab === "scan" ? "text-white" : "text-muted-foreground"
+                        }`}
+                        data-testid="tab-scan-qr"
+                      >
+                        <ScanLine className="w-4 h-4" />
+                        Scan QR
+                      </button>
                     </div>
-                    
-                    <Button 
-                      className="w-full"
-                      onClick={handleAddByPersonalId}
-                      disabled={lookupContactMutation.isPending || !personalIdInput.trim()}
-                      data-testid="button-add-by-id"
+                  </div>
+                  
+                  {/* Tab Content with slide animation */}
+                  <div className="overflow-hidden">
+                    <div 
+                      className="flex transition-transform duration-300 ease-out"
+                      style={{ transform: `translateX(${activeTab === "phone" ? "0" : "-100%"})` }}
                     >
-                      {lookupContactMutation.isPending ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Looking up...
-                        </>
-                      ) : (
-                        <>
-                          <Search className="w-4 h-4 mr-2" /> Find Contact
-                        </>
-                      )}
-                    </Button>
-                    
-                    {/* Show My QR Section */}
-                    {profile?.personalId && (
-                      <div className="pt-4 border-t border-white/10">
-                        <p className="text-xs text-muted-foreground text-center mb-3">
-                          Or share your QR code with friends
-                        </p>
-                        <div className="flex flex-col items-center p-4 bg-white rounded-xl">
-                          <QRCodeSVG 
-                            value={profile.personalId}
-                            size={150}
-                            level="H"
-                            includeMargin={false}
+                      {/* Phone Number Tab */}
+                      <div className="w-full flex-shrink-0 p-4 space-y-4">
+                        <div className="space-y-3">
+                          <Label className="text-sm text-muted-foreground">Enter Phone Number</Label>
+                          <Input
+                            type="tel"
+                            placeholder="+62812345678"
+                            value={phoneInput}
+                            onChange={(e) => setPhoneInput(e.target.value)}
+                            className="text-center text-lg tracking-wider h-12 border-purple-500/30 focus:border-purple-500"
+                            data-testid="input-phone-number"
                           />
-                          <p className="mt-3 font-mono text-sm text-black font-medium">
-                            {profile.personalId}
+                          <p className="text-xs text-muted-foreground text-center">
+                            Enter your friend's phone number to add them
                           </p>
                         </div>
-                        <p className="text-xs text-muted-foreground text-center mt-2">
-                          {profile.displayName}
-                        </p>
+                        
+                        <Button 
+                          className="w-full bg-purple-600 h-11"
+                          onClick={handleAddByPhone}
+                          disabled={lookupContactMutation.isPending || !phoneInput.trim()}
+                          data-testid="button-find-contact"
+                        >
+                          {lookupContactMutation.isPending ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Looking up...
+                            </>
+                          ) : (
+                            <>
+                              <Search className="w-4 h-4 mr-2" /> Find Contact
+                            </>
+                          )}
+                        </Button>
+                        
+                        {/* Show My QR Section */}
+                        {profile?.personalId && (
+                          <div className="pt-4 border-t border-white/10">
+                            <p className="text-xs text-muted-foreground text-center mb-3">
+                              Share your QR code with friends
+                            </p>
+                            <div className="flex flex-col items-center p-4 bg-white rounded-xl mx-auto max-w-[200px]">
+                              <QRCodeSVG 
+                                value={profile.personalId}
+                                size={140}
+                                level="H"
+                                includeMargin={false}
+                              />
+                              <p className="mt-3 font-mono text-xs text-black font-medium">
+                                {profile.personalId}
+                              </p>
+                            </div>
+                            <p className="text-xs text-muted-foreground text-center mt-2">
+                              {profile.displayName}
+                            </p>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </TabsContent>
-                  
-                  {/* Scan QR Tab */}
-                  <TabsContent value="scan-qr" className="p-4 space-y-4">
-                    {/* QR Scanner View */}
-                    <div className="relative w-full aspect-square bg-black/90 rounded-xl overflow-hidden">
-                      <div id="qr-reader" ref={videoRef} className="w-full h-full" data-testid="container-qr-scanner" />
-                      {!isScanning && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-white gap-3">
-                          <Camera className="w-12 h-12 animate-pulse" />
-                          <p className="text-sm">Starting camera...</p>
+                      
+                      {/* Scan QR Tab */}
+                      <div className="w-full flex-shrink-0 p-4 space-y-4">
+                        {/* QR Scanner View */}
+                        <div className="relative w-full aspect-square bg-black rounded-xl overflow-hidden">
+                          <div id="qr-reader" ref={videoRef} className="w-full h-full [&>video]:object-cover" data-testid="container-qr-scanner" />
+                          
+                          {/* Overlay states */}
+                          {!isScanning && !cameraError && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-white gap-3 bg-black/80">
+                              <Camera className="w-12 h-12 animate-pulse" />
+                              <p className="text-sm">Starting camera...</p>
+                            </div>
+                          )}
+                          
+                          {cameraError && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-white gap-3 bg-black/90 p-4">
+                              <Camera className="w-12 h-12 text-red-400" />
+                              <p className="text-sm text-center text-red-300">{cameraError}</p>
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={() => {
+                                  setCameraError(null);
+                                  initScanner();
+                                }}
+                                className="mt-2"
+                              >
+                                Try Again
+                              </Button>
+                            </div>
+                          )}
+                          
+                          {/* Scanner overlay corners */}
+                          {isScanning && (
+                            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                              <div className="relative w-48 h-48">
+                                <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-purple-500 rounded-tl-lg" />
+                                <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-purple-500 rounded-tr-lg" />
+                                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-purple-500 rounded-bl-lg" />
+                                <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-purple-500 rounded-br-lg" />
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      )}
-                      {/* Scanner overlay */}
-                      {isScanning && (
-                        <div className="absolute inset-0 pointer-events-none">
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="w-48 h-48 border-2 border-white/50 rounded-lg">
-                              <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-primary rounded-tl-lg" />
-                              <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-primary rounded-tr-lg" />
-                              <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-primary rounded-bl-lg" />
-                              <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-primary rounded-br-lg" />
+                        
+                        <p className="text-center text-xs text-muted-foreground">
+                          Point your camera at someone's Personal ID QR code
+                        </p>
+                        
+                        {/* Show My QR Below Scanner */}
+                        {profile?.personalId && (
+                          <div className="pt-4 border-t border-white/10">
+                            <p className="text-xs text-muted-foreground text-center mb-3">
+                              Your QR code
+                            </p>
+                            <div className="flex flex-col items-center p-3 bg-white rounded-xl mx-auto max-w-[160px]">
+                              <QRCodeSVG 
+                                value={profile.personalId}
+                                size={100}
+                                level="H"
+                                includeMargin={false}
+                              />
+                              <p className="mt-2 font-mono text-[10px] text-black font-medium">
+                                {profile.personalId}
+                              </p>
                             </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <p className="text-center text-xs text-muted-foreground">
-                      Point your camera at someone's Personal ID QR code
-                    </p>
-                    
-                    {/* Show My QR Below Scanner */}
-                    {profile?.personalId && (
-                      <div className="pt-4 border-t border-white/10">
-                        <p className="text-xs text-muted-foreground text-center mb-3">
-                          Your QR code for friends to scan
-                        </p>
-                        <div className="flex flex-col items-center p-4 bg-white rounded-xl">
-                          <QRCodeSVG 
-                            value={profile.personalId}
-                            size={120}
-                            level="H"
-                            includeMargin={false}
-                          />
-                          <p className="mt-2 font-mono text-xs text-black font-medium">
-                            {profile.personalId}
-                          </p>
-                        </div>
+                        )}
                       </div>
-                    )}
-                  </TabsContent>
-                </Tabs>
-              )}
-              
-              {/* Close Button at bottom */}
-              {!confirmMode && !isLookingUp && (
-                <div className="p-4 pt-0">
-                  <Button 
-                    variant="outline" 
-                    className="w-full" 
-                    onClick={handleCloseDialog}
-                    data-testid="button-close-dialog"
-                  >
-                    <X className="w-4 h-4 mr-2" /> Cancel
-                  </Button>
+                    </div>
+                  </div>
+                  
+                  {/* Close Button at bottom */}
+                  <div className="p-4 pt-2">
+                    <Button 
+                      variant="outline" 
+                      className="w-full" 
+                      onClick={handleCloseDialog}
+                      data-testid="button-close-dialog"
+                    >
+                      <X className="w-4 h-4 mr-2" /> Cancel
+                    </Button>
+                  </div>
                 </div>
               )}
             </DialogContent>
@@ -534,7 +642,7 @@ export default function CustomerContactsPage() {
               <p className="text-sm text-muted-foreground mb-4">
                 Add contacts to start personal conversations
               </p>
-              <Button onClick={() => setAddDialogOpen(true)}>
+              <Button onClick={() => setAddDialogOpen(true)} className="bg-purple-600">
                 <Plus className="w-4 h-4 mr-2" /> Add Contact
               </Button>
             </div>

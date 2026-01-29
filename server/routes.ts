@@ -18801,6 +18801,56 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
   
+  // Lookup customer by phone number
+  app.post("/api/customer/lookup-by-phone", async (req, res) => {
+    try {
+      const customerId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!customerId || userType !== "customer") {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const { phoneNumber } = req.body;
+      
+      if (!phoneNumber) {
+        return res.status(400).json({ error: "Phone number is required" });
+      }
+      
+      // Normalize phone number (remove spaces, dashes)
+      const normalizedPhone = phoneNumber.replace(/[\s\-\(\)]/g, "");
+      
+      // Find the customer with this phone number
+      const contactCustomer = await storage.getCustomerByPhone(normalizedPhone);
+      if (!contactCustomer) {
+        return res.status(404).json({ error: "No user found with this phone number" });
+      }
+      
+      // Prevent looking up yourself
+      if (contactCustomer.id === customerId) {
+        return res.status(400).json({ error: "This is your own phone number" });
+      }
+      
+      // Check if already added
+      const existingContacts = await storage.getCustomerContacts(customerId);
+      const alreadyAdded = existingContacts.find(c => c.contactCustomerId === contactCustomer.id);
+      if (alreadyAdded) {
+        return res.status(400).json({ error: "This person is already in your contacts" });
+      }
+      
+      // Return contact info for confirmation
+      res.json({
+        personalId: contactCustomer.personalId,
+        displayName: contactCustomer.displayName || "Unnamed User",
+        phoneNumber: contactCustomer.phoneNumber,
+        avatarUrl: contactCustomer.avatarUrl,
+      });
+    } catch (error) {
+      console.error("Lookup by phone error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
   // Add contact by Personal ID (from QR code)
   app.post("/api/customer/contacts/by-personal-id", async (req, res) => {
     try {
