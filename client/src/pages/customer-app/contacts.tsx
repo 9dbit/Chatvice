@@ -2,16 +2,17 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Users, Search, Plus, Star, Trash2, MessageSquare, User, QrCode, Camera, X, Check, Loader2, Phone } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Users, Search, Plus, Star, Trash2, MessageSquare, User, QrCode, Camera, X, Check, Loader2, Phone, ScanLine } from "lucide-react";
 import CustomerLayout from "./layout";
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { chatRoutes } from "@/lib/chat-routes";
+import { QRCodeSVG } from "qrcode.react";
 
 interface Contact {
   id: string;
@@ -30,14 +31,20 @@ interface ScannedContact {
   avatarUrl: string | null;
 }
 
+interface CustomerProfile {
+  id: string;
+  phoneNumber: string;
+  displayName: string;
+  email: string | null;
+  personalId: string;
+}
+
 export default function CustomerContactsPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [scannerOpen, setScannerOpen] = useState(false);
-  const [newContactName, setNewContactName] = useState("");
-  const [newContactPhone, setNewContactPhone] = useState("");
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("personal-id");
   const [personalIdInput, setPersonalIdInput] = useState("");
   const [isScanning, setIsScanning] = useState(false);
   const [lastScannedCode, setLastScannedCode] = useState<string | null>(null);
@@ -51,25 +58,8 @@ export default function CustomerContactsPage() {
     queryKey: ["/api/customer/contacts"],
   });
   
-  const addContactMutation = useMutation({
-    mutationFn: async (data: { displayName: string; phoneNumber?: string }) => {
-      const res = await apiRequest("POST", "/api/customer/contacts", data);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/customer/contacts"] });
-      toast({ title: "Contact added" });
-      setDialogOpen(false);
-      setNewContactName("");
-      setNewContactPhone("");
-    },
-    onError: (error: Error) => {
-      toast({ 
-        title: "Error", 
-        description: error.message,
-        variant: "destructive" 
-      });
-    },
+  const { data: profile } = useQuery<CustomerProfile>({
+    queryKey: ["/api/customer/profile"],
   });
   
   const deleteContactMutation = useMutation({
@@ -124,7 +114,6 @@ export default function CustomerContactsPage() {
         description: error.message,
         variant: "destructive" 
       });
-      // Reset after 3 seconds to allow retry
       setTimeout(() => setLastScannedCode(null), 3000);
     },
   });
@@ -138,7 +127,7 @@ export default function CustomerContactsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/customer/contacts"] });
       toast({ title: "Contact added successfully!" });
-      handleCloseScanner();
+      handleCloseDialog();
     },
     onError: (error: Error) => {
       toast({ 
@@ -149,19 +138,19 @@ export default function CustomerContactsPage() {
     },
   });
   
-  // QR Scanner effect
+  // QR Scanner effect - only start when scan-qr tab is active
   useEffect(() => {
-    if (scannerOpen && videoRef.current && !scannerRef.current && !confirmMode) {
-      initScanner();
+    if (addDialogOpen && activeTab === "scan-qr" && videoRef.current && !scannerRef.current && !confirmMode && !isLookingUp) {
+      const timer = setTimeout(() => {
+        initScanner();
+      }, 300);
+      return () => clearTimeout(timer);
     }
     
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
-        scannerRef.current = null;
-      }
+      stopScanner();
     };
-  }, [scannerOpen, confirmMode]);
+  }, [addDialogOpen, activeTab, confirmMode, isLookingUp]);
   
   const initScanner = async () => {
     try {
@@ -179,11 +168,9 @@ export default function CustomerContactsPage() {
           qrbox: { width: 200, height: 200 },
         },
         (decodedText) => {
-          // Debounce: Skip if same code was just scanned
           if (decodedText === lastScannedCode) return;
           setLastScannedCode(decodedText);
           
-          // Check if it's a valid personal ID format (P-A01-XXXXX)
           if (decodedText.match(/^P-[A-Z]\d{2}-\d{5}$/)) {
             html5QrCode.stop().then(() => {
               scannerRef.current = null;
@@ -197,7 +184,6 @@ export default function CustomerContactsPage() {
               description: "This is not a valid Chatvice Personal ID",
               variant: "destructive",
             });
-            // Reset after 3 seconds to allow retry
             setTimeout(() => setLastScannedCode(null), 3000);
           }
         },
@@ -214,22 +200,31 @@ export default function CustomerContactsPage() {
     }
   };
   
-  const handleCloseScanner = () => {
+  const stopScanner = () => {
     if (scannerRef.current) {
-      scannerRef.current.stop().then(() => {
-        scannerRef.current = null;
-        setIsScanning(false);
-      }).catch(() => {
-        scannerRef.current = null;
-        setIsScanning(false);
-      });
+      scannerRef.current.stop().catch(() => {});
+      scannerRef.current = null;
+      setIsScanning(false);
     }
-    setScannerOpen(false);
+  };
+  
+  const handleCloseDialog = () => {
+    stopScanner();
+    setAddDialogOpen(false);
     setPersonalIdInput("");
     setLastScannedCode(null);
     setConfirmMode(false);
     setScannedContact(null);
     setIsLookingUp(false);
+    setActiveTab("personal-id");
+  };
+  
+  const handleTabChange = (tab: string) => {
+    stopScanner();
+    setActiveTab(tab);
+    setConfirmMode(false);
+    setScannedContact(null);
+    setLastScannedCode(null);
   };
   
   const handleAddByPersonalId = () => {
@@ -252,7 +247,7 @@ export default function CustomerContactsPage() {
     }
   };
   
-  const handleBackToScanner = () => {
+  const handleBackToInput = () => {
     setConfirmMode(false);
     setScannedContact(null);
     setLastScannedCode(null);
@@ -278,91 +273,29 @@ export default function CustomerContactsPage() {
               </p>
             </div>
             
-            <div className="flex items-center gap-2">
-              {/* QR Scanner Button */}
-              <Button 
-                size="icon" 
-                variant="outline" 
-                onClick={() => setScannerOpen(true)}
-                data-testid="button-scan-qr"
-              >
-                <QrCode className="w-4 h-4" />
-              </Button>
-              
-              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="icon" variant="outline" data-testid="button-add-contact">
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </DialogTrigger>
-              <DialogContent className="mx-4 rounded-2xl max-w-[calc(100%-2rem)] sm:max-w-md glass-card border-white/20">
-                <DialogHeader>
-                  <DialogTitle>Add Contact</DialogTitle>
-                </DialogHeader>
-                <form 
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (!newContactName.trim()) return;
-                    addContactMutation.mutate({
-                      displayName: newContactName.trim(),
-                      phoneNumber: newContactPhone.trim() || undefined,
-                    });
-                  }}
-                  className="space-y-4"
-                >
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Name *</Label>
-                    <Input
-                      id="name"
-                      placeholder="Contact name"
-                      value={newContactName}
-                      onChange={(e) => setNewContactName(e.target.value)}
-                      className="glass-input"
-                      data-testid="input-contact-name"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="+1234567890"
-                      value={newContactPhone}
-                      onChange={(e) => setNewContactPhone(e.target.value)}
-                      className="glass-input"
-                      data-testid="input-contact-phone"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      If they're on Chatvice, you can chat with them directly
-                    </p>
-                  </div>
-                  <Button 
-                    type="submit" 
-                    className="w-full"
-                    disabled={addContactMutation.isPending}
-                    data-testid="button-save-contact"
-                  >
-                    {addContactMutation.isPending ? "Adding..." : "Add Contact"}
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
-            </div>
+            <Button 
+              size="icon" 
+              variant="outline" 
+              onClick={() => setAddDialogOpen(true)}
+              data-testid="button-add-contact"
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
           </div>
           
-          {/* QR Scanner Dialog */}
-          <Dialog open={scannerOpen} onOpenChange={(open) => { if (!open) handleCloseScanner(); }}>
-            <DialogContent className="mx-4 rounded-2xl max-w-[calc(100%-2rem)] sm:max-w-md glass-card border-white/20 max-h-[calc(100vh-120px)] overflow-y-auto">
-              <DialogHeader>
+          {/* Add Contact Dialog - Single Card with Tabs */}
+          <Dialog open={addDialogOpen} onOpenChange={(open) => { if (!open) handleCloseDialog(); }}>
+            <DialogContent className="mx-4 rounded-2xl max-w-[calc(100%-2rem)] sm:max-w-md glass-card border-white/20 max-h-[calc(100vh-120px)] overflow-y-auto p-0">
+              <DialogHeader className="p-4 pb-0">
                 <DialogTitle className="flex items-center gap-2">
-                  <QrCode className="w-5 h-5 text-primary" />
-                  {confirmMode ? "Confirm Contact" : "Scan Personal ID"}
+                  <Plus className="w-5 h-5 text-primary" />
+                  Add New Contact
                 </DialogTitle>
               </DialogHeader>
               
               {/* Loading State */}
               {isLookingUp && (
-                <div className="flex flex-col items-center justify-center py-8">
+                <div className="flex flex-col items-center justify-center py-8 px-4">
                   <Loader2 className="w-10 h-10 animate-spin text-primary mb-3" />
                   <p className="text-sm text-muted-foreground">Looking up contact...</p>
                 </div>
@@ -370,8 +303,7 @@ export default function CustomerContactsPage() {
               
               {/* Confirmation Mode */}
               {confirmMode && scannedContact && !isLookingUp && (
-                <div className="space-y-4">
-                  {/* Contact Preview Card */}
+                <div className="space-y-4 p-4">
                   <div className="p-4 rounded-xl bg-muted/30 border border-white/10 space-y-4">
                     <div className="flex items-center gap-4">
                       <Avatar className="w-16 h-16">
@@ -405,8 +337,8 @@ export default function CustomerContactsPage() {
                     <Button 
                       variant="outline" 
                       className="flex-1" 
-                      onClick={handleBackToScanner}
-                      data-testid="button-back-to-scanner"
+                      onClick={handleBackToInput}
+                      data-testid="button-back-to-input"
                     >
                       <X className="w-4 h-4 mr-2" /> Cancel
                     </Button>
@@ -430,51 +362,138 @@ export default function CustomerContactsPage() {
                 </div>
               )}
               
-              {/* Scanner Mode */}
+              {/* Main Content with Tabs */}
               {!confirmMode && !isLookingUp && (
-                <div className="space-y-3">
-                  {/* QR Scanner View - smaller on mobile */}
-                  <div className="relative w-full aspect-[4/3] bg-black/90 rounded-xl overflow-hidden">
-                    <div id="qr-reader" ref={videoRef} className="w-full h-full" data-testid="container-qr-scanner" />
-                    {!isScanning && (
-                      <div className="absolute inset-0 flex items-center justify-center text-white">
-                        <Camera className="w-10 h-10 animate-pulse" />
-                      </div>
-                    )}
-                  </div>
+                <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mx-4 mt-2" style={{ width: "calc(100% - 2rem)" }}>
+                    <TabsTrigger value="personal-id" className="text-xs sm:text-sm" data-testid="tab-personal-id">
+                      <User className="w-4 h-4 mr-1.5" />
+                      Personal ID
+                    </TabsTrigger>
+                    <TabsTrigger value="scan-qr" className="text-xs sm:text-sm" data-testid="tab-scan-qr">
+                      <ScanLine className="w-4 h-4 mr-1.5" />
+                      Scan QR
+                    </TabsTrigger>
+                  </TabsList>
                   
-                  <p className="text-center text-xs text-muted-foreground">
-                    Point your camera at a Personal ID QR code to add them as a contact
-                  </p>
-                  
-                  {/* Manual Entry Option */}
-                  <div className="space-y-2">
-                    <Label className="text-sm">Or enter Personal ID manually</Label>
-                    <div className="flex gap-2">
+                  {/* Personal ID Tab */}
+                  <TabsContent value="personal-id" className="p-4 space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm">Enter Personal ID</Label>
                       <Input
                         placeholder="P-A01-00001"
                         value={personalIdInput}
                         onChange={(e) => setPersonalIdInput(e.target.value.toUpperCase())}
-                        className="font-mono text-sm h-9"
+                        className="font-mono text-center text-lg tracking-wider"
                         data-testid="input-personal-id"
                       />
-                      <Button 
-                        size="sm"
-                        onClick={handleAddByPersonalId}
-                        disabled={lookupContactMutation.isPending}
-                        data-testid="button-add-by-id"
-                      >
-                        Add
-                      </Button>
+                      <p className="text-xs text-muted-foreground text-center">
+                        Enter your friend's Personal ID to add them
+                      </p>
                     </div>
-                  </div>
+                    
+                    <Button 
+                      className="w-full"
+                      onClick={handleAddByPersonalId}
+                      disabled={lookupContactMutation.isPending || !personalIdInput.trim()}
+                      data-testid="button-add-by-id"
+                    >
+                      {lookupContactMutation.isPending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Looking up...
+                        </>
+                      ) : (
+                        <>
+                          <Search className="w-4 h-4 mr-2" /> Find Contact
+                        </>
+                      )}
+                    </Button>
+                    
+                    {/* Show My QR Section */}
+                    {profile?.personalId && (
+                      <div className="pt-4 border-t border-white/10">
+                        <p className="text-xs text-muted-foreground text-center mb-3">
+                          Or share your QR code with friends
+                        </p>
+                        <div className="flex flex-col items-center p-4 bg-white rounded-xl">
+                          <QRCodeSVG 
+                            value={profile.personalId}
+                            size={150}
+                            level="H"
+                            includeMargin={false}
+                          />
+                          <p className="mt-3 font-mono text-sm text-black font-medium">
+                            {profile.personalId}
+                          </p>
+                        </div>
+                        <p className="text-xs text-muted-foreground text-center mt-2">
+                          {profile.displayName}
+                        </p>
+                      </div>
+                    )}
+                  </TabsContent>
                   
+                  {/* Scan QR Tab */}
+                  <TabsContent value="scan-qr" className="p-4 space-y-4">
+                    {/* QR Scanner View */}
+                    <div className="relative w-full aspect-square bg-black/90 rounded-xl overflow-hidden">
+                      <div id="qr-reader" ref={videoRef} className="w-full h-full" data-testid="container-qr-scanner" />
+                      {!isScanning && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-white gap-3">
+                          <Camera className="w-12 h-12 animate-pulse" />
+                          <p className="text-sm">Starting camera...</p>
+                        </div>
+                      )}
+                      {/* Scanner overlay */}
+                      {isScanning && (
+                        <div className="absolute inset-0 pointer-events-none">
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-48 h-48 border-2 border-white/50 rounded-lg">
+                              <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-primary rounded-tl-lg" />
+                              <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-primary rounded-tr-lg" />
+                              <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-primary rounded-bl-lg" />
+                              <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-primary rounded-br-lg" />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <p className="text-center text-xs text-muted-foreground">
+                      Point your camera at someone's Personal ID QR code
+                    </p>
+                    
+                    {/* Show My QR Below Scanner */}
+                    {profile?.personalId && (
+                      <div className="pt-4 border-t border-white/10">
+                        <p className="text-xs text-muted-foreground text-center mb-3">
+                          Your QR code for friends to scan
+                        </p>
+                        <div className="flex flex-col items-center p-4 bg-white rounded-xl">
+                          <QRCodeSVG 
+                            value={profile.personalId}
+                            size={120}
+                            level="H"
+                            includeMargin={false}
+                          />
+                          <p className="mt-2 font-mono text-xs text-black font-medium">
+                            {profile.personalId}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
+              )}
+              
+              {/* Close Button at bottom */}
+              {!confirmMode && !isLookingUp && (
+                <div className="p-4 pt-0">
                   <Button 
                     variant="outline" 
-                    size="sm"
                     className="w-full" 
-                    onClick={handleCloseScanner}
-                    data-testid="button-close-scanner"
+                    onClick={handleCloseDialog}
+                    data-testid="button-close-dialog"
                   >
                     <X className="w-4 h-4 mr-2" /> Cancel
                   </Button>
@@ -515,8 +534,8 @@ export default function CustomerContactsPage() {
               <p className="text-sm text-muted-foreground mb-4">
                 Add contacts to start personal conversations
               </p>
-              <Button onClick={() => setDialogOpen(true)}>
-                Add Contact
+              <Button onClick={() => setAddDialogOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" /> Add Contact
               </Button>
             </div>
           ) : (
@@ -607,20 +626,20 @@ function ContactItem({
       <div className="flex items-center gap-1">
         {canChat && (
           <Button 
+            size="icon" 
             variant="ghost" 
-            size="icon"
             onClick={onChat}
-            data-testid={`button-chat-${contact.id}`}
+            data-testid="button-chat"
           >
             <MessageSquare className="w-4 h-4" />
           </Button>
         )}
         <Button 
+          size="icon" 
           variant="ghost" 
-          size="icon"
           onClick={onDelete}
           disabled={isDeleting}
-          data-testid={`button-delete-${contact.id}`}
+          data-testid="button-delete"
         >
           <Trash2 className="w-4 h-4 text-destructive" />
         </Button>
