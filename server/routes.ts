@@ -19151,6 +19151,38 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
+  // List customer's media files
+  app.get("/api/customer/media/list", async (req, res) => {
+    try {
+      const customerId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!customerId || userType !== "customer") {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      // Get media uploaded by this customer (images only for gallery)
+      const media = await storage.getMediaByUploader(customerId, "customer");
+      
+      // Filter to images only and return URLs
+      const imageMedia = (media || [])
+        .filter((m: any) => m.mimeType?.startsWith("image/"))
+        .map((m: any) => ({
+          id: m.id,
+          url: `/api/customer/media/${m.id}`,
+          filename: m.filename,
+          mimeType: m.mimeType,
+          createdAt: m.createdAt,
+        }))
+        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      
+      res.json(imageMedia);
+    } catch (error) {
+      console.error("List customer media error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // Upload media file for chat (max 3MB) - accepts JSON with base64 data
   const mediaUploadSchema = z.object({
     filename: z.string().min(1, "Filename is required"),

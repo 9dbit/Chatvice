@@ -7,13 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { User, Camera, LogOut, Bell, Shield, Trash2, Loader2, QrCode, Copy, Check, Volume2, ChevronRight } from "lucide-react";
+import { User, Camera, LogOut, Bell, Shield, Trash2, Loader2, QrCode, Copy, Check, Volume2, ChevronRight, Image, X } from "lucide-react";
 import CustomerLayout from "./layout";
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { chatRoutes } from "@/lib/chat-routes";
 import { useChatNotificationSound } from "@/hooks/use-chat-notification-sound";
+import { cn } from "@/lib/utils";
 import { QRCodeSVG } from "qrcode.react";
 
 interface CustomerProfile {
@@ -44,6 +45,23 @@ export default function CustomerSettingsPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
+  const [showAllMedia, setShowAllMedia] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  
+  // Fetch customer's media
+  interface MediaItem {
+    id: string;
+    url: string;
+    filename: string;
+    mimeType: string;
+    createdAt: string;
+  }
+  
+  const { data: mediaItems = [] } = useQuery<MediaItem[]>({
+    queryKey: ["/api/customer/media/list"],
+  });
+  
+  const displayedMedia = showAllMedia ? mediaItems : mediaItems.slice(0, 9);
   
   // Initialize sound setting from localStorage
   useEffect(() => {
@@ -390,6 +408,93 @@ export default function CustomerSettingsPage() {
               </div>
             )}
           </div>
+          
+          {/* Media Gallery Section */}
+          <div className="rounded-lg border bg-card p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-md bg-gradient-to-br from-purple-600 to-indigo-600">
+                  <Image className="w-3.5 h-3.5 text-white" />
+                </div>
+                <span className="text-sm font-medium">Media</span>
+              </div>
+              {mediaItems.length > 9 && !showAllMedia && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAllMedia(true)}
+                  className="h-7 text-xs text-primary"
+                  data-testid="button-view-all-media"
+                >
+                  View All ({mediaItems.length})
+                </Button>
+              )}
+              {showAllMedia && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAllMedia(false)}
+                  className="h-7 text-xs"
+                  data-testid="button-close-media"
+                >
+                  <X className="w-3 h-3 mr-1" />
+                  Close
+                </Button>
+              )}
+            </div>
+            
+            {mediaItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
+                <Image className="w-8 h-8 mb-2 opacity-50" />
+                <p className="text-xs">No media yet</p>
+              </div>
+            ) : (
+              <div className={cn(
+                "grid grid-cols-3 gap-1.5",
+                showAllMedia && "max-h-[60vh] overflow-y-auto"
+              )}>
+                {displayedMedia.map((media) => (
+                  <button
+                    key={media.id}
+                    onClick={() => setSelectedImage(media.url)}
+                    className="aspect-square rounded-lg overflow-hidden bg-muted/50 hover-elevate"
+                    data-testid={`media-thumbnail-${media.id}`}
+                  >
+                    <img
+                      src={media.url}
+                      alt={media.filename}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          {/* Image Viewer Modal */}
+          {selectedImage && (
+            <div 
+              className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center"
+              onClick={() => setSelectedImage(null)}
+              data-testid="image-viewer-modal"
+            >
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-4 right-4 text-white hover:bg-white/20"
+                onClick={() => setSelectedImage(null)}
+                data-testid="button-close-image"
+              >
+                <X className="w-6 h-6" />
+              </Button>
+              <img
+                src={selectedImage}
+                alt="Full size"
+                className="max-w-full max-h-full object-contain"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          )}
           
           <div className="rounded-lg border bg-card p-3 space-y-2">
             <p className="text-xs text-muted-foreground">Notifications</p>
