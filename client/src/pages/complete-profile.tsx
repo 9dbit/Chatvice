@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
-import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
+import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
 
 const completeProfileSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters").max(50).regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),

@@ -139,8 +139,8 @@ import {
 import { format, subDays, startOfMonth, startOfYear } from "date-fns";
 import { subscriptionPlans } from "@shared/schema";
 
-import chatviceLogoLight from "@assets/Chatvice-02_1764703423166.png";
-import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
+import chatviceLogoLight from "@assets/Chatvice-02_1769691434945.png";
+import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
 
 interface AdminStats {
   totalMerchants: number;

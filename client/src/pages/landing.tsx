@@ -149,8 +149,8 @@ function FlippingHeroText() {
     </p>
   );
 }
-import chatviceLogoLight from "@assets/Chatvice-02_1764703423166.png";
-import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
+import chatviceLogoLight from "@assets/Chatvice-02_1769691434945.png";
+import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
 import advancedReportingImage from "@assets/IMG_0311_1765160576065.jpeg";
 import compareAiModelsImage from "@assets/compare-ai-models_1764865696016.webp";
 import designedForSimplicityImage from "@assets/IMG_0320_1765160576065.jpeg";

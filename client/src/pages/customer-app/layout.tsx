@@ -6,8 +6,8 @@ import { MessageSquare, Store, Users, Settings, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { chatRoutes, isChatSubdomain } from "@/lib/chat-routes";
 import { ThemeToggle } from "@/components/theme-toggle";
-import chatviceLogoLight from "@assets/Chatvice-02_1769512484349.png";
-import chatviceLogoDark from "@assets/Chatvice-04_1769512484349.png";
+import chatviceLogoLight from "@assets/Chatvice-02_1769691434945.png";
+import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
 
 interface CustomerData {
   id: string;

@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { queryClient } from "@/lib/queryClient";
-import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
+import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
 
 const COUNTRY_CODES = [
   { code: "+1", country: "United States", flag: "🇺🇸" },

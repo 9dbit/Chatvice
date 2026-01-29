@@ -4,8 +4,8 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useTheme } from "@/components/theme-provider";
 import { Menu, X, Brain, Twitter, Linkedin, Github, Instagram } from "lucide-react";
 import { useState, useEffect } from "react";
-import chatviceLogoLight from "@assets/Chatvice-02_1764703423166.png";
-import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
+import chatviceLogoLight from "@assets/Chatvice-02_1769691434945.png";
+import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
 
 export function PublicNavbar() {
   const [isScrolled, setIsScrolled] = useState(false);

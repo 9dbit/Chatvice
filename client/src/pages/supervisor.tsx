@@ -66,8 +66,8 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Calendar as CalendarIcon, Download } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
-import chatviceLogoLight from "@assets/Chatvice-03_1764703438384.png";
-import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
+import chatviceLogoLight from "@assets/Chatvice-02_1769691434945.png";
+import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
 
 type SupervisorPage = 
   | "overview" 

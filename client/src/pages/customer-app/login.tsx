@@ -11,8 +11,8 @@ import { Phone, ArrowRight, Globe, Users, Store, MessageSquare, Smartphone, Shie
 import { SiWhatsapp } from "react-icons/si";
 import { apiRequest } from "@/lib/queryClient";
 import { chatRoutes } from "@/lib/chat-routes";
-import chatviceLogoLight from "@assets/Chatvice-02_1764703423166.png";
-import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
+import chatviceLogoLight from "@assets/Chatvice-02_1769691434945.png";
+import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
 
 const countryCodes = [
   { code: "+62", country: "ID" },

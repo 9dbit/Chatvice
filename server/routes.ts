@@ -18066,9 +18066,11 @@ Please create a comprehensive help center article that would be useful for custo
           isProfileCompleted: customer!.isProfileCompleted,
         },
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Verify OTP error:", error);
-      res.status(500).json({ error: "Failed to verify OTP" });
+      // Pass through specific error messages from Twilio
+      const errorMessage = error?.message || "Failed to verify OTP";
+      res.status(500).json({ error: errorMessage });
     }
   });
   

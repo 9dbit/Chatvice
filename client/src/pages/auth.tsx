@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { SiGoogle, SiGithub, SiLinkedin, SiFacebook } from "react-icons/si";
-import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
+import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email"),

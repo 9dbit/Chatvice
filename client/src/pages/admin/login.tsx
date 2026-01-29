@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Shield, Lock } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
-import chatviceLogoLight from "@assets/Chatvice-02_1764703423166.png";
-import chatviceLogoDark from "@assets/Chatvice-04_1764704922816.png";
+import chatviceLogoLight from "@assets/Chatvice-02_1769691434945.png";
+import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
 
 export default function AdminLogin() {
   const [, setLocation] = useLocation();
