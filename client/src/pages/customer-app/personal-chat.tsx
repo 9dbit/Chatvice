@@ -19,23 +19,66 @@ const STICKER_URL_MAP: Record<string, string> = {
   "happy_3": "https://media.giphy.com/media/tXL4FHPSnVJ0A/giphy.gif",
   "happy_4": "https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif",
   "happy_5": "https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif",
+  "happy_6": "https://media.giphy.com/media/xT9IgG50Fb7Mi0prBC/giphy.gif",
+  "happy_7": "https://media.giphy.com/media/3oriNZoNvn73MZaFYk/giphy.gif",
+  "happy_8": "https://media.giphy.com/media/l41lUJ1YoZB1lHVPG/giphy.gif",
+  "happy_9": "https://media.giphy.com/media/kyLYXonQYYtl6/giphy.gif",
+  "happy_10": "https://media.giphy.com/media/13dHtsq7BHJJ4s/giphy.gif",
   "love_1": "https://media.giphy.com/media/l4pTfx2qLszoacZRS/giphy.gif",
   "love_2": "https://media.giphy.com/media/26BRv0ThflsHCqDrG/giphy.gif",
   "love_3": "https://media.giphy.com/media/l0HlN5Y28D9MzzcRy/giphy.gif",
+  "love_4": "https://media.giphy.com/media/3oEdv4hwWTzBhWvaU0/giphy.gif",
+  "love_5": "https://media.giphy.com/media/MEF1JnhNr66Db0Uk6/giphy.gif",
+  "love_6": "https://media.giphy.com/media/l0HlxJMw7rkPTN8sg/giphy.gif",
+  "love_7": "https://media.giphy.com/media/3oz8xLd9DJq2l2VFtu/giphy.gif",
+  "love_8": "https://media.giphy.com/media/108M7gCS1JSoO4/giphy.gif",
+  "love_9": "https://media.giphy.com/media/3oEjHV0z8S7WM4MwnK/giphy.gif",
+  "love_10": "https://media.giphy.com/media/jErnybNlfE1lm/giphy.gif",
   "celebrate_1": "https://media.giphy.com/media/26tOZ42Mg6r8b8iac/giphy.gif",
   "celebrate_2": "https://media.giphy.com/media/l0MYJnJQ4EiYLxvW/giphy.gif",
+  "celebrate_3": "https://media.giphy.com/media/artj92V8o75VPL7AeQ/giphy.gif",
+  "celebrate_4": "https://media.giphy.com/media/g9582DNuQppxC/giphy.gif",
+  "celebrate_5": "https://media.giphy.com/media/kyLYXonQYYtl6/giphy.gif",
+  "celebrate_6": "https://media.giphy.com/media/3oz9ZE2Oo9zAu/giphy.gif",
+  "celebrate_7": "https://media.giphy.com/media/26u4cqiYI30juCOGY/giphy.gif",
+  "celebrate_8": "https://media.giphy.com/media/l378bu6ZYmzS6nBGU/giphy.gif",
+  "celebrate_9": "https://media.giphy.com/media/l0Iy5fjHyedk3K0X6/giphy.gif",
+  "celebrate_10": "https://media.giphy.com/media/26BRDvCpnNmmq4aeY/giphy.gif",
   "angry_1": "https://media.giphy.com/media/d10dMmzqCYqQ0/giphy.gif",
   "angry_2": "https://media.giphy.com/media/l1J9EdzfOSgfyueLm/giphy.gif",
+  "angry_3": "https://media.giphy.com/media/3og0INyCmHlNylks9O/giphy.gif",
+  "angry_4": "https://media.giphy.com/media/TJawtKM6OCKkvwCIqX/giphy.gif",
+  "angry_5": "https://media.giphy.com/media/l41YqKTI3pFKuI9CE/giphy.gif",
+  "angry_6": "https://media.giphy.com/media/3o7P4F86TAI9Kz7XYk/giphy.gif",
+  "angry_7": "https://media.giphy.com/media/3o7WIwkSmw32NgXvTG/giphy.gif",
+  "angry_8": "https://media.giphy.com/media/3o6wrvdHFbwBrUFenu/giphy.gif",
+  "angry_9": "https://media.giphy.com/media/SFkjp1R8gS6lG/giphy.gif",
+  "angry_10": "https://media.giphy.com/media/xT0GqfvuVpjJbG1A7m/giphy.gif",
   "thanks_1": "https://media.giphy.com/media/3oz8xIsloV320wXWE0/giphy.gif",
   "thanks_2": "https://media.giphy.com/media/BPJmthQ3YRwD6QqcVD/giphy.gif",
+  "thanks_3": "https://media.giphy.com/media/26u4b45b8KlgAB7iM/giphy.gif",
+  "thanks_4": "https://media.giphy.com/media/l0MYOU4CQ78lJZxdtm/giphy.gif",
+  "thanks_5": "https://media.giphy.com/media/3o6Zt6KHxJTbXCnSvu/giphy.gif",
   "hi_1": "https://media.giphy.com/media/xUPGGDNsLvqsBOhuU0/giphy.gif",
   "hi_2": "https://media.giphy.com/media/Vbtc9VG51NtzT1Qnv1/giphy.gif",
+  "hi_3": "https://media.giphy.com/media/xT9IgG50Fb7Mi0prBC/giphy.gif",
+  "hi_4": "https://media.giphy.com/media/3ornk57KwDXf81rjWM/giphy.gif",
+  "hi_5": "https://media.giphy.com/media/xUPGcguWZHRC2HyBRS/giphy.gif",
   "bye_1": "https://media.giphy.com/media/KctrWMQ7u9D2du0YmD/giphy.gif",
   "bye_2": "https://media.giphy.com/media/m9eG1qVjvN56H0MXt8/giphy.gif",
+  "bye_3": "https://media.giphy.com/media/fxe8v45NNXFd4jdaNI/giphy.gif",
+  "bye_4": "https://media.giphy.com/media/42D3CxaINsAFemFuId/giphy.gif",
+  "bye_5": "https://media.giphy.com/media/xUPGcC0R9QjyxkPnS8/giphy.gif",
   "laugh_1": "https://media.giphy.com/media/xUA7aM09ByyR1w5YWc/giphy.gif",
   "laugh_2": "https://media.giphy.com/media/26xBwdIuRCiYoCLHi/giphy.gif",
+  "laugh_3": "https://media.giphy.com/media/xT9DPIBYf0pAviBLzO/giphy.gif",
+  "laugh_4": "https://media.giphy.com/media/3oEdv6sy3ulljPMGdy/giphy.gif",
+  "laugh_5": "https://media.giphy.com/media/12PIT4DOj6Tgek/giphy.gif",
   "wow_1": "https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif",
   "wow_2": "https://media.giphy.com/media/xT0xeJpnrWC4XWblEk/giphy.gif",
+  "wow_3": "https://media.giphy.com/media/l3q2SaisWTeZnV9wk/giphy.gif",
+  "wow_4": "https://media.giphy.com/media/3ohzdIuqJoo8QdKlnW/giphy.gif",
+  "wow_5": "https://media.giphy.com/media/xT0xezQGU5xCDJuCPe/giphy.gif",
 };
 
 function getStickerUrlFromContent(content: string): string | null {
@@ -231,7 +274,7 @@ export default function PersonalChatPage() {
         reader.readAsDataURL(file);
       });
     },
-    onSuccess: (data) => {
+    onSuccess: (data, file) => {
       const clientMessageId = generateClientId();
       const pendingMsg: PendingMessage = {
         clientMessageId,
@@ -239,7 +282,7 @@ export default function PersonalChatPage() {
         senderId: currentUser?.id || "me",
         createdAt: new Date().toISOString(),
         messageType: "media",
-        payload: { url: data.url },
+        payload: { url: data.url, filename: data.filename, fileSize: file.size },
         isPending: true,
       };
       setPendingMessages(prev => [...prev, pendingMsg]);
@@ -592,10 +635,10 @@ export default function PersonalChatPage() {
                               <div className={cn(
                                 "max-w-[75%] rounded-2xl px-4 py-2 shadow-sm",
                                 isMe
-                                  ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-br-md"
+                                  ? "bg-gradient-to-r from-purple-700 to-indigo-700 text-white rounded-br-md"
                                   : "glass-card rounded-bl-md"
                               )}>
-                                <p className="text-sm">{msg.content}</p>
+                                <p className="text-xs">{msg.content}</p>
                                 <p className={cn(
                                   "text-[10px] mt-1",
                                   isMe ? "text-white/70" : "text-muted-foreground"
@@ -621,14 +664,20 @@ export default function PersonalChatPage() {
                               </div>
                               <div className={cn(
                                 "p-2",
-                                isMe ? "bg-gradient-to-r from-purple-500 to-indigo-500" : "glass-card"
+                                isMe ? "bg-gradient-to-r from-purple-700 to-indigo-700" : "glass-card"
                               )}>
+                                <p className={cn(
+                                  "text-xs font-medium truncate",
+                                  isMe ? "text-white" : "text-foreground"
+                                )}>
+                                  {mediaInfo.filename}
+                                </p>
                                 <p className={cn(
                                   "text-[10px]",
                                   isMe ? "text-white/70" : "text-muted-foreground"
                                 )}>
-                                  {format(new Date(msg.createdAt), "HH:mm")}
-                                  {isPending && " · Mengirim..."}
+                                  {msg.payload?.fileSize ? `${(msg.payload.fileSize / 1024).toFixed(1)} KB` : ''} {msg.payload?.fileSize ? '·' : ''} {format(new Date(msg.createdAt), "HH:mm")}
+                                  {isPending && " · Sending..."}
                                 </p>
                               </div>
                             </div>
@@ -636,13 +685,13 @@ export default function PersonalChatPage() {
                         ) : (
                           <div
                             className={cn(
-                              "max-w-[75%] rounded-2xl px-4 py-2 shadow-sm",
+                              "max-w-[75%] rounded-2xl px-3 py-1.5 shadow-sm",
                               isMe
-                                ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-br-md"
+                                ? "bg-gradient-to-r from-purple-700 to-indigo-700 text-white rounded-br-md"
                                 : "glass-card rounded-bl-md"
                             )}
                           >
-                            <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                            <p className="text-xs whitespace-pre-wrap break-words">{msg.content}</p>
                             <div className={cn(
                               "flex items-center gap-1 mt-1",
                               isMe ? "justify-end" : "justify-start"

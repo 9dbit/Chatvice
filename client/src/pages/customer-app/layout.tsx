@@ -31,10 +31,10 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   });
   
   const navItems = [
-    { href: chatRoutes.inbox(), icon: MessageSquare, label: "Chats" },
+    { href: chatRoutes.settings(), icon: User, label: "Profile" },
     { href: chatRoutes.stores(), icon: Store, label: "Stores" },
     { href: chatRoutes.contacts(), icon: Users, label: "Contacts" },
-    { href: chatRoutes.settings(), icon: User, label: "Profile" },
+    { href: chatRoutes.inbox(), icon: MessageSquare, label: "Chats" },
   ];
   
   const sidebarNavItems = [
@@ -98,15 +98,15 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
         {children}
       </main>
       
-      <nav className="fixed bottom-4 left-4 right-4 h-14 sm:hidden z-[9999] rounded-3xl bg-white/80 dark:bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg">
+      <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 h-12 sm:hidden z-[9999] rounded-full bg-white/80 dark:bg-white/10 backdrop-blur-xl border border-white/20 shadow-lg">
         <div 
           ref={navRef}
-          className="flex items-center justify-around gap-2 h-full px-2 relative"
+          className="flex items-center justify-center gap-1 h-full px-2 relative"
         >
           <div 
             className={cn(
-              "absolute top-1.5 bottom-1.5 rounded-[1.25rem] bg-primary",
-              isInitialized ? "transition-all duration-300 ease-out" : "transition-none"
+              "absolute top-1 bottom-1 rounded-full bg-primary",
+              isInitialized ? "transition-all duration-200 ease-out" : "transition-none"
             )}
             style={{ 
               left: `${sliderStyle.left}px`, 
@@ -123,15 +123,14 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                 href={item.href}
                 data-nav-index={index}
                 className={cn(
-                  "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-2xl transition-colors z-10 relative",
+                  "flex items-center justify-center w-10 h-10 rounded-full transition-colors duration-200 z-10 relative",
                   isActive 
                     ? "text-primary-foreground" 
-                    : "text-muted-foreground hover-elevate"
+                    : "text-muted-foreground"
                 )}
                 data-testid={`nav-${item.label.toLowerCase()}`}
               >
                 <item.icon className="w-5 h-5" />
-                <span className="text-[10px] font-medium">{item.label}</span>
               </Link>
             );
           })}

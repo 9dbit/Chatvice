@@ -267,285 +267,203 @@ export default function CustomerSettingsPage() {
     <CustomerLayout>
       <div className="sm:ml-64">
         <div className="max-w-2xl mx-auto p-4 space-y-6">
-          <div>
-            <h1 className="text-2xl font-bold">Settings</h1>
-            <p className="text-muted-foreground">Manage your account preferences</p>
-          </div>
+          <h1 className="text-lg font-semibold">Profile</h1>
           
-          <Card>
-            <CardHeader>
-              <CardTitle>Profile</CardTitle>
-              <CardDescription>Your personal information</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <input
-                    ref={photoInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/gif,image/webp"
-                    onChange={handlePhotoSelect}
-                    className="hidden"
-                    data-testid="input-profile-photo"
-                  />
-                  <Avatar className="w-20 h-20">
-                    <AvatarImage src={customer.avatarUrl || undefined} />
-                    <AvatarFallback className="text-xl">
-                      <User className="w-8 h-8" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <Button 
-                    size="icon"
-                    className="absolute bottom-0 right-0 rounded-full"
-                    onClick={() => photoInputRef.current?.click()}
-                    disabled={isUploading}
-                    data-testid="button-change-photo"
-                  >
-                    {isUploading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Camera className="w-4 h-4" />
-                    )}
-                  </Button>
-                  {isUploading && (
-                    <div className="absolute -bottom-3 left-0 right-0 flex flex-col items-center">
-                      <div className="h-1 w-16 bg-muted rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-primary transition-all duration-300 ease-out"
-                          style={{ width: `${uploadProgress}%` }}
-                          data-testid="profile-upload-progress-bar"
-                        />
-                      </div>
-                      <span className="text-[10px] text-muted-foreground mt-0.5" data-testid="profile-upload-progress-text">
-                        {uploadProgress}%
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <p className="font-medium" data-testid="text-display-name">{customer.displayName || "Guest"}</p>
-                  <p className="text-sm text-muted-foreground" data-testid="text-phone-number">{customer.phoneNumber}</p>
-                  {customer.isPhoneVerified && (
-                    <p className="text-xs text-green-600 flex items-center gap-1 mt-1" data-testid="text-verified-badge">
-                      <Shield className="w-3 h-3" /> Verified
-                    </p>
-                  )}
-                </div>
-              </div>
-              
-              <Separator />
-              
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="displayName">Display Name</Label>
-                  <Input
-                    id="displayName"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Your name"
-                    data-testid="input-display-name"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="your@email.com"
-                    data-testid="input-email"
-                  />
-                </div>
-                
+          <div className="rounded-lg border bg-card p-3 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  onChange={handlePhotoSelect}
+                  className="hidden"
+                  data-testid="input-profile-photo"
+                />
+                <Avatar className="w-14 h-14">
+                  <AvatarImage src={customer.avatarUrl || undefined} />
+                  <AvatarFallback>
+                    <User className="w-6 h-6" />
+                  </AvatarFallback>
+                </Avatar>
                 <Button 
-                  onClick={handleSaveProfile}
-                  disabled={updateProfileMutation.isPending}
-                  data-testid="button-save-profile"
+                  size="icon"
+                  className="absolute -bottom-1 -right-1 rounded-full h-6 w-6"
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={isUploading}
+                  data-testid="button-change-photo"
                 >
-                  {updateProfileMutation.isPending ? "Saving..." : "Save Changes"}
+                  {isUploading ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Camera className="w-3 h-3" />
+                  )}
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-          
-          {/* Personal ID & QR Code Section - Frosted Glass Design */}
-          <Card className="relative overflow-hidden backdrop-blur-2xl bg-gradient-to-br from-purple-500/10 via-indigo-500/10 to-blue-500/10 border-white/20 dark:border-white/10 shadow-xl">
-            {/* Decorative gradient blur */}
-            <div className="absolute -top-20 -right-20 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate" data-testid="text-display-name">{customer.displayName || "Guest"}</p>
+                <p className="text-xs text-muted-foreground" data-testid="text-phone-number">{customer.phoneNumber}</p>
+                {customer.isPhoneVerified && (
+                  <p className="text-[10px] text-green-600 flex items-center gap-1" data-testid="text-verified-badge">
+                    <Shield className="w-2.5 h-2.5" /> Verified
+                  </p>
+                )}
+              </div>
+            </div>
             
-            <CardHeader className="relative z-10">
-              <CardTitle className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600">
-                  <QrCode className="w-5 h-5 text-white" />
-                </div>
-                Personal ID
-              </CardTitle>
-              <CardDescription>Share your Personal ID or QR code to connect with others</CardDescription>
-            </CardHeader>
-            <CardContent className="relative z-10 space-y-6">
-              {customer.personalId ? (
-                <>
-                  {/* Frosted Glass QR Code Frame - Enlarged */}
-                  <div className="flex flex-col items-center">
-                    <div className="relative p-8 rounded-3xl backdrop-blur-xl bg-white/80 dark:bg-white/90 shadow-2xl border border-white/50" data-testid="container-qr-code">
-                      {/* Inner glow effect */}
-                      <div className="absolute inset-3 rounded-2xl bg-gradient-to-br from-purple-100/50 to-indigo-100/50 dark:from-purple-200/30 dark:to-indigo-200/30 pointer-events-none" />
-                      
-                      <div className="relative">
-                        <QRCodeSVG 
-                          value={customer.personalId}
-                          size={220}
-                          level="H"
-                          includeMargin={false}
-                          bgColor="transparent"
-                          fgColor="#1e1b4b"
-                          data-testid="img-personal-qr"
-                        />
-                      </div>
-                      
-                      {/* Personal ID below QR */}
-                      <div className="mt-5 text-center">
-                        <p className="font-mono text-base font-bold text-indigo-900 tracking-wider" data-testid="text-personal-id">
-                          {customer.personalId}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <p className="mt-4 text-sm text-muted-foreground text-center">
-                      Scan this QR code to add as contact
-                    </p>
-                  </div>
-                  
-                  {/* Copy Button */}
-                  <div className="flex justify-center">
-                    <Button
-                      variant="outline"
-                      onClick={handleCopyPersonalId}
-                      className="backdrop-blur-sm bg-white/10 border-white/20"
-                      data-testid="button-copy-personal-id"
-                    >
-                      {copiedId ? (
-                        <>
-                          <Check className="w-4 h-4 mr-2 text-green-500" />
-                          Copied!
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-4 h-4 mr-2" />
-                          Copy Personal ID
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <div className="flex flex-col items-center py-8 text-muted-foreground">
-                  <div className="animate-spin w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full mb-3" />
-                  <p>Generating Personal ID...</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Notifications</CardTitle>
-              <CardDescription>Control how you receive updates</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Bell className="w-5 h-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Push Notifications</p>
-                    <p className="text-sm text-muted-foreground">
-                      Get notified when stores reply
-                    </p>
-                  </div>
-                </div>
-                <Switch
-                  checked={notificationsEnabled}
-                  onCheckedChange={handleToggleNotifications}
-                  data-testid="switch-notifications"
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <Label htmlFor="displayName" className="text-xs">Name</Label>
+                <Input
+                  id="displayName"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Your name"
+                  className="h-8 text-sm"
+                  data-testid="input-display-name"
                 />
               </div>
               
-              <Separator />
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Volume2 className="w-5 h-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Notification Sound</p>
-                    <p className="text-sm text-muted-foreground">
-                      Play sound for new messages
-                    </p>
-                  </div>
-                </div>
-                <Switch
-                  checked={soundEnabled}
-                  onCheckedChange={handleToggleSound}
-                  data-testid="switch-notification-sound"
+              <div className="space-y-1">
+                <Label htmlFor="email" className="text-xs">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  className="h-8 text-sm"
+                  data-testid="input-email"
                 />
               </div>
               
-              <Separator />
-              
-              <div 
-                className="flex items-center justify-between cursor-pointer"
-                onClick={() => navigate(chatRoutes.soundSettings())}
-                data-testid="button-sound-settings"
+              <Button 
+                size="sm"
+                onClick={handleSaveProfile}
+                disabled={updateProfileMutation.isPending}
+                data-testid="button-save-profile"
               >
-                <div className="flex items-center gap-3">
-                  <Volume2 className="w-5 h-5 text-primary" />
-                  <div>
-                    <p className="font-medium">Pengaturan Suara Lengkap</p>
-                    <p className="text-sm text-muted-foreground">
-                      Atur suara mengetik, terkirim, dan masuk
-                    </p>
-                  </div>
-                </div>
-                <ChevronRight className="w-5 h-5 text-muted-foreground" />
-              </div>
-            </CardContent>
-          </Card>
+                {updateProfileMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </div>
           
-          <Card className="border-destructive/20">
-            <CardHeader>
-              <CardTitle className="text-destructive">Danger Zone</CardTitle>
-              <CardDescription>Irreversible actions</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button 
-                variant="outline" 
-                onClick={() => logoutMutation.mutate()}
-                disabled={logoutMutation.isPending}
-                className="w-full justify-start"
-                data-testid="button-logout"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                {logoutMutation.isPending ? "Logging out..." : "Log Out"}
-              </Button>
-              
-              <Button 
-                variant="outline"
-                className="w-full justify-start text-destructive hover:text-destructive"
-                onClick={() => {
-                  toast({
-                    title: "Coming Soon",
-                    description: "Account deletion will be available soon",
-                  });
-                }}
-                data-testid="button-delete-account"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete Account
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="rounded-lg border bg-card p-3 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-md bg-gradient-to-br from-purple-600 to-indigo-600">
+                <QrCode className="w-3.5 h-3.5 text-white" />
+              </div>
+              <span className="text-sm font-medium">Personal ID</span>
+            </div>
+            
+            {customer.personalId ? (
+              <div className="flex flex-col items-center">
+                <div className="relative p-4 rounded-xl bg-white dark:bg-white shadow-md" data-testid="container-qr-code">
+                  <QRCodeSVG 
+                    value={customer.personalId}
+                    size={140}
+                    level="H"
+                    includeMargin={false}
+                    bgColor="transparent"
+                    fgColor="#1e1b4b"
+                    data-testid="img-personal-qr"
+                  />
+                </div>
+                <p className="mt-2 font-mono text-xs font-medium text-muted-foreground" data-testid="text-personal-id">
+                  {customer.personalId}
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCopyPersonalId}
+                  className="mt-1 h-7 text-xs"
+                  data-testid="button-copy-personal-id"
+                >
+                  {copiedId ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+                  {copiedId ? "Copied" : "Copy ID"}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-4 text-muted-foreground text-xs">
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                Generating...
+              </div>
+            )}
+          </div>
+          
+          <div className="rounded-lg border bg-card p-3 space-y-2">
+            <p className="text-xs text-muted-foreground">Notifications</p>
+            
+            <div className="flex items-center justify-between py-1">
+              <div className="flex items-center gap-2">
+                <Bell className="w-4 h-4 text-muted-foreground" />
+                <span className="text-xs">Push Notifications</span>
+              </div>
+              <Switch
+                checked={notificationsEnabled}
+                onCheckedChange={handleToggleNotifications}
+                className="scale-75"
+                data-testid="switch-notifications"
+              />
+            </div>
+            
+            <div className="flex items-center justify-between py-1">
+              <div className="flex items-center gap-2">
+                <Volume2 className="w-4 h-4 text-muted-foreground" />
+                <span className="text-xs">Sound</span>
+              </div>
+              <Switch
+                checked={soundEnabled}
+                onCheckedChange={handleToggleSound}
+                className="scale-75"
+                data-testid="switch-notification-sound"
+              />
+            </div>
+            
+            <div 
+              className="flex items-center justify-between py-1 cursor-pointer"
+              onClick={() => navigate(chatRoutes.soundSettings())}
+              data-testid="button-sound-settings"
+            >
+              <div className="flex items-center gap-2">
+                <Volume2 className="w-4 h-4 text-primary" />
+                <span className="text-xs">Sound Settings</span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </div>
+          </div>
+          
+          <div className="rounded-lg border border-destructive/20 bg-card p-3 space-y-2">
+            <p className="text-xs text-destructive font-medium">Danger Zone</p>
+            
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => logoutMutation.mutate()}
+              disabled={logoutMutation.isPending}
+              className="w-full justify-start h-8"
+              data-testid="button-logout"
+            >
+              <LogOut className="w-3.5 h-3.5 mr-2" />
+              <span className="text-xs">{logoutMutation.isPending ? "Logging out..." : "Log Out"}</span>
+            </Button>
+            
+            <Button 
+              variant="outline"
+              size="sm"
+              className="w-full justify-start h-8 text-destructive hover:text-destructive"
+              onClick={() => {
+                toast({
+                  title: "Coming Soon",
+                  description: "Account deletion will be available soon",
+                });
+              }}
+              data-testid="button-delete-account"
+            >
+              <Trash2 className="w-3.5 h-3.5 mr-2" />
+              <span className="text-xs">Delete Account</span>
+            </Button>
+          </div>
         </div>
       </div>
     </CustomerLayout>
