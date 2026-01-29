@@ -18082,9 +18082,15 @@ Please create a comprehensive help center article that would be useful for custo
         return res.status(401).json({ error: "Not authenticated" });
       }
       
-      const customer = await storage.getCustomer(customerId);
+      let customer = await storage.getCustomer(customerId);
       if (!customer) {
         return res.status(404).json({ error: "Customer not found" });
+      }
+      
+      // Generate personalId if not exists (for legacy customers)
+      if (!customer.personalId) {
+        const personalId = await storage.generatePersonalId();
+        customer = await storage.updateCustomer(customerId, { personalId }) || customer;
       }
       
       res.json({

@@ -388,16 +388,16 @@ export default function CustomerSettingsPage() {
             <CardContent className="relative z-10 space-y-6">
               {customer.personalId ? (
                 <>
-                  {/* Frosted Glass QR Code Frame */}
+                  {/* Frosted Glass QR Code Frame - Enlarged */}
                   <div className="flex flex-col items-center">
-                    <div className="relative p-6 rounded-3xl backdrop-blur-xl bg-white/80 dark:bg-white/90 shadow-2xl border border-white/50" data-testid="container-qr-code">
+                    <div className="relative p-8 rounded-3xl backdrop-blur-xl bg-white/80 dark:bg-white/90 shadow-2xl border border-white/50" data-testid="container-qr-code">
                       {/* Inner glow effect */}
-                      <div className="absolute inset-2 rounded-2xl bg-gradient-to-br from-purple-100/50 to-indigo-100/50 dark:from-purple-200/30 dark:to-indigo-200/30 pointer-events-none" />
+                      <div className="absolute inset-3 rounded-2xl bg-gradient-to-br from-purple-100/50 to-indigo-100/50 dark:from-purple-200/30 dark:to-indigo-200/30 pointer-events-none" />
                       
                       <div className="relative">
                         <QRCodeSVG 
                           value={customer.personalId}
-                          size={180}
+                          size={220}
                           level="H"
                           includeMargin={false}
                           bgColor="transparent"
@@ -407,8 +407,8 @@ export default function CustomerSettingsPage() {
                       </div>
                       
                       {/* Personal ID below QR */}
-                      <div className="mt-4 text-center">
-                        <p className="font-mono text-sm font-bold text-indigo-900 tracking-wider" data-testid="text-personal-id">
+                      <div className="mt-5 text-center">
+                        <p className="font-mono text-base font-bold text-indigo-900 tracking-wider" data-testid="text-personal-id">
                           {customer.personalId}
                         </p>
                       </div>

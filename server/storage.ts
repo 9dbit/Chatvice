@@ -466,6 +466,7 @@ export interface IStorage {
   getCustomerByPersonalId(personalId: string): Promise<Customer | undefined>;
   createCustomer(data: InsertCustomer): Promise<Customer>;
   updateCustomer(id: string, data: Partial<Customer>): Promise<Customer | undefined>;
+  generatePersonalId(): Promise<string>;
   
   // OTP Codes
   createOTPCode(data: InsertOTPCode): Promise<OTPCode>;
