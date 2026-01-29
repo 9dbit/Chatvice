@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { chatRoutes } from "@/lib/chat-routes";
 import { ImageViewer, StickerPicker, type Sticker } from "@/components/chat-media";
-import { useChatNotificationSound } from "@/hooks/use-chat-notification-sound";
+import { useCustomerNotificationSound } from "@/hooks/use-customer-notification-sound";
 
 // Sticker URL mapping for fallback when payload is missing
 const STICKER_URL_MAP: Record<string, string> = {
@@ -188,7 +188,7 @@ export default function StoreChatPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { playSound } = useChatNotificationSound();
+  const { playSound } = useCustomerNotificationSound();
   const [message, setMessage] = useState("");
   const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -379,7 +379,7 @@ export default function StoreChatPage() {
             queryClient.invalidateQueries({ queryKey: ["/api/customer/store-chats", merchantId, "messages"] });
             // Play notification sound for AI/supervisor messages
             if (data.message?.from === "ai" || data.message?.from === "supervisor") {
-              playSound("reply");
+              playSound("incomingStore");
             }
           }
         } catch (e) {

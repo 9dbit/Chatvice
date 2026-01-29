@@ -11,7 +11,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { chatRoutes } from "@/lib/chat-routes";
-import { ImageViewer, StickerPicker, type Sticker } from "@/components/chat-media";
+import { ImageViewer, StickerPicker, ChatRightPanel, type Sticker } from "@/components/chat-media";
+import { useCustomerNotificationSound } from "@/hooks/use-customer-notification-sound";
 
 const STICKER_URL_MAP: Record<string, string> = {
   "happy_1": "https://media.giphy.com/media/WUq1cg9K7uzHa/giphy.gif",
@@ -176,6 +177,7 @@ export default function PersonalChatPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { playSound } = useCustomerNotificationSound();
   const [message, setMessage] = useState("");
   const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
   const [showStickerPicker, setShowStickerPicker] = useState(false);
@@ -185,6 +187,9 @@ export default function PersonalChatPage() {
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [viewerImages, setViewerImages] = useState<MediaInfo[]>([]);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
+  const [panelViewingImage, setPanelViewingImage] = useState<MediaInfo | null>(null);
+  const [panelViewingIndex, setPanelViewingIndex] = useState(0);
+  const [lastMessageCount, setLastMessageCount] = useState(0);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -321,6 +326,7 @@ export default function PersonalChatPage() {
 
     setPendingMessages(prev => [...prev, pendingMsg]);
     setMessage("");
+    playSound("sent");
     sendMessageMutation.mutate({ content: trimmedMessage, clientMessageId });
   };
 
@@ -401,9 +407,46 @@ export default function PersonalChatPage() {
     setImageViewerOpen(true);
   };
 
+  const allMediaItems = allMessages
+    .filter(msg => msg.messageType === "media" && msg.payload?.url)
+    .map(msg => ({
+      url: msg.payload.url,
+      filename: msg.payload.filename || msg.content?.replace("[image:", "").replace("]", "") || "image",
+      fileSize: msg.payload.fileSize,
+    }));
+
+  const openPanelViewer = (image: MediaInfo, index: number) => {
+    setPanelViewingImage(image);
+    setPanelViewingIndex(index);
+  };
+
+  const closePanelViewer = () => {
+    setPanelViewingImage(null);
+    setPanelViewingIndex(0);
+  };
+
+  const handleImageClick = (mediaInfo: MediaInfo) => {
+    const idx = allMediaItems.findIndex(m => m.url === mediaInfo.url);
+    if (window.innerWidth >= 1024) {
+      openPanelViewer(mediaInfo, idx >= 0 ? idx : 0);
+    } else {
+      openImageViewer([mediaInfo], 0);
+    }
+  };
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [allMessages.length]);
+
+  useEffect(() => {
+    if (serverMessages.length > lastMessageCount && lastMessageCount > 0) {
+      const lastMsg = serverMessages[serverMessages.length - 1];
+      if (lastMsg && currentUser && lastMsg.senderId !== currentUser.id) {
+        playSound("incomingPersonal");
+      }
+    }
+    setLastMessageCount(serverMessages.length);
+  }, [serverMessages.length, lastMessageCount, currentUser, playSound]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -504,7 +547,8 @@ export default function PersonalChatPage() {
   const messageGroups = groupMessagesByDate(allMessages);
 
   return (
-    <div className="fixed inset-0 flex flex-col chat-background-pattern">
+    <div className="fixed inset-0 flex chat-background-pattern">
+      <div className="flex-1 flex flex-col min-w-0">
       <header className="flex items-center gap-3 p-3 glass-header z-10">
         <Button 
           variant="ghost" 
@@ -651,7 +695,7 @@ export default function PersonalChatPage() {
                         ) : isImage && mediaInfo ? (
                           <div 
                             className="cursor-pointer"
-                            onClick={() => openImageViewer([mediaInfo], 0)}
+                            onClick={() => handleImageClick(mediaInfo)}
                             data-testid="image-message"
                           >
                             <div className="w-48 md:w-56 rounded-xl overflow-hidden border border-white/20 shadow-sm">
@@ -821,6 +865,21 @@ export default function PersonalChatPage() {
             )}
           </Button>
         </div>
+      </div>
+      </div>
+
+      <div className="hidden lg:block w-80 border-l bg-background/80 backdrop-blur-sm">
+        <ChatRightPanel
+          participant={{
+            name: chatInfo.participantName || "User",
+            photo: chatInfo.participantPhoto || undefined,
+          }}
+          mediaItems={allMediaItems}
+          viewingImage={panelViewingImage}
+          viewingIndex={panelViewingIndex}
+          onImageClick={openPanelViewer}
+          onClose={closePanelViewer}
+        />
       </div>
 
       <ImageViewer
