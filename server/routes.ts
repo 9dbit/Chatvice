@@ -18380,6 +18380,28 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
   
+  // Get store notification sound settings for customer chat
+  app.get("/api/customer/stores/:merchantId/notification-settings", async (req, res) => {
+    try {
+      const { merchantId } = req.params;
+      
+      const settings = await storage.getNotificationSettings(merchantId);
+      
+      res.json({
+        incomingChatSound: settings?.incomingChatSound || "incoming-msg",
+        incomingChatEnabled: settings?.incomingChatEnabled ?? true,
+        chatReplySound: settings?.chatReplySound || "live-chat",
+        chatReplyEnabled: settings?.chatReplyEnabled ?? true,
+        angryCustomerSound: settings?.angryCustomerSound || "notification-alert",
+        angryCustomerEnabled: settings?.angryCustomerEnabled ?? true,
+        customSounds: settings?.customSounds || [],
+      });
+    } catch (error) {
+      console.error("Get store notification settings error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+  
   // Start or continue chat with a store
   app.post("/api/customer/stores/:merchantId/chat", async (req, res) => {
     try {

@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { chatRoutes } from "@/lib/chat-routes";
+import { ImageViewer } from "@/components/chat-media/image-viewer";
+import { useChatNotificationSound } from "@/hooks/use-chat-notification-sound";
 
 interface Message {
   id: string;
@@ -215,6 +217,13 @@ export default function ChatPanel({ chatId, chatType, onClose, isEmbedded }: Cha
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [viewerImages, setViewerImages] = useState<Array<{ url: string; filename: string; fileSize?: number; mimeType?: string }>>([]);
+  const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
+  const [lastMessageCount, setLastMessageCount] = useState(0);
+  
+  const { playSound } = useChatNotificationSound(chatType === "store" ? chatId : undefined);
 
   const { data: storeChat, isLoading: chatLoading } = useQuery<StoreChatData>({
     queryKey: ["/api/customer/store-chats", chatId],
@@ -409,6 +418,10 @@ export default function ChatPanel({ chatId, chatType, onClose, isEmbedded }: Cha
         try {
           const data = JSON.parse(event.data);
           if (data.type === "message") {
+            // Play notification sound for incoming messages (not from customer)
+            if (data.message?.from !== "customer") {
+              playSound("reply");
+            }
             if (chatType === "store") {
               queryClient.invalidateQueries({ queryKey: ["/api/customer/store-chats", chatId, "messages"] });
             } else {
@@ -758,7 +771,28 @@ export default function ChatPanel({ chatId, chatType, onClose, isEmbedded }: Cha
                           </div>
                         ) : isImage && mediaInfo ? (
                           <div data-testid="panel-image-message">
-                            <div className="w-48 md:w-56 rounded-xl overflow-hidden border border-white/20 shadow-sm">
+                            <button
+                              className="w-48 md:w-56 rounded-xl overflow-hidden border border-white/20 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => {
+                                const allImageMessages = allMessages.filter(m => isImageMessage(m));
+                                const images = allImageMessages.map(m => {
+                                  const info = parseMediaFromMessage(m);
+                                  return {
+                                    url: info?.url || "",
+                                    filename: info?.filename || "image",
+                                    fileSize: info?.fileSize,
+                                    mimeType: info?.mimeType,
+                                    msgId: m.id || m.clientMessageId,
+                                  };
+                                }).filter(img => img.url);
+                                const currentMsgId = msg.id || msg.clientMessageId;
+                                const currentImageIndex = images.findIndex(img => img.msgId === currentMsgId);
+                                setViewerImages(images);
+                                setViewerInitialIndex(Math.max(0, currentImageIndex));
+                                setImageViewerOpen(true);
+                              }}
+                              data-testid="button-view-image"
+                            >
                               <div className="relative aspect-square bg-black/5 dark:bg-white/5">
                                 <img
                                   src={mediaInfo.url}
@@ -771,7 +805,7 @@ export default function ChatPanel({ chatId, chatType, onClose, isEmbedded }: Cha
                                 isCustomer ? "bg-gradient-to-r from-purple-500 to-indigo-500" : "bg-black/5 dark:bg-white/5"
                               )}>
                                 <p className={cn(
-                                  "text-xs font-medium truncate",
+                                  "text-xs font-medium truncate text-left",
                                   isCustomer && "text-white"
                                 )} title={mediaInfo.filename}>
                                   {mediaInfo.filename}
@@ -786,7 +820,7 @@ export default function ChatPanel({ chatId, chatType, onClose, isEmbedded }: Cha
                                   {isPending && <span>· Sending...</span>}
                                 </div>
                               </div>
-                            </div>
+                            </button>
                           </div>
                         ) : (
                           <div
@@ -947,6 +981,13 @@ export default function ChatPanel({ chatId, chatType, onClose, isEmbedded }: Cha
           </Button>
         </div>
       </div>
+      
+      <ImageViewer
+        images={viewerImages}
+        initialIndex={viewerInitialIndex}
+        isOpen={imageViewerOpen}
+        onClose={() => setImageViewerOpen(false)}
+      />
     </div>
   );
 }
