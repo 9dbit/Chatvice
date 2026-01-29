@@ -1,10 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, Component, type ReactNode } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Users, Send, Paperclip, MoreVertical, Loader2, X, Smile, Image, FileText, Video } from "lucide-react";
+import { ArrowLeft, Users, Send, Paperclip, MoreVertical, Loader2, X, Smile, Image, FileText, Video, RefreshCcw, AlertCircle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -13,6 +13,65 @@ import { useToast } from "@/hooks/use-toast";
 import { chatRoutes } from "@/lib/chat-routes";
 import { ImageViewer, StickerPicker, ChatRightPanel, type Sticker } from "@/components/chat-media";
 import { useCustomerNotificationSound } from "@/hooks/use-customer-notification-sound";
+
+// Error Boundary untuk mencegah blank page
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ChatErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: any) {
+    console.error("ChatErrorBoundary caught an error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="fixed inset-0 flex flex-col items-center justify-center chat-background-pattern p-6">
+          <div className="glass-card rounded-xl p-8 max-w-md text-center">
+            <AlertCircle className="w-16 h-16 mx-auto text-orange-500 mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Terjadi Kesalahan</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Halaman chat mengalami error. Silakan coba muat ulang.
+            </p>
+            <div className="flex gap-2 justify-center">
+              <Button
+                variant="outline"
+                onClick={() => window.history.back()}
+                data-testid="button-go-back"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Kembali
+              </Button>
+              <Button
+                onClick={() => {
+                  this.setState({ hasError: false, error: null });
+                  window.location.reload();
+                }}
+                data-testid="button-reload"
+              >
+                <RefreshCcw className="w-4 h-4 mr-2" />
+                Muat Ulang
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 const STICKER_URL_MAP: Record<string, string> = {
   "happy_1": "https://media.giphy.com/media/WUq1cg9K7uzHa/giphy.gif",
@@ -172,7 +231,7 @@ function parseMediaFromMessage(msg: DisplayMessage): MediaInfo | null {
   return null;
 }
 
-export default function PersonalChatPage() {
+function PersonalChatPageInner() {
   const params = useParams<{ chatId: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -458,38 +517,56 @@ export default function PersonalChatPage() {
     let currentGroup: DisplayMessage[] = [];
 
     for (const msg of messages) {
-      const msgDate = format(new Date(msg.createdAt), "yyyy-MM-dd");
-      if (msgDate !== currentDate) {
-        if (currentGroup.length > 0) {
-          groups.push({ date: currentDate, messages: currentGroup });
+      try {
+        // Safe date parsing with fallback
+        const dateValue = msg.createdAt ? new Date(msg.createdAt) : new Date();
+        const isValidDate = !isNaN(dateValue.getTime());
+        const msgDate = isValidDate ? format(dateValue, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
+        
+        if (msgDate !== currentDate) {
+          if (currentGroup.length > 0) {
+            groups.push({ date: currentDate, messages: currentGroup });
+          }
+          currentDate = msgDate;
+          currentGroup = [msg];
+        } else {
+          currentGroup.push(msg);
         }
-        currentDate = msgDate;
-        currentGroup = [msg];
-      } else {
+      } catch (error) {
+        // If date parsing fails, add to current group or create new one
+        console.error("Date parsing error:", error);
         currentGroup.push(msg);
       }
     }
 
     if (currentGroup.length > 0) {
-      groups.push({ date: currentDate, messages: currentGroup });
+      groups.push({ date: currentDate || format(new Date(), "yyyy-MM-dd"), messages: currentGroup });
     }
 
     return groups;
   };
 
   const formatDateLabel = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
+    try {
+      if (!dateStr) return "Hari ini";
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return "Hari ini";
+      
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
 
-    if (format(date, "yyyy-MM-dd") === format(today, "yyyy-MM-dd")) {
+      if (format(date, "yyyy-MM-dd") === format(today, "yyyy-MM-dd")) {
+        return "Hari ini";
+      }
+      if (format(date, "yyyy-MM-dd") === format(yesterday, "yyyy-MM-dd")) {
+        return "Kemarin";
+      }
+      return format(date, "d MMMM yyyy");
+    } catch (error) {
+      console.error("formatDateLabel error:", error);
       return "Hari ini";
     }
-    if (format(date, "yyyy-MM-dd") === format(yesterday, "yyyy-MM-dd")) {
-      return "Kemarin";
-    }
-    return format(date, "d MMMM yyyy");
   };
 
   if (!chatId) {
@@ -889,5 +966,14 @@ export default function PersonalChatPage() {
         onClose={() => setImageViewerOpen(false)}
       />
     </div>
+  );
+}
+
+// Wrapped with error boundary to prevent blank pages
+export default function PersonalChatPage() {
+  return (
+    <ChatErrorBoundary>
+      <PersonalChatPageInner />
+    </ChatErrorBoundary>
   );
 }
