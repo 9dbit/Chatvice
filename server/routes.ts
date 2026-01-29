@@ -1191,6 +1191,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
   
   // CORS middleware for widget endpoints (accessed from external domains)
+  // Note: Chrome strictly enforces that Access-Control-Allow-Credentials: true
+  // cannot be used with Access-Control-Allow-Origin: * - must use specific origin
   app.use((req, res, next) => {
     // Apply CORS to all widget-related endpoints
     if (req.path.startsWith("/api/widget/") || 
@@ -1198,10 +1200,17 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         req.path.startsWith("/widget/") ||
         req.path === "/api/messages" ||
         req.path === "/api/chat") {
-      res.header("Access-Control-Allow-Origin", "*");
+      // Use specific origin from request header, or * as fallback
+      const origin = req.headers.origin;
+      if (origin) {
+        res.header("Access-Control-Allow-Origin", origin);
+        res.header("Access-Control-Allow-Credentials", "true");
+      } else {
+        res.header("Access-Control-Allow-Origin", "*");
+        // Cannot use credentials with wildcard origin per CORS spec
+      }
       res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
       res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-      res.header("Access-Control-Allow-Credentials", "true");
       
       // Handle preflight requests
       if (req.method === "OPTIONS") {
