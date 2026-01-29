@@ -623,6 +623,80 @@ function OverviewTab({ stats, statsLoading, setActiveTab, toast }: {
 
   return (
     <>
+      {/* Dashboard Overview Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold" data-testid="text-dashboard-title">Dashboard Overview</h1>
+        <p className="text-sm text-muted-foreground">Monitor your merchants performance and activity</p>
+      </div>
+
+      {/* Real-time Section */}
+      <Card className="mb-6 backdrop-blur-xl bg-white/5 dark:bg-white/[0.03] border-white/10 dark:border-white/5">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Zap className="w-4 h-4 text-green-400" />
+            <span className="text-muted-foreground">Real time</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Merchants Active */}
+            <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-4 border border-white/10 dark:border-white/5">
+              <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
+                <Building2 className="w-3.5 h-3.5 text-primary" />
+                <span>Merchants</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Badge className="bg-primary/80 text-primary-foreground text-[10px] mb-1">active</Badge>
+                  <p className="text-2xl font-bold" data-testid="text-realtime-merchants-active">
+                    {statsLoading ? <Skeleton className="h-7 w-10" /> : stats?.activeMerchants || 0}
+                  </p>
+                </div>
+                <div>
+                  <Badge className="bg-muted text-muted-foreground text-[10px] mb-1">total</Badge>
+                  <p className="text-2xl font-bold" data-testid="text-realtime-merchants-total">
+                    {statsLoading ? <Skeleton className="h-7 w-10" /> : stats?.totalMerchants || 0}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Total Visitors */}
+            <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-4 border border-white/10 dark:border-white/5">
+              <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
+                <Users className="w-3.5 h-3.5 text-blue-400" />
+                <span>Total Visitors</span>
+              </div>
+              <p className="text-3xl font-bold" data-testid="text-realtime-visitors">
+                {statsLoading ? <Skeleton className="h-9 w-14" /> : stats?.totalConversations || 0}
+              </p>
+            </div>
+            
+            {/* Total Chats */}
+            <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-4 border border-white/10 dark:border-white/5">
+              <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
+                <MessageSquare className="w-3.5 h-3.5 text-purple-400" />
+                <span>Total Chats</span>
+              </div>
+              <p className="text-3xl font-bold" data-testid="text-realtime-chats">
+                {statsLoading ? <Skeleton className="h-9 w-14" /> : stats?.totalConversations || 0}
+              </p>
+            </div>
+            
+            {/* Active Sessions */}
+            <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-4 border border-white/10 dark:border-white/5">
+              <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
+                <Activity className="w-3.5 h-3.5 text-green-400" />
+                <span>Sessions Active</span>
+              </div>
+              <p className="text-3xl font-bold" data-testid="text-realtime-sessions">
+                {statsLoading ? <Skeleton className="h-9 w-14" /> : stats?.activeMerchants || 0}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {statsLoading ? (
           <>

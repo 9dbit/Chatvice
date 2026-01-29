@@ -1212,18 +1212,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
   
   // Configure session with proper production settings
+  // Extended session lifetime: 30 days to prevent unexpected logouts
+  // Session persists as long as browser is active with rolling refresh
   const isProduction = process.env.NODE_ENV === "production";
   const sessionConfig: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "chatvice-secret-key-change-in-production",
     resave: false,
     saveUninitialized: false,
+    rolling: true, // Refresh session on every request to prevent timeout
     store: new MemoryStoreSession({
       checkPeriod: 86400000,
     }),
     cookie: {
       secure: isProduction,
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000,
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days instead of 24 hours
       sameSite: "lax",
     },
   };
