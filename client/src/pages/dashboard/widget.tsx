@@ -1057,13 +1057,17 @@ async function handleLogin() {
                             data-testid="input-icon-file"
                           />
                         </div>
-                        <div className="flex-1 space-y-2">
-                          <Input
-                            placeholder="Or paste image URL"
-                            value={config.iconUrl}
-                            onChange={(e) => setConfig({ ...config, iconUrl: e.target.value })}
-                            data-testid="input-icon-url"
-                          />
+                        <div className="flex-1 space-y-2 max-w-[200px]">
+                          <div 
+                            className="text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1.5 break-all line-clamp-3 overflow-hidden"
+                            title={config.iconUrl || "No icon selected"}
+                          >
+                            {config.iconUrl ? (
+                              config.iconUrl.length > 60 ? config.iconUrl.substring(0, 60) + "..." : config.iconUrl
+                            ) : (
+                              <span className="italic">No custom icon</span>
+                            )}
+                          </div>
                           {config.iconUrl && (
                             <div className="space-y-2">
                               <Button
@@ -1144,7 +1148,7 @@ async function handleLogin() {
                       {/* Icon Templates Section */}
                       <div className="pt-3 border-t">
                         <Label className="text-sm font-medium mb-2 block">Choose from Templates</Label>
-                        <div className="grid grid-cols-5 md:grid-cols-5 gap-2 md:gap-2">
+                        <div className="grid grid-cols-5 gap-3">
                           {[
                             { id: 'male-cs-blue-shirt', name: 'CS Blue Shirt' },
                             { id: 'male-cs-suit', name: 'CS Suit' },
@@ -1161,7 +1165,7 @@ async function handleLogin() {
                               key={template.id}
                               type="button"
                               className={cn(
-                                "relative w-full aspect-square rounded-lg overflow-hidden border-2 transition-all max-w-[64px]",
+                                "relative aspect-square rounded-lg overflow-hidden border-2 transition-all w-full",
                                 config.iconUrl === `/icon-templates/${template.id}.png`
                                   ? "border-primary ring-2 ring-primary/30"
                                   : "border-muted hover:border-primary/50"
@@ -1178,13 +1182,13 @@ async function handleLogin() {
                               />
                               {config.iconUrl === `/icon-templates/${template.id}.png` && (
                                 <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
-                                  <Check className="w-4 h-4 text-primary" />
+                                  <Check className="w-5 h-5 text-primary" />
                                 </div>
                               )}
                             </button>
                           ))}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-2">
+                        <p className="text-xs text-muted-foreground mt-3">
                           Click to use a pre-designed icon template
                         </p>
                       </div>
@@ -1513,13 +1517,13 @@ async function handleLogin() {
 
                       <div className="space-y-2">
                         <Label className="text-sm">Or Choose Avatar</Label>
-                        <div className="grid grid-cols-4 md:grid-cols-4 gap-2 md:gap-2">
+                        <div className="grid grid-cols-4 gap-3">
                           {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
                             <button
                               key={num}
                               type="button"
                               onClick={() => setConfig({ ...config, agentPhotoUrl: `/avatars/avatar-${num}.jpg` })}
-                              className={`relative rounded-lg overflow-hidden border-2 transition-all hover:opacity-80 active:scale-95 ${
+                              className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all hover:opacity-80 active:scale-95 w-full ${
                                 config.agentPhotoUrl === `/avatars/avatar-${num}.jpg` 
                                   ? 'border-primary ring-2 ring-primary/30' 
                                   : 'border-muted hover:border-muted-foreground/50'
@@ -1529,12 +1533,12 @@ async function handleLogin() {
                               <img
                                 src={`/avatars/avatar-${num}.jpg`}
                                 alt={`Avatar ${num}`}
-                                className="w-full aspect-square object-cover max-w-[64px]"
+                                className="w-full h-full object-cover"
                                 loading="lazy"
                               />
                               {config.agentPhotoUrl === `/avatars/avatar-${num}.jpg` && (
                                 <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                                  <Check className="w-4 h-4 text-primary" />
+                                  <Check className="w-5 h-5 text-primary" />
                                 </div>
                               )}
                             </button>
