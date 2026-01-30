@@ -1169,39 +1169,39 @@ async function handleLogin() {
                         <Label className="text-sm font-medium mb-2 block">Choose from Templates</Label>
                         <div className="grid grid-cols-6 gap-3">
                           {[
-                            { id: 'male-cs-blue-shirt', name: 'CS Blue Shirt' },
-                            { id: 'male-cs-suit', name: 'CS Suit' },
-                            { id: 'male-casual-gray', name: 'Casual Gray' },
-                            { id: 'male-cs-blue-standing', name: 'CS Standing' },
-                            { id: 'astronaut', name: 'Astronaut' },
-                            { id: 'rocket', name: 'Rocket' },
-                            { id: 'female-cs-red', name: 'CS Red' },
-                            { id: 'female-cs-white', name: 'CS White' },
-                            { id: 'female-cs-red-shirt', name: 'CS Red Shirt' },
-                            { id: 'female-cs-purple', name: 'CS Purple' },
-                            { id: 'gold-coin', name: 'Gold Coin' },
-                            { id: 'chat-bubble', name: 'Chat Bubble' },
+                            { id: 'male-cs-blue-shirt', name: 'CS Blue Shirt', ext: 'webp' },
+                            { id: 'male-cs-suit', name: 'CS Suit', ext: 'webp' },
+                            { id: 'male-casual-gray', name: 'Casual Gray', ext: 'webp' },
+                            { id: 'male-cs-blue-standing', name: 'CS Standing', ext: 'webp' },
+                            { id: 'astronaut', name: 'Astronaut', ext: 'png' },
+                            { id: 'rocket', name: 'Rocket', ext: 'png' },
+                            { id: 'female-cs-red', name: 'CS Red', ext: 'png' },
+                            { id: 'female-cs-white', name: 'CS White', ext: 'png' },
+                            { id: 'female-cs-red-shirt', name: 'CS Red Shirt', ext: 'png' },
+                            { id: 'female-cs-purple', name: 'CS Purple', ext: 'png' },
+                            { id: 'gold-coin', name: 'Gold Coin', ext: 'png' },
+                            { id: 'chat-bubble', name: 'Chat Bubble', ext: 'png' },
                           ].map((template) => (
                             <button
                               key={template.id}
                               type="button"
                               className={cn(
                                 "relative rounded-lg overflow-hidden border-2 transition-all aspect-square",
-                                config.iconUrl === `/icon-templates/${template.id}.png`
+                                config.iconUrl === `/icon-templates/${template.id}.${template.ext}`
                                   ? "border-primary ring-2 ring-primary/30"
                                   : "border-muted hover:border-primary/50"
                               )}
-                              onClick={() => setConfig({ ...config, iconUrl: `/icon-templates/${template.id}.png` })}
+                              onClick={() => setConfig({ ...config, iconUrl: `/icon-templates/${template.id}.${template.ext}` })}
                               title={template.name}
                               data-testid={`button-template-${template.id}`}
                             >
                               <img
-                                src={`/icon-templates/${template.id}.png`}
+                                src={`/icon-templates/${template.id}.${template.ext}`}
                                 alt={template.name}
                                 className="w-full h-full object-cover"
                                 loading="lazy"
                               />
-                              {config.iconUrl === `/icon-templates/${template.id}.png` && (
+                              {config.iconUrl === `/icon-templates/${template.id}.${template.ext}` && (
                                 <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
                                   <Check className="w-5 h-5 text-primary" />
                                 </div>
