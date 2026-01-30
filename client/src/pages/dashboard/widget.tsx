@@ -1080,11 +1080,12 @@ async function handleLogin() {
                                 <X className="w-3 h-3 mr-1" />
                                 Remove custom icon
                               </Button>
-                              <div className="grid grid-cols-2 md:flex md:flex-row md:flex-nowrap gap-2">
+                              {/* Desktop: single row */}
+                              <div className="hidden md:flex md:flex-row md:flex-nowrap gap-2">
                                 <button
                                   onClick={() => handleFlipImage("horizontal")}
                                   disabled={isProcessingImage}
-                                  data-testid="button-flip-horizontal"
+                                  data-testid="button-flip-horizontal-desktop"
                                   className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group"
                                   style={{
                                     background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
@@ -1100,7 +1101,7 @@ async function handleLogin() {
                                 <button
                                   onClick={() => handleFlipImage("vertical")}
                                   disabled={isProcessingImage}
-                                  data-testid="button-flip-vertical"
+                                  data-testid="button-flip-vertical-desktop"
                                   className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group"
                                   style={{
                                     background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
@@ -1116,7 +1117,7 @@ async function handleLogin() {
                                 <button
                                   onClick={handleConvertToWebP}
                                   disabled={isProcessingImage || config.iconUrl.startsWith('data:image/webp')}
-                                  data-testid="button-convert-webp"
+                                  data-testid="button-convert-webp-desktop"
                                   className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group"
                                   style={{
                                     background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
@@ -1132,7 +1133,7 @@ async function handleLogin() {
                                 <button
                                   onClick={handleRemoveBackground}
                                   disabled={isRemovingBg || (bgRemovalStatus !== null && bgRemovalStatus.limit >= 0 && bgRemovalStatus.used >= bgRemovalStatus.limit)}
-                                  data-testid="button-remove-bg"
+                                  data-testid="button-remove-bg-desktop"
                                   title={bgRemovalStatus ? `${bgRemovalStatus.used}/${bgRemovalStatus.limit} used this month` : "Remove background"}
                                   className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group"
                                   style={{
@@ -1144,6 +1145,82 @@ async function handleLogin() {
                                   <span className="relative z-10 flex items-center whitespace-nowrap">
                                     {isRemovingBg ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Frame className="w-3 h-3 mr-1" />}
                                     Remove BG {bgRemovalStatus && bgRemovalStatus.limit > 0 && (
+                                      <span className="text-[10px] opacity-70 ml-1">({bgRemovalStatus.limit - bgRemovalStatus.used})</span>
+                                    )}
+                                  </span>
+                                </button>
+                              </div>
+                              {/* Mobile: stacked layout */}
+                              <div className="flex flex-col gap-2 md:hidden">
+                                {/* Row 1: Flip H and Flip V */}
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => handleFlipImage("horizontal")}
+                                    disabled={isProcessingImage}
+                                    data-testid="button-flip-horizontal"
+                                    className="flex-1 relative inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                                    style={{
+                                      background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
+                                      backgroundSize: '200% 200%',
+                                      animation: 'gradient-shift 3s ease infinite',
+                                    }}
+                                  >
+                                    <span className="relative z-10 flex items-center whitespace-nowrap">
+                                      {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ArrowUpRight className="w-3 h-3 mr-1 -scale-x-100" />}
+                                      Flip H
+                                    </span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleFlipImage("vertical")}
+                                    disabled={isProcessingImage}
+                                    data-testid="button-flip-vertical"
+                                    className="flex-1 relative inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                                    style={{
+                                      background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
+                                      backgroundSize: '200% 200%',
+                                      animation: 'gradient-shift 3s ease infinite',
+                                    }}
+                                  >
+                                    <span className="relative z-10 flex items-center whitespace-nowrap">
+                                      {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ArrowUpRight className="w-3 h-3 mr-1 -scale-y-100" />}
+                                      Flip V
+                                    </span>
+                                  </button>
+                                </div>
+                                {/* Row 2: Save as WebP (full width with description) */}
+                                <button
+                                  onClick={handleConvertToWebP}
+                                  disabled={isProcessingImage || config.iconUrl.startsWith('data:image/webp')}
+                                  data-testid="button-convert-webp"
+                                  className="w-full relative inline-flex flex-col items-center justify-center px-3 py-2 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                                  style={{
+                                    background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
+                                    backgroundSize: '200% 200%',
+                                    animation: 'gradient-shift 3s ease infinite',
+                                  }}
+                                >
+                                  <span className="relative z-10 flex items-center whitespace-nowrap">
+                                    {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ImageIcon className="w-3 h-3 mr-1" />}
+                                    Save as WebP
+                                  </span>
+                                  <span className="relative z-10 text-[10px] opacity-80 mt-0.5">File lebih kecil, loading lebih cepat</span>
+                                </button>
+                                {/* Row 3: Remove Background (full width) */}
+                                <button
+                                  onClick={handleRemoveBackground}
+                                  disabled={isRemovingBg || (bgRemovalStatus !== null && bgRemovalStatus.limit >= 0 && bgRemovalStatus.used >= bgRemovalStatus.limit)}
+                                  data-testid="button-remove-bg"
+                                  title={bgRemovalStatus ? `${bgRemovalStatus.used}/${bgRemovalStatus.limit} used this month` : "Remove background"}
+                                  className="w-full relative inline-flex items-center justify-center px-3 py-2 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                                  style={{
+                                    background: 'linear-gradient(135deg, #7c3aed 0%, #ec4899 50%, #7c3aed 100%)',
+                                    backgroundSize: '200% 200%',
+                                    animation: 'gradient-shift 3s ease infinite',
+                                  }}
+                                >
+                                  <span className="relative z-10 flex items-center whitespace-nowrap">
+                                    {isRemovingBg ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Frame className="w-3 h-3 mr-1" />}
+                                    Remove Background {bgRemovalStatus && bgRemovalStatus.limit > 0 && (
                                       <span className="text-[10px] opacity-70 ml-1">({bgRemovalStatus.limit - bgRemovalStatus.used})</span>
                                     )}
                                   </span>
