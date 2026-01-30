@@ -1144,7 +1144,7 @@ async function handleLogin() {
                       {/* Icon Templates Section */}
                       <div className="pt-3 border-t">
                         <Label className="text-sm font-medium mb-2 block">Choose from Templates</Label>
-                        <div className="grid grid-cols-5 md:grid-cols-10 gap-1 md:gap-1.5">
+                        <div className="grid grid-cols-5 md:grid-cols-5 gap-2 md:gap-2">
                           {[
                             { id: 'male-cs-blue-shirt', name: 'CS Blue Shirt' },
                             { id: 'male-cs-suit', name: 'CS Suit' },
@@ -1161,7 +1161,7 @@ async function handleLogin() {
                               key={template.id}
                               type="button"
                               className={cn(
-                                "relative w-full aspect-square rounded-lg overflow-hidden border-2 transition-all max-w-[48px] md:max-w-[32px]",
+                                "relative w-full aspect-square rounded-lg overflow-hidden border-2 transition-all max-w-[64px]",
                                 config.iconUrl === `/icon-templates/${template.id}.png`
                                   ? "border-primary ring-2 ring-primary/30"
                                   : "border-muted hover:border-primary/50"
@@ -1178,7 +1178,7 @@ async function handleLogin() {
                               />
                               {config.iconUrl === `/icon-templates/${template.id}.png` && (
                                 <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
-                                  <Check className="w-3 h-3 md:w-2.5 md:h-2.5 text-primary" />
+                                  <Check className="w-4 h-4 text-primary" />
                                 </div>
                               )}
                             </button>
@@ -1513,7 +1513,7 @@ async function handleLogin() {
 
                       <div className="space-y-2">
                         <Label className="text-sm">Or Choose Avatar</Label>
-                        <div className="grid grid-cols-4 md:grid-cols-8 gap-1 md:gap-1.5">
+                        <div className="grid grid-cols-4 md:grid-cols-4 gap-2 md:gap-2">
                           {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
                             <button
                               key={num}
@@ -1529,12 +1529,12 @@ async function handleLogin() {
                               <img
                                 src={`/avatars/avatar-${num}.jpg`}
                                 alt={`Avatar ${num}`}
-                                className="w-full aspect-square object-cover max-w-[40px] md:max-w-[32px]"
+                                className="w-full aspect-square object-cover max-w-[64px]"
                                 loading="lazy"
                               />
                               {config.agentPhotoUrl === `/avatars/avatar-${num}.jpg` && (
                                 <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                                  <Check className="w-3 h-3 md:w-2.5 md:h-2.5 text-primary" />
+                                  <Check className="w-4 h-4 text-primary" />
                                 </div>
                               )}
                             </button>
