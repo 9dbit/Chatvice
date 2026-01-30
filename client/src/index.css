@@ -893,6 +893,18 @@ html {
   animation: gradient-x 3s ease infinite;
 }
 
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
 .liquid-glass-tab[data-state="active"]::after {
   content: '';
   position: absolute;

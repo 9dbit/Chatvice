@@ -3794,7 +3794,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       }
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-image",
+        model: "gemini-2.0-flash-exp",
         contents: [
           {
             role: "user",
@@ -3806,21 +3806,23 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                 },
               },
               {
-                text: "Remove the background from this image completely. Make the background fully transparent (alpha = 0). Keep only the main subject/object with clean, smooth edges. Return only the processed image with transparent background.",
+                text: "Remove the background from this image. Output a PNG image with transparent background. Keep only the main subject with clean edges.",
               },
             ],
           },
         ],
         config: {
-          responseModalities: [Modality.TEXT, Modality.IMAGE],
+          responseModalities: [Modality.IMAGE],
         },
       });
 
       const candidate = response.candidates?.[0];
-      const imagePart = candidate?.content?.parts?.find((part: any) => part.inlineData);
+      const parts = candidate?.content?.parts || [];
+      const imagePart = parts.find((part: any) => part.inlineData);
 
       if (!imagePart?.inlineData?.data) {
-        return res.status(500).json({ error: "AI could not process the image" });
+        console.error("Background removal - no image in response:", JSON.stringify(response, null, 2));
+        return res.status(500).json({ error: "No image returned", details: "AI model did not return an image. Please try a different image." });
       }
 
       const resultMimeType = imagePart.inlineData.mimeType || "image/png";
