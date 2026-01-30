@@ -1187,24 +1187,26 @@ async function handleLogin() {
                                     </span>
                                   </button>
                                 </div>
-                                {/* Row 2: Save as WebP (full width with description) */}
-                                <button
-                                  onClick={handleConvertToWebP}
-                                  disabled={isProcessingImage || config.iconUrl.startsWith('data:image/webp')}
-                                  data-testid="button-convert-webp"
-                                  className="w-full relative inline-flex flex-col items-center justify-center px-3 py-2 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
-                                  style={{
-                                    background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
-                                    backgroundSize: '200% 200%',
-                                    animation: 'gradient-shift 3s ease infinite',
-                                  }}
-                                >
-                                  <span className="relative z-10 flex items-center whitespace-nowrap">
-                                    {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ImageIcon className="w-3 h-3 mr-1" />}
-                                    Save as WebP
-                                  </span>
-                                  <span className="relative z-10 text-[10px] opacity-80 mt-0.5">File lebih kecil, loading lebih cepat</span>
-                                </button>
+                                {/* Row 2: Save as WebP (full width with description below) */}
+                                <div className="w-full">
+                                  <button
+                                    onClick={handleConvertToWebP}
+                                    disabled={isProcessingImage || config.iconUrl.startsWith('data:image/webp')}
+                                    data-testid="button-convert-webp"
+                                    className="w-full relative inline-flex items-center justify-center px-3 py-2 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                                    style={{
+                                      background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
+                                      backgroundSize: '200% 200%',
+                                      animation: 'gradient-shift 3s ease infinite',
+                                    }}
+                                  >
+                                    <span className="relative z-10 flex items-center whitespace-nowrap">
+                                      {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ImageIcon className="w-3 h-3 mr-1" />}
+                                      Save as WebP
+                                    </span>
+                                  </button>
+                                  <p className="text-[10px] text-muted-foreground text-center mt-1">Smaller file size, faster loading</p>
+                                </div>
                                 {/* Row 3: Remove Background (full width) */}
                                 <button
                                   onClick={handleRemoveBackground}
