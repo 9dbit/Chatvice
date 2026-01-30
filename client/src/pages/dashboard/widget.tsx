@@ -1160,6 +1160,8 @@ async function handleLogin() {
                             { id: 'female-cs-white', name: 'CS White' },
                             { id: 'female-cs-red-shirt', name: 'CS Red Shirt' },
                             { id: 'female-cs-purple', name: 'CS Purple' },
+                            { id: 'gold-coin', name: 'Gold Coin' },
+                            { id: 'chat-bubble', name: 'Chat Bubble' },
                           ].map((template) => (
                             <button
                               key={template.id}
