@@ -1080,37 +1080,37 @@ async function handleLogin() {
                                 <X className="w-3 h-3 mr-1" />
                                 Remove custom icon
                               </Button>
-                              <div className="flex flex-wrap gap-2">
+                              <div className="flex flex-row flex-nowrap gap-2 overflow-x-auto">
                                 <button
                                   onClick={() => handleFlipImage("horizontal")}
                                   disabled={isProcessingImage}
                                   data-testid="button-flip-horizontal"
-                                  className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group"
+                                  className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group flex-shrink-0"
                                   style={{
                                     background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
                                     backgroundSize: '200% 200%',
                                     animation: 'gradient-shift 3s ease infinite',
                                   }}
                                 >
-                                  <span className="relative z-10 flex items-center">
+                                  <span className="relative z-10 flex items-center whitespace-nowrap">
                                     {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ArrowUpRight className="w-3 h-3 mr-1 -scale-x-100" />}
-                                    Flip Horizontal
+                                    Flip H
                                   </span>
                                 </button>
                                 <button
                                   onClick={() => handleFlipImage("vertical")}
                                   disabled={isProcessingImage}
                                   data-testid="button-flip-vertical"
-                                  className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group"
+                                  className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group flex-shrink-0"
                                   style={{
                                     background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
                                     backgroundSize: '200% 200%',
                                     animation: 'gradient-shift 3s ease infinite',
                                   }}
                                 >
-                                  <span className="relative z-10 flex items-center">
+                                  <span className="relative z-10 flex items-center whitespace-nowrap">
                                     {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ArrowUpRight className="w-3 h-3 mr-1 -scale-y-100" />}
-                                    Flip Vertical
+                                    Flip V
                                   </span>
                                 </button>
                                 <Button
@@ -1119,25 +1119,26 @@ async function handleLogin() {
                                   onClick={handleConvertToWebP}
                                   disabled={isProcessingImage || config.iconUrl.startsWith('data:image/webp')}
                                   data-testid="button-convert-webp"
+                                  className="flex-shrink-0 whitespace-nowrap"
                                 >
                                   {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ImageIcon className="w-3 h-3 mr-1" />}
-                                  To WebP
+                                  WebP
                                 </Button>
                                 <button
                                   onClick={handleRemoveBackground}
                                   disabled={isRemovingBg || (bgRemovalStatus !== null && bgRemovalStatus.limit >= 0 && bgRemovalStatus.used >= bgRemovalStatus.limit)}
                                   data-testid="button-remove-bg"
                                   title={bgRemovalStatus ? `${bgRemovalStatus.used}/${bgRemovalStatus.limit} used this month` : "Remove background"}
-                                  className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group"
+                                  className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group flex-shrink-0"
                                   style={{
                                     background: 'linear-gradient(135deg, #7c3aed 0%, #ec4899 50%, #7c3aed 100%)',
                                     backgroundSize: '200% 200%',
                                     animation: 'gradient-shift 3s ease infinite',
                                   }}
                                 >
-                                  <span className="relative z-10 flex items-center">
+                                  <span className="relative z-10 flex items-center whitespace-nowrap">
                                     {isRemovingBg ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Frame className="w-3 h-3 mr-1" />}
-                                    Remove Background {bgRemovalStatus && bgRemovalStatus.limit > 0 && (
+                                    Remove BG {bgRemovalStatus && bgRemovalStatus.limit > 0 && (
                                       <span className="text-[10px] opacity-70 ml-1">({bgRemovalStatus.limit - bgRemovalStatus.used})</span>
                                     )}
                                   </span>
@@ -1166,7 +1167,7 @@ async function handleLogin() {
                       {/* Icon Templates Section */}
                       <div className="pt-3 border-t">
                         <Label className="text-sm font-medium mb-2 block">Choose from Templates</Label>
-                        <div className="flex flex-wrap gap-3">
+                        <div className="grid grid-cols-6 gap-3">
                           {[
                             { id: 'male-cs-blue-shirt', name: 'CS Blue Shirt' },
                             { id: 'male-cs-suit', name: 'CS Suit' },
@@ -1185,12 +1186,11 @@ async function handleLogin() {
                               key={template.id}
                               type="button"
                               className={cn(
-                                "relative rounded-lg overflow-hidden border-2 transition-all flex-shrink-0",
+                                "relative rounded-lg overflow-hidden border-2 transition-all aspect-square",
                                 config.iconUrl === `/icon-templates/${template.id}.png`
                                   ? "border-primary ring-2 ring-primary/30"
                                   : "border-muted hover:border-primary/50"
                               )}
-                              style={{ width: '80px', height: '80px' }}
                               onClick={() => setConfig({ ...config, iconUrl: `/icon-templates/${template.id}.png` })}
                               title={template.name}
                               data-testid={`button-template-${template.id}`}
@@ -1538,18 +1538,17 @@ async function handleLogin() {
 
                       <div className="space-y-2">
                         <Label className="text-sm">Or Choose Avatar</Label>
-                        <div className="flex flex-wrap gap-3">
+                        <div className="grid grid-cols-4 gap-3">
                           {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
                             <button
                               key={num}
                               type="button"
                               onClick={() => setConfig({ ...config, agentPhotoUrl: `/avatars/avatar-${num}.jpg` })}
-                              className={`relative rounded-lg overflow-hidden border-2 transition-all hover:opacity-80 active:scale-95 flex-shrink-0 ${
+                              className={`relative rounded-lg overflow-hidden border-2 transition-all hover:opacity-80 active:scale-95 aspect-square ${
                                 config.agentPhotoUrl === `/avatars/avatar-${num}.jpg` 
                                   ? 'border-primary ring-2 ring-primary/30' 
                                   : 'border-muted hover:border-muted-foreground/50'
                               }`}
-                              style={{ width: '80px', height: '80px' }}
                               data-testid={`button-avatar-${num}`}
                             >
                               <img
