@@ -1021,7 +1021,7 @@ async function handleLogin() {
                       <div className="flex items-start gap-4">
                         <div className="relative">
                           <div 
-                            className={`w-16 h-16 rounded-full flex items-center justify-center overflow-hidden border-2 border-muted ${config.iconVisible === false ? 'opacity-40' : ''}`}
+                            className={`w-24 h-24 rounded-full flex items-center justify-center overflow-hidden border-2 border-muted ${config.iconVisible === false ? 'opacity-40' : ''}`}
                             style={{ backgroundColor: config.primaryColor + '20' }}
                           >
                             {config.iconUrl ? (
@@ -1031,21 +1031,21 @@ async function handleLogin() {
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              <Bot className="w-8 h-8" style={{ color: config.primaryColor }} />
+                              <Bot className="w-12 h-12" style={{ color: config.primaryColor }} />
                             )}
                           </div>
                           <Button
                             variant="outline"
                             size="icon"
-                            className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full"
+                            className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full"
                             onClick={() => iconFileInputRef.current?.click()}
                             disabled={isUploadingIcon}
                             data-testid="button-upload-icon"
                           >
                             {isUploadingIcon ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
+                              <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
-                              <Camera className="w-3 h-3" />
+                              <Camera className="w-4 h-4" />
                             )}
                           </Button>
                           <input
