@@ -5117,22 +5117,45 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
 
   app.post("/api/supervisor/send", requireSupervisor, async (req, res) => {
     try {
-      const { sessionId, message, supervisorId } = req.body;
+      const { sessionId, message, supervisorId, messageType, payload, mediaId } = req.body;
       
       if (req.session.userId !== supervisorId) {
         return res.status(403).json({ error: "Forbidden" });
       }
       
-      await storage.createMessage({
+      // Build message data with media support
+      let finalMessageType = messageType || "text";
+      let finalPayload: any = payload;
+      let finalContent = message || "";
+      
+      // If mediaId is provided, fetch media info and build payload
+      if (mediaId) {
+        const media = await storage.getChatMedia(mediaId);
+        if (media) {
+          finalMessageType = "media";
+          finalPayload = {
+            mediaId: media.id,
+            filename: media.filename,
+            mimeType: media.mimeType,
+            fileSize: media.fileSize,
+            mediaUrl: `/api/media/${media.id}`,
+          };
+          finalContent = finalContent || media.filename || "[Media]";
+        }
+      }
+      
+      const createdMessage = await storage.createMessage({
         sessionId,
         from: "supervisor",
-        content: message,
+        content: finalContent,
+        messageType: finalMessageType,
+        payload: finalPayload,
       });
       await storage.updateSession(sessionId, { supervisorId });
 
       broadcastToSession(sessionId, {
         type: "message",
-        message: { from: "supervisor", content: message },
+        message: createdMessage,
       });
 
       const session = await storage.getSession(sessionId);
@@ -5374,13 +5397,13 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
 
   app.post("/api/session/send-message", requireMerchant, async (req, res) => {
     try {
-      const { sessionId, message } = req.body;
+      const { sessionId, message, messageType, payload, mediaId } = req.body;
       const merchantId = req.session.merchantId!;
       const userId = req.session.userId!;
       const userType = req.session.userType;
       
-      if (!sessionId || !message) {
-        return res.status(400).json({ error: "Session ID and message are required" });
+      if (!sessionId || (!message && !mediaId)) {
+        return res.status(400).json({ error: "Session ID and message or media are required" });
       }
       
       const session = await storage.getSession(sessionId);
@@ -5392,10 +5415,33 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         return res.status(403).json({ error: "Forbidden" });
       }
       
-      await storage.createMessage({
+      // Build message data with media support
+      let finalMessageType = messageType || "text";
+      let finalPayload: any = payload;
+      let finalContent = message || "";
+      
+      // If mediaId is provided, fetch media info and build payload
+      if (mediaId) {
+        const media = await storage.getChatMedia(mediaId);
+        if (media) {
+          finalMessageType = "media";
+          finalPayload = {
+            mediaId: media.id,
+            filename: media.filename,
+            mimeType: media.mimeType,
+            fileSize: media.fileSize,
+            mediaUrl: `/api/media/${media.id}`,
+          };
+          finalContent = finalContent || media.filename || "[Media]";
+        }
+      }
+      
+      const createdMessage = await storage.createMessage({
         sessionId,
         from: "supervisor",
-        content: message,
+        content: finalContent,
+        messageType: finalMessageType,
+        payload: finalPayload,
       });
       
       // Use actual supervisor ID if logged in as supervisor, otherwise use merchant ID
@@ -5404,10 +5450,10 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
 
       broadcastToSession(sessionId, {
         type: "message",
-        message: { from: "supervisor", content: message },
+        message: createdMessage,
       });
 
-      res.json({ success: true });
+      res.json({ success: true, message: createdMessage });
     } catch (error) {
       console.error("Send message error:", error);
       res.status(500).json({ error: "Server error" });
@@ -19173,12 +19219,17 @@ Please create a comprehensive help center article that would be useful for custo
         return res.status(401).json({ error: "Not authenticated" });
       }
       
+      // Get customer to check their avatar URL and exclude profile photos
+      const customer = await storage.getCustomer(customerId);
+      const avatarMediaId = customer?.avatarUrl?.match(/\/api\/(?:media|customer\/media)\/([^/]+)/)?.[1];
+      
       // Get media uploaded by this customer (images only for gallery)
       const media = await storage.getMediaByUploader(customerId, "customer");
       
-      // Filter to images only and return URLs
+      // Filter to images only, exclude profile photo, and return URLs
       const imageMedia = (media || [])
         .filter((m: any) => m.mimeType?.startsWith("image/"))
+        .filter((m: any) => m.id !== avatarMediaId) // Exclude profile photo from gallery
         .map((m: any) => ({
           id: m.id,
           url: `/api/customer/media/${m.id}`,

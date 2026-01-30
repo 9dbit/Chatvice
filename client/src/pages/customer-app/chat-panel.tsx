@@ -830,7 +830,7 @@ export default function ChatPanel({ chatId, chatType, onClose, isEmbedded }: Cha
                           (() => {
                             const stickerUrl = msg.payload?.stickerUrl || getStickerUrlFromContent(msg.content);
                             return stickerUrl ? (
-                              <div className="max-w-[120px]" data-testid="panel-sticker-message">
+                              <div className="max-w-[300px]" data-testid="panel-sticker-message">
                                 <img 
                                   src={stickerUrl} 
                                   alt={msg.payload?.stickerAlt || "sticker"} 

@@ -829,7 +829,7 @@ export default function StoreChatPage() {
                           (() => {
                             const stickerUrl = msg.payload?.stickerUrl || getStickerUrlFromContent(msg.content);
                             return stickerUrl ? (
-                              <div className="max-w-[120px]" data-testid="sticker-message">
+                              <div className="max-w-[300px]" data-testid="sticker-message">
                                 <img 
                                   src={stickerUrl} 
                                   alt={msg.payload?.stickerAlt || "sticker"} 

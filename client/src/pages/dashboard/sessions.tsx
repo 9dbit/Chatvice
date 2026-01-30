@@ -1029,7 +1029,7 @@ export default function SessionsPage() {
                                           : getAgentName(selectedSessionData?.agentId)}
                                     </p>
                                   )}
-                                  {!((msg as any).messageType === "media" && (msg as any).payload?.url) && 
+                                  {!((msg as any).messageType === "media" && ((msg as any).payload?.url || (msg as any).payload?.mediaUrl)) && 
                                    !((msg as any).messageType === "product_offer" && (msg as any).payload?.productCard) && (
                                     <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                                   )}
@@ -1101,97 +1101,106 @@ export default function SessionsPage() {
                                       </div>
                                     </div>
                                   )}
-                                  {(msg as any).messageType === "media" && (msg as any).payload && (
-                                    <div>
-                                      {(msg as any).payload.type === "photo" && (
-                                        <div className="space-y-1">
+                                  {(msg as any).messageType === "media" && (msg as any).payload && (() => {
+                                    const payload = (msg as any).payload;
+                                    const mediaUrl = payload.url || payload.mediaUrl;
+                                    const mimeType = payload.mimeType || "";
+                                    const isImage = payload.type === "photo" || mimeType.startsWith("image/");
+                                    const isVideo = payload.type === "video" || mimeType.startsWith("video/");
+                                    const isDocument = payload.type === "document" || (!isImage && !isVideo);
+                                    
+                                    return (
+                                      <div>
+                                        {isImage && (
+                                          <div className="space-y-1">
+                                            <button 
+                                              onClick={() => setPreviewContent({
+                                                type: "photo",
+                                                url: mediaUrl,
+                                                filename: payload.filename
+                                              })}
+                                              className="block"
+                                              data-testid={`button-preview-photo-${msg.id}`}
+                                            >
+                                              <img 
+                                                src={mediaUrl} 
+                                                alt={payload.filename || "Image"}
+                                                className="max-w-[200px] max-h-[200px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity bg-muted"
+                                                onError={(e) => {
+                                                  const target = e.currentTarget;
+                                                  target.onerror = null;
+                                                  target.style.display = 'none';
+                                                  const parent = target.parentElement;
+                                                  if (parent) {
+                                                    const fallback = document.createElement('div');
+                                                    fallback.className = 'w-[200px] h-[150px] rounded-lg bg-muted flex items-center justify-center';
+                                                    fallback.innerHTML = '<span class="text-xs text-muted-foreground">Image unavailable</span>';
+                                                    parent.appendChild(fallback);
+                                                  }
+                                                }}
+                                              />
+                                            </button>
+                                            {(msg as any).locationData && 
+                                              typeof (msg as any).locationData.latitude === 'number' && 
+                                              typeof (msg as any).locationData.longitude === 'number' && (
+                                              <a
+                                                href={`https://www.google.com/maps?q=${(msg as any).locationData.latitude},${(msg as any).locationData.longitude}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-1 text-[10px] text-blue-500 hover:text-blue-600 hover:underline"
+                                                data-testid={`link-location-${msg.id}`}
+                                              >
+                                                <MapPin className="w-3 h-3" />
+                                                <span>
+                                                  {Number((msg as any).locationData.latitude).toFixed(4)}, {Number((msg as any).locationData.longitude).toFixed(4)}
+                                                  {" "}({(msg as any).locationData.source === 'exif' ? 'EXIF' : 'GPS'})
+                                                </span>
+                                              </a>
+                                            )}
+                                          </div>
+                                        )}
+                                        {isVideo && (
                                           <button 
                                             onClick={() => setPreviewContent({
-                                              type: "photo",
-                                              url: (msg as any).payload.url,
-                                              filename: (msg as any).payload.filename
+                                              type: "video",
+                                              url: mediaUrl,
+                                              filename: payload.filename
                                             })}
-                                            className="block"
-                                            data-testid={`button-preview-photo-${msg.id}`}
+                                            className="block relative group"
+                                            data-testid={`button-preview-video-${msg.id}`}
                                           >
-                                            <img 
-                                              src={(msg as any).payload.url} 
-                                              alt={(msg as any).payload.filename || "Image"}
-                                              className="max-w-[200px] max-h-[200px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity bg-muted"
-                                              onError={(e) => {
-                                                const target = e.currentTarget;
-                                                target.onerror = null;
-                                                target.style.display = 'none';
-                                                const parent = target.parentElement;
-                                                if (parent) {
-                                                  const fallback = document.createElement('div');
-                                                  fallback.className = 'w-[200px] h-[150px] rounded-lg bg-muted flex items-center justify-center';
-                                                  fallback.innerHTML = '<span class="text-xs text-muted-foreground">Image unavailable</span>';
-                                                  parent.appendChild(fallback);
-                                                }
-                                              }}
+                                            <video 
+                                              src={mediaUrl}
+                                              className="max-w-[240px] max-h-[180px] rounded-lg cursor-pointer"
+                                              muted
                                             />
-                                          </button>
-                                          {(msg as any).locationData && 
-                                            typeof (msg as any).locationData.latitude === 'number' && 
-                                            typeof (msg as any).locationData.longitude === 'number' && (
-                                            <a
-                                              href={`https://www.google.com/maps?q=${(msg as any).locationData.latitude},${(msg as any).locationData.longitude}`}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="flex items-center gap-1 text-[10px] text-blue-500 hover:text-blue-600 hover:underline"
-                                              data-testid={`link-location-${msg.id}`}
-                                            >
-                                              <MapPin className="w-3 h-3" />
-                                              <span>
-                                                {Number((msg as any).locationData.latitude).toFixed(4)}, {Number((msg as any).locationData.longitude).toFixed(4)}
-                                                {" "}({(msg as any).locationData.source === 'exif' ? 'EXIF' : 'GPS'})
-                                              </span>
-                                            </a>
-                                          )}
-                                        </div>
-                                      )}
-                                      {(msg as any).payload.type === "video" && (
-                                        <button 
-                                          onClick={() => setPreviewContent({
-                                            type: "video",
-                                            url: (msg as any).payload.url,
-                                            filename: (msg as any).payload.filename
-                                          })}
-                                          className="block relative group"
-                                          data-testid={`button-preview-video-${msg.id}`}
-                                        >
-                                          <video 
-                                            src={(msg as any).payload.url}
-                                            className="max-w-[240px] max-h-[180px] rounded-lg cursor-pointer"
-                                            muted
-                                          />
-                                          <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center">
-                                              <Maximize2 className="w-5 h-5 text-foreground" />
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                              <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center">
+                                                <Maximize2 className="w-5 h-5 text-foreground" />
+                                              </div>
                                             </div>
-                                          </div>
-                                        </button>
-                                      )}
-                                      {(msg as any).payload.type === "document" && (
-                                        <button 
-                                          onClick={() => setPreviewContent({
-                                            type: "document",
-                                            url: (msg as any).payload.url,
-                                            filename: (msg as any).payload.filename
-                                          })}
-                                          className="flex items-center gap-2 p-2 bg-background/50 rounded-lg border hover:bg-background transition-colors"
-                                          data-testid={`button-preview-document-${msg.id}`}
-                                        >
-                                          <FileText className="w-5 h-5 text-primary" />
-                                          <span className="text-sm text-foreground truncate max-w-[150px]">
-                                            {(msg as any).payload.filename || "Document"}
-                                          </span>
-                                          <Maximize2 className="w-3 h-3 text-muted-foreground" />
-                                        </button>
-                                      )}
-                                    </div>
-                                  )}
+                                          </button>
+                                        )}
+                                        {isDocument && !isImage && !isVideo && (
+                                          <button 
+                                            onClick={() => setPreviewContent({
+                                              type: "document",
+                                              url: mediaUrl,
+                                              filename: payload.filename
+                                            })}
+                                            className="flex items-center gap-2 p-2 bg-background/50 rounded-lg border hover:bg-background transition-colors"
+                                            data-testid={`button-preview-document-${msg.id}`}
+                                          >
+                                            <FileText className="w-5 h-5 text-primary" />
+                                            <span className="text-sm text-foreground truncate max-w-[150px]">
+                                              {payload.filename || "Document"}
+                                            </span>
+                                            <Maximize2 className="w-3 h-3 text-muted-foreground" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
                                   <p className={`text-[10px] mt-1 ${msg.from === "user" ? "text-muted-foreground" : "text-primary-foreground/60"}`}>
                                     {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
                                   </p>
