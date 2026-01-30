@@ -1080,12 +1080,12 @@ async function handleLogin() {
                                 <X className="w-3 h-3 mr-1" />
                                 Remove custom icon
                               </Button>
-                              <div className="flex flex-row flex-nowrap gap-2 overflow-x-auto">
+                              <div className="grid grid-cols-2 md:flex md:flex-row md:flex-nowrap gap-2">
                                 <button
                                   onClick={() => handleFlipImage("horizontal")}
                                   disabled={isProcessingImage}
                                   data-testid="button-flip-horizontal"
-                                  className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group flex-shrink-0"
+                                  className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group"
                                   style={{
                                     background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
                                     backgroundSize: '200% 200%',
@@ -1101,7 +1101,7 @@ async function handleLogin() {
                                   onClick={() => handleFlipImage("vertical")}
                                   disabled={isProcessingImage}
                                   data-testid="button-flip-vertical"
-                                  className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group flex-shrink-0"
+                                  className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group"
                                   style={{
                                     background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
                                     backgroundSize: '200% 200%',
@@ -1113,23 +1113,28 @@ async function handleLogin() {
                                     Flip V
                                   </span>
                                 </button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
+                                <button
                                   onClick={handleConvertToWebP}
                                   disabled={isProcessingImage || config.iconUrl.startsWith('data:image/webp')}
                                   data-testid="button-convert-webp"
-                                  className="flex-shrink-0 whitespace-nowrap"
+                                  className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group"
+                                  style={{
+                                    background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
+                                    backgroundSize: '200% 200%',
+                                    animation: 'gradient-shift 3s ease infinite',
+                                  }}
                                 >
-                                  {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ImageIcon className="w-3 h-3 mr-1" />}
-                                  WebP
-                                </Button>
+                                  <span className="relative z-10 flex items-center whitespace-nowrap">
+                                    {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ImageIcon className="w-3 h-3 mr-1" />}
+                                    WebP
+                                  </span>
+                                </button>
                                 <button
                                   onClick={handleRemoveBackground}
                                   disabled={isRemovingBg || (bgRemovalStatus !== null && bgRemovalStatus.limit >= 0 && bgRemovalStatus.used >= bgRemovalStatus.limit)}
                                   data-testid="button-remove-bg"
                                   title={bgRemovalStatus ? `${bgRemovalStatus.used}/${bgRemovalStatus.limit} used this month` : "Remove background"}
-                                  className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group flex-shrink-0"
+                                  className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group"
                                   style={{
                                     background: 'linear-gradient(135deg, #7c3aed 0%, #ec4899 50%, #7c3aed 100%)',
                                     backgroundSize: '200% 200%',
@@ -1167,14 +1172,14 @@ async function handleLogin() {
                       {/* Icon Templates Section */}
                       <div className="pt-3 border-t">
                         <Label className="text-sm font-medium mb-2 block">Choose from Templates</Label>
-                        <div className="grid grid-cols-6 gap-3">
+                        <div className="grid grid-cols-4 md:grid-cols-6 gap-2 md:gap-3">
                           {[
                             { id: 'male-cs-blue-shirt', name: 'CS Blue Shirt', ext: 'webp' },
                             { id: 'male-cs-suit', name: 'CS Suit', ext: 'webp' },
                             { id: 'male-casual-gray', name: 'Casual Gray', ext: 'webp' },
                             { id: 'male-cs-blue-standing', name: 'CS Standing', ext: 'webp' },
                             { id: 'astronaut', name: 'Astronaut', ext: 'png' },
-                            { id: 'rocket', name: 'Rocket', ext: 'png' },
+                            { id: 'rocket', name: 'Rocket', ext: 'webp' },
                             { id: 'female-cs-red', name: 'CS Red', ext: 'png' },
                             { id: 'female-cs-white', name: 'CS White', ext: 'png' },
                             { id: 'female-cs-red-shirt', name: 'CS Red Shirt', ext: 'png' },
