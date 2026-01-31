@@ -278,6 +278,7 @@ export default function ChatPanel({ chatId, chatType, onClose, isEmbedded }: Cha
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [isUploading, setIsUploading] = useState<boolean>(false);
+  const lastTouchTimeRef = useRef<number>(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -857,8 +858,34 @@ export default function ChatPanel({ chatId, chatType, onClose, isEmbedded }: Cha
                         ) : isImage && mediaInfo ? (
                           <div data-testid="panel-image-message">
                             <button
-                              className="w-48 md:w-56 rounded-xl overflow-hidden border border-white/20 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                              type="button"
+                              className="w-48 md:w-56 rounded-xl overflow-hidden border border-white/20 shadow-sm text-left"
+                              style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                               onClick={() => {
+                                // Ignore click if touch just happened (prevents double-open)
+                                if (Date.now() - lastTouchTimeRef.current < 300) return;
+                                if (imageViewerOpen) return;
+                                const allImageMessages = allMessages.filter(m => isImageMessage(m));
+                                const images = allImageMessages.map(m => {
+                                  const info = parseMediaFromMessage(m);
+                                  return {
+                                    url: info?.url || "",
+                                    filename: info?.filename || "image",
+                                    fileSize: info?.fileSize,
+                                    mimeType: info?.mimeType,
+                                    msgId: m.id || m.clientMessageId,
+                                  };
+                                }).filter(img => img.url);
+                                const currentMsgId = msg.id || msg.clientMessageId;
+                                const currentImageIndex = images.findIndex(img => img.msgId === currentMsgId);
+                                setViewerImages(images);
+                                setViewerInitialIndex(Math.max(0, currentImageIndex));
+                                setImageViewerOpen(true);
+                              }}
+                              onTouchEnd={(e) => {
+                                e.preventDefault();
+                                lastTouchTimeRef.current = Date.now();
+                                if (imageViewerOpen) return;
                                 const allImageMessages = allMessages.filter(m => isImageMessage(m));
                                 const images = allImageMessages.map(m => {
                                   const info = parseMediaFromMessage(m);

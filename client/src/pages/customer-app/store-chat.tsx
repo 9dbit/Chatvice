@@ -199,6 +199,7 @@ export default function StoreChatPage() {
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [viewerImages, setViewerImages] = useState<MediaInfo[]>([]);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
+  const lastTouchTimeRef = useRef<number>(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -533,10 +534,12 @@ export default function StoreChatPage() {
   }, [sendMessageMutation]);
 
   const openImageViewer = useCallback((images: MediaInfo[], initialIndex: number = 0) => {
+    // Guard against double-open from touchend + click both firing
+    if (imageViewerOpen) return;
     setViewerImages(images);
     setViewerInitialIndex(initialIndex);
     setImageViewerOpen(true);
-  }, []);
+  }, [imageViewerOpen]);
 
   const parseMediaFromMessage = (msg: DisplayMessage): MediaInfo | null => {
     // Handle messages with proper media payload - use unified session-media endpoint
@@ -884,44 +887,52 @@ export default function StoreChatPage() {
                             );
                           })()
                         ) : isImage && mediaInfo ? (
-                          <div 
-                            className="cursor-pointer"
+                          <button
+                            type="button"
+                            className="w-48 md:w-56 rounded-xl overflow-hidden border border-white/20 shadow-sm text-left"
+                            style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
                             onClick={() => {
+                              // Ignore click if touch just happened (prevents double-open)
+                              if (Date.now() - lastTouchTimeRef.current < 300) return;
+                              const index = getImageIndexInConversation(mediaInfo.id);
+                              openImageViewer(allConversationImages, index >= 0 ? index : 0);
+                            }}
+                            onTouchEnd={(e) => {
+                              e.preventDefault();
+                              lastTouchTimeRef.current = Date.now();
                               const index = getImageIndexInConversation(mediaInfo.id);
                               openImageViewer(allConversationImages, index >= 0 ? index : 0);
                             }}
                             data-testid="image-message"
                           >
-                            <div className="w-48 md:w-56 rounded-xl overflow-hidden border border-white/20 shadow-sm">
-                              <div className="relative aspect-square bg-black/5 dark:bg-white/5">
-                                <img
-                                  src={mediaInfo.url}
-                                  alt={mediaInfo.filename}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
+                            <div className="relative aspect-square bg-black/5 dark:bg-white/5">
+                              <img
+                                src={mediaInfo.url}
+                                alt={mediaInfo.filename}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div className={cn(
+                              "p-2",
+                              isCustomer ? "bg-gradient-to-r from-purple-500 to-indigo-500" : "bg-black/5 dark:bg-white/5"
+                            )}>
+                              <p className={cn(
+                                "text-xs font-medium truncate",
+                                isCustomer && "text-white"
+                              )} title={mediaInfo.filename}>
+                                {mediaInfo.filename}
+                              </p>
                               <div className={cn(
-                                "p-2",
-                                isCustomer ? "bg-gradient-to-r from-purple-500 to-indigo-500" : "bg-black/5 dark:bg-white/5"
+                                "flex items-center gap-1 text-[10px]",
+                                isCustomer ? "text-white/70" : "text-muted-foreground"
                               )}>
-                                <p className={cn(
-                                  "text-xs font-medium truncate",
-                                  isCustomer && "text-white"
-                                )} title={mediaInfo.filename}>
-                                  {mediaInfo.filename}
-                                </p>
-                                <div className={cn(
-                                  "flex items-center gap-1 text-[10px]",
-                                  isCustomer ? "text-white/70" : "text-muted-foreground"
-                                )}>
-                                  <span>{formatFileSizeInline(mediaInfo.fileSize)}</span>
-                                  <span>•</span>
-                                  <span>{format(new Date(msg.timestamp), "HH:mm")}</span>
-                                  {isPending && <span>· Sending...</span>}
-                                </div>
+                                <span>{formatFileSizeInline(mediaInfo.fileSize)}</span>
+                                <span>•</span>
+                                <span>{format(new Date(msg.timestamp), "HH:mm")}</span>
+                                {isPending && <span>· Sending...</span>}
                               </div>
                             </div>
-                          </div>
+                          </button>
                         ) : (
                           <div
                             className={cn(

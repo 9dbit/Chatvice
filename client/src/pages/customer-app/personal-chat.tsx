@@ -250,6 +250,7 @@ function PersonalChatPageInner() {
   const [panelViewingIndex, setPanelViewingIndex] = useState(0);
   const [lastMessageCount, setLastMessageCount] = useState(0);
   
+  const lastTouchTimeRef = useRef<number>(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -464,6 +465,8 @@ function PersonalChatPageInner() {
   };
 
   const openImageViewer = (images: MediaInfo[], index: number) => {
+    // Guard against double-open from touchend + click both firing
+    if (imageViewerOpen) return;
     setViewerImages(images);
     setViewerInitialIndex(index);
     setImageViewerOpen(true);
@@ -786,39 +789,48 @@ function PersonalChatPageInner() {
                             );
                           })()
                         ) : isImage && mediaInfo ? (
-                          <div 
-                            className="cursor-pointer"
-                            onClick={() => handleImageClick(mediaInfo)}
+                          <button
+                            type="button"
+                            className="w-48 md:w-56 rounded-xl overflow-hidden border border-white/20 shadow-sm text-left"
+                            style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
+                            onClick={() => {
+                              // Ignore click if touch just happened (prevents double-open)
+                              if (Date.now() - lastTouchTimeRef.current < 300) return;
+                              handleImageClick(mediaInfo);
+                            }}
+                            onTouchEnd={(e) => {
+                              e.preventDefault();
+                              lastTouchTimeRef.current = Date.now();
+                              handleImageClick(mediaInfo);
+                            }}
                             data-testid="image-message"
                           >
-                            <div className="w-48 md:w-56 rounded-xl overflow-hidden border border-white/20 shadow-sm">
-                              <div className="relative aspect-square bg-black/5 dark:bg-white/5">
-                                <img
-                                  src={mediaInfo.url}
-                                  alt={mediaInfo.filename}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                              <div className={cn(
-                                "p-2",
-                                isMe ? "bg-gradient-to-r from-purple-700 to-indigo-700" : "glass-card"
-                              )}>
-                                <p className={cn(
-                                  "text-xs font-medium truncate",
-                                  isMe ? "text-white" : "text-foreground"
-                                )}>
-                                  {mediaInfo.filename}
-                                </p>
-                                <p className={cn(
-                                  "text-[10px]",
-                                  isMe ? "text-white/70" : "text-muted-foreground"
-                                )}>
-                                  {msg.payload?.fileSize ? `${(msg.payload.fileSize / 1024).toFixed(1)} KB` : ''} {msg.payload?.fileSize ? '·' : ''} {format(new Date(msg.createdAt), "HH:mm")}
-                                  {isPending && " · Sending..."}
-                                </p>
-                              </div>
+                            <div className="relative aspect-square bg-black/5 dark:bg-white/5">
+                              <img
+                                src={mediaInfo.url}
+                                alt={mediaInfo.filename}
+                                className="w-full h-full object-cover"
+                              />
                             </div>
-                          </div>
+                            <div className={cn(
+                              "p-2",
+                              isMe ? "bg-gradient-to-r from-purple-700 to-indigo-700" : "glass-card"
+                            )}>
+                              <p className={cn(
+                                "text-xs font-medium truncate",
+                                isMe ? "text-white" : "text-foreground"
+                              )}>
+                                {mediaInfo.filename}
+                              </p>
+                              <p className={cn(
+                                "text-[10px]",
+                                isMe ? "text-white/70" : "text-muted-foreground"
+                              )}>
+                                {msg.payload?.fileSize ? `${(msg.payload.fileSize / 1024).toFixed(1)} KB` : ''} {msg.payload?.fileSize ? '·' : ''} {format(new Date(msg.createdAt), "HH:mm")}
+                                {isPending && " · Sending..."}
+                              </p>
+                            </div>
+                          </button>
                         ) : (
                           <div
                             className={cn(
