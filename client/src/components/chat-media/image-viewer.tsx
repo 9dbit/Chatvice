@@ -138,14 +138,18 @@ export function ImageViewer({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
 
-  // Touch handling for mobile
+  // Touch handling for mobile with swipe gestures
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const [initialPinchDistance, setInitialPinchDistance] = useState<number | null>(null);
   const [initialScale, setInitialScale] = useState(1);
+  const [swipeOffset, setSwipeOffset] = useState({ x: 0, y: 0 });
+  const [isSwipeGesture, setIsSwipeGesture] = useState(false);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 1) {
       setTouchStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+      setSwipeOffset({ x: 0, y: 0 });
+      setIsSwipeGesture(false);
     } else if (e.touches.length === 2) {
       const distance = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
@@ -164,19 +168,51 @@ export function ImageViewer({
       );
       const newScale = Math.min(Math.max((distance / initialPinchDistance) * initialScale, 0.5), 5);
       setScale(newScale);
-    } else if (e.touches.length === 1 && touchStart && scale > 1) {
-      setPosition({
-        x: e.touches[0].clientX - touchStart.x + position.x,
-        y: e.touches[0].clientY - touchStart.y + position.y,
-      });
-      setTouchStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+    } else if (e.touches.length === 1 && touchStart) {
+      const deltaX = e.touches[0].clientX - touchStart.x;
+      const deltaY = e.touches[0].clientY - touchStart.y;
+      
+      if (scale > 1) {
+        // When zoomed in, pan the image
+        setPosition({
+          x: deltaX + position.x,
+          y: deltaY + position.y,
+        });
+        setTouchStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+      } else {
+        // When not zoomed, track swipe for gestures
+        setSwipeOffset({ x: deltaX, y: deltaY });
+        setIsSwipeGesture(true);
+      }
     }
   }, [initialPinchDistance, initialScale, touchStart, scale, position]);
 
   const handleTouchEnd = useCallback(() => {
+    if (isSwipeGesture && scale <= 1) {
+      const { x: deltaX, y: deltaY } = swipeOffset;
+      const absX = Math.abs(deltaX);
+      const absY = Math.abs(deltaY);
+      const threshold = 80;
+      
+      // Slide down to close (vertical swipe > horizontal)
+      if (absY > threshold && absY > absX * 1.5 && deltaY > 0) {
+        onClose();
+      }
+      // Slide left to go to next image
+      else if (absX > threshold && absX > absY && deltaX < 0 && images.length > 1) {
+        handleNext();
+      }
+      // Slide right to go to previous image
+      else if (absX > threshold && absX > absY && deltaX > 0 && images.length > 1) {
+        handlePrev();
+      }
+    }
+    
     setTouchStart(null);
     setInitialPinchDistance(null);
-  }, []);
+    setSwipeOffset({ x: 0, y: 0 });
+    setIsSwipeGesture(false);
+  }, [isSwipeGesture, scale, swipeOffset, onClose, images.length, handleNext, handlePrev]);
 
   if (!isOpen || !currentImage) return null;
 

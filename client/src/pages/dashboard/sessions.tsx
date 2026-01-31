@@ -1103,7 +1103,8 @@ export default function SessionsPage() {
                                   )}
                                   {(msg as any).messageType === "media" && (msg as any).payload && (() => {
                                     const payload = (msg as any).payload;
-                                    const mediaUrl = payload.url || payload.mediaUrl;
+                                    // Use unified session-media endpoint for cross-platform media access
+                                    const mediaUrl = payload.url || payload.mediaUrl || (payload.mediaId ? `/api/session-media/${payload.mediaId}` : "");
                                     const mimeType = payload.mimeType || "";
                                     const isImage = payload.type === "photo" || mimeType.startsWith("image/");
                                     const isVideo = payload.type === "video" || mimeType.startsWith("video/");

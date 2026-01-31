@@ -19396,5 +19396,67 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
+  // Unified session media endpoint - accessible by both merchants and customers
+  // This allows media to be viewed from both chat platform and merchant dashboard
+  app.get("/api/session-media/:mediaId", async (req, res) => {
+    try {
+      const userId = req.session.userId;
+      const userType = req.session.userType;
+      
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const { mediaId } = req.params;
+      
+      const media = await storage.getChatMedia(mediaId);
+      if (!media) {
+        return res.status(404).json({ error: "Media not found" });
+      }
+      
+      let hasAccess = false;
+      
+      if (userType === "customer") {
+        // Customer can access if they uploaded it or are part of the session
+        const customerStoreChats = await storage.getCustomerStoreChats(userId);
+        const customerSessionIds = new Set(customerStoreChats?.map(chat => chat.sessionId).filter(Boolean) || []);
+        hasAccess = (media.uploaderType === "customer" && media.uploaderId === userId) || 
+                   (media.sessionId && customerSessionIds.has(media.sessionId));
+      } else if (userType === "merchant") {
+        // Merchant can access media from their own sessions
+        if (media.sessionId) {
+          const session = await storage.getSession(media.sessionId);
+          hasAccess = session && session.merchantId === userId;
+        }
+        // Or if they uploaded it
+        hasAccess = hasAccess || (media.uploaderType === "merchant" && media.uploaderId === userId);
+      } else if (userType === "supervisor") {
+        // Supervisor can access media from sessions they have access to
+        if (media.sessionId) {
+          const session = await storage.getSession(media.sessionId);
+          if (session) {
+            const supervisor = await storage.getSupervisor(userId, session.merchantId);
+            hasAccess = !!supervisor;
+          }
+        }
+      }
+      
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      // Return file data as binary
+      const fileBuffer = Buffer.from(media.fileData, "base64");
+      res.setHeader("Content-Type", media.mimeType);
+      res.setHeader("Content-Disposition", `inline; filename="${media.filename}"`);
+      res.setHeader("Content-Length", fileBuffer.length);
+      res.setHeader("Cache-Control", "public, max-age=86400"); // Cache for 1 day
+      res.send(fileBuffer);
+    } catch (error) {
+      console.error("Get session media error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   return httpServer;
 }

@@ -192,11 +192,11 @@ function formatFileSizeInline(bytes: number): string {
 }
 
 function parseMediaFromMessage(msg: DisplayMessage): MediaInfo | null {
-  // Handle messages with proper media payload
+  // Handle messages with proper media payload - use unified session-media endpoint
   if (msg.messageType === "media" && msg.payload?.mediaId) {
     return {
       id: msg.payload.mediaId,
-      url: msg.payload.mediaUrl || msg.payload.url || `/api/customer/media/${msg.payload.mediaId}`,
+      url: msg.payload.mediaUrl || msg.payload.url || `/api/session-media/${msg.payload.mediaId}`,
       filename: msg.payload.filename || "image",
       fileSize: msg.payload.fileSize || 0,
       mimeType: msg.payload.mimeType || "image/jpeg",
@@ -209,9 +209,9 @@ function parseMediaFromMessage(msg: DisplayMessage): MediaInfo | null {
     const filename = msg.content.slice(7, -1).trim();
     // Check if payload has url, mediaUrl, or mediaId
     let url = msg.payload?.mediaUrl || msg.payload?.url || "";
-    // If no URL but has mediaId, construct the URL
+    // If no URL but has mediaId, construct the URL - use unified session-media endpoint
     if (!url && msg.payload?.mediaId) {
-      url = `/api/customer/media/${msg.payload.mediaId}`;
+      url = `/api/session-media/${msg.payload.mediaId}`;
     }
     if (url) {
       return {
