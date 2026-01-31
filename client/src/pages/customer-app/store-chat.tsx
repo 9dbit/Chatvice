@@ -610,6 +610,25 @@ export default function StoreChatPage() {
     return msg.messageType === "sticker" || msg.content.startsWith("[sticker:");
   };
 
+  // Collect all images from conversation for gallery navigation
+  const allConversationImages = useMemo(() => {
+    const images: MediaInfo[] = [];
+    allMessages.forEach(msg => {
+      if (isImageMessage(msg)) {
+        const mediaInfo = parseMediaFromMessage(msg);
+        if (mediaInfo) {
+          images.push(mediaInfo);
+        }
+      }
+    });
+    return images;
+  }, [allMessages]);
+
+  // Get index of a specific image in the conversation gallery
+  const getImageIndexInConversation = (imageId: string): number => {
+    return allConversationImages.findIndex(img => img.id === imageId);
+  };
+
   const store = storeChat?.merchant || storeInfo;
   const isLoading = chatLoading || storeLoading;
 
@@ -829,11 +848,11 @@ export default function StoreChatPage() {
                           (() => {
                             const stickerUrl = msg.payload?.stickerUrl || getStickerUrlFromContent(msg.content);
                             return stickerUrl ? (
-                              <div className="max-w-[300px]" data-testid="sticker-message">
+                              <div className="w-48 md:w-56" data-testid="sticker-message">
                                 <img 
                                   src={stickerUrl} 
                                   alt={msg.payload?.stickerAlt || "sticker"} 
-                                  className="w-full h-auto"
+                                  className="w-full h-auto rounded-lg"
                                   loading="lazy"
                                 />
                                 <p className={cn(
@@ -864,7 +883,10 @@ export default function StoreChatPage() {
                         ) : isImage && mediaInfo ? (
                           <div 
                             className="cursor-pointer"
-                            onClick={() => openImageViewer([mediaInfo], 0)}
+                            onClick={() => {
+                              const index = getImageIndexInConversation(mediaInfo.id);
+                              openImageViewer(allConversationImages, index >= 0 ? index : 0);
+                            }}
                             data-testid="image-message"
                           >
                             <div className="w-48 md:w-56 rounded-xl overflow-hidden border border-white/20 shadow-sm">

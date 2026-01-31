@@ -18322,8 +18322,8 @@ Please create a comprehensive help center article that would be useful for custo
         fileData: fileData,
       });
       
-      // Update customer avatar URL
-      const avatarUrl = `/api/media/${media.id}`;
+      // Update customer avatar URL - use customer media endpoint
+      const avatarUrl = `/api/customer/media/${media.id}`;
       await storage.updateCustomer(customerId, { avatarUrl });
       
       res.json({ 

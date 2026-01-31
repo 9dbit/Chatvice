@@ -484,12 +484,25 @@ function PersonalChatPageInner() {
     setPanelViewingIndex(0);
   };
 
+  // Collect all images with full MediaInfo for gallery navigation
+  const allConversationImages: MediaInfo[] = allMessages
+    .filter(msg => msg.messageType === "media" && msg.payload?.url && msg.payload?.mimeType?.startsWith("image/"))
+    .map(msg => ({
+      id: msg.payload.mediaId || msg.id?.toString() || "",
+      url: msg.payload.url,
+      filename: msg.payload.filename || msg.content?.replace("[image:", "").replace("]", "") || "image",
+      fileSize: msg.payload.fileSize || 0,
+      mimeType: msg.payload.mimeType || "image/jpeg",
+      createdAt: "createdAt" in msg ? msg.createdAt : new Date().toISOString(),
+    }));
+
   const handleImageClick = (mediaInfo: MediaInfo) => {
-    const idx = allMediaItems.findIndex(m => m.url === mediaInfo.url);
+    const idx = allConversationImages.findIndex(m => m.url === mediaInfo.url);
     if (window.innerWidth >= 1024) {
       openPanelViewer(mediaInfo, idx >= 0 ? idx : 0);
     } else {
-      openImageViewer([mediaInfo], 0);
+      // Open with all conversation images for swipe navigation
+      openImageViewer(allConversationImages, idx >= 0 ? idx : 0);
     }
   };
 
@@ -740,11 +753,11 @@ function PersonalChatPageInner() {
                           (() => {
                             const stickerUrl = msg.payload?.stickerUrl || getStickerUrlFromContent(msg.content);
                             return stickerUrl ? (
-                              <div className="max-w-[300px]" data-testid="sticker-message">
+                              <div className="w-48 md:w-56" data-testid="sticker-message">
                                 <img 
                                   src={stickerUrl} 
                                   alt={msg.payload?.stickerAlt || "sticker"} 
-                                  className="w-full h-auto"
+                                  className="w-full h-auto rounded-lg"
                                   loading="lazy"
                                 />
                                 <p className="text-[10px] mt-1 text-center text-muted-foreground">

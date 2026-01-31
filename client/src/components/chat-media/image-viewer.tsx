@@ -214,11 +214,42 @@ export function ImageViewer({
     setIsSwipeGesture(false);
   }, [isSwipeGesture, scale, swipeOffset, onClose, images.length, handleNext, handlePrev]);
 
+  // Calculate swipe animation styles
+  const getSwipeAnimationStyle = () => {
+    if (!isSwipeGesture || scale > 1) return {};
+    
+    const { x: deltaX, y: deltaY } = swipeOffset;
+    const absY = Math.abs(deltaY);
+    
+    // Swipe down animation - move image down and fade out
+    if (deltaY > 0 && absY > 20) {
+      const progress = Math.min(absY / 200, 1);
+      return {
+        transform: `translateY(${deltaY}px) scale(${1 - progress * 0.2})`,
+        opacity: 1 - progress * 0.5,
+      };
+    }
+    
+    // Swipe left/right animation
+    if (Math.abs(deltaX) > 20) {
+      return {
+        transform: `translateX(${deltaX * 0.5}px)`,
+      };
+    }
+    
+    return {};
+  };
+
   if (!isOpen || !currentImage) return null;
+
+  const swipeStyle = getSwipeAnimationStyle();
 
   return (
     <div
-      className="fixed inset-0 z-[100] bg-black/95 flex flex-col"
+      className="fixed inset-0 z-[100] flex flex-col transition-opacity duration-200"
+      style={{ 
+        backgroundColor: `rgba(0, 0, 0, ${0.95 - (swipeOffset.y > 0 ? Math.min(swipeOffset.y / 400, 0.4) : 0)})` 
+      }}
       data-testid="image-viewer-overlay"
     >
       <header className="flex items-center justify-between p-3 text-white">
@@ -303,11 +334,12 @@ export function ImageViewer({
           src={currentImage.url}
           alt={currentImage.filename}
           className={cn(
-            "max-w-full max-h-full object-contain select-none transition-transform",
-            isDragging ? "duration-0" : "duration-200"
+            "max-w-full max-h-full object-contain select-none",
+            isDragging || isSwipeGesture ? "transition-none" : "transition-all duration-200"
           )}
           style={{
             transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+            ...swipeStyle,
           }}
           draggable={false}
           data-testid="viewer-image"
