@@ -257,16 +257,19 @@ function PersonalChatPageInner() {
 
   const { data: currentUser } = useQuery<CustomerData>({
     queryKey: ["/api/customer/me"],
+    staleTime: 60000, // Cache for 1 minute
   });
 
   const { data: chatInfo, isLoading: chatLoading } = useQuery<PersonalChatInfo>({
     queryKey: ["/api/customer/personal-chats", chatId, "info"],
     enabled: !!chatId,
+    staleTime: 30000, // Cache for 30 seconds
   });
 
   const { data: serverMessages = [], isLoading: messagesLoading, error: messagesError } = useQuery<Message[]>({
     queryKey: ["/api/customer/personal-chats", chatId, "messages"],
     enabled: !!chatId,
+    staleTime: 5000, // Cache for 5 seconds
     refetchInterval: 3000,
   });
 

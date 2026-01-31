@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -206,16 +206,19 @@ export default function StoreChatPage() {
   const { data: storeChat, isLoading: chatLoading, error: chatError } = useQuery<StoreChatData>({
     queryKey: ["/api/customer/store-chats", merchantId],
     enabled: !!merchantId,
+    staleTime: 30000, // Cache for 30 seconds
   });
 
   const { data: storeInfo, isLoading: storeLoading, error: storeError } = useQuery<StoreInfo>({
     queryKey: ["/api/customer/stores", merchantId],
     enabled: !!merchantId,
+    staleTime: 60000, // Cache for 1 minute
   });
 
   const { data: serverMessages = [], isLoading: messagesLoading, error: messagesError } = useQuery<Message[]>({
     queryKey: ["/api/customer/store-chats", merchantId, "messages"],
     enabled: !!storeChat?.sessionId,
+    staleTime: 5000, // Cache for 5 seconds
   });
 
   const allMessages = [...serverMessages, ...pendingMessages.filter(
@@ -626,7 +629,7 @@ export default function StoreChatPage() {
 
   // Get index of a specific image in the conversation gallery
   const getImageIndexInConversation = (imageId: string): number => {
-    return allConversationImages.findIndex(img => img.id === imageId);
+    return allConversationImages.findIndex((img: MediaInfo) => img.id === imageId);
   };
 
   const store = storeChat?.merchant || storeInfo;

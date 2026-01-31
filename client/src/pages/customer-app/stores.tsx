@@ -24,6 +24,7 @@ export default function CustomerStoresPage() {
   
   const { data: stores = [], isLoading } = useQuery<StoreInfo[]>({
     queryKey: ["/api/customer/stores"],
+    staleTime: 60000, // Cache for 1 minute
   });
   
   const filteredStores = stores.filter(store => 

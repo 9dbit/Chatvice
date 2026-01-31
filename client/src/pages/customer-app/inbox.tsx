@@ -234,18 +234,22 @@ export default function CustomerInboxPage() {
   
   const { data: storeChats = [], isLoading: storeChatsLoading } = useQuery<StoreChat[]>({
     queryKey: ["/api/customer/store-chats"],
+    staleTime: 15000, // Cache for 15 seconds
   });
   
   const { data: personalChats = [], isLoading: personalChatsLoading } = useQuery<PersonalChat[]>({
     queryKey: ["/api/customer/personal-chats"],
+    staleTime: 15000, // Cache for 15 seconds
   });
   
   const { data: contacts = [] } = useQuery<Contact[]>({
     queryKey: ["/api/customer/contacts"],
+    staleTime: 30000, // Cache for 30 seconds
   });
 
   const { data: stories = [] } = useQuery<CustomerStory[]>({
     queryKey: ["/api/customer/stories"],
+    staleTime: 30000, // Cache for 30 seconds
   });
   
   const favoriteContacts = contacts.filter(c => c.isFavorite);

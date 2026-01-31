@@ -292,16 +292,19 @@ export default function ChatPanel({ chatId, chatType, onClose, isEmbedded }: Cha
   const { data: storeChat, isLoading: chatLoading } = useQuery<StoreChatData>({
     queryKey: ["/api/customer/store-chats", chatId],
     enabled: !!chatId && chatType === "store",
+    staleTime: 30000, // Cache for 30 seconds
   });
 
   const { data: storeInfo, isLoading: storeLoading } = useQuery<StoreInfo>({
     queryKey: ["/api/customer/stores", chatId],
     enabled: !!chatId && chatType === "store",
+    staleTime: 60000, // Cache for 1 minute
   });
 
   const { data: personalChatInfo, isLoading: personalChatLoading } = useQuery<PersonalChatInfo>({
     queryKey: ["/api/customer/personal-chats", chatId, "info"],
     enabled: !!chatId && chatType === "personal",
+    staleTime: 30000, // Cache for 30 seconds
   });
 
   const chatInfo = chatType === "store" 
