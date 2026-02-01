@@ -211,23 +211,70 @@ function isImageMessage(msg: DisplayMessage): boolean {
 }
 
 interface MediaInfo {
+  id?: string;
   url: string;
   filename: string;
+  fileSize?: number;
+  mimeType?: string;
+  createdAt?: string;
 }
 
 function parseMediaFromMessage(msg: DisplayMessage): MediaInfo | null {
-  if ('fileUrl' in msg && msg.fileUrl) {
+  // Handle messages with proper media payload - use customer media endpoint for personal chats
+  if (msg.messageType === "media" && msg.payload?.mediaId) {
     return {
-      url: msg.fileUrl,
-      filename: ('fileName' in msg && msg.fileName) || 'image',
+      id: msg.payload.mediaId,
+      url: msg.payload.mediaUrl || msg.payload.url || `/api/customer/media/${msg.payload.mediaId}`,
+      filename: msg.payload.filename || "image",
+      fileSize: msg.payload.fileSize || 0,
+      mimeType: msg.payload.mimeType || "image/jpeg",
+      createdAt: msg.createdAt,
     };
   }
+  
+  // Handle messages with payload.url (no mediaId)
   if (msg.payload?.url) {
     return {
+      id: msg.payload.mediaId || msg.id?.toString() || "",
       url: msg.payload.url,
-      filename: msg.payload.filename || 'image',
+      filename: msg.payload.filename || "image",
+      fileSize: msg.payload.fileSize || 0,
+      mimeType: msg.payload.mimeType || "image/jpeg",
+      createdAt: msg.createdAt,
     };
   }
+  
+  // Handle legacy messages with [image:] format in content
+  if (msg.content?.startsWith("[image:") && msg.content?.endsWith("]")) {
+    const filename = msg.content.slice(7, -1).trim();
+    let url = msg.payload?.mediaUrl || msg.payload?.url || "";
+    if (!url && msg.payload?.mediaId) {
+      url = `/api/customer/media/${msg.payload.mediaId}`;
+    }
+    if (url) {
+      return {
+        id: msg.payload?.mediaId || msg.id?.toString() || "",
+        url: url,
+        filename: filename,
+        fileSize: msg.payload?.fileSize || 0,
+        mimeType: msg.payload?.mimeType || "image/jpeg",
+        createdAt: msg.createdAt,
+      };
+    }
+  }
+  
+  // Handle legacy fileUrl format
+  if ('fileUrl' in msg && msg.fileUrl) {
+    return {
+      id: "",
+      url: msg.fileUrl,
+      filename: ('fileName' in msg && msg.fileName) || 'image',
+      fileSize: 0,
+      mimeType: "image/jpeg",
+      createdAt: msg.createdAt,
+    };
+  }
+  
   return null;
 }
 

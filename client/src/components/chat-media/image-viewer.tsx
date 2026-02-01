@@ -345,28 +345,7 @@ export function ImageViewer({
           data-testid="viewer-image"
         />
 
-        {images.length > 1 && (
-          <>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handlePrev}
-              className="absolute left-2 top-1/2 -translate-y-1/2 text-white bg-black/30 hover:bg-black/50 w-10 h-10"
-              data-testid="button-prev-image"
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleNext}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-white bg-black/30 hover:bg-black/50 w-10 h-10"
-              data-testid="button-next-image"
-            >
-              <ChevronRight className="w-6 h-6" />
-            </Button>
-          </>
-        )}
+{/* Next/Previous buttons removed per user request - use thumbnails or swipe instead */}
       </div>
 
       {images.length > 1 && (

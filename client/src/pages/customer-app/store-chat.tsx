@@ -191,8 +191,8 @@ export default function StoreChatPage() {
   const { playSound } = useCustomerNotificationSound();
   const [message, setMessage] = useState("");
   const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [filePreviews, setFilePreviews] = useState<string[]>([]);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [showStickerPicker, setShowStickerPicker] = useState(false);
@@ -417,86 +417,128 @@ export default function StoreChatPage() {
   ];
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
     
-    if (file.size > MAX_FILE_SIZE) {
-      toast({
-        title: "File too large",
-        description: "Maximum file size is 3MB",
-        variant: "destructive",
-      });
-      return;
+    const validFiles: File[] = [];
+    const previews: string[] = [];
+    
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE) {
+        toast({
+          title: "File too large",
+          description: `${file.name} exceeds 3MB limit`,
+          variant: "destructive",
+        });
+        continue;
+      }
+      
+      if (!file.type || !allowedMimeTypes.includes(file.type)) {
+        toast({
+          title: "File type not allowed",
+          description: `${file.name} is not supported`,
+          variant: "destructive",
+        });
+        continue;
+      }
+      
+      validFiles.push(file);
     }
     
-    if (!file.type || !allowedMimeTypes.includes(file.type)) {
-      toast({
-        title: "File type not allowed",
-        description: "Supported: images, videos, PDF, Word, Excel, and text files",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (validFiles.length === 0) return;
     
-    setSelectedFile(file);
+    // Generate previews for valid files
+    validFiles.forEach((file, idx) => {
+      if (file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          previews[idx] = e.target?.result as string;
+          if (previews.filter(Boolean).length === validFiles.filter(f => f.type.startsWith("image/")).length) {
+            setFilePreviews([...previews.filter(Boolean)]);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    });
     
-    if (file.type.startsWith("image/")) {
-      const reader = new FileReader();
-      reader.onload = (e) => setFilePreview(e.target?.result as string);
-      reader.readAsDataURL(file);
-    } else if (file.type.startsWith("video/")) {
-      setFilePreview("video");
-    } else {
-      setFilePreview("document");
+    setSelectedFiles(validFiles);
+    // Set default preview for non-image files
+    const nonImagePreviews = validFiles.map(f => 
+      f.type.startsWith("video/") ? "video" : f.type.startsWith("image/") ? "" : "document"
+    ).filter(p => p);
+    if (nonImagePreviews.length > 0 && validFiles.every(f => !f.type.startsWith("image/"))) {
+      setFilePreviews(nonImagePreviews);
     }
   };
 
-  const clearSelectedFile = () => {
-    setSelectedFile(null);
-    setFilePreview(null);
+  const clearSelectedFile = (index?: number) => {
+    if (index !== undefined) {
+      setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+      setFilePreviews(prev => prev.filter((_, i) => i !== index));
+    } else {
+      setSelectedFiles([]);
+      setFilePreviews([]);
+    }
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
   const handleSend = async () => {
-    if ((!message.trim() && !selectedFile) || sendMessageMutation.isPending || uploadMediaMutation.isPending) return;
+    if ((!message.trim() && selectedFiles.length === 0) || sendMessageMutation.isPending || uploadMediaMutation.isPending) return;
     
-    const clientMessageId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    let mediaId: string | undefined;
-    let uploadedMediaInfo: any = null;
-    
-    if (selectedFile) {
+    // Upload and send each file as a separate message
+    for (const file of selectedFiles) {
+      const clientMessageId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
       try {
-        const uploadResult = await uploadMediaMutation.mutateAsync(selectedFile);
-        mediaId = uploadResult.id;
-        uploadedMediaInfo = {
+        const uploadResult = await uploadMediaMutation.mutateAsync(file);
+        const uploadedMediaInfo = {
           mediaId: uploadResult.id,
-          filename: uploadResult.filename || selectedFile.name,
-          mimeType: uploadResult.mimeType || selectedFile.type,
-          fileSize: uploadResult.fileSize || selectedFile.size,
+          filename: uploadResult.filename || file.name,
+          mimeType: uploadResult.mimeType || file.type,
+          fileSize: uploadResult.fileSize || file.size,
           mediaUrl: `/api/customer/media/${uploadResult.id}`,
         };
+        
+        const content = `[${file.type.split('/')[0]}: ${file.name}]`;
+        
+        const pendingMsg: PendingMessage = {
+          clientMessageId,
+          content,
+          from: "customer",
+          timestamp: new Date().toISOString(),
+          isPending: true,
+          messageType: "media",
+          payload: uploadedMediaInfo,
+        };
+        
+        setPendingMessages(prev => [...prev, pendingMsg]);
+        sendMessageMutation.mutate({ content, clientMessageId, mediaId: uploadResult.id });
       } catch {
-        return;
+        // Continue with other files if one fails
+        continue;
       }
     }
     
-    const content = message.trim() || (selectedFile ? `[${selectedFile.type.split('/')[0]}: ${selectedFile.name}]` : "");
+    // Send text message if there's text content
+    if (message.trim()) {
+      const clientMessageId = `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const content = message.trim();
+      
+      const pendingMsg: PendingMessage = {
+        clientMessageId,
+        content,
+        from: "customer",
+        timestamp: new Date().toISOString(),
+        isPending: true,
+        messageType: "text",
+      };
+      
+      setPendingMessages(prev => [...prev, pendingMsg]);
+      sendMessageMutation.mutate({ content, clientMessageId });
+    }
     
-    const pendingMsg: PendingMessage = {
-      clientMessageId,
-      content,
-      from: "customer",
-      timestamp: new Date().toISOString(),
-      isPending: true,
-      messageType: selectedFile ? "media" : "text",
-      payload: uploadedMediaInfo,
-    };
-    
-    setPendingMessages(prev => [...prev, pendingMsg]);
-    sendMessageMutation.mutate({ content, clientMessageId, mediaId });
     setMessage("");
     clearSelectedFile();
   };
@@ -965,50 +1007,48 @@ export default function StoreChatPage() {
         )}
       </div>
 
-      {selectedFile && (
+      {selectedFiles.length > 0 && (
         <div className="px-3 py-2 glass-header">
-          <div className="flex items-center gap-3 glass-card rounded-lg p-2">
-            {filePreview && filePreview !== "video" && filePreview !== "document" ? (
-              <img src={filePreview} alt="Preview" className="w-12 h-12 rounded object-cover" />
-            ) : filePreview === "video" ? (
-              <div className="w-12 h-12 rounded bg-muted flex items-center justify-center">
-                <Video className="w-6 h-6 text-muted-foreground" />
-              </div>
-            ) : (
-              <div className="w-12 h-12 rounded bg-muted flex items-center justify-center">
-                <FileText className="w-6 h-6 text-muted-foreground" />
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{selectedFile.name}</p>
-              <p className="text-xs text-muted-foreground">
-                {(selectedFile.size / 1024).toFixed(1)} KB
-              </p>
-              {isUploading && (
-                <div className="mt-1" data-testid="upload-progress-container">
-                  <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary transition-all duration-300 ease-out"
-                      style={{ width: `${uploadProgress}%` }}
-                      data-testid="upload-progress-bar"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5" data-testid="upload-progress-text">
-                    Uploading... {uploadProgress}%
-                  </p>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {selectedFiles.map((file, idx) => (
+              <div key={idx} className="relative flex-shrink-0 glass-card rounded-lg p-2">
+                <div className="w-16 h-16 flex items-center justify-center">
+                  {file.type.startsWith("image/") && filePreviews[idx] ? (
+                    <img src={filePreviews[idx]} alt={file.name} className="w-full h-full rounded object-cover" />
+                  ) : file.type.startsWith("video/") ? (
+                    <Video className="w-6 h-6 text-muted-foreground" />
+                  ) : (
+                    <FileText className="w-6 h-6 text-muted-foreground" />
+                  )}
                 </div>
-              )}
-            </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={clearSelectedFile} 
-              disabled={isUploading}
-              data-testid="button-remove-file"
-            >
-              <X className="w-4 h-4" />
-            </Button>
+                <p className="text-[10px] text-center truncate w-16 mt-1">{file.name}</p>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  className="absolute -top-1 -right-1 h-5 w-5 bg-destructive text-destructive-foreground rounded-full p-0"
+                  onClick={() => clearSelectedFile(idx)}
+                  disabled={isUploading}
+                  data-testid={`button-remove-file-${idx}`}
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              </div>
+            ))}
           </div>
+          {isUploading && (
+            <div className="mt-2" data-testid="upload-progress-container">
+              <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-primary transition-all duration-300 ease-out"
+                  style={{ width: `${uploadProgress}%` }}
+                  data-testid="upload-progress-bar"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5 text-center" data-testid="upload-progress-text">
+                Uploading... {uploadProgress}%
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -1022,45 +1062,20 @@ export default function StoreChatPage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,video/*,.pdf,.doc,.docx,.txt"
+            accept="image/*,video/*,.pdf,.doc,.docx,.txt,.xls,.xlsx"
             onChange={handleFileSelect}
             className="hidden"
+            multiple
             data-testid="input-file"
           />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                data-testid="button-attach"
-              >
-                <Paperclip className="w-5 h-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem onClick={() => {
-                fileInputRef.current?.setAttribute("accept", "image/*");
-                fileInputRef.current?.click();
-              }}>
-                <Image className="w-4 h-4 mr-2" />
-                Photo
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {
-                fileInputRef.current?.setAttribute("accept", "video/*");
-                fileInputRef.current?.click();
-              }}>
-                <Video className="w-4 h-4 mr-2" />
-                Video
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {
-                fileInputRef.current?.setAttribute("accept", ".pdf,.doc,.docx,.txt,.xls,.xlsx");
-                fileInputRef.current?.click();
-              }}>
-                <FileText className="w-4 h-4 mr-2" />
-                Document
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => fileInputRef.current?.click()}
+            data-testid="button-attach"
+          >
+            <Paperclip className="w-5 h-5" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
