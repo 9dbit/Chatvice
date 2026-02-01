@@ -287,7 +287,8 @@ function PersonalChatPageInner() {
   const [message, setMessage] = useState("");
   const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
   const [showStickerPicker, setShowStickerPicker] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [filePreviews, setFilePreviews] = useState<string[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
@@ -461,23 +462,56 @@ function PersonalChatPageInner() {
   }, [currentUser?.id, sendMessageMutation]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const maxSize = 10 * 1024 * 1024;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    
+    const maxSize = 10 * 1024 * 1024;
+    const validFiles: File[] = [];
+    
+    for (const file of files) {
       if (file.size > maxSize) {
         toast({
           title: "File terlalu besar",
-          description: "Maksimal ukuran file adalah 10MB",
+          description: `${file.name} melebihi batas 10MB`,
           variant: "destructive",
         });
-        return;
+        continue;
       }
-      setSelectedFile(file);
+      validFiles.push(file);
     }
+    
+    if (validFiles.length === 0) return;
+    
+    setSelectedFiles(validFiles);
+    
+    // Generate previews for each file
+    const newPreviews: string[] = new Array(validFiles.length).fill("");
+    validFiles.forEach((file, idx) => {
+      if (file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          newPreviews[idx] = e.target?.result as string;
+          setFilePreviews([...newPreviews]);
+        };
+        reader.readAsDataURL(file);
+      } else if (file.type.startsWith("video/")) {
+        newPreviews[idx] = "video";
+        setFilePreviews([...newPreviews]);
+      } else {
+        newPreviews[idx] = "document";
+        setFilePreviews([...newPreviews]);
+      }
+    });
   };
 
-  const clearSelectedFile = () => {
-    setSelectedFile(null);
+  const clearSelectedFile = (index?: number) => {
+    if (index !== undefined) {
+      setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+      setFilePreviews(prev => prev.filter((_, i) => i !== index));
+    } else {
+      setSelectedFiles([]);
+      setFilePreviews([]);
+    }
     setUploadProgress(0);
     setIsUploading(false);
     if (fileInputRef.current) {
@@ -485,21 +519,35 @@ function PersonalChatPageInner() {
     }
   };
 
-  const handleSend = () => {
-    if (selectedFile) {
+  const handleSend = async () => {
+    if (selectedFiles.length > 0) {
       setIsUploading(true);
       setUploadProgress(0);
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return prev;
-          }
-          return prev + 10;
-        });
-      }, 200);
-      uploadMediaMutation.mutate(selectedFile);
-    } else if (message.trim()) {
+      
+      for (const file of selectedFiles) {
+        const progressInterval = setInterval(() => {
+          setUploadProgress(prev => {
+            if (prev >= 90) {
+              clearInterval(progressInterval);
+              return prev;
+            }
+            return prev + 10;
+          });
+        }, 200);
+        
+        try {
+          await uploadMediaMutation.mutateAsync(file);
+        } catch {
+          // Continue with other files
+        }
+        clearInterval(progressInterval);
+      }
+      
+      setIsUploading(false);
+      clearSelectedFile();
+    }
+    
+    if (message.trim()) {
       handleSendMessage();
     }
   };
@@ -915,48 +963,48 @@ function PersonalChatPageInner() {
         )}
       </div>
 
-      {selectedFile && (
-        <div className="p-3 border-t border-border/50 glass-card mx-3 mb-2 rounded-xl">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
-              {selectedFile.type.startsWith("image/") ? (
-                <Image className="w-6 h-6 text-muted-foreground" />
-              ) : selectedFile.type.startsWith("video/") ? (
-                <Video className="w-6 h-6 text-muted-foreground" />
-              ) : (
-                <FileText className="w-6 h-6 text-muted-foreground" />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{selectedFile.name}</p>
-              <p className="text-xs text-muted-foreground">
-                {(selectedFile.size / 1024).toFixed(1)} KB
-              </p>
-              {isUploading && (
-                <div className="mt-1" data-testid="upload-progress-container">
-                  <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary transition-all duration-300 ease-out"
-                      style={{ width: `${uploadProgress}%` }}
-                      data-testid="upload-progress-bar"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5" data-testid="upload-progress-text">
-                    Mengupload... {uploadProgress}%
-                  </p>
+      {selectedFiles.length > 0 && (
+        <div className="px-3 py-2 glass-header">
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {selectedFiles.map((file, idx) => (
+              <div key={idx} className="relative flex-shrink-0 glass-card rounded-lg p-2">
+                <div className="w-16 h-16 flex items-center justify-center">
+                  {file.type.startsWith("image/") && filePreviews[idx] ? (
+                    <img src={filePreviews[idx]} alt={file.name} className="w-full h-full rounded object-cover" />
+                  ) : file.type.startsWith("video/") ? (
+                    <Video className="w-6 h-6 text-muted-foreground" />
+                  ) : (
+                    <FileText className="w-6 h-6 text-muted-foreground" />
+                  )}
                 </div>
-              )}
-            </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={clearSelectedFile} 
-              disabled={isUploading}
-              data-testid="button-remove-file"
-            >
-              <X className="w-4 h-4" />
-            </Button>
+                <p className="text-[10px] text-center truncate w-16 mt-1">{file.name}</p>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  className="absolute -top-1 -right-1 h-5 w-5 bg-destructive text-destructive-foreground rounded-full p-0"
+                  onClick={() => clearSelectedFile(idx)}
+                  disabled={isUploading}
+                  data-testid={`button-remove-file-${idx}`}
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              </div>
+            ))}
           </div>
+          {isUploading && (
+            <div className="mt-2" data-testid="upload-progress-container">
+              <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-primary transition-all duration-300 ease-out"
+                  style={{ width: `${uploadProgress}%` }}
+                  data-testid="upload-progress-bar"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5 text-center" data-testid="upload-progress-text">
+                Mengupload... {uploadProgress}%
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -973,6 +1021,7 @@ function PersonalChatPageInner() {
             accept="image/*,video/*,.pdf,.doc,.docx,.txt,.xls,.xlsx"
             onChange={handleFileSelect}
             className="hidden"
+            multiple
             data-testid="input-file"
           />
           <Button
@@ -1006,7 +1055,7 @@ function PersonalChatPageInner() {
           <Button
             size="icon"
             onClick={handleSend}
-            disabled={(!message.trim() && !selectedFile) || sendMessageMutation.isPending || uploadMediaMutation.isPending}
+            disabled={(!message.trim() && selectedFiles.length === 0) || sendMessageMutation.isPending || uploadMediaMutation.isPending}
             className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white border-0"
             data-testid="button-send"
           >

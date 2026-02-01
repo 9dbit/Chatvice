@@ -244,8 +244,8 @@ export default function StoreChatPage() {
     },
     onSuccess: (_, variables) => {
       setMessage("");
-      setSelectedFile(null);
-      setFilePreview(null);
+      setSelectedFiles([]);
+      setFilePreviews([]);
       setPendingMessages(prev => prev.filter(pm => pm.clientMessageId !== variables.clientMessageId));
       queryClient.invalidateQueries({ queryKey: ["/api/customer/store-chats", merchantId, "messages"] });
       queryClient.invalidateQueries({ queryKey: ["/api/customer/store-chats"] });
@@ -421,7 +421,6 @@ export default function StoreChatPage() {
     if (files.length === 0) return;
     
     const validFiles: File[] = [];
-    const previews: string[] = [];
     
     for (const file of files) {
       if (file.size > MAX_FILE_SIZE) {
@@ -447,28 +446,26 @@ export default function StoreChatPage() {
     
     if (validFiles.length === 0) return;
     
-    // Generate previews for valid files
+    setSelectedFiles(validFiles);
+    
+    // Generate previews for each file
+    const newPreviews: string[] = new Array(validFiles.length).fill("");
     validFiles.forEach((file, idx) => {
       if (file.type.startsWith("image/")) {
         const reader = new FileReader();
         reader.onload = (e) => {
-          previews[idx] = e.target?.result as string;
-          if (previews.filter(Boolean).length === validFiles.filter(f => f.type.startsWith("image/")).length) {
-            setFilePreviews([...previews.filter(Boolean)]);
-          }
+          newPreviews[idx] = e.target?.result as string;
+          setFilePreviews([...newPreviews]);
         };
         reader.readAsDataURL(file);
+      } else if (file.type.startsWith("video/")) {
+        newPreviews[idx] = "video";
+        setFilePreviews([...newPreviews]);
+      } else {
+        newPreviews[idx] = "document";
+        setFilePreviews([...newPreviews]);
       }
     });
-    
-    setSelectedFiles(validFiles);
-    // Set default preview for non-image files
-    const nonImagePreviews = validFiles.map(f => 
-      f.type.startsWith("video/") ? "video" : f.type.startsWith("image/") ? "" : "document"
-    ).filter(p => p);
-    if (nonImagePreviews.length > 0 && validFiles.every(f => !f.type.startsWith("image/"))) {
-      setFilePreviews(nonImagePreviews);
-    }
   };
 
   const clearSelectedFile = (index?: number) => {
@@ -1099,7 +1096,7 @@ export default function StoreChatPage() {
           <Button
             size="icon"
             onClick={handleSend}
-            disabled={(!message.trim() && !selectedFile) || sendMessageMutation.isPending || uploadMediaMutation.isPending}
+            disabled={(!message.trim() && selectedFiles.length === 0) || sendMessageMutation.isPending || uploadMediaMutation.isPending}
             className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white border-0"
             data-testid="button-send"
           >
