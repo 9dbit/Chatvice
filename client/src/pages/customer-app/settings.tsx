@@ -450,23 +450,24 @@ export default function CustomerSettingsPage() {
               </div>
             ) : (
               <div className={cn(
-                "grid grid-cols-3 gap-1.5",
-                showAllMedia && "max-h-[60vh] overflow-y-auto"
+                showAllMedia && "max-h-[60vh] overflow-y-auto p-1"
               )}>
-                {displayedMedia.map((media) => (
-                  <button
-                    key={media.id}
-                    onClick={() => setSelectedImage(media.url)}
-                    className="aspect-square rounded-lg overflow-hidden bg-muted/50 hover-elevate"
-                    data-testid={`media-thumbnail-${media.id}`}
-                  >
-                    <img
-                      src={media.url}
-                      alt={media.filename}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                ))}
+                <div className="grid grid-cols-3 gap-2">
+                  {displayedMedia.map((media) => (
+                    <button
+                      key={media.id}
+                      onClick={() => setSelectedImage(media.url)}
+                      className="aspect-square rounded-lg overflow-hidden bg-muted/50 hover-elevate"
+                      data-testid={`media-thumbnail-${media.id}`}
+                    >
+                      <img
+                        src={media.url}
+                        alt={media.filename}
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
