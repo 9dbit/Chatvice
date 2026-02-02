@@ -833,14 +833,15 @@ function HeroSection() {
               </h1>
               <FlippingHeroText />
               <div className="flex flex-col sm:flex-row gap-2">
-                <Link href="/register">
-                  <Button size="lg" className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white px-6 md:px-8 font-semibold text-sm md:text-base" data-testid="button-hero-start">
+                <Link href="/register" className="w-full sm:w-auto">
+                  <Button size="lg" className="w-full sm:w-auto min-w-[180px] bg-[#7c3aed] hover:bg-[#6d28d9] text-white px-6 md:px-8 font-semibold text-sm md:text-base" data-testid="button-hero-start">
                     {t('hero.cta')}
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </Link>
-                <Link href="/features">
-                  <Button size="lg" variant="outline" className="border-white/50 text-white hover:bg-white/10 backdrop-blur-sm px-6 md:px-8 text-sm md:text-base" data-testid="button-hero-features">
+                <Link href="/features" className="w-full sm:w-auto">
+                  <Button size="lg" variant="outline" className="w-full sm:w-auto min-w-[180px] border-white/50 text-white backdrop-blur-sm px-6 md:px-8 text-sm md:text-base" data-testid="button-hero-features">
+                    <Play className="w-4 h-4 mr-2" />
                     {t('hero.ctaSecondary')}
                   </Button>
                 </Link>

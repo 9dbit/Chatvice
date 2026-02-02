@@ -254,14 +254,22 @@ export default function CustomerInboxPage() {
   
   const favoriteContacts = contacts.filter(c => c.isFavorite);
   
-  const filteredStoreChats = storeChats.filter(chat => 
-    chat.merchant?.companyName?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredStoreChats = storeChats.filter(chat => {
+    const query = searchQuery.toLowerCase();
+    return (
+      chat.merchant?.companyName?.toLowerCase().includes(query) ||
+      chat.lastMessage?.content?.toLowerCase().includes(query)
+    );
+  });
   
-  const filteredPersonalChats = personalChats.filter(chat => 
-    chat.otherParticipant?.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    chat.otherParticipant?.phoneNumber?.includes(searchQuery)
-  );
+  const filteredPersonalChats = personalChats.filter(chat => {
+    const query = searchQuery.toLowerCase();
+    return (
+      chat.otherParticipant?.displayName?.toLowerCase().includes(query) ||
+      chat.otherParticipant?.phoneNumber?.includes(searchQuery) ||
+      chat.lastMessage?.content?.toLowerCase().includes(query)
+    );
+  });
   
   const totalUnread = [...storeChats, ...personalChats].reduce(
     (sum, chat) => sum + (chat.unreadCount || 0), 

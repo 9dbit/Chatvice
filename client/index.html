@@ -101,6 +101,97 @@
     <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NXLP6ZNG"
     height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <!-- End Google Tag Manager (noscript) -->
+    
+    <!-- Initial Loading Screen -->
+    <div id="loading-screen" style="
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, #1a1625 0%, #0f0a19 50%, #1a1625 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999;
+      transition: opacity 0.5s ease-out;
+    ">
+      <!-- Logo with animation -->
+      <div style="
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 40px;
+        animation: pulse 2s ease-in-out infinite;
+      ">
+        <!-- Chatvice Icon -->
+        <svg width="48" height="48" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="100" height="100" rx="20" fill="url(#logo-gradient)"/>
+          <path d="M30 35C30 32.2386 32.2386 30 35 30H65C67.7614 30 70 32.2386 70 35V55C70 57.7614 67.7614 60 65 60H55L45 70V60H35C32.2386 60 30 57.7614 30 55V35Z" fill="white"/>
+          <circle cx="42" cy="45" r="4" fill="#7c3aed"/>
+          <circle cx="58" cy="45" r="4" fill="#7c3aed"/>
+          <defs>
+            <linearGradient id="logo-gradient" x1="0" y1="0" x2="100" y2="100">
+              <stop offset="0%" stop-color="#7c3aed"/>
+              <stop offset="100%" stop-color="#4f46e5"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <span style="
+          font-family: 'Inter', system-ui, sans-serif;
+          font-size: 32px;
+          font-weight: 700;
+          color: white;
+          letter-spacing: -0.5px;
+        ">Chatvice</span>
+      </div>
+      
+      <!-- Progress bar container -->
+      <div style="
+        width: 200px;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        overflow: hidden;
+      ">
+        <div id="loading-progress" style="
+          width: 0%;
+          height: 100%;
+          background: linear-gradient(90deg, #7c3aed, #4f46e5, #7c3aed);
+          background-size: 200% 100%;
+          border-radius: 4px;
+          animation: shimmer 1.5s infinite, progress 2s ease-out forwards;
+        "></div>
+      </div>
+      
+      <!-- Loading text -->
+      <p style="
+        margin-top: 16px;
+        color: rgba(255, 255, 255, 0.6);
+        font-family: 'Inter', system-ui, sans-serif;
+        font-size: 14px;
+      ">Loading...</p>
+      
+      <style>
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.9; transform: scale(1.02); }
+        }
+        @keyframes shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        @keyframes progress {
+          0% { width: 0%; }
+          20% { width: 25%; }
+          50% { width: 60%; }
+          80% { width: 85%; }
+          100% { width: 100%; }
+        }
+      </style>
+    </div>
+    
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
