@@ -199,10 +199,15 @@ export default function StoreChatPage() {
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [viewerImages, setViewerImages] = useState<MediaInfo[]>([]);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
+  const [isOtherTyping, setIsOtherTyping] = useState(false);
+  const [typingFrom, setTypingFrom] = useState<string | null>(null);
   const lastTouchTimeRef = useRef<number>(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTypingSentRef = useRef<number>(0);
 
   const { data: storeChat, isLoading: chatLoading, error: chatError } = useQuery<StoreChatData>({
     queryKey: ["/api/customer/store-chats", merchantId],
@@ -369,12 +374,14 @@ export default function StoreChatPage() {
     if (!storeChat?.sessionId) return;
 
     const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${wsProtocol}//${window.location.host}/ws?session=${storeChat.sessionId}`;
+    const wsUrl = `${wsProtocol}//${window.location.host}/ws?session=${storeChat.sessionId}&type=customer`;
     let ws: WebSocket | null = null;
     let reconnectTimeout: ReturnType<typeof setTimeout>;
+    let typingHideTimeout: ReturnType<typeof setTimeout>;
 
     const connect = () => {
       ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
 
       ws.onmessage = (event) => {
         try {
@@ -385,6 +392,26 @@ export default function StoreChatPage() {
             if (data.message?.from === "ai" || data.message?.from === "supervisor") {
               playSound("incomingStore");
             }
+            // Hide typing indicator when message is received
+            setIsOtherTyping(false);
+            setTypingFrom(null);
+          } else if (data.type === "typing") {
+            // Handle typing indicator from AI/supervisor
+            if (data.from === "ai" || data.from === "supervisor") {
+              if (data.isTyping) {
+                setIsOtherTyping(true);
+                setTypingFrom(data.from);
+                // Auto-hide typing indicator after 5 seconds as failsafe
+                clearTimeout(typingHideTimeout);
+                typingHideTimeout = setTimeout(() => {
+                  setIsOtherTyping(false);
+                  setTypingFrom(null);
+                }, 5000);
+              } else {
+                setIsOtherTyping(false);
+                setTypingFrom(null);
+              }
+            }
           }
         } catch (e) {
           console.error("WebSocket message parse error:", e);
@@ -392,6 +419,7 @@ export default function StoreChatPage() {
       };
 
       ws.onclose = () => {
+        wsRef.current = null;
         reconnectTimeout = setTimeout(connect, 3000);
       };
 
@@ -404,9 +432,43 @@ export default function StoreChatPage() {
 
     return () => {
       clearTimeout(reconnectTimeout);
+      clearTimeout(typingHideTimeout);
+      wsRef.current = null;
       ws?.close();
     };
   }, [storeChat?.sessionId, merchantId, queryClient]);
+
+  // Send typing indicator when user types
+  const sendTypingIndicator = useCallback((isTyping: boolean) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: "typing",
+        from: "customer",
+        isTyping
+      }));
+    }
+  }, []);
+
+  // Handle message input changes with typing indicator
+  const handleMessageChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setMessage(value);
+    
+    // Debounce typing indicator - only send every 2 seconds
+    const now = Date.now();
+    if (value && now - lastTypingSentRef.current > 2000) {
+      sendTypingIndicator(true);
+      lastTypingSentRef.current = now;
+    }
+    
+    // Clear previous timeout and set new one to stop typing indicator
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    typingTimeoutRef.current = setTimeout(() => {
+      sendTypingIndicator(false);
+    }, 3000);
+  }, [sendTypingIndicator]);
 
   const allowedMimeTypes = [
     "image/jpeg", "image/png", "image/gif", "image/webp",
@@ -999,6 +1061,26 @@ export default function StoreChatPage() {
                 </div>
               </div>
             ))}
+            
+            {/* Typing indicator */}
+            {isOtherTyping && (
+              <div className="flex items-start gap-2 mb-3" data-testid="typing-indicator">
+                <Avatar className="h-8 w-8 flex-shrink-0">
+                  <AvatarImage src={storeInfo?.profilePhotoUrl || undefined} />
+                  <AvatarFallback className="glass-card text-xs">
+                    {typingFrom === "ai" ? "AI" : "CS"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="glass-card rounded-2xl rounded-tl-sm px-4 py-2 max-w-[80%]">
+                  <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div ref={messagesEndRef} />
           </>
         )}
@@ -1085,7 +1167,7 @@ export default function StoreChatPage() {
             <Input
               ref={inputRef}
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={handleMessageChange}
               onKeyDown={handleKeyDown}
               placeholder="Type a message..."
               className="pr-12 glass-input"

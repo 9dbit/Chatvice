@@ -3,8 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Bot, Clock, CheckCircle, AlertCircle, XCircle, Calendar } from "lucide-react";
+import { Users, Bot, Clock, CheckCircle, AlertCircle, XCircle, Calendar, BarChart3, Star, MessageSquare } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { Progress } from "@/components/ui/progress";
 
 interface SupervisorActivity {
   id: string;
@@ -30,6 +31,33 @@ interface AgentActivity {
 interface TeamActivity {
   supervisors: SupervisorActivity[];
   agents: AgentActivity[];
+}
+
+interface SupervisorPerformanceMetrics {
+  totalChatsHandled: number;
+  escalationsReceived: number;
+  sessionsResolved: number;
+  resolutionRate: number | null;
+  averageRating: number | null;
+  ratedSessionsCount: number;
+}
+
+interface SupervisorPerformance {
+  supervisorId: string;
+  supervisorName: string;
+  supervisorEmail: string;
+  photoUrl?: string;
+  status: string;
+  metrics: SupervisorPerformanceMetrics;
+}
+
+interface PerformanceData {
+  supervisors: SupervisorPerformance[];
+  summary: {
+    totalSupervisors: number;
+    totalChatsHandled: number;
+    averageRating: number | null;
+  };
 }
 
 function getStatusBadge(status: string) {
@@ -62,6 +90,11 @@ export default function TeamActivityPage() {
   const { data: activity, isLoading } = useQuery<TeamActivity>({
     queryKey: ["/api/team/activity"],
     refetchInterval: 10000,
+  });
+
+  const { data: performanceData, isLoading: perfLoading } = useQuery<PerformanceData>({
+    queryKey: ["/api/team/supervisor-performance"],
+    refetchInterval: 30000,
   });
 
   if (isLoading) {
@@ -160,6 +193,10 @@ export default function TeamActivityPage() {
           <TabsTrigger value="agents" className="flex items-center gap-2" data-testid="tab-agents">
             <Bot className="w-4 h-4" />
             AI Agents ({agents.length})
+          </TabsTrigger>
+          <TabsTrigger value="performance" className="flex items-center gap-2" data-testid="tab-performance">
+            <BarChart3 className="w-4 h-4" />
+            Performance
           </TabsTrigger>
         </TabsList>
 
@@ -277,6 +314,148 @@ export default function TeamActivityPage() {
                 </Card>
               ))}
             </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="performance" className="space-y-4">
+          {perfLoading ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <div className="animate-pulse space-y-4">
+                  <div className="h-8 bg-muted rounded w-1/4 mx-auto" />
+                  <div className="h-32 bg-muted rounded" />
+                </div>
+              </CardContent>
+            </Card>
+          ) : !performanceData?.supervisors?.length ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <BarChart3 className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="font-semibold mb-2">No performance data yet</h3>
+                <p className="text-muted-foreground">Performance metrics will appear after supervisors handle chats</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* Performance Summary Cards */}
+              <div className="grid gap-4 md:grid-cols-3">
+                <Card data-testid="card-total-chats">
+                  <CardHeader className="pb-2">
+                    <CardDescription>Total Chats Handled</CardDescription>
+                    <CardTitle className="text-3xl flex items-center gap-2">
+                      <MessageSquare className="w-6 h-6 text-foreground" />
+                      <span data-testid="text-total-chats">{performanceData.summary.totalChatsHandled}</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-muted-foreground">
+                      By {performanceData.summary.totalSupervisors} supervisors
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card data-testid="card-average-rating">
+                  <CardHeader className="pb-2">
+                    <CardDescription>Average Rating</CardDescription>
+                    <CardTitle className="text-3xl flex items-center gap-2">
+                      <Star className="w-6 h-6 text-amber-500 dark:text-amber-400" />
+                      <span data-testid="text-average-rating">{performanceData.summary.averageRating?.toFixed(1) || "N/A"}</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-muted-foreground">
+                      Team average customer rating
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card data-testid="card-active-supervisors">
+                  <CardHeader className="pb-2">
+                    <CardDescription>Active Supervisors</CardDescription>
+                    <CardTitle className="text-3xl flex items-center gap-2">
+                      <Users className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                      <span data-testid="text-active-supervisors">{performanceData.supervisors.filter(s => s.status === "online").length}/{performanceData.summary.totalSupervisors}</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-muted-foreground">
+                      Currently online
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Individual Supervisor Performance */}
+              <Card data-testid="card-individual-performance">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5" />
+                    Individual Performance
+                  </CardTitle>
+                  <CardDescription>Performance metrics for each supervisor</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {performanceData.supervisors.map((supervisor) => (
+                      <div key={supervisor.supervisorId} className="p-4 border rounded-md" data-testid={`perf-supervisor-${supervisor.supervisorId}`}>
+                        <div className="flex items-start gap-4">
+                          <Avatar className="w-12 h-12">
+                            <AvatarImage src={supervisor.photoUrl} />
+                            <AvatarFallback>
+                              {supervisor.supervisorName.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+                              <div>
+                                <h4 className="font-medium" data-testid={`text-name-${supervisor.supervisorId}`}>{supervisor.supervisorName}</h4>
+                                <p className="text-sm text-muted-foreground">{supervisor.supervisorEmail}</p>
+                              </div>
+                              <Badge variant={supervisor.status === "online" ? "default" : "secondary"} data-testid={`badge-status-${supervisor.supervisorId}`}>
+                                {supervisor.status}
+                              </Badge>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-1">Chats Handled</p>
+                                <p className="text-lg font-semibold flex items-center gap-1" data-testid={`text-chats-${supervisor.supervisorId}`}>
+                                  <MessageSquare className="w-4 h-4 text-foreground" />
+                                  {supervisor.metrics.totalChatsHandled}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-1">Resolution Rate</p>
+                                <div className="flex items-center gap-2" data-testid={`text-resolution-${supervisor.supervisorId}`}>
+                                  <p className="text-lg font-semibold">
+                                    {supervisor.metrics.resolutionRate !== null ? `${supervisor.metrics.resolutionRate}%` : "N/A"}
+                                  </p>
+                                  {supervisor.metrics.resolutionRate !== null && (
+                                    <Progress value={supervisor.metrics.resolutionRate} className="w-16 h-2" />
+                                  )}
+                                </div>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-1">Rating</p>
+                                <p className="text-lg font-semibold flex items-center gap-1" data-testid={`text-rating-${supervisor.supervisorId}`}>
+                                  <Star className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+                                  {supervisor.metrics.averageRating !== null 
+                                    ? `${supervisor.metrics.averageRating}/5` 
+                                    : "N/A"}
+                                  {supervisor.metrics.ratedSessionsCount > 0 && (
+                                    <span className="text-xs text-muted-foreground">
+                                      ({supervisor.metrics.ratedSessionsCount})
+                                    </span>
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </>
           )}
         </TabsContent>
       </Tabs>

@@ -930,15 +930,15 @@ If you don't have specific information to answer, be honest about it and offer t
       }
     }
     
-    // Build messages array with history (limit to last 10 messages for token efficiency)
+    // Build messages array with history (increased to last 20 messages for better context retention)
     type ChatContent = string | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string; detail: string } }>;
     const chatMessages: Array<{ role: "system" | "user" | "assistant"; content: ChatContent }> = [
       { role: "system", content: systemMessage }
     ];
     
-    // Add conversation history (limit to last 10 messages)
+    // Add conversation history (increased from 10 to 20 for extended context memory)
     if (sessionMessages.length > 0) {
-      const recentMessages = sessionMessages.slice(-10);
+      const recentMessages = sessionMessages.slice(-20);
       for (const msg of recentMessages) {
         if (msg.from === 'customer') {
           chatMessages.push({ role: "user", content: msg.content });
@@ -982,7 +982,7 @@ If you don't have specific information to answer, be honest about it and offer t
     const completion = await openai.chat.completions.create({
       model: useVision ? "gpt-4.1" : "gpt-4.1-mini",
       messages: chatMessages as any,
-      max_completion_tokens: 500,
+      max_completion_tokens: 800, // Increased from 500 for more comprehensive responses
       temperature: temperature,
     });
 
@@ -1248,6 +1248,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   wss.on("connection", (ws, req) => {
     const url = new URL(req.url || "", `http://${req.headers.host}`);
     const sessionId = url.searchParams.get("session");
+    const clientType = url.searchParams.get("type") || "customer"; // customer, supervisor, or ai
     
     if (sessionId) {
       if (!clients.has(sessionId)) {
@@ -1255,7 +1256,30 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
       clients.get(sessionId)!.add(ws);
       
+      // Handle incoming messages (typing indicators, etc.)
+      ws.on("message", (data) => {
+        try {
+          const message = JSON.parse(data.toString());
+          if (message.type === "typing") {
+            // Broadcast typing status to other clients in the session
+            broadcastToSessionExcept(sessionId, ws, {
+              type: "typing",
+              from: message.from || clientType,
+              isTyping: message.isTyping
+            });
+          }
+        } catch (e) {
+          console.error("WebSocket message parse error:", e);
+        }
+      });
+      
       ws.on("close", () => {
+        // Broadcast that this client stopped typing when they disconnect
+        broadcastToSessionExcept(sessionId, ws, {
+          type: "typing",
+          from: clientType,
+          isTyping: false
+        });
         clients.get(sessionId)?.delete(ws);
         if (clients.get(sessionId)?.size === 0) {
           clients.delete(sessionId);
@@ -1270,6 +1294,19 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const message = JSON.stringify(data);
       sessionClients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
+          client.send(message);
+        }
+      });
+    }
+  }
+
+  // Broadcast to all clients except the sender
+  function broadcastToSessionExcept(sessionId: string, excludeClient: WebSocket, data: any) {
+    const sessionClients = clients.get(sessionId);
+    if (sessionClients) {
+      const message = JSON.stringify(data);
+      sessionClients.forEach((client) => {
+        if (client !== excludeClient && client.readyState === WebSocket.OPEN) {
           client.send(message);
         }
       });
@@ -16556,6 +16593,75 @@ Your Telegram integration is working correctly!`;
     }
   });
 
+  // Supervisor performance metrics endpoint (optimized - no N+1 queries)
+  app.get("/api/team/supervisor-performance", requireMerchantOrSupervisor, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const supervisors = await storage.getSupervisorsByMerchant(merchantId);
+      const sessions = await storage.getSessions(merchantId);
+      
+      // Calculate performance metrics for each supervisor (without N+1 message fetching)
+      const performanceData = supervisors.map((supervisor) => {
+        // Get sessions handled by this supervisor
+        const supervisorSessions = sessions.filter(s => s.supervisorId === supervisor.id);
+        const totalChatsHandled = supervisorSessions.length;
+        
+        // Get completed sessions with ratings
+        const ratedSessions = supervisorSessions.filter(s => s.rating != null);
+        const averageRating = ratedSessions.length > 0 
+          ? ratedSessions.reduce((sum, s) => sum + (s.rating || 0), 0) / ratedSessions.length 
+          : null;
+        
+        // Escalations: count sessions that were escalated (has supervisorId and was previously AI)
+        // Better metric: sessions assigned to supervisor indicate escalations
+        const escalationsReceived = supervisorSessions.filter(s => s.supervisorId === supervisor.id).length;
+        
+        // Sessions resolved (completed)
+        const sessionsResolved = supervisorSessions.filter(s => s.status === 'closed' || s.status === 'resolved').length;
+        
+        // Resolution rate
+        const resolutionRate = totalChatsHandled > 0 
+          ? Math.round((sessionsResolved / totalChatsHandled) * 100) 
+          : null;
+        
+        return {
+          supervisorId: supervisor.id,
+          supervisorName: supervisor.name,
+          supervisorEmail: supervisor.email,
+          photoUrl: supervisor.photoUrl,
+          status: supervisor.status,
+          metrics: {
+            totalChatsHandled,
+            escalationsReceived,
+            sessionsResolved,
+            resolutionRate,
+            averageRating: averageRating ? parseFloat(averageRating.toFixed(1)) : null,
+            ratedSessionsCount: ratedSessions.length,
+          }
+        };
+      });
+      
+      // Sort by total chats handled (highest first)
+      performanceData.sort((a, b) => b.metrics.totalChatsHandled - a.metrics.totalChatsHandled);
+      
+      res.json({
+        supervisors: performanceData,
+        summary: {
+          totalSupervisors: supervisors.length,
+          totalChatsHandled: performanceData.reduce((sum, p) => sum + p.metrics.totalChatsHandled, 0),
+          averageRating: performanceData.filter(p => p.metrics.averageRating != null).length > 0
+            ? parseFloat((performanceData.filter(p => p.metrics.averageRating != null)
+                .reduce((sum, p) => sum + (p.metrics.averageRating || 0), 0) / 
+                performanceData.filter(p => p.metrics.averageRating != null).length).toFixed(1))
+            : null,
+        }
+      });
+    } catch (error) {
+      console.error("Supervisor performance error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // ============== PUBLIC WIDGET ENDPOINTS ==============
   
   // Get chat buttons for widget (public)
@@ -18725,7 +18831,21 @@ Please create a comprehensive help center article that would be useful for custo
       
       (async () => {
         try {
+          // Broadcast typing indicator when AI starts processing
+          broadcastToSession(sessionId, {
+            type: "typing",
+            from: "ai",
+            isTyping: true,
+          });
+          
           const aiResult = await askChatvice(sessionId, merchantId, content.trim());
+          
+          // Stop typing indicator when AI finishes
+          broadcastToSession(sessionId, {
+            type: "typing",
+            from: "ai",
+            isTyping: false,
+          });
           
           // Always broadcast the AI response if it exists (includes trigger/escalation messages)
           if (aiResult.answer && aiResult.answer.trim()) {
@@ -18749,6 +18869,12 @@ Please create a comprehensive help center article that would be useful for custo
             });
           }
         } catch (aiError) {
+          // Stop typing indicator on error
+          broadcastToSession(sessionId, {
+            type: "typing",
+            from: "ai",
+            isTyping: false,
+          });
           console.error("AI response error:", aiError);
         }
       })();
