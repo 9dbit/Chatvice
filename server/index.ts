@@ -12,8 +12,12 @@ import { extractFAQContent } from './crawler';
 import { processKnowledgeBase } from './embeddings';
 
 // Global error handlers for deployment stability
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', (error: NodeJS.ErrnoException) => {
   console.error('Uncaught Exception:', error);
+  if (error.code === 'EADDRINUSE') {
+    console.error('Port already in use - will retry via httpServer error handler');
+    return;
+  }
   process.exit(1);
 });
 
@@ -220,7 +224,6 @@ app.use((req, res, next) => {
     {
       port,
       host: "0.0.0.0",
-      reusePort: true,
     },
     () => {
       log(`serving on port ${port}`);

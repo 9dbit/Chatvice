@@ -1175,7 +1175,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const isHttps = forwardedProto === "https" || req.secure;
     const hasWww = host.startsWith("www.");
     
-    // Skip redirect for local development
+    // Skip redirect for health checks (critical for deployment)
+    if (req.path === "/health" || req.path === "/__health") {
+      return next();
+    }
+    
+    // Skip redirect for local development and Replit domains
     if (host.includes("localhost") || host.includes("127.0.0.1") || host.includes(".replit.dev") || host.includes(".replit.app")) {
       return next();
     }
