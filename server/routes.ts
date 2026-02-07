@@ -1167,29 +1167,25 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // Trust proxy for production (required for secure cookies behind load balancer/reverse proxy)
   app.set("trust proxy", true);
   
-  // Canonical domain redirect: Enforce https://chatvice.app (no www, always HTTPS)
-  // This handles both www→non-www and http→https redirects with 301 permanent
+  // Canonical domain redirect: www → non-www only
+  // HTTPS enforcement is handled by the hosting platform (Replit/GCE reverse proxy)
+  // DO NOT add http→https redirect here as it causes redirect loops in production
   app.use((req, res, next) => {
     const host = req.headers.host || "";
-    const forwardedProto = req.headers["x-forwarded-proto"] as string;
-    const isHttps = forwardedProto === "https" || req.secure;
-    const hasWww = host.startsWith("www.");
     
-    // Skip redirect for health checks (critical for deployment)
+    // Skip for health checks, local dev, and Replit domains
     if (req.path === "/health" || req.path === "/__health") {
       return next();
     }
-    
-    // Skip redirect for local development and Replit domains
     if (host.includes("localhost") || host.includes("127.0.0.1") || host.includes(".replit.dev") || host.includes(".replit.app")) {
       return next();
     }
     
-    // Redirect if www or not https
-    if (hasWww || !isHttps) {
+    // Only redirect www → non-www
+    if (host.startsWith("www.")) {
+      const proto = req.headers["x-forwarded-proto"] || "https";
       const newHost = host.replace(/^www\./, "");
-      const newUrl = `https://${newHost}${req.originalUrl}`;
-      return res.redirect(301, newUrl);
+      return res.redirect(301, `${proto}://${newHost}${req.originalUrl}`);
     }
     
     next();
