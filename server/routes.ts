@@ -323,7 +323,7 @@ async function checkUnansweredChatSessions(merchant: any) {
     if (session.status === 'closed') continue;
     
     // Get messages for this session
-    const messages = await storage.getMessagesBySession(session.id);
+    const messages = await storage.getMessages(session.id);
     if (messages.length === 0) continue;
     
     // Count consecutive unanswered customer messages at the end
