@@ -1382,8 +1382,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 </p>
               </div>
               <Button
-                className="w-full rounded-[14px] text-white"
-                style={{ backgroundColor: welcomeBubble.buttonColor || primaryColor }}
+                className="w-full rounded-[14px]"
+                style={{ backgroundColor: welcomeBubble.buttonColor || primaryColor, color: welcomeBubble.buttonTextColor || "#ffffff" }}
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();

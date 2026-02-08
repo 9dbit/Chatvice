@@ -1066,6 +1066,7 @@ export const welcomeBubbles = pgTable("welcome_bubbles", {
   message: text("message").default("I can guide you through our features."),
   buttonLabel: text("button_label").default("Chat with us"),
   buttonColor: text("button_color").default("#7c3aed"),
+  buttonTextColor: text("button_text_color").default("#ffffff"),
   promoImageEnabled: boolean("promo_image_enabled").default(false),
   promoImageUrl: text("promo_image_url").default(""),
   reappearInterval: integer("reappear_interval").default(60),

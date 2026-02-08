@@ -29,6 +29,7 @@ export default function WelcomeBubblePage() {
     message: "I can guide you through our features.",
     buttonLabel: "Chat with us",
     buttonColor: "#7c3aed",
+    buttonTextColor: "#ffffff",
     promoImageEnabled: false,
     promoImageUrl: "",
     reappearInterval: 60,
@@ -48,6 +49,7 @@ export default function WelcomeBubblePage() {
         message: bubble.message || "I can guide you through our features.",
         buttonLabel: bubble.buttonLabel || "Chat with us",
         buttonColor: bubble.buttonColor || "#7c3aed",
+        buttonTextColor: bubble.buttonTextColor || "#ffffff",
         promoImageEnabled: bubble.promoImageEnabled ?? false,
         promoImageUrl: bubble.promoImageUrl || "",
         reappearInterval: bubble.reappearInterval ?? 60,
@@ -381,23 +383,44 @@ export default function WelcomeBubblePage() {
                   data-testid="input-button-label"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="buttonColor">Button Color</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="buttonColor"
-                    type="color"
-                    value={form.buttonColor}
-                    onChange={(e) => setForm({ ...form, buttonColor: e.target.value })}
-                    className="w-12 h-10 p-1"
-                    data-testid="input-button-color"
-                  />
-                  <Input
-                    value={form.buttonColor}
-                    onChange={(e) => setForm({ ...form, buttonColor: e.target.value })}
-                    placeholder="#7c3aed"
-                    className="flex-1"
-                  />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="buttonColor">Button Color</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="buttonColor"
+                      type="color"
+                      value={form.buttonColor}
+                      onChange={(e) => setForm({ ...form, buttonColor: e.target.value })}
+                      className="w-12 h-10 p-1"
+                      data-testid="input-button-color"
+                    />
+                    <Input
+                      value={form.buttonColor}
+                      onChange={(e) => setForm({ ...form, buttonColor: e.target.value })}
+                      placeholder="#7c3aed"
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="buttonTextColor">Font Color</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="buttonTextColor"
+                      type="color"
+                      value={form.buttonTextColor}
+                      onChange={(e) => setForm({ ...form, buttonTextColor: e.target.value })}
+                      className="w-12 h-10 p-1"
+                      data-testid="input-button-text-color"
+                    />
+                    <Input
+                      value={form.buttonTextColor}
+                      onChange={(e) => setForm({ ...form, buttonTextColor: e.target.value })}
+                      placeholder="#ffffff"
+                      className="flex-1"
+                    />
+                  </div>
                 </div>
               </div>
             </CardContent>

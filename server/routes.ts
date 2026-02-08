@@ -11405,7 +11405,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     contentHtml += '<div style="padding:0 ' + basePadding + 'px ' + basePadding + 'px ' + basePadding + 'px;">';
     
     // Main CTA button
-    contentHtml += '<button id="chatvice-cta-btn" style="width:100%;padding:' + buttonPadding + ';background:' + (config.buttonColor || "#7c3aed") + ';color:#fff;border:none;border-radius:6px;font-size:' + buttonFontSize + 'px;font-weight:500;cursor:pointer;">' + (config.buttonLabel || "Chat with us") + '</button>';
+    contentHtml += '<button id="chatvice-cta-btn" style="width:100%;padding:' + buttonPadding + ';background:' + (config.buttonColor || "#7c3aed") + ';color:' + (config.buttonTextColor || "#fff") + ';border:none;border-radius:6px;font-size:' + buttonFontSize + 'px;font-weight:500;cursor:pointer;">' + (config.buttonLabel || "Chat with us") + '</button>';
     
     // Action buttons
     if (config.actionButtons && config.actionButtons.length > 0) {
@@ -11414,7 +11414,8 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       config.actionButtons.forEach(function(btn, idx) {
         if (btn.label && btn.url) {
           var btnColor = (btn.color && btn.color.trim() !== "") ? btn.color : defaultBtnColor;
-          contentHtml += '<a href="' + btn.url + '" target="_blank" rel="noopener" class="chatvice-action-btn" style="display:block;width:100%;padding:' + actionBtnPadding + ';background:' + btnColor + ';color:#fff;border:none;border-radius:5px;font-size:' + (buttonFontSize - 1) + 'px;font-weight:500;text-align:center;text-decoration:none;">' + btn.label + '</a>';
+          var btnTextColor = (btn.textColor && btn.textColor.trim() !== "") ? btn.textColor : "#fff";
+          contentHtml += '<a href="' + btn.url + '" target="_blank" rel="noopener" class="chatvice-action-btn" style="display:block;width:100%;padding:' + actionBtnPadding + ';background:' + btnColor + ';color:' + btnTextColor + ';border:none;border-radius:5px;font-size:' + (buttonFontSize - 1) + 'px;font-weight:500;text-align:center;text-decoration:none;">' + btn.label + '</a>';
         }
       });
       contentHtml += '</div>';
