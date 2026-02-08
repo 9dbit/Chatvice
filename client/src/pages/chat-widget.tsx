@@ -1342,11 +1342,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               </div>
             )}
             <div 
-              className={`bg-card shadow-xl px-4 pt-3 pb-4 border border-border relative z-10 ${welcomeBubble.promoImageEnabled && welcomeBubble.promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}
+              className={`shadow-xl px-4 pt-3 pb-4 border relative z-10 ${welcomeBubble.promoImageEnabled && welcomeBubble.promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}
+              style={widgetIsDark 
+                ? { backgroundColor: 'rgba(30, 30, 30, 0.85)', borderColor: 'rgba(255, 255, 255, 0.15)' }
+                : { backgroundColor: 'rgba(255, 255, 255, 0.92)', borderColor: 'rgba(0, 0, 0, 0.08)', color: '#1f2937' }
+              }
             >
               {/* Header row with title and controls aligned */}
               <div className="flex items-center justify-between gap-2 mb-2">
-                <p className="font-semibold text-base" data-testid="text-welcome-headline">
+                <p className="font-semibold text-base" style={widgetIsDark ? { color: '#ffffff' } : { color: '#111827' }} data-testid="text-welcome-headline">
                   {welcomeBubble.headline}
                 </p>
                 <div className="flex items-center -mr-2">
@@ -1360,7 +1364,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                     }}
                     data-testid="button-minimize-welcome-bubble"
                   >
-                    <Minus className="w-3 h-3 text-muted-foreground" />
+                    <Minus className="w-3 h-3" style={widgetIsDark ? { color: '#9ca3af' } : { color: '#6b7280' }} />
                   </Button>
                   <Button
                     size="icon"
@@ -1372,12 +1376,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                     }}
                     data-testid="button-close-welcome-bubble"
                   >
-                    <X className="w-3 h-3 text-muted-foreground" />
+                    <X className="w-3 h-3" style={widgetIsDark ? { color: '#9ca3af' } : { color: '#6b7280' }} />
                   </Button>
                 </div>
               </div>
               <div className="mb-3">
-                <p className="text-[11px] text-muted-foreground" data-testid="text-welcome-message">
+                <p className="text-[11px]" style={widgetIsDark ? { color: '#9ca3af' } : { color: '#6b7280' }} data-testid="text-welcome-message">
                   {welcomeBubble.message}
                 </p>
               </div>
@@ -1661,14 +1665,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           ...getMaximizedStyle(),
         }
       : {
-          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.4) 50%, rgba(248, 250, 252, 0.5) 100%)',
-          backgroundColor: 'rgba(255, 255, 255, 0.45)',
+          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.88) 50%, rgba(248, 250, 252, 0.90) 100%)',
+          backgroundColor: 'rgba(255, 255, 255, 0.90)',
           borderRadius: widgetBorderRadius,
-          border: '1.5px solid rgba(255, 255, 255, 0.7)',
+          border: '1.5px solid rgba(255, 255, 255, 0.8)',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 12px 24px -8px rgba(0, 0, 0, 0.1)',
           overflow: 'hidden',
           backdropFilter: 'blur(60px) saturate(200%)',
           WebkitBackdropFilter: 'blur(60px) saturate(200%)',
+          color: '#374151',
           ...getMaximizedStyle(),
         }
     : {};
@@ -1701,10 +1706,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           WebkitBackdropFilter: 'blur(40px) saturate(180%)',
         }
       : { 
-          background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(248, 250, 252, 0.6) 100%)',
-          backgroundColor: 'rgba(255, 255, 255, 0.5)',
+          background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 250, 252, 0.88) 100%)',
+          backgroundColor: 'rgba(255, 255, 255, 0.90)',
           backdropFilter: 'blur(40px) saturate(180%)',
           WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          color: '#374151',
         }
     : {};
 
@@ -1719,11 +1725,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           borderRadius: '0 0 28px 28px',
         }
       : { 
-          background: 'linear-gradient(180deg, rgba(248, 250, 252, 0.6) 0%, rgba(241, 245, 249, 0.5) 100%)',
-          backgroundColor: 'rgba(255, 255, 255, 0.4)',
+          background: 'linear-gradient(180deg, rgba(248, 250, 252, 0.92) 0%, rgba(241, 245, 249, 0.88) 100%)',
+          backgroundColor: 'rgba(255, 255, 255, 0.90)',
           backdropFilter: 'blur(40px) saturate(180%)',
           WebkitBackdropFilter: 'blur(40px) saturate(180%)',
           borderRadius: '0 0 28px 28px',
+          color: '#374151',
         }
     : {};
 

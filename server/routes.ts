@@ -11206,7 +11206,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     var isDark = widgetTheme === "dark";
     var frostedBg = isDark 
       ? "background:rgba(10,10,10,0.85);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);" 
-      : "background:rgba(255,255,255,0.6);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);";
+      : "background:rgba(255,255,255,0.92);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);";
     
     if (currentIsMobile) {
       // Mobile margin from edges
@@ -11331,10 +11331,10 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     
     // Theme-aware colors - sync with widget theme (darker for dark mode)
     var isDark = widgetTheme === "dark";
-    var bubbleBg = isDark ? "rgba(20,20,20,0.6)" : "rgba(255,255,255,0.4)";
-    var bubbleBorder = isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.1)";
-    var titleColor = isDark ? "rgba(255,255,255,0.95)" : "#1a1a1a";
-    var messageColor = isDark ? "rgba(255,255,255,0.7)" : "#666";
+    var bubbleBg = isDark ? "rgba(20,20,20,0.6)" : "rgba(255,255,255,0.92)";
+    var bubbleBorder = isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)";
+    var titleColor = isDark ? "rgba(255,255,255,0.95)" : "#111827";
+    var messageColor = isDark ? "rgba(255,255,255,0.7)" : "#6b7280";
     var btnColor = isDark ? "rgba(255,255,255,0.6)" : "#999";
     var borderColor = isDark ? "rgba(255,255,255,0.1)" : "#eee";
     
