@@ -1080,8 +1080,8 @@ async function handleLogin() {
                                 <X className="w-3 h-3 mr-1" />
                                 Remove custom icon
                               </Button>
-                              {/* Desktop: single row */}
-                              <div className="hidden md:flex md:flex-row md:flex-nowrap gap-2">
+                              {/* Desktop: 2x2 grid layout */}
+                              <div className="hidden md:grid md:grid-cols-2 gap-2">
                                 <button
                                   onClick={() => handleFlipImage("horizontal")}
                                   disabled={isProcessingImage}
@@ -1127,7 +1127,7 @@ async function handleLogin() {
                                 >
                                   <span className="relative z-10 flex items-center whitespace-nowrap">
                                     {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ImageIcon className="w-3 h-3 mr-1" />}
-                                    WebP
+                                    Save WebP
                                   </span>
                                 </button>
                                 <button
@@ -1251,7 +1251,7 @@ async function handleLogin() {
                       {/* Icon Templates Section */}
                       <div className="pt-3 border-t">
                         <Label className="text-sm font-medium mb-2 block">Choose from Templates</Label>
-                        <div className="grid grid-cols-4 md:grid-cols-6 gap-2 md:gap-3">
+                        <div className="grid grid-cols-5 md:grid-cols-8 gap-1.5 md:gap-2">
                           {[
                             { id: 'male-cs-blue-shirt', name: 'CS Blue Shirt', ext: 'webp' },
                             { id: 'male-cs-suit', name: 'CS Suit', ext: 'webp' },
@@ -1622,7 +1622,7 @@ async function handleLogin() {
 
                       <div className="space-y-2">
                         <Label className="text-sm">Or Choose Avatar</Label>
-                        <div className="grid grid-cols-4 gap-3">
+                        <div className="grid grid-cols-5 md:grid-cols-8 gap-1.5 md:gap-2">
                           {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
                             <button
                               key={num}
