@@ -17,6 +17,7 @@ interface ActionButton {
   label: string;
   url: string;
   color: string;
+  textColor?: string;
 }
 
 export default function WelcomeBubblePage() {
@@ -132,7 +133,7 @@ export default function WelcomeBubblePage() {
     }
     setForm({
       ...form,
-      actionButtons: [...form.actionButtons, { label: "", url: "", color: "#7c3aed" }],
+      actionButtons: [...form.actionButtons, { label: "", url: "", color: "#7c3aed", textColor: "#ffffff" }],
     });
   };
 
@@ -434,22 +435,42 @@ export default function WelcomeBubblePage() {
                         data-testid={`input-action-btn-url-${index}`}
                       />
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Button Color</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          type="color"
-                          value={btn.color || "#7c3aed"}
-                          onChange={(e) => updateActionButton(index, "color", e.target.value)}
-                          className="w-12 h-9 p-1 cursor-pointer"
-                          data-testid={`input-action-btn-color-${index}`}
-                        />
-                        <Input
-                          value={btn.color || "#7c3aed"}
-                          onChange={(e) => updateActionButton(index, "color", e.target.value)}
-                          placeholder="#7c3aed"
-                          className="flex-1"
-                        />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Button Color</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="color"
+                            value={btn.color || "#7c3aed"}
+                            onChange={(e) => updateActionButton(index, "color", e.target.value)}
+                            className="w-12 h-9 p-1 cursor-pointer"
+                            data-testid={`input-action-btn-color-${index}`}
+                          />
+                          <Input
+                            value={btn.color || "#7c3aed"}
+                            onChange={(e) => updateActionButton(index, "color", e.target.value)}
+                            placeholder="#7c3aed"
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Font Color</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="color"
+                            value={btn.textColor || "#ffffff"}
+                            onChange={(e) => updateActionButton(index, "textColor", e.target.value)}
+                            className="w-12 h-9 p-1 cursor-pointer"
+                            data-testid={`input-action-btn-text-color-${index}`}
+                          />
+                          <Input
+                            value={btn.textColor || "#ffffff"}
+                            onChange={(e) => updateActionButton(index, "textColor", e.target.value)}
+                            placeholder="#ffffff"
+                            className="flex-1"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>

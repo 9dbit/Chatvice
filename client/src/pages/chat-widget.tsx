@@ -1397,11 +1397,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               {/* Action buttons */}
               {Array.isArray(welcomeBubble.actionButtons) && welcomeBubble.actionButtons.length > 0 && (
                 <div className="flex flex-col gap-2 mt-2">
-                  {(welcomeBubble.actionButtons as Array<{label: string; url: string; color?: string}>).map((btn, index) => (
+                  {(welcomeBubble.actionButtons as Array<{label: string; url: string; color?: string; textColor?: string}>).map((btn, index) => (
                     <Button
                       key={index}
-                      className="w-full rounded-[14px] text-white"
-                      style={{ backgroundColor: btn.color || primaryColor }}
+                      className="w-full rounded-[14px]"
+                      style={{ backgroundColor: btn.color || primaryColor, color: btn.textColor || "#ffffff" }}
                       onClick={(e) => {
                         e.stopPropagation();
                         e.preventDefault();
