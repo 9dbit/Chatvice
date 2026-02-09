@@ -1975,13 +1975,40 @@ function PricingPreview() {
     queryKey: ["/api/platform-settings"],
   });
   
+  const { data: dbPlans = [] } = useQuery<any[]>({
+    queryKey: ["/api/subscription-plans"],
+  });
+  
   const trialDays = (platformSettings as any)?.trial_days ? parseInt((platformSettings as any).trial_days) : 14;
   const allPlanKeys = ["free", "starter", "pro", "enterprise", "custom"] as const;
 
-  const getPrice = (plan: typeof subscriptionPlans[keyof typeof subscriptionPlans]) => {
-    if (plan.monthlyPrice === -1) return "Contact";
-    if (plan.monthlyPrice === 0) return "$0";
-    return `$${plan.monthlyPrice}`;
+  const getDbPlan = (planId: string) => dbPlans.find((p: any) => p.id === planId);
+
+  const getPrice = (planKey: string) => {
+    const dbPlan = getDbPlan(planKey);
+    const basePlan = subscriptionPlans[planKey as keyof typeof subscriptionPlans];
+    const price = dbPlan?.monthlyPrice ?? basePlan.monthlyPrice;
+    if (price === -1) return "Contact";
+    if (price === 0) return "$0";
+    return `$${price}`;
+  };
+
+  const getFeatures = (planKey: string) => {
+    const dbPlan = getDbPlan(planKey);
+    if (dbPlan?.features) return dbPlan.features;
+    return subscriptionPlans[planKey as keyof typeof subscriptionPlans].features;
+  };
+
+  const getPlanName = (planKey: string) => {
+    const dbPlan = getDbPlan(planKey);
+    return dbPlan?.name ?? subscriptionPlans[planKey as keyof typeof subscriptionPlans].name;
+  };
+
+  const isNonFreePrice = (planKey: string) => {
+    const dbPlan = getDbPlan(planKey);
+    const basePlan = subscriptionPlans[planKey as keyof typeof subscriptionPlans];
+    const price = dbPlan?.monthlyPrice ?? basePlan.monthlyPrice;
+    return price !== -1;
   };
 
   const getCta = (planId: string) => {
@@ -2007,7 +2034,6 @@ function PricingPreview() {
 
         <div className="flex gap-3 overflow-x-auto pb-4 -mx-6 px-6 sm:-mx-8 sm:px-8 lg:-mx-12 lg:px-12 scrollbar-hide parallax-fade-in">
           {allPlanKeys.map((planKey) => {
-            const plan = subscriptionPlans[planKey];
             const isPro = planKey === "pro";
             const isEnterprise = planKey === "enterprise" || planKey === "custom";
             return (
@@ -2021,14 +2047,14 @@ function PricingPreview() {
                   </Badge>
                 )}
                 <div className="mb-4">
-                  <h3 className="text-base font-bold mb-1">{plan.name}</h3>
+                  <h3 className="text-base font-bold mb-1">{getPlanName(planKey)}</h3>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold">{getPrice(plan)}</span>
-                    {plan.monthlyPrice !== -1 && <span className="text-xs text-muted-foreground">/mo</span>}
+                    <span className="text-2xl font-bold">{getPrice(planKey)}</span>
+                    {isNonFreePrice(planKey) && <span className="text-xs text-muted-foreground">/mo</span>}
                   </div>
                 </div>
                 <ul className="space-y-1.5 mb-4 min-h-[100px]">
-                  {plan.features.slice(0, 4).map((feature, i) => (
+                  {getFeatures(planKey).slice(0, 4).map((feature: string, i: number) => (
                     <li key={i} className="flex items-start gap-1.5 text-xs text-left">
                       <Check className="w-3 h-3 text-purple-600 shrink-0 mt-0.5" />
                       <span className="line-clamp-1">{feature}</span>

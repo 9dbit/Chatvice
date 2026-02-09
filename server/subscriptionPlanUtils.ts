@@ -12,6 +12,10 @@ export interface EffectiveSubscriptionPlan {
   supervisorsLimit: number;
   sourcesLimit: number;
   suggestedQuestionsLimit: number;
+  supervisorsPerAgentLimit: number;
+  domainsLimit: number;
+  chatRetentionHours: number;
+  bgRemovalLimit: number;
   features: readonly string[];
   restrictions?: readonly string[];
 }
@@ -43,16 +47,24 @@ export async function getEffectiveSubscriptionPlan(planId: string): Promise<Effe
   const customOverrides = await getPlanOverridesFromDB();
   const overrides = customOverrides[planId] || {};
   
+  const applyOverride = <T>(field: string, defaultVal: T): T => {
+    return overrides[field] !== undefined ? overrides[field] : defaultVal;
+  };
+
   return {
     ...basePlan,
     id: planId,
-    monthlyPrice: overrides.monthlyPrice !== undefined ? overrides.monthlyPrice : basePlan.monthlyPrice,
-    annualPrice: overrides.annualPrice !== undefined ? overrides.annualPrice : basePlan.annualPrice,
-    conversationsLimit: overrides.conversationsLimit !== undefined ? overrides.conversationsLimit : basePlan.conversationsLimit,
-    agentsLimit: overrides.agentsLimit !== undefined ? overrides.agentsLimit : basePlan.agentsLimit,
-    supervisorsLimit: overrides.supervisorsLimit !== undefined ? overrides.supervisorsLimit : basePlan.supervisorsLimit,
-    sourcesLimit: overrides.sourcesLimit !== undefined ? overrides.sourcesLimit : basePlan.sourcesLimit,
-    suggestedQuestionsLimit: overrides.suggestedQuestionsLimit !== undefined ? overrides.suggestedQuestionsLimit : basePlan.suggestedQuestionsLimit,
+    monthlyPrice: applyOverride('monthlyPrice', basePlan.monthlyPrice),
+    annualPrice: applyOverride('annualPrice', basePlan.annualPrice),
+    conversationsLimit: applyOverride('conversationsLimit', basePlan.conversationsLimit),
+    agentsLimit: applyOverride('agentsLimit', basePlan.agentsLimit),
+    supervisorsLimit: applyOverride('supervisorsLimit', basePlan.supervisorsLimit),
+    sourcesLimit: applyOverride('sourcesLimit', basePlan.sourcesLimit),
+    suggestedQuestionsLimit: applyOverride('suggestedQuestionsLimit', basePlan.suggestedQuestionsLimit),
+    supervisorsPerAgentLimit: applyOverride('supervisorsPerAgentLimit', basePlan.supervisorsPerAgentLimit),
+    domainsLimit: applyOverride('domainsLimit', basePlan.domainsLimit),
+    chatRetentionHours: applyOverride('chatRetentionHours', basePlan.chatRetentionHours),
+    bgRemovalLimit: applyOverride('bgRemovalLimit', basePlan.bgRemovalLimit),
   };
 }
 
