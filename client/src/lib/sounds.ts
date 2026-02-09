@@ -68,6 +68,11 @@ let cachedNotificationSettings: NotificationSettings | null = null;
 let lastFetchTime = 0;
 const CACHE_DURATION = 60000; // 1 minute cache
 
+export function invalidateNotificationSoundCache() {
+  cachedNotificationSettings = null;
+  lastFetchTime = 0;
+}
+
 async function fetchNotificationSettings(): Promise<NotificationSettings | null> {
   const now = Date.now();
   if (cachedNotificationSettings && (now - lastFetchTime) < CACHE_DURATION) {

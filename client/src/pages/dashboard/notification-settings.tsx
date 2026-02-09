@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Bell, Volume2, Upload, Play, AlertTriangle, MessageCircle, UserPlus, Square } from "lucide-react";
 import type { NotificationSetting } from "@shared/schema";
+import { invalidateNotificationSoundCache } from "@/lib/sounds";
 
 const defaultSounds = [
   { id: "incoming-msg", name: "Incoming Message", url: "/sounds/incoming-msg.mp3" },
@@ -39,6 +40,7 @@ export default function NotificationSettingsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notification-settings"] });
+      invalidateNotificationSoundCache();
       toast({ title: "Notification settings saved successfully" });
     },
     onError: () => {

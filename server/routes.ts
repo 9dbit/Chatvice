@@ -15132,26 +15132,30 @@ ${log.extractedKnowledge}` : ''}
 
   app.post("/api/chat-buttons", requireMerchant, async (req, res) => {
     try {
-      const merchantId = req.session.merchantId!;
+      const merchantId = req.session.merchantId;
+      if (!merchantId) {
+        return res.status(400).json({ error: "Merchant ID not found in session" });
+      }
       const { label, url, buttonType, triggerWord, sortOrder } = req.body;
       
-      if (!label) {
+      if (!label || !label.trim()) {
         return res.status(400).json({ error: "Label is required" });
       }
       
       const button = await storage.createChatButton({
         merchantId,
-        label,
-        url: url || "",
+        label: label.trim(),
+        url: (url || "").trim(),
         buttonType: buttonType || "link",
-        triggerWord: triggerWord || "",
+        triggerWord: (triggerWord || "").trim(),
         sortOrder: sortOrder || 0,
         isActive: true,
       });
       
       res.json(button);
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
+    } catch (error: any) {
+      console.error("Failed to create chat button:", error);
+      res.status(500).json({ error: error.message || "Server error" });
     }
   });
 
