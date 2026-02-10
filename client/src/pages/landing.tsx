@@ -876,42 +876,42 @@ function HeroSection() {
               </p>
               
               {/* Feature Points - 2x2 Grid */}
-              <div className="grid grid-cols-2 gap-4 mb-8">
-                <div className="flex items-start gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20" data-testid="feature-chat-platform-keepintouch">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center flex-shrink-0">
-                    <Heart className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="text-left">
+              <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
+                <div className="bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-xl p-3 md:p-4 border border-white/20" data-testid="feature-chat-platform-keepintouch">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center flex-shrink-0">
+                      <Heart className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                    </div>
                     <p className="font-semibold text-sm">{t('chatPlatformPromo.feature1')}</p>
-                    <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.feature1Desc')}</p>
                   </div>
+                  <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.feature1Desc')}</p>
                 </div>
-                <div className="flex items-start gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20" data-testid="feature-chat-platform-history">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center flex-shrink-0">
-                    <Clock className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="text-left">
+                <div className="bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-xl p-3 md:p-4 border border-white/20" data-testid="feature-chat-platform-history">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center flex-shrink-0">
+                      <Clock className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                    </div>
                     <p className="font-semibold text-sm">{t('chatPlatformPromo.feature2')}</p>
-                    <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.feature2Desc')}</p>
                   </div>
+                  <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.feature2Desc')}</p>
                 </div>
-                <div className="flex items-start gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20" data-testid="feature-chat-platform-multistore">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
-                    <Store className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="text-left">
+                <div className="bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-xl p-3 md:p-4 border border-white/20" data-testid="feature-chat-platform-multistore">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
+                      <Store className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                    </div>
                     <p className="font-semibold text-sm">{t('chatPlatformPromo.feature3')}</p>
-                    <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.feature3Desc')}</p>
                   </div>
+                  <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.feature3Desc')}</p>
                 </div>
-                <div className="flex items-start gap-3 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20" data-testid="feature-chat-platform-seamless">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center flex-shrink-0">
-                    <Zap className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="text-left">
+                <div className="bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-xl p-3 md:p-4 border border-white/20" data-testid="feature-chat-platform-seamless">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center flex-shrink-0">
+                      <Zap className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                    </div>
                     <p className="font-semibold text-sm">{t('chatPlatformPromo.feature4')}</p>
-                    <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.feature4Desc')}</p>
                   </div>
+                  <p className="text-xs text-muted-foreground">{t('chatPlatformPromo.feature4Desc')}</p>
                 </div>
               </div>
               
@@ -920,31 +920,31 @@ function HeroSection() {
                 {t('chatPlatformPromo.workflowTitle')}
               </h3>
               
-              {/* Horizontal Workflow Steps - Simplified 4 steps */}
-              <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-8">
+              {/* Workflow Steps - 2x2 grid on mobile, horizontal on desktop */}
+              <div className="grid grid-cols-2 md:flex md:flex-wrap md:items-center gap-2 md:gap-3 mb-8">
                 {/* Step 1 */}
-                <div className="flex items-center gap-2 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-full px-4 py-2 border border-white/20 shadow-sm" data-testid="step-chat-platform-signup">
+                <div className="flex items-center gap-2 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-full px-3 md:px-4 py-2 border border-white/20 shadow-sm" data-testid="step-chat-platform-signup">
                   <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center flex-shrink-0 text-white text-xs font-bold">1</div>
                   <span className="text-sm font-medium">{t('chatPlatformPromo.step1')}</span>
                 </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground hidden sm:block" />
+                <ChevronRight className="w-4 h-4 text-muted-foreground hidden md:block" />
                 
                 {/* Step 2 */}
-                <div className="flex items-center gap-2 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-full px-4 py-2 border border-white/20 shadow-sm" data-testid="step-chat-platform-pin">
+                <div className="flex items-center gap-2 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-full px-3 md:px-4 py-2 border border-white/20 shadow-sm" data-testid="step-chat-platform-pin">
                   <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center flex-shrink-0 text-white text-xs font-bold">2</div>
                   <span className="text-sm font-medium">{t('chatPlatformPromo.step2')}</span>
                 </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground hidden sm:block" />
+                <ChevronRight className="w-4 h-4 text-muted-foreground hidden md:block" />
                 
                 {/* Step 3 */}
-                <div className="flex items-center gap-2 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-full px-4 py-2 border border-white/20 shadow-sm" data-testid="step-chat-platform-explore">
+                <div className="flex items-center gap-2 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-full px-3 md:px-4 py-2 border border-white/20 shadow-sm" data-testid="step-chat-platform-explore">
                   <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center flex-shrink-0 text-white text-xs font-bold">3</div>
                   <span className="text-sm font-medium">{t('chatPlatformPromo.step3')}</span>
                 </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground hidden sm:block" />
+                <ChevronRight className="w-4 h-4 text-muted-foreground hidden md:block" />
                 
                 {/* Step 4 */}
-                <div className="flex items-center gap-2 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-full px-4 py-2 border border-white/20 shadow-sm" data-testid="step-chat-platform-chat">
+                <div className="flex items-center gap-2 bg-white/60 dark:bg-white/10 backdrop-blur-md rounded-full px-3 md:px-4 py-2 border border-white/20 shadow-sm" data-testid="step-chat-platform-chat">
                   <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center flex-shrink-0 text-white text-xs font-bold">4</div>
                   <span className="text-sm font-medium">{t('chatPlatformPromo.step4')}</span>
                 </div>
