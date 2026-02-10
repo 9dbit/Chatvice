@@ -1080,13 +1080,13 @@ async function handleLogin() {
                                 <X className="w-3 h-3 mr-1" />
                                 Remove custom icon
                               </Button>
-                              {/* Desktop: 2x2 grid layout */}
-                              <div className="hidden md:grid md:grid-cols-2 gap-2">
+                              {/* Desktop: inline horizontal layout */}
+                              <div className="hidden md:flex md:flex-wrap gap-2">
                                 <button
                                   onClick={() => handleFlipImage("horizontal")}
                                   disabled={isProcessingImage}
                                   data-testid="button-flip-horizontal-desktop"
-                                  className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group"
+                                  className="relative inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group"
                                   style={{
                                     background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
                                     backgroundSize: '200% 200%',
@@ -1094,7 +1094,7 @@ async function handleLogin() {
                                   }}
                                 >
                                   <span className="relative z-10 flex items-center whitespace-nowrap">
-                                    {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ArrowUpRight className="w-3 h-3 mr-1 -scale-x-100" />}
+                                    {isProcessingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <ArrowUpRight className="w-3.5 h-3.5 mr-1.5 -scale-x-100" />}
                                     Flip H
                                   </span>
                                 </button>
@@ -1102,7 +1102,7 @@ async function handleLogin() {
                                   onClick={() => handleFlipImage("vertical")}
                                   disabled={isProcessingImage}
                                   data-testid="button-flip-vertical-desktop"
-                                  className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group"
+                                  className="relative inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group"
                                   style={{
                                     background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
                                     backgroundSize: '200% 200%',
@@ -1110,7 +1110,7 @@ async function handleLogin() {
                                   }}
                                 >
                                   <span className="relative z-10 flex items-center whitespace-nowrap">
-                                    {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ArrowUpRight className="w-3 h-3 mr-1 -scale-y-100" />}
+                                    {isProcessingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <ArrowUpRight className="w-3.5 h-3.5 mr-1.5 -scale-y-100" />}
                                     Flip V
                                   </span>
                                 </button>
@@ -1118,7 +1118,7 @@ async function handleLogin() {
                                   onClick={handleConvertToWebP}
                                   disabled={isProcessingImage || config.iconUrl.startsWith('data:image/webp')}
                                   data-testid="button-convert-webp-desktop"
-                                  className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group"
+                                  className="relative inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group"
                                   style={{
                                     background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
                                     backgroundSize: '200% 200%',
@@ -1126,7 +1126,7 @@ async function handleLogin() {
                                   }}
                                 >
                                   <span className="relative z-10 flex items-center whitespace-nowrap">
-                                    {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ImageIcon className="w-3 h-3 mr-1" />}
+                                    {isProcessingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <ImageIcon className="w-3.5 h-3.5 mr-1.5" />}
                                     Save WebP
                                   </span>
                                 </button>
@@ -1135,7 +1135,7 @@ async function handleLogin() {
                                   disabled={isRemovingBg || (bgRemovalStatus !== null && bgRemovalStatus.limit >= 0 && bgRemovalStatus.used >= bgRemovalStatus.limit)}
                                   data-testid="button-remove-bg-desktop"
                                   title={bgRemovalStatus ? `${bgRemovalStatus.used}/${bgRemovalStatus.limit} used this month` : "Remove background"}
-                                  className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group"
+                                  className="relative inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group"
                                   style={{
                                     background: 'linear-gradient(135deg, #7c3aed 0%, #ec4899 50%, #7c3aed 100%)',
                                     backgroundSize: '200% 200%',
@@ -1143,9 +1143,9 @@ async function handleLogin() {
                                   }}
                                 >
                                   <span className="relative z-10 flex items-center whitespace-nowrap">
-                                    {isRemovingBg ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Frame className="w-3 h-3 mr-1" />}
+                                    {isRemovingBg ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Frame className="w-3.5 h-3.5 mr-1.5" />}
                                     Remove BG {bgRemovalStatus && bgRemovalStatus.limit > 0 && (
-                                      <span className="text-[10px] opacity-70 ml-1">({bgRemovalStatus.limit - bgRemovalStatus.used})</span>
+                                      <span className="text-[11px] opacity-70 ml-1">({bgRemovalStatus.limit - bgRemovalStatus.used})</span>
                                     )}
                                   </span>
                                 </button>
@@ -1250,49 +1250,124 @@ async function handleLogin() {
                       
                       {/* Icon Templates Section */}
                       <div className="pt-3 border-t">
-                        <Label className="text-sm font-medium mb-2 block">Choose from Templates</Label>
-                        <div className="grid grid-cols-5 md:grid-cols-8 gap-1.5 md:gap-2">
-                          {[
-                            { id: 'male-cs-blue-shirt', name: 'CS Blue Shirt', ext: 'webp' },
-                            { id: 'male-cs-suit', name: 'CS Suit', ext: 'webp' },
-                            { id: 'male-casual-gray', name: 'Casual Gray', ext: 'webp' },
-                            { id: 'male-cs-blue-standing', name: 'CS Standing', ext: 'webp' },
-                            { id: 'astronaut', name: 'Astronaut', ext: 'png' },
-                            { id: 'rocket', name: 'Rocket', ext: 'webp' },
-                            { id: 'female-cs-red', name: 'CS Red', ext: 'png' },
-                            { id: 'female-cs-white', name: 'CS White', ext: 'png' },
-                            { id: 'female-cs-red-shirt', name: 'CS Red Shirt', ext: 'png' },
-                            { id: 'female-cs-purple', name: 'CS Purple', ext: 'png' },
-                            { id: 'gold-coin', name: 'Gold Coin', ext: 'png' },
-                            { id: 'chat-bubble', name: 'Chat Bubble', ext: 'png' },
-                          ].map((template) => (
-                            <button
-                              key={template.id}
-                              type="button"
-                              className={cn(
-                                "relative rounded-lg overflow-hidden border-2 transition-all aspect-square",
-                                config.iconUrl === `/icon-templates/${template.id}.${template.ext}`
-                                  ? "border-primary ring-2 ring-primary/30"
-                                  : "border-muted hover:border-primary/50"
-                              )}
-                              onClick={() => setConfig({ ...config, iconUrl: `/icon-templates/${template.id}.${template.ext}` })}
-                              title={template.name}
-                              data-testid={`button-template-${template.id}`}
-                            >
-                              <img
-                                src={`/icon-templates/${template.id}.${template.ext}`}
-                                alt={template.name}
-                                className="w-full h-full object-cover"
-                                loading="lazy"
-                              />
-                              {config.iconUrl === `/icon-templates/${template.id}.${template.ext}` && (
-                                <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
-                                  <Check className="w-5 h-5 text-primary" />
-                                </div>
-                              )}
-                            </button>
-                          ))}
+                        <Label className="text-sm font-medium mb-3 block">Choose from Templates</Label>
+                        
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1.5">Men</p>
+                            <div className="grid grid-cols-4 gap-1.5">
+                              {[
+                                { id: 'male-cs-blue-shirt', name: 'CS Blue Shirt', ext: 'webp' },
+                                { id: 'male-cs-suit', name: 'CS Suit', ext: 'webp' },
+                                { id: 'male-casual-gray', name: 'Casual Gray', ext: 'webp' },
+                                { id: 'male-cs-blue-standing', name: 'CS Standing', ext: 'webp' },
+                              ].map((template) => (
+                                <button
+                                  key={template.id}
+                                  type="button"
+                                  className={cn(
+                                    "relative rounded-lg overflow-hidden border-2 transition-all aspect-square w-[80%] mx-auto",
+                                    config.iconUrl === `/icon-templates/${template.id}.${template.ext}`
+                                      ? "border-primary ring-2 ring-primary/30"
+                                      : "border-muted hover:border-primary/50"
+                                  )}
+                                  onClick={() => setConfig({ ...config, iconUrl: `/icon-templates/${template.id}.${template.ext}` })}
+                                  title={template.name}
+                                  data-testid={`button-template-${template.id}`}
+                                >
+                                  <img
+                                    src={`/icon-templates/${template.id}.${template.ext}`}
+                                    alt={template.name}
+                                    className="w-full h-full object-cover"
+                                    loading="lazy"
+                                  />
+                                  {config.iconUrl === `/icon-templates/${template.id}.${template.ext}` && (
+                                    <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
+                                      <Check className="w-4 h-4 text-primary" />
+                                    </div>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1.5">Women</p>
+                            <div className="grid grid-cols-4 gap-1.5">
+                              {[
+                                { id: 'female-cs-red', name: 'CS Red', ext: 'png' },
+                                { id: 'female-cs-white', name: 'CS White', ext: 'png' },
+                                { id: 'female-cs-red-shirt', name: 'CS Red Shirt', ext: 'png' },
+                                { id: 'female-cs-purple', name: 'CS Purple', ext: 'png' },
+                              ].map((template) => (
+                                <button
+                                  key={template.id}
+                                  type="button"
+                                  className={cn(
+                                    "relative rounded-lg overflow-hidden border-2 transition-all aspect-square w-[80%] mx-auto",
+                                    config.iconUrl === `/icon-templates/${template.id}.${template.ext}`
+                                      ? "border-primary ring-2 ring-primary/30"
+                                      : "border-muted hover:border-primary/50"
+                                  )}
+                                  onClick={() => setConfig({ ...config, iconUrl: `/icon-templates/${template.id}.${template.ext}` })}
+                                  title={template.name}
+                                  data-testid={`button-template-${template.id}`}
+                                >
+                                  <img
+                                    src={`/icon-templates/${template.id}.${template.ext}`}
+                                    alt={template.name}
+                                    className="w-full h-full object-cover"
+                                    loading="lazy"
+                                  />
+                                  {config.iconUrl === `/icon-templates/${template.id}.${template.ext}` && (
+                                    <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
+                                      <Check className="w-4 h-4 text-primary" />
+                                    </div>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1.5">Icons</p>
+                            <div className="grid grid-cols-4 gap-1.5">
+                              {[
+                                { id: 'astronaut', name: 'Astronaut', ext: 'png' },
+                                { id: 'rocket', name: 'Rocket', ext: 'webp' },
+                                { id: 'gold-coin', name: 'Gold Coin', ext: 'png' },
+                                { id: 'chat-bubble', name: 'Chat Bubble', ext: 'png' },
+                              ].map((template) => (
+                                <button
+                                  key={template.id}
+                                  type="button"
+                                  className={cn(
+                                    "relative rounded-lg overflow-hidden border-2 transition-all aspect-square w-[80%] mx-auto",
+                                    config.iconUrl === `/icon-templates/${template.id}.${template.ext}`
+                                      ? "border-primary ring-2 ring-primary/30"
+                                      : "border-muted hover:border-primary/50"
+                                  )}
+                                  onClick={() => setConfig({ ...config, iconUrl: `/icon-templates/${template.id}.${template.ext}` })}
+                                  title={template.name}
+                                  data-testid={`button-template-${template.id}`}
+                                >
+                                  <img
+                                    src={`/icon-templates/${template.id}.${template.ext}`}
+                                    alt={template.name}
+                                    className="w-full h-full object-cover"
+                                    loading="lazy"
+                                  />
+                                  {config.iconUrl === `/icon-templates/${template.id}.${template.ext}` && (
+                                    <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
+                                      <Check className="w-4 h-4 text-primary" />
+                                    </div>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
                         </div>
+
                         <p className="text-xs text-muted-foreground mt-3">
                           Click to use a pre-designed icon template
                         </p>
@@ -1622,13 +1697,13 @@ async function handleLogin() {
 
                       <div className="space-y-2">
                         <Label className="text-sm">Or Choose Avatar</Label>
-                        <div className="grid grid-cols-5 md:grid-cols-8 gap-1.5 md:gap-2">
+                        <div className="grid grid-cols-4 gap-1.5">
                           {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
                             <button
                               key={num}
                               type="button"
                               onClick={() => setConfig({ ...config, agentPhotoUrl: `/avatars/avatar-${num}.jpg` })}
-                              className={`relative rounded-lg overflow-hidden border-2 transition-all hover:opacity-80 active:scale-95 aspect-square ${
+                              className={`relative rounded-lg overflow-hidden border-2 transition-all hover:opacity-80 active:scale-95 aspect-square w-[80%] mx-auto ${
                                 config.agentPhotoUrl === `/avatars/avatar-${num}.jpg` 
                                   ? 'border-primary ring-2 ring-primary/30' 
                                   : 'border-muted hover:border-muted-foreground/50'
@@ -1643,7 +1718,7 @@ async function handleLogin() {
                               />
                               {config.agentPhotoUrl === `/avatars/avatar-${num}.jpg` && (
                                 <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                                  <Check className="w-5 h-5 text-primary" />
+                                  <Check className="w-4 h-4 text-primary" />
                                 </div>
                               )}
                             </button>
