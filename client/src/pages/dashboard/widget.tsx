@@ -1080,76 +1080,6 @@ async function handleLogin() {
                                 <X className="w-3 h-3 mr-1" />
                                 Remove custom icon
                               </Button>
-                              {/* Desktop: single row layout */}
-                              <div className="hidden md:flex md:items-center gap-1.5">
-                                <button
-                                  onClick={() => handleFlipImage("horizontal")}
-                                  disabled={isProcessingImage}
-                                  data-testid="button-flip-horizontal-desktop"
-                                  className="relative inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group"
-                                  style={{
-                                    background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
-                                    backgroundSize: '200% 200%',
-                                    animation: 'gradient-shift 3s ease infinite',
-                                  }}
-                                >
-                                  <span className="relative z-10 flex items-center whitespace-nowrap">
-                                    {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ArrowUpRight className="w-3 h-3 mr-1 -scale-x-100" />}
-                                    Flip H
-                                  </span>
-                                </button>
-                                <button
-                                  onClick={() => handleFlipImage("vertical")}
-                                  disabled={isProcessingImage}
-                                  data-testid="button-flip-vertical-desktop"
-                                  className="relative inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group"
-                                  style={{
-                                    background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
-                                    backgroundSize: '200% 200%',
-                                    animation: 'gradient-shift 3s ease infinite',
-                                  }}
-                                >
-                                  <span className="relative z-10 flex items-center whitespace-nowrap">
-                                    {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ArrowUpRight className="w-3 h-3 mr-1 -scale-y-100" />}
-                                    Flip V
-                                  </span>
-                                </button>
-                                <button
-                                  onClick={handleConvertToWebP}
-                                  disabled={isProcessingImage || config.iconUrl.startsWith('data:image/webp')}
-                                  data-testid="button-convert-webp-desktop"
-                                  className="relative inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group"
-                                  style={{
-                                    background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
-                                    backgroundSize: '200% 200%',
-                                    animation: 'gradient-shift 3s ease infinite',
-                                  }}
-                                >
-                                  <span className="relative z-10 flex items-center whitespace-nowrap">
-                                    {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ImageIcon className="w-3 h-3 mr-1" />}
-                                    Save as WebP
-                                  </span>
-                                </button>
-                                <button
-                                  onClick={handleRemoveBackground}
-                                  disabled={isRemovingBg || (bgRemovalStatus !== null && bgRemovalStatus.limit >= 0 && bgRemovalStatus.used >= bgRemovalStatus.limit)}
-                                  data-testid="button-remove-bg-desktop"
-                                  title={bgRemovalStatus ? `${bgRemovalStatus.used}/${bgRemovalStatus.limit} used this month` : "Remove background"}
-                                  className="relative inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed group"
-                                  style={{
-                                    background: 'linear-gradient(135deg, #7c3aed 0%, #ec4899 50%, #7c3aed 100%)',
-                                    backgroundSize: '200% 200%',
-                                    animation: 'gradient-shift 3s ease infinite',
-                                  }}
-                                >
-                                  <span className="relative z-10 flex items-center whitespace-nowrap">
-                                    {isRemovingBg ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Frame className="w-3 h-3 mr-1" />}
-                                    Remove Background with AI {bgRemovalStatus && bgRemovalStatus.limit > 0 && (
-                                      <span className="text-[10px] opacity-70 ml-1">({bgRemovalStatus.limit - bgRemovalStatus.used})</span>
-                                    )}
-                                  </span>
-                                </button>
-                              </div>
                               {/* Mobile: single row layout */}
                               <div className="flex flex-wrap gap-1.5 md:hidden">
                                 <button
@@ -1239,6 +1169,78 @@ async function handleLogin() {
                           </p>
                         </div>
                       </div>
+                      {/* Desktop: action buttons in full-width row */}
+                      {config.iconUrl && (
+                        <div className="hidden md:flex md:items-center gap-2 mt-2">
+                          <button
+                            onClick={() => handleFlipImage("horizontal")}
+                            disabled={isProcessingImage}
+                            data-testid="button-flip-horizontal-desktop"
+                            className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{
+                              background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
+                              backgroundSize: '200% 200%',
+                              animation: 'gradient-shift 3s ease infinite',
+                            }}
+                          >
+                            <span className="relative z-10 flex items-center whitespace-nowrap">
+                              {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ArrowUpRight className="w-3 h-3 mr-1 -scale-x-100" />}
+                              Flip H
+                            </span>
+                          </button>
+                          <button
+                            onClick={() => handleFlipImage("vertical")}
+                            disabled={isProcessingImage}
+                            data-testid="button-flip-vertical-desktop"
+                            className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{
+                              background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
+                              backgroundSize: '200% 200%',
+                              animation: 'gradient-shift 3s ease infinite',
+                            }}
+                          >
+                            <span className="relative z-10 flex items-center whitespace-nowrap">
+                              {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ArrowUpRight className="w-3 h-3 mr-1 -scale-y-100" />}
+                              Flip V
+                            </span>
+                          </button>
+                          <button
+                            onClick={handleConvertToWebP}
+                            disabled={isProcessingImage || config.iconUrl.startsWith('data:image/webp')}
+                            data-testid="button-convert-webp-desktop"
+                            className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{
+                              background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
+                              backgroundSize: '200% 200%',
+                              animation: 'gradient-shift 3s ease infinite',
+                            }}
+                          >
+                            <span className="relative z-10 flex items-center whitespace-nowrap">
+                              {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ImageIcon className="w-3 h-3 mr-1" />}
+                              Save as WebP
+                            </span>
+                          </button>
+                          <button
+                            onClick={handleRemoveBackground}
+                            disabled={isRemovingBg || (bgRemovalStatus !== null && bgRemovalStatus.limit >= 0 && bgRemovalStatus.used >= bgRemovalStatus.limit)}
+                            data-testid="button-remove-bg-desktop"
+                            title={bgRemovalStatus ? `${bgRemovalStatus.used}/${bgRemovalStatus.limit} used this month` : "Remove background"}
+                            className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{
+                              background: 'linear-gradient(135deg, #7c3aed 0%, #ec4899 50%, #7c3aed 100%)',
+                              backgroundSize: '200% 200%',
+                              animation: 'gradient-shift 3s ease infinite',
+                            }}
+                          >
+                            <span className="relative z-10 flex items-center whitespace-nowrap">
+                              {isRemovingBg ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Frame className="w-3 h-3 mr-1" />}
+                              Remove Background with AI {bgRemovalStatus && bgRemovalStatus.limit > 0 && (
+                                <span className="text-[10px] opacity-70 ml-1">({bgRemovalStatus.limit - bgRemovalStatus.used})</span>
+                              )}
+                            </span>
+                          </button>
+                        </div>
+                      )}
                       
                       {/* Icon Templates Section */}
                       <div className="pt-3 border-t">
