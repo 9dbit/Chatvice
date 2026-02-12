@@ -1150,70 +1150,62 @@ async function handleLogin() {
                                   </span>
                                 </button>
                               </div>
-                              {/* Mobile: stacked layout */}
-                              <div className="flex flex-col gap-2 md:hidden">
-                                {/* Row 1: Flip H and Flip V */}
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() => handleFlipImage("horizontal")}
-                                    disabled={isProcessingImage}
-                                    data-testid="button-flip-horizontal"
-                                    className="flex-1 relative inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
-                                    style={{
-                                      background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
-                                      backgroundSize: '200% 200%',
-                                      animation: 'gradient-shift 3s ease infinite',
-                                    }}
-                                  >
-                                    <span className="relative z-10 flex items-center whitespace-nowrap">
-                                      {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ArrowUpRight className="w-3 h-3 mr-1 -scale-x-100" />}
-                                      Flip H
-                                    </span>
-                                  </button>
-                                  <button
-                                    onClick={() => handleFlipImage("vertical")}
-                                    disabled={isProcessingImage}
-                                    data-testid="button-flip-vertical"
-                                    className="flex-1 relative inline-flex items-center justify-center px-2 py-1 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
-                                    style={{
-                                      background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
-                                      backgroundSize: '200% 200%',
-                                      animation: 'gradient-shift 3s ease infinite',
-                                    }}
-                                  >
-                                    <span className="relative z-10 flex items-center whitespace-nowrap">
-                                      {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ArrowUpRight className="w-3 h-3 mr-1 -scale-y-100" />}
-                                      Flip V
-                                    </span>
-                                  </button>
-                                </div>
-                                {/* Row 2: Save as WebP (full width with description below) */}
-                                <div className="w-full">
-                                  <button
-                                    onClick={handleConvertToWebP}
-                                    disabled={isProcessingImage || config.iconUrl.startsWith('data:image/webp')}
-                                    data-testid="button-convert-webp"
-                                    className="w-full relative inline-flex items-center justify-center px-3 py-2 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
-                                    style={{
-                                      background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
-                                      backgroundSize: '200% 200%',
-                                      animation: 'gradient-shift 3s ease infinite',
-                                    }}
-                                  >
-                                    <span className="relative z-10 flex items-center whitespace-nowrap">
-                                      {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ImageIcon className="w-3 h-3 mr-1" />}
-                                      Save as WebP
-                                    </span>
-                                  </button>
-                                  <p className="text-[10px] text-muted-foreground text-center mt-1">Smaller file size, faster loading</p>
-                                </div>
-                                {/* Row 3: Remove Background (full width) */}
+                              {/* Mobile: single row layout */}
+                              <div className="flex flex-wrap gap-1.5 md:hidden">
+                                <button
+                                  onClick={() => handleFlipImage("horizontal")}
+                                  disabled={isProcessingImage}
+                                  data-testid="button-flip-horizontal"
+                                  className="relative inline-flex items-center justify-center px-2 py-1 text-[10px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                                  style={{
+                                    background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
+                                    backgroundSize: '200% 200%',
+                                    animation: 'gradient-shift 3s ease infinite',
+                                  }}
+                                >
+                                  <span className="relative z-10 flex items-center whitespace-nowrap">
+                                    {isProcessingImage ? <Loader2 className="w-2.5 h-2.5 animate-spin mr-0.5" /> : <ArrowUpRight className="w-2.5 h-2.5 mr-0.5 -scale-x-100" />}
+                                    Flip H
+                                  </span>
+                                </button>
+                                <button
+                                  onClick={() => handleFlipImage("vertical")}
+                                  disabled={isProcessingImage}
+                                  data-testid="button-flip-vertical"
+                                  className="relative inline-flex items-center justify-center px-2 py-1 text-[10px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                                  style={{
+                                    background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
+                                    backgroundSize: '200% 200%',
+                                    animation: 'gradient-shift 3s ease infinite',
+                                  }}
+                                >
+                                  <span className="relative z-10 flex items-center whitespace-nowrap">
+                                    {isProcessingImage ? <Loader2 className="w-2.5 h-2.5 animate-spin mr-0.5" /> : <ArrowUpRight className="w-2.5 h-2.5 mr-0.5 -scale-y-100" />}
+                                    Flip V
+                                  </span>
+                                </button>
+                                <button
+                                  onClick={handleConvertToWebP}
+                                  disabled={isProcessingImage || config.iconUrl.startsWith('data:image/webp')}
+                                  data-testid="button-convert-webp"
+                                  className="relative inline-flex items-center justify-center px-2 py-1 text-[10px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                                  style={{
+                                    background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
+                                    backgroundSize: '200% 200%',
+                                    animation: 'gradient-shift 3s ease infinite',
+                                  }}
+                                >
+                                  <span className="relative z-10 flex items-center whitespace-nowrap">
+                                    {isProcessingImage ? <Loader2 className="w-2.5 h-2.5 animate-spin mr-0.5" /> : <ImageIcon className="w-2.5 h-2.5 mr-0.5" />}
+                                    WebP
+                                  </span>
+                                </button>
                                 <button
                                   onClick={handleRemoveBackground}
                                   disabled={isRemovingBg || (bgRemovalStatus !== null && bgRemovalStatus.limit >= 0 && bgRemovalStatus.used >= bgRemovalStatus.limit)}
                                   data-testid="button-remove-bg"
                                   title={bgRemovalStatus ? `${bgRemovalStatus.used}/${bgRemovalStatus.limit} used this month` : "Remove background"}
-                                  className="w-full relative inline-flex items-center justify-center px-3 py-2 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="relative inline-flex items-center justify-center px-2 py-1 text-[10px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
                                   style={{
                                     background: 'linear-gradient(135deg, #7c3aed 0%, #ec4899 50%, #7c3aed 100%)',
                                     backgroundSize: '200% 200%',
@@ -1221,9 +1213,9 @@ async function handleLogin() {
                                   }}
                                 >
                                   <span className="relative z-10 flex items-center whitespace-nowrap">
-                                    {isRemovingBg ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Frame className="w-3 h-3 mr-1" />}
-                                    Remove Background {bgRemovalStatus && bgRemovalStatus.limit > 0 && (
-                                      <span className="text-[10px] opacity-70 ml-1">({bgRemovalStatus.limit - bgRemovalStatus.used})</span>
+                                    {isRemovingBg ? <Loader2 className="w-2.5 h-2.5 animate-spin mr-0.5" /> : <Frame className="w-2.5 h-2.5 mr-0.5" />}
+                                    Rm BG {bgRemovalStatus && bgRemovalStatus.limit > 0 && (
+                                      <span className="text-[9px] opacity-70 ml-0.5">({bgRemovalStatus.limit - bgRemovalStatus.used})</span>
                                     )}
                                   </span>
                                 </button>
@@ -1266,7 +1258,7 @@ async function handleLogin() {
                                   key={template.id}
                                   type="button"
                                   className={cn(
-                                    "relative rounded-lg overflow-hidden border-2 transition-all aspect-square w-[80%] mx-auto",
+                                    "relative rounded-lg overflow-hidden border-2 transition-all aspect-square w-[40%] mx-auto",
                                     config.iconUrl === `/icon-templates/${template.id}.${template.ext}`
                                       ? "border-primary ring-2 ring-primary/30"
                                       : "border-muted hover:border-primary/50"
@@ -1304,7 +1296,7 @@ async function handleLogin() {
                                   key={template.id}
                                   type="button"
                                   className={cn(
-                                    "relative rounded-lg overflow-hidden border-2 transition-all aspect-square w-[80%] mx-auto",
+                                    "relative rounded-lg overflow-hidden border-2 transition-all aspect-square w-[40%] mx-auto",
                                     config.iconUrl === `/icon-templates/${template.id}.${template.ext}`
                                       ? "border-primary ring-2 ring-primary/30"
                                       : "border-muted hover:border-primary/50"
@@ -1342,7 +1334,7 @@ async function handleLogin() {
                                   key={template.id}
                                   type="button"
                                   className={cn(
-                                    "relative rounded-lg overflow-hidden border-2 transition-all aspect-square w-[80%] mx-auto",
+                                    "relative rounded-lg overflow-hidden border-2 transition-all aspect-square w-[40%] mx-auto",
                                     config.iconUrl === `/icon-templates/${template.id}.${template.ext}`
                                       ? "border-primary ring-2 ring-primary/30"
                                       : "border-muted hover:border-primary/50"
