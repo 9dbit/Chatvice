@@ -11235,6 +11235,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     button.style.display = "none";
     eyeToggleBtn.style.display = "none";
     isOpen = true;
+    hideWelcomeBubble();
   }
   
   function maximizeWidget() {
@@ -11367,7 +11368,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     // Hidden state label (when eye is clicked to hide) - with theme sync
     var hiddenBg = isDark ? "rgba(30,30,30,0.85)" : "rgba(255,255,255,0.85)";
     var hiddenTextColor = isDark ? "rgba(255,255,255,0.7)" : "#666";
-    contentHtml += '<div id="chatvice-hidden-label" style="display:none;padding:8px 12px;background:' + hiddenBg + ';backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid ' + minBorder + ';border-radius:8px;cursor:pointer;">';
+    contentHtml += '<div id="chatvice-bubble-hidden-label" style="display:none;padding:8px 12px;background:' + hiddenBg + ';backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid ' + minBorder + ';border-radius:8px;cursor:pointer;">';
     contentHtml += '<div style="display:flex;align-items:center;gap:6px;">';
     contentHtml += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + hiddenTextColor + '" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
     contentHtml += '<span style="color:' + hiddenTextColor + ';font-size:11px;">Click to show</span>';
@@ -11481,10 +11482,10 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       eyeBtnMinimized.onclick = function(e) { e.stopPropagation(); toggleHidden(); };
     }
     
-    // Hidden label click handler
-    var hiddenLabel = welcomeBubbleContent.querySelector("#chatvice-hidden-label");
-    if (hiddenLabel) {
-      hiddenLabel.onclick = function() { toggleHidden(); };
+    // Hidden label click handler (inside bubble)
+    var bubbleHiddenLabel = welcomeBubbleContent.querySelector("#chatvice-bubble-hidden-label");
+    if (bubbleHiddenLabel) {
+      bubbleHiddenLabel.onclick = function() { toggleHidden(); };
     }
     
     document.body.appendChild(welcomeBubble);
@@ -11531,16 +11532,14 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     welcomeBubbleHidden = !welcomeBubbleHidden;
     
     var minimizedState = document.getElementById("chatvice-minimized-state");
-    var hiddenLabel = document.getElementById("chatvice-hidden-label");
+    var bubbleHiddenLabel = document.getElementById("chatvice-bubble-hidden-label");
     
     if (welcomeBubbleHidden) {
-      // Show hidden label only
       if (minimizedState) minimizedState.style.display = "none";
-      if (hiddenLabel) hiddenLabel.style.display = "block";
+      if (bubbleHiddenLabel) bubbleHiddenLabel.style.display = "block";
     } else {
-      // Show minimized state
       if (minimizedState) minimizedState.style.display = "block";
-      if (hiddenLabel) hiddenLabel.style.display = "none";
+      if (bubbleHiddenLabel) bubbleHiddenLabel.style.display = "none";
     }
   }
   
