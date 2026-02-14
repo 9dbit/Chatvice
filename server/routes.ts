@@ -3360,6 +3360,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         socialWhatsapp: sanitizeUrl(merchant.socialWhatsapp),
         socialDiscord: sanitizeUrl(merchant.socialDiscord),
         welcomeDescription: merchant.welcomeDescription || "",
+        prechatBannerUrl: merchant.prechatBannerUrl || "",
         quickMessageOptions: merchant.quickMessageOptions || [],
       });
     } catch (error) {

@@ -37,6 +37,7 @@ interface MerchantConfig {
   socialWhatsapp?: string;
   socialDiscord?: string;
   welcomeDescription?: string;
+  prechatBannerUrl?: string;
   quickMessageOptions?: string[];
   activeAgentId?: string;
 }
@@ -1386,7 +1387,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 </p>
               </div>
               <Button
-                className="w-full rounded-[14px]"
+                className="w-full rounded-md"
                 style={{ backgroundColor: welcomeBubble.buttonColor || primaryColor, color: welcomeBubble.buttonTextColor || "#ffffff" }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1404,7 +1405,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   {(welcomeBubble.actionButtons as Array<{label: string; url: string; color?: string; textColor?: string}>).map((btn, index) => (
                     <Button
                       key={index}
-                      className="w-full rounded-[14px]"
+                      className="w-full rounded-md"
                       style={{ backgroundColor: btn.color || primaryColor, color: btn.textColor || "#ffffff" }}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1648,88 +1649,70 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     };
   };
   
-  // Glassmorphism container - Liquid glass effect like Apple iOS UI
-  // Preview mode also gets glassmorphism to match external widget appearance
-  // Enhanced with larger blur (L), more transparency, outer-only shadow, refined edge
+  // Flat container with frosted glass effect
   const frostedGlassContainerStyle: React.CSSProperties = applyEmbedStyles
     ? widgetIsDark 
       ? {
-          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 50%, rgba(0, 0, 0, 0.02) 100%)',
-          backgroundColor: 'rgba(0, 0, 0, 0.15)',
+          backgroundColor: 'rgba(24, 24, 27, 0.85)',
           borderRadius: widgetBorderRadius,
-          border: '1.5px solid rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 12px 24px -8px rgba(0, 0, 0, 0.3)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
           overflow: 'hidden',
-          backdropFilter: 'blur(60px) saturate(200%)',
-          WebkitBackdropFilter: 'blur(60px) saturate(200%)',
+          backdropFilter: 'blur(24px) saturate(150%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(150%)',
           ...getMaximizedStyle(),
         }
       : {
-          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.88) 50%, rgba(248, 250, 252, 0.90) 100%)',
-          backgroundColor: 'rgba(255, 255, 255, 0.90)',
+          backgroundColor: 'rgba(255, 255, 255, 0.88)',
           borderRadius: widgetBorderRadius,
-          border: '1.5px solid rgba(255, 255, 255, 0.8)',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 12px 24px -8px rgba(0, 0, 0, 0.1)',
+          border: '1px solid rgba(0, 0, 0, 0.08)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
           overflow: 'hidden',
-          backdropFilter: 'blur(60px) saturate(200%)',
-          WebkitBackdropFilter: 'blur(60px) saturate(200%)',
+          backdropFilter: 'blur(24px) saturate(150%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(150%)',
           color: '#374151',
           ...getMaximizedStyle(),
         }
     : {};
   
-  // Header style - Island style: smaller width with margins, pill shaped
+  // Header style - Default full-width flat style
   const frostedHeaderStyle: React.CSSProperties = applyEmbedStyles
     ? { 
-        background: `linear-gradient(180deg, ${primaryColor}FF 0%, ${primaryColor}E6 60%, ${primaryColor}D9 100%)`,
-        boxShadow: `
-          0 6px 20px rgba(0, 0, 0, 0.3), 
-          0 12px 40px rgba(0, 0, 0, 0.2), 
-          inset 0 2px 1px rgba(255, 255, 255, 0.5), 
-          inset 0 -2px 1px rgba(0, 0, 0, 0.15),
-          inset 1px 0 1px rgba(255, 255, 255, 0.2),
-          inset -1px 0 1px rgba(255, 255, 255, 0.2)
-        `,
-        borderRadius: '50px',
-        border: '1px solid rgba(255, 255, 255, 0.25)',
-        margin: '8px 10px 0 10px',
+        backgroundColor: primaryColor,
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
       }
     : { backgroundColor: primaryColor };
   
-  // Body uses glassmorphism - Enhanced transparency for liquid glass effect
+  // Body - flat with subtle frosted glass
   const frostedBodyStyle: React.CSSProperties = applyEmbedStyles
     ? widgetIsDark
       ? { 
-          background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%)',
-          backgroundColor: 'rgba(0, 0, 0, 0.04)',
-          backdropFilter: 'blur(40px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          backgroundColor: 'rgba(24, 24, 27, 0.6)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
         }
       : { 
-          background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 250, 252, 0.88) 100%)',
-          backgroundColor: 'rgba(255, 255, 255, 0.90)',
-          backdropFilter: 'blur(40px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          backgroundColor: 'rgba(255, 255, 255, 0.75)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
           color: '#374151',
         }
     : {};
 
-  // Footer style - Enhanced transparency for liquid glass effect
+  // Footer style - flat with frosted glass
   const frostedFooterStyle: React.CSSProperties = applyEmbedStyles
     ? widgetIsDark
       ? { 
-          background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.005) 100%)',
-          backgroundColor: 'rgba(0, 0, 0, 0.06)',
-          backdropFilter: 'blur(40px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-          borderRadius: '0 0 28px 28px',
+          backgroundColor: 'rgba(24, 24, 27, 0.7)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderTop: '1px solid rgba(255, 255, 255, 0.06)',
         }
       : { 
-          background: 'linear-gradient(180deg, rgba(248, 250, 252, 0.92) 0%, rgba(241, 245, 249, 0.88) 100%)',
-          backgroundColor: 'rgba(255, 255, 255, 0.90)',
-          backdropFilter: 'blur(40px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-          borderRadius: '0 0 28px 28px',
+          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderTop: '1px solid rgba(0, 0, 0, 0.06)',
           color: '#374151',
         }
     : {};
@@ -2090,17 +2073,32 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#1f2937' } : undefined}
             >Welcome!</h3>
             
+            {merchantConfig?.prechatBannerUrl && (
+              <div 
+                className="w-full rounded-md overflow-hidden mb-4"
+                style={{ aspectRatio: "5/3" }}
+                data-testid="img-prechat-banner-widget"
+              >
+                <img
+                  src={merchantConfig.prechatBannerUrl}
+                  alt="Welcome banner"
+                  className="w-full h-full object-cover"
+                  style={{ display: 'block' }}
+                />
+              </div>
+            )}
+            
             {/* Custom Description Box */}
             {merchantConfig?.welcomeDescription && (
               <div 
-                className="w-full rounded-[14px] p-3 border mb-4 text-sm whitespace-pre-wrap" 
+                className="w-full rounded-md p-3 border mb-4 text-sm whitespace-pre-wrap" 
                 style={applyEmbedStyles ? (widgetIsDark ? {
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
                   color: '#ffffff',
                 } : {
-                  background: 'rgba(0, 0, 0, 0.04)',
-                  border: '1px solid rgba(0, 0, 0, 0.08)',
+                  backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                  border: '1px solid rgba(0, 0, 0, 0.06)',
                   color: '#374151',
                 }) : undefined}
                 data-testid="text-welcome-description"
@@ -2152,19 +2150,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   data-form-type="other"
                   aria-autocomplete="none"
                   style={applyEmbedStyles ? (widgetIsDark ? {
-                    background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%)',
-                    backdropFilter: 'blur(20px) saturate(180%)',
-                    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                    border: '1px solid rgba(255, 255, 255, 0.25)',
-                    boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 16px rgba(0, 0, 0, 0.15)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
                     color: '#ffffff',
-                    borderRadius: '14px',
+                    borderRadius: '8px',
                   } : {
-                    background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 1) 100%)',
-                    border: '1px solid rgba(0, 0, 0, 0.12)',
-                    boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 2px 8px rgba(0, 0, 0, 0.08)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    border: '1px solid rgba(0, 0, 0, 0.1)',
                     color: '#1f2937',
-                    borderRadius: '14px',
+                    borderRadius: '8px',
                   }) : undefined}
                   data-testid="input-customer-name"
                 />
@@ -2189,19 +2183,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                       className="w-[90px] text-xs" 
                       data-testid="select-country-code"
                       style={applyEmbedStyles ? (widgetIsDark ? {
-                        background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%)',
-                        backdropFilter: 'blur(20px) saturate(180%)',
-                        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                        border: '1px solid rgba(255, 255, 255, 0.25)',
-                        boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 16px rgba(0, 0, 0, 0.15)',
+                        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                        border: '1px solid rgba(255, 255, 255, 0.12)',
                         color: '#ffffff',
-                        borderRadius: '14px',
+                        borderRadius: '8px',
                       } : {
-                        background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 1) 100%)',
-                        border: '1px solid rgba(0, 0, 0, 0.12)',
-                        boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 2px 8px rgba(0, 0, 0, 0.08)',
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        border: '1px solid rgba(0, 0, 0, 0.1)',
                         color: '#1f2937',
-                        borderRadius: '14px',
+                        borderRadius: '8px',
                       }) : undefined}
                     >
                       <SelectValue />
@@ -2209,14 +2199,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                     <SelectContent 
                       className="max-h-[200px]"
                       style={applyEmbedStyles ? (widgetIsDark ? {
-                        background: 'rgba(30, 30, 30, 0.95)',
-                        backdropFilter: 'blur(20px)',
-                        border: '1px solid rgba(255, 255, 255, 0.2)',
-                        borderRadius: '14px',
+                        backgroundColor: 'rgba(30, 30, 30, 0.95)',
+                        border: '1px solid rgba(255, 255, 255, 0.12)',
+                        borderRadius: '8px',
                       } : {
-                        background: 'rgba(255, 255, 255, 0.98)',
-                        border: '1px solid rgba(0, 0, 0, 0.1)',
-                        borderRadius: '14px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                        border: '1px solid rgba(0, 0, 0, 0.08)',
+                        borderRadius: '8px',
                       }) : undefined}
                     >
                       {countryPhoneConfigs.map((country) => (
@@ -2246,19 +2235,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                     id="chatvice_customer_phone"
                     autoComplete="tel"
                     style={applyEmbedStyles ? (widgetIsDark ? {
-                      background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%)',
-                      backdropFilter: 'blur(20px) saturate(180%)',
-                      WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                      border: '1px solid rgba(255, 255, 255, 0.25)',
-                      boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 16px rgba(0, 0, 0, 0.15)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
                       color: '#ffffff',
-                      borderRadius: '14px',
+                      borderRadius: '8px',
                     } : {
-                      background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 1) 100%)',
-                      border: '1px solid rgba(0, 0, 0, 0.12)',
-                      boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 2px 8px rgba(0, 0, 0, 0.08)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                      border: '1px solid rgba(0, 0, 0, 0.1)',
                       color: '#1f2937',
-                      borderRadius: '14px',
+                      borderRadius: '8px',
                     }) : undefined}
                     data-testid="input-customer-phone"
                   />
@@ -2291,19 +2276,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   id="chatvice_customer_email"
                   autoComplete="email"
                   style={applyEmbedStyles ? (widgetIsDark ? {
-                    background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%)',
-                    backdropFilter: 'blur(20px) saturate(180%)',
-                    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                    border: '1px solid rgba(255, 255, 255, 0.25)',
-                    boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 16px rgba(0, 0, 0, 0.15)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
                     color: '#ffffff',
-                    borderRadius: '14px',
+                    borderRadius: '8px',
                   } : {
-                    background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 1) 100%)',
-                    border: '1px solid rgba(0, 0, 0, 0.12)',
-                    boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 2px 8px rgba(0, 0, 0, 0.08)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    border: '1px solid rgba(0, 0, 0, 0.1)',
                     color: '#1f2937',
-                    borderRadius: '14px',
+                    borderRadius: '8px',
                   }) : undefined}
                   data-testid="input-customer-email"
                 />
@@ -2319,19 +2300,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 <div 
                   className="rounded-lg p-3"
                   style={applyEmbedStyles ? (widgetIsDark ? {
-                    background: 'rgba(255, 255, 255, 0.08)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    borderRadius: '14px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
                   } : {
-                    background: 'rgba(255, 255, 255, 0.95)',
-                    border: '1px solid rgba(0, 0, 0, 0.08)',
-                    borderRadius: '14px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    border: '1px solid rgba(0, 0, 0, 0.06)',
+                    borderRadius: '8px',
                   }) : undefined}
                 >
                   <p 
                     className="text-xs mb-2"
                     style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#6b7280' } : undefined}
-                  >⚡ Quick Question</p>
+                  >Quick Question</p>
                   <div className="space-y-2">
                     {merchantConfig.quickMessageOptions.map((option: string, index: number) => (
                       <label 
@@ -2356,13 +2337,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 <div 
                   className="rounded-lg p-3"
                   style={applyEmbedStyles ? (widgetIsDark ? {
-                    background: 'rgba(255, 255, 255, 0.08)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    borderRadius: '14px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
                   } : {
-                    background: 'rgba(255, 255, 255, 0.95)',
-                    border: '1px solid rgba(0, 0, 0, 0.08)',
-                    borderRadius: '14px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    border: '1px solid rgba(0, 0, 0, 0.06)',
+                    borderRadius: '8px',
                   }) : undefined}
                 >
                   <p 
@@ -2381,9 +2362,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 disabled={startChatMutation.isPending || !nameInputValue.trim() || !phoneLocalNumber.trim()}
                 className="w-full"
                 style={applyEmbedStyles ? { 
-                  background: `linear-gradient(180deg, ${primaryColor}FF 0%, ${primaryColor}E6 50%, ${primaryColor}CC 100%)`,
-                  boxShadow: `0 6px 24px rgba(0, 0, 0, 0.35), 0 12px 36px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.15)`,
-                  borderRadius: '14px',
+                  backgroundColor: primaryColor,
+                  borderRadius: '8px',
                   border: 'none',
                   color: getContrastColor(primaryColor),
                 } : { backgroundColor: primaryColor }}
@@ -2399,13 +2379,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               
               {/* Sign up / Login with Chatvice Account option */}
               <div 
-                className="mt-4 p-3 rounded-xl text-center"
+                className="mt-4 p-3 rounded-md text-center"
                 style={applyEmbedStyles ? (widgetIsDark ? {
-                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
                 } : {
-                  background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.05) 100%)',
-                  border: '1px solid rgba(99, 102, 241, 0.15)',
+                  backgroundColor: 'rgba(99, 102, 241, 0.06)',
+                  border: '1px solid rgba(99, 102, 241, 0.12)',
                 }) : undefined}
               >
                 <p 
@@ -2470,6 +2450,20 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           <ScrollArea className="flex-1 min-h-0" style={{ ...frostedBodyStyle, borderRadius: '0' }}>
             {/* Add extra top padding when social panel is open to prevent overlap */}
             <div className={`space-y-4 p-4 ${socialIconsExpanded ? 'pt-16' : ''}`}>
+              {merchantConfig?.prechatBannerUrl && (
+                <div 
+                  className="w-full rounded-md overflow-hidden mb-2"
+                  style={{ aspectRatio: "5/3" }}
+                  data-testid="img-chat-banner"
+                >
+                  <img
+                    src={merchantConfig.prechatBannerUrl}
+                    alt="Banner"
+                    className="w-full h-full object-cover"
+                    style={{ display: 'block' }}
+                  />
+                </div>
+              )}
               {allMessages.map((msg, index) => (
             <div key={msg.id || index}>
               <div
@@ -2502,27 +2496,25 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   className={`max-w-[80%] p-3 text-sm ${
                     msg.from === "user"
                       ? "rounded-2xl rounded-br-sm text-white"
-                      : `rounded-2xl rounded-bl-sm ${applyEmbedStyles ? 'text-white' : 'bg-muted'}`
+                      : `rounded-2xl rounded-bl-sm ${applyEmbedStyles ? (widgetIsDark ? 'text-white' : 'text-gray-800') : 'bg-muted'}`
                   }`}
                   style={msg.from === "user" 
                     ? applyEmbedStyles
                       ? { 
-                          background: `linear-gradient(180deg, ${primaryColor}99 0%, ${primaryColor}80 100%)`,
-                          backdropFilter: 'blur(20px) saturate(150%)',
-                          WebkitBackdropFilter: 'blur(20px) saturate(150%)',
-                          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
-                          border: '1px solid rgba(255, 255, 255, 0.2)',
+                          backgroundColor: `${primaryColor}B3`,
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
                         }
                       : { backgroundColor: primaryColor }
                     : applyEmbedStyles 
-                      ? { 
-                          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%)',
-                          backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                          backdropFilter: 'blur(40px) saturate(180%)',
-                          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-                          border: '1px solid rgba(255, 255, 255, 0.15)',
-                          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-                        }
+                      ? widgetIsDark
+                        ? { 
+                            backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                          }
+                        : { 
+                            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                            border: '1px solid rgba(0, 0, 0, 0.06)',
+                          }
                       : undefined}
                 >
                   {!((msg as any).messageType === "media" && (msg as any).payload?.url) && 
@@ -2774,14 +2766,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               </div>
               <div 
                 className="rounded-2xl rounded-bl-sm p-3"
-                style={applyEmbedStyles ? {
-                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%)',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  backdropFilter: 'blur(40px) saturate(180%)',
-                  WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-                } : { backgroundColor: 'hsl(var(--muted))' }}
+                style={applyEmbedStyles ? (widgetIsDark ? {
+                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                } : {
+                  backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                  border: '1px solid rgba(0, 0, 0, 0.06)',
+                }) : { backgroundColor: 'hsl(var(--muted))' }}
               >
                 <div className="flex gap-1">
                   <span className={`w-2 h-2 rounded-full animate-bounce ${applyEmbedStyles ? 'bg-white/50' : 'bg-muted-foreground/50'}`} style={{ animationDelay: "0ms" }} />
@@ -2800,20 +2791,16 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           className={`px-2 py-3 ${applyEmbedStyles ? '' : 'border-t border-border'}`} 
           style={applyEmbedStyles ? (widgetIsDark ? {
             ...frostedFooterStyle,
-            background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 100%)',
-            backdropFilter: 'blur(20px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-            borderRadius: '16px',
+            backgroundColor: 'rgba(255, 255, 255, 0.06)',
+            borderRadius: '8px',
             margin: '8px 8px',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.25)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
           } : {
             ...frostedFooterStyle,
-            background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 1) 100%)',
-            borderRadius: '16px',
+            backgroundColor: 'rgba(248, 250, 252, 0.9)',
+            borderRadius: '8px',
             margin: '8px 8px',
-            border: '1px solid rgba(0, 0, 0, 0.08)',
-            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+            border: '1px solid rgba(0, 0, 0, 0.06)',
           }) : frostedFooterStyle}
         >
           <div className="flex flex-col gap-2">
@@ -2880,26 +2867,20 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         <div 
           className="flex items-center gap-1"
           style={applyEmbedStyles ? (widgetIsDark ? {
-            background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%)',
-            backgroundColor: 'rgba(255, 255, 255, 0.12)',
-            backdropFilter: 'blur(20px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-            border: '1px solid rgba(255, 255, 255, 0.25)',
-            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 4px 16px rgba(0, 0, 0, 0.15)',
-            borderRadius: '50px',
+            backgroundColor: 'rgba(255, 255, 255, 0.08)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            borderRadius: '24px',
             padding: '4px 4px 4px 8px',
             height: '48px',
           } : {
-            background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 1) 100%)',
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            border: '1px solid rgba(0, 0, 0, 0.12)',
-            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 2px 8px rgba(0, 0, 0, 0.08)',
-            borderRadius: '50px',
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            border: '1px solid rgba(0, 0, 0, 0.1)',
+            borderRadius: '24px',
             padding: '4px 4px 4px 8px',
             height: '48px',
           }) : {
             border: '1px solid hsl(var(--border))',
-            borderRadius: '50px',
+            borderRadius: '24px',
             padding: '4px 4px 4px 8px',
             height: '48px',
             backgroundColor: 'hsl(var(--background))',
@@ -2931,21 +2912,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               align="start" 
               className="w-44 p-2"
               style={applyEmbedStyles ? (widgetIsDark ? {
-                background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%)',
-                backgroundColor: 'rgba(30, 30, 30, 0.85)',
-                backdropFilter: 'blur(30px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(30px) saturate(180%)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
-                borderRadius: '20px',
+                backgroundColor: 'rgba(30, 30, 30, 0.9)',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
+                borderRadius: '12px',
               } : {
-                background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 1) 100%)',
                 backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(0, 0, 0, 0.1)',
-                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
-                borderRadius: '20px',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                border: '1px solid rgba(0, 0, 0, 0.08)',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
+                borderRadius: '12px',
               }) : undefined}
             >
               <div className="flex flex-col gap-1">
@@ -2953,7 +2932,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   variant="ghost"
                   size="sm"
                   className="justify-start gap-3 h-10"
-                  style={applyEmbedStyles ? { color: widgetIsDark ? 'white' : '#374151', borderRadius: '12px' } : undefined}
+                  style={applyEmbedStyles ? { color: widgetIsDark ? 'white' : '#374151', borderRadius: '8px' } : undefined}
                   onClick={() => {
                     fileInputRef.current?.click();
                   }}
@@ -2966,7 +2945,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   variant="ghost"
                   size="sm"
                   className="justify-start gap-3 h-10"
-                  style={applyEmbedStyles ? { color: widgetIsDark ? 'white' : '#374151', borderRadius: '12px' } : undefined}
+                  style={applyEmbedStyles ? { color: widgetIsDark ? 'white' : '#374151', borderRadius: '8px' } : undefined}
                   onClick={() => {
                     videoInputRef.current?.click();
                   }}
@@ -3019,18 +2998,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             onClick={handleSend}
             disabled={sendMessageMutation.isPending || !message.trim() || !isOnline || isUploadingMedia}
             className="shrink-0"
-            style={applyEmbedStyles ? { 
-              background: `linear-gradient(180deg, ${primaryColor}FF 0%, ${primaryColor}E6 60%, ${primaryColor}D9 100%)`,
-              boxShadow: `0 4px 16px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 0 rgba(0, 0, 0, 0.1)`,
-              borderRadius: '50%',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              width: '40px',
-              height: '40px',
-              padding: 0,
-              color: getContrastColor(primaryColor),
-            } : { 
+            style={{ 
               backgroundColor: primaryColor,
               borderRadius: '50%',
+              border: 'none',
               width: '40px',
               height: '40px',
               padding: 0,

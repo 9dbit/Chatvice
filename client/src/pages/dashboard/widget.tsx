@@ -116,8 +116,11 @@ export default function WidgetPage() {
 
   const [preChatConfig, setPreChatConfig] = useState({
     welcomeDescription: "",
+    prechatBannerUrl: "",
     quickMessageOptions: [] as string[],
   });
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
   const [newQuickMessage, setNewQuickMessage] = useState("");
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   
@@ -361,6 +364,7 @@ export default function WidgetPage() {
       });
       setPreChatConfig({
         welcomeDescription: (merchant as any).welcomeDescription || "",
+        prechatBannerUrl: (merchant as any).prechatBannerUrl || "",
         quickMessageOptions: (merchant as any).quickMessageOptions || [],
       });
     }
@@ -715,6 +719,7 @@ export default function WidgetPage() {
   const preChatMutation = useMutation({
     mutationFn: async (data: { 
       welcomeDescription?: string;
+      prechatBannerUrl?: string;
       quickMessageOptions?: string[];
     }) => {
       return apiRequest("POST", "/api/merchant/config", data);
@@ -1867,6 +1872,93 @@ async function handleLogin() {
                   className="min-h-[120px]"
                   data-testid="textarea-welcome-description"
                 />
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <Label className="text-base font-medium">Pre-Chat Banner Image</Label>
+                <p className="text-sm text-muted-foreground">
+                  Upload a banner image (5:3 landscape format recommended) that appears on the welcome screen before customers start chatting. Max 2MB.
+                </p>
+                <input
+                  ref={bannerInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 2 * 1024 * 1024) {
+                      toast({ title: "File too large", description: "Banner image must be under 2MB.", variant: "destructive" });
+                      return;
+                    }
+                    setIsUploadingBanner(true);
+                    try {
+                      const formData = new FormData();
+                      formData.append("file", file);
+                      const res = await fetch("/api/upload", { method: "POST", body: formData, credentials: "include" });
+                      if (!res.ok) throw new Error("Upload failed");
+                      const data = await res.json();
+                      setPreChatConfig({ ...preChatConfig, prechatBannerUrl: data.url });
+                      toast({ title: "Banner uploaded", description: "Banner image has been uploaded. Save to apply." });
+                    } catch {
+                      toast({ title: "Upload failed", description: "Could not upload banner image.", variant: "destructive" });
+                    } finally {
+                      setIsUploadingBanner(false);
+                      if (bannerInputRef.current) bannerInputRef.current.value = "";
+                    }
+                  }}
+                  data-testid="input-banner-upload"
+                />
+                {preChatConfig.prechatBannerUrl ? (
+                  <div className="space-y-2">
+                    <div className="relative rounded-md overflow-hidden border" style={{ aspectRatio: "5/3", maxWidth: 400 }}>
+                      <img
+                        src={preChatConfig.prechatBannerUrl}
+                        alt="Pre-chat banner"
+                        className="w-full h-full object-cover"
+                        data-testid="img-prechat-banner"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => bannerInputRef.current?.click()}
+                        disabled={isUploadingBanner}
+                        data-testid="button-change-banner"
+                      >
+                        {isUploadingBanner ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <ImageIcon className="w-4 h-4 mr-1" />}
+                        Change
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPreChatConfig({ ...preChatConfig, prechatBannerUrl: "" })}
+                        data-testid="button-remove-banner"
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={() => bannerInputRef.current?.click()}
+                    disabled={isUploadingBanner}
+                    className="w-full h-24 border-dashed"
+                    data-testid="button-upload-banner"
+                  >
+                    {isUploadingBanner ? (
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    ) : (
+                      <ImageIcon className="w-5 h-5 mr-2" />
+                    )}
+                    Upload Banner Image
+                  </Button>
+                )}
               </div>
 
               <Separator />

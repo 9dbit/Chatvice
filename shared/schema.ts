@@ -105,6 +105,7 @@ export const merchants = pgTable("merchants", {
   socialCustomDiscord: text("social_custom_discord"),
   // Pre-chat form customization
   welcomeDescription: text("welcome_description").default(""),
+  prechatBannerUrl: text("prechat_banner_url").default(""),
   quickMessageOptions: text("quick_message_options").array().default([]),
   // Storage usage tracking (in bytes)
   storageUsed: integer("storage_used").default(0),
@@ -376,6 +377,7 @@ export const merchantConfigSchema = z.object({
   socialWhatsapp: safeUrlSchema,
   socialDiscord: safeUrlSchema,
   welcomeDescription: z.string().optional(),
+  prechatBannerUrl: z.string().optional(),
   quickMessageOptions: z.array(z.string()).optional(),
 });
 export type MerchantConfig = z.infer<typeof merchantConfigSchema>;
