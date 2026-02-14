@@ -1675,12 +1675,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         }
     : {};
   
-  // Header style - Default full-width flat style with matching container radius
+  // Header style - no border radius needed, container overflow:hidden handles clipping
   const frostedHeaderStyle: React.CSSProperties = applyEmbedStyles
     ? { 
         backgroundColor: primaryColor,
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-        borderRadius: `${widgetBorderRadius} ${widgetBorderRadius} 0 0`,
       }
     : { backgroundColor: primaryColor };
   
@@ -1700,7 +1699,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         }
     : {};
 
-  // Footer style - flat with frosted glass
+  // Footer style - no border radius needed, container overflow:hidden handles clipping
   const frostedFooterStyle: React.CSSProperties = applyEmbedStyles
     ? widgetIsDark
       ? { 
@@ -1708,7 +1707,6 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
           borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-          borderRadius: `0 0 ${widgetBorderRadius} ${widgetBorderRadius}`,
         }
       : { 
           backgroundColor: 'rgba(255, 255, 255, 0.8)',
@@ -1716,7 +1714,6 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           WebkitBackdropFilter: 'blur(16px)',
           borderTop: '1px solid rgba(0, 0, 0, 0.06)',
           color: '#374151',
-          borderRadius: `0 0 ${widgetBorderRadius} ${widgetBorderRadius}`,
         }
     : {};
 
