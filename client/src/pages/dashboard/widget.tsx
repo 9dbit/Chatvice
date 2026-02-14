@@ -117,7 +117,10 @@ export default function WidgetPage() {
   const [preChatConfig, setPreChatConfig] = useState({
     welcomeDescription: "",
     quickMessageOptions: [] as string[],
+    prechatBannerUrl: "",
   });
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
   const [newQuickMessage, setNewQuickMessage] = useState("");
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   
@@ -362,6 +365,7 @@ export default function WidgetPage() {
       setPreChatConfig({
         welcomeDescription: (merchant as any).welcomeDescription || "",
         quickMessageOptions: (merchant as any).quickMessageOptions || [],
+        prechatBannerUrl: (merchant as any).prechatBannerUrl || "",
       });
     }
   }, [merchant]);
@@ -716,6 +720,7 @@ export default function WidgetPage() {
     mutationFn: async (data: { 
       welcomeDescription?: string;
       quickMessageOptions?: string[];
+      prechatBannerUrl?: string;
     }) => {
       return apiRequest("POST", "/api/merchant/config", data);
     },
@@ -1871,11 +1876,99 @@ async function handleLogin() {
 
               <Separator />
 
-              <div className="space-y-2">
-                <Label className="text-base font-medium">Pre-Chat Banner Image</Label>
-                <p className="text-sm text-muted-foreground">
-                  Banner image di widget pre-chat dan chat panel otomatis menggunakan Promo Image dari Welcome Bubble. Kelola gambar di tab <strong>Welcome Bubble</strong> &rarr; <strong>Promo Image</strong>.
-                </p>
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-base font-medium">Pre-Chat Banner Image</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Banner image displayed below the chat header, edge-to-edge. Supported formats: JPG, PNG, GIF, WebP.
+                  </p>
+                </div>
+                
+                <input
+                  ref={bannerInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 5 * 1024 * 1024) {
+                      toast({ title: "File too large", description: "Maximum size is 5MB.", variant: "destructive" });
+                      return;
+                    }
+                    const allowed = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+                    if (!allowed.includes(file.type)) {
+                      toast({ title: "Invalid format", description: "Only JPG, PNG, GIF, WebP are allowed.", variant: "destructive" });
+                      return;
+                    }
+                    setUploadingBanner(true);
+                    try {
+                      const formData = new FormData();
+                      formData.append("file", file);
+                      formData.append("type", "prechat_banner");
+                      const res = await fetch("/api/upload", { method: "POST", body: formData, credentials: "include" });
+                      if (!res.ok) throw new Error("Upload failed");
+                      const data = await res.json();
+                      setPreChatConfig({ ...preChatConfig, prechatBannerUrl: data.url });
+                      toast({ title: "Banner uploaded", description: "Click Save to apply changes." });
+                    } catch {
+                      toast({ title: "Upload failed", description: "Please try again.", variant: "destructive" });
+                    } finally {
+                      setUploadingBanner(false);
+                      if (bannerInputRef.current) bannerInputRef.current.value = "";
+                    }
+                  }}
+                  data-testid="input-prechat-banner-upload"
+                />
+
+                {preChatConfig.prechatBannerUrl ? (
+                  <div className="space-y-2">
+                    <div className="relative rounded-md overflow-hidden border">
+                      <img
+                        src={preChatConfig.prechatBannerUrl}
+                        alt="Pre-chat banner preview"
+                        className="w-full h-auto object-contain"
+                        style={{ display: "block", maxHeight: "200px" }}
+                        data-testid="img-prechat-banner-preview"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => bannerInputRef.current?.click()}
+                        disabled={uploadingBanner}
+                        data-testid="button-change-prechat-banner"
+                      >
+                        {uploadingBanner ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ImageIcon className="w-3 h-3 mr-1" />}
+                        Change Image
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPreChatConfig({ ...preChatConfig, prechatBannerUrl: "" })}
+                        data-testid="button-remove-prechat-banner"
+                      >
+                        <Trash2 className="w-3 h-3 mr-1" />
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className="border-2 border-dashed rounded-md p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors hover:border-primary/50"
+                    onClick={() => bannerInputRef.current?.click()}
+                    data-testid="button-upload-prechat-banner"
+                  >
+                    {uploadingBanner ? (
+                      <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                    ) : (
+                      <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                    )}
+                    <p className="text-sm text-muted-foreground">Click to upload banner image</p>
+                    <p className="text-xs text-muted-foreground">Max 5MB &middot; JPG, PNG, GIF, WebP</p>
+                  </div>
+                )}
               </div>
 
               <Separator />

@@ -37,6 +37,7 @@ interface MerchantConfig {
   socialWhatsapp?: string;
   socialDiscord?: string;
   welcomeDescription?: string;
+  prechatBannerUrl?: string;
   quickMessageOptions?: string[];
   activeAgentId?: string;
 }
@@ -2066,28 +2067,27 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         </div>
       ) : !hasSubmittedName && !serverMessages?.length ? (
         <div 
-          className="flex-1 min-h-0 flex flex-col p-4 overflow-y-auto"
+          className="flex-1 min-h-0 flex flex-col overflow-y-auto"
           style={frostedBodyStyle}
         >
-          <div className="flex-1 flex flex-col items-center">
+          {merchantConfig?.prechatBannerUrl && (
+            <div 
+              className="w-full overflow-hidden shrink-0"
+              data-testid="img-prechat-banner-widget"
+            >
+              <img
+                src={merchantConfig.prechatBannerUrl}
+                alt="Banner"
+                className="w-full h-auto object-contain"
+                style={{ display: 'block' }}
+              />
+            </div>
+          )}
+          <div className="flex-1 flex flex-col items-center p-4">
             <h3 
               className="text-lg font-semibold mb-3 text-center"
               style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#1f2937' } : undefined}
             >Welcome!</h3>
-            
-            {welcomeBubble?.promoImageEnabled && welcomeBubble?.promoImageUrl && (
-              <div 
-                className="w-full rounded-md overflow-hidden mb-4"
-                data-testid="img-prechat-banner-widget"
-              >
-                <img
-                  src={welcomeBubble.promoImageUrl}
-                  alt="Welcome banner"
-                  className="w-full h-auto object-contain"
-                  style={{ display: 'block' }}
-                />
-              </div>
-            )}
             
             {/* Custom Description Box */}
             {merchantConfig?.welcomeDescription && (
@@ -2449,21 +2449,21 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       ) : (
         <div className="flex-1 min-h-0 flex flex-col">
           <ScrollArea className="flex-1 min-h-0" style={{ ...frostedBodyStyle, borderRadius: '0' }}>
+            {merchantConfig?.prechatBannerUrl && (
+              <div 
+                className="w-full overflow-hidden"
+                data-testid="img-chat-banner"
+              >
+                <img
+                  src={merchantConfig.prechatBannerUrl}
+                  alt="Banner"
+                  className="w-full h-auto object-contain"
+                  style={{ display: 'block' }}
+                />
+              </div>
+            )}
             {/* Add extra top padding when social panel is open to prevent overlap */}
             <div className={`space-y-4 p-4 ${socialIconsExpanded ? 'pt-16' : ''}`}>
-              {welcomeBubble?.promoImageEnabled && welcomeBubble?.promoImageUrl && (
-                <div 
-                  className="w-full rounded-md overflow-hidden mb-2"
-                  data-testid="img-chat-banner"
-                >
-                  <img
-                    src={welcomeBubble.promoImageUrl}
-                    alt="Banner"
-                    className="w-full h-auto object-contain"
-                    style={{ display: 'block' }}
-                  />
-                </div>
-              )}
               {allMessages.map((msg, index) => (
             <div key={msg.id || index}>
               <div
