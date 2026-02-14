@@ -37,7 +37,6 @@ interface MerchantConfig {
   socialWhatsapp?: string;
   socialDiscord?: string;
   welcomeDescription?: string;
-  prechatBannerUrl?: string;
   quickMessageOptions?: string[];
   activeAgentId?: string;
 }
@@ -2076,16 +2075,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#1f2937' } : undefined}
             >Welcome!</h3>
             
-            {merchantConfig?.prechatBannerUrl && (
+            {welcomeBubble?.promoImageEnabled && welcomeBubble?.promoImageUrl && (
               <div 
                 className="w-full rounded-md overflow-hidden mb-4"
-                style={{ aspectRatio: "5/3" }}
                 data-testid="img-prechat-banner-widget"
               >
                 <img
-                  src={merchantConfig.prechatBannerUrl}
+                  src={welcomeBubble.promoImageUrl}
                   alt="Welcome banner"
-                  className="w-full h-full object-cover"
+                  className="w-full h-auto object-contain"
                   style={{ display: 'block' }}
                 />
               </div>
@@ -2453,16 +2451,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           <ScrollArea className="flex-1 min-h-0" style={{ ...frostedBodyStyle, borderRadius: '0' }}>
             {/* Add extra top padding when social panel is open to prevent overlap */}
             <div className={`space-y-4 p-4 ${socialIconsExpanded ? 'pt-16' : ''}`}>
-              {merchantConfig?.prechatBannerUrl && (
+              {welcomeBubble?.promoImageEnabled && welcomeBubble?.promoImageUrl && (
                 <div 
                   className="w-full rounded-md overflow-hidden mb-2"
-                  style={{ aspectRatio: "5/3" }}
                   data-testid="img-chat-banner"
                 >
                   <img
-                    src={merchantConfig.prechatBannerUrl}
+                    src={welcomeBubble.promoImageUrl}
                     alt="Banner"
-                    className="w-full h-full object-cover"
+                    className="w-full h-auto object-contain"
                     style={{ display: 'block' }}
                   />
                 </div>
