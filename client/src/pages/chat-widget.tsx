@@ -2187,9 +2187,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         </div>
       ) : !hasSubmittedName && !serverMessages?.length ? (
         <div 
-          className="flex-1 min-h-0 flex flex-col overflow-y-auto"
+          className="flex-1 min-h-0 flex flex-col"
           style={frostedBodyStyle}
         >
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {merchantConfig?.prechatBannerUrl && (
             <div 
               className="w-full overflow-hidden shrink-0"
@@ -2498,71 +2499,66 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 Start Chat
               </Button>
               
-              {/* Sign up / Login with Chatvice Account option */}
-              <div 
-                className="mt-4 p-3 rounded-md text-center"
-                style={applyEmbedStyles ? (widgetIsDark ? {
-                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                } : {
-                  backgroundColor: 'rgba(99, 102, 241, 0.06)',
-                  border: '1px solid rgba(99, 102, 241, 0.12)',
-                }) : undefined}
-              >
-                <p 
-                  className="text-xs font-medium mb-1"
-                  style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#4f46e5' } : undefined}
-                >
-                  Get keep in touch with Chatvice app
-                </p>
-                <div className="flex items-center justify-center gap-2">
-                  <a 
-                    href="/chat/login" 
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs font-medium hover:underline"
-                    style={applyEmbedStyles ? { color: primaryColor } : undefined}
-                    data-testid="link-signup-chatvice"
-                  >
-                    Sign Up Free
-                  </a>
-                  <span 
-                    className="text-xs"
-                    style={applyEmbedStyles ? { color: widgetIsDark ? 'rgba(255,255,255,0.5)' : '#9ca3af' } : undefined}
-                  >|</span>
-                  <a 
-                    href="/chat/login" 
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs hover:underline"
-                    style={applyEmbedStyles ? { color: widgetIsDark ? 'rgba(255,255,255,0.7)' : '#6b7280' } : undefined}
-                    data-testid="link-login-chatvice"
-                  >
-                    Login
-                  </a>
-                </div>
-              </div>
-              
-              {/* Powered by Chatvice branding */}
-              <div className="flex items-center justify-center gap-1.5 mt-4">
-                <span 
-                  className="text-[10px]"
-                  style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#6b7280' } : undefined}
-                >Powered by</span>
+            </div>
+          </div>
+          </div>
+
+          {/* Static footer - does not scroll */}
+          <div className="shrink-0 px-4 pb-3 pt-2" style={applyEmbedStyles ? { backgroundColor: widgetIsDark ? '#18181b' : '#ffffff' } : undefined}>
+            <div 
+              className="p-3 rounded-md text-center"
+              style={{
+                backgroundColor: '#ffffff',
+                border: '1px solid rgba(0, 0, 0, 0.08)',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+              }}
+            >
+              <p className="text-xs font-semibold mb-1 chatvice-gradient-text">
+                Keep connect using Chatvice Platform
+              </p>
+              <div className="flex items-center justify-center gap-2">
                 <a 
-                  href="https://chatvice.app" 
-                  target="_blank" 
+                  href="/chat/login" 
+                  target="_blank"
                   rel="noopener noreferrer"
-                  className="opacity-70 hover:opacity-100 transition-opacity"
-                  data-testid="link-powered-by-chatvice-welcome"
+                  className="text-xs font-medium hover:underline chatvice-gradient-text"
+                  data-testid="link-signup-chatvice"
                 >
-                  <img 
-                    src={widgetIsDark ? chatviceLogoDark : chatviceLogoLight} 
-                    alt="Chatvice" 
-                    className="h-4"
-                  />
+                  Sign Up Free
+                </a>
+                <span className="text-xs" style={{ color: '#9ca3af' }}>|</span>
+                <a 
+                  href="/chat/login" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs hover:underline"
+                  style={{ color: '#6b7280' }}
+                  data-testid="link-login-chatvice"
+                >
+                  Login
                 </a>
               </div>
+            </div>
+            
+            {/* Powered by Chatvice branding */}
+            <div className="flex items-center justify-center gap-1.5 mt-2">
+              <span 
+                className="text-[10px]"
+                style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#6b7280' } : undefined}
+              >Powered by</span>
+              <a 
+                href="https://chatvice.app" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="opacity-70 hover:opacity-100 transition-opacity"
+                data-testid="link-powered-by-chatvice-welcome"
+              >
+                <img 
+                  src={widgetIsDark ? chatviceLogoDark : chatviceLogoLight} 
+                  alt="Chatvice" 
+                  className="h-4"
+                />
+              </a>
             </div>
           </div>
         </div>

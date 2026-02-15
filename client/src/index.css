@@ -925,6 +925,15 @@ html {
   100% { background-position: 0% 50%; }
 }
 
+.chatvice-gradient-text {
+  background: linear-gradient(135deg, #a855f7, #d946ef, #8b5cf6, #ec4899, #a855f7);
+  background-size: 300% 300%;
+  animation: chatvice-gradient-shift 4s ease infinite;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 .liquid-glass-tab[data-state="active"]::after {
   content: '';
   position: absolute;
