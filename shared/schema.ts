@@ -90,7 +90,7 @@ export const merchants = pgTable("merchants", {
   staffCount: text("staff_count"),
   // Social media links for widget
   socialMediaEnabled: boolean("social_media_enabled").default(false),
-  socialIconStyle: text("social_icon_style").default("colored"), // "colored" or "silhouette"
+  socialIconStyle: text("social_icon_style").default("colored"), // "colored" | "3d-metal" | "3d-golden" | "flat-white" | "flat-black" | "custom"
   socialInstagram: text("social_instagram"),
   socialFacebook: text("social_facebook"),
   socialTelegram: text("social_telegram"),
@@ -370,7 +370,7 @@ export const merchantConfigSchema = z.object({
   bubblePosition: z.enum(["left", "right"]).optional(),
   allowedDomains: z.string().optional(),
   socialMediaEnabled: z.boolean().optional(),
-  socialIconStyle: z.enum(["colored", "silhouette"]).optional(),
+  socialIconStyle: z.enum(["colored", "3d-metal", "3d-golden", "flat-white", "flat-black", "custom"]).optional(),
   socialInstagram: safeUrlSchema,
   socialFacebook: safeUrlSchema,
   socialTelegram: safeUrlSchema,

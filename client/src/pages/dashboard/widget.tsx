@@ -100,7 +100,7 @@ export default function WidgetPage() {
 
   const [socialConfig, setSocialConfig] = useState({
     socialMediaEnabled: false,
-    socialIconStyle: "colored" as "colored" | "silhouette",
+    socialIconStyle: "colored" as "colored" | "3d-metal" | "3d-golden" | "flat-white" | "flat-black" | "custom",
     socialInstagram: "",
     socialFacebook: "",
     socialTelegram: "",
@@ -349,7 +349,7 @@ export default function WidgetPage() {
     if (merchant) {
       setSocialConfig({
         socialMediaEnabled: merchant.socialMediaEnabled || false,
-        socialIconStyle: (merchant.socialIconStyle as "colored" | "silhouette") || "colored",
+        socialIconStyle: (merchant.socialIconStyle as "colored" | "3d-metal" | "3d-golden" | "flat-white" | "flat-black" | "custom") || "colored",
         socialInstagram: merchant.socialInstagram || "",
         socialFacebook: merchant.socialFacebook || "",
         socialTelegram: merchant.socialTelegram || "",
@@ -685,7 +685,7 @@ export default function WidgetPage() {
   const socialMediaMutation = useMutation({
     mutationFn: async (data: { 
       socialMediaEnabled?: boolean;
-      socialIconStyle?: "colored" | "silhouette";
+      socialIconStyle?: "colored" | "3d-metal" | "3d-golden" | "flat-white" | "flat-black" | "custom";
       socialInstagram?: string;
       socialFacebook?: string;
       socialTelegram?: string;
@@ -969,7 +969,7 @@ async function handleLogin() {
             <TabsTrigger value="appearance" className="whitespace-nowrap px-4">Appearance</TabsTrigger>
             <TabsTrigger value="prechat" className="whitespace-nowrap px-4">Pre-Chat</TabsTrigger>
             <TabsTrigger value="embed" className="whitespace-nowrap px-4">Embed</TabsTrigger>
-            <TabsTrigger value="social" className="whitespace-nowrap px-4">Social</TabsTrigger>
+            <TabsTrigger value="social" className="whitespace-nowrap px-4">Social & Links</TabsTrigger>
             <TabsTrigger value="security" className="flex items-center gap-2 whitespace-nowrap px-4">
               Security
               {!canUseAdvancedFeatures && <Lock className="w-3 h-3" />}
@@ -2340,7 +2340,7 @@ async function handleLogin() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-5 h-5 text-primary" />
-                <CardTitle>Social Media Links</CardTitle>
+                <CardTitle>Social & Links</CardTitle>
               </div>
               <CardDescription>
                 Add social media icons to your widget so customers can connect with you on different platforms.
@@ -2361,38 +2361,94 @@ async function handleLogin() {
                 />
               </div>
               
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label className="text-base font-medium">Icon Style</Label>
-                  <p className="text-sm text-muted-foreground">Choose colored or silhouette icons</p>
+              <div className="space-y-2">
+                <Label className="text-base font-medium">Icon Style Template</Label>
+                <p className="text-sm text-muted-foreground">Choose a visual style for your social media icons</p>
+                <div className="grid grid-cols-3 gap-3 pt-1">
+                  {([
+                    { value: "colored", label: "Colored", preview: (
+                      <div className="flex gap-1.5 items-center justify-center">
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: '#E4405F' }}>
+                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-white" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                        </div>
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: '#25D366' }}>
+                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-white" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        </div>
+                      </div>
+                    )},
+                    { value: "3d-metal", label: "3D Metal", preview: (
+                      <div className="flex gap-1.5 items-center justify-center">
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(145deg, #d4d4d8, #a1a1aa)', boxShadow: '2px 2px 4px rgba(0,0,0,0.3), -1px -1px 3px rgba(255,255,255,0.5), inset 0 1px 2px rgba(255,255,255,0.4)' }}>
+                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="#3f3f46"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                        </div>
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(145deg, #d4d4d8, #a1a1aa)', boxShadow: '2px 2px 4px rgba(0,0,0,0.3), -1px -1px 3px rgba(255,255,255,0.5), inset 0 1px 2px rgba(255,255,255,0.4)' }}>
+                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="#3f3f46"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        </div>
+                      </div>
+                    )},
+                    { value: "3d-golden", label: "3D Golden", preview: (
+                      <div className="flex gap-1.5 items-center justify-center">
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(145deg, #fbbf24, #b45309)', boxShadow: '2px 2px 4px rgba(0,0,0,0.3), -1px -1px 3px rgba(251,191,36,0.5), inset 0 1px 2px rgba(255,255,255,0.4)' }}>
+                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="#451a03"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                        </div>
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(145deg, #fbbf24, #b45309)', boxShadow: '2px 2px 4px rgba(0,0,0,0.3), -1px -1px 3px rgba(251,191,36,0.5), inset 0 1px 2px rgba(255,255,255,0.4)' }}>
+                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="#451a03"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        </div>
+                      </div>
+                    )},
+                    { value: "flat-white", label: "Flat White", preview: (
+                      <div className="flex gap-1.5 items-center justify-center">
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb' }}>
+                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="#374151"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                        </div>
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb' }}>
+                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="#374151"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        </div>
+                      </div>
+                    )},
+                    { value: "flat-black", label: "Flat Black", preview: (
+                      <div className="flex gap-1.5 items-center justify-center">
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: '#18181b' }}>
+                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="#ffffff"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                        </div>
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: '#18181b' }}>
+                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="#ffffff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        </div>
+                      </div>
+                    )},
+                    { value: "custom", label: "Custom Upload", preview: (
+                      <div className="flex gap-1.5 items-center justify-center">
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center border-2 border-dashed border-muted-foreground/30">
+                          <Plus className="w-3 h-3 text-muted-foreground" />
+                        </div>
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center border-2 border-dashed border-muted-foreground/30">
+                          <Plus className="w-3 h-3 text-muted-foreground" />
+                        </div>
+                      </div>
+                    )},
+                  ] as { value: string; label: string; preview: React.ReactNode }[]).map((style) => (
+                    <button
+                      key={style.value}
+                      type="button"
+                      className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-colors ${
+                        socialConfig.socialIconStyle === style.value
+                          ? 'border-primary bg-primary/5'
+                          : 'border-muted hover-elevate'
+                      }`}
+                      onClick={() => {
+                        setSocialConfig({ 
+                          ...socialConfig, 
+                          socialIconStyle: style.value as typeof socialConfig.socialIconStyle,
+                          socialUseCustomIcons: style.value === "custom"
+                        });
+                      }}
+                      data-testid={`button-style-${style.value}`}
+                    >
+                      {style.preview}
+                      <span className="text-xs font-medium">{style.label}</span>
+                    </button>
+                  ))}
                 </div>
-                <Select
-                  value={socialConfig.socialIconStyle}
-                  onValueChange={(value: "colored" | "silhouette") => setSocialConfig({ ...socialConfig, socialIconStyle: value })}
-                  disabled={socialConfig.socialUseCustomIcons}
-                >
-                  <SelectTrigger className="w-[140px]" data-testid="select-icon-style">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="colored">Colored</SelectItem>
-                    <SelectItem value="silhouette">Silhouette</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label className="text-base font-medium">Use Custom Icons</Label>
-                  <p className="text-sm text-muted-foreground">Upload your own social media icons</p>
-                </div>
-                <Switch
-                  checked={socialConfig.socialUseCustomIcons}
-                  onCheckedChange={(checked) => {
-                    setSocialConfig({ ...socialConfig, socialUseCustomIcons: checked });
-                  }}
-                  data-testid="switch-custom-icons"
-                />
               </div>
               
               <Separator />
