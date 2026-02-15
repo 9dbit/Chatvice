@@ -9527,9 +9527,11 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       if (!key) {
         return res.status(400).json({ error: "Missing key" });
       }
-      await storage.setPlatformSetting(key, value || "");
+      const stringValue = typeof value === 'object' ? JSON.stringify(value) : (value || "");
+      await storage.setPlatformSetting(key, stringValue);
       res.json({ success: true });
     } catch (error) {
+      console.error("Error saving admin setting:", key, error);
       res.status(500).json({ error: "Server error" });
     }
   });
@@ -10357,7 +10359,8 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       if (!key) {
         return res.status(400).json({ error: "Key is required" });
       }
-      await storage.setPlatformSetting(key, value);
+      const stringValue = typeof value === 'object' ? JSON.stringify(value) : (value || "");
+      await storage.setPlatformSetting(key, stringValue);
       
       // When trial_days is updated, recalculate trialEndsAt for existing trial merchants
       if (key === "trial_days") {

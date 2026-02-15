@@ -12794,14 +12794,16 @@ function WidgetStylesTab({ toast }: { toast: any }) {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await apiRequest("POST", "/api/admin/settings", {
+      await apiRequest("PUT", "/api/admin/platform-settings", {
         key: "widget_global_styles",
         value: JSON.stringify(styles),
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/platform-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/platform-settings"] });
       toast({ title: "Saved", description: "Widget styles updated successfully." });
-    } catch {
-      toast({ title: "Error", description: "Failed to save widget styles.", variant: "destructive" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Failed to save widget styles.", variant: "destructive" });
     }
     setIsSaving(false);
   };
