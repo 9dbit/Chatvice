@@ -1649,30 +1649,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     };
   };
   
-  // Flat container with frosted glass effect - use box-shadow for border to avoid inset gap at corners
+  // Container - transparent background, content layers handle their own colors
   const frostedGlassContainerStyle: React.CSSProperties = applyEmbedStyles
-    ? widgetIsDark 
-      ? {
-          backgroundColor: 'rgba(24, 24, 27, 0.85)',
-          borderRadius: widgetBorderRadius,
-          border: 'none',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-          overflow: 'hidden',
-          backdropFilter: 'blur(24px) saturate(150%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(150%)',
-          ...getMaximizedStyle(),
-        }
-      : {
-          backgroundColor: 'rgba(255, 255, 255, 0.88)',
-          borderRadius: widgetBorderRadius,
-          border: 'none',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.08)',
-          overflow: 'hidden',
-          backdropFilter: 'blur(24px) saturate(150%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(150%)',
-          color: '#374151',
-          ...getMaximizedStyle(),
-        }
+    ? {
+        backgroundColor: 'transparent',
+        borderRadius: widgetBorderRadius,
+        border: 'none',
+        boxShadow: widgetIsDark 
+          ? '0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)'
+          : '0 8px 32px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.08)',
+        overflow: 'hidden',
+        color: widgetIsDark ? undefined : '#374151',
+        ...getMaximizedStyle(),
+      }
     : {};
   
   // Header style - no border radius needed, container overflow:hidden handles clipping
