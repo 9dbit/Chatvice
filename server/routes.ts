@@ -11247,6 +11247,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     iframe.style.cssText = getWidgetStyles() + "display:block;";
     button.style.display = "none";
     eyeToggleBtn.style.display = "none";
+    hiddenLabel.style.display = "none";
     isOpen = true;
     hideWelcomeBubble();
   }
@@ -11274,10 +11275,14 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
   }
   
   function closeWidget() {
-    iframe.style.display = "none";
-    button.style.display = "flex";
-    if (hasCustomIcon && !isIconHidden) {
-      eyeToggleBtn.style.display = "flex";
+    iframe.style.cssText = getWidgetStyles() + "display:none;";
+    if (!isIconHidden) {
+      button.style.display = "flex";
+      if (hasCustomIcon) {
+        eyeToggleBtn.style.display = "flex";
+      }
+    } else {
+      hiddenLabel.style.display = "block";
     }
     isOpen = false;
     
@@ -11527,7 +11532,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     
     var fullContent = document.getElementById("chatvice-full-content");
     var minimizedState = document.getElementById("chatvice-minimized-state");
-    var hiddenLabel = document.getElementById("chatvice-hidden-label");
+    var hiddenLabel = document.getElementById("chatvice-bubble-hidden-label");
     
     if (welcomeBubbleMinimized) {
       // Show minimized frosted glass state
@@ -11571,6 +11576,22 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
   
   function showWelcomeBubble() {
     if (welcomeBubble && !welcomeBubbleVisible && !isOpen) {
+      // Reset to full expanded state
+      welcomeBubbleMinimized = false;
+      welcomeBubbleHidden = false;
+      var fullContent = document.getElementById("chatvice-full-content");
+      var minimizedState = document.getElementById("chatvice-minimized-state");
+      var bubbleHiddenLabel = document.getElementById("chatvice-bubble-hidden-label");
+      if (fullContent) fullContent.style.display = "block";
+      if (minimizedState) minimizedState.style.display = "none";
+      if (bubbleHiddenLabel) bubbleHiddenLabel.style.display = "none";
+      // Restore container background
+      var isDark = widgetTheme === "dark";
+      welcomeBubble.style.background = isDark ? "rgba(20,20,20,0.6)" : "rgba(255,255,255,0.92)";
+      welcomeBubble.style.backdropFilter = "blur(24px)";
+      welcomeBubble.style.webkitBackdropFilter = "blur(24px)";
+      welcomeBubble.style.boxShadow = "0 4px 20px rgba(0,0,0,0.15)";
+      welcomeBubble.style.overflow = "hidden";
       welcomeBubble.style.display = "block";
       welcomeBubbleVisible = true;
     }
