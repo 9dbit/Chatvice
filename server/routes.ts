@@ -10939,12 +10939,6 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
   app.get("/api/widget/chatvice.js", async (req, res) => {
     // Allow CORS for script loading from any domain
     res.header("Access-Control-Allow-Origin", "*");
-    res.header("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0, s-maxage=0, proxy-revalidate");
-    res.header("Pragma", "no-cache");
-    res.header("Expires", "0");
-    res.header("Surrogate-Control", "no-store");
-    res.header("CDN-Cache-Control", "no-store");
-    res.header("ETag", `"v${Date.now()}"`);
     
     const merchantId = req.query.merchant || "demo";
     // Always use the host where this script is served from, not the origin (which could be external domain)
@@ -11250,7 +11244,6 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     iframe.style.cssText = getWidgetStyles() + "display:block;";
     button.style.display = "none";
     eyeToggleBtn.style.display = "none";
-    hiddenLabel.style.display = "none";
     isOpen = true;
     hideWelcomeBubble();
   }
@@ -11278,23 +11271,12 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
   }
   
   function closeWidget() {
-    iframe.style.cssText = getWidgetStyles() + "display:none;";
-    if (!isIconHidden) {
-      button.style.display = "flex";
-      if (hasCustomIcon) {
-        eyeToggleBtn.style.display = "flex";
-      }
-    } else {
-      hiddenLabel.style.display = "block";
+    iframe.style.display = "none";
+    button.style.display = "flex";
+    if (hasCustomIcon && !isIconHidden) {
+      eyeToggleBtn.style.display = "flex";
     }
     isOpen = false;
-    
-    if (welcomeBubble && !welcomeBubbleVisible) {
-      var shouldReappear = bubbleClosedTime === 0 || (Date.now() - bubbleClosedTime >= reappearInterval);
-      if (shouldReappear) {
-        showWelcomeBubble();
-      }
-    }
   }
   
   button.onclick = function() {
@@ -11517,14 +11499,8 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     }
     
     document.body.appendChild(welcomeBubble);
+    welcomeBubbleVisible = true;
     welcomeBubbleMinimized = false;
-    
-    if (isOpen) {
-      welcomeBubble.style.display = "none";
-      welcomeBubbleVisible = false;
-    } else {
-      welcomeBubbleVisible = true;
-    }
   }
   
   var welcomeBubbleHidden = false;
@@ -11535,7 +11511,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     
     var fullContent = document.getElementById("chatvice-full-content");
     var minimizedState = document.getElementById("chatvice-minimized-state");
-    var hiddenLabel = document.getElementById("chatvice-bubble-hidden-label");
+    var hiddenLabel = document.getElementById("chatvice-hidden-label");
     
     if (welcomeBubbleMinimized) {
       // Show minimized frosted glass state
@@ -11579,22 +11555,6 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
   
   function showWelcomeBubble() {
     if (welcomeBubble && !welcomeBubbleVisible && !isOpen) {
-      // Reset to full expanded state
-      welcomeBubbleMinimized = false;
-      welcomeBubbleHidden = false;
-      var fullContent = document.getElementById("chatvice-full-content");
-      var minimizedState = document.getElementById("chatvice-minimized-state");
-      var bubbleHiddenLabel = document.getElementById("chatvice-bubble-hidden-label");
-      if (fullContent) fullContent.style.display = "block";
-      if (minimizedState) minimizedState.style.display = "none";
-      if (bubbleHiddenLabel) bubbleHiddenLabel.style.display = "none";
-      // Restore container background
-      var isDark = widgetTheme === "dark";
-      welcomeBubble.style.background = isDark ? "rgba(20,20,20,0.6)" : "rgba(255,255,255,0.92)";
-      welcomeBubble.style.backdropFilter = "blur(24px)";
-      welcomeBubble.style.webkitBackdropFilter = "blur(24px)";
-      welcomeBubble.style.boxShadow = "0 4px 20px rgba(0,0,0,0.15)";
-      welcomeBubble.style.overflow = "hidden";
       welcomeBubble.style.display = "block";
       welcomeBubbleVisible = true;
     }
