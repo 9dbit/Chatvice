@@ -16,31 +16,6 @@ import { countryPhoneConfigs, validatePhoneNumber } from "@shared/phoneValidatio
 import chatviceLogoLight from "../assets/chatvice-logo-light.png";
 import chatviceLogoDark from "../assets/chatvice-logo-dark.png";
 
-interface WidgetLayerStyle {
-  enabled: boolean;
-  bgLight: string;
-  bgDark: string;
-  opacity: number;
-  blur: number;
-  borderRadius: number;
-}
-
-interface WidgetGlobalStyles {
-  container: WidgetLayerStyle;
-  header: WidgetLayerStyle;
-  body: WidgetLayerStyle;
-  footer: WidgetLayerStyle;
-  global: {
-    fontSize: number;
-    fontColorLight: string;
-    fontColorDark: string;
-    agentPhotoSize: number;
-    socialIconSize: number;
-    buttonRadius: number;
-    inputRadius: number;
-  };
-}
-
 interface MerchantConfig {
   online: boolean;
   primaryColor: string;
@@ -65,7 +40,6 @@ interface MerchantConfig {
   prechatBannerUrl?: string;
   quickMessageOptions?: string[];
   activeAgentId?: string;
-  widgetGlobalStyles?: WidgetGlobalStyles | null;
 }
 
 interface NotificationSettings {
@@ -1646,22 +1620,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   };
   const containerClasses = getContainerClasses();
   
-  // Global widget styles from admin config
-  const gs = merchantConfig?.widgetGlobalStyles;
-  const gsContainer = gs?.container;
-  const gsHeader = gs?.header;
-  const gsBody = gs?.body;
-  const gsFooter = gs?.footer;
-  const gsGlobal = gs?.global;
-  
   // Consistent border radius throughout widget
-  const widgetBorderRadius = `${gsContainer?.borderRadius ?? 28}px`;
-  const widgetButtonRadius = `${gsGlobal?.buttonRadius ?? 8}px`;
-  const widgetInputRadius = `${gsGlobal?.inputRadius ?? 8}px`;
-  const widgetFontSize = gsGlobal?.fontSize ?? 14;
-  const widgetFontColor = widgetIsDark ? (gsGlobal?.fontColorDark ?? '#e5e7eb') : (gsGlobal?.fontColorLight ?? '#374151');
-  const widgetAgentPhotoSize = gsGlobal?.agentPhotoSize ?? 28;
-  const widgetSocialIconSize = gsGlobal?.socialIconSize ?? 20;
+  const widgetBorderRadius = '28px';
   
   // Maximized dimensions - responsive
   const getMaximizedStyle = (): React.CSSProperties => {
@@ -1689,96 +1649,74 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     };
   };
   
-  // Helper: check if layer is enabled (defaults to true if not set)
-  const isLayerEnabled = (layer?: WidgetLayerStyle) => layer?.enabled !== false;
-
-  // Container - transparent background, content layers handle their own colors
-  const containerEnabled = isLayerEnabled(gsContainer);
-  const containerBg = containerEnabled ? (widgetIsDark ? (gsContainer?.bgDark ?? 'transparent') : (gsContainer?.bgLight ?? 'transparent')) : 'transparent';
-  const containerBlur = containerEnabled ? (gsContainer?.blur ?? 0) : 0;
-  const containerOpacity = containerEnabled ? (gsContainer?.opacity ?? 100) / 100 : 1;
+  // Flat container with frosted glass effect
   const frostedGlassContainerStyle: React.CSSProperties = applyEmbedStyles
-    ? {
-        backgroundColor: containerBg,
-        borderRadius: widgetBorderRadius,
-        border: 'none',
-        boxShadow: widgetIsDark 
-          ? '0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)'
-          : '0 8px 32px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.08)',
-        overflow: 'hidden',
-        color: widgetFontColor,
-        fontSize: `${widgetFontSize}px`,
-        opacity: containerOpacity,
-        ...(containerBlur > 0 ? { backdropFilter: `blur(${containerBlur}px)`, WebkitBackdropFilter: `blur(${containerBlur}px)` } : {}),
-        ...getMaximizedStyle(),
-      }
+    ? widgetIsDark 
+      ? {
+          backgroundColor: 'rgba(24, 24, 27, 0.85)',
+          borderRadius: widgetBorderRadius,
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+          overflow: 'hidden',
+          backdropFilter: 'blur(24px) saturate(150%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(150%)',
+          ...getMaximizedStyle(),
+        }
+      : {
+          backgroundColor: 'rgba(255, 255, 255, 0.88)',
+          borderRadius: widgetBorderRadius,
+          border: '1px solid rgba(0, 0, 0, 0.08)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+          overflow: 'hidden',
+          backdropFilter: 'blur(24px) saturate(150%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(150%)',
+          color: '#374151',
+          ...getMaximizedStyle(),
+        }
     : {};
   
-  // Header style - uses primaryColor as default, admin can override
-  const headerEnabled = isLayerEnabled(gsHeader);
-  const headerBg = headerEnabled ? (widgetIsDark ? (gsHeader?.bgDark ?? primaryColor) : (gsHeader?.bgLight ?? primaryColor)) : primaryColor;
-  const headerBlur = headerEnabled ? (gsHeader?.blur ?? 0) : 0;
-  const headerOpacity = headerEnabled ? (gsHeader?.opacity ?? 100) / 100 : 1;
-  const headerRadius = headerEnabled ? (gsHeader?.borderRadius ?? 0) : 0;
+  // Header style - Default full-width flat style with matching container radius
   const frostedHeaderStyle: React.CSSProperties = applyEmbedStyles
     ? { 
-        backgroundColor: headerBg,
+        backgroundColor: primaryColor,
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-        opacity: headerOpacity,
-        ...(headerBlur > 0 ? { backdropFilter: `blur(${headerBlur}px)`, WebkitBackdropFilter: `blur(${headerBlur}px)` } : {}),
-        ...(headerRadius > 0 ? { borderRadius: `${headerRadius}px` } : {}),
+        borderRadius: `${widgetBorderRadius} ${widgetBorderRadius} 0 0`,
       }
-    : { backgroundColor: headerBg };
+    : { backgroundColor: primaryColor };
   
-  // Body - flat style with admin overrides
-  const bodyEnabled = isLayerEnabled(gsBody);
-  const bodyBgLight = bodyEnabled ? (gsBody?.bgLight ?? 'transparent') : 'transparent';
-  const bodyBgDark = bodyEnabled ? (gsBody?.bgDark ?? 'rgba(24, 24, 27, 0.6)') : 'transparent';
-  const bodyBlur = bodyEnabled ? (gsBody?.blur ?? 16) : 0;
-  const bodyOpacity = bodyEnabled ? (gsBody?.opacity ?? 100) / 100 : 1;
-  const bodyRadius = bodyEnabled ? (gsBody?.borderRadius ?? 0) : 0;
+  // Body - flat with subtle frosted glass
   const frostedBodyStyle: React.CSSProperties = applyEmbedStyles
     ? widgetIsDark
       ? { 
-          backgroundColor: bodyBgDark,
-          ...(bodyBlur > 0 ? { backdropFilter: `blur(${bodyBlur}px)`, WebkitBackdropFilter: `blur(${bodyBlur}px)` } : {}),
-          opacity: bodyOpacity,
-          ...(bodyRadius > 0 ? { borderRadius: `${bodyRadius}px` } : {}),
-          color: widgetFontColor,
+          backgroundColor: 'rgba(24, 24, 27, 0.6)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
         }
       : { 
-          color: widgetFontColor,
-          backgroundColor: bodyBgLight !== 'transparent' ? bodyBgLight : undefined,
-          opacity: bodyOpacity,
-          ...(bodyBlur > 0 && bodyBgLight !== 'transparent' ? { backdropFilter: `blur(${bodyBlur}px)`, WebkitBackdropFilter: `blur(${bodyBlur}px)` } : {}),
-          ...(bodyRadius > 0 ? { borderRadius: `${bodyRadius}px` } : {}),
+          backgroundColor: 'rgba(255, 255, 255, 0.75)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          color: '#374151',
         }
     : {};
 
-  // Footer style - with admin overrides
-  const footerEnabled = isLayerEnabled(gsFooter);
-  const footerBgLight = footerEnabled ? (gsFooter?.bgLight ?? 'rgba(255, 255, 255, 0.8)') : 'transparent';
-  const footerBgDark = footerEnabled ? (gsFooter?.bgDark ?? 'rgba(24, 24, 27, 0.7)') : 'transparent';
-  const footerBlur = footerEnabled ? (gsFooter?.blur ?? 16) : 0;
-  const footerOpacity = footerEnabled ? (gsFooter?.opacity ?? 100) / 100 : 1;
-  const footerRadius = footerEnabled ? (gsFooter?.borderRadius ?? 0) : 0;
+  // Footer style - flat with frosted glass
   const frostedFooterStyle: React.CSSProperties = applyEmbedStyles
     ? widgetIsDark
       ? { 
-          backgroundColor: footerBgDark,
-          ...(footerBlur > 0 ? { backdropFilter: `blur(${footerBlur}px)`, WebkitBackdropFilter: `blur(${footerBlur}px)` } : {}),
-          borderTop: footerEnabled ? '1px solid rgba(255, 255, 255, 0.06)' : undefined,
-          opacity: footerOpacity,
-          ...(footerRadius > 0 ? { borderRadius: `${footerRadius}px` } : {}),
-          color: widgetFontColor,
+          backgroundColor: 'rgba(24, 24, 27, 0.7)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+          borderRadius: `0 0 ${widgetBorderRadius} ${widgetBorderRadius}`,
         }
       : { 
-          backgroundColor: footerBgLight,
-          ...(footerBlur > 0 ? { backdropFilter: `blur(${footerBlur}px)`, WebkitBackdropFilter: `blur(${footerBlur}px)` } : {}),
-          borderTop: footerEnabled ? '1px solid rgba(0, 0, 0, 0.06)' : undefined,
-          color: widgetFontColor,
-          opacity: footerOpacity,
-          ...(footerRadius > 0 ? { borderRadius: `${footerRadius}px` } : {}),
+          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderTop: '1px solid rgba(0, 0, 0, 0.06)',
+          color: '#374151',
+          borderRadius: `0 0 ${widgetBorderRadius} ${widgetBorderRadius}`,
         }
     : {};
 
@@ -2070,10 +2008,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                       href={social.url!}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="rounded-full flex items-center justify-center hover:scale-110 transition-transform overflow-hidden"
+                      className="w-8 h-8 rounded-full flex items-center justify-center hover:scale-110 transition-transform overflow-hidden"
                       style={{ 
-                        width: widgetSocialIconSize + 12,
-                        height: widgetSocialIconSize + 12,
                         backgroundColor: useCustomIcons && social.customIcon ? "transparent" : (iconStyle === "colored" ? social.color : "rgba(255,255,255,0.2)"),
                         boxShadow: '0 5px 8px rgba(0, 0, 0, 0.35)'
                       }}
@@ -2084,27 +2020,27 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                       ) : (
                         <>
                           {social.icon === "instagram" && (
-                            <svg viewBox="0 0 24 24" style={{ width: widgetSocialIconSize, height: widgetSocialIconSize }} className="text-white" fill="currentColor">
+                            <svg viewBox="0 0 24 24" className="w-4 h-4 text-white" fill="currentColor">
                               <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
                             </svg>
                           )}
                           {social.icon === "facebook" && (
-                            <svg viewBox="0 0 24 24" style={{ width: widgetSocialIconSize, height: widgetSocialIconSize }} className="text-white" fill="currentColor">
+                            <svg viewBox="0 0 24 24" className="w-4 h-4 text-white" fill="currentColor">
                               <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                             </svg>
                           )}
                           {social.icon === "telegram" && (
-                            <svg viewBox="0 0 24 24" style={{ width: widgetSocialIconSize, height: widgetSocialIconSize }} className="text-white" fill="currentColor">
+                            <svg viewBox="0 0 24 24" className="w-4 h-4 text-white" fill="currentColor">
                               <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
                             </svg>
                           )}
                           {social.icon === "whatsapp" && (
-                            <svg viewBox="0 0 24 24" style={{ width: widgetSocialIconSize, height: widgetSocialIconSize }} className="text-white" fill="currentColor">
+                            <svg viewBox="0 0 24 24" className="w-4 h-4 text-white" fill="currentColor">
                               <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
                             </svg>
                           )}
                           {social.icon === "discord" && (
-                            <svg viewBox="0 0 24 24" style={{ width: widgetSocialIconSize, height: widgetSocialIconSize }} className="text-white" fill="currentColor">
+                            <svg viewBox="0 0 24 24" className="w-4 h-4 text-white" fill="currentColor">
                               <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z"/>
                             </svg>
                           )}
@@ -2218,12 +2154,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                     backgroundColor: 'rgba(255, 255, 255, 0.08)',
                     border: '1px solid rgba(255, 255, 255, 0.12)',
                     color: '#ffffff',
-                    borderRadius: widgetButtonRadius,
+                    borderRadius: '8px',
                   } : {
                     backgroundColor: 'rgba(255, 255, 255, 0.9)',
                     border: '1px solid rgba(0, 0, 0, 0.1)',
                     color: '#1f2937',
-                    borderRadius: widgetButtonRadius,
+                    borderRadius: '8px',
                   }) : undefined}
                   data-testid="input-customer-name"
                 />
@@ -2251,12 +2187,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                         backgroundColor: 'rgba(255, 255, 255, 0.08)',
                         border: '1px solid rgba(255, 255, 255, 0.12)',
                         color: '#ffffff',
-                        borderRadius: widgetButtonRadius,
+                        borderRadius: '8px',
                       } : {
                         backgroundColor: 'rgba(255, 255, 255, 0.9)',
                         border: '1px solid rgba(0, 0, 0, 0.1)',
                         color: '#1f2937',
-                        borderRadius: widgetButtonRadius,
+                        borderRadius: '8px',
                       }) : undefined}
                     >
                       <SelectValue />
@@ -2266,11 +2202,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                       style={applyEmbedStyles ? (widgetIsDark ? {
                         backgroundColor: 'rgba(30, 30, 30, 0.95)',
                         border: '1px solid rgba(255, 255, 255, 0.12)',
-                        borderRadius: widgetButtonRadius,
+                        borderRadius: '8px',
                       } : {
                         backgroundColor: 'rgba(255, 255, 255, 0.98)',
                         border: '1px solid rgba(0, 0, 0, 0.08)',
-                        borderRadius: widgetButtonRadius,
+                        borderRadius: '8px',
                       }) : undefined}
                     >
                       {countryPhoneConfigs.map((country) => (
@@ -2303,12 +2239,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                       backgroundColor: 'rgba(255, 255, 255, 0.08)',
                       border: '1px solid rgba(255, 255, 255, 0.12)',
                       color: '#ffffff',
-                      borderRadius: widgetButtonRadius,
+                      borderRadius: '8px',
                     } : {
                       backgroundColor: 'rgba(255, 255, 255, 0.9)',
                       border: '1px solid rgba(0, 0, 0, 0.1)',
                       color: '#1f2937',
-                      borderRadius: widgetButtonRadius,
+                      borderRadius: '8px',
                     }) : undefined}
                     data-testid="input-customer-phone"
                   />
@@ -2344,12 +2280,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                     backgroundColor: 'rgba(255, 255, 255, 0.08)',
                     border: '1px solid rgba(255, 255, 255, 0.12)',
                     color: '#ffffff',
-                    borderRadius: widgetButtonRadius,
+                    borderRadius: '8px',
                   } : {
                     backgroundColor: 'rgba(255, 255, 255, 0.9)',
                     border: '1px solid rgba(0, 0, 0, 0.1)',
                     color: '#1f2937',
-                    borderRadius: widgetButtonRadius,
+                    borderRadius: '8px',
                   }) : undefined}
                   data-testid="input-customer-email"
                 />
@@ -2367,11 +2303,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   style={applyEmbedStyles ? (widgetIsDark ? {
                     backgroundColor: 'rgba(255, 255, 255, 0.06)',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: widgetButtonRadius,
+                    borderRadius: '8px',
                   } : {
                     backgroundColor: 'rgba(255, 255, 255, 0.9)',
                     border: '1px solid rgba(0, 0, 0, 0.06)',
-                    borderRadius: widgetButtonRadius,
+                    borderRadius: '8px',
                   }) : undefined}
                 >
                   <p 
@@ -2404,11 +2340,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   style={applyEmbedStyles ? (widgetIsDark ? {
                     backgroundColor: 'rgba(255, 255, 255, 0.06)',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: widgetButtonRadius,
+                    borderRadius: '8px',
                   } : {
                     backgroundColor: 'rgba(255, 255, 255, 0.9)',
                     border: '1px solid rgba(0, 0, 0, 0.06)',
-                    borderRadius: widgetButtonRadius,
+                    borderRadius: '8px',
                   }) : undefined}
                 >
                   <p 
@@ -2428,7 +2364,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 className="w-full"
                 style={applyEmbedStyles ? { 
                   backgroundColor: primaryColor,
-                  borderRadius: widgetButtonRadius,
+                  borderRadius: '8px',
                   border: 'none',
                   color: getContrastColor(primaryColor),
                 } : { backgroundColor: primaryColor }}
@@ -2535,8 +2471,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               >
                 {msg.from !== "user" && (
                   <div
-                    className="rounded-full flex items-center justify-center shrink-0 overflow-hidden"
-                    style={{ backgroundColor: `${primaryColor}20`, width: widgetAgentPhotoSize, height: widgetAgentPhotoSize }}
+                    className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 overflow-hidden"
+                    style={{ backgroundColor: `${primaryColor}20` }}
                   >
                     {msg.from === "supervisor" ? (
                       // Show supervisor photo if available, otherwise headphones icon
@@ -2792,7 +2728,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   )}
                 </div>
                 {msg.from === "user" && (
-                  <div className="rounded-full bg-muted flex items-center justify-center shrink-0" style={{ width: widgetAgentPhotoSize, height: widgetAgentPhotoSize }}>
+                  <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0">
                     <User className="w-3.5 h-3.5" />
                   </div>
                 )}
@@ -2814,8 +2750,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           {sendMessageMutation.isPending && (
             <div className="flex gap-2 justify-start">
               <div
-                className="rounded-full flex items-center justify-center shrink-0 overflow-hidden"
-                style={{ width: widgetAgentPhotoSize, height: widgetAgentPhotoSize, backgroundColor: `${primaryColor}20` }}
+                className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 overflow-hidden"
+                style={{ backgroundColor: `${primaryColor}20` }}
               >
                 {/* Use same logic as header - show supervisor when HUMAN mode, otherwise session's assigned agent */}
                 {sessionInfo?.mode === "HUMAN" && sessionInfo?.supervisorInfo?.photoUrl ? (
@@ -2856,13 +2792,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           style={applyEmbedStyles ? (widgetIsDark ? {
             ...frostedFooterStyle,
             backgroundColor: 'rgba(255, 255, 255, 0.06)',
-            borderRadius: widgetButtonRadius,
+            borderRadius: '8px',
             margin: '8px 8px',
             border: '1px solid rgba(255, 255, 255, 0.08)',
           } : {
             ...frostedFooterStyle,
             backgroundColor: 'rgba(248, 250, 252, 0.9)',
-            borderRadius: widgetButtonRadius,
+            borderRadius: '8px',
             margin: '8px 8px',
             border: '1px solid rgba(0, 0, 0, 0.06)',
           }) : frostedFooterStyle}
@@ -2981,14 +2917,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 WebkitBackdropFilter: 'blur(16px)',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
                 boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
-                borderRadius: widgetInputRadius,
+                borderRadius: '12px',
               } : {
                 backgroundColor: 'rgba(255, 255, 255, 0.95)',
                 backdropFilter: 'blur(16px)',
                 WebkitBackdropFilter: 'blur(16px)',
                 border: '1px solid rgba(0, 0, 0, 0.08)',
                 boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)',
-                borderRadius: widgetInputRadius,
+                borderRadius: '12px',
               }) : undefined}
             >
               <div className="flex flex-col gap-1">
@@ -2996,7 +2932,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   variant="ghost"
                   size="sm"
                   className="justify-start gap-3 h-10"
-                  style={applyEmbedStyles ? { color: widgetIsDark ? 'white' : '#374151', borderRadius: widgetButtonRadius } : undefined}
+                  style={applyEmbedStyles ? { color: widgetIsDark ? 'white' : '#374151', borderRadius: '8px' } : undefined}
                   onClick={() => {
                     fileInputRef.current?.click();
                   }}
@@ -3009,7 +2945,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   variant="ghost"
                   size="sm"
                   className="justify-start gap-3 h-10"
-                  style={applyEmbedStyles ? { color: widgetIsDark ? 'white' : '#374151', borderRadius: widgetButtonRadius } : undefined}
+                  style={applyEmbedStyles ? { color: widgetIsDark ? 'white' : '#374151', borderRadius: '8px' } : undefined}
                   onClick={() => {
                     videoInputRef.current?.click();
                   }}
@@ -3022,7 +2958,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   variant="ghost"
                   size="sm"
                   className="justify-start gap-3 h-10"
-                  style={applyEmbedStyles ? { color: widgetIsDark ? 'white' : '#374151', borderRadius: widgetInputRadius } : undefined}
+                  style={applyEmbedStyles ? { color: widgetIsDark ? 'white' : '#374151', borderRadius: '12px' } : undefined}
                   onClick={() => {
                     documentInputRef.current?.click();
                   }}

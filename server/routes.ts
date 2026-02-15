@@ -3362,12 +3362,6 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         welcomeDescription: merchant.welcomeDescription || "",
         prechatBannerUrl: merchant.prechatBannerUrl || "",
         quickMessageOptions: merchant.quickMessageOptions || [],
-        widgetGlobalStyles: await (async () => {
-          try {
-            const raw = await storage.getPlatformSetting("widget_global_styles");
-            return raw ? JSON.parse(raw) : null;
-          } catch { return null; }
-        })(),
       });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -9527,11 +9521,9 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       if (!key) {
         return res.status(400).json({ error: "Missing key" });
       }
-      const stringValue = typeof value === 'object' ? JSON.stringify(value) : (value || "");
-      await storage.setPlatformSetting(key, stringValue);
+      await storage.setPlatformSetting(key, value || "");
       res.json({ success: true });
     } catch (error) {
-      console.error("Error saving admin setting:", key, error);
       res.status(500).json({ error: "Server error" });
     }
   });
@@ -10359,8 +10351,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       if (!key) {
         return res.status(400).json({ error: "Key is required" });
       }
-      const stringValue = typeof value === 'object' ? JSON.stringify(value) : (value || "");
-      await storage.setPlatformSetting(key, stringValue);
+      await storage.setPlatformSetting(key, value);
       
       // When trial_days is updated, recalculate trialEndsAt for existing trial merchants
       if (key === "trial_days") {
@@ -10921,8 +10912,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         'guide_promo_image_enabled',
         'guide_promo_image_url',
         'merchant_menu_order',
-        'exchange_rate',
-        'widget_global_styles'
+        'exchange_rate'
       ];
       const publicSettings: Record<string, string> = {};
       for (const key of publicKeys) {
