@@ -1683,7 +1683,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       }
     : { backgroundColor: primaryColor };
   
-  // Body - flat with subtle frosted glass
+  // Body - flat style
   const frostedBodyStyle: React.CSSProperties = applyEmbedStyles
     ? widgetIsDark
       ? { 
@@ -1692,9 +1692,6 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           WebkitBackdropFilter: 'blur(16px)',
         }
       : { 
-          backgroundColor: 'rgba(255, 255, 255, 0.75)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
           color: '#374151',
         }
     : {};
