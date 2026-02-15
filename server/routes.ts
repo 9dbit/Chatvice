@@ -3362,6 +3362,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         welcomeDescription: merchant.welcomeDescription || "",
         prechatBannerUrl: merchant.prechatBannerUrl || "",
         quickMessageOptions: merchant.quickMessageOptions || [],
+        widgetGlobalStyles: await (async () => {
+          try {
+            const raw = await storage.getPlatformSetting("widget_global_styles");
+            return raw ? JSON.parse(raw) : null;
+          } catch { return null; }
+        })(),
       });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -10912,7 +10918,8 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         'guide_promo_image_enabled',
         'guide_promo_image_url',
         'merchant_menu_order',
-        'exchange_rate'
+        'exchange_rate',
+        'widget_global_styles'
       ];
       const publicSettings: Record<string, string> = {};
       for (const key of publicKeys) {

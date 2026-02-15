@@ -123,6 +123,8 @@ import {
   BookOpen,
   Star,
   ArrowUpRight,
+  Paintbrush,
+  RotateCcw,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -368,6 +370,7 @@ export default function AdminDashboard() {
     { id: "affiliates", label: "Affiliates", icon: Share2 },
     { id: "withdrawals", label: "Withdrawals", icon: Wallet },
     { id: "knowledge-templates", label: "Knowledge Templates", icon: BookOpen },
+    { id: "widget-styles", label: "Widget Styles", icon: Paintbrush },
     { id: "activity-logs", label: "Activity Logs", icon: Activity },
     { id: "user-data", label: "Customer Data", icon: Users },
     { id: "chat-sessions", label: "Chat Sessions", icon: MessageSquare },
@@ -562,6 +565,8 @@ export default function AdminDashboard() {
             {activeTab === "withdrawals" && <WithdrawalsTab toast={toast} />}
             
             {activeTab === "knowledge-templates" && <KnowledgeTemplatesTab toast={toast} />}
+            
+            {activeTab === "widget-styles" && <WidgetStylesTab toast={toast} />}
             
             {activeTab === "activity-logs" && <ActivityLogsTab toast={toast} />}
             
@@ -12719,6 +12724,466 @@ function AdminUserDataTab({ toast }: { toast: any }) {
 }
 
 // Chat Sessions Tab - View all active chat sessions across merchants for support
+interface WidgetLayerStyle {
+  enabled: boolean;
+  bgLight: string;
+  bgDark: string;
+  opacity: number;
+  blur: number;
+  borderRadius: number;
+}
+
+interface WidgetGlobalStylesData {
+  container: WidgetLayerStyle;
+  header: WidgetLayerStyle;
+  body: WidgetLayerStyle;
+  footer: WidgetLayerStyle;
+  global: {
+    fontSize: number;
+    fontColorLight: string;
+    fontColorDark: string;
+    agentPhotoSize: number;
+    socialIconSize: number;
+    buttonRadius: number;
+    inputRadius: number;
+  };
+}
+
+const DEFAULT_WIDGET_STYLES: WidgetGlobalStylesData = {
+  container: { enabled: true, bgLight: "transparent", bgDark: "transparent", opacity: 100, blur: 0, borderRadius: 28 },
+  header: { enabled: true, bgLight: "#6b5dfc", bgDark: "#6b5dfc", opacity: 100, blur: 0, borderRadius: 0 },
+  body: { enabled: true, bgLight: "transparent", bgDark: "rgba(24,24,27,0.6)", opacity: 100, blur: 16, borderRadius: 0 },
+  footer: { enabled: true, bgLight: "rgba(255,255,255,0.8)", bgDark: "rgba(24,24,27,0.7)", opacity: 100, blur: 16, borderRadius: 0 },
+  global: {
+    fontSize: 14,
+    fontColorLight: "#374151",
+    fontColorDark: "#e5e7eb",
+    agentPhotoSize: 28,
+    socialIconSize: 20,
+    buttonRadius: 8,
+    inputRadius: 8,
+  },
+};
+
+function WidgetStylesTab({ toast }: { toast: any }) {
+  const [styles, setStyles] = useState<WidgetGlobalStylesData>(DEFAULT_WIDGET_STYLES);
+  const [isSaving, setIsSaving] = useState(false);
+  const [previewTheme, setPreviewTheme] = useState<"light" | "dark">("light");
+
+  const { data: platformSettings } = useQuery<Record<string, string>>({
+    queryKey: ["/api/admin/settings"],
+  });
+
+  useEffect(() => {
+    if (platformSettings?.widget_global_styles) {
+      try {
+        const parsed = JSON.parse(platformSettings.widget_global_styles);
+        setStyles({ ...DEFAULT_WIDGET_STYLES, ...parsed, global: { ...DEFAULT_WIDGET_STYLES.global, ...(parsed.global || {}) }, container: { ...DEFAULT_WIDGET_STYLES.container, ...(parsed.container || {}) }, header: { ...DEFAULT_WIDGET_STYLES.header, ...(parsed.header || {}) }, body: { ...DEFAULT_WIDGET_STYLES.body, ...(parsed.body || {}) }, footer: { ...DEFAULT_WIDGET_STYLES.footer, ...(parsed.footer || {}) } });
+      } catch {}
+    }
+  }, [platformSettings]);
+
+  const updateLayer = (layer: "container" | "header" | "body" | "footer", field: string, value: any) => {
+    setStyles(prev => ({ ...prev, [layer]: { ...prev[layer], [field]: value } }));
+  };
+
+  const updateGlobal = (field: string, value: any) => {
+    setStyles(prev => ({ ...prev, global: { ...prev.global, [field]: value } }));
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await apiRequest("POST", "/api/admin/settings", {
+        key: "widget_global_styles",
+        value: JSON.stringify(styles),
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/settings"] });
+      toast({ title: "Saved", description: "Widget styles updated successfully." });
+    } catch {
+      toast({ title: "Error", description: "Failed to save widget styles.", variant: "destructive" });
+    }
+    setIsSaving(false);
+  };
+
+  const handleReset = () => {
+    setStyles(DEFAULT_WIDGET_STYLES);
+  };
+
+  const LayerEditor = ({ label, layer }: { label: string; layer: "container" | "header" | "body" | "footer" }) => {
+    const s = styles[layer];
+    return (
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-3">
+          <CardTitle className="text-sm font-medium">{label} Layer</CardTitle>
+          <Switch
+            checked={s.enabled}
+            onCheckedChange={(v) => updateLayer(layer, "enabled", v)}
+            data-testid={`switch-${layer}-enabled`}
+          />
+        </CardHeader>
+        <CardContent className={`space-y-4 ${!s.enabled ? "opacity-40 pointer-events-none" : ""}`}>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Background (Light)</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={s.bgLight === "transparent" ? "#ffffff" : s.bgLight.startsWith("rgba") ? "#ffffff" : s.bgLight}
+                  onChange={(e) => updateLayer(layer, "bgLight", e.target.value)}
+                  className="w-8 h-8 rounded border cursor-pointer"
+                  data-testid={`color-${layer}-bgLight`}
+                />
+                <Input
+                  value={s.bgLight}
+                  onChange={(e) => updateLayer(layer, "bgLight", e.target.value)}
+                  className="text-xs font-mono"
+                  data-testid={`input-${layer}-bgLight`}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Background (Dark)</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={s.bgDark === "transparent" ? "#000000" : s.bgDark.startsWith("rgba") ? "#18181b" : s.bgDark}
+                  onChange={(e) => updateLayer(layer, "bgDark", e.target.value)}
+                  className="w-8 h-8 rounded border cursor-pointer"
+                  data-testid={`color-${layer}-bgDark`}
+                />
+                <Input
+                  value={s.bgDark}
+                  onChange={(e) => updateLayer(layer, "bgDark", e.target.value)}
+                  className="text-xs font-mono"
+                  data-testid={`input-${layer}-bgDark`}
+                />
+              </div>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground">Opacity</Label>
+              <span className="text-xs text-muted-foreground">{s.opacity}%</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={s.opacity}
+              onChange={(e) => updateLayer(layer, "opacity", parseInt(e.target.value))}
+              className="w-full accent-primary"
+              data-testid={`range-${layer}-opacity`}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground">Blur Radius</Label>
+              <span className="text-xs text-muted-foreground">{s.blur}px</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={50}
+              value={s.blur}
+              onChange={(e) => updateLayer(layer, "blur", parseInt(e.target.value))}
+              className="w-full accent-primary"
+              data-testid={`range-${layer}-blur`}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground">Corner Radius</Label>
+              <span className="text-xs text-muted-foreground">{s.borderRadius}px</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={40}
+              value={s.borderRadius}
+              onChange={(e) => updateLayer(layer, "borderRadius", parseInt(e.target.value))}
+              className="w-full accent-primary"
+              data-testid={`range-${layer}-borderRadius`}
+            />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const previewBg = previewTheme === "dark" ? styles.body.bgDark : styles.body.bgLight;
+  const previewHeaderBg = previewTheme === "dark" ? styles.header.bgDark : styles.header.bgLight;
+  const previewFooterBg = previewTheme === "dark" ? styles.footer.bgDark : styles.footer.bgLight;
+  const previewFontColor = previewTheme === "dark" ? styles.global.fontColorDark : styles.global.fontColorLight;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h2 className="text-xl font-semibold" data-testid="text-widget-styles-title">Widget Style Editor</h2>
+          <p className="text-sm text-muted-foreground">Configure global visual properties for the chat widget iframe across all merchants.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleReset} data-testid="button-reset-styles">
+            <RotateCcw className="w-4 h-4 mr-1" />
+            Reset
+          </Button>
+          <Button onClick={handleSave} disabled={isSaving} data-testid="button-save-styles">
+            {isSaving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
+            Save Styles
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-4">
+          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Layer Settings</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <LayerEditor label="Container" layer="container" />
+            <LayerEditor label="Header" layer="header" />
+            <LayerEditor label="Body" layer="body" />
+            <LayerEditor label="Footer" layer="footer" />
+          </div>
+
+          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mt-6">Global Settings</h3>
+          <Card>
+            <CardContent className="pt-6 space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Font Size (px)</Label>
+                  <Input
+                    type="number"
+                    min={10}
+                    max={20}
+                    value={styles.global.fontSize}
+                    onChange={(e) => updateGlobal("fontSize", parseInt(e.target.value) || 14)}
+                    data-testid="input-global-fontSize"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Agent Photo Size (px)</Label>
+                  <Input
+                    type="number"
+                    min={16}
+                    max={48}
+                    value={styles.global.agentPhotoSize}
+                    onChange={(e) => updateGlobal("agentPhotoSize", parseInt(e.target.value) || 28)}
+                    data-testid="input-global-agentPhotoSize"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Social Icon Size (px)</Label>
+                  <Input
+                    type="number"
+                    min={12}
+                    max={32}
+                    value={styles.global.socialIconSize}
+                    onChange={(e) => updateGlobal("socialIconSize", parseInt(e.target.value) || 20)}
+                    data-testid="input-global-socialIconSize"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Button Radius (px)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={24}
+                    value={styles.global.buttonRadius}
+                    onChange={(e) => updateGlobal("buttonRadius", parseInt(e.target.value) || 8)}
+                    data-testid="input-global-buttonRadius"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Input Radius (px)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={24}
+                    value={styles.global.inputRadius}
+                    onChange={(e) => updateGlobal("inputRadius", parseInt(e.target.value) || 8)}
+                    data-testid="input-global-inputRadius"
+                  />
+                </div>
+              </div>
+              <Separator />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Font Color (Light Theme)</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={styles.global.fontColorLight}
+                      onChange={(e) => updateGlobal("fontColorLight", e.target.value)}
+                      className="w-8 h-8 rounded border cursor-pointer"
+                      data-testid="color-global-fontColorLight"
+                    />
+                    <Input
+                      value={styles.global.fontColorLight}
+                      onChange={(e) => updateGlobal("fontColorLight", e.target.value)}
+                      className="text-xs font-mono"
+                      data-testid="input-global-fontColorLight"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Font Color (Dark Theme)</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={styles.global.fontColorDark}
+                      onChange={(e) => updateGlobal("fontColorDark", e.target.value)}
+                      className="w-8 h-8 rounded border cursor-pointer"
+                      data-testid="color-global-fontColorDark"
+                    />
+                    <Input
+                      value={styles.global.fontColorDark}
+                      onChange={(e) => updateGlobal("fontColorDark", e.target.value)}
+                      className="text-xs font-mono"
+                      data-testid="input-global-fontColorDark"
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Live Preview</h3>
+            <Select value={previewTheme} onValueChange={(v: "light" | "dark") => setPreviewTheme(v)}>
+              <SelectTrigger className="w-24" data-testid="select-preview-theme">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="light">Light</SelectItem>
+                <SelectItem value="dark">Dark</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div
+            className="rounded-lg border p-4"
+            style={{ background: previewTheme === "dark" ? "#1a1a2e" : "#f0f0f5" }}
+            data-testid="widget-preview-container"
+          >
+            <div
+              style={{
+                borderRadius: `${styles.container.borderRadius}px`,
+                overflow: "hidden",
+                opacity: styles.container.opacity / 100,
+                boxShadow: previewTheme === "dark"
+                  ? "0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.1)"
+                  : "0 8px 32px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.08)",
+                width: "100%",
+                maxWidth: 320,
+                margin: "0 auto",
+              }}
+            >
+              {styles.header.enabled && (
+                <div
+                  style={{
+                    backgroundColor: previewHeaderBg,
+                    borderRadius: styles.header.borderRadius > 0 ? `${styles.header.borderRadius}px` : undefined,
+                    opacity: styles.header.opacity / 100,
+                    backdropFilter: styles.header.blur > 0 ? `blur(${styles.header.blur}px)` : undefined,
+                    padding: "10px 14px",
+                    color: "#fff",
+                    fontSize: `${styles.global.fontSize}px`,
+                  }}
+                  data-testid="preview-header"
+                >
+                  <div className="flex items-center gap-2">
+                    <div
+                      style={{
+                        width: styles.global.agentPhotoSize,
+                        height: styles.global.agentPhotoSize,
+                        borderRadius: "50%",
+                        backgroundColor: "rgba(255,255,255,0.3)",
+                      }}
+                    />
+                    <div>
+                      <div className="font-medium text-sm">Agent Name</div>
+                      <div className="text-xs opacity-80">Online</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {styles.body.enabled && (
+                <div
+                  style={{
+                    backgroundColor: previewBg,
+                    opacity: styles.body.opacity / 100,
+                    backdropFilter: styles.body.blur > 0 ? `blur(${styles.body.blur}px)` : undefined,
+                    borderRadius: styles.body.borderRadius > 0 ? `${styles.body.borderRadius}px` : undefined,
+                    padding: "16px 14px",
+                    minHeight: 120,
+                    color: previewFontColor,
+                    fontSize: `${styles.global.fontSize}px`,
+                  }}
+                  data-testid="preview-body"
+                >
+                  <div
+                    style={{
+                      backgroundColor: previewTheme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+                      borderRadius: `${styles.global.buttonRadius}px`,
+                      padding: "8px 12px",
+                      marginBottom: 8,
+                      fontSize: `${styles.global.fontSize - 1}px`,
+                    }}
+                  >
+                    Hello! How can I help?
+                  </div>
+                  <div
+                    style={{
+                      backgroundColor: previewHeaderBg,
+                      borderRadius: `${styles.global.buttonRadius}px`,
+                      padding: "8px 12px",
+                      color: "#fff",
+                      marginLeft: "auto",
+                      width: "fit-content",
+                      fontSize: `${styles.global.fontSize - 1}px`,
+                    }}
+                  >
+                    Hi there!
+                  </div>
+                </div>
+              )}
+
+              {styles.footer.enabled && (
+                <div
+                  style={{
+                    backgroundColor: previewFooterBg,
+                    opacity: styles.footer.opacity / 100,
+                    backdropFilter: styles.footer.blur > 0 ? `blur(${styles.footer.blur}px)` : undefined,
+                    borderRadius: styles.footer.borderRadius > 0 ? `${styles.footer.borderRadius}px` : undefined,
+                    padding: "8px 14px",
+                    color: previewFontColor,
+                  }}
+                  data-testid="preview-footer"
+                >
+                  <div
+                    style={{
+                      backgroundColor: previewTheme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                      borderRadius: `${styles.global.inputRadius}px`,
+                      padding: "6px 10px",
+                      fontSize: `${styles.global.fontSize - 1}px`,
+                      opacity: 0.5,
+                    }}
+                  >
+                    Type a message...
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ChatSessionsTab({ toast }: { toast: any }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSession, setSelectedSession] = useState<any>(null);
