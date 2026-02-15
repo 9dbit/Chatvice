@@ -10946,8 +10946,16 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
   // Cleanup existing widget for same merchant (allows re-initialization)
   var existingIframe = document.getElementById("chatvice-widget-frame");
   var existingButton = document.getElementById("chatvice-widget-button");
+  var existingBubble = document.getElementById("chatvice-welcome-bubble");
+  var existingEyeToggle = document.getElementById("chatvice-eye-toggle");
+  var existingHiddenLabel = document.getElementById("chatvice-hidden-label");
+  var existingAnimStyles = document.getElementById("chatvice-animation-styles");
   if (existingIframe) existingIframe.remove();
   if (existingButton) existingButton.remove();
+  if (existingBubble) existingBubble.remove();
+  if (existingEyeToggle) existingEyeToggle.remove();
+  if (existingHiddenLabel) existingHiddenLabel.remove();
+  if (existingAnimStyles) existingAnimStyles.remove();
   
   var iframe = document.createElement("iframe");
   iframe.src = baseUrl + "/widget/" + merchantId + "?session=" + sessionId + "&showClose=true&embedded=true";
@@ -11175,6 +11183,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
   }
   
   // Fetch merchant config and apply custom styles with retry
+  var configLoaded = false;
   function fetchConfig(retryCount) {
     retryCount = retryCount || 0;
     fetch(baseUrl + "/api/merchant/status/" + merchantId + "?t=" + Date.now())
@@ -11184,6 +11193,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       })
       .then(function(config) { 
         widgetTheme = config.widgetTheme || "light";
+        configLoaded = true;
         updateButtonStyles(config);
         applyAnimations(config);
       })
@@ -11562,6 +11572,13 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
   function initWelcomeBubble() {
     // Prevent multiple initializations
     if (bubbleInitialized) return;
+    
+    // Wait for main config to load first (ensures correct theme)
+    if (!configLoaded) {
+      setTimeout(initWelcomeBubble, 500);
+      return;
+    }
+    
     bubbleInitialized = true;
     
     Promise.all([
