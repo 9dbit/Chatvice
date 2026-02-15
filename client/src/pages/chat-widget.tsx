@@ -1318,6 +1318,42 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     };
   }, [merchantConfig?.primaryColor, merchantConfig?.widgetTheme]);
 
+  useEffect(() => {
+    if ((window as any).fbq) return;
+    const script = document.createElement('script');
+    script.async = true;
+    script.src = 'https://connect.facebook.net/en_US/fbevents.js';
+    script.onload = () => {
+      const fbq = (window as any).fbq;
+      if (fbq) {
+        fbq('init', '1224152862629360');
+        fbq('track', 'PageView');
+      }
+    };
+    document.head.appendChild(script);
+
+    (window as any).fbq = function() {
+      ((window as any).fbq.callMethod
+        ? (window as any).fbq.callMethod.apply((window as any).fbq, arguments)
+        : (window as any).fbq.queue.push(arguments));
+    };
+    const fbq = (window as any).fbq;
+    if (!(window as any)._fbq) (window as any)._fbq = fbq;
+    fbq.push = fbq;
+    fbq.loaded = true;
+    fbq.version = '2.0';
+    fbq.queue = [];
+
+    const noscript = document.createElement('noscript');
+    const img = document.createElement('img');
+    img.height = 1;
+    img.width = 1;
+    img.style.display = 'none';
+    img.src = 'https://www.facebook.com/tr?id=1224152862629360&ev=PageView&noscript=1';
+    noscript.appendChild(img);
+    document.head.appendChild(noscript);
+  }, []);
+
   const positionClass = previewMode ? "absolute" : "fixed";
   
   const FloatingButton = () => {
