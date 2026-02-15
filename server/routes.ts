@@ -11277,6 +11277,13 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       eyeToggleBtn.style.display = "flex";
     }
     isOpen = false;
+    
+    if (welcomeBubble && !welcomeBubbleVisible) {
+      var shouldReappear = bubbleClosedTime === 0 || (Date.now() - bubbleClosedTime >= reappearInterval);
+      if (shouldReappear) {
+        showWelcomeBubble();
+      }
+    }
   }
   
   button.onclick = function() {
@@ -11499,8 +11506,14 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     }
     
     document.body.appendChild(welcomeBubble);
-    welcomeBubbleVisible = true;
     welcomeBubbleMinimized = false;
+    
+    if (isOpen) {
+      welcomeBubble.style.display = "none";
+      welcomeBubbleVisible = false;
+    } else {
+      welcomeBubbleVisible = true;
+    }
   }
   
   var welcomeBubbleHidden = false;

@@ -1324,8 +1324,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
   const positionClass = previewMode ? "absolute" : "fixed";
   
+  const floatingWidgetIsDark = merchantConfig?.widgetTheme === "dark" || document.documentElement.classList.contains('dark');
+  
   const FloatingButton = () => {
     if (embedded || isOpen) return null;
+    
+    if (isExternalEmbed) return null;
     
     if (isWidgetHidden) {
       return (
@@ -1370,14 +1374,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             )}
             <div 
               className={`shadow-xl px-4 pt-3 pb-4 border relative z-10 ${welcomeBubble.promoImageEnabled && welcomeBubble.promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}
-              style={widgetIsDark 
+              style={floatingWidgetIsDark 
                 ? { backgroundColor: 'rgba(30, 30, 30, 0.85)', borderColor: 'rgba(255, 255, 255, 0.15)' }
                 : { backgroundColor: 'rgba(255, 255, 255, 0.92)', borderColor: 'rgba(0, 0, 0, 0.08)', color: '#1f2937' }
               }
             >
               {/* Header row with title and controls aligned */}
               <div className="flex items-center justify-between gap-2 mb-2">
-                <p className="font-semibold text-base" style={widgetIsDark ? { color: '#ffffff' } : { color: '#111827' }} data-testid="text-welcome-headline">
+                <p className="font-semibold text-base" style={floatingWidgetIsDark ? { color: '#ffffff' } : { color: '#111827' }} data-testid="text-welcome-headline">
                   {welcomeBubble.headline}
                 </p>
                 <div className="flex items-center -mr-2">
@@ -1391,7 +1395,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                     }}
                     data-testid="button-minimize-welcome-bubble"
                   >
-                    <Minus className="w-3 h-3" style={widgetIsDark ? { color: '#9ca3af' } : { color: '#6b7280' }} />
+                    <Minus className="w-3 h-3" style={floatingWidgetIsDark ? { color: '#9ca3af' } : { color: '#6b7280' }} />
                   </Button>
                   <Button
                     size="icon"
@@ -1403,12 +1407,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                     }}
                     data-testid="button-close-welcome-bubble"
                   >
-                    <X className="w-3 h-3" style={widgetIsDark ? { color: '#9ca3af' } : { color: '#6b7280' }} />
+                    <X className="w-3 h-3" style={floatingWidgetIsDark ? { color: '#9ca3af' } : { color: '#6b7280' }} />
                   </Button>
                 </div>
               </div>
               <div className="mb-3">
-                <p className="text-[11px]" style={widgetIsDark ? { color: '#9ca3af' } : { color: '#6b7280' }} data-testid="text-welcome-message">
+                <p className="text-[11px]" style={floatingWidgetIsDark ? { color: '#9ca3af' } : { color: '#6b7280' }} data-testid="text-welcome-message">
                   {welcomeBubble.message}
                 </p>
               </div>
