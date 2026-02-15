@@ -123,6 +123,8 @@ import {
   BookOpen,
   Star,
   ArrowUpRight,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -8779,22 +8781,51 @@ function WidgetStyleTab({ toast }: { toast: any }) {
 
             <NumberField label="Corner Radius" value={current.panel.cornerRadiusPx} onChange={(v) => updateField(deviceMode, "panel", "cornerRadiusPx", v)} min={0} max={50} unit="px" />
 
-            <div className="space-y-1.5">
+            <div className="space-y-3">
               <Label className="text-xs text-muted-foreground">Background Color</Label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={current.panel.backgroundColor}
-                  onChange={(e) => updateField(deviceMode, "panel", "backgroundColor", e.target.value)}
-                  className="w-9 h-9 rounded-md border cursor-pointer"
-                  data-testid="input-panel-bg-color"
-                />
-                <Input
-                  value={current.panel.backgroundColor}
-                  onChange={(e) => updateField(deviceMode, "panel", "backgroundColor", e.target.value)}
-                  className="h-9 font-mono text-sm"
-                  data-testid="input-panel-bg-color-text"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Sun className="w-3.5 h-3.5 text-amber-500" />
+                    <Label className="text-xs text-muted-foreground">Light Mode</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={current.panel.backgroundColorLight || "#ffffff"}
+                      onChange={(e) => updateField(deviceMode, "panel", "backgroundColorLight", e.target.value)}
+                      className="w-9 h-9 rounded-md border cursor-pointer"
+                      data-testid="input-panel-bg-color-light"
+                    />
+                    <Input
+                      value={current.panel.backgroundColorLight || "#ffffff"}
+                      onChange={(e) => updateField(deviceMode, "panel", "backgroundColorLight", e.target.value)}
+                      className="h-9 font-mono text-sm"
+                      data-testid="input-panel-bg-color-light-text"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Moon className="w-3.5 h-3.5 text-blue-400" />
+                    <Label className="text-xs text-muted-foreground">Dark Mode</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={current.panel.backgroundColorDark || "#18181b"}
+                      onChange={(e) => updateField(deviceMode, "panel", "backgroundColorDark", e.target.value)}
+                      className="w-9 h-9 rounded-md border cursor-pointer"
+                      data-testid="input-panel-bg-color-dark"
+                    />
+                    <Input
+                      value={current.panel.backgroundColorDark || "#18181b"}
+                      onChange={(e) => updateField(deviceMode, "panel", "backgroundColorDark", e.target.value)}
+                      className="h-9 font-mono text-sm"
+                      data-testid="input-panel-bg-color-dark-text"
+                    />
+                  </div>
+                </div>
               </div>
               <p className="text-xs text-muted-foreground/70">Text opacity will always stay at 100%</p>
             </div>
@@ -8892,61 +8923,74 @@ function WidgetStyleTab({ toast }: { toast: any }) {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Preview</CardTitle>
-          <CardDescription>Approximate representation of current settings</CardDescription>
+          <CardDescription>Light mode and dark mode appearance</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex justify-center p-6 bg-muted/30 rounded-md">
-            <div
-              style={{
-                width: `${Math.min(current.panel.widthPx, 380)}px`,
-                height: `${Math.min(current.panel.heightPx, 400)}px`,
-                borderRadius: `${current.panel.cornerRadiusPx}px`,
-                backgroundColor: `${current.panel.backgroundColor}${Math.round(current.panel.backgroundOpacityPct * 2.55).toString(16).padStart(2, '0')}`,
-                backdropFilter: `blur(${current.panel.blurPx}px)`,
-                border: current.panel.borderEnabled ? `${current.panel.borderThicknessPx}px solid rgba(128,128,128,0.2)` : 'none',
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column' as const,
-                boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
-              }}
-              data-testid="widget-style-preview"
-            >
-              <div
-                style={{
-                  height: `${current.header.heightPx}px`,
-                  backgroundColor: `#7c3aed${Math.round(current.header.backgroundOpacityPct * 2.55).toString(16).padStart(2, '0')}`,
-                  borderRadius: `${current.panel.cornerRadiusPx}px ${current.panel.cornerRadiusPx}px 0 0`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '0 16px',
-                  fontSize: `${current.header.fontSizePx}px`,
-                  color: '#ffffff',
-                  fontWeight: 500,
-                  flexShrink: 0,
-                }}
-              >
-                Chat Widget
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[
+              { mode: "Light Mode", bgColor: current.panel.backgroundColorLight || "#ffffff", containerBg: "#f0f0f0", textColor: "#374151", footerText: "#999", isDark: false },
+              { mode: "Dark Mode", bgColor: current.panel.backgroundColorDark || "#18181b", containerBg: "#0a0a0a", textColor: "#e5e7eb", footerText: "#6b7280", isDark: true },
+            ].map((preview) => (
+              <div key={preview.mode} className="space-y-2">
+                <div className="flex items-center gap-1.5 justify-center">
+                  {preview.isDark ? <Moon className="w-3.5 h-3.5 text-blue-400" /> : <Sun className="w-3.5 h-3.5 text-amber-500" />}
+                  <span className="text-xs font-medium text-muted-foreground">{preview.mode}</span>
+                </div>
+                <div className="flex justify-center p-4 rounded-md" style={{ backgroundColor: preview.containerBg }}>
+                  <div
+                    style={{
+                      width: `${Math.min(current.panel.widthPx, 280)}px`,
+                      height: `${Math.min(current.panel.heightPx, 350)}px`,
+                      borderRadius: `${current.panel.cornerRadiusPx}px`,
+                      backgroundColor: `${preview.bgColor}${Math.round(current.panel.backgroundOpacityPct * 2.55).toString(16).padStart(2, '0')}`,
+                      backdropFilter: `blur(${current.panel.blurPx}px)`,
+                      border: current.panel.borderEnabled ? `${current.panel.borderThicknessPx}px solid ${preview.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}` : 'none',
+                      overflow: 'hidden',
+                      display: 'flex',
+                      flexDirection: 'column' as const,
+                      boxShadow: `0 8px 32px rgba(0,0,0,${preview.isDark ? 0.4 : 0.12})`,
+                    }}
+                    data-testid={`widget-style-preview-${preview.isDark ? 'dark' : 'light'}`}
+                  >
+                    <div
+                      style={{
+                        height: `${current.header.heightPx}px`,
+                        backgroundColor: `#7c3aed${Math.round(current.header.backgroundOpacityPct * 2.55).toString(16).padStart(2, '0')}`,
+                        borderRadius: `${current.panel.cornerRadiusPx}px ${current.panel.cornerRadiusPx}px 0 0`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '0 16px',
+                        fontSize: `${current.header.fontSizePx}px`,
+                        color: '#ffffff',
+                        fontWeight: 500,
+                        flexShrink: 0,
+                      }}
+                    >
+                      Chat Widget
+                    </div>
+                    <div style={{ flex: 1, padding: '12px', fontSize: '11px', color: preview.textColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ opacity: 1 }}>Messages area</span>
+                    </div>
+                    <div
+                      style={{
+                        height: `${current.footer.heightPx}px`,
+                        backgroundColor: preview.isDark ? `rgba(255,255,255,${current.footer.backgroundOpacityPct / 100 * 0.08})` : `rgba(0,0,0,${current.footer.backgroundOpacityPct / 100 * 0.04})`,
+                        borderRadius: `0 0 ${current.panel.cornerRadiusPx}px ${current.panel.cornerRadiusPx}px`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '0 12px',
+                        fontSize: `${current.footer.fontSizePx}px`,
+                        color: preview.footerText,
+                        borderTop: `1px solid ${preview.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
+                        flexShrink: 0,
+                      }}
+                    >
+                      Type a message...
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div style={{ flex: 1, padding: '12px', fontSize: '12px', color: '#666', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ opacity: 1 }}>Messages area (text stays 100% visible)</span>
-              </div>
-              <div
-                style={{
-                  height: `${current.footer.heightPx}px`,
-                  backgroundColor: `rgba(128,128,128,${current.footer.backgroundOpacityPct / 100 * 0.15})`,
-                  borderRadius: `0 0 ${current.panel.cornerRadiusPx}px ${current.panel.cornerRadiusPx}px`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '0 12px',
-                  fontSize: `${current.footer.fontSizePx}px`,
-                  color: '#999',
-                  borderTop: '1px solid rgba(128,128,128,0.1)',
-                  flexShrink: 0,
-                }}
-              >
-                Type a message...
-              </div>
-            </div>
+            ))}
           </div>
         </CardContent>
       </Card>

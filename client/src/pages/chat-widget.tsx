@@ -1644,7 +1644,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     return { r: parseInt(c.slice(0,2), 16) || 0, g: parseInt(c.slice(2,4), 16) || 0, b: parseInt(c.slice(4,6), 16) || 0 };
   };
 
-  const panelBgColor = panelS.backgroundColor || (widgetIsDark ? '#18181b' : '#ffffff');
+  const panelBgColor = widgetIsDark 
+    ? (panelS.backgroundColorDark || panelS.backgroundColor || '#18181b')
+    : (panelS.backgroundColorLight || panelS.backgroundColor || '#ffffff');
   const panelRgb = hexToRgb(panelBgColor);
 
   // Maximized dimensions - responsive
