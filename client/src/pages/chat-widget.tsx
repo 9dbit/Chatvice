@@ -492,6 +492,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     enabled: !!merchantId,
   });
 
+  const { data: widgetStyleSettings } = useQuery<any>({
+    queryKey: ["/api/widget-style"],
+  });
+
   // Sync activeAgentIdRef when merchantConfig loads
   useEffect(() => {
     if (merchantConfig?.activeAgentId) {
@@ -1620,18 +1624,36 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   };
   const containerClasses = getContainerClasses();
   
-  // Consistent border radius throughout widget
-  const widgetBorderRadius = '28px';
-  
+  // Widget style settings - device-specific
+  const isMobileDevice = typeof window !== 'undefined' && window.innerWidth < 768;
+  const ws = widgetStyleSettings?.[isMobileDevice ? 'mobile' : 'desktop'] || widgetStyleSettings?.desktop;
+  const panelS = ws?.panel || {};
+  const headerS = ws?.header || {};
+  const footerS = ws?.footer || {};
+
+  const widgetBorderRadius = `${panelS.cornerRadiusPx ?? 28}px`;
+  const panelBlur = panelS.blurPx ?? 24;
+  const panelOpacity = (panelS.backgroundOpacityPct ?? 88) / 100;
+  const headerOpacity = (headerS.backgroundOpacityPct ?? 100) / 100;
+  const footerOpacity = (footerS.backgroundOpacityPct ?? 80) / 100;
+  const borderEnabled = panelS.borderEnabled !== false;
+  const borderThickness = panelS.borderThicknessPx ?? 1;
+
+  const hexToRgb = (hex: string) => {
+    const c = hex.replace('#', '');
+    return { r: parseInt(c.slice(0,2), 16) || 0, g: parseInt(c.slice(2,4), 16) || 0, b: parseInt(c.slice(4,6), 16) || 0 };
+  };
+
+  const panelBgColor = panelS.backgroundColor || (widgetIsDark ? '#18181b' : '#ffffff');
+  const panelRgb = hexToRgb(panelBgColor);
+
   // Maximized dimensions - responsive
   const getMaximizedStyle = (): React.CSSProperties => {
     if (!isMaximized) return {};
-    // Mobile: fill height below website header (60px), desktop: 20% larger
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-    if (isMobile) {
+    if (isMobileDevice) {
       return {
         position: 'fixed',
-        top: '70px', // Below external website header
+        top: '70px',
         left: '20px',
         right: '20px',
         bottom: '20px',
@@ -1641,83 +1663,83 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         maxHeight: 'calc(100vh - 90px)',
       };
     }
+    const mw = Math.round((panelS.widthPx || 380) * 1.2);
+    const mh = Math.round((panelS.heightPx || 660) * 1.2);
     return {
-      width: '432px', // 360px + 20%
-      height: '624px', // 520px + 20%
+      width: `${mw}px`,
+      height: `${mh}px`,
       maxWidth: 'calc(100vw - 40px)',
-      maxHeight: 'calc(100vh - 90px)',
+      maxHeight: panelS.maxHeightAuto ? 'calc(100vh - 90px)' : `${mh}px`,
     };
   };
   
   // Flat container with frosted glass effect
   const frostedGlassContainerStyle: React.CSSProperties = applyEmbedStyles
-    ? widgetIsDark 
-      ? {
-          backgroundColor: 'rgba(24, 24, 27, 0.85)',
-          borderRadius: widgetBorderRadius,
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-          overflow: 'hidden',
-          backdropFilter: 'blur(24px) saturate(150%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(150%)',
-          ...getMaximizedStyle(),
-        }
-      : {
-          backgroundColor: 'rgba(255, 255, 255, 0.88)',
-          borderRadius: widgetBorderRadius,
-          border: '1px solid rgba(0, 0, 0, 0.08)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
-          overflow: 'hidden',
-          backdropFilter: 'blur(24px) saturate(150%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(150%)',
-          color: '#374151',
-          ...getMaximizedStyle(),
-        }
+    ? {
+        backgroundColor: `rgba(${panelRgb.r}, ${panelRgb.g}, ${panelRgb.b}, ${panelOpacity})`,
+        borderRadius: widgetBorderRadius,
+        border: borderEnabled 
+          ? `${borderThickness}px solid ${widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`
+          : 'none',
+        boxShadow: `0 8px 32px rgba(0,0,0,${widgetIsDark ? 0.4 : 0.12})`,
+        overflow: 'hidden',
+        backdropFilter: `blur(${panelBlur}px) saturate(150%)`,
+        WebkitBackdropFilter: `blur(${panelBlur}px) saturate(150%)`,
+        ...(widgetIsDark ? {} : { color: '#374151' }),
+        ...getMaximizedStyle(),
+      }
     : {};
   
-  // Header style - Default full-width flat style with matching container radius
+  // Header style
+  const headerWidthStyle: React.CSSProperties = headerS.widthMode === 'custom' && headerS.widthPx
+    ? { width: `${headerS.widthPx}px`, marginLeft: 'auto', marginRight: 'auto' }
+    : {};
   const frostedHeaderStyle: React.CSSProperties = applyEmbedStyles
     ? { 
-        backgroundColor: primaryColor,
+        backgroundColor: headerOpacity < 1 ? `${primaryColor}${Math.round(headerOpacity * 255).toString(16).padStart(2, '0')}` : primaryColor,
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
         borderRadius: `${widgetBorderRadius} ${widgetBorderRadius} 0 0`,
+        minHeight: `${headerS.heightPx || 56}px`,
+        fontSize: `${headerS.fontSizePx || 14}px`,
+        ...headerWidthStyle,
       }
     : { backgroundColor: primaryColor };
   
   // Body - flat with subtle frosted glass
+  const bodyBlur = Math.round(panelBlur * 0.67);
   const frostedBodyStyle: React.CSSProperties = applyEmbedStyles
     ? widgetIsDark
       ? { 
-          backgroundColor: 'rgba(24, 24, 27, 0.6)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
+          backgroundColor: `rgba(${panelRgb.r}, ${panelRgb.g}, ${panelRgb.b}, ${panelOpacity * 0.7})`,
+          backdropFilter: `blur(${bodyBlur}px)`,
+          WebkitBackdropFilter: `blur(${bodyBlur}px)`,
         }
       : { 
-          backgroundColor: 'rgba(255, 255, 255, 0.75)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
+          backgroundColor: `rgba(${panelRgb.r}, ${panelRgb.g}, ${panelRgb.b}, ${panelOpacity * 0.85})`,
+          backdropFilter: `blur(${bodyBlur}px)`,
+          WebkitBackdropFilter: `blur(${bodyBlur}px)`,
           color: '#374151',
         }
     : {};
 
-  // Footer style - flat with frosted glass
+  // Footer style
+  const footerWidthStyle: React.CSSProperties = footerS.widthMode === 'custom' && footerS.widthPx
+    ? { width: `${footerS.widthPx}px`, marginLeft: 'auto', marginRight: 'auto' }
+    : {};
   const frostedFooterStyle: React.CSSProperties = applyEmbedStyles
-    ? widgetIsDark
-      ? { 
-          backgroundColor: 'rgba(24, 24, 27, 0.7)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-          borderRadius: `0 0 ${widgetBorderRadius} ${widgetBorderRadius}`,
-        }
-      : { 
-          backgroundColor: 'rgba(255, 255, 255, 0.8)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          borderTop: '1px solid rgba(0, 0, 0, 0.06)',
-          color: '#374151',
-          borderRadius: `0 0 ${widgetBorderRadius} ${widgetBorderRadius}`,
-        }
+    ? {
+        backgroundColor: widgetIsDark 
+          ? `rgba(${panelRgb.r}, ${panelRgb.g}, ${panelRgb.b}, ${footerOpacity * 0.9})`
+          : `rgba(${panelRgb.r}, ${panelRgb.g}, ${panelRgb.b}, ${footerOpacity})`,
+        backdropFilter: `blur(${bodyBlur}px)`,
+        WebkitBackdropFilter: `blur(${bodyBlur}px)`,
+        borderTop: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
+        borderRadius: `0 0 ${widgetBorderRadius} ${widgetBorderRadius}`,
+        minHeight: `${footerS.heightPx || 56}px`,
+        fontSize: `${footerS.fontSizePx || 14}px`,
+        ...(widgetIsDark ? {} : { color: '#374151' }),
+        ...footerWidthStyle,
+      }
     : {};
 
   return (

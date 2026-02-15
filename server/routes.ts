@@ -10391,6 +10391,63 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     }
   });
 
+  app.get("/api/admin/widget-style", requireAdmin, async (req, res) => {
+    try {
+      const raw = await storage.getPlatformSetting("widget_style_settings");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const { WIDGET_STYLE_DEFAULTS } = await import("@shared/schema");
+        const merged = {
+          desktop: { ...WIDGET_STYLE_DEFAULTS.desktop, ...parsed.desktop, panel: { ...WIDGET_STYLE_DEFAULTS.desktop.panel, ...parsed.desktop?.panel }, header: { ...WIDGET_STYLE_DEFAULTS.desktop.header, ...parsed.desktop?.header }, footer: { ...WIDGET_STYLE_DEFAULTS.desktop.footer, ...parsed.desktop?.footer } },
+          mobile: { ...WIDGET_STYLE_DEFAULTS.mobile, ...parsed.mobile, panel: { ...WIDGET_STYLE_DEFAULTS.mobile.panel, ...parsed.mobile?.panel }, header: { ...WIDGET_STYLE_DEFAULTS.mobile.header, ...parsed.mobile?.header }, footer: { ...WIDGET_STYLE_DEFAULTS.mobile.footer, ...parsed.mobile?.footer } },
+        };
+        res.json(merged);
+      } else {
+        const { WIDGET_STYLE_DEFAULTS } = await import("@shared/schema");
+        res.json(WIDGET_STYLE_DEFAULTS);
+      }
+    } catch (error) {
+      console.error("Error getting widget style settings:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.patch("/api/admin/widget-style", requireAdmin, async (req, res) => {
+    try {
+      const { widgetStyleSettingsSchema } = await import("@shared/schema");
+      const validated = widgetStyleSettingsSchema.parse(req.body);
+      await storage.setPlatformSetting("widget_style_settings", JSON.stringify(validated));
+      res.json(validated);
+    } catch (error: any) {
+      if (error.errors) {
+        return res.status(400).json({ error: "Validation failed", details: error.errors });
+      }
+      console.error("Error updating widget style settings:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/widget-style", async (req, res) => {
+    try {
+      const raw = await storage.getPlatformSetting("widget_style_settings");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const { WIDGET_STYLE_DEFAULTS } = await import("@shared/schema");
+        const merged = {
+          desktop: { ...WIDGET_STYLE_DEFAULTS.desktop, ...parsed.desktop, panel: { ...WIDGET_STYLE_DEFAULTS.desktop.panel, ...parsed.desktop?.panel }, header: { ...WIDGET_STYLE_DEFAULTS.desktop.header, ...parsed.desktop?.header }, footer: { ...WIDGET_STYLE_DEFAULTS.desktop.footer, ...parsed.desktop?.footer } },
+          mobile: { ...WIDGET_STYLE_DEFAULTS.mobile, ...parsed.mobile, panel: { ...WIDGET_STYLE_DEFAULTS.mobile.panel, ...parsed.mobile?.panel }, header: { ...WIDGET_STYLE_DEFAULTS.mobile.header, ...parsed.mobile?.header }, footer: { ...WIDGET_STYLE_DEFAULTS.mobile.footer, ...parsed.mobile?.footer } },
+        };
+        res.json(merged);
+      } else {
+        const { WIDGET_STYLE_DEFAULTS } = await import("@shared/schema");
+        res.json(WIDGET_STYLE_DEFAULTS);
+      }
+    } catch (error) {
+      console.error("Error getting widget style:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // Get subscription plans (uses cached utility for consistent data)
   app.get("/api/subscription-plans", async (req, res) => {
     try {
@@ -11049,10 +11106,13 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     // Update eye toggle position after button styles
     updateEyeTogglePosition(config);
     
-    // Also update iframe position with responsive sizing - z-index 100000 (highest)
+    // Also update iframe position with responsive sizing - use widget style settings
+    var wsD = getWS();
+    var pW = wsD && wsD.panel ? wsD.panel.widthPx : 380;
+    var pH = wsD && wsD.panel ? wsD.panel.heightPx : 660;
     var iframePosStyle = isMobile 
       ? "position:fixed;bottom:" + widgetOffset + "px;left:0;right:" + widgetOffset + "px;width:calc(100vw - " + widgetOffset + "px);height:calc(100vh - " + widgetOffset + "px);max-height:calc(100vh - " + widgetOffset + "px);max-width:calc(100vw - " + widgetOffset + "px);border:none;z-index:100000;background:transparent;"
-      : "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:380px;height:550px;border:none;z-index:100000;background:transparent;";
+      : "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:" + pW + "px;height:" + pH + "px;border:none;z-index:100000;background:transparent;";
     iframe.style.cssText = iframePosStyle + "display:" + (isOpen ? "block" : "none") + ";";
   }
   
@@ -11182,16 +11242,25 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     }
   }
   
+  // Widget style settings from admin panel
+  var wsSettings = null;
+  function getWS() {
+    var isMob = window.innerWidth <= 480;
+    if (!wsSettings) return null;
+    return isMob ? (wsSettings.mobile || wsSettings.desktop) : wsSettings.desktop;
+  }
+
   // Fetch merchant config and apply custom styles with retry
   var configLoaded = false;
   function fetchConfig(retryCount) {
     retryCount = retryCount || 0;
-    fetch(baseUrl + "/api/merchant/status/" + merchantId + "?t=" + Date.now())
-      .then(function(response) { 
-        if (!response.ok) throw new Error("HTTP " + response.status);
-        return response.json(); 
-      })
-      .then(function(config) { 
+    // Fetch both merchant config and widget style settings in parallel
+    Promise.all([
+      fetch(baseUrl + "/api/merchant/status/" + merchantId + "?t=" + Date.now()).then(function(r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }),
+      fetch(baseUrl + "/api/widget-style?t=" + Date.now()).then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; })
+    ]).then(function(results) {
+        var config = results[0];
+        if (results[1]) wsSettings = results[1];
         widgetTheme = config.widgetTheme || "light";
         configLoaded = true;
         updateButtonStyles(config);
@@ -11213,29 +11282,49 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     var currentIsMobile = window.innerWidth <= 480;
     var positionStyle = bubblePosition === "left" ? "left:" + widgetOffset + "px;right:auto;" : "right:" + widgetOffset + "px;left:auto;";
     
-    // Frosted glass applied directly on iframe element (same as welcome bubble) - darker background
+    // Get admin-configured style settings
+    var ws = getWS();
+    var pnl = ws ? ws.panel : null;
+    var cornerRadius = pnl ? pnl.cornerRadiusPx : (currentIsMobile ? 16 : 28);
+    var panelW = pnl ? pnl.widthPx : 380;
+    var panelH = pnl ? pnl.heightPx : 660;
+    var blurPx = pnl ? pnl.blurPx : 24;
+    var bgOpacity = pnl ? (pnl.backgroundOpacityPct / 100) : 0.88;
+    var maxHeightAuto = pnl ? pnl.maxHeightAuto : currentIsMobile;
+    var borderOn = pnl ? pnl.borderEnabled : true;
+    var borderW = pnl ? pnl.borderThicknessPx : 1;
+    var bgColor = pnl ? pnl.backgroundColor : "#ffffff";
+    
+    // Parse hex to rgb
+    var hex = bgColor.replace("#", "");
+    var bgR = parseInt(hex.substring(0,2), 16) || 255;
+    var bgG = parseInt(hex.substring(2,4), 16) || 255;
+    var bgB = parseInt(hex.substring(4,6), 16) || 255;
+    
     var isDark = widgetTheme === "dark";
-    var frostedBg = isDark 
-      ? "background:rgba(10,10,10,0.85);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);" 
-      : "background:rgba(255,255,255,0.92);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);";
+    if (isDark && !pnl) { bgR = 10; bgG = 10; bgB = 10; bgOpacity = 0.85; }
+    
+    var frostedBg = "background:rgba(" + bgR + "," + bgG + "," + bgB + "," + bgOpacity + ");backdrop-filter:blur(" + blurPx + "px);-webkit-backdrop-filter:blur(" + blurPx + "px);";
+    var borderStyle = borderOn ? "border:" + borderW + "px solid " + (isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)") + ";" : "border:none;";
+    var shadow = isDark ? "0.3" : "0.2";
     
     if (currentIsMobile) {
-      // Mobile margin from edges
       var mobileMargin = 12;
       if (isMaximized) {
-        // Mobile maximized - slightly larger but still with margins and rounded corners
-        return "position:fixed;bottom:" + mobileMargin + "px;left:" + mobileMargin + "px;right:" + mobileMargin + "px;width:calc(100vw - " + (mobileMargin * 2) + "px);height:calc(100vh - " + (mobileMargin * 2) + "px);border-radius:16px;border:none;z-index:100000;" + frostedBg + "overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.3);";
+        return "position:fixed;bottom:" + mobileMargin + "px;left:" + mobileMargin + "px;right:" + mobileMargin + "px;width:calc(100vw - " + (mobileMargin * 2) + "px);height:calc(100vh - " + (mobileMargin * 2) + "px);border-radius:" + cornerRadius + "px;" + borderStyle + "z-index:100000;" + frostedBg + "overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0," + shadow + ");";
       } else {
-        // Mobile normal - with margins and rounded corners (same as before)
-        return "position:fixed;bottom:" + mobileMargin + "px;left:" + mobileMargin + "px;right:" + mobileMargin + "px;width:calc(100vw - " + (mobileMargin * 2) + "px);height:calc(100vh - 100px);max-height:600px;border-radius:16px;border:none;z-index:100000;" + frostedBg + "overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.3);";
+        var mH = maxHeightAuto ? "max-height:calc(100vh - 100px);" : "max-height:" + panelH + "px;";
+        return "position:fixed;bottom:" + mobileMargin + "px;left:" + mobileMargin + "px;right:" + mobileMargin + "px;width:calc(100vw - " + (mobileMargin * 2) + "px);height:" + panelH + "px;" + mH + "border-radius:" + cornerRadius + "px;" + borderStyle + "z-index:100000;" + frostedBg + "overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0," + shadow + ");";
       }
     } else {
       if (isMaximized) {
-        // Desktop maximized - +20% from normal (660 * 1.2 = 792px) (z-index 100000 - highest)
-        return "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:456px;height:792px;border-radius:16px;border:none;z-index:100000;" + frostedBg + "overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.2);";
+        var maxW = Math.round(panelW * 1.2);
+        var maxH = Math.round(panelH * 1.2);
+        var mxH = maxHeightAuto ? "max-height:calc(100vh - 90px);" : "";
+        return "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:" + maxW + "px;height:" + maxH + "px;" + mxH + "border-radius:" + cornerRadius + "px;" + borderStyle + "z-index:100000;" + frostedBg + "overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0," + shadow + ");";
       } else {
-        // Desktop normal - height +20% (550 -> 660px)
-        return "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:380px;height:660px;border-radius:16px;border:none;z-index:100000;" + frostedBg + "overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.2);";
+        var nmxH = maxHeightAuto ? "max-height:calc(100vh - 90px);" : "";
+        return "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:" + panelW + "px;height:" + panelH + "px;" + nmxH + "border-radius:" + cornerRadius + "px;" + borderStyle + "z-index:100000;" + frostedBg + "overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0," + shadow + ");";
       }
     }
   }

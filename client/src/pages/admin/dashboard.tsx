@@ -371,6 +371,7 @@ export default function AdminDashboard() {
     { id: "activity-logs", label: "Activity Logs", icon: Activity },
     { id: "user-data", label: "Customer Data", icon: Users },
     { id: "chat-sessions", label: "Chat Sessions", icon: MessageSquare },
+    { id: "widget-style", label: "Widget Style", icon: Palette },
     { id: "settings", label: "Settings", icon: Settings },
   ];
 
@@ -546,6 +547,8 @@ export default function AdminDashboard() {
             {activeTab === "transactions" && <TransactionsTab toast={toast} />}
             
             {activeTab === "payment" && <PaymentIntegrationTab toast={toast} />}
+            
+            {activeTab === "widget-style" && <WidgetStyleTab toast={toast} />}
             
             {activeTab === "settings" && <SettingsTab toast={toast} />}
             
@@ -8608,6 +8611,341 @@ function TransactionsTab({ toast }: { toast: any }) {
               <p className="text-sm text-yellow-600 dark:text-yellow-400">
                 {transactions.filter(t => t.status === "pending").length} pending transactions worth ${pendingAmount}. Consider sending payment reminders.
               </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function WidgetStyleTab({ toast }: { toast: any }) {
+  const [deviceMode, setDeviceMode] = useState<"desktop" | "mobile">("desktop");
+  const [saving, setSaving] = useState(false);
+
+  const { data: styleSettings, isLoading } = useQuery<any>({
+    queryKey: ["/api/admin/widget-style"],
+  });
+
+  const [formData, setFormData] = useState<any>(null);
+
+  useEffect(() => {
+    if (styleSettings && !formData) {
+      setFormData(JSON.parse(JSON.stringify(styleSettings)));
+    }
+  }, [styleSettings]);
+
+  const updateField = (section: string, subsection: string, field: string, value: any) => {
+    setFormData((prev: any) => {
+      if (!prev) return prev;
+      const updated = JSON.parse(JSON.stringify(prev));
+      if (!updated[section]) updated[section] = {};
+      if (!updated[section][subsection]) updated[section][subsection] = {};
+      updated[section][subsection][field] = value;
+      return updated;
+    });
+  };
+
+  const handleSave = async () => {
+    if (!formData) return;
+    setSaving(true);
+    try {
+      await apiRequest("PATCH", "/api/admin/widget-style", formData);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/widget-style"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/widget-style"] });
+      toast({ title: "Saved", description: "Widget style settings updated." });
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to save settings.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleReset = () => {
+    if (styleSettings) {
+      setFormData(JSON.parse(JSON.stringify(styleSettings)));
+    }
+  };
+
+  if (isLoading || !formData) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  const current = formData[deviceMode];
+  if (!current) return null;
+
+  const NumberField = ({ label, value, onChange, min, max, unit }: { label: string; value: number; onChange: (v: number) => void; min: number; max: number; unit?: string }) => (
+    <div className="space-y-1.5">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <div className="flex items-center gap-2">
+        <Input
+          type="number"
+          min={min}
+          max={max}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="h-9"
+          data-testid={`input-${label.toLowerCase().replace(/\s+/g, '-')}`}
+        />
+        {unit && <span className="text-xs text-muted-foreground whitespace-nowrap">{unit}</span>}
+      </div>
+    </div>
+  );
+
+  const SliderField = ({ label, value, onChange, min, max, unit }: { label: string; value: number; onChange: (v: number) => void; min: number; max: number; unit?: string }) => (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs text-muted-foreground">{label}</Label>
+        <span className="text-xs font-medium">{value}{unit || ''}</span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+        data-testid={`slider-${label.toLowerCase().replace(/\s+/g, '-')}`}
+      />
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h2 className="text-xl font-semibold">Widget Style Settings</h2>
+          <p className="text-sm text-muted-foreground">Configure chat widget appearance for all merchants</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleReset} data-testid="button-reset-widget-style">
+            <RefreshCw className="w-4 h-4 mr-1" />
+            Reset
+          </Button>
+          <Button onClick={handleSave} disabled={saving} data-testid="button-save-widget-style">
+            {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
+            Save Changes
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-1 p-1 bg-muted rounded-md w-fit">
+        <Button
+          variant={deviceMode === "desktop" ? "default" : "ghost"}
+          size="sm"
+          onClick={() => setDeviceMode("desktop")}
+          data-testid="button-device-desktop"
+        >
+          Desktop
+        </Button>
+        <Button
+          variant={deviceMode === "mobile" ? "default" : "ghost"}
+          size="sm"
+          onClick={() => setDeviceMode("mobile")}
+          data-testid="button-device-mobile"
+        >
+          Mobile
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Chat Panel Dimensions</CardTitle>
+            <CardDescription>Size, shape and visual effects</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <NumberField label="Width" value={current.panel.widthPx} onChange={(v) => updateField(deviceMode, "panel", "widthPx", v)} min={280} max={800} unit="px" />
+              <NumberField label="Height" value={current.panel.heightPx} onChange={(v) => updateField(deviceMode, "panel", "heightPx", v)} min={300} max={1200} unit="px" />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-xs text-muted-foreground">Auto Responsive Max Height</Label>
+                <p className="text-xs text-muted-foreground/70">Panel height adapts to viewport</p>
+              </div>
+              <Switch
+                checked={current.panel.maxHeightAuto}
+                onCheckedChange={(v) => updateField(deviceMode, "panel", "maxHeightAuto", v)}
+                data-testid="switch-max-height-auto"
+              />
+            </div>
+
+            <NumberField label="Corner Radius" value={current.panel.cornerRadiusPx} onChange={(v) => updateField(deviceMode, "panel", "cornerRadiusPx", v)} min={0} max={50} unit="px" />
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Background Color</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={current.panel.backgroundColor}
+                  onChange={(e) => updateField(deviceMode, "panel", "backgroundColor", e.target.value)}
+                  className="w-9 h-9 rounded-md border cursor-pointer"
+                  data-testid="input-panel-bg-color"
+                />
+                <Input
+                  value={current.panel.backgroundColor}
+                  onChange={(e) => updateField(deviceMode, "panel", "backgroundColor", e.target.value)}
+                  className="h-9 font-mono text-sm"
+                  data-testid="input-panel-bg-color-text"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground/70">Text opacity will always stay at 100%</p>
+            </div>
+
+            <SliderField label="Background Transparency" value={current.panel.backgroundOpacityPct} onChange={(v) => updateField(deviceMode, "panel", "backgroundOpacityPct", v)} min={0} max={100} unit="%" />
+
+            <SliderField label="Blur Size" value={current.panel.blurPx} onChange={(v) => updateField(deviceMode, "panel", "blurPx", v)} min={0} max={50} unit="px" />
+
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground">Border</Label>
+              <Switch
+                checked={current.panel.borderEnabled}
+                onCheckedChange={(v) => updateField(deviceMode, "panel", "borderEnabled", v)}
+                data-testid="switch-border-enabled"
+              />
+            </div>
+
+            {current.panel.borderEnabled && (
+              <NumberField label="Border Thickness" value={current.panel.borderThicknessPx} onChange={(v) => updateField(deviceMode, "panel", "borderThicknessPx", v)} min={0} max={10} unit="px" />
+            )}
+          </CardContent>
+        </Card>
+
+        <div className="space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Header Settings</CardTitle>
+              <CardDescription>Top section of the chat panel</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <NumberField label="Height" value={current.header.heightPx} onChange={(v) => updateField(deviceMode, "header", "heightPx", v)} min={30} max={120} unit="px" />
+              
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Width Mode</Label>
+                <Select
+                  value={current.header.widthMode}
+                  onValueChange={(v) => updateField(deviceMode, "header", "widthMode", v)}
+                >
+                  <SelectTrigger className="h-9" data-testid="select-header-width-mode">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Auto (Full Width)</SelectItem>
+                    <SelectItem value="custom">Custom Width</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {current.header.widthMode === "custom" && (
+                <NumberField label="Custom Width" value={current.header.widthPx || current.panel.widthPx} onChange={(v) => updateField(deviceMode, "header", "widthPx", v)} min={100} max={800} unit="px" />
+              )}
+
+              <SliderField label="Background Transparency" value={current.header.backgroundOpacityPct} onChange={(v) => updateField(deviceMode, "header", "backgroundOpacityPct", v)} min={0} max={100} unit="%" />
+
+              <NumberField label="Font Size" value={current.header.fontSizePx} onChange={(v) => updateField(deviceMode, "header", "fontSizePx", v)} min={10} max={32} unit="px" />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Footer Settings</CardTitle>
+              <CardDescription>Bottom section with input area</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <NumberField label="Height" value={current.footer.heightPx} onChange={(v) => updateField(deviceMode, "footer", "heightPx", v)} min={30} max={120} unit="px" />
+              
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Width Mode</Label>
+                <Select
+                  value={current.footer.widthMode}
+                  onValueChange={(v) => updateField(deviceMode, "footer", "widthMode", v)}
+                >
+                  <SelectTrigger className="h-9" data-testid="select-footer-width-mode">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Auto (Full Width)</SelectItem>
+                    <SelectItem value="custom">Custom Width</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {current.footer.widthMode === "custom" && (
+                <NumberField label="Custom Width" value={current.footer.widthPx || current.panel.widthPx} onChange={(v) => updateField(deviceMode, "footer", "widthPx", v)} min={100} max={800} unit="px" />
+              )}
+
+              <SliderField label="Background Transparency" value={current.footer.backgroundOpacityPct} onChange={(v) => updateField(deviceMode, "footer", "backgroundOpacityPct", v)} min={0} max={100} unit="%" />
+
+              <NumberField label="Font Size" value={current.footer.fontSizePx} onChange={(v) => updateField(deviceMode, "footer", "fontSizePx", v)} min={10} max={32} unit="px" />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Preview</CardTitle>
+          <CardDescription>Approximate representation of current settings</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex justify-center p-6 bg-muted/30 rounded-md">
+            <div
+              style={{
+                width: `${Math.min(current.panel.widthPx, 380)}px`,
+                height: `${Math.min(current.panel.heightPx, 400)}px`,
+                borderRadius: `${current.panel.cornerRadiusPx}px`,
+                backgroundColor: `${current.panel.backgroundColor}${Math.round(current.panel.backgroundOpacityPct * 2.55).toString(16).padStart(2, '0')}`,
+                backdropFilter: `blur(${current.panel.blurPx}px)`,
+                border: current.panel.borderEnabled ? `${current.panel.borderThicknessPx}px solid rgba(128,128,128,0.2)` : 'none',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column' as const,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+              }}
+              data-testid="widget-style-preview"
+            >
+              <div
+                style={{
+                  height: `${current.header.heightPx}px`,
+                  backgroundColor: `#7c3aed${Math.round(current.header.backgroundOpacityPct * 2.55).toString(16).padStart(2, '0')}`,
+                  borderRadius: `${current.panel.cornerRadiusPx}px ${current.panel.cornerRadiusPx}px 0 0`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '0 16px',
+                  fontSize: `${current.header.fontSizePx}px`,
+                  color: '#ffffff',
+                  fontWeight: 500,
+                  flexShrink: 0,
+                }}
+              >
+                Chat Widget
+              </div>
+              <div style={{ flex: 1, padding: '12px', fontSize: '12px', color: '#666', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ opacity: 1 }}>Messages area (text stays 100% visible)</span>
+              </div>
+              <div
+                style={{
+                  height: `${current.footer.heightPx}px`,
+                  backgroundColor: `rgba(128,128,128,${current.footer.backgroundOpacityPct / 100 * 0.15})`,
+                  borderRadius: `0 0 ${current.panel.cornerRadiusPx}px ${current.panel.cornerRadiusPx}px`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '0 12px',
+                  fontSize: `${current.footer.fontSizePx}px`,
+                  color: '#999',
+                  borderTop: '1px solid rgba(128,128,128,0.1)',
+                  flexShrink: 0,
+                }}
+              >
+                Type a message...
+              </div>
             </div>
           </div>
         </CardContent>

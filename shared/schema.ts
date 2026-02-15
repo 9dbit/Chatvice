@@ -559,6 +559,95 @@ export const insertLeadSchema = createInsertSchema(leads).omit({ id: true, creat
 export type InsertLead = z.infer<typeof insertLeadSchema>;
 export type Lead = typeof leads.$inferSelect;
 
+const widgetDeviceSettingsSchema = z.object({
+  panel: z.object({
+    widthPx: z.number().min(280).max(800).default(380),
+    heightPx: z.number().min(300).max(1200).default(660),
+    maxHeightAuto: z.boolean().default(false),
+    cornerRadiusPx: z.number().min(0).max(50).default(28),
+    backgroundColor: z.string().default("#ffffff"),
+    backgroundOpacityPct: z.number().min(0).max(100).default(88),
+    blurPx: z.number().min(0).max(50).default(24),
+    borderEnabled: z.boolean().default(true),
+    borderThicknessPx: z.number().min(0).max(10).default(1),
+  }).default({}),
+  header: z.object({
+    heightPx: z.number().min(30).max(120).default(56),
+    widthMode: z.enum(["auto", "custom"]).default("auto"),
+    widthPx: z.number().min(100).max(800).optional(),
+    backgroundOpacityPct: z.number().min(0).max(100).default(100),
+    fontSizePx: z.number().min(10).max(32).default(14),
+  }).default({}),
+  footer: z.object({
+    heightPx: z.number().min(30).max(120).default(56),
+    widthMode: z.enum(["auto", "custom"]).default("auto"),
+    widthPx: z.number().min(100).max(800).optional(),
+    backgroundOpacityPct: z.number().min(0).max(100).default(80),
+    fontSizePx: z.number().min(10).max(32).default(14),
+  }).default({}),
+});
+
+export const widgetStyleSettingsSchema = z.object({
+  desktop: widgetDeviceSettingsSchema.default({}),
+  mobile: widgetDeviceSettingsSchema.default({}),
+});
+
+export type WidgetStyleSettings = z.infer<typeof widgetStyleSettingsSchema>;
+export type WidgetDeviceSettings = z.infer<typeof widgetDeviceSettingsSchema>;
+
+export const WIDGET_STYLE_DEFAULTS: WidgetStyleSettings = {
+  desktop: {
+    panel: {
+      widthPx: 380,
+      heightPx: 660,
+      maxHeightAuto: false,
+      cornerRadiusPx: 28,
+      backgroundColor: "#ffffff",
+      backgroundOpacityPct: 88,
+      blurPx: 24,
+      borderEnabled: true,
+      borderThicknessPx: 1,
+    },
+    header: {
+      heightPx: 56,
+      widthMode: "auto",
+      backgroundOpacityPct: 100,
+      fontSizePx: 14,
+    },
+    footer: {
+      heightPx: 56,
+      widthMode: "auto",
+      backgroundOpacityPct: 80,
+      fontSizePx: 14,
+    },
+  },
+  mobile: {
+    panel: {
+      widthPx: 360,
+      heightPx: 600,
+      maxHeightAuto: true,
+      cornerRadiusPx: 16,
+      backgroundColor: "#ffffff",
+      backgroundOpacityPct: 88,
+      blurPx: 24,
+      borderEnabled: true,
+      borderThicknessPx: 1,
+    },
+    header: {
+      heightPx: 52,
+      widthMode: "auto",
+      backgroundOpacityPct: 100,
+      fontSizePx: 13,
+    },
+    footer: {
+      heightPx: 52,
+      widthMode: "auto",
+      backgroundOpacityPct: 80,
+      fontSizePx: 13,
+    },
+  },
+};
+
 export const agentWidgetSettingsSchema = z.object({
   primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color").optional(),
   widgetTheme: z.enum(["light", "dark"]).optional(),
