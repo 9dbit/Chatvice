@@ -5,17 +5,31 @@ import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { execSync } from "child_process";
 import { PaymentWebhookHandler, type PaymentWebhookPayload } from './kompasPayWebhook';
 import { isPaymentGatewayConfigured, getActiveGatewayName } from './kompasPayClient';
 import { storage } from './storage';
 import { extractFAQContent } from './crawler';
 import { processKnowledgeBase } from './embeddings';
 
+function killPortProcess(port: number): void {
+  try {
+    execSync(`fuser -k ${port}/tcp 2>/dev/null || true`, { stdio: 'ignore' });
+    console.log(`Cleared any existing process on port ${port}`);
+  } catch {
+    // ignore errors
+  }
+}
+
+const appPort = parseInt(process.env.PORT || "5000", 10);
+killPortProcess(appPort);
+
 // Global error handlers for deployment stability
 process.on('uncaughtException', (error: NodeJS.ErrnoException) => {
   console.error('Uncaught Exception:', error);
   if (error.code === 'EADDRINUSE') {
-    console.error('Port already in use - will retry via httpServer error handler');
+    console.error('Port already in use - killing and retrying...');
+    killPortProcess(appPort);
     return;
   }
   process.exit(1);
@@ -209,11 +223,12 @@ app.use((req, res, next) => {
   // Add error handler for httpServer
   httpServer.on('error', (error: NodeJS.ErrnoException) => {
     if (error.code === 'EADDRINUSE') {
-      console.error(`Port ${port} is already in use. Retrying...`);
+      console.error(`Port ${port} is already in use. Killing and retrying...`);
+      killPortProcess(port);
       setTimeout(() => {
         httpServer.close();
         httpServer.listen({ port, host: "0.0.0.0" });
-      }, 1000);
+      }, 2000);
     } else {
       console.error('Server error:', error);
       process.exit(1);
