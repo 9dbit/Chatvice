@@ -1611,7 +1611,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       return "absolute inset-0 w-full h-full overflow-hidden flex flex-col";
     }
     if (embedded) {
-      return "w-full h-full overflow-hidden flex flex-col";
+      return "w-full h-full min-h-screen overflow-hidden flex flex-col";
     }
     if (isFullscreen) {
       return `fixed inset-4 z-50 animate-in fade-in duration-300 overflow-hidden flex flex-col`;
@@ -1675,18 +1675,25 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     };
   };
   
+  // Direct access (embedded but not in iframe) = full screen, no frosted glass border/shadow
+  const isDirectAccess = embedded && !isExternalEmbed && (typeof window !== 'undefined' && window.parent === window);
+  
   // Flat container with frosted glass effect
   const frostedGlassContainerStyle: React.CSSProperties = applyEmbedStyles
     ? {
-        backgroundColor: `rgba(${panelRgb.r}, ${panelRgb.g}, ${panelRgb.b}, ${panelOpacity})`,
-        borderRadius: widgetBorderRadius,
-        border: borderEnabled 
+        backgroundColor: isDirectAccess 
+          ? panelBgColor 
+          : `rgba(${panelRgb.r}, ${panelRgb.g}, ${panelRgb.b}, ${panelOpacity})`,
+        borderRadius: isDirectAccess ? '0' : widgetBorderRadius,
+        border: isDirectAccess ? 'none' : (borderEnabled 
           ? `${borderThickness}px solid ${widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`
-          : 'none',
-        boxShadow: `0 8px 32px rgba(0,0,0,${widgetIsDark ? 0.4 : 0.12})`,
+          : 'none'),
+        boxShadow: isDirectAccess ? 'none' : `0 8px 32px rgba(0,0,0,${widgetIsDark ? 0.4 : 0.12})`,
         overflow: 'hidden',
-        backdropFilter: `blur(${panelBlur}px) saturate(150%)`,
-        WebkitBackdropFilter: `blur(${panelBlur}px) saturate(150%)`,
+        ...(isDirectAccess ? {} : {
+          backdropFilter: `blur(${panelBlur}px) saturate(150%)`,
+          WebkitBackdropFilter: `blur(${panelBlur}px) saturate(150%)`,
+        }),
         ...(widgetIsDark ? {} : { color: '#374151' }),
         ...getMaximizedStyle(),
       }
@@ -1700,7 +1707,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     ? { 
         backgroundColor: headerOpacity < 1 ? `${primaryColor}${Math.round(headerOpacity * 255).toString(16).padStart(2, '0')}` : primaryColor,
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-        borderRadius: `${widgetBorderRadius} ${widgetBorderRadius} 0 0`,
+        borderRadius: isDirectAccess ? '0' : `${widgetBorderRadius} ${widgetBorderRadius} 0 0`,
         minHeight: `${headerS.heightPx || 56}px`,
         fontSize: `${headerS.fontSizePx || 14}px`,
         ...headerWidthStyle,
@@ -1736,7 +1743,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         backdropFilter: `blur(${bodyBlur}px)`,
         WebkitBackdropFilter: `blur(${bodyBlur}px)`,
         borderTop: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
-        borderRadius: `0 0 ${widgetBorderRadius} ${widgetBorderRadius}`,
+        borderRadius: isDirectAccess ? '0' : `0 0 ${widgetBorderRadius} ${widgetBorderRadius}`,
         minHeight: `${footerS.heightPx || 56}px`,
         fontSize: `${footerS.fontSizePx || 14}px`,
         ...(widgetIsDark ? {} : { color: '#374151' }),

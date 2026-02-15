@@ -165,13 +165,12 @@ function MainRouter() {
           const isExternalEmbed = urlParams.get("showClose") === "true";
           
           if (isExternalEmbed) {
-            // No wrapper - direct transparent background handled in ChatWidget
             return <ChatWidget merchantId={params.merchantId} embedded />;
           }
           
-          // Regular embedded widget with centered display
+          // Direct access - full screen widget, no centering wrapper
           return (
-            <div className="min-h-screen flex items-center justify-center bg-muted">
+            <div className="h-screen w-screen overflow-hidden">
               <ChatWidget merchantId={params.merchantId} embedded />
             </div>
           );
