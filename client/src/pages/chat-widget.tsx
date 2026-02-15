@@ -1649,14 +1649,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     };
   };
   
-  // Flat container with frosted glass effect
+  // Flat container with frosted glass effect - use box-shadow for border to avoid inset gap at corners
   const frostedGlassContainerStyle: React.CSSProperties = applyEmbedStyles
     ? widgetIsDark 
       ? {
           backgroundColor: 'rgba(24, 24, 27, 0.85)',
           borderRadius: widgetBorderRadius,
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+          border: 'none',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1)',
           overflow: 'hidden',
           backdropFilter: 'blur(24px) saturate(150%)',
           WebkitBackdropFilter: 'blur(24px) saturate(150%)',
@@ -1665,8 +1665,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       : {
           backgroundColor: 'rgba(255, 255, 255, 0.88)',
           borderRadius: widgetBorderRadius,
-          border: '1px solid rgba(0, 0, 0, 0.08)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+          border: 'none',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.08)',
           overflow: 'hidden',
           backdropFilter: 'blur(24px) saturate(150%)',
           WebkitBackdropFilter: 'blur(24px) saturate(150%)',
