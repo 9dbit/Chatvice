@@ -10939,6 +10939,9 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
   app.get("/api/widget/chatvice.js", async (req, res) => {
     // Allow CORS for script loading from any domain
     res.header("Access-Control-Allow-Origin", "*");
+    res.header("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.header("Pragma", "no-cache");
+    res.header("Expires", "0");
     
     const merchantId = req.query.merchant || "demo";
     // Always use the host where this script is served from, not the origin (which could be external domain)
