@@ -968,8 +968,8 @@ async function handleLogin() {
           <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-5 md:w-full gap-1">
             <TabsTrigger value="appearance" className="whitespace-nowrap px-4">Appearance</TabsTrigger>
             <TabsTrigger value="prechat" className="whitespace-nowrap px-4">Pre-Chat</TabsTrigger>
-            <TabsTrigger value="embed" className="whitespace-nowrap px-4">Embed</TabsTrigger>
             <TabsTrigger value="social" className="whitespace-nowrap px-4">Social & Links</TabsTrigger>
+            <TabsTrigger value="embed" className="whitespace-nowrap px-4">Embed</TabsTrigger>
             <TabsTrigger value="security" className="flex items-center gap-2 whitespace-nowrap px-4">
               Security
               {!canUseAdvancedFeatures && <Lock className="w-3 h-3" />}
@@ -2305,9 +2305,8 @@ async function handleLogin() {
                   {embedType === "widget" ? widgetEmbedCode : iframeEmbedCode}
                 </pre>
                 <Button
-                  variant="outline"
                   size="sm"
-                  className="absolute top-2 right-2"
+                  className="absolute top-2 right-2 chatvice-gradient-btn text-white border-0 min-w-[120px]"
                   onClick={() => handleCopy(
                     embedType === "widget" ? widgetEmbedCode : iframeEmbedCode,
                     embedType === "widget" ? "Widget code" : "iFrame code"
@@ -2322,14 +2321,33 @@ async function handleLogin() {
                   ) : (
                     <>
                       <Copy className="w-4 h-4 mr-1" />
-                      Copy
+                      Copy Code
                     </>
                   )}
                 </Button>
               </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                 <Globe className="w-4 h-4" />
-                <span>Your widget URL: <code className="bg-muted px-2 py-0.5 rounded">{baseUrl}/widget/{merchantId}</code></span>
+                <span>Your widget URL:</span>
+                <code className="bg-muted px-2 py-0.5 rounded text-xs break-all">{baseUrl}/widget/{merchantId}</code>
+                <Button
+                  size="sm"
+                  className="chatvice-gradient-btn text-white border-0"
+                  onClick={() => handleCopy(`${baseUrl}/widget/${merchantId}`, "Widget URL")}
+                  data-testid="button-copy-widget-url"
+                >
+                  {copied === "Widget URL" ? (
+                    <>
+                      <Check className="w-4 h-4 mr-1" />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 mr-1" />
+                      Copy URL
+                    </>
+                  )}
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -2648,15 +2666,21 @@ async function handleLogin() {
                         </Button>
                       </div>
                       <Button
-                        variant="outline"
+                        className="chatvice-gradient-btn text-white border-0 min-w-[120px]"
                         onClick={() => secretKey && handleCopy(secretKey, "Secret key")}
                         disabled={!secretKey}
                         data-testid="button-copy-secret"
                       >
                         {copied === "Secret key" ? (
-                          <Check className="w-4 h-4" />
+                          <>
+                            <Check className="w-4 h-4 mr-1" />
+                            Copied
+                          </>
                         ) : (
-                          <Copy className="w-4 h-4" />
+                          <>
+                            <Copy className="w-4 h-4 mr-1" />
+                            Copy Key
+                          </>
                         )}
                       </Button>
                       <Button
@@ -2801,9 +2825,8 @@ async function handleLogin() {
                       {identityVerificationCode}
                     </pre>
                     <Button
-                      variant="outline"
                       size="sm"
-                      className="absolute top-2 right-2"
+                      className="absolute top-2 right-2 chatvice-gradient-btn text-white border-0 min-w-[120px]"
                       onClick={() => handleCopy(identityVerificationCode, "Verification code")}
                       data-testid="button-copy-verification"
                     >
@@ -2815,7 +2838,7 @@ async function handleLogin() {
                       ) : (
                         <>
                           <Copy className="w-4 h-4 mr-1" />
-                          Copy
+                          Copy Code
                         </>
                       )}
                     </Button>
