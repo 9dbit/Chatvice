@@ -10939,9 +10939,12 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
   app.get("/api/widget/chatvice.js", async (req, res) => {
     // Allow CORS for script loading from any domain
     res.header("Access-Control-Allow-Origin", "*");
-    res.header("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.header("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0, s-maxage=0, proxy-revalidate");
     res.header("Pragma", "no-cache");
     res.header("Expires", "0");
+    res.header("Surrogate-Control", "no-store");
+    res.header("CDN-Cache-Control", "no-store");
+    res.header("ETag", `"v${Date.now()}"`);
     
     const merchantId = req.query.merchant || "demo";
     // Always use the host where this script is served from, not the origin (which could be external domain)
