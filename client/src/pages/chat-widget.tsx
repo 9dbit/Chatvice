@@ -1303,7 +1303,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   useEffect(() => {
     if (!merchantConfig) return;
     const isDark = merchantConfig.widgetTheme === "dark";
-    const themeColor = isDark ? '#18181b' : (merchantConfig.primaryColor || '#ffffff');
+    const themeColor = isDark ? '#000000' : '#ffffff';
     let meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
     if (!meta) {
       meta = document.createElement('meta');
@@ -1665,7 +1665,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       return "absolute inset-0 w-full h-full overflow-hidden flex flex-col";
     }
     if (embedded) {
-      return "w-full h-full min-h-screen overflow-hidden flex flex-col";
+      return "w-full h-screen overflow-hidden flex flex-col";
     }
     if (isFullscreen) {
       return `fixed inset-4 z-50 animate-in fade-in duration-300 overflow-hidden flex flex-col`;
