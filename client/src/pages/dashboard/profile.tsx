@@ -12,8 +12,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from "@/hooks/use-toast";
 import { 
   User, Building, Globe, Phone, MapPin, Mail, Calendar, 
-  Edit, Save, X, CheckCircle, Loader2, Lock, KeyRound, Eye, EyeOff, ShieldCheck
+  Edit, Save, X, CheckCircle, Loader2, Lock, KeyRound, Eye, EyeOff, ShieldCheck, Link2, Unlink2, AlertTriangle
 } from "lucide-react";
+import { SiGoogle, SiGithub } from "react-icons/si";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import type { Merchant } from "@shared/schema";
 
 const PHONE_VALIDATION_RULES: Record<string, { 
@@ -96,10 +98,56 @@ export default function ProfilePage() {
   const [showNewPw, setShowNewPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
 
+  const [unlinkConfirm, setUnlinkConfirm] = useState<{ provider: string; label: string } | null>(null);
+
   const { data: merchant, isLoading } = useQuery<Merchant>({
     queryKey: ["/api/merchant", merchantId],
     enabled: !!merchantId,
   });
+
+  const { data: authMethods, isLoading: authMethodsLoading } = useQuery<{
+    email: string;
+    hasPassword: boolean;
+    googleLinked: boolean;
+    githubLinked: boolean;
+  }>({
+    queryKey: ["/api/merchant/auth-methods"],
+    enabled: !!merchantId,
+  });
+
+  const unlinkMutation = useMutation({
+    mutationFn: async (provider: string) => {
+      const res = await apiRequest("POST", "/api/merchant/auth-methods/unlink", { provider });
+      return res.json();
+    },
+    onSuccess: (_data, provider) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/auth-methods"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
+      toast({ title: `${provider.charAt(0).toUpperCase() + provider.slice(1)} disconnected`, description: "Login method has been removed from your account." });
+      setUnlinkConfirm(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to unlink method", variant: "destructive" });
+      setUnlinkConfirm(null);
+    },
+  });
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const linked = params.get("linked");
+    if (linked) {
+      toast({ title: `${linked.charAt(0).toUpperCase() + linked.slice(1)} connected`, description: `Your ${linked} account has been linked successfully.` });
+      window.history.replaceState({}, "", window.location.pathname);
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/auth-methods"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
+    }
+    const error = params.get("error");
+    if (error) {
+      const message = params.get("message") || "An error occurred";
+      toast({ title: "Linking Failed", description: message, variant: "destructive" });
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   useEffect(() => {
     if (merchant) {
@@ -213,6 +261,7 @@ export default function ProfilePage() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/auth-methods"] });
       toast({
         title: "Password changed",
         description: "Your password has been updated successfully.",
@@ -305,7 +354,7 @@ export default function ProfilePage() {
     });
   };
 
-  const isOAuthAccount = !!(merchant?.googleId || merchant?.githubId);
+  const isOAuthAccount = authMethods ? !authMethods.hasPassword : !!(merchant?.googleId || merchant?.githubId);
 
   return (
     <div className="space-y-6" data-testid="profile-page">
@@ -763,8 +812,183 @@ export default function ProfilePage() {
               {isOAuthAccount ? "Set Password" : "Change Password"}
             </Button>
           </div>
+
+          <Separator />
+
+          <div className="space-y-3">
+            <Label className="text-sm font-medium flex items-center gap-2">
+              <Link2 className="w-4 h-4 text-muted-foreground" />
+              Login Methods
+            </Label>
+            <p className="text-sm text-muted-foreground">
+              Connect multiple login options to your account for easier access.
+            </p>
+
+            {authMethodsLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-14 w-full" />
+                <Skeleton className="h-14 w-full" />
+                <Skeleton className="h-14 w-full" />
+              </div>
+            ) : authMethods ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between flex-wrap gap-2 border rounded-md p-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-md bg-muted">
+                      <Mail className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Email & Password</p>
+                      <p className="text-xs text-muted-foreground">
+                        {authMethods.hasPassword ? "Password set" : "No password set"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {authMethods.hasPassword ? (
+                      <>
+                        <Badge variant="secondary" data-testid="badge-password-connected">Connected</Badge>
+                        {((authMethods.googleLinked ? 1 : 0) + (authMethods.githubLinked ? 1 : 0)) >= 1 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setUnlinkConfirm({ provider: "password", label: "Email & Password" })}
+                            data-testid="button-unlink-password"
+                          >
+                            <Unlink2 className="w-3 h-3 mr-1" />
+                            Remove
+                          </Button>
+                        )}
+                      </>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPasswordChangeOpen(true)}
+                        data-testid="button-set-password"
+                      >
+                        <KeyRound className="w-3 h-3 mr-1" />
+                        Set Password
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between flex-wrap gap-2 border rounded-md p-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-md bg-muted">
+                      <SiGoogle className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Google</p>
+                      <p className="text-xs text-muted-foreground">
+                        {authMethods.googleLinked ? "Connected" : "Not connected"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {authMethods.googleLinked ? (
+                      <>
+                        <Badge variant="secondary" data-testid="badge-google-connected">Connected</Badge>
+                        {((authMethods.hasPassword ? 1 : 0) + (authMethods.githubLinked ? 1 : 0)) >= 1 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setUnlinkConfirm({ provider: "google", label: "Google" })}
+                            data-testid="button-unlink-google"
+                          >
+                            <Unlink2 className="w-3 h-3 mr-1" />
+                            Disconnect
+                          </Button>
+                        )}
+                      </>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { window.location.href = "/api/auth/google?link=true"; }}
+                        data-testid="button-link-google"
+                      >
+                        <Link2 className="w-3 h-3 mr-1" />
+                        Connect
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between flex-wrap gap-2 border rounded-md p-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-md bg-muted">
+                      <SiGithub className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">GitHub</p>
+                      <p className="text-xs text-muted-foreground">
+                        {authMethods.githubLinked ? "Connected" : "Not connected"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {authMethods.githubLinked ? (
+                      <>
+                        <Badge variant="secondary" data-testid="badge-github-connected">Connected</Badge>
+                        {((authMethods.hasPassword ? 1 : 0) + (authMethods.googleLinked ? 1 : 0)) >= 1 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setUnlinkConfirm({ provider: "github", label: "GitHub" })}
+                            data-testid="button-unlink-github"
+                          >
+                            <Unlink2 className="w-3 h-3 mr-1" />
+                            Disconnect
+                          </Button>
+                        )}
+                      </>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { window.location.href = "/api/auth/github?link=true"; }}
+                        data-testid="button-link-github"
+                      >
+                        <Link2 className="w-3 h-3 mr-1" />
+                        Connect
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!unlinkConfirm} onOpenChange={(open) => { if (!open) setUnlinkConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Remove Login Method
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to disconnect <span className="font-medium">{unlinkConfirm?.label}</span> from your account? 
+              You won't be able to use it to sign in anymore.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-unlink">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground"
+              onClick={() => { if (unlinkConfirm) unlinkMutation.mutate(unlinkConfirm.provider); }}
+              disabled={unlinkMutation.isPending}
+              data-testid="button-confirm-unlink"
+            >
+              {unlinkMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Unlink2 className="w-4 h-4 mr-2" />}
+              Disconnect
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={passwordChangeOpen} onOpenChange={(open) => {
         if (!open) {

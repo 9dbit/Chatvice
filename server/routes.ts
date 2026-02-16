@@ -2200,8 +2200,20 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       maxAge: 10 * 60 * 1000, // 10 minutes
       path: "/",
     });
+
+    // If query param ?link=true AND user is logged in, store linking intent
+    const isLinking = req.query.link === "true" && !!req.session.merchantId;
+    if (isLinking) {
+      res.cookie("oauth_link_merchant", req.session.merchantId!, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "lax",
+        maxAge: 10 * 60 * 1000,
+        path: "/",
+      });
+    }
     
-    console.log("Google OAuth initiated - state:", state);
+    console.log("Google OAuth initiated - state:", state, "linking:", isLinking);
     
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${clientId}` +
@@ -2299,6 +2311,28 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       
       console.log("Google user info:", JSON.stringify(googleUser, null, 2));
 
+      // Check if this is a linking flow (merchant already logged in, wants to add Google)
+      const linkingMerchantId = req.cookies?.oauth_link_merchant;
+      res.clearCookie("oauth_link_merchant", { path: "/" });
+
+      if (linkingMerchantId) {
+        // Linking mode: attach Google ID to existing merchant
+        const existingWithGoogle = await storage.getMerchantByGoogleId(googleUser.id);
+        if (existingWithGoogle && existingWithGoogle.id !== linkingMerchantId) {
+          return res.redirect("/dashboard/profile?error=google_already_linked&message=This Google account is already linked to another merchant.");
+        }
+        await storage.updateMerchant(linkingMerchantId, {
+          googleId: googleUser.id,
+          profilePhotoUrl: googleUser.picture || undefined,
+        });
+        req.session.save((err) => {
+          if (err) console.error("Session save error:", err);
+          res.redirect("/dashboard/profile?linked=google");
+        });
+        return;
+      }
+
+      // Normal login/register flow
       // Check if merchant exists with this Google ID
       let merchant = await storage.getMerchantByGoogleId(googleUser.id);
       console.log("Existing merchant by Google ID:", merchant ? merchant.id : "not found");
@@ -2413,6 +2447,18 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     
     // Store state in session for CSRF protection
     req.session.oauthState = state;
+
+    // If query param ?link=true AND user is logged in, store linking intent
+    const isLinking = req.query.link === "true" && !!req.session.merchantId;
+    if (isLinking) {
+      res.cookie("oauth_link_merchant_gh", req.session.merchantId!, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "lax",
+        maxAge: 10 * 60 * 1000,
+        path: "/",
+      });
+    }
     
     const authUrl = `https://github.com/login/oauth/authorize?` +
       `client_id=${clientId}` +
@@ -2527,12 +2573,33 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
       const githubId = githubUser.id.toString();
 
+      // Check if this is a linking flow
+      const linkingMerchantId = req.cookies?.oauth_link_merchant_gh;
+      res.clearCookie("oauth_link_merchant_gh", { path: "/" });
+
+      if (linkingMerchantId) {
+        const existingWithGithub = await storage.getMerchantByGithubId(githubId);
+        if (existingWithGithub && existingWithGithub.id !== linkingMerchantId) {
+          return res.redirect("/dashboard/profile?error=github_already_linked&message=This GitHub account is already linked to another merchant.");
+        }
+        await storage.updateMerchant(linkingMerchantId, {
+          githubId: githubId,
+          profilePhotoUrl: githubUser.avatar_url || undefined,
+        });
+        req.session.save((err) => {
+          if (err) console.error("Session save error:", err);
+          res.redirect("/dashboard/profile?linked=github");
+        });
+        return;
+      }
+
+      // Normal login/register flow
       // Check if merchant exists with this GitHub ID
       let merchant = await storage.getMerchantByGithubId(githubId);
       
       if (!merchant) {
         // Check if merchant exists with this email
-        const existingMerchant = await storage.getMerchantByEmail(userEmail);
+        const existingMerchant = await storage.getMerchantByEmail(userEmail!);
         
         if (existingMerchant) {
           // Only allow linking if the account has no password (OAuth-only account)
@@ -3545,6 +3612,65 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       res.json({ success: true });
     } catch (error) {
       console.error("Change password error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get current auth methods for the merchant
+  app.get("/api/merchant/auth-methods", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+
+      res.json({
+        email: merchant.email,
+        hasPassword: !!(merchant.password && merchant.password !== ""),
+        googleLinked: !!merchant.googleId,
+        githubLinked: !!merchant.githubId,
+      });
+    } catch (error) {
+      console.error("Get auth methods error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Unlink an auth method (google, github, or password)
+  app.post("/api/merchant/auth-methods/unlink", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { provider } = req.body;
+
+      if (!["google", "github", "password"].includes(provider)) {
+        return res.status(400).json({ error: "Invalid provider" });
+      }
+
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+
+      const hasPassword = !!(merchant.password && merchant.password !== "");
+      const hasGoogle = !!merchant.googleId;
+      const hasGithub = !!merchant.githubId;
+      const methodCount = (hasPassword ? 1 : 0) + (hasGoogle ? 1 : 0) + (hasGithub ? 1 : 0);
+
+      if (methodCount <= 1) {
+        return res.status(400).json({ error: "Cannot remove your only login method. Link another method first." });
+      }
+
+      if (provider === "google") {
+        if (!hasGoogle) return res.status(400).json({ error: "Google is not linked" });
+        await storage.updateMerchant(merchantId, { googleId: null });
+      } else if (provider === "github") {
+        if (!hasGithub) return res.status(400).json({ error: "GitHub is not linked" });
+        await storage.updateMerchant(merchantId, { githubId: null });
+      } else if (provider === "password") {
+        if (!hasPassword) return res.status(400).json({ error: "No password set" });
+        await storage.updateMerchant(merchantId, { password: "" });
+      }
+
+      res.json({ success: true, message: `${provider} login method removed` });
+    } catch (error) {
+      console.error("Unlink auth method error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
