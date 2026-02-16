@@ -2504,16 +2504,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </div>
 
           {/* Static footer - does not scroll */}
-          <div className="shrink-0 px-4 pb-3 pt-2" style={applyEmbedStyles ? { backgroundColor: widgetIsDark ? '#18181b' : '#ffffff' } : undefined}>
+          <div className="shrink-0 px-3 pt-2" style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))', backgroundColor: widgetIsDark ? '#18181b' : '#ffffff' }}>
             <div 
-              className="p-3 rounded-md text-center"
+              className="p-4 rounded-2xl text-center"
               style={{
-                backgroundColor: '#ffffff',
-                border: '1px solid rgba(0, 0, 0, 0.08)',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 40%, #d946ef 70%, #8b5cf6 100%)',
+                boxShadow: '0 2px 8px rgba(124,58,237,0.25)',
               }}
             >
-              <p className="text-xs font-semibold mb-1 chatvice-gradient-text">
+              <p className="text-sm font-bold mb-1.5" style={{ color: '#ffffff' }}>
                 Keep connect using Chatvice Platform
               </p>
               <div className="flex items-center justify-center gap-2">
@@ -2521,18 +2520,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   href="/chat/login" 
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs font-medium hover:underline chatvice-gradient-text"
+                  className="text-sm font-bold hover:underline"
+                  style={{ color: '#ffffff' }}
                   data-testid="link-signup-chatvice"
                 >
                   Sign Up Free
                 </a>
-                <span className="text-xs" style={{ color: '#9ca3af' }}>|</span>
+                <span className="text-sm font-bold" style={{ color: 'rgba(255,255,255,0.6)' }}>|</span>
                 <a 
                   href="/chat/login" 
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs hover:underline"
-                  style={{ color: '#6b7280' }}
+                  className="text-sm font-bold hover:underline"
+                  style={{ color: 'rgba(255,255,255,0.85)' }}
                   data-testid="link-login-chatvice"
                 >
                   Login
@@ -2541,10 +2541,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             </div>
             
             {/* Powered by Chatvice branding */}
-            <div className="flex items-center justify-center gap-1.5 mt-2">
+            <div className="flex items-center justify-center gap-1.5 mt-2.5 pb-1">
               <span 
                 className="text-[10px]"
-                style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#6b7280' } : undefined}
+                style={{ color: widgetIsDark ? '#ffffff' : '#6b7280' }}
               >Powered by</span>
               <a 
                 href="https://chatvice.app" 
