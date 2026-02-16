@@ -1309,12 +1309,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       meta.name = 'theme-color';
       document.head.appendChild(meta);
     }
-    meta.content = themeColor;
-    return () => {
-      if (meta && meta.parentNode) {
-        meta.parentNode.removeChild(meta);
-      }
-    };
+    meta.setAttribute('content', themeColor);
   }, [merchantConfig?.primaryColor, merchantConfig?.widgetTheme]);
 
   useEffect(() => {
