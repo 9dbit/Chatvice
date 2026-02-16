@@ -3576,7 +3576,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(400).json({ error: "Email already in use by another account" });
       }
       
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const crypto = require("crypto");
+      const otp = crypto.randomInt(100000, 999999).toString();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
       
       await storage.updateMerchant(merchantId, { 
@@ -3587,6 +3588,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       
       const sent = await sendEmailChangeOtp(newEmail, otp);
       if (!sent) {
+        await storage.updateMerchant(merchantId, { 
+          pendingEmail: null, emailChangeOtp: null, emailChangeOtpExpiresAt: null 
+        });
         return res.status(500).json({ error: "Failed to send verification code. Please try again." });
       }
       

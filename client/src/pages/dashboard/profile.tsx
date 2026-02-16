@@ -8,14 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { 
   User, Building, Globe, Phone, MapPin, Mail, Calendar, 
-  Edit, Save, X, CheckCircle, Loader2 
+  Edit, Save, X, CheckCircle, Loader2, Lock, KeyRound, Eye, EyeOff, ShieldCheck
 } from "lucide-react";
 import type { Merchant } from "@shared/schema";
 
-// Phone validation rules per country code
 const PHONE_VALIDATION_RULES: Record<string, { 
   pattern: RegExp; 
   minLength: number; 
@@ -47,7 +47,7 @@ const PHONE_VALIDATION_RULES: Record<string, {
 
 function validatePhoneByCountry(phone: string, countryCode: string): { valid: boolean; message: string } {
   const cleanPhone = phone.replace(/[\s\-\(\)]/g, "");
-  if (!cleanPhone) return { valid: true, message: "" }; // Optional field
+  if (!cleanPhone) return { valid: true, message: "" };
   if (!/^[0-9]+$/.test(cleanPhone)) return { valid: false, message: "Nomor telepon hanya boleh berisi angka" };
   
   const rule = PHONE_VALIDATION_RULES[countryCode];
@@ -81,6 +81,20 @@ export default function ProfilePage() {
     city: "",
     officialDomain: "",
   });
+
+  const [emailChangeState, setEmailChangeState] = useState<"idle" | "form" | "otp">("idle");
+  const [newEmail, setNewEmail] = useState("");
+  const [emailPassword, setEmailPassword] = useState("");
+  const [emailOtp, setEmailOtp] = useState("");
+  const [showEmailPassword, setShowEmailPassword] = useState(false);
+
+  const [passwordChangeOpen, setPasswordChangeOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
 
   const { data: merchant, isLoading } = useQuery<Merchant>({
     queryKey: ["/api/merchant", merchantId],
@@ -127,8 +141,97 @@ export default function ProfilePage() {
     },
   });
 
+  const requestEmailChangeMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/merchant/change-email/request", {
+        newEmail,
+        password: emailPassword,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      setEmailChangeState("otp");
+      toast({
+        title: "Verification code sent",
+        description: `A 6-digit code has been sent to ${newEmail}`,
+      });
+    },
+    onError: async (error: any) => {
+      let msg = "Something went wrong. Please try again.";
+      try {
+        if (error?.message) msg = error.message;
+      } catch {}
+      toast({
+        title: "Failed to send code",
+        description: msg,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const verifyEmailChangeMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/merchant/change-email/verify", {
+        otp: emailOtp,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
+      setEmailChangeState("idle");
+      setNewEmail("");
+      setEmailPassword("");
+      setEmailOtp("");
+      toast({
+        title: "Email changed",
+        description: "Your account email has been updated successfully.",
+      });
+    },
+    onError: async (error: any) => {
+      let msg = "Invalid or expired code. Please try again.";
+      try {
+        if (error?.message) msg = error.message;
+      } catch {}
+      toast({
+        title: "Verification failed",
+        description: msg,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const changePasswordMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/merchant/change-password", {
+        currentPassword,
+        newPassword,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      setPasswordChangeOpen(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      toast({
+        title: "Password changed",
+        description: "Your password has been updated successfully.",
+      });
+    },
+    onError: async (error: any) => {
+      let msg = "Something went wrong. Please try again.";
+      try {
+        if (error?.message) msg = error.message;
+      } catch {}
+      toast({
+        title: "Failed to change password",
+        description: msg,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleSave = () => {
-    // Validate phone number before saving
     if (formData.phone) {
       const phoneValidation = validatePhoneByCountry(formData.phone, formData.phoneCountryCode);
       if (!phoneValidation.valid) {
@@ -160,6 +263,22 @@ export default function ProfilePage() {
     setIsEditing(false);
   };
 
+  const handlePasswordSubmit = () => {
+    if (!currentPassword) {
+      toast({ title: "Required", description: "Enter your current password.", variant: "destructive" });
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast({ title: "Too short", description: "New password must be at least 6 characters.", variant: "destructive" });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Mismatch", description: "New password and confirmation don't match.", variant: "destructive" });
+      return;
+    }
+    changePasswordMutation.mutate();
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -186,9 +305,11 @@ export default function ProfilePage() {
     });
   };
 
+  const isOAuthAccount = !!(merchant?.googleId || merchant?.githubId);
+
   return (
     <div className="space-y-6" data-testid="profile-page">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-profile-title">Business Profile</h1>
           <p className="text-muted-foreground">
@@ -296,7 +417,7 @@ export default function ProfilePage() {
                 <Globe className="w-4 h-4" />
                 Official Domain
               </Label>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <p className="font-medium" data-testid="text-official-domain">
                   {formData.officialDomain || "-"}
                 </p>
@@ -446,6 +567,329 @@ export default function ProfilePage() {
           </div>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-primary" />
+            Account Security
+          </CardTitle>
+          <CardDescription>
+            Manage your email address and password
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-muted-foreground" />
+                  Email Address
+                </Label>
+                <p className="text-sm text-muted-foreground mt-1" data-testid="text-security-email">
+                  {merchant?.email}
+                </p>
+              </div>
+              {emailChangeState === "idle" && (
+                <Button
+                  variant="outline"
+                  onClick={() => setEmailChangeState("form")}
+                  data-testid="button-change-email"
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  Change Email
+                </Button>
+              )}
+            </div>
+
+            {emailChangeState === "form" && (
+              <div className="border rounded-md p-4 space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="new-email" className="text-sm">New Email Address</Label>
+                  <Input
+                    id="new-email"
+                    type="email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    placeholder="new@example.com"
+                    data-testid="input-new-email"
+                  />
+                </div>
+                {!isOAuthAccount && (
+                  <div className="space-y-2">
+                    <Label htmlFor="email-password" className="text-sm">Confirm Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="email-password"
+                        type={showEmailPassword ? "text" : "password"}
+                        value={emailPassword}
+                        onChange={(e) => setEmailPassword(e.target.value)}
+                        placeholder="Enter your current password"
+                        data-testid="input-email-confirm-password"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0"
+                        onClick={() => setShowEmailPassword(!showEmailPassword)}
+                        data-testid="button-toggle-email-password"
+                      >
+                        {showEmailPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => requestEmailChangeMutation.mutate()}
+                    disabled={requestEmailChangeMutation.isPending || !newEmail || (!isOAuthAccount && !emailPassword)}
+                    data-testid="button-send-otp"
+                  >
+                    {requestEmailChangeMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Mail className="w-4 h-4 mr-2" />
+                    )}
+                    Send Verification Code
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setEmailChangeState("idle");
+                      setNewEmail("");
+                      setEmailPassword("");
+                    }}
+                    data-testid="button-cancel-email-change"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {emailChangeState === "otp" && (
+              <div className="border rounded-md p-4 space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Enter the 6-digit verification code sent to <span className="font-medium text-foreground">{newEmail}</span>
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="email-otp" className="text-sm">Verification Code</Label>
+                  <Input
+                    id="email-otp"
+                    value={emailOtp}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                      setEmailOtp(val);
+                    }}
+                    placeholder="000000"
+                    maxLength={6}
+                    className="text-center text-lg tracking-widest font-mono"
+                    data-testid="input-email-otp"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => verifyEmailChangeMutation.mutate()}
+                    disabled={verifyEmailChangeMutation.isPending || emailOtp.length !== 6}
+                    data-testid="button-verify-otp"
+                  >
+                    {verifyEmailChangeMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                    )}
+                    Verify & Change Email
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setEmailChangeState("idle");
+                      setNewEmail("");
+                      setEmailPassword("");
+                      setEmailOtp("");
+                    }}
+                    data-testid="button-cancel-otp"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Code expires in 10 minutes.{" "}
+                  <button
+                    type="button"
+                    className="text-primary underline"
+                    onClick={() => {
+                      setEmailOtp("");
+                      requestEmailChangeMutation.mutate();
+                    }}
+                    disabled={requestEmailChangeMutation.isPending}
+                    data-testid="button-resend-otp"
+                  >
+                    {requestEmailChangeMutation.isPending ? "Sending..." : "Resend code"}
+                  </button>
+                </p>
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
+          {!isOAuthAccount && (
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-muted-foreground" />
+                  Password
+                </Label>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Last changed: Unknown
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setPasswordChangeOpen(true)}
+                data-testid="button-change-password"
+              >
+                <KeyRound className="w-4 h-4 mr-2" />
+                Change Password
+              </Button>
+            </div>
+          )}
+
+          {isOAuthAccount && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="secondary">
+                {merchant?.googleId ? "Google" : "GitHub"} Account
+              </Badge>
+              <p className="text-sm text-muted-foreground">
+                Password management is not available for OAuth accounts.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={passwordChangeOpen} onOpenChange={(open) => {
+        if (!open) {
+          setPasswordChangeOpen(false);
+          setCurrentPassword("");
+          setNewPassword("");
+          setConfirmPassword("");
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="w-5 h-5" />
+              Change Password
+            </DialogTitle>
+            <DialogDescription>
+              Enter your current password and choose a new one.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="current-password">Current Password</Label>
+              <div className="relative">
+                <Input
+                  id="current-password"
+                  type={showCurrentPw ? "text" : "password"}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  data-testid="input-current-password"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0"
+                  onClick={() => setShowCurrentPw(!showCurrentPw)}
+                  data-testid="button-toggle-current-pw"
+                >
+                  {showCurrentPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New Password</Label>
+              <div className="relative">
+                <Input
+                  id="new-password"
+                  type={showNewPw ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  data-testid="input-new-password"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0"
+                  onClick={() => setShowNewPw(!showNewPw)}
+                  data-testid="button-toggle-new-pw"
+                >
+                  {showNewPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+              </div>
+              {newPassword && newPassword.length < 6 && (
+                <p className="text-xs text-destructive">Must be at least 6 characters</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">Confirm New Password</Label>
+              <div className="relative">
+                <Input
+                  id="confirm-password"
+                  type={showConfirmPw ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  data-testid="input-confirm-password"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0"
+                  onClick={() => setShowConfirmPw(!showConfirmPw)}
+                  data-testid="button-toggle-confirm-pw"
+                >
+                  {showConfirmPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+              </div>
+              {confirmPassword && confirmPassword !== newPassword && (
+                <p className="text-xs text-destructive">Passwords don't match</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPasswordChangeOpen(false);
+                setCurrentPassword("");
+                setNewPassword("");
+                setConfirmPassword("");
+              }}
+              data-testid="button-cancel-password-change"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handlePasswordSubmit}
+              disabled={changePasswordMutation.isPending || !currentPassword || newPassword.length < 6 || newPassword !== confirmPassword}
+              data-testid="button-save-password"
+            >
+              {changePasswordMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              Update Password
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
