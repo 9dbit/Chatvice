@@ -3513,8 +3513,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const merchantId = req.session.merchantId!;
       const { currentPassword, newPassword } = req.body;
       
-      if (!currentPassword || !newPassword) {
-        return res.status(400).json({ error: "Current password and new password required" });
+      if (!newPassword) {
+        return res.status(400).json({ error: "New password is required" });
       }
       
       if (newPassword.length < 6) {
@@ -3526,9 +3526,17 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(404).json({ error: "Merchant not found" });
       }
       
-      const valid = await verifyPassword(currentPassword, merchant.password);
-      if (!valid) {
-        return res.status(401).json({ error: "Current password is incorrect" });
+      const isOAuth = !!(merchant.googleId || merchant.githubId);
+      const hasExistingPassword = !!merchant.password;
+      
+      if (hasExistingPassword && !isOAuth) {
+        if (!currentPassword) {
+          return res.status(400).json({ error: "Current password is required" });
+        }
+        const valid = await verifyPassword(currentPassword, merchant.password);
+        if (!valid) {
+          return res.status(401).json({ error: "Current password is incorrect" });
+        }
       }
       
       const hashedPassword = await hashPassword(newPassword);
@@ -3550,17 +3558,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(400).json({ error: "Valid email address required" });
       }
       
-      if (!password) {
-        return res.status(400).json({ error: "Password is required to change email" });
-      }
-      
       const merchant = await storage.getMerchant(merchantId);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
       
-      const isOAuth = merchant.googleId || merchant.githubId;
+      const isOAuth = !!(merchant.googleId || merchant.githubId);
       if (!isOAuth) {
+        if (!password) {
+          return res.status(400).json({ error: "Password is required to change email" });
+        }
         const validPw = await verifyPassword(password, merchant.password);
         if (!validPw) {
           return res.status(401).json({ error: "Password is incorrect" });

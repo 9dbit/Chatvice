@@ -264,7 +264,7 @@ export default function ProfilePage() {
   };
 
   const handlePasswordSubmit = () => {
-    if (!currentPassword) {
+    if (!isOAuthAccount && !currentPassword) {
       toast({ title: "Required", description: "Enter your current password.", variant: "destructive" });
       return;
     }
@@ -735,38 +735,34 @@ export default function ProfilePage() {
 
           <Separator />
 
-          {!isOAuthAccount && (
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div>
-                <Label className="text-sm font-medium flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-muted-foreground" />
-                  Password
-                </Label>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Last changed: Unknown
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => setPasswordChangeOpen(true)}
-                data-testid="button-change-password"
-              >
-                <KeyRound className="w-4 h-4 mr-2" />
-                Change Password
-              </Button>
-            </div>
-          )}
-
-          {isOAuthAccount && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant="secondary">
-                {merchant?.googleId ? "Google" : "GitHub"} Account
-              </Badge>
-              <p className="text-sm text-muted-foreground">
-                Password management is not available for OAuth accounts.
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <Lock className="w-4 h-4 text-muted-foreground" />
+                Password
+              </Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                {isOAuthAccount ? (
+                  <span className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="secondary">
+                      {merchant?.googleId ? "Google" : "GitHub"} Account
+                    </Badge>
+                    You can set a password to also login with email
+                  </span>
+                ) : (
+                  "Secure your account with a strong password"
+                )}
               </p>
             </div>
-          )}
+            <Button
+              variant="outline"
+              onClick={() => setPasswordChangeOpen(true)}
+              data-testid="button-change-password"
+            >
+              <KeyRound className="w-4 h-4 mr-2" />
+              {isOAuthAccount ? "Set Password" : "Change Password"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -782,35 +778,39 @@ export default function ProfilePage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <KeyRound className="w-5 h-5" />
-              Change Password
+              {isOAuthAccount ? "Set Password" : "Change Password"}
             </DialogTitle>
             <DialogDescription>
-              Enter your current password and choose a new one.
+              {isOAuthAccount 
+                ? "Set a password so you can also login with your email and password."
+                : "Enter your current password and choose a new one."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="current-password">Current Password</Label>
-              <div className="relative">
-                <Input
-                  id="current-password"
-                  type={showCurrentPw ? "text" : "password"}
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  data-testid="input-current-password"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0"
-                  onClick={() => setShowCurrentPw(!showCurrentPw)}
-                  data-testid="button-toggle-current-pw"
-                >
-                  {showCurrentPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </Button>
+            {!isOAuthAccount && (
+              <div className="space-y-2">
+                <Label htmlFor="current-password">Current Password</Label>
+                <div className="relative">
+                  <Input
+                    id="current-password"
+                    type={showCurrentPw ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    data-testid="input-current-password"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0"
+                    onClick={() => setShowCurrentPw(!showCurrentPw)}
+                    data-testid="button-toggle-current-pw"
+                  >
+                    {showCurrentPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="new-password">New Password</Label>
               <div className="relative">
@@ -877,7 +877,7 @@ export default function ProfilePage() {
             </Button>
             <Button
               onClick={handlePasswordSubmit}
-              disabled={changePasswordMutation.isPending || !currentPassword || newPassword.length < 6 || newPassword !== confirmPassword}
+              disabled={changePasswordMutation.isPending || (!isOAuthAccount && !currentPassword) || newPassword.length < 6 || newPassword !== confirmPassword}
               data-testid="button-save-password"
             >
               {changePasswordMutation.isPending ? (
