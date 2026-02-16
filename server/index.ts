@@ -22,14 +22,19 @@ function killPortProcess(port: number): void {
 }
 
 const appPort = parseInt(process.env.PORT || "5000", 10);
-killPortProcess(appPort);
+if (process.env.NODE_ENV !== "production") {
+  killPortProcess(appPort);
+}
 
 // Global error handlers for deployment stability
 process.on('uncaughtException', (error: NodeJS.ErrnoException) => {
   console.error('Uncaught Exception:', error);
   if (error.code === 'EADDRINUSE') {
-    console.error('Port already in use - killing and retrying...');
-    killPortProcess(appPort);
+    console.error('Port already in use.');
+    if (process.env.NODE_ENV !== "production") {
+      console.error('Killing and retrying...');
+      killPortProcess(appPort);
+    }
     return;
   }
   process.exit(1);
@@ -223,12 +228,14 @@ app.use((req, res, next) => {
   // Add error handler for httpServer
   httpServer.on('error', (error: NodeJS.ErrnoException) => {
     if (error.code === 'EADDRINUSE') {
-      console.error(`Port ${port} is already in use. Killing and retrying...`);
-      killPortProcess(port);
-      setTimeout(() => {
-        httpServer.close();
-        httpServer.listen({ port, host: "0.0.0.0" });
-      }, 2000);
+      console.error(`Port ${port} is already in use.`);
+      if (process.env.NODE_ENV !== "production") {
+        killPortProcess(port);
+        setTimeout(() => {
+          httpServer.close();
+          httpServer.listen({ port, host: "0.0.0.0" });
+        }, 2000);
+      }
     } else {
       console.error('Server error:', error);
       process.exit(1);
