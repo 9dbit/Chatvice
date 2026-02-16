@@ -3319,6 +3319,65 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // Get current auth methods for the merchant (must be before /api/merchant/:merchantId)
+  app.get("/api/merchant/auth-methods", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+
+      res.json({
+        email: merchant.email,
+        hasPassword: !!(merchant.password && merchant.password !== ""),
+        googleLinked: !!merchant.googleId,
+        githubLinked: !!merchant.githubId,
+      });
+    } catch (error) {
+      console.error("Get auth methods error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Unlink an auth method (must be before /api/merchant/:merchantId)
+  app.post("/api/merchant/auth-methods/unlink", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { provider } = req.body;
+
+      if (!["google", "github", "password"].includes(provider)) {
+        return res.status(400).json({ error: "Invalid provider" });
+      }
+
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+
+      const hasPassword = !!(merchant.password && merchant.password !== "");
+      const hasGoogle = !!merchant.googleId;
+      const hasGithub = !!merchant.githubId;
+      const methodCount = (hasPassword ? 1 : 0) + (hasGoogle ? 1 : 0) + (hasGithub ? 1 : 0);
+
+      if (methodCount <= 1) {
+        return res.status(400).json({ error: "Cannot remove your only login method. Link another method first." });
+      }
+
+      if (provider === "google") {
+        if (!hasGoogle) return res.status(400).json({ error: "Google is not linked" });
+        await storage.updateMerchant(merchantId, { googleId: null });
+      } else if (provider === "github") {
+        if (!hasGithub) return res.status(400).json({ error: "GitHub is not linked" });
+        await storage.updateMerchant(merchantId, { githubId: null });
+      } else if (provider === "password") {
+        if (!hasPassword) return res.status(400).json({ error: "No password set" });
+        await storage.updateMerchant(merchantId, { password: "" });
+      }
+
+      res.json({ success: true, message: `${provider} login method removed` });
+    } catch (error) {
+      console.error("Unlink auth method error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/merchant/:merchantId", requireAuth, async (req, res) => {
     try {
       if (req.session.userType === "merchant" && req.session.merchantId !== req.params.merchantId) {
@@ -3612,65 +3671,6 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       res.json({ success: true });
     } catch (error) {
       console.error("Change password error:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Get current auth methods for the merchant
-  app.get("/api/merchant/auth-methods", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const merchant = await storage.getMerchant(merchantId);
-      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
-
-      res.json({
-        email: merchant.email,
-        hasPassword: !!(merchant.password && merchant.password !== ""),
-        googleLinked: !!merchant.googleId,
-        githubLinked: !!merchant.githubId,
-      });
-    } catch (error) {
-      console.error("Get auth methods error:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Unlink an auth method (google, github, or password)
-  app.post("/api/merchant/auth-methods/unlink", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const { provider } = req.body;
-
-      if (!["google", "github", "password"].includes(provider)) {
-        return res.status(400).json({ error: "Invalid provider" });
-      }
-
-      const merchant = await storage.getMerchant(merchantId);
-      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
-
-      const hasPassword = !!(merchant.password && merchant.password !== "");
-      const hasGoogle = !!merchant.googleId;
-      const hasGithub = !!merchant.githubId;
-      const methodCount = (hasPassword ? 1 : 0) + (hasGoogle ? 1 : 0) + (hasGithub ? 1 : 0);
-
-      if (methodCount <= 1) {
-        return res.status(400).json({ error: "Cannot remove your only login method. Link another method first." });
-      }
-
-      if (provider === "google") {
-        if (!hasGoogle) return res.status(400).json({ error: "Google is not linked" });
-        await storage.updateMerchant(merchantId, { googleId: null });
-      } else if (provider === "github") {
-        if (!hasGithub) return res.status(400).json({ error: "GitHub is not linked" });
-        await storage.updateMerchant(merchantId, { githubId: null });
-      } else if (provider === "password") {
-        if (!hasPassword) return res.status(400).json({ error: "No password set" });
-        await storage.updateMerchant(merchantId, { password: "" });
-      }
-
-      res.json({ success: true, message: `${provider} login method removed` });
-    } catch (error) {
-      console.error("Unlink auth method error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
