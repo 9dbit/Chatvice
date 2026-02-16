@@ -26,7 +26,7 @@ import { extractFAQContent, syncKnowledgeFromUrl, fetchWebContent } from "./craw
 import { parseFile, fetchGoogleDoc, fetchGoogleSheet } from "./fileParser";
 import { createQRISPayment, createVAPayment, createBankTransferPayment, createPaymentLinkPayment, checkPaymentStatus, isKompasPayConfigured, convertToIDR, formatIDR } from "./kompasPayClient";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
-import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient, sendMerchantAuthNotification } from "./resendClient";
+import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient, sendMerchantAuthNotification, sendEmailChangeOtp } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, isNotNull, gte, sql } from "drizzle-orm";
@@ -3544,28 +3544,106 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   app.post("/api/merchant/change-email/request", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
-      const { newEmail } = req.body;
+      const { newEmail, password } = req.body;
       
       if (!newEmail || !newEmail.includes("@")) {
         return res.status(400).json({ error: "Valid email address required" });
       }
       
-      const existingMerchant = await storage.getMerchantByEmail(newEmail);
-      if (existingMerchant) {
-        return res.status(400).json({ error: "Email already in use" });
+      if (!password) {
+        return res.status(400).json({ error: "Password is required to change email" });
       }
       
-      const crypto = require("crypto");
-      const verificationToken = crypto.randomBytes(32).toString("hex");
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      const isOAuth = merchant.googleId || merchant.githubId;
+      if (!isOAuth) {
+        const validPw = await verifyPassword(password, merchant.password);
+        if (!validPw) {
+          return res.status(401).json({ error: "Password is incorrect" });
+        }
+      }
+      
+      if (newEmail.toLowerCase() === merchant.email.toLowerCase()) {
+        return res.status(400).json({ error: "New email must be different from current email" });
+      }
+      
+      const existingMerchant = await storage.getMerchantByEmail(newEmail);
+      if (existingMerchant) {
+        return res.status(400).json({ error: "Email already in use by another account" });
+      }
+      
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
       
       await storage.updateMerchant(merchantId, { 
         pendingEmail: newEmail,
-        emailVerificationToken: verificationToken,
-      } as any);
+        emailChangeOtp: otp,
+        emailChangeOtpExpiresAt: expiresAt,
+      });
       
-      res.json({ success: true, message: "Verification email sent" });
+      const sent = await sendEmailChangeOtp(newEmail, otp);
+      if (!sent) {
+        return res.status(500).json({ error: "Failed to send verification code. Please try again." });
+      }
+      
+      res.json({ success: true, message: "Verification code sent to new email" });
     } catch (error) {
       console.error("Email change request error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/merchant/change-email/verify", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { otp } = req.body;
+      
+      if (!otp || otp.length !== 6) {
+        return res.status(400).json({ error: "6-digit verification code required" });
+      }
+      
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      
+      if (!merchant.pendingEmail || !merchant.emailChangeOtp || !merchant.emailChangeOtpExpiresAt) {
+        return res.status(400).json({ error: "No pending email change request" });
+      }
+      
+      if (new Date() > new Date(merchant.emailChangeOtpExpiresAt)) {
+        await storage.updateMerchant(merchantId, { 
+          pendingEmail: null, emailChangeOtp: null, emailChangeOtpExpiresAt: null 
+        });
+        return res.status(400).json({ error: "Verification code has expired. Please request a new one." });
+      }
+      
+      if (otp !== merchant.emailChangeOtp) {
+        return res.status(400).json({ error: "Invalid verification code" });
+      }
+      
+      const conflictCheck = await storage.getMerchantByEmail(merchant.pendingEmail);
+      if (conflictCheck) {
+        await storage.updateMerchant(merchantId, { 
+          pendingEmail: null, emailChangeOtp: null, emailChangeOtpExpiresAt: null 
+        });
+        return res.status(400).json({ error: "Email already in use by another account" });
+      }
+      
+      await storage.updateMerchant(merchantId, { 
+        email: merchant.pendingEmail,
+        pendingEmail: null,
+        emailChangeOtp: null,
+        emailChangeOtpExpiresAt: null,
+      });
+      
+      res.json({ success: true, message: "Email changed successfully" });
+    } catch (error) {
+      console.error("Email change verify error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });

@@ -168,6 +168,58 @@ export async function sendPasswordResetEmail(toEmail: string, resetToken: string
   }
 }
 
+export async function sendEmailChangeOtp(toEmail: string, otp: string): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getUncachableResendClient();
+    
+    console.log('Sending email change OTP:', { to: toEmail, from: fromEmail });
+    
+    const { error } = await client.emails.send({
+      from: fromEmail,
+      to: toEmail,
+      subject: 'Chatvice - Email Change Verification Code',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f5;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+            <div style="background-color: #18181b; border-radius: 12px; padding: 40px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0 0 16px 0; font-size: 24px;">Email Change Verification</h1>
+              <p style="color: #a1a1aa; margin: 0 0 32px 0; font-size: 16px; line-height: 1.5;">
+                Use the verification code below to confirm your new email address.
+              </p>
+              <div style="background-color: #27272a; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
+                <p style="color: #ffffff; margin: 0; font-size: 36px; font-weight: 700; letter-spacing: 8px;">${otp}</p>
+              </div>
+              <p style="color: #71717a; margin: 0; font-size: 14px;">
+                This code expires in 10 minutes. If you didn't request this change, you can safely ignore this email.
+              </p>
+            </div>
+            <p style="text-align: center; color: #71717a; margin: 24px 0 0 0; font-size: 12px;">
+              &copy; ${new Date().getFullYear()} Chatvice. All rights reserved.
+            </p>
+          </div>
+        </body>
+        </html>
+      `
+    });
+
+    if (error) {
+      console.error('Resend email change OTP error:', error);
+      return false;
+    }
+    console.log('Email change OTP sent successfully to:', toEmail);
+    return true;
+  } catch (error) {
+    console.error('Failed to send email change OTP:', error);
+    return false;
+  }
+}
+
 interface PaymentReceiptData {
   merchantEmail: string;
   merchantName: string;
