@@ -3136,12 +3136,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             We're currently offline. Please try again later.
           </p>
         )}
-        {/* Powered by Chatvice branding */}
-        <div className="flex items-center justify-center gap-1.5 mt-3 pb-1">
-          <span 
-            className="text-[10px]"
-            style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#6b7280' } : undefined}
-          >Powered by</span>
+        {/* Chatvice branding footer */}
+        <div className="flex items-center justify-between gap-2 mt-3 pb-1 px-1">
           <a 
             href="https://chatvice.app" 
             target="_blank" 
@@ -3154,6 +3150,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               alt="Chatvice" 
               className="h-4"
             />
+          </a>
+          <a
+            href="/chat/login"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] font-medium chatvice-gradient-text hover:opacity-80 transition-opacity"
+            data-testid="link-chat-signup-login"
+          >
+            Sign up / Login to Chat Platform
           </a>
         </div>
       </div>
