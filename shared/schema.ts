@@ -107,6 +107,10 @@ export const merchants = pgTable("merchants", {
   welcomeDescription: text("welcome_description").default(""),
   prechatBannerUrl: text("prechat_banner_url").default(""),
   quickMessageOptions: text("quick_message_options").array().default([]),
+  // Email change verification
+  pendingEmail: text("pending_email"),
+  emailChangeOtp: text("email_change_otp"),
+  emailChangeOtpExpiresAt: timestamp("email_change_otp_expires_at"),
   // Storage usage tracking (in bytes)
   storageUsed: integer("storage_used").default(0),
   storageLimit: integer("storage_limit").default(104857600), // 100MB default
