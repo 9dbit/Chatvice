@@ -1665,7 +1665,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       return "absolute inset-0 w-full h-full overflow-hidden flex flex-col";
     }
     if (embedded) {
-      return "w-full h-screen overflow-hidden flex flex-col";
+      return "w-full overflow-hidden flex flex-col";
     }
     if (isFullscreen) {
       return `fixed inset-4 z-50 animate-in fade-in duration-300 overflow-hidden flex flex-col`;
@@ -1811,6 +1811,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       style={{
         transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
         ...frostedGlassContainerStyle,
+        ...(embedded && !isExternalEmbed && !previewMode ? { height: '100dvh' } : {}),
       }}
       data-testid="widget-container"
     >
@@ -2504,7 +2505,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </div>
 
           {/* Static footer - does not scroll */}
-          <div className="shrink-0 px-3 pt-2" style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))', backgroundColor: widgetIsDark ? '#18181b' : '#ffffff' }}>
+          <div className="shrink-0 px-3 pt-2" style={{ paddingBottom: 'calc(20px + env(safe-area-inset-bottom, 16px))', backgroundColor: widgetIsDark ? '#18181b' : '#ffffff' }}>
             <div 
               className="p-4 rounded-2xl text-center"
               style={{
