@@ -1302,8 +1302,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
   useEffect(() => {
     if (!merchantConfig) return;
-    const isDark = merchantConfig.widgetTheme === "dark";
-    const themeColor = isDark ? '#000000' : '#ffffff';
+    const themeColor = merchantConfig.primaryColor || '#7c3aed';
     let meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
     if (!meta) {
       meta = document.createElement('meta');
@@ -2505,44 +2504,44 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </div>
 
           {/* Static footer - does not scroll */}
-          <div className="shrink-0 px-3 pt-2" style={{ paddingBottom: 'calc(20px + env(safe-area-inset-bottom, 16px))', backgroundColor: widgetIsDark ? '#18181b' : '#ffffff' }}>
-            <div 
-              className="p-4 rounded-2xl text-center"
-              style={{
-                background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 40%, #d946ef 70%, #8b5cf6 100%)',
-                boxShadow: '0 2px 8px rgba(124,58,237,0.25)',
-              }}
-            >
-              <p className="text-sm font-bold mb-1.5" style={{ color: '#ffffff' }}>
+          <div className="shrink-0 px-3 pt-1.5" style={{ paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 12px))', backgroundColor: widgetIsDark ? '#18181b' : '#ffffff' }}>
+            <div className="text-center mb-1.5">
+              <p className="text-xs font-bold chatvice-gradient-text">
                 Keep connect using Chatvice Platform
               </p>
-              <div className="flex items-center justify-center gap-2">
-                <a 
-                  href="/chat/login" 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm font-bold hover:underline"
-                  style={{ color: '#ffffff' }}
-                  data-testid="link-signup-chatvice"
-                >
-                  Sign Up Free
-                </a>
-                <span className="text-sm font-bold" style={{ color: 'rgba(255,255,255,0.6)' }}>|</span>
-                <a 
-                  href="/chat/login" 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm font-bold hover:underline"
-                  style={{ color: 'rgba(255,255,255,0.85)' }}
-                  data-testid="link-login-chatvice"
-                >
-                  Login
-                </a>
-              </div>
+            </div>
+            <div className="flex items-center justify-center gap-2">
+              <a 
+                href="/chat/login" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center text-xs font-bold rounded-full px-4 py-1.5 transition-opacity hover:opacity-90"
+                style={{
+                  background: 'linear-gradient(135deg, #a855f7, #d946ef, #8b5cf6)',
+                  color: '#ffffff',
+                }}
+                data-testid="link-signup-chatvice"
+              >
+                Sign Up Free
+              </a>
+              <a 
+                href="/chat/login" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center text-xs font-bold rounded-full px-4 py-1.5 transition-opacity hover:opacity-90"
+                style={{
+                  border: '1.5px solid #a855f7',
+                  color: widgetIsDark ? '#d8b4fe' : '#7c3aed',
+                  backgroundColor: 'transparent',
+                }}
+                data-testid="link-login-chatvice"
+              >
+                Login
+              </a>
             </div>
             
             {/* Powered by Chatvice branding */}
-            <div className="flex items-center justify-center gap-1.5 mt-2.5 pb-1">
+            <div className="flex items-center justify-center gap-1.5 mt-2">
               <span 
                 className="text-[10px]"
                 style={{ color: widgetIsDark ? '#ffffff' : '#6b7280' }}
