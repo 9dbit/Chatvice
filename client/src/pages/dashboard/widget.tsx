@@ -1230,17 +1230,17 @@ async function handleLogin() {
                             disabled={isRemovingBg || (bgRemovalStatus !== null && bgRemovalStatus.limit >= 0 && bgRemovalStatus.used >= bgRemovalStatus.limit)}
                             data-testid="button-remove-bg-desktop"
                             title={bgRemovalStatus ? `${bgRemovalStatus.used}/${bgRemovalStatus.limit} used this month` : "Remove background"}
-                            className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="relative inline-flex items-center justify-center w-full px-4 py-2.5 text-sm font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
                             style={{
                               background: 'linear-gradient(135deg, #7c3aed 0%, #ec4899 50%, #7c3aed 100%)',
                               backgroundSize: '200% 200%',
                               animation: 'gradient-shift 3s ease infinite',
                             }}
                           >
-                            <span className="relative z-10 flex items-center whitespace-nowrap">
-                              {isRemovingBg ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Frame className="w-3 h-3 mr-1" />}
+                            <span className="relative z-10 flex items-center">
+                              {isRemovingBg ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Frame className="w-4 h-4 mr-1.5" />}
                               Remove Background with AI {bgRemovalStatus && bgRemovalStatus.limit > 0 && (
-                                <span className="text-[10px] opacity-70 ml-1">({bgRemovalStatus.limit - bgRemovalStatus.used})</span>
+                                <span className="text-xs opacity-70 ml-1">({bgRemovalStatus.limit - bgRemovalStatus.used})</span>
                               )}
                             </span>
                           </button>
@@ -1254,7 +1254,7 @@ async function handleLogin() {
                         <div className="space-y-3">
                           <div>
                             <p className="text-xs font-medium text-muted-foreground mb-1.5">Men</p>
-                            <div className="grid grid-cols-4 gap-1.5">
+                            <div className="grid grid-cols-4 gap-2">
                               {[
                                 { id: 'male-cs-blue-shirt', name: 'CS Blue Shirt', ext: 'webp' },
                                 { id: 'male-cs-suit', name: 'CS Suit', ext: 'webp' },
@@ -1265,7 +1265,7 @@ async function handleLogin() {
                                   key={template.id}
                                   type="button"
                                   className={cn(
-                                    "relative rounded-lg overflow-hidden border-2 transition-all aspect-square w-[40%] mx-auto",
+                                    "relative rounded-lg overflow-hidden border-2 transition-all aspect-square w-full",
                                     config.iconUrl === `/icon-templates/${template.id}.${template.ext}`
                                       ? "border-primary ring-2 ring-primary/30"
                                       : "border-muted hover:border-primary/50"
@@ -1292,7 +1292,7 @@ async function handleLogin() {
 
                           <div>
                             <p className="text-xs font-medium text-muted-foreground mb-1.5">Women</p>
-                            <div className="grid grid-cols-4 gap-1.5">
+                            <div className="grid grid-cols-4 gap-2">
                               {[
                                 { id: 'female-cs-red', name: 'CS Red', ext: 'png' },
                                 { id: 'female-cs-white', name: 'CS White', ext: 'png' },
@@ -1303,7 +1303,7 @@ async function handleLogin() {
                                   key={template.id}
                                   type="button"
                                   className={cn(
-                                    "relative rounded-lg overflow-hidden border-2 transition-all aspect-square w-[40%] mx-auto",
+                                    "relative rounded-lg overflow-hidden border-2 transition-all aspect-square w-full",
                                     config.iconUrl === `/icon-templates/${template.id}.${template.ext}`
                                       ? "border-primary ring-2 ring-primary/30"
                                       : "border-muted hover:border-primary/50"
@@ -1330,7 +1330,7 @@ async function handleLogin() {
 
                           <div>
                             <p className="text-xs font-medium text-muted-foreground mb-1.5">Icons</p>
-                            <div className="grid grid-cols-4 gap-1.5">
+                            <div className="grid grid-cols-4 gap-2">
                               {[
                                 { id: 'astronaut', name: 'Astronaut', ext: 'png' },
                                 { id: 'rocket', name: 'Rocket', ext: 'webp' },
@@ -1341,7 +1341,7 @@ async function handleLogin() {
                                   key={template.id}
                                   type="button"
                                   className={cn(
-                                    "relative rounded-lg overflow-hidden border-2 transition-all aspect-square w-[40%] mx-auto",
+                                    "relative rounded-lg overflow-hidden border-2 transition-all aspect-square w-full",
                                     config.iconUrl === `/icon-templates/${template.id}.${template.ext}`
                                       ? "border-primary ring-2 ring-primary/30"
                                       : "border-muted hover:border-primary/50"
@@ -2300,13 +2300,13 @@ async function handleLogin() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="relative">
+              <div>
                 <pre className="bg-muted p-4 rounded-lg font-mono text-xs overflow-x-auto whitespace-pre-wrap break-all">
                   {embedType === "widget" ? widgetEmbedCode : iframeEmbedCode}
                 </pre>
                 <Button
                   size="sm"
-                  className="absolute top-2 right-2 chatvice-gradient-btn text-white border-0 min-w-[120px]"
+                  className="mt-2 chatvice-gradient-btn text-white border-0 min-w-[120px]"
                   onClick={() => handleCopy(
                     embedType === "widget" ? widgetEmbedCode : iframeEmbedCode,
                     embedType === "widget" ? "Widget code" : "iFrame code"

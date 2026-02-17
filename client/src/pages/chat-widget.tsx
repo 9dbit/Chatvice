@@ -2257,25 +2257,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               />
             </div>
           )}
-          <div className="flex-1 flex flex-col items-center p-4">
+          <div className="flex-1 flex flex-col p-4">
             <h3 
-              className="text-lg font-semibold mb-3 text-center"
+              className="text-lg font-semibold mb-3 text-left"
               style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#1f2937' } : undefined}
             >Welcome!</h3>
             
             {/* Custom Description Box */}
             {merchantConfig?.welcomeDescription && (
               <div 
-                className="w-full rounded-md p-3 border mb-4 text-sm whitespace-pre-wrap" 
-                style={applyEmbedStyles ? (widgetIsDark ? {
-                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  color: '#ffffff',
-                } : {
-                  backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                  border: '1px solid rgba(0, 0, 0, 0.06)',
-                  color: '#374151',
-                }) : undefined}
+                className="w-full mb-4 text-sm whitespace-pre-wrap" 
+                style={applyEmbedStyles ? {
+                  color: widgetIsDark ? 'rgba(255, 255, 255, 0.8)' : '#4b5563',
+                } : undefined}
                 data-testid="text-welcome-description"
               >
                 {merchantConfig.welcomeDescription.split(/(\bhttps?:\/\/\S+)/g).map((part: string, i: number) => 
@@ -2289,13 +2283,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             )}
             
             <p 
-              className="text-sm mb-4 text-center"
-              style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#374151' } : undefined}
+              className="text-sm mb-4 text-left"
+              style={applyEmbedStyles ? { color: widgetIsDark ? 'rgba(255, 255, 255, 0.6)' : '#6b7280' } : undefined}
             >
               Please fill in your details to start chatting.
             </p>
             
-            <div className="w-full max-w-xs space-y-3">
+            <div className="w-full space-y-3">
               {/* Name Input */}
               <div className="space-y-1.5">
                 <Label 
