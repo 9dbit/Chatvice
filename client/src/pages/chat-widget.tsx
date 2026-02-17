@@ -2498,8 +2498,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </div>
           </div>
 
-          {/* Static footer - does not scroll, vertically centered */}
-          <div className="shrink-0 px-3 flex flex-col items-center justify-center" style={{ paddingTop: '12px', paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 12px))', backgroundColor: widgetIsDark ? '#18181b' : '#ffffff', minHeight: '120px' }}>
+          {/* Static footer - does not scroll, vertically centered, frosted glass */}
+          <div className="shrink-0 px-3 flex flex-col items-center justify-center" style={{ paddingTop: '12px', paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 12px))', minHeight: '120px', backgroundColor: widgetIsDark ? `rgba(${panelRgb.r}, ${panelRgb.g}, ${panelRgb.b}, 0.75)` : `rgba(${panelRgb.r}, ${panelRgb.g}, ${panelRgb.b}, 0.8)`, backdropFilter: `blur(${bodyBlur}px) saturate(150%)`, WebkitBackdropFilter: `blur(${bodyBlur}px) saturate(150%)`, borderTop: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}` }}>
             <div className="text-center mb-2">
               <p className="text-xs font-bold chatvice-gradient-text">
                 Keep connect using Chatvice Platform
