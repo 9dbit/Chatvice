@@ -1809,9 +1809,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       }}
       data-testid="widget-container"
     >
-      {/* Slim Header with drop shadow - z-10 to stay above social panel */}
+      {/* Slim Header with drop shadow - z-10 to stay above social panel, sticky for mobile browser theme */}
       <div
-        className="px-3 py-2 flex items-center justify-between shadow-md relative z-10"
+        className="px-3 py-2 flex items-center justify-between shadow-md sticky top-0 z-10 shrink-0"
         style={frostedHeaderStyle}
       >
         <div className="flex items-center gap-2.5">
@@ -2498,14 +2498,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </div>
           </div>
 
-          {/* Static footer - does not scroll */}
-          <div className="shrink-0 px-3 pt-1.5" style={{ paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 12px))', backgroundColor: widgetIsDark ? '#18181b' : '#ffffff' }}>
-            <div className="text-center mb-1.5">
+          {/* Static footer - does not scroll, vertically centered */}
+          <div className="shrink-0 px-3 flex flex-col items-center justify-center" style={{ paddingTop: '12px', paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 12px))', backgroundColor: widgetIsDark ? '#18181b' : '#ffffff', minHeight: '120px' }}>
+            <div className="text-center mb-2">
               <p className="text-xs font-bold chatvice-gradient-text">
                 Keep connect using Chatvice Platform
               </p>
             </div>
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex items-center justify-center gap-2 mb-2">
               <a 
                 href="/chat/login" 
                 target="_blank"
@@ -2536,7 +2536,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             </div>
             
             {/* Powered by Chatvice branding */}
-            <div className="flex items-center justify-center gap-1.5 mt-2">
+            <div className="flex items-center justify-center gap-1.5">
               <span 
                 className="text-[10px]"
                 style={{ color: widgetIsDark ? '#ffffff' : '#6b7280' }}
