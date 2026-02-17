@@ -896,11 +896,20 @@ CARA MEREKOMENDASIKAN (PILIH PRODUK YANG PALING RELEVAN):
 3. Akhiri respons dengan tag yang menyebut NAMA PRODUK PERSIS seperti di katalog:
    [RECOMMEND_PRODUCT:Nama Produk Persis]
 
+JIKA CUSTOMER MINTA OPSI LAIN / ALTERNATIF:
+- Jika customer bilang "ada yang lain?", "opsi lain?", "alternatif?", "produk lainnya?", "yang lain dong" atau sejenisnya
+- Pilih produk BERBEDA dari yang sudah pernah direkomendasikan sebelumnya di percakapan ini
+- Sesuaikan dengan topik diskusi dan interest customer
+- Gunakan tag yang sama: [RECOMMEND_PRODUCT:Nama Produk Berbeda]
+- Jika semua produk sudah pernah direkomendasikan, sampaikan bahwa itu semua opsi yang tersedia
+
 Contoh penggunaan tag:
 - "Kalau Kakak butuh yang tahan air, coba cek ini ya..."
   [RECOMMEND_PRODUCT:Tas Ransel Waterproof]
 - "Untuk kebutuhan gaming, ini cocok banget Kak..."
   [RECOMMEND_PRODUCT:Gaming Mouse RGB Pro]
+- "Tentu! Ada opsi lain yang juga cocok untuk kebutuhan Kakak..."
+  [RECOMMEND_PRODUCT:Keyboard Mechanical Pro]
 
 PENTING: Nama produk di tag HARUS SAMA PERSIS dengan nama di katalog (case-insensitive).
 ` : ""}
@@ -930,10 +939,28 @@ If you don't have specific information to answer, be honest about it and offer t
       }
     }
     
+    // Track previously recommended products in session so AI avoids duplicates
+    const previouslyRecommendedProducts: string[] = [];
+    for (const msg of sessionMessages) {
+      if (msg.messageType === 'product_offer' && msg.payload) {
+        try {
+          const payload = typeof msg.payload === 'string' ? JSON.parse(msg.payload) : msg.payload;
+          if (payload?.productCard?.title) {
+            previouslyRecommendedProducts.push(payload.productCard.title);
+          }
+        } catch {}
+      }
+    }
+    
+    let enhancedSystemMessage = systemMessage;
+    if (previouslyRecommendedProducts.length > 0 && productCatalogContext) {
+      enhancedSystemMessage += `\n\nPRODUK YANG SUDAH DIREKOMENDASIKAN DI SESI INI (JANGAN rekomendasikan ulang kecuali customer meminta spesifik):\n${previouslyRecommendedProducts.map((p, i) => `${i + 1}. "${p}"`).join('\n')}\nJika customer minta opsi lain, pilih dari produk yang BELUM direkomendasikan.`;
+    }
+
     // Build messages array with history (increased to last 20 messages for better context retention)
     type ChatContent = string | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string; detail: string } }>;
     const chatMessages: Array<{ role: "system" | "user" | "assistant"; content: ChatContent }> = [
-      { role: "system", content: systemMessage }
+      { role: "system", content: enhancedSystemMessage }
     ];
     
     // Add conversation history (increased from 10 to 20 for extended context memory)
@@ -5716,7 +5743,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     }
   });
 
-  app.post("/api/session/offer-product", requireMerchant, async (req, res) => {
+  app.post("/api/session/offer-product", requireMerchantOrSupervisor, async (req, res) => {
     try {
       const { sessionId, productCardId } = req.body;
       const merchantId = req.session.merchantId!;
@@ -15505,7 +15532,7 @@ ${log.extractedKnowledge}` : ''}
 
   // ============== PRODUCT CARDS ROUTES ==============
   
-  app.get("/api/product-cards", requireMerchant, async (req, res) => {
+  app.get("/api/product-cards", requireMerchantOrSupervisor, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
       const agentId = req.query.agentId as string | undefined;
@@ -16523,7 +16550,7 @@ Your Telegram integration is working correctly!`;
 
   // ============== PRODUCT RECOMMENDATION SETTINGS ROUTES ==============
   
-  app.get("/api/product-recommendation-settings", requireMerchant, async (req, res) => {
+  app.get("/api/product-recommendation-settings", requireMerchantOrSupervisor, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
       const settings = await storage.getProductRecommendationSettings(merchantId);
