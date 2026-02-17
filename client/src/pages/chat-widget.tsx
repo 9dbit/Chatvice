@@ -1323,17 +1323,34 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   useEffect(() => {
     if (!merchantConfig) return;
     const themeColor = merchantConfig.primaryColor || '#7c3aed';
+    const isDark = merchantConfig.widgetTheme === 'dark';
+    const bottomColor = isDark ? '#18181b' : '#ffffff';
 
     document.querySelectorAll('meta[name="theme-color"]').forEach(el => el.remove());
 
-    const metaTop = document.createElement('meta');
-    metaTop.name = 'theme-color';
-    metaTop.setAttribute('content', themeColor);
-    document.head.appendChild(metaTop);
+    const metaLight = document.createElement('meta');
+    metaLight.name = 'theme-color';
+    metaLight.setAttribute('media', '(prefers-color-scheme: light)');
+    metaLight.setAttribute('content', themeColor);
+    document.head.appendChild(metaLight);
+
+    const metaDark = document.createElement('meta');
+    metaDark.name = 'theme-color';
+    metaDark.setAttribute('media', '(prefers-color-scheme: dark)');
+    metaDark.setAttribute('content', themeColor);
+    document.head.appendChild(metaDark);
+
+    const metaFallback = document.createElement('meta');
+    metaFallback.name = 'theme-color';
+    metaFallback.setAttribute('content', themeColor);
+    document.head.appendChild(metaFallback);
+
+    const existingStatusBar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+    if (existingStatusBar) {
+      existingStatusBar.setAttribute('content', 'default');
+    }
 
     if (embedded || isExternalEmbed) {
-      const isDark = merchantConfig.widgetTheme === 'dark';
-      const bottomColor = isDark ? '#18181b' : '#ffffff';
       document.body.style.backgroundColor = bottomColor;
       document.documentElement.style.backgroundColor = bottomColor;
 
