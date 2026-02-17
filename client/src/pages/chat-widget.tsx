@@ -237,14 +237,21 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   
-  // Make body, html, and #root transparent for external embed mode so frosted glass shows through
-  // Also prevent page-level scrolling so header stays fixed on mobile
+  // Make body transparent for iframe embed, lock scrolling for all embed modes
+  const isDirectAccessMode = embedded && !isExternalEmbed && (typeof window !== 'undefined' && window.parent === window);
   useEffect(() => {
     if (isExternalEmbed || embedded) {
-      document.body.style.background = "transparent";
-      document.body.style.backgroundColor = "transparent";
-      document.documentElement.style.background = "transparent";
-      document.documentElement.style.backgroundColor = "transparent";
+      if (isExternalEmbed && !isDirectAccessMode) {
+        document.body.style.background = "transparent";
+        document.body.style.backgroundColor = "transparent";
+        document.documentElement.style.background = "transparent";
+        document.documentElement.style.backgroundColor = "transparent";
+        const rootEl = document.getElementById('root');
+        if (rootEl) {
+          rootEl.style.background = "transparent";
+          rootEl.style.backgroundColor = "transparent";
+        }
+      }
       document.body.style.overflow = "hidden";
       document.documentElement.style.overflow = "hidden";
       document.body.style.height = "100%";
@@ -254,8 +261,6 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       
       const rootEl = document.getElementById('root');
       if (rootEl) {
-        rootEl.style.background = "transparent";
-        rootEl.style.backgroundColor = "transparent";
         rootEl.style.height = "100%";
         rootEl.style.overflow = "hidden";
       }
@@ -1318,19 +1323,24 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   useEffect(() => {
     if (!merchantConfig) return;
     const themeColor = merchantConfig.primaryColor || '#7c3aed';
-    let meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
-    if (!meta) {
-      meta = document.createElement('meta');
-      meta.name = 'theme-color';
-      document.head.appendChild(meta);
-    }
-    meta.setAttribute('content', themeColor);
+
+    document.querySelectorAll('meta[name="theme-color"]').forEach(el => el.remove());
+
+    const metaTop = document.createElement('meta');
+    metaTop.name = 'theme-color';
+    metaTop.setAttribute('content', themeColor);
+    document.head.appendChild(metaTop);
 
     if (embedded || isExternalEmbed) {
       const isDark = merchantConfig.widgetTheme === 'dark';
       const bottomColor = isDark ? '#18181b' : '#ffffff';
       document.body.style.backgroundColor = bottomColor;
       document.documentElement.style.backgroundColor = bottomColor;
+
+      const rootEl = document.getElementById('root');
+      if (rootEl) {
+        rootEl.style.backgroundColor = bottomColor;
+      }
     }
   }, [merchantConfig?.primaryColor, merchantConfig?.widgetTheme, embedded, isExternalEmbed]);
 
@@ -2520,15 +2530,16 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </div>
           </div>
 
-          {/* Floating slim frosted glass footer with gradient-to-transparent background */}
+          {/* Floating slim frosted glass footer with gradient-to-transparent background, extends to screen bottom */}
           <div 
             className="shrink-0 px-3" 
             style={{ 
-              paddingBottom: 'calc(8px + env(safe-area-inset-bottom, 8px))', 
+              paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 16px))', 
               paddingTop: '16px',
               background: widgetIsDark 
                 ? 'linear-gradient(to bottom, transparent, rgba(24,24,27,0.85) 40%, #18181b)' 
                 : 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.85) 40%, #ffffff)',
+              marginBottom: '-env(safe-area-inset-bottom, 0px)',
             }}
           >
             <div 
