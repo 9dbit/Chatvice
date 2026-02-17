@@ -1351,12 +1351,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     }
 
     if (embedded || isExternalEmbed) {
-      document.body.style.backgroundColor = bottomColor;
-      document.documentElement.style.backgroundColor = bottomColor;
+      document.body.style.backgroundColor = themeColor;
+      document.documentElement.style.backgroundColor = themeColor;
 
       const rootEl = document.getElementById('root');
       if (rootEl) {
-        rootEl.style.backgroundColor = bottomColor;
+        rootEl.style.backgroundColor = themeColor;
       }
     }
   }, [merchantConfig?.primaryColor, merchantConfig?.widgetTheme, embedded, isExternalEmbed]);
@@ -1807,6 +1807,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         borderRadius: isDirectAccess ? '0' : `${widgetBorderRadius} ${widgetBorderRadius} 0 0`,
         minHeight: `${headerS.heightPx || 56}px`,
         fontSize: `${headerS.fontSizePx || 14}px`,
+        ...(isDirectAccess ? { paddingTop: 'env(safe-area-inset-top, 0px)' } : {}),
         ...headerWidthStyle,
       }
     : { backgroundColor: primaryColor };
@@ -2713,12 +2714,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                                 key={`btn-${btnIndex}`}
                                 className="w-full px-4 py-1.5 text-xs rounded-full transition-all duration-150 hover:translate-y-0.5 active:translate-y-1"
                                 style={{
-                                  backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)',
-                                  color: widgetIsDark ? 'rgba(255,255,255,0.9)' : '#374151',
+                                  backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+                                  color: widgetIsDark ? 'rgba(255,255,255,0.85)' : '#4b5563',
                                   border: 'none',
                                   boxShadow: widgetIsDark 
-                                    ? '0 2px 8px rgba(0,0,0,0.3)' 
-                                    : '0 2px 8px rgba(0,0,0,0.1)',
+                                    ? '0 4px 10px -1px rgba(0,0,0,0.35)' 
+                                    : '0 4px 10px -1px rgba(0,0,0,0.08)',
                                 }}
                                 onClick={() => sendButtonMessage(btn.action || btn.content)}
                                 disabled={sendMessageMutation.isPending}
@@ -2807,12 +2808,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                                 key={`suggest-${btn.id || idx}`}
                                 className="w-full px-3 py-1 text-[10px] rounded-full transition-all duration-150 hover:translate-y-0.5 active:translate-y-1"
                                 style={{
-                                  backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)',
-                                  color: widgetIsDark ? 'rgba(255,255,255,0.9)' : '#374151',
+                                  backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+                                  color: widgetIsDark ? 'rgba(255,255,255,0.85)' : '#4b5563',
                                   border: 'none',
                                   boxShadow: widgetIsDark 
-                                    ? '0 2px 8px rgba(0,0,0,0.3)' 
-                                    : '0 2px 8px rgba(0,0,0,0.1)',
+                                    ? '0 4px 10px -1px rgba(0,0,0,0.35)' 
+                                    : '0 4px 10px -1px rgba(0,0,0,0.08)',
                                 }}
                                 onClick={() => btn.url && window.open(btn.url, '_blank')}
                                 data-testid={`button-suggest-${btn.id || idx}`}
@@ -2972,15 +2973,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 className="w-full text-left px-4 py-1.5 text-xs rounded-full transition-all duration-150 hover:translate-y-0.5 active:translate-y-1"
                 style={{
                   backgroundColor: applyEmbedStyles 
-                    ? (widgetIsDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)')
-                    : 'hsl(var(--muted) / 0.5)',
+                    ? (widgetIsDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)')
+                    : 'hsl(var(--muted) / 0.3)',
                   color: applyEmbedStyles 
-                    ? (widgetIsDark ? 'rgba(255,255,255,0.9)' : '#374151')
+                    ? (widgetIsDark ? 'rgba(255,255,255,0.85)' : '#4b5563')
                     : 'hsl(var(--foreground))',
                   border: 'none',
                   boxShadow: widgetIsDark 
-                    ? '0 2px 8px rgba(0,0,0,0.3)' 
-                    : '0 2px 8px rgba(0,0,0,0.1)',
+                    ? '0 4px 10px -1px rgba(0,0,0,0.35)' 
+                    : '0 4px 10px -1px rgba(0,0,0,0.08)',
                 }}
                 onClick={() => handleSuggestedQuestionClick(sq)}
                 disabled={sendMessageMutation.isPending || useSuggestedQuestionMutation.isPending}
@@ -2994,9 +2995,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         </div>
       )}
 
-      <div className={`px-3 pt-2 ${applyEmbedStyles ? '' : 'border-t border-border'}`} style={{
+      <div className={`px-3 pt-1.5 ${applyEmbedStyles ? '' : 'border-t border-border'}`} style={{
         ...frostedFooterStyle,
-        paddingBottom: `calc(4px + env(safe-area-inset-bottom, 0px))`,
+        paddingBottom: `env(safe-area-inset-bottom, 0px)`,
       }}>
         <input
           type="file"
@@ -3192,7 +3193,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </p>
         )}
         {/* Chatvice branding footer */}
-        <div className="flex items-center justify-between gap-2 mt-1.5 px-1">
+        <div className="flex items-center justify-between gap-2 mt-1 px-1">
           <a 
             href="https://chatvice.app" 
             target="_blank" 
