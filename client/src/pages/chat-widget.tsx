@@ -1325,7 +1325,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       document.head.appendChild(meta);
     }
     meta.setAttribute('content', themeColor);
-  }, [merchantConfig?.primaryColor, merchantConfig?.widgetTheme]);
+
+    if (embedded || isExternalEmbed) {
+      const isDark = merchantConfig.widgetTheme === 'dark';
+      const bottomColor = isDark ? '#18181b' : '#ffffff';
+      document.body.style.backgroundColor = bottomColor;
+      document.documentElement.style.backgroundColor = bottomColor;
+    }
+  }, [merchantConfig?.primaryColor, merchantConfig?.widgetTheme, embedded, isExternalEmbed]);
 
   useEffect(() => {
     if ((window as any).fbq) return;
@@ -2513,15 +2520,27 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </div>
           </div>
 
-          {/* Floating slim frosted glass footer */}
-          <div className="shrink-0 px-3" style={{ paddingBottom: 'calc(8px + env(safe-area-inset-bottom, 8px))', paddingTop: '6px' }}>
+          {/* Floating slim frosted glass footer with gradient-to-transparent background */}
+          <div 
+            className="shrink-0 px-3" 
+            style={{ 
+              paddingBottom: 'calc(8px + env(safe-area-inset-bottom, 8px))', 
+              paddingTop: '16px',
+              background: widgetIsDark 
+                ? 'linear-gradient(to bottom, transparent, rgba(24,24,27,0.85) 40%, #18181b)' 
+                : 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.85) 40%, #ffffff)',
+            }}
+          >
             <div 
               className="flex items-center justify-between gap-2 px-3 py-2 rounded-full"
               style={{
-                backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.85)',
                 backdropFilter: `blur(${bodyBlur}px) saturate(150%)`,
                 WebkitBackdropFilter: `blur(${bodyBlur}px) saturate(150%)`,
-                border: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'}`,
+                border: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)'}`,
+                boxShadow: widgetIsDark 
+                  ? '0 2px 12px rgba(0,0,0,0.4), 0 1px 4px rgba(0,0,0,0.3)' 
+                  : '0 2px 12px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.06)',
               }}
               data-testid="footer-chatvice-bar"
             >
