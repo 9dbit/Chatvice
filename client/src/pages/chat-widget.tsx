@@ -1351,12 +1351,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     }
 
     if (embedded || isExternalEmbed) {
-      document.body.style.backgroundColor = themeColor;
-      document.documentElement.style.backgroundColor = themeColor;
+      document.body.style.backgroundColor = bottomColor;
+      document.documentElement.style.backgroundColor = bottomColor;
 
       const rootEl = document.getElementById('root');
       if (rootEl) {
-        rootEl.style.backgroundColor = themeColor;
+        rootEl.style.backgroundColor = bottomColor;
       }
     }
   }, [merchantConfig?.primaryColor, merchantConfig?.widgetTheme, embedded, isExternalEmbed]);
@@ -1807,7 +1807,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         borderRadius: isDirectAccess ? '0' : `${widgetBorderRadius} ${widgetBorderRadius} 0 0`,
         minHeight: `${headerS.heightPx || 56}px`,
         fontSize: `${headerS.fontSizePx || 14}px`,
-        ...(isDirectAccess ? { paddingTop: 'env(safe-area-inset-top, 0px)' } : {}),
+        
         ...headerWidthStyle,
       }
     : { backgroundColor: primaryColor };
@@ -1859,6 +1859,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       }}
       data-testid="widget-container"
     >
+      {/* Safe area spacer for iOS status bar in direct-access mode */}
+      {isDirectAccess && (
+        <div style={{
+          height: 'env(safe-area-inset-top, 0px)',
+          backgroundColor: primaryColor,
+          flexShrink: 0,
+        }} />
+      )}
       {/* Slim Header - shrink-0 keeps it fixed at top of flex-col container */}
       <div
         className="px-3 py-2 flex items-center justify-between shadow-md shrink-0 z-10"
@@ -2995,9 +3003,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         </div>
       )}
 
-      <div className={`px-3 pt-1.5 ${applyEmbedStyles ? '' : 'border-t border-border'}`} style={{
+      <div className={`px-3 pt-1.5 pb-1 ${applyEmbedStyles ? '' : 'border-t border-border'}`} style={{
         ...frostedFooterStyle,
-        paddingBottom: `env(safe-area-inset-bottom, 0px)`,
       }}>
         <input
           type="file"
@@ -3223,6 +3230,17 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       </div>
       {/* End of main content area wrapper */}
       
+      {/* Safe area spacer for iOS bottom bar in direct-access mode */}
+      {isDirectAccess && (
+        <div style={{
+          height: 'env(safe-area-inset-bottom, 0px)',
+          backgroundColor: widgetIsDark 
+            ? `rgba(${panelRgb.r}, ${panelRgb.g}, ${panelRgb.b}, ${footerOpacity * 0.9})`
+            : `rgba(${panelRgb.r}, ${panelRgb.g}, ${panelRgb.b}, ${footerOpacity})`,
+          flexShrink: 0,
+        }} />
+      )}
+
       {viewingImage && (
         <div 
           className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center"
