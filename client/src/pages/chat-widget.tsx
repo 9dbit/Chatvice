@@ -238,19 +238,26 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const [isMaximized, setIsMaximized] = useState(false);
   
   // Make body, html, and #root transparent for external embed mode so frosted glass shows through
+  // Also prevent page-level scrolling so header stays fixed on mobile
   useEffect(() => {
     if (isExternalEmbed || embedded) {
-      // Set all possible backgrounds to transparent
       document.body.style.background = "transparent";
       document.body.style.backgroundColor = "transparent";
       document.documentElement.style.background = "transparent";
       document.documentElement.style.backgroundColor = "transparent";
+      document.body.style.overflow = "hidden";
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.height = "100%";
+      document.documentElement.style.height = "100%";
+      document.body.style.position = "fixed";
+      document.body.style.width = "100%";
       
-      // Also make #root transparent
       const rootEl = document.getElementById('root');
       if (rootEl) {
         rootEl.style.background = "transparent";
         rootEl.style.backgroundColor = "transparent";
+        rootEl.style.height = "100%";
+        rootEl.style.overflow = "hidden";
       }
     }
     return () => {
@@ -258,11 +265,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       document.body.style.backgroundColor = "";
       document.documentElement.style.background = "";
       document.documentElement.style.backgroundColor = "";
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+      document.body.style.height = "";
+      document.documentElement.style.height = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
       
       const rootEl = document.getElementById('root');
       if (rootEl) {
         rootEl.style.background = "";
         rootEl.style.backgroundColor = "";
+        rootEl.style.height = "";
+        rootEl.style.overflow = "";
       }
     };
   }, [isExternalEmbed, embedded]);
@@ -1809,9 +1824,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       }}
       data-testid="widget-container"
     >
-      {/* Slim Header with drop shadow - z-10 to stay above social panel, sticky for mobile browser theme */}
+      {/* Slim Header - shrink-0 keeps it fixed at top of flex-col container */}
       <div
-        className="px-3 py-2 flex items-center justify-between shadow-md sticky top-0 z-10 shrink-0"
+        className="px-3 py-2 flex items-center justify-between shadow-md shrink-0 z-10"
         style={frostedHeaderStyle}
       >
         <div className="flex items-center gap-2.5">
@@ -2498,54 +2513,23 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </div>
           </div>
 
-          {/* Static footer - does not scroll, vertically centered, frosted glass */}
-          <div className="shrink-0 px-3 flex flex-col items-center justify-center" style={{ paddingTop: '12px', paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 12px))', minHeight: '120px', backgroundColor: widgetIsDark ? `rgba(${panelRgb.r}, ${panelRgb.g}, ${panelRgb.b}, 0.75)` : `rgba(${panelRgb.r}, ${panelRgb.g}, ${panelRgb.b}, 0.8)`, backdropFilter: `blur(${bodyBlur}px) saturate(150%)`, WebkitBackdropFilter: `blur(${bodyBlur}px) saturate(150%)`, borderTop: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}` }}>
-            <div className="text-center mb-2">
-              <p className="text-xs font-bold chatvice-gradient-text">
-                Keep connect using Chatvice Platform
-              </p>
-            </div>
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <a 
-                href="/chat/login" 
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center text-xs font-bold rounded-full px-4 py-1.5 transition-opacity hover:opacity-90"
-                style={{
-                  background: 'linear-gradient(135deg, #a855f7, #d946ef, #8b5cf6)',
-                  color: '#ffffff',
-                }}
-                data-testid="link-signup-chatvice"
-              >
-                Sign Up Free
-              </a>
-              <a 
-                href="/chat/login" 
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center text-xs font-bold rounded-full px-4 py-1.5 transition-opacity hover:opacity-90"
-                style={{
-                  border: '1.5px solid #a855f7',
-                  color: widgetIsDark ? '#d8b4fe' : '#7c3aed',
-                  backgroundColor: 'transparent',
-                }}
-                data-testid="link-login-chatvice"
-              >
-                Login
-              </a>
-            </div>
-            
-            {/* Powered by Chatvice branding */}
-            <div className="flex items-center justify-center gap-1.5">
-              <span 
-                className="text-[10px]"
-                style={{ color: widgetIsDark ? '#ffffff' : '#6b7280' }}
-              >Powered by</span>
+          {/* Floating slim frosted glass footer */}
+          <div className="shrink-0 px-3" style={{ paddingBottom: 'calc(8px + env(safe-area-inset-bottom, 8px))', paddingTop: '6px' }}>
+            <div 
+              className="flex items-center justify-between gap-2 px-3 py-2 rounded-full"
+              style={{
+                backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                backdropFilter: `blur(${bodyBlur}px) saturate(150%)`,
+                WebkitBackdropFilter: `blur(${bodyBlur}px) saturate(150%)`,
+                border: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'}`,
+              }}
+              data-testid="footer-chatvice-bar"
+            >
               <a 
                 href="https://chatvice.app" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="opacity-70 hover:opacity-100 transition-opacity"
+                className="shrink-0 opacity-80 hover:opacity-100 transition-opacity"
                 data-testid="link-powered-by-chatvice-welcome"
               >
                 <img 
@@ -2553,6 +2537,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   alt="Chatvice" 
                   className="h-4"
                 />
+              </a>
+              <a 
+                href="/chat/login" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center text-[11px] font-semibold rounded-full px-3 py-1 transition-opacity hover:opacity-90 shrink-0 whitespace-nowrap"
+                style={{
+                  background: 'linear-gradient(135deg, #a855f7, #d946ef, #8b5cf6)',
+                  color: '#ffffff',
+                }}
+                data-testid="link-signup-chatvice"
+              >
+                Sign in to stay connected
               </a>
             </div>
           </div>
