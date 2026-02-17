@@ -2690,11 +2690,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                           return null;
                         })}
                         {hasButtons && (
-                          <div className="mt-2 flex flex-wrap gap-1.5">
+                          <div className="mt-2 flex flex-col gap-1.5">
                             {parsed.filter(p => p.type === "button").map((btn, btnIndex) => (
                               <button
                                 key={`btn-${btnIndex}`}
-                                className="px-4 py-2 text-xs rounded-xl border-2 transition-all duration-200 bg-gradient-to-b from-white/80 to-white/60 dark:from-white/20 dark:to-white/10 backdrop-blur-sm border-gray-200 dark:border-gray-500 text-gray-700 dark:text-white shadow-[0_4px_12px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.5)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] hover:shadow-[0_2px_6px_rgba(0,0,0,0.1)] hover:translate-y-0.5 active:translate-y-1 active:shadow-none"
+                                className="w-full px-4 py-1.5 text-xs rounded-full transition-all duration-150 hover:translate-y-0.5 active:translate-y-1"
+                                style={{
+                                  backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)',
+                                  color: widgetIsDark ? 'rgba(255,255,255,0.9)' : '#374151',
+                                  border: 'none',
+                                  boxShadow: widgetIsDark 
+                                    ? '0 2px 8px rgba(0,0,0,0.3)' 
+                                    : '0 2px 8px rgba(0,0,0,0.1)',
+                                }}
                                 onClick={() => sendButtonMessage(btn.action || btn.content)}
                                 disabled={sendMessageMutation.isPending}
                                 data-testid={`button-widget-quick-${btnIndex}`}
@@ -2776,11 +2784,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                         
                         {/* Suggestion buttons */}
                         {productCard.buttons && productCard.buttons.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 mt-2">
+                          <div className="flex flex-col gap-1.5 mt-2">
                             {productCard.buttons.slice(0, 3).map((btn: any, idx: number) => (
                               <button
                                 key={`suggest-${btn.id || idx}`}
-                                className="px-3 py-1.5 text-[10px] rounded-xl border-2 transition-all duration-200 bg-gradient-to-b from-white/80 to-white/60 dark:from-white/20 dark:to-white/10 backdrop-blur-sm border-gray-200 dark:border-gray-500 text-gray-700 dark:text-white shadow-[0_4px_12px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.5)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] hover:shadow-[0_2px_6px_rgba(0,0,0,0.1)] hover:translate-y-0.5 active:translate-y-1 active:shadow-none"
+                                className="w-full px-3 py-1 text-[10px] rounded-full transition-all duration-150 hover:translate-y-0.5 active:translate-y-1"
+                                style={{
+                                  backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)',
+                                  color: widgetIsDark ? 'rgba(255,255,255,0.9)' : '#374151',
+                                  border: 'none',
+                                  boxShadow: widgetIsDark 
+                                    ? '0 2px 8px rgba(0,0,0,0.3)' 
+                                    : '0 2px 8px rgba(0,0,0,0.1)',
+                                }}
                                 onClick={() => btn.url && window.open(btn.url, '_blank')}
                                 data-testid={`button-suggest-${btn.id || idx}`}
                               >
@@ -2926,45 +2942,45 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
       {suggestedQuestions.length > 0 && (
         <div 
-          className={`px-2 py-3 ${applyEmbedStyles ? '' : 'border-t border-border'}`} 
-          style={applyEmbedStyles ? (widgetIsDark ? {
+          className={`px-3 py-2 ${applyEmbedStyles ? '' : 'border-t border-border'}`} 
+          style={applyEmbedStyles ? {
             ...frostedFooterStyle,
-            backgroundColor: 'rgba(255, 255, 255, 0.06)',
-            borderRadius: '8px',
-            margin: '8px 8px',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-          } : {
-            ...frostedFooterStyle,
-            backgroundColor: 'rgba(248, 250, 252, 0.9)',
-            borderRadius: '8px',
-            margin: '8px 8px',
-            border: '1px solid rgba(0, 0, 0, 0.06)',
-          }) : frostedFooterStyle}
+            margin: '4px 8px',
+          } : frostedFooterStyle}
         >
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1.5">
             {suggestedQuestions.slice(0, 5).map((sq) => (
-              <Button
+              <button
                 key={sq.id}
-                variant="ghost"
-                size="sm"
-                className={`w-full justify-start text-left rounded-xl py-2 ${
-                  applyEmbedStyles 
-                    ? (widgetIsDark ? 'text-white/90 bg-white/10' : 'text-gray-700 bg-gray-100/60')
-                    : 'text-foreground bg-muted/30'
-                }`}
+                className="w-full text-left px-4 py-1.5 text-xs rounded-full transition-all duration-150 hover:translate-y-0.5 active:translate-y-1"
+                style={{
+                  backgroundColor: applyEmbedStyles 
+                    ? (widgetIsDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)')
+                    : 'hsl(var(--muted) / 0.5)',
+                  color: applyEmbedStyles 
+                    ? (widgetIsDark ? 'rgba(255,255,255,0.9)' : '#374151')
+                    : 'hsl(var(--foreground))',
+                  border: 'none',
+                  boxShadow: widgetIsDark 
+                    ? '0 2px 8px rgba(0,0,0,0.3)' 
+                    : '0 2px 8px rgba(0,0,0,0.1)',
+                }}
                 onClick={() => handleSuggestedQuestionClick(sq)}
                 disabled={sendMessageMutation.isPending || useSuggestedQuestionMutation.isPending}
                 data-testid={`button-suggested-question-${sq.id}`}
               >
-                <ChevronRight className={`w-4 h-4 flex-shrink-0 mr-2 ${applyEmbedStyles ? (widgetIsDark ? 'text-white/50' : 'text-gray-400') : 'text-muted-foreground'}`} />
-                <span className="flex-1 text-left">{sq.question}</span>
-              </Button>
+                <ChevronRight className={`w-3 h-3 mr-1 inline ${applyEmbedStyles ? (widgetIsDark ? 'opacity-50' : 'opacity-40') : 'opacity-50'}`} />
+                {sq.question}
+              </button>
             ))}
           </div>
         </div>
       )}
 
-      <div className={`p-4 ${applyEmbedStyles ? '' : 'border-t border-border'}`} style={frostedFooterStyle}>
+      <div className={`px-3 pt-2 ${applyEmbedStyles ? '' : 'border-t border-border'}`} style={{
+        ...frostedFooterStyle,
+        paddingBottom: `calc(4px + env(safe-area-inset-bottom, 0px))`,
+      }}>
         <input
           type="file"
           ref={fileInputRef}
@@ -3159,7 +3175,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </p>
         )}
         {/* Chatvice branding footer */}
-        <div className="flex items-center justify-between gap-2 mt-3 pb-1 px-1">
+        <div className="flex items-center justify-between gap-2 mt-1.5 px-1">
           <a 
             href="https://chatvice.app" 
             target="_blank" 
