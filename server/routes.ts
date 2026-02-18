@@ -890,28 +890,35 @@ KAPAN DILARANG REKOMENDASIKAN:
 - Customer hanya menyebut kata "produk" tanpa konteks kebutuhan
 - Baru 1-2 pesan pertama percakapan (terlalu awal)
 
-CARA MEREKOMENDASIKAN (PILIH PRODUK YANG PALING RELEVAN):
-1. Analisa kebutuhan customer dari percakapan
-2. Pilih SATU produk yang PALING COCOK dari katalog di atas
-3. Akhiri respons dengan tag yang menyebut NAMA PRODUK PERSIS seperti di katalog:
+CARA MEREKOMENDASIKAN (PILIH PRODUK BERDASARKAN INTEREST CUSTOMER):
+1. Analisa kebutuhan dan INTEREST customer dari seluruh percakapan
+2. Perhatikan kata kunci yang menunjukkan preferensi: warna, tema, gaya, ukuran, fungsi, budget
+3. Pilih SATU produk yang PALING COCOK dengan interest tersebut dari katalog di atas
+4. Jelaskan KENAPA produk ini cocok untuk customer (hubungkan dengan kebutuhannya)
+5. Akhiri respons dengan tag yang menyebut NAMA PRODUK PERSIS seperti di katalog:
    [RECOMMEND_PRODUCT:Nama Produk Persis]
 
 JIKA CUSTOMER MINTA OPSI LAIN / ALTERNATIF:
-- Jika customer bilang "ada yang lain?", "opsi lain?", "alternatif?", "produk lainnya?", "yang lain dong" atau sejenisnya
-- Pilih produk BERBEDA dari yang sudah pernah direkomendasikan sebelumnya di percakapan ini
-- Sesuaikan dengan topik diskusi dan interest customer
+- Jika customer bilang "ada yang lain?", "opsi lain?", "alternatif?", "produk lainnya?", "yang lain dong", "mau lihat yang lain", "ada rekomendasi lain?" atau sejenisnya
+- WAJIB pilih produk yang BELUM PERNAH direkomendasikan di percakapan ini
+- JANGAN PERNAH mengulang produk yang sama - ini SANGAT PENTING
+- Hubungkan produk baru dengan interest/konteks yang sudah dibahas sebelumnya
 - Gunakan tag yang sama: [RECOMMEND_PRODUCT:Nama Produk Berbeda]
-- Jika semua produk sudah pernah direkomendasikan, sampaikan bahwa itu semua opsi yang tersedia
+- Jika semua produk sudah pernah direkomendasikan, sampaikan: "Itu semua koleksi produk kami yang tersedia saat ini. Apakah ada yang menarik perhatian Kakak?"
+
+INTERAKTIF & NATURAL:
+- Setelah merekomendasikan, tanyakan apakah customer tertarik atau mau lihat yang lain
+- Jangan terlalu memaksa, biarkan customer memilih sendiri
+- Jika customer menunjukkan interest pada kategori tertentu, prioritaskan produk serupa
 
 Contoh penggunaan tag:
-- "Kalau Kakak butuh yang tahan air, coba cek ini ya..."
-  [RECOMMEND_PRODUCT:Tas Ransel Waterproof]
-- "Untuk kebutuhan gaming, ini cocok banget Kak..."
-  [RECOMMEND_PRODUCT:Gaming Mouse RGB Pro]
-- "Tentu! Ada opsi lain yang juga cocok untuk kebutuhan Kakak..."
-  [RECOMMEND_PRODUCT:Keyboard Mechanical Pro]
+- "Kalau Kakak suka tema gaming, ini cocok banget..."
+  [RECOMMEND_PRODUCT:Kaos Game ____ 10% + 50%]
+- "Untuk yang lebih motivasional, ada pilihan ini Kak..."
+  [RECOMMEND_PRODUCT:Kaos Berikan Kamu 50% Power]
 
 PENTING: Nama produk di tag HARUS SAMA PERSIS dengan nama di katalog (case-insensitive).
+PENTING: JANGAN PERNAH merekomendasikan produk yang SUDAH ditampilkan sebelumnya.
 ` : ""}
 Relevant Company Information:
 ${knowledgeContext || "No specific knowledge base configured yet."}
@@ -954,7 +961,17 @@ If you don't have specific information to answer, be honest about it and offer t
     
     let enhancedSystemMessage = systemMessage;
     if (previouslyRecommendedProducts.length > 0 && productCatalogContext) {
-      enhancedSystemMessage += `\n\nPRODUK YANG SUDAH DIREKOMENDASIKAN DI SESI INI (JANGAN rekomendasikan ulang kecuali customer meminta spesifik):\n${previouslyRecommendedProducts.map((p, i) => `${i + 1}. "${p}"`).join('\n')}\nJika customer minta opsi lain, pilih dari produk yang BELUM direkomendasikan.`;
+      const uniqueRecommended = [...new Set(previouslyRecommendedProducts)];
+      enhancedSystemMessage += `\n\n═══════════════════════════════════════════════════════════════════
+PRODUK YANG SUDAH DIREKOMENDASIKAN DI SESI INI - DILARANG KERAS MENGULANG:
+═══════════════════════════════════════════════════════════════════
+${uniqueRecommended.map((p, i) => `${i + 1}. "${p}" [SUDAH DITAMPILKAN - JANGAN ULANGI]`).join('\n')}
+
+ATURAN KETAT:
+- DILARANG menggunakan [RECOMMEND_PRODUCT] dengan nama produk yang SUDAH ada di daftar di atas
+- Jika customer minta opsi lain/alternatif, WAJIB pilih produk yang BELUM pernah direkomendasikan
+- Jika SEMUA produk sudah pernah direkomendasikan, katakan: "Itu semua koleksi produk kami yang tersedia saat ini. Apakah ada yang menarik perhatian Kakak?"
+- Perhatikan INTEREST dan KONTEKS percakapan customer untuk memilih produk yang paling relevan`;
     }
 
     // Build messages array with history (increased to last 20 messages for better context retention)
@@ -4245,6 +4262,18 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           if (settings?.aiAutoRecommendEnabled) {
             let matchedProductId: string | null = null;
             
+            // Build list of already-recommended product titles in this session to prevent server-side duplicates
+            const sessionMsgs = await storage.getMessages(sessionId);
+            const alreadyRecommendedTitles: string[] = [];
+            for (const sm of sessionMsgs) {
+              if (sm.messageType === 'product_offer' && sm.payload) {
+                try {
+                  const pl = typeof sm.payload === 'string' ? JSON.parse(sm.payload) : sm.payload;
+                  if (pl?.productCard?.title) alreadyRecommendedTitles.push(pl.productCard.title.toLowerCase().trim());
+                } catch {}
+              }
+            }
+
             // Priority 1: AI smart recommendation via [RECOMMEND_PRODUCT:ProductName] tag
             if (hasProductRecommendTag) {
               console.log(`[Product Trigger] AI decided to recommend product. Specified: "${recommendedProductName || 'none'}"`);
@@ -4269,16 +4298,19 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                     );
                   }
                   
+                  // Server-side duplicate check: skip if already recommended (safety net for when AI prompt didn't prevent it)
+                  if (matchedProduct && alreadyRecommendedTitles.includes(matchedProduct.title.toLowerCase().trim())) {
+                    console.log(`[Product Trigger] DUPLICATE BLOCKED: "${matchedProduct.title}" already recommended in this session, skipping product card. Total recommended so far: ${alreadyRecommendedTitles.length}, Total active products: ${activeCards.length}`);
+                    matchedProduct = undefined;
+                  }
+                  
                   if (matchedProduct) {
                     matchedProductId = matchedProduct.id;
                     console.log(`[Product Trigger] Smart match: "${recommendedProductName}" → "${matchedProduct.title}"`);
                   } else {
-                    // Skip recommendation if AI's choice not found to avoid incorrect product
                     console.log(`[Product Trigger] No match for "${recommendedProductName}", skipping recommendation`);
                   }
                 } else {
-                  // No specific product mentioned in tag, skip recommendation
-                  // AI should always specify product name in the new format
                   console.log(`[Product Trigger] No product name in tag, skipping recommendation`);
                 }
               }
@@ -4294,6 +4326,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                 if (!trigger.isActive) continue;
                 const keywords = trigger.keywords.split(',').map(k => k.trim().toLowerCase());
                 if (keywords.some(keyword => keyword && (lowerMessage.includes(keyword) || lowerAiResponse.includes(keyword)))) {
+                  // Check if this product was already recommended
+                  const triggerProduct = await storage.getProductCard(trigger.productCardId);
+                  if (triggerProduct && alreadyRecommendedTitles.includes(triggerProduct.title.toLowerCase().trim())) {
+                    console.log(`[Product Trigger] Keyword duplicate blocked: "${triggerProduct.title}" already recommended`);
+                    continue;
+                  }
                   matchedProductId = trigger.productCardId;
                   console.log(`[Product Trigger] Keyword-based: Matched specific product trigger`);
                   break;
@@ -4335,6 +4373,19 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                 });
                 
                 console.log(`[Product Trigger] Product offer sent successfully!`);
+                
+                // Send natural follow-up message after product recommendation
+                const followUpMessage = "Dari rekomendasi produk di atas apa ada yang kakak suka? Silahkan pilih jika ada yang berkenan.";
+                await storage.createMessage({
+                  sessionId,
+                  from: "chatvice",
+                  content: followUpMessage,
+                });
+                
+                broadcastToSession(sessionId, {
+                  type: "message",
+                  message: { from: "chatvice", content: followUpMessage },
+                });
               }
             }
           }
