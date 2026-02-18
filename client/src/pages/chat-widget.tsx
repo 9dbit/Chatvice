@@ -1864,7 +1864,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         className="px-3 py-2 flex items-center justify-between shadow-md shrink-0 z-10"
         style={{
           ...frostedHeaderStyle,
-          ...(isDirectAccess ? { paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)' } : {}),
+          ...(isDirectAccess ? { paddingTop: 'max(env(safe-area-inset-top, 12px), 12px)' } : {}),
         }}
       >
         <div className="flex items-center gap-2.5">
@@ -2549,12 +2549,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           <div 
             className="shrink-0 px-3" 
             style={{ 
-              paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 16px))', 
+              paddingBottom: 'max(calc(12px + env(safe-area-inset-bottom, 8px)), 20px)', 
               paddingTop: '16px',
               background: widgetIsDark 
                 ? 'linear-gradient(to bottom, transparent, rgba(24,24,27,0.85) 40%, #18181b)' 
                 : 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.85) 40%, #ffffff)',
-              marginBottom: '-env(safe-area-inset-bottom, 0px)',
             }}
           >
             <div 
@@ -2994,7 +2993,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
       <div className={`px-3 pt-1.5 ${applyEmbedStyles ? '' : 'border-t border-border'}`} style={{
         ...frostedFooterStyle,
-        paddingBottom: isDirectAccess ? 'calc(env(safe-area-inset-bottom, 0px) + 4px)' : '4px',
+        paddingBottom: isDirectAccess ? 'max(env(safe-area-inset-bottom, 8px), 8px)' : '4px',
       }}>
         <input
           type="file"
@@ -3189,13 +3188,24 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             We're currently offline. Please try again later.
           </p>
         )}
-        {/* Chatvice branding footer */}
-        <div className="flex items-center justify-between gap-2 mt-1 px-1">
+        {/* Chatvice branding footer - frosted glass pill style matching welcome screen */}
+        <div 
+          className="flex items-center justify-between gap-2 mt-2 mb-1 px-3 py-2.5 rounded-full"
+          style={applyEmbedStyles ? {
+            backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.85)',
+            backdropFilter: `blur(${bodyBlur}px) saturate(150%)`,
+            WebkitBackdropFilter: `blur(${bodyBlur}px) saturate(150%)`,
+            border: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)'}`,
+            boxShadow: widgetIsDark 
+              ? '0 2px 12px rgba(0,0,0,0.4), 0 1px 4px rgba(0,0,0,0.3)' 
+              : '0 2px 12px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.06)',
+          } : undefined}
+        >
           <a 
             href="https://chatvice.app" 
             target="_blank" 
             rel="noopener noreferrer"
-            className="opacity-70 hover:opacity-100 transition-opacity"
+            className="shrink-0 opacity-80 hover:opacity-100 transition-opacity"
             data-testid="link-powered-by-chatvice"
           >
             <img 
