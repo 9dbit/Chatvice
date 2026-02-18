@@ -40,6 +40,7 @@ interface MerchantConfig {
   prechatBannerUrl?: string;
   quickMessageOptions?: string[];
   activeAgentId?: string;
+  chatWorkflow?: "click_to_open" | "auto_open";
 }
 
 interface NotificationSettings {
@@ -522,6 +523,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       activeAgentIdRef.current = merchantConfig.activeAgentId;
     }
   }, [merchantConfig?.activeAgentId]);
+
+  // Auto-open chat when chatWorkflow is "auto_open"
+  useEffect(() => {
+    if (merchantConfig?.chatWorkflow === "auto_open" && !embedded && !previewMode) {
+      setIsOpen(true);
+    }
+  }, [merchantConfig?.chatWorkflow, embedded, previewMode]);
 
   const { data: serverMessages } = useQuery<Message[]>({
     queryKey: ["/api/messages", sessionId],

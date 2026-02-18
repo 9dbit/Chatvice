@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import type { MerchantDomain } from "@shared/schema";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Merchant, Agent } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 
@@ -96,6 +97,7 @@ export default function WidgetPage() {
     widgetTheme: "light" as "light" | "dark",
     bubblePosition: "right" as "left" | "right",
     allowedDomains: "",
+    chatWorkflow: "click_to_open" as "click_to_open" | "auto_open",
   });
 
   const [socialConfig, setSocialConfig] = useState({
@@ -316,6 +318,7 @@ export default function WidgetPage() {
         widgetTheme: (agentWidgetSettings.widgetTheme as "light" | "dark") || "light",
         bubblePosition: (agentWidgetSettings.bubblePosition as "left" | "right") || "right",
         allowedDomains: (merchant as any).allowedDomains || "",
+        chatWorkflow: ((merchant as any).chatWorkflow as "click_to_open" | "auto_open") || "click_to_open",
       });
     } else if (merchant && !merchant.activeAgentId) {
       setConfig({
@@ -341,6 +344,7 @@ export default function WidgetPage() {
         widgetTheme: (merchant.widgetTheme as "light" | "dark") || "light",
         bubblePosition: (merchant.bubblePosition as "left" | "right") || "right",
         allowedDomains: (merchant as any).allowedDomains || "",
+        chatWorkflow: ((merchant as any).chatWorkflow as "click_to_open" | "auto_open") || "click_to_open",
       });
     }
   }, [merchant, agentWidgetSettings]);
@@ -615,6 +619,7 @@ export default function WidgetPage() {
         iconAnimationRotation: config.iconAnimationRotation,
         iconAnimationSpeed: config.iconAnimationSpeed,
         online: config.online,
+        chatWorkflow: config.chatWorkflow,
       };
       await apiRequest("POST", "/api/merchant/config", merchantIconConfig);
       
@@ -1062,190 +1067,195 @@ async function handleLogin() {
                             data-testid="input-icon-file"
                           />
                         </div>
-                        <div className="flex-1 space-y-2 max-w-[200px]">
-                          <div 
-                            className="text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1.5 break-all line-clamp-3 overflow-hidden"
-                            title={config.iconUrl || "No icon selected"}
-                          >
-                            {config.iconUrl ? (
-                              config.iconUrl.length > 60 ? config.iconUrl.substring(0, 60) + "..." : config.iconUrl
-                            ) : (
-                              <span className="italic">No custom icon</span>
-                            )}
-                          </div>
-                          {config.iconUrl && (
-                            <div className="space-y-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-destructive h-auto p-0"
-                                onClick={() => setConfig({ ...config, iconUrl: "" })}
-                                data-testid="button-remove-icon"
-                              >
-                                <X className="w-3 h-3 mr-1" />
-                                Remove custom icon
-                              </Button>
-                              {/* Mobile: single row layout */}
-                              <div className="flex flex-wrap gap-1.5 md:hidden">
-                                <button
-                                  onClick={() => handleFlipImage("horizontal")}
-                                  disabled={isProcessingImage}
-                                  data-testid="button-flip-horizontal"
-                                  className="relative inline-flex items-center justify-center px-2 py-1 text-[10px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
-                                  style={{
-                                    background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
-                                    backgroundSize: '200% 200%',
-                                    animation: 'gradient-shift 3s ease infinite',
-                                  }}
-                                >
-                                  <span className="relative z-10 flex items-center whitespace-nowrap">
-                                    {isProcessingImage ? <Loader2 className="w-2.5 h-2.5 animate-spin mr-0.5" /> : <ArrowUpRight className="w-2.5 h-2.5 mr-0.5 -scale-x-100" />}
-                                    Flip H
-                                  </span>
-                                </button>
-                                <button
-                                  onClick={() => handleFlipImage("vertical")}
-                                  disabled={isProcessingImage}
-                                  data-testid="button-flip-vertical"
-                                  className="relative inline-flex items-center justify-center px-2 py-1 text-[10px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
-                                  style={{
-                                    background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
-                                    backgroundSize: '200% 200%',
-                                    animation: 'gradient-shift 3s ease infinite',
-                                  }}
-                                >
-                                  <span className="relative z-10 flex items-center whitespace-nowrap">
-                                    {isProcessingImage ? <Loader2 className="w-2.5 h-2.5 animate-spin mr-0.5" /> : <ArrowUpRight className="w-2.5 h-2.5 mr-0.5 -scale-y-100" />}
-                                    Flip V
-                                  </span>
-                                </button>
-                                <button
-                                  onClick={handleConvertToWebP}
-                                  disabled={isProcessingImage || config.iconUrl.startsWith('data:image/webp')}
-                                  data-testid="button-convert-webp"
-                                  className="relative inline-flex items-center justify-center px-2 py-1 text-[10px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
-                                  style={{
-                                    background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
-                                    backgroundSize: '200% 200%',
-                                    animation: 'gradient-shift 3s ease infinite',
-                                  }}
-                                >
-                                  <span className="relative z-10 flex items-center whitespace-nowrap">
-                                    {isProcessingImage ? <Loader2 className="w-2.5 h-2.5 animate-spin mr-0.5" /> : <ImageIcon className="w-2.5 h-2.5 mr-0.5" />}
-                                    WebP
-                                  </span>
-                                </button>
-                                <button
-                                  onClick={handleRemoveBackground}
-                                  disabled={isRemovingBg || (bgRemovalStatus !== null && bgRemovalStatus.limit >= 0 && bgRemovalStatus.used >= bgRemovalStatus.limit)}
-                                  data-testid="button-remove-bg"
-                                  title={bgRemovalStatus ? `${bgRemovalStatus.used}/${bgRemovalStatus.limit} used this month` : "Remove background"}
-                                  className="relative inline-flex items-center justify-center px-2 py-1 text-[10px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
-                                  style={{
-                                    background: 'linear-gradient(135deg, #7c3aed 0%, #ec4899 50%, #7c3aed 100%)',
-                                    backgroundSize: '200% 200%',
-                                    animation: 'gradient-shift 3s ease infinite',
-                                  }}
-                                >
-                                  <span className="relative z-10 flex items-center whitespace-nowrap">
-                                    {isRemovingBg ? <Loader2 className="w-2.5 h-2.5 animate-spin mr-0.5" /> : <Frame className="w-2.5 h-2.5 mr-0.5" />}
-                                    Rm BG {bgRemovalStatus && bgRemovalStatus.limit > 0 && (
-                                      <span className="text-[9px] opacity-70 ml-0.5">({bgRemovalStatus.limit - bgRemovalStatus.used})</span>
-                                    )}
-                                  </span>
-                                </button>
-                              </div>
-                              {bgRemovalStatus && bgRemovalStatus.limit === 0 && (
-                                <p className="text-xs text-amber-600 dark:text-amber-400">
-                                  <Lock className="w-3 h-3 inline mr-1" />
-                                  Background removal requires Starter plan or higher
-                                </p>
-                              )}
-                              {bgRemovalStatus && bgRemovalStatus.limit > 0 && bgRemovalStatus.used >= bgRemovalStatus.limit && (
-                                <p className="text-xs text-amber-600 dark:text-amber-400">
-                                  <AlertCircle className="w-3 h-3 inline mr-1" />
-                                  Monthly limit reached ({bgRemovalStatus.used}/{bgRemovalStatus.limit})
-                                </p>
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <div 
+                              className="text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1.5 break-all line-clamp-1 overflow-hidden shrink min-w-0"
+                              title={config.iconUrl || "No icon selected"}
+                            >
+                              {config.iconUrl ? (
+                                config.iconUrl.length > 30 ? config.iconUrl.substring(0, 30) + "..." : config.iconUrl
+                              ) : (
+                                <span className="italic">No custom icon</span>
                               )}
                             </div>
+                            {config.iconUrl && (
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => handleFlipImage("horizontal")}
+                                      disabled={isProcessingImage}
+                                      data-testid="button-flip-horizontal-desktop"
+                                    >
+                                      {isProcessingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowLeftRight className="w-3.5 h-3.5" />}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="bottom">
+                                    <p>Flip image horizontally (mirror left-right)</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => handleFlipImage("vertical")}
+                                      disabled={isProcessingImage}
+                                      data-testid="button-flip-vertical-desktop"
+                                    >
+                                      {isProcessingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowUpDown className="w-3.5 h-3.5" />}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="bottom">
+                                    <p>Flip image vertically (mirror top-bottom)</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={handleConvertToWebP}
+                                      disabled={isProcessingImage || config.iconUrl.startsWith('data:image/webp')}
+                                      data-testid="button-convert-webp-desktop"
+                                    >
+                                      {isProcessingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5" />}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="bottom">
+                                    <p>Convert image to WebP format for smaller file size</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={handleRemoveBackground}
+                                      disabled={isRemovingBg || (bgRemovalStatus !== null && bgRemovalStatus.limit >= 0 && bgRemovalStatus.used >= bgRemovalStatus.limit)}
+                                      data-testid="button-remove-bg-desktop"
+                                    >
+                                      {isRemovingBg ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Frame className="w-3.5 h-3.5" />}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="bottom">
+                                    <p>Remove background using AI {bgRemovalStatus && bgRemovalStatus.limit > 0 && `(${bgRemovalStatus.limit - bgRemovalStatus.used} remaining)`}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-destructive"
+                                      onClick={() => setConfig({ ...config, iconUrl: "" })}
+                                      data-testid="button-remove-icon"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="bottom">
+                                    <p>Remove custom icon</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </div>
+                            )}
+                          </div>
+                          {/* Mobile: action buttons row */}
+                          {config.iconUrl && (
+                            <div className="flex flex-wrap gap-1.5 md:hidden">
+                              <button
+                                onClick={() => handleFlipImage("horizontal")}
+                                disabled={isProcessingImage}
+                                data-testid="button-flip-horizontal"
+                                className="relative inline-flex items-center justify-center px-2 py-1 text-[10px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                                style={{
+                                  background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
+                                  backgroundSize: '200% 200%',
+                                  animation: 'gradient-shift 3s ease infinite',
+                                }}
+                              >
+                                <span className="relative z-10 flex items-center whitespace-nowrap">
+                                  {isProcessingImage ? <Loader2 className="w-2.5 h-2.5 animate-spin mr-0.5" /> : <ArrowUpRight className="w-2.5 h-2.5 mr-0.5 -scale-x-100" />}
+                                  Flip H
+                                </span>
+                              </button>
+                              <button
+                                onClick={() => handleFlipImage("vertical")}
+                                disabled={isProcessingImage}
+                                data-testid="button-flip-vertical"
+                                className="relative inline-flex items-center justify-center px-2 py-1 text-[10px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                                style={{
+                                  background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
+                                  backgroundSize: '200% 200%',
+                                  animation: 'gradient-shift 3s ease infinite',
+                                }}
+                              >
+                                <span className="relative z-10 flex items-center whitespace-nowrap">
+                                  {isProcessingImage ? <Loader2 className="w-2.5 h-2.5 animate-spin mr-0.5" /> : <ArrowUpRight className="w-2.5 h-2.5 mr-0.5 -scale-y-100" />}
+                                  Flip V
+                                </span>
+                              </button>
+                              <button
+                                onClick={handleConvertToWebP}
+                                disabled={isProcessingImage || config.iconUrl.startsWith('data:image/webp')}
+                                data-testid="button-convert-webp"
+                                className="relative inline-flex items-center justify-center px-2 py-1 text-[10px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                                style={{
+                                  background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
+                                  backgroundSize: '200% 200%',
+                                  animation: 'gradient-shift 3s ease infinite',
+                                }}
+                              >
+                                <span className="relative z-10 flex items-center whitespace-nowrap">
+                                  {isProcessingImage ? <Loader2 className="w-2.5 h-2.5 animate-spin mr-0.5" /> : <ImageIcon className="w-2.5 h-2.5 mr-0.5" />}
+                                  WebP
+                                </span>
+                              </button>
+                              <button
+                                onClick={handleRemoveBackground}
+                                disabled={isRemovingBg || (bgRemovalStatus !== null && bgRemovalStatus.limit >= 0 && bgRemovalStatus.used >= bgRemovalStatus.limit)}
+                                data-testid="button-remove-bg"
+                                className="relative inline-flex items-center justify-center px-2 py-1 text-[10px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                                style={{
+                                  background: 'linear-gradient(135deg, #7c3aed 0%, #ec4899 50%, #7c3aed 100%)',
+                                  backgroundSize: '200% 200%',
+                                  animation: 'gradient-shift 3s ease infinite',
+                                }}
+                              >
+                                <span className="relative z-10 flex items-center whitespace-nowrap">
+                                  {isRemovingBg ? <Loader2 className="w-2.5 h-2.5 animate-spin mr-0.5" /> : <Frame className="w-2.5 h-2.5 mr-0.5" />}
+                                  Rm BG {bgRemovalStatus && bgRemovalStatus.limit > 0 && (
+                                    <span className="text-[9px] opacity-70 ml-0.5">({bgRemovalStatus.limit - bgRemovalStatus.used})</span>
+                                  )}
+                                </span>
+                              </button>
+                            </div>
+                          )}
+                          {bgRemovalStatus && bgRemovalStatus.limit === 0 && (
+                            <p className="text-xs text-amber-600 dark:text-amber-400">
+                              <Lock className="w-3 h-3 inline mr-1" />
+                              Background removal requires Starter plan or higher
+                            </p>
+                          )}
+                          {bgRemovalStatus && bgRemovalStatus.limit > 0 && bgRemovalStatus.used >= bgRemovalStatus.limit && (
+                            <p className="text-xs text-amber-600 dark:text-amber-400">
+                              <AlertCircle className="w-3 h-3 inline mr-1" />
+                              Monthly limit reached ({bgRemovalStatus.used}/{bgRemovalStatus.limit})
+                            </p>
                           )}
                           <p className="text-xs text-muted-foreground">
                             Supports PNG, GIF, JPG, SVG, WebP. Max 2MB.
                           </p>
                         </div>
                       </div>
-                      {/* Desktop: action buttons in compact uniform row */}
-                      {config.iconUrl && (
-                        <div className="hidden md:flex md:items-center gap-1.5 mt-2 flex-wrap">
-                          <button
-                            onClick={() => handleFlipImage("horizontal")}
-                            disabled={isProcessingImage}
-                            data-testid="button-flip-horizontal-desktop"
-                            className="relative inline-flex items-center justify-center px-2.5 py-1.5 text-[11px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
-                            style={{
-                              background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
-                              backgroundSize: '200% 200%',
-                              animation: 'gradient-shift 3s ease infinite',
-                            }}
-                          >
-                            <span className="relative z-10 flex items-center whitespace-nowrap">
-                              {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ArrowUpRight className="w-3 h-3 mr-1 -scale-x-100" />}
-                              Flip H
-                            </span>
-                          </button>
-                          <button
-                            onClick={() => handleFlipImage("vertical")}
-                            disabled={isProcessingImage}
-                            data-testid="button-flip-vertical-desktop"
-                            className="relative inline-flex items-center justify-center px-2.5 py-1.5 text-[11px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
-                            style={{
-                              background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
-                              backgroundSize: '200% 200%',
-                              animation: 'gradient-shift 3s ease infinite',
-                            }}
-                          >
-                            <span className="relative z-10 flex items-center whitespace-nowrap">
-                              {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ArrowUpRight className="w-3 h-3 mr-1 -scale-y-100" />}
-                              Flip V
-                            </span>
-                          </button>
-                          <button
-                            onClick={handleConvertToWebP}
-                            disabled={isProcessingImage || config.iconUrl.startsWith('data:image/webp')}
-                            data-testid="button-convert-webp-desktop"
-                            className="relative inline-flex items-center justify-center px-2.5 py-1.5 text-[11px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
-                            style={{
-                              background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
-                              backgroundSize: '200% 200%',
-                              animation: 'gradient-shift 3s ease infinite',
-                            }}
-                          >
-                            <span className="relative z-10 flex items-center whitespace-nowrap">
-                              {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ImageIcon className="w-3 h-3 mr-1" />}
-                              WebP
-                            </span>
-                          </button>
-                          <button
-                            onClick={handleRemoveBackground}
-                            disabled={isRemovingBg || (bgRemovalStatus !== null && bgRemovalStatus.limit >= 0 && bgRemovalStatus.used >= bgRemovalStatus.limit)}
-                            data-testid="button-remove-bg-desktop"
-                            title={bgRemovalStatus ? `${bgRemovalStatus.used}/${bgRemovalStatus.limit} used this month` : "Remove background"}
-                            className="relative inline-flex items-center justify-center px-2.5 py-1.5 text-[11px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
-                            style={{
-                              background: 'linear-gradient(135deg, #7c3aed 0%, #ec4899 50%, #7c3aed 100%)',
-                              backgroundSize: '200% 200%',
-                              animation: 'gradient-shift 3s ease infinite',
-                            }}
-                          >
-                            <span className="relative z-10 flex items-center whitespace-nowrap">
-                              {isRemovingBg ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Frame className="w-3 h-3 mr-1" />}
-                              Rm BG {bgRemovalStatus && bgRemovalStatus.limit > 0 && (
-                                <span className="text-[9px] opacity-70 ml-0.5">({bgRemovalStatus.limit - bgRemovalStatus.used})</span>
-                              )}
-                            </span>
-                          </button>
-                        </div>
-                      )}
                       
                       {/* Icon Templates Section */}
                       <div className="pt-3 border-t">
@@ -1254,7 +1264,7 @@ async function handleLogin() {
                         <div className="space-y-3">
                           <div>
                             <p className="text-xs font-medium text-muted-foreground mb-1.5">Men</p>
-                            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5">
+                            <div className="flex flex-wrap gap-1.5">
                               {[
                                 { id: 'male-cs-blue-shirt', name: 'CS Blue Shirt', ext: 'webp' },
                                 { id: 'male-cs-suit', name: 'CS Suit', ext: 'webp' },
@@ -1265,7 +1275,7 @@ async function handleLogin() {
                                   key={template.id}
                                   type="button"
                                   className={cn(
-                                    "relative rounded-md overflow-hidden border-2 transition-all aspect-square w-full max-w-[80px]",
+                                    "relative rounded-md overflow-hidden border-2 transition-all w-[56px] h-[56px]",
                                     config.iconUrl === `/icon-templates/${template.id}.${template.ext}`
                                       ? "border-primary ring-2 ring-primary/30"
                                       : "border-muted hover:border-primary/50"
@@ -1292,7 +1302,7 @@ async function handleLogin() {
 
                           <div>
                             <p className="text-xs font-medium text-muted-foreground mb-1.5">Women</p>
-                            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5">
+                            <div className="flex flex-wrap gap-1.5">
                               {[
                                 { id: 'female-cs-red', name: 'CS Red', ext: 'png' },
                                 { id: 'female-cs-white', name: 'CS White', ext: 'png' },
@@ -1303,7 +1313,7 @@ async function handleLogin() {
                                   key={template.id}
                                   type="button"
                                   className={cn(
-                                    "relative rounded-md overflow-hidden border-2 transition-all aspect-square w-full max-w-[80px]",
+                                    "relative rounded-md overflow-hidden border-2 transition-all w-[56px] h-[56px]",
                                     config.iconUrl === `/icon-templates/${template.id}.${template.ext}`
                                       ? "border-primary ring-2 ring-primary/30"
                                       : "border-muted hover:border-primary/50"
@@ -1330,7 +1340,7 @@ async function handleLogin() {
 
                           <div>
                             <p className="text-xs font-medium text-muted-foreground mb-1.5">Icons</p>
-                            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5">
+                            <div className="flex flex-wrap gap-1.5">
                               {[
                                 { id: 'astronaut', name: 'Astronaut', ext: 'png' },
                                 { id: 'rocket', name: 'Rocket', ext: 'webp' },
@@ -1341,7 +1351,7 @@ async function handleLogin() {
                                   key={template.id}
                                   type="button"
                                   className={cn(
-                                    "relative rounded-md overflow-hidden border-2 transition-all aspect-square w-full max-w-[80px]",
+                                    "relative rounded-md overflow-hidden border-2 transition-all w-[56px] h-[56px]",
                                     config.iconUrl === `/icon-templates/${template.id}.${template.ext}`
                                       ? "border-primary ring-2 ring-primary/30"
                                       : "border-muted hover:border-primary/50"
@@ -1696,13 +1706,13 @@ async function handleLogin() {
 
                       <div className="space-y-2">
                         <Label className="text-sm">Or Choose Avatar</Label>
-                        <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5">
+                        <div className="flex flex-wrap gap-1.5">
                           {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
                             <button
                               key={num}
                               type="button"
                               onClick={() => setConfig({ ...config, agentPhotoUrl: `/avatars/avatar-${num}.jpg` })}
-                              className={`relative rounded-md overflow-hidden border-2 transition-all hover:opacity-80 active:scale-95 aspect-square w-full max-w-[80px] ${
+                              className={`relative rounded-md overflow-hidden border-2 transition-all hover:opacity-80 active:scale-95 w-[56px] h-[56px] ${
                                 config.agentPhotoUrl === `/avatars/avatar-${num}.jpg` 
                                   ? 'border-primary ring-2 ring-primary/30' 
                                   : 'border-muted hover:border-muted-foreground/50'
@@ -1780,6 +1790,28 @@ async function handleLogin() {
                             </Button>
                           </div>
                         </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Chat Workflow</Label>
+                        <Select
+                          value={config.chatWorkflow}
+                          onValueChange={(value: "click_to_open" | "auto_open") => setConfig({ ...config, chatWorkflow: value })}
+                        >
+                          <SelectTrigger data-testid="select-chat-workflow">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="click_to_open">Click to Open (Standard)</SelectItem>
+                            <SelectItem value="auto_open">Auto Open Chat</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          {config.chatWorkflow === "click_to_open" 
+                            ? "Visitor clicks the chat icon or welcome bubble button to open the chat window."
+                            : "Chat window opens automatically when visitor enters the page. Pre-chat banner and welcome message appear directly in the chat area."
+                          }
+                        </p>
                       </div>
                     </div>
 

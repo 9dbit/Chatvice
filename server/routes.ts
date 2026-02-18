@@ -3532,6 +3532,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         welcomeDescription: merchant.welcomeDescription || "",
         prechatBannerUrl: merchant.prechatBannerUrl || "",
         quickMessageOptions: merchant.quickMessageOptions || [],
+        chatWorkflow: merchant.chatWorkflow || "click_to_open",
       });
     } catch (error) {
       res.status(500).json({ error: "Server error" });

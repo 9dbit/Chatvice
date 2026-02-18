@@ -107,6 +107,7 @@ export const merchants = pgTable("merchants", {
   welcomeDescription: text("welcome_description").default(""),
   prechatBannerUrl: text("prechat_banner_url").default(""),
   quickMessageOptions: text("quick_message_options").array().default([]),
+  chatWorkflow: text("chat_workflow").default("click_to_open"), // "click_to_open" | "auto_open"
   // Email change verification
   pendingEmail: text("pending_email"),
   emailChangeOtp: text("email_change_otp"),
@@ -383,6 +384,7 @@ export const merchantConfigSchema = z.object({
   welcomeDescription: z.string().optional(),
   prechatBannerUrl: z.string().optional(),
   quickMessageOptions: z.array(z.string()).optional(),
+  chatWorkflow: z.enum(["click_to_open", "auto_open"]).optional(),
 });
 export type MerchantConfig = z.infer<typeof merchantConfigSchema>;
 
