@@ -1003,18 +1003,37 @@ ATURAN KETAT:
         { type: "text", text: `${message}\n\n[Customer is asking about images they previously sent. Here are the images:]` }
       ];
       
-      // Add recent images (max 3 to avoid token overload)
       const imagesToInclude = recentImages.slice(-3);
       for (const img of imagesToInclude) {
-        // Build full URL
-        let fullImageUrl = img.url;
         if (img.url.startsWith('/')) {
-          fullImageUrl = `https://${process.env.REPLIT_DEV_DOMAIN || 'localhost:5000'}${img.url}`;
+          const localPath = path.join(process.cwd(), "uploads", img.url.replace("/uploads/", ""));
+          try {
+            const imgStats = await fs.promises.stat(localPath);
+            if (imgStats.size > 4 * 1024 * 1024) throw new Error("Too large");
+            const imgBuffer = await fs.promises.readFile(localPath);
+            const ext = path.extname(img.url).toLowerCase().replace('.', '');
+            const mimeMap: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' };
+            const mimeType = mimeMap[ext] || 'image/jpeg';
+            contentArray.push({
+              type: "image_url",
+              image_url: { url: `data:${mimeType};base64,${imgBuffer.toString('base64')}`, detail: "auto" }
+            });
+          } catch {
+            const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+              ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+              : "https://chatvice.app";
+            contentArray.push({
+              type: "image_url",
+              image_url: { url: `${baseUrl}${img.url}`, detail: "auto" }
+            });
+            console.warn(`[Vision] Using URL fallback for: ${img.url}`);
+          }
+        } else {
+          contentArray.push({
+            type: "image_url",
+            image_url: { url: img.url, detail: "auto" }
+          });
         }
-        contentArray.push({
-          type: "image_url",
-          image_url: { url: fullImageUrl, detail: "auto" }
-        });
       }
       
       chatMessages.push({ role: "user", content: contentArray });
@@ -1084,15 +1103,35 @@ async function analyzeMediaWithAI(
     knowledgeContext = knowledge?.content || "";
   }
 
-  const baseUrl = process.env.REPLIT_DEV_DOMAIN 
-    ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-    : requestHost 
-      ? `https://${requestHost}`
-      : "http://localhost:5000";
-  const fullImageUrl = `${baseUrl}${fileUrl}`;
-
   try {
     if (mediaType === "photo") {
+      const localFilePath = path.join(process.cwd(), "uploads", fileUrl.replace("/uploads/", ""));
+      let imageUrl: string;
+      
+      try {
+        const stats = await fs.promises.stat(localFilePath);
+        if (stats.size > 4 * 1024 * 1024) {
+          console.log(`[Media Analysis] Image too large for base64 (${(stats.size / 1024 / 1024).toFixed(1)}MB), using URL fallback`);
+          throw new Error("Image too large for base64");
+        }
+        const imageBuffer = await fs.promises.readFile(localFilePath);
+        const ext = path.extname(fileUrl).toLowerCase().replace('.', '');
+        const mimeMap: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp' };
+        const mimeType = mimeMap[ext] || 'image/jpeg';
+        imageUrl = `data:${mimeType};base64,${imageBuffer.toString('base64')}`;
+        console.log(`[Media Analysis] Using base64 image (${(imageBuffer.length / 1024).toFixed(1)}KB)`);
+      } catch (fileErr: any) {
+        if (fileErr.message !== "Image too large for base64") {
+          console.error("[Media Analysis] Failed to read local file, trying URL fallback:", fileErr);
+        }
+        const baseUrl = requestHost 
+          ? `https://${requestHost}`
+          : process.env.REPLIT_DEV_DOMAIN 
+            ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+            : "https://chatvice.app";
+        imageUrl = `${baseUrl}${fileUrl}`;
+      }
+
       const completion = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
         messages: [
@@ -1102,12 +1141,13 @@ async function analyzeMediaWithAI(
 Your task is to analyze images sent by customers and offer relevant assistance.
 
 Instructions:
-1. Describe what you see in the image concisely
-2. If it shows a product, damage, issue, or problem - acknowledge it and offer help
-3. If it's a receipt, invoice, or document - summarize key information
-4. Always be helpful and ask how you can assist further
-5. Respond in the same language the customer likely uses (detect from context or default to Indonesian)
-6. Use the knowledge base information below to provide accurate, customized responses about company products, services, and policies
+1. FIRST, describe what you see in the image clearly and concisely so the customer knows you actually looked at it
+2. If it shows a product, damage, issue, or problem - acknowledge it specifically and offer help
+3. If it's a receipt, invoice, or document - summarize key information you can read
+4. If it's a screenshot - describe what's shown and ask how you can help
+5. Always confirm what you see and ask how you can assist further
+6. Respond in the same language the customer likely uses (detect from context or default to Indonesian)
+7. Use the knowledge base information below to provide accurate, customized responses about company products, services, and policies
 
 ${agentSystemPrompt ? `Custom Instructions: ${agentSystemPrompt}\n` : ""}
 Relevant Company Knowledge:
@@ -1118,14 +1158,11 @@ ${knowledgeContext || "No specific knowledge base configured yet."}`
             content: [
               {
                 type: "text",
-                text: "Customer sent this image. Please analyze it and offer assistance."
+                text: "Customer sent this image. Please describe what you see in detail and offer assistance."
               },
               {
                 type: "image_url",
-                image_url: {
-                  url: fullImageUrl,
-                  detail: "auto"
-                }
+                image_url: { url: imageUrl, detail: "auto" }
               }
             ]
           }
@@ -18362,6 +18399,8 @@ ${template?.suggestedTopics ? `Suggested Topics to Cover: ${template.suggestedTo
 
 Please create a comprehensive help center article that would be useful for customers.`;
 
+      console.log(`[KB Generate] Starting article generation for merchant ${merchantId}, type: ${businessType}, category: ${category}`);
+      
       const completion = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
         messages: [
@@ -18370,9 +18409,11 @@ Please create a comprehensive help center article that would be useful for custo
         ],
         response_format: { type: "json_object" },
         temperature: 0.7,
+        max_completion_tokens: 2000,
       });
       
       const responseText = completion.choices[0]?.message?.content || "{}";
+      console.log(`[KB Generate] AI response received (${responseText.length} chars)`);
       let generatedContent;
       
       try {

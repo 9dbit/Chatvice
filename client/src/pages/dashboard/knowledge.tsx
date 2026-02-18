@@ -331,7 +331,7 @@ export default function KnowledgePage() {
       });
       setIsEditorOpen(true);
     },
-    retry: 1,
+    retry: 2,
     onError: (error: any) => {
       toast({
         title: "Generation failed",
