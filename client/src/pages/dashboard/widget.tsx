@@ -1174,14 +1174,14 @@ async function handleLogin() {
                           </p>
                         </div>
                       </div>
-                      {/* Desktop: action buttons in full-width row */}
+                      {/* Desktop: action buttons in compact uniform row */}
                       {config.iconUrl && (
-                        <div className="hidden md:flex md:items-center gap-2 mt-2">
+                        <div className="hidden md:flex md:items-center gap-1.5 mt-2 flex-wrap">
                           <button
                             onClick={() => handleFlipImage("horizontal")}
                             disabled={isProcessingImage}
                             data-testid="button-flip-horizontal-desktop"
-                            className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="relative inline-flex items-center justify-center px-2.5 py-1.5 text-[11px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
                             style={{
                               background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
                               backgroundSize: '200% 200%',
@@ -1197,7 +1197,7 @@ async function handleLogin() {
                             onClick={() => handleFlipImage("vertical")}
                             disabled={isProcessingImage}
                             data-testid="button-flip-vertical-desktop"
-                            className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="relative inline-flex items-center justify-center px-2.5 py-1.5 text-[11px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
                             style={{
                               background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
                               backgroundSize: '200% 200%',
@@ -1213,7 +1213,7 @@ async function handleLogin() {
                             onClick={handleConvertToWebP}
                             disabled={isProcessingImage || config.iconUrl.startsWith('data:image/webp')}
                             data-testid="button-convert-webp-desktop"
-                            className="relative inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="relative inline-flex items-center justify-center px-2.5 py-1.5 text-[11px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
                             style={{
                               background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
                               backgroundSize: '200% 200%',
@@ -1222,7 +1222,7 @@ async function handleLogin() {
                           >
                             <span className="relative z-10 flex items-center whitespace-nowrap">
                               {isProcessingImage ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ImageIcon className="w-3 h-3 mr-1" />}
-                              Save as WebP
+                              WebP
                             </span>
                           </button>
                           <button
@@ -1230,17 +1230,17 @@ async function handleLogin() {
                             disabled={isRemovingBg || (bgRemovalStatus !== null && bgRemovalStatus.limit >= 0 && bgRemovalStatus.used >= bgRemovalStatus.limit)}
                             data-testid="button-remove-bg-desktop"
                             title={bgRemovalStatus ? `${bgRemovalStatus.used}/${bgRemovalStatus.limit} used this month` : "Remove background"}
-                            className="relative inline-flex items-center justify-center w-full px-4 py-2.5 text-sm font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="relative inline-flex items-center justify-center px-2.5 py-1.5 text-[11px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
                             style={{
                               background: 'linear-gradient(135deg, #7c3aed 0%, #ec4899 50%, #7c3aed 100%)',
                               backgroundSize: '200% 200%',
                               animation: 'gradient-shift 3s ease infinite',
                             }}
                           >
-                            <span className="relative z-10 flex items-center">
-                              {isRemovingBg ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Frame className="w-4 h-4 mr-1.5" />}
-                              Remove Background with AI {bgRemovalStatus && bgRemovalStatus.limit > 0 && (
-                                <span className="text-xs opacity-70 ml-1">({bgRemovalStatus.limit - bgRemovalStatus.used})</span>
+                            <span className="relative z-10 flex items-center whitespace-nowrap">
+                              {isRemovingBg ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Frame className="w-3 h-3 mr-1" />}
+                              Rm BG {bgRemovalStatus && bgRemovalStatus.limit > 0 && (
+                                <span className="text-[9px] opacity-70 ml-0.5">({bgRemovalStatus.limit - bgRemovalStatus.used})</span>
                               )}
                             </span>
                           </button>
@@ -1254,7 +1254,7 @@ async function handleLogin() {
                         <div className="space-y-3">
                           <div>
                             <p className="text-xs font-medium text-muted-foreground mb-1.5">Men</p>
-                            <div className="grid grid-cols-4 gap-2">
+                            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5">
                               {[
                                 { id: 'male-cs-blue-shirt', name: 'CS Blue Shirt', ext: 'webp' },
                                 { id: 'male-cs-suit', name: 'CS Suit', ext: 'webp' },
@@ -1265,7 +1265,7 @@ async function handleLogin() {
                                   key={template.id}
                                   type="button"
                                   className={cn(
-                                    "relative rounded-lg overflow-hidden border-2 transition-all aspect-square w-full",
+                                    "relative rounded-md overflow-hidden border-2 transition-all aspect-square w-full max-w-[80px]",
                                     config.iconUrl === `/icon-templates/${template.id}.${template.ext}`
                                       ? "border-primary ring-2 ring-primary/30"
                                       : "border-muted hover:border-primary/50"
@@ -1282,7 +1282,7 @@ async function handleLogin() {
                                   />
                                   {config.iconUrl === `/icon-templates/${template.id}.${template.ext}` && (
                                     <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
-                                      <Check className="w-4 h-4 text-primary" />
+                                      <Check className="w-3 h-3 text-primary" />
                                     </div>
                                   )}
                                 </button>
@@ -1292,7 +1292,7 @@ async function handleLogin() {
 
                           <div>
                             <p className="text-xs font-medium text-muted-foreground mb-1.5">Women</p>
-                            <div className="grid grid-cols-4 gap-2">
+                            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5">
                               {[
                                 { id: 'female-cs-red', name: 'CS Red', ext: 'png' },
                                 { id: 'female-cs-white', name: 'CS White', ext: 'png' },
@@ -1303,7 +1303,7 @@ async function handleLogin() {
                                   key={template.id}
                                   type="button"
                                   className={cn(
-                                    "relative rounded-lg overflow-hidden border-2 transition-all aspect-square w-full",
+                                    "relative rounded-md overflow-hidden border-2 transition-all aspect-square w-full max-w-[80px]",
                                     config.iconUrl === `/icon-templates/${template.id}.${template.ext}`
                                       ? "border-primary ring-2 ring-primary/30"
                                       : "border-muted hover:border-primary/50"
@@ -1320,7 +1320,7 @@ async function handleLogin() {
                                   />
                                   {config.iconUrl === `/icon-templates/${template.id}.${template.ext}` && (
                                     <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
-                                      <Check className="w-4 h-4 text-primary" />
+                                      <Check className="w-3 h-3 text-primary" />
                                     </div>
                                   )}
                                 </button>
@@ -1330,7 +1330,7 @@ async function handleLogin() {
 
                           <div>
                             <p className="text-xs font-medium text-muted-foreground mb-1.5">Icons</p>
-                            <div className="grid grid-cols-4 gap-2">
+                            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5">
                               {[
                                 { id: 'astronaut', name: 'Astronaut', ext: 'png' },
                                 { id: 'rocket', name: 'Rocket', ext: 'webp' },
@@ -1341,7 +1341,7 @@ async function handleLogin() {
                                   key={template.id}
                                   type="button"
                                   className={cn(
-                                    "relative rounded-lg overflow-hidden border-2 transition-all aspect-square w-full",
+                                    "relative rounded-md overflow-hidden border-2 transition-all aspect-square w-full max-w-[80px]",
                                     config.iconUrl === `/icon-templates/${template.id}.${template.ext}`
                                       ? "border-primary ring-2 ring-primary/30"
                                       : "border-muted hover:border-primary/50"
@@ -1358,7 +1358,7 @@ async function handleLogin() {
                                   />
                                   {config.iconUrl === `/icon-templates/${template.id}.${template.ext}` && (
                                     <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
-                                      <Check className="w-4 h-4 text-primary" />
+                                      <Check className="w-3 h-3 text-primary" />
                                     </div>
                                   )}
                                 </button>
@@ -1696,13 +1696,13 @@ async function handleLogin() {
 
                       <div className="space-y-2">
                         <Label className="text-sm">Or Choose Avatar</Label>
-                        <div className="grid grid-cols-4 gap-1.5">
+                        <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5">
                           {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
                             <button
                               key={num}
                               type="button"
                               onClick={() => setConfig({ ...config, agentPhotoUrl: `/avatars/avatar-${num}.jpg` })}
-                              className={`relative rounded-lg overflow-hidden border-2 transition-all hover:opacity-80 active:scale-95 aspect-square w-[80%] mx-auto ${
+                              className={`relative rounded-md overflow-hidden border-2 transition-all hover:opacity-80 active:scale-95 aspect-square w-full max-w-[80px] ${
                                 config.agentPhotoUrl === `/avatars/avatar-${num}.jpg` 
                                   ? 'border-primary ring-2 ring-primary/30' 
                                   : 'border-muted hover:border-muted-foreground/50'
@@ -1717,7 +1717,7 @@ async function handleLogin() {
                               />
                               {config.agentPhotoUrl === `/avatars/avatar-${num}.jpg` && (
                                 <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                                  <Check className="w-4 h-4 text-primary" />
+                                  <Check className="w-3 h-3 text-primary" />
                                 </div>
                               )}
                             </button>
