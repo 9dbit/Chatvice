@@ -4238,10 +4238,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       // Remove the tag from the displayed answer
       const cleanAnswer = result.answer.replace(/\[RECOMMEND_PRODUCT(?::[^\]]+)?\]/gi, "").trim();
 
+      const responseClientId = clientMessageId ? `response_${clientMessageId}` : undefined;
+
       // Only create/broadcast message if there's actual content to send
       // When mode is HUMAN, supervisor will respond manually - no auto-reply needed
       if (cleanAnswer) {
-        const responseClientId = clientMessageId ? `response_${clientMessageId}` : undefined;
         await storage.createMessage({
           sessionId,
           from: result.mode === "HUMAN" ? "system" : "chatvice",
