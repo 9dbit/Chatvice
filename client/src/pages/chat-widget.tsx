@@ -1438,17 +1438,29 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           >
             {welcomeBubble.promoImageEnabled && welcomeBubble.promoImageUrl && (
               <div className="relative z-20" style={{ marginBottom: '-16px' }}>
-                <img 
-                  src={welcomeBubble.promoImageUrl} 
-                  alt="Promotion" 
-                  className="w-full h-auto object-contain rounded-t-xl"
-                  onLoad={() => console.log('[Widget] Promo image loaded:', welcomeBubble.promoImageUrl)}
-                  onError={(e) => {
-                    console.error('[Widget] Promo image failed to load:', welcomeBubble.promoImageUrl);
-                    (e.target as HTMLImageElement).parentElement!.style.display = 'none';
-                  }}
-                  data-testid="img-welcome-promo"
-                />
+                {welcomeBubble.promoImageUrl.match(/\.(mp4)$/i) || welcomeBubble.promoImageUrl.includes('video/mp4') ? (
+                  <video
+                    src={welcomeBubble.promoImageUrl}
+                    className="w-full h-auto object-contain rounded-t-xl"
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    data-testid="video-welcome-promo"
+                  />
+                ) : (
+                  <img 
+                    src={welcomeBubble.promoImageUrl} 
+                    alt="Promotion" 
+                    className="w-full h-auto object-contain rounded-t-xl"
+                    onLoad={() => console.log('[Widget] Promo image loaded:', welcomeBubble.promoImageUrl)}
+                    onError={(e) => {
+                      console.error('[Widget] Promo image failed to load:', welcomeBubble.promoImageUrl);
+                      (e.target as HTMLImageElement).parentElement!.style.display = 'none';
+                    }}
+                    data-testid="img-welcome-promo"
+                  />
+                )}
               </div>
             )}
             <div 
@@ -2252,12 +2264,24 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               className="w-full overflow-hidden shrink-0"
               data-testid="img-prechat-banner-widget"
             >
-              <img
-                src={merchantConfig.prechatBannerUrl}
-                alt="Banner"
-                className="w-full h-auto object-contain"
-                style={{ display: 'block' }}
-              />
+              {merchantConfig.prechatBannerUrl.match(/\.(mp4)$/i) || merchantConfig.prechatBannerUrl.includes('video/mp4') ? (
+                <video
+                  src={merchantConfig.prechatBannerUrl}
+                  className="w-full h-auto object-contain"
+                  style={{ display: 'block' }}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                />
+              ) : (
+                <img
+                  src={merchantConfig.prechatBannerUrl}
+                  alt="Banner"
+                  className="w-full h-auto object-contain"
+                  style={{ display: 'block' }}
+                />
+              )}
             </div>
           )}
           <div className="flex-1 flex flex-col p-4">
@@ -2614,12 +2638,24 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 className="w-full overflow-hidden"
                 data-testid="img-chat-banner"
               >
-                <img
-                  src={merchantConfig.prechatBannerUrl}
-                  alt="Banner"
-                  className="w-full h-auto object-contain"
-                  style={{ display: 'block' }}
-                />
+                {merchantConfig.prechatBannerUrl.match(/\.(mp4)$/i) || merchantConfig.prechatBannerUrl.includes('video/mp4') ? (
+                  <video
+                    src={merchantConfig.prechatBannerUrl}
+                    className="w-full h-auto object-contain"
+                    style={{ display: 'block' }}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                  />
+                ) : (
+                  <img
+                    src={merchantConfig.prechatBannerUrl}
+                    alt="Banner"
+                    className="w-full h-auto object-contain"
+                    style={{ display: 'block' }}
+                  />
+                )}
               </div>
             )}
             {/* Add extra top padding when social panel is open to prevent overlap */}

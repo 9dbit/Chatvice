@@ -11777,7 +11777,11 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       if (promoUrl && !promoUrl.startsWith("http") && !promoUrl.startsWith("data:")) {
         promoUrl = baseUrl + promoUrl;
       }
-      contentHtml += '<div style="width:100%;"><img src="' + promoUrl + '" style="width:100%;height:auto;display:block;" onerror="this.style.display=\\'none\\'" /></div>';
+      if (promoUrl.match(/\.(mp4)$/i) || promoUrl.includes('video/mp4')) {
+        contentHtml += '<div style="width:100%;"><video src="' + promoUrl + '" style="width:100%;height:auto;display:block;" autoplay loop muted playsinline></video></div>';
+      } else {
+        contentHtml += '<div style="width:100%;"><img src="' + promoUrl + '" style="width:100%;height:auto;display:block;" onerror="this.style.display=\\'none\\'" /></div>';
+      }
     }
     
     // Title row with minimize/close buttons

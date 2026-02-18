@@ -1919,7 +1919,7 @@ async function handleLogin() {
                 <input
                   ref={bannerInputRef}
                   type="file"
-                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  accept="image/jpeg,image/png,image/gif,image/webp,video/mp4"
                   className="hidden"
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
@@ -1928,9 +1928,9 @@ async function handleLogin() {
                       toast({ title: "File too large", description: "Maximum size is 5MB.", variant: "destructive" });
                       return;
                     }
-                    const allowed = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+                    const allowed = ["image/jpeg", "image/png", "image/gif", "image/webp", "video/mp4"];
                     if (!allowed.includes(file.type)) {
-                      toast({ title: "Invalid format", description: "Only JPG, PNG, GIF, WebP are allowed.", variant: "destructive" });
+                      toast({ title: "Invalid format", description: "Only JPG, PNG, GIF, WebP, MP4 are allowed.", variant: "destructive" });
                       return;
                     }
                     setUploadingBanner(true);
@@ -1956,13 +1956,26 @@ async function handleLogin() {
                 {preChatConfig.prechatBannerUrl ? (
                   <div className="space-y-2">
                     <div className="relative rounded-md overflow-hidden border">
-                      <img
-                        src={preChatConfig.prechatBannerUrl}
-                        alt="Pre-chat banner preview"
-                        className="w-full h-auto object-contain"
-                        style={{ display: "block", maxHeight: "200px" }}
-                        data-testid="img-prechat-banner-preview"
-                      />
+                      {preChatConfig.prechatBannerUrl.match(/\.(mp4)$/i) || preChatConfig.prechatBannerUrl.includes('video') ? (
+                        <video
+                          src={preChatConfig.prechatBannerUrl}
+                          className="w-full h-auto object-contain"
+                          style={{ display: "block", maxHeight: "200px" }}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          data-testid="video-prechat-banner-preview"
+                        />
+                      ) : (
+                        <img
+                          src={preChatConfig.prechatBannerUrl}
+                          alt="Pre-chat banner preview"
+                          className="w-full h-auto object-contain"
+                          style={{ display: "block", maxHeight: "200px" }}
+                          data-testid="img-prechat-banner-preview"
+                        />
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <Button
@@ -1997,8 +2010,8 @@ async function handleLogin() {
                     ) : (
                       <ImageIcon className="w-8 h-8 text-muted-foreground" />
                     )}
-                    <p className="text-sm text-muted-foreground">Click to upload banner image</p>
-                    <p className="text-xs text-muted-foreground">Max 5MB &middot; JPG, PNG, GIF, WebP</p>
+                    <p className="text-sm text-muted-foreground">Click to upload banner image or video</p>
+                    <p className="text-xs text-muted-foreground">Max 5MB &middot; JPG, PNG, GIF, WebP, MP4</p>
                   </div>
                 )}
               </div>

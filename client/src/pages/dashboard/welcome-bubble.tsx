@@ -77,14 +77,14 @@ export default function WelcomeBubblePage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const allowedTypes = ['image/png', 'image/gif', 'image/jpeg', 'image/jpg', 'image/webp'];
+    const allowedTypes = ['image/png', 'image/gif', 'image/jpeg', 'image/jpg', 'image/webp', 'video/mp4'];
     if (!allowedTypes.includes(file.type)) {
-      toast({ title: "Please select a PNG, GIF, JPG, or WebP image", variant: "destructive" });
+      toast({ title: "Please select a PNG, GIF, JPG, WebP image or MP4 video", variant: "destructive" });
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      toast({ title: "Image must be less than 5MB", variant: "destructive" });
+      toast({ title: "File must be less than 5MB", variant: "destructive" });
       return;
     }
 
@@ -267,11 +267,11 @@ export default function WelcomeBubblePage() {
               {form.promoImageEnabled && (
                 <div className="space-y-3">
                   <div className="space-y-2">
-                    <Label>Upload Image</Label>
+                    <Label>Upload Image / Video</Label>
                     <div className="flex gap-2">
                       <Input
                         type="file"
-                        accept="image/png,image/gif,image/jpeg,image/jpg,image/webp"
+                        accept="image/png,image/gif,image/jpeg,image/jpg,image/webp,video/mp4"
                         onChange={handleImageUpload}
                         disabled={isUploading}
                         className="flex-1"
@@ -297,7 +297,7 @@ export default function WelcomeBubblePage() {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="promoImageUrl">Or enter image URL</Label>
+                    <Label htmlFor="promoImageUrl">Or enter image/video URL</Label>
                     <Input
                       id="promoImageUrl"
                       value={form.promoImageUrl}
@@ -310,16 +310,28 @@ export default function WelcomeBubblePage() {
                   {form.promoImageUrl && (
                     <div className="relative max-w-[200px]">
                       <Label className="mb-2 block">Preview (Full Width)</Label>
-                      <p className="text-xs text-muted-foreground mb-2">Supports GIF, JPEG & PNG. Width = bubble width.</p>
+                      <p className="text-xs text-muted-foreground mb-2">Supports GIF, JPEG, PNG, WebP & MP4 (max 5MB).</p>
                       <div className="bg-muted rounded-t-xl border overflow-hidden">
-                        <img 
-                          src={form.promoImageUrl} 
-                          alt="Promo preview" 
-                          className="w-full h-auto object-contain"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                          }}
-                        />
+                        {form.promoImageUrl.match(/\.(mp4)$/i) || form.promoImageUrl.match(/video\/mp4/) ? (
+                          <video
+                            src={form.promoImageUrl}
+                            className="w-full h-auto object-contain"
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            data-testid="video-promo-preview"
+                          />
+                        ) : (
+                          <img 
+                            src={form.promoImageUrl} 
+                            alt="Promo preview" 
+                            className="w-full h-auto object-contain"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        )}
                       </div>
                       <Button
                         size="sm"
