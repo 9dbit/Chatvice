@@ -15985,13 +15985,6 @@ ${log.extractedKnowledge}` : ''}
         }
       }
       
-      // Use OpenAI Vision to extract products from screenshot
-      const OpenAI = (await import("openai")).default;
-      const openai = new OpenAI({ 
-        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-      });
-      
       const systemPrompt = `You are a product data extraction expert specialized in analyzing e-commerce websites.
       
 Analyze the provided webpage screenshot and/or HTML to extract all visible product information.
@@ -18368,13 +18361,6 @@ ${template?.suggestedTopics ? `Suggested Topics to Cover: ${template.suggestedTo
 
 Please create a comprehensive help center article that would be useful for customers.`;
 
-      // Call OpenAI
-      const OpenAI = (await import("openai")).default;
-      const openai = new OpenAI({ 
-        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-      });
-      
       const completion = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
         messages: [

@@ -270,9 +270,11 @@ export default function KnowledgePage() {
   });
 
   // Knowledge Templates query (for merchants)
-  const { data: knowledgeTemplates = [], isLoading: templatesLoading } = useQuery<any[]>({
+  const { data: knowledgeTemplates = [], isLoading: templatesLoading, isError: templatesError } = useQuery<any[]>({
     queryKey: ["/api/knowledge-templates"],
     enabled: !!merchantId && isTemplateDialogOpen,
+    retry: 2,
+    staleTime: 60000,
   });
   
   // Apply template mutation
@@ -329,10 +331,11 @@ export default function KnowledgePage() {
       });
       setIsEditorOpen(true);
     },
-    onError: () => {
+    retry: 1,
+    onError: (error: any) => {
       toast({
         title: "Generation failed",
-        description: "Failed to generate article. Please try again.",
+        description: error?.message || "Failed to generate article. Please try again.",
         variant: "destructive",
       });
     },
@@ -1718,7 +1721,12 @@ Example:
       </Dialog>
 
       {/* Knowledge Template Selection Dialog */}
-      <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
+      <Dialog open={isTemplateDialogOpen} onOpenChange={(open) => {
+        setIsTemplateDialogOpen(open);
+        if (!open) {
+          queryClient.removeQueries({ queryKey: ["/api/knowledge-templates"] });
+        }
+      }}>
         <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -1757,6 +1765,12 @@ Example:
             {templatesLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-6 h-6 animate-spin" />
+              </div>
+            ) : templatesError ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>Failed to load templates</p>
+                <p className="text-sm">Please close and reopen this dialog to try again</p>
               </div>
             ) : knowledgeTemplates.filter((t: any) => templateCategory === "all" || t.category === templateCategory).length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
