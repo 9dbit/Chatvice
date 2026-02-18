@@ -312,7 +312,7 @@ export default function WelcomeBubblePage() {
                       <Label className="mb-2 block">Preview (Full Width)</Label>
                       <p className="text-xs text-muted-foreground mb-2">Supports GIF, JPEG, PNG, WebP & MP4 (max 5MB).</p>
                       <div className="bg-muted rounded-t-xl border overflow-hidden">
-                        {form.promoImageUrl.match(/\.(mp4)$/i) || form.promoImageUrl.match(/video\/mp4/) ? (
+                        {form.promoImageUrl.match(/\.mp4/i) ? (
                           <video
                             src={form.promoImageUrl}
                             className="w-full h-auto object-contain"

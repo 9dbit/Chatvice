@@ -1956,7 +1956,7 @@ async function handleLogin() {
                 {preChatConfig.prechatBannerUrl ? (
                   <div className="space-y-2">
                     <div className="relative rounded-md overflow-hidden border">
-                      {preChatConfig.prechatBannerUrl.match(/\.(mp4)$/i) || preChatConfig.prechatBannerUrl.includes('video') ? (
+                      {preChatConfig.prechatBannerUrl.match(/\.mp4/i) ? (
                         <video
                           src={preChatConfig.prechatBannerUrl}
                           className="w-full h-auto object-contain"

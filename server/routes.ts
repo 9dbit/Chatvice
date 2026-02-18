@@ -7100,7 +7100,8 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       
       // Fall back to database storage (persists across deploys)
       try {
-        const fileId = `upload_${uploadType}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const ext = file.originalname.match(/\.[a-zA-Z0-9]+$/) ? file.originalname.match(/\.[a-zA-Z0-9]+$/)?.[0] : '';
+        const fileId = `upload_${uploadType}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`;
         const base64Content = fileBuffer.toString('base64');
         
         await storage.storeFile({
@@ -11777,7 +11778,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       if (promoUrl && !promoUrl.startsWith("http") && !promoUrl.startsWith("data:")) {
         promoUrl = baseUrl + promoUrl;
       }
-      if (promoUrl.match(/\.(mp4)$/i) || promoUrl.includes('video/mp4')) {
+      if (promoUrl.match(/\.mp4/i)) {
         contentHtml += '<div style="width:100%;"><video src="' + promoUrl + '" style="width:100%;height:auto;display:block;" autoplay loop muted playsinline></video></div>';
       } else {
         contentHtml += '<div style="width:100%;"><img src="' + promoUrl + '" style="width:100%;height:auto;display:block;" onerror="this.style.display=\\'none\\'" /></div>';

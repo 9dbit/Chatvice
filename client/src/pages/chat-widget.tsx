@@ -1438,7 +1438,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           >
             {welcomeBubble.promoImageEnabled && welcomeBubble.promoImageUrl && (
               <div className="relative z-20" style={{ marginBottom: '-16px' }}>
-                {welcomeBubble.promoImageUrl.match(/\.(mp4)$/i) || welcomeBubble.promoImageUrl.includes('video/mp4') ? (
+                {welcomeBubble.promoImageUrl.match(/\.mp4/i) ? (
                   <video
                     src={welcomeBubble.promoImageUrl}
                     className="w-full h-auto object-contain rounded-t-xl"
@@ -2264,7 +2264,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               className="w-full overflow-hidden shrink-0"
               data-testid="img-prechat-banner-widget"
             >
-              {merchantConfig.prechatBannerUrl.match(/\.(mp4)$/i) || merchantConfig.prechatBannerUrl.includes('video/mp4') ? (
+              {merchantConfig.prechatBannerUrl.match(/\.mp4/i) ? (
                 <video
                   src={merchantConfig.prechatBannerUrl}
                   className="w-full h-auto object-contain"
@@ -2638,7 +2638,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 className="w-full overflow-hidden"
                 data-testid="img-chat-banner"
               >
-                {merchantConfig.prechatBannerUrl.match(/\.(mp4)$/i) || merchantConfig.prechatBannerUrl.includes('video/mp4') ? (
+                {merchantConfig.prechatBannerUrl.match(/\.mp4/i) ? (
                   <video
                     src={merchantConfig.prechatBannerUrl}
                     className="w-full h-auto object-contain"
