@@ -1045,7 +1045,7 @@ export default function SessionsPage() {
                                           })}
                                           data-testid={`button-preview-product-image-${msg.id}`}
                                         >
-                                          <div className="aspect-square w-full overflow-hidden">
+                                          <div className="aspect-[4/3] w-full overflow-hidden">
                                             <img 
                                               src={(msg as any).payload.productCard.imageUrl} 
                                               alt={(msg as any).payload.productCard.title}

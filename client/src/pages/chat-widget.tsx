@@ -2801,7 +2801,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                             } : undefined}
                           >
                             {productCard.imageUrl ? (
-                              <div className="aspect-square bg-muted overflow-hidden">
+                              <div className="aspect-[4/3] bg-muted overflow-hidden">
                                 <img 
                                   src={productCard.imageUrl} 
                                   alt={productCard.title}
@@ -2809,7 +2809,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                                 />
                               </div>
                             ) : (
-                              <div className="aspect-square bg-muted flex items-center justify-center">
+                              <div className="aspect-[4/3] bg-muted flex items-center justify-center">
                                 <ShoppingBag className="w-8 h-8 text-muted-foreground/50" />
                               </div>
                             )}
