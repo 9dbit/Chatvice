@@ -798,19 +798,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       }>;
     },
     onSuccess: (data) => {
-      setPendingMessages((prev) => [
-        ...prev,
-        { 
-          clientId: data.responseClientId || generateClientId(),
-          from: data.mode === "HUMAN" ? "system" : "chatvice", 
-          content: data.answer, 
-          timestamp: new Date(),
-        },
-      ]);
-      
-      // Play reply sound for customer when receiving AI response
-      // (angry sound is for merchant/supervisor side only)
-      playNotificationSound("reply");
+      if (data.answer) {
+        setPendingMessages((prev) => [
+          ...prev,
+          { 
+            clientId: data.responseClientId || generateClientId(),
+            from: data.mode === "HUMAN" ? "system" : "chatvice", 
+            content: data.answer, 
+            timestamp: new Date(),
+          },
+        ]);
+        
+        playNotificationSound("reply");
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/messages", sessionId] });
     },
   });
@@ -2778,10 +2778,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                     const productCard = (msg as any).payload.productCard;
                     const displayName = customerName || "Kak";
                     return (
-                      <div className="mt-2 max-w-[280px]">
+                      <div className="mt-2 max-w-[380px]">
                         {/* Conversational intro */}
                         <p className="text-sm mb-2">
-                          Hai {displayName}! Berikut produk pilihan yang mungkin cocok untuk kamu 😊
+                          Hai {displayName}! Berikut produk pilihan yang mungkin cocok untuk kamu
                         </p>
                         
                         {/* Header */}
@@ -2790,8 +2790,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                           <span className="text-[11px] font-medium">Berikut produk rekomendasi kami:</span>
                         </div>
                         
-                        {/* 2-column grid with square images */}
-                        <div className="grid grid-cols-2 gap-2">
+                        {/* 2-column grid with 4:3 images */}
+                        <div className="grid grid-cols-2 gap-2.5">
                           <div 
                             className={`rounded-xl overflow-hidden ${applyEmbedStyles ? '' : 'bg-background border shadow-sm'}`}
                             style={applyEmbedStyles ? { 

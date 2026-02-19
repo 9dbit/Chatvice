@@ -5712,7 +5712,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     }
   });
 
-  app.post("/api/session/takeover", requireMerchant, async (req, res) => {
+  app.post("/api/session/takeover", requireMerchantOrSupervisor, async (req, res) => {
     try {
       const { sessionId } = req.body;
       const merchantId = req.session.merchantId!;
@@ -5764,6 +5764,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       
       res.json({ success: true });
     } catch (error) {
+      console.error("[Takeover] Error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });

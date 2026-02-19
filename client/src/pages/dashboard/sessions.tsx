@@ -1034,7 +1034,7 @@ export default function SessionsPage() {
                                     <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                                   )}
                                   {(msg as any).messageType === "product_offer" && (msg as any).payload?.productCard && (
-                                    <div className="mt-2 bg-background rounded-xl border shadow-sm overflow-hidden max-w-[200px]">
+                                    <div className="mt-2 bg-background rounded-xl border shadow-sm overflow-hidden max-w-[300px]">
                                       {(msg as any).payload.productCard.imageUrl ? (
                                         <button 
                                           className="w-full cursor-pointer hover:opacity-90 transition-opacity"
@@ -1054,7 +1054,7 @@ export default function SessionsPage() {
                                           </div>
                                         </button>
                                       ) : (
-                                        <div className="bg-blue-50 dark:bg-blue-950/30 h-28 flex items-center justify-center">
+                                        <div className="bg-blue-50 dark:bg-blue-950/30 h-40 flex items-center justify-center">
                                           <ShoppingBag className="w-12 h-12 text-muted-foreground/50" />
                                         </div>
                                       )}
@@ -1071,33 +1071,32 @@ export default function SessionsPage() {
                                         {(msg as any).payload.productCard.price && (
                                           <p className="text-xs text-muted-foreground">{(msg as any).payload.productCard.price}</p>
                                         )}
-                                        {(msg as any).payload.productCard.buttons?.length > 0 ? (
-                                          <div className="flex flex-col gap-1.5 pt-2">
-                                            {(msg as any).payload.productCard.buttons.map((btn: any) => (
-                                              <Button
-                                                key={btn.id}
-                                                size="sm"
-                                                variant="outline"
-                                                className="w-full h-8 text-xs font-medium border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-                                                onClick={() => btn.url && window.open(btn.url, '_blank')}
-                                                disabled={!btn.url}
-                                                data-testid={`button-product-action-${btn.id}`}
-                                              >
-                                                {btn.label}
-                                              </Button>
-                                            ))}
-                                          </div>
-                                        ) : (
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="w-full h-8 text-xs font-medium border-primary text-primary hover:bg-primary hover:text-primary-foreground mt-2"
-                                            onClick={() => (msg as any).payload.productCard.sourceUrl && window.open((msg as any).payload.productCard.sourceUrl, '_blank')}
-                                            data-testid="button-select-product"
-                                          >
-                                            Select product
-                                          </Button>
-                                        )}
+                                        <div className="flex flex-col gap-1.5 pt-2">
+                                          {(msg as any).payload.productCard.sourceUrl && (
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="w-full text-xs font-medium"
+                                              onClick={() => window.open((msg as any).payload.productCard.sourceUrl, '_blank')}
+                                              data-testid="button-select-product"
+                                            >
+                                              Select product
+                                            </Button>
+                                          )}
+                                          {(msg as any).payload.productCard.buttons?.map((btn: any) => (
+                                            <Button
+                                              key={btn.id}
+                                              size="sm"
+                                              variant="outline"
+                                              className="w-full text-xs font-medium"
+                                              onClick={() => btn.url && window.open(btn.url, '_blank')}
+                                              disabled={!btn.url}
+                                              data-testid={`button-product-action-${btn.id}`}
+                                            >
+                                              {btn.label}
+                                            </Button>
+                                          ))}
+                                        </div>
                                       </div>
                                     </div>
                                   )}
@@ -1244,54 +1243,67 @@ export default function SessionsPage() {
                             {/* Product Cards Display - show when AI message matches product triggers */}
                             {!isCustomerMessage && (msg.from === "chatvice" || msg.from === "bot" || msg.from === "ai") && 
                              shouldShowProductsForMessage(msg.content) && productCards.filter(c => c.isActive).length > 0 && (
-                              <div className="ml-9 mt-2">
-                                <div className="flex items-center gap-1.5 mb-2">
-                                  <ShoppingBag className="w-3.5 h-3.5 text-primary" />
-                                  <span className="text-[11px] font-medium text-muted-foreground">Produk rekomendasi:</span>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2 max-w-[300px]">
-                                  {productCards.filter(c => c.isActive).slice(0, 2).map((card) => (
-                                    <div key={card.id} className="bg-background rounded-lg border overflow-hidden">
-                                      {card.imageUrl ? (
-                                        <button 
-                                          className="bg-muted/30 w-full h-20 cursor-pointer hover:bg-muted/50 transition-colors"
-                                          onClick={() => setPreviewContent({
-                                            type: "photo",
-                                            url: card.imageUrl!,
-                                            title: card.title
-                                          })}
-                                          data-testid={`button-preview-product-${card.id}`}
-                                        >
-                                          <img 
-                                            src={card.imageUrl} 
-                                            alt={card.title}
-                                            className="w-full h-full object-cover"
-                                          />
-                                        </button>
-                                      ) : (
-                                        <div className="bg-muted/30 w-full h-20 flex items-center justify-center">
-                                          <ShoppingBag className="w-6 h-6 text-muted-foreground/50" />
-                                        </div>
-                                      )}
-                                      <div className="p-2 space-y-1">
-                                        <p className="font-medium text-xs text-foreground line-clamp-2">{card.title}</p>
-                                        {card.price && (
-                                          <p className="text-xs text-primary font-semibold">{card.price}</p>
-                                        )}
-                                        {card.buttons && card.buttons.length > 0 && (
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="w-full h-6 text-[10px]"
-                                            onClick={() => card.buttons?.[0]?.url && window.open(card.buttons[0].url, '_blank')}
-                                            data-testid={`button-product-action-${card.id}`}
+                              <div className="flex justify-end mt-2 mr-9">
+                                <div>
+                                  <div className="flex items-center gap-1.5 mb-2 justify-end">
+                                    <ShoppingBag className="w-3.5 h-3.5 text-primary" />
+                                    <span className="text-[11px] font-medium text-muted-foreground">Produk rekomendasi:</span>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2.5 max-w-[450px]">
+                                    {productCards.filter(c => c.isActive).slice(0, 2).map((card) => (
+                                      <div key={card.id} className="bg-background rounded-lg border overflow-hidden">
+                                        {card.imageUrl ? (
+                                          <button 
+                                            className="bg-muted/30 w-full h-28 cursor-pointer hover:bg-muted/50 transition-colors"
+                                            onClick={() => setPreviewContent({
+                                              type: "photo",
+                                              url: card.imageUrl!,
+                                              title: card.title
+                                            })}
+                                            data-testid={`button-preview-product-${card.id}`}
                                           >
-                                            {card.buttons[0].label || 'View'}
-                                          </Button>
+                                            <img 
+                                              src={card.imageUrl} 
+                                              alt={card.title}
+                                              className="w-full h-full object-cover"
+                                            />
+                                          </button>
+                                        ) : (
+                                          <div className="bg-muted/30 w-full h-28 flex items-center justify-center">
+                                            <ShoppingBag className="w-6 h-6 text-muted-foreground/50" />
+                                          </div>
                                         )}
+                                        <div className="p-2.5 space-y-1">
+                                          <p className="font-medium text-xs text-foreground line-clamp-2">{card.title}</p>
+                                          {card.price && (
+                                            <p className="text-xs text-primary font-semibold">{card.price}</p>
+                                          )}
+                                          {card.sourceUrl && (
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="w-full text-[10px]"
+                                              onClick={() => card.sourceUrl && window.open(card.sourceUrl, '_blank')}
+                                              data-testid={`button-product-visit-${card.id}`}
+                                            >
+                                              View
+                                            </Button>
+                                          )}
+                                          {card.buttons && card.buttons.length > 0 && (
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="w-full text-[10px]"
+                                              onClick={() => card.buttons?.[0]?.url && window.open(card.buttons[0].url, '_blank')}
+                                              data-testid={`button-product-action-${card.id}`}
+                                            >
+                                              {card.buttons[0].label || 'View'}
+                                            </Button>
+                                          )}
+                                        </div>
                                       </div>
-                                    </div>
-                                  ))}
+                                    ))}
+                                  </div>
                                 </div>
                               </div>
                             )}
