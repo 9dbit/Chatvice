@@ -1434,7 +1434,7 @@ export default function SessionsPage() {
                                   </Button>
                                   <span className="text-sm font-medium">Select Product</span>
                                 </div>
-                                <ScrollArea className="max-h-72">
+                                <ScrollArea className="h-72 overflow-y-auto">
                                   <div className="p-2 space-y-1.5">
                                     {productCards.filter(c => c.isActive).map((card) => (
                                       <button
