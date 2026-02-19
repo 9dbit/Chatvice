@@ -4683,8 +4683,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const sessionsWithPreview = await Promise.all(
         sessions.map(async (session) => {
           const messages = await storage.getMessages(session.id);
-          const userMessages = messages.filter(m => m.from === "user");
-          const aiMessages = messages.filter(m => m.from === "chatvice");
+          const userMessages = messages.filter(m => m.from === "user" || m.from === "customer");
+          const aiMessages = messages.filter(m => m.from === "chatvice" || m.from === "bot" || m.from === "ai");
           const lastQuestion = userMessages[userMessages.length - 1]?.content;
           const lastMessage = aiMessages[aiMessages.length - 1]?.content;
           
@@ -4752,8 +4752,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         transcript += `${'='.repeat(50)}\n\n`;
         
         for (const msg of messages) {
-          const sender = msg.from === 'user' ? (session.customerName || 'Customer') :
-                        msg.from === 'chatvice' ? 'Chatvice' :
+          const sender = (msg.from === 'user' || msg.from === 'customer') ? (session.customerName || 'Customer') :
+                        (msg.from === 'chatvice' || msg.from === 'bot' || msg.from === 'ai') ? 'Chatvice' :
                         msg.from === 'supervisor' ? 'Supervisor' : 'System';
           const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : '';
           transcript += `[${time}] ${sender}:\n${msg.content}\n\n`;
@@ -5673,7 +5673,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     }
   });
 
-  app.post("/api/session/return-to-bot", requireMerchant, async (req, res) => {
+  app.post("/api/session/return-to-bot", requireMerchantOrSupervisor, async (req, res) => {
     try {
       const { sessionId } = req.body;
       const merchantId = req.session.merchantId!;
@@ -5708,6 +5708,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       
       res.json({ success: true });
     } catch (error) {
+      console.error("[Return-to-bot] Error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
@@ -5769,7 +5770,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     }
   });
 
-  app.post("/api/session/send-message", requireMerchant, async (req, res) => {
+  app.post("/api/session/send-message", requireMerchantOrSupervisor, async (req, res) => {
     try {
       const { sessionId, message, messageType, payload, mediaId } = req.body;
       const merchantId = req.session.merchantId!;
