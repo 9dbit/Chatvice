@@ -2824,15 +2824,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                               <div className="flex flex-col gap-1 pt-1">
                                 {productCard.sourceUrl && (
                                   <button
-                                    className="w-full text-[10px] py-1 px-1 rounded border transition-colors hover:text-white flex items-center justify-center gap-0.5"
+                                    className="w-full text-[10px] py-1.5 px-2 rounded-md border transition-colors hover:text-white flex items-center justify-center gap-1"
                                     style={{ borderColor: primaryColor, color: primaryColor }}
                                     onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = primaryColor; e.currentTarget.style.color = 'white'; }}
                                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = primaryColor; }}
                                     onClick={() => window.open(productCard.sourceUrl, '_blank')}
-                                    data-testid="button-visit-product-page"
+                                    data-testid="button-select-product"
                                   >
                                     <ExternalLink className="w-2.5 h-2.5" />
-                                    Lihat
+                                    Select product
                                   </button>
                                 )}
                               </div>
