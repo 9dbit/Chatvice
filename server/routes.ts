@@ -33,6 +33,7 @@ import { eq, desc, and, or, isNotNull, gte, sql } from "drizzle-orm";
 import { messages, sessions, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts } from "@shared/schema";
 import crypto from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import sharp from "sharp";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -1487,6 +1488,404 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       console.error("Error serving OG image:", error);
       res.status(500).send("Error serving OG image");
     }
+  });
+
+  // ========================================
+  // Page-specific OG meta tags configuration
+  // ========================================
+  const ogPageConfig: Record<string, { title: string; description: string; emoji: string; subtitle: string; color: string }> = {
+    "/": {
+      title: "Chatvice | AI Customer Service Platform",
+      description: "Platform AI customer service terdepan untuk bisnis Indonesia. Otomasi support, live chat, dan eskalasi ke manusia.",
+      emoji: "C",
+      subtitle: "AI-Powered Customer Service",
+      color: "#7c3aed",
+    },
+    "/features": {
+      title: "Fitur Lengkap | Chatvice",
+      description: "Fitur AI chatbot, live chat, knowledge base, eskalasi otomatis, analitik real-time, dan integrasi widget untuk website Anda.",
+      emoji: "F",
+      subtitle: "Semua Fitur yang Anda Butuhkan",
+      color: "#2563eb",
+    },
+    "/pricing": {
+      title: "Harga & Paket | Chatvice",
+      description: "Pilihan paket fleksibel mulai dari gratis. Starter, Pro, dan Enterprise dengan fitur AI customer service lengkap.",
+      emoji: "P",
+      subtitle: "Paket Harga Fleksibel",
+      color: "#059669",
+    },
+    "/faq": {
+      title: "FAQ - Pertanyaan Umum | Chatvice",
+      description: "Jawaban untuk pertanyaan umum seputar Chatvice, AI chatbot, integrasi, dan cara kerja platform customer service.",
+      emoji: "?",
+      subtitle: "Pertanyaan yang Sering Diajukan",
+      color: "#d97706",
+    },
+    "/about": {
+      title: "Tentang Kami | Chatvice",
+      description: "Kenali tim di balik Chatvice, misi kami untuk merevolusi customer service dengan AI di Indonesia.",
+      emoji: "A",
+      subtitle: "Tentang Chatvice",
+      color: "#7c3aed",
+    },
+    "/blog": {
+      title: "Blog & Artikel | Chatvice",
+      description: "Tips, tutorial, dan insight terbaru seputar AI customer service, chatbot, dan strategi bisnis digital.",
+      emoji: "B",
+      subtitle: "Blog & Insight",
+      color: "#dc2626",
+    },
+    "/docs": {
+      title: "Dokumentasi | Chatvice",
+      description: "Panduan lengkap integrasi dan penggunaan Chatvice. API docs, widget setup, dan konfigurasi chatbot.",
+      emoji: "D",
+      subtitle: "Dokumentasi & Panduan",
+      color: "#0891b2",
+    },
+    "/help": {
+      title: "Pusat Bantuan | Chatvice",
+      description: "Pusat bantuan Chatvice. Temukan solusi, panduan, dan dukungan untuk mengoptimalkan chatbot Anda.",
+      emoji: "H",
+      subtitle: "Pusat Bantuan",
+      color: "#4f46e5",
+    },
+    "/contact": {
+      title: "Hubungi Kami | Chatvice",
+      description: "Hubungi tim Chatvice untuk pertanyaan, partnership, atau dukungan teknis. Kami siap membantu.",
+      emoji: "K",
+      subtitle: "Hubungi Tim Kami",
+      color: "#0d9488",
+    },
+    "/api-docs": {
+      title: "API Documentation | Chatvice",
+      description: "RESTful API documentation untuk integrasi Chatvice ke aplikasi Anda. Endpoints, authentication, dan contoh kode.",
+      emoji: "{/}",
+      subtitle: "API Reference",
+      color: "#6366f1",
+    },
+    "/changelog": {
+      title: "Changelog & Update | Chatvice",
+      description: "Update terbaru, fitur baru, dan perbaikan di platform Chatvice. Ikuti perkembangan produk kami.",
+      emoji: "U",
+      subtitle: "Changelog & Updates",
+      color: "#8b5cf6",
+    },
+    "/integrations": {
+      title: "Integrasi | Chatvice",
+      description: "Integrasikan Chatvice dengan tools favorit Anda. WhatsApp, Telegram, Instagram, dan platform lainnya.",
+      emoji: "I",
+      subtitle: "Integrasi & Koneksi",
+      color: "#0ea5e9",
+    },
+    "/careers": {
+      title: "Karir | Chatvice",
+      description: "Bergabung dengan tim Chatvice. Lihat lowongan terbaru dan jadilah bagian dari revolusi AI customer service.",
+      emoji: "J",
+      subtitle: "Bergabung dengan Kami",
+      color: "#ec4899",
+    },
+    "/press": {
+      title: "Press & Media | Chatvice",
+      description: "Press kit, media resources, dan berita terbaru dari Chatvice untuk jurnalis dan media partner.",
+      emoji: "M",
+      subtitle: "Press & Media Kit",
+      color: "#64748b",
+    },
+    "/partners": {
+      title: "Program Partner | Chatvice",
+      description: "Jadilah partner Chatvice. Program reseller, affiliate, dan agency partnership untuk pertumbuhan bersama.",
+      emoji: "R",
+      subtitle: "Program Partnership",
+      color: "#f59e0b",
+    },
+    "/affiliate": {
+      title: "Program Affiliate | Chatvice",
+      description: "Dapatkan komisi dengan merekomendasikan Chatvice. Program affiliate dengan komisi kompetitif.",
+      emoji: "$",
+      subtitle: "Program Affiliate",
+      color: "#10b981",
+    },
+    "/status": {
+      title: "Status Layanan | Chatvice",
+      description: "Monitor uptime dan status layanan Chatvice secara real-time. Cek kesehatan sistem kami.",
+      emoji: "S",
+      subtitle: "System Status",
+      color: "#22c55e",
+    },
+    "/demo": {
+      title: "Demo Widget | Chatvice",
+      description: "Coba langsung demo chat widget Chatvice. Lihat bagaimana AI chatbot bekerja untuk bisnis Anda.",
+      emoji: "W",
+      subtitle: "Coba Demo Langsung",
+      color: "#7c3aed",
+    },
+    "/privacy": {
+      title: "Kebijakan Privasi | Chatvice",
+      description: "Kebijakan privasi Chatvice. Bagaimana kami melindungi data dan privasi pengguna.",
+      emoji: "L",
+      subtitle: "Kebijakan Privasi",
+      color: "#475569",
+    },
+    "/terms": {
+      title: "Syarat & Ketentuan | Chatvice",
+      description: "Syarat dan ketentuan penggunaan layanan Chatvice. Baca sebelum menggunakan platform kami.",
+      emoji: "T",
+      subtitle: "Syarat & Ketentuan",
+      color: "#475569",
+    },
+    "/cookies": {
+      title: "Kebijakan Cookie | Chatvice",
+      description: "Kebijakan penggunaan cookie di Chatvice. Cara kami menggunakan cookie untuk pengalaman terbaik.",
+      emoji: "C",
+      subtitle: "Kebijakan Cookie",
+      color: "#475569",
+    },
+    "/gdpr": {
+      title: "GDPR Compliance | Chatvice",
+      description: "Kepatuhan GDPR Chatvice. Bagaimana kami memenuhi standar perlindungan data Eropa.",
+      emoji: "G",
+      subtitle: "GDPR Compliance",
+      color: "#475569",
+    },
+    "/security": {
+      title: "Keamanan | Chatvice",
+      description: "Standar keamanan Chatvice. Enkripsi, proteksi data, dan langkah keamanan platform kami.",
+      emoji: "S",
+      subtitle: "Keamanan Platform",
+      color: "#475569",
+    },
+    "/login": {
+      title: "Login | Chatvice",
+      description: "Masuk ke dashboard Chatvice untuk mengelola chatbot, analitik, dan tim support Anda.",
+      emoji: "L",
+      subtitle: "Login ke Dashboard",
+      color: "#7c3aed",
+    },
+    "/register": {
+      title: "Daftar Gratis | Chatvice",
+      description: "Buat akun Chatvice gratis dan mulai otomasi customer service bisnis Anda dengan AI.",
+      emoji: "R",
+      subtitle: "Mulai Gratis Sekarang",
+      color: "#7c3aed",
+    },
+    "/topup": {
+      title: "Top Up Coin | Chatvice",
+      description: "Top up coin Chatvice untuk layanan premium. Berbagai metode pembayaran tersedia.",
+      emoji: "$",
+      subtitle: "Top Up & Pembayaran",
+      color: "#f59e0b",
+    },
+  };
+
+  function generateOgSvg(config: { title: string; subtitle: string; emoji: string; color: string }): string {
+    const escapedTitle = config.title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const escapedSubtitle = config.subtitle.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    
+    return `<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f0a19;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#1a1030;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0f0a19;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:${config.color};stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#a855f7;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="20" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="1050" cy="100" r="200" fill="${config.color}" opacity="0.08"/>
+  <circle cx="150" cy="530" r="150" fill="#a855f7" opacity="0.06"/>
+  <rect x="0" y="0" width="1200" height="6" fill="url(#accent)"/>
+  <rect x="80" y="80" width="70" height="70" rx="16" fill="${config.color}" opacity="0.9"/>
+  <text x="115" y="128" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="bold" fill="white" text-anchor="middle">${config.emoji.length > 2 ? '' : config.emoji}</text>
+  ${config.emoji.length > 2 ? `<text x="115" y="125" font-family="monospace" font-size="20" font-weight="bold" fill="white" text-anchor="middle">${config.emoji}</text>` : ''}
+  <text x="170" y="125" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="bold" fill="white" opacity="0.95">CHATVICE</text>
+  <text x="80" y="280" font-family="Arial, Helvetica, sans-serif" font-size="52" font-weight="bold" fill="white" opacity="0.95">
+    ${escapedTitle.length > 35 ? escapedTitle.substring(0, 35) : escapedTitle}
+  </text>
+  ${escapedTitle.length > 35 ? `<text x="80" y="340" font-family="Arial, Helvetica, sans-serif" font-size="52" font-weight="bold" fill="white" opacity="0.95">${escapedTitle.substring(35)}</text>` : ''}
+  <text x="80" y="${escapedTitle.length > 35 ? 400 : 340}" font-family="Arial, Helvetica, sans-serif" font-size="26" fill="white" opacity="0.6">${escapedSubtitle}</text>
+  <rect x="80" y="${escapedTitle.length > 35 ? 430 : 370}" width="120" height="4" rx="2" fill="url(#accent)"/>
+  <text x="80" y="580" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="white" opacity="0.4">chatvice.app</text>
+</svg>`;
+  }
+
+  // Dynamic page-specific OG image generation (SVG → PNG)
+  // Cache is bounded to known pages only - unknown slugs fall back to default image
+  const ogImageCache = new Map<string, Buffer>();
+  
+  function getOgConfigForPath(pagePath: string): typeof ogPageConfig[string] | undefined {
+    if (ogPageConfig[pagePath]) return ogPageConfig[pagePath];
+    if (pagePath.startsWith("/blog/")) {
+      return {
+        title: "Blog & Artikel | Chatvice",
+        description: "Baca artikel terbaru seputar AI customer service, chatbot, dan strategi bisnis digital di Chatvice.",
+        emoji: "B",
+        subtitle: "Blog Chatvice",
+        color: "#dc2626",
+      };
+    }
+    if (pagePath.startsWith("/docs/")) {
+      return {
+        title: "Dokumentasi | Chatvice",
+        description: "Panduan lengkap dan dokumentasi teknis untuk integrasi Chatvice ke website Anda.",
+        emoji: "D",
+        subtitle: "Dokumentasi Chatvice",
+        color: "#0891b2",
+      };
+    }
+    return undefined;
+  }
+  
+  app.get("/og/:page.png", async (req, res) => {
+    try {
+      const pageParam = req.params.page;
+      let pagePath = "/" + (pageParam === "home" ? "" : pageParam);
+      // For dynamic routes like blog-my-article, check prefix patterns
+      if (!ogPageConfig[pagePath]) {
+        if (pageParam.startsWith("blog-")) pagePath = "/blog/" + pageParam.substring(5);
+        else if (pageParam.startsWith("docs-")) pagePath = "/docs/" + pageParam.substring(5);
+      }
+      const config = getOgConfigForPath(pagePath);
+      
+      if (!config) {
+        const defaultPath = path.join(process.cwd(), "client", "public", "og-image.png");
+        if (fs.existsSync(defaultPath)) {
+          return res.sendFile(defaultPath);
+        }
+        return res.status(404).send("OG image not found");
+      }
+      
+      const cacheKey = pageParam;
+      let pngBuffer = ogImageCache.get(cacheKey);
+      
+      if (!pngBuffer) {
+        // Only cache known static pages (not dynamic slugs) to prevent memory growth
+        const isStaticPage = !!ogPageConfig[pagePath];
+        const svg = generateOgSvg(config);
+        pngBuffer = await sharp(Buffer.from(svg))
+          .resize(1200, 630)
+          .png({ quality: 90 })
+          .toBuffer();
+        if (isStaticPage) {
+          ogImageCache.set(cacheKey, pngBuffer);
+        }
+      }
+      
+      res.setHeader("Content-Type", "image/png");
+      res.setHeader("Content-Length", pngBuffer.length);
+      res.setHeader("Cache-Control", "public, max-age=604800"); // 7 days
+      res.send(pngBuffer);
+    } catch (error) {
+      console.error("Error generating OG image:", error);
+      const defaultPath = path.join(process.cwd(), "client", "public", "og-image.png");
+      if (fs.existsSync(defaultPath)) {
+        return res.sendFile(defaultPath);
+      }
+      res.status(500).send("Error generating OG image");
+    }
+  });
+
+  // Middleware to inject page-specific OG tags into HTML responses
+  // Intercepts HTML being sent and replaces default OG tags with page-specific ones
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.path.startsWith("/api/") || 
+        req.path.startsWith("/uploads/") || 
+        req.path.startsWith("/db-files/") ||
+        req.path.startsWith("/storage/") ||
+        req.path.startsWith("/og/") ||
+        req.path.startsWith("/vite-hmr") ||
+        req.path.startsWith("/src/") ||
+        req.path.startsWith("/node_modules/") ||
+        req.path.startsWith("/@") ||
+        req.path.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|mp4|woff|woff2|ttf|eot|map|json)$/)) {
+      return next();
+    }
+    
+    const pagePath = req.path === "/" ? "/" : req.path.replace(/\/$/, "");
+    const config = getOgConfigForPath(pagePath);
+    
+    if (!config) {
+      return next();
+    }
+
+    const baseUrl = getBaseUrl(req);
+    const pageSlug = pagePath === "/" ? "home" : pagePath.replace(/^\//, "").replace(/\//g, "-");
+    const ogImageUrl = `${baseUrl}/og/${pageSlug}.png`;
+    const pageUrl = `${baseUrl}${pagePath}`;
+
+    const originalEnd = res.end.bind(res);
+    
+    res.end = function(chunk?: any, ...args: any[]) {
+      const contentType = res.getHeader("content-type");
+      if (contentType && typeof contentType === "string" && contentType.includes("text/html") && chunk) {
+        let html = typeof chunk === "string" ? chunk : chunk.toString("utf-8");
+        
+        html = html.replace(
+          /<meta property="og:title" content="[^"]*"\s*\/?>/,
+          `<meta property="og:title" content="${config.title}" />`
+        );
+        html = html.replace(
+          /<meta property="og:description" content="[^"]*"\s*\/?>/,
+          `<meta property="og:description" content="${config.description}" />`
+        );
+        html = html.replace(
+          /<meta property="og:image" content="[^"]*"\s*\/?>/,
+          `<meta property="og:image" content="${ogImageUrl}" />`
+        );
+        html = html.replace(
+          /<meta property="og:url" content="[^"]*"\s*\/?>/,
+          `<meta property="og:url" content="${pageUrl}" />`
+        );
+        html = html.replace(
+          /<meta name="twitter:title" content="[^"]*"\s*\/?>/,
+          `<meta name="twitter:title" content="${config.title}" />`
+        );
+        html = html.replace(
+          /<meta name="twitter:description" content="[^"]*"\s*\/?>/,
+          `<meta name="twitter:description" content="${config.description}" />`
+        );
+        html = html.replace(
+          /<meta name="twitter:image" content="[^"]*"\s*\/?>/,
+          `<meta name="twitter:image" content="${ogImageUrl}" />`
+        );
+        html = html.replace(
+          /<meta name="description" content="[^"]*"\s*\/?>/,
+          `<meta name="description" content="${config.description}" />`
+        );
+        html = html.replace(
+          /<title>[^<]*<\/title>/,
+          `<title>${config.title}</title>`
+        );
+        html = html.replace(
+          /<link rel="canonical" href="[^"]*"\s*\/?>/,
+          `<link rel="canonical" href="${pageUrl}" />`
+        );
+
+        // Add Telegram-specific meta tags (Telegram uses og: tags but also supports custom image sizes)
+        if (!html.includes('telegram:channel')) {
+          const telegramTags = `
+    <!-- Telegram specific -->
+    <meta property="og:image:alt" content="${config.title}" />
+    <meta property="og:image:type" content="image/png" />`;
+          html = html.replace('<!-- Twitter / X -->', telegramTags + '\n    <!-- Twitter / X -->');
+        }
+
+        return originalEnd.call(this, html, ...args);
+      }
+      return originalEnd.call(this, chunk, ...args);
+    } as any;
+    
+    next();
   });
 
   // Dynamic sitemap.xml route
