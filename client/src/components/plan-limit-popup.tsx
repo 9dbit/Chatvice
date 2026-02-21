@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { X, Crown, Users, Bot, AlertTriangle } from "lucide-react";
+import { X, Crown, Users, AlertTriangle } from "lucide-react";
+import chatviceLogo from "@assets/chatvice-brand-logo.png";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 
@@ -24,7 +25,7 @@ export function PlanLimitPopup({
 
   const limitConfig = {
     agent: {
-      icon: Bot,
+      icon: null,
       title: "AI Agent Limit Reached",
       description: `You've reached the maximum of ${currentLimit} AI agent${currentLimit !== 1 ? 's' : ''} on your ${currentPlan} plan.`,
       showManualOption: true,
@@ -77,8 +78,8 @@ export function PlanLimitPopup({
         </button>
 
         <div className="flex flex-col items-center text-center">
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-amber-400/30 to-orange-500/30 backdrop-blur-sm">
-            <Icon className="h-8 w-8 text-amber-400" />
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-purple-500/30 to-violet-600/30 backdrop-blur-sm">
+            {Icon ? <Icon className="h-8 w-8 text-amber-400" /> : <img src={chatviceLogo} alt="Chatvice" className="h-10 w-10 object-contain" />}
           </div>
 
           <h2 className="mb-2 text-xl font-bold text-white">

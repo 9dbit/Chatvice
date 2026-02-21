@@ -6389,12 +6389,9 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       const supervisors = await storage.getSupervisorsByMerchant(merchant.id);
       const domainsData = await storage.getMerchantDomains(merchant.id);
       
-      // Count knowledge sources across all agents
-      let totalSources = 0;
-      for (const agent of agents) {
-        const sources = await storage.getKnowledgeWebsources(agent.id);
-        totalSources += sources.length;
-      }
+      // Count knowledge sources for this merchant
+      const allSources = await storage.getSources(merchant.id);
+      const totalSources = allSources.length;
       
       res.json({
         status: merchant.subscriptionStatus,
@@ -6417,7 +6414,8 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         hasActiveSubscription: merchant.subscriptionStatus === 'active',
         pendingTransaction,
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Billing status error:", error?.message || error);
       res.status(500).json({ error: "Server error" });
     }
   });

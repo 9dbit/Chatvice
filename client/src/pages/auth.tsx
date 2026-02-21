@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Bot, Eye, EyeOff, Mail, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Mail, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -14,6 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { SiGoogle, SiGithub, SiLinkedin, SiFacebook } from "react-icons/si";
 import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
+import chatviceBrandLogo from "@assets/chatvice-brand-logo.png";
+import authBgGif from "@assets/auth-background.gif";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -99,17 +101,16 @@ function AuthLayout({ children, title, subtitle }: { children: React.ReactNode; 
       </div>
       
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
-        <div 
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800"><defs><linearGradient id="a" x1="0%25" y1="0%25" x2="100%25" y2="100%25"><stop offset="0%25" stop-color="%238B5CF6"/><stop offset="50%25" stop-color="%2306B6D4"/><stop offset="100%25" stop-color="%23EC4899"/></linearGradient></defs><rect fill="url(%23a)" width="1200" height="800"/><circle cx="200" cy="200" r="400" fill="rgba(255,255,255,0.05)"/><circle cx="1000" cy="600" r="500" fill="rgba(255,255,255,0.05)"/></svg>')`,
-          }}
+        <img 
+          src={authBgGif} 
+          alt="Chatvice AI" 
+          className="absolute inset-0 w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 via-cyan-500/20 to-pink-500/20 backdrop-blur-sm" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
         
         <div className="relative z-10 flex flex-col items-center justify-center w-full p-12">
           <div className="w-16 h-16 bg-white/10 backdrop-blur-xl rounded-2xl flex items-center justify-center mb-8">
-            <Bot className="w-10 h-10 text-white" />
+            <img src={chatviceBrandLogo} alt="Chatvice" className="w-10 h-10 object-contain" />
           </div>
           <h2 className="text-4xl font-bold text-white text-center mb-4">
             AI-Powered Support,
