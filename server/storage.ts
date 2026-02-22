@@ -76,6 +76,7 @@ import {
   personalMessages, type PersonalMessage, type InsertPersonalMessage,
   chatMedia, type ChatMedia, type InsertChatMedia,
   customerStories, type CustomerStory, type InsertCustomerStory,
+  messageReactions, type MessageReaction, type InsertMessageReaction,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, and, or, lt, isNull, sql, count, inArray, ne } from "drizzle-orm";
@@ -508,6 +509,12 @@ export interface IStorage {
   // Customer Stories
   getActiveCustomerStories(customerId: string): Promise<CustomerStory[]>;
   createCustomerStory(data: InsertCustomerStory): Promise<CustomerStory>;
+
+  // Message Reactions
+  addMessageReaction(data: InsertMessageReaction): Promise<MessageReaction>;
+  removeMessageReaction(messageId: string, reactedBy: string, reactionType: string): Promise<boolean>;
+  getReactionsByMessageId(messageId: string): Promise<MessageReaction[]>;
+  getReactionsBySessionId(sessionId: string): Promise<MessageReaction[]>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -3709,6 +3716,48 @@ export class DatabaseStorage implements IStorage {
       createdAt: new Date(),
     }).returning();
     return result[0];
+  }
+
+  // Message Reactions
+  async addMessageReaction(data: InsertMessageReaction): Promise<MessageReaction> {
+    const id = generateId("rxn_");
+    const existing = await db.select().from(messageReactions)
+      .where(and(
+        eq(messageReactions.messageId, data.messageId),
+        eq(messageReactions.reactedBy, data.reactedBy),
+        eq(messageReactions.reactionType, data.reactionType)
+      ));
+    if (existing.length > 0) {
+      return existing[0];
+    }
+    const result = await db.insert(messageReactions).values({
+      ...data,
+      id,
+      createdAt: new Date(),
+    }).returning();
+    return result[0];
+  }
+
+  async removeMessageReaction(messageId: string, reactedBy: string, reactionType: string): Promise<boolean> {
+    const result = await db.delete(messageReactions)
+      .where(and(
+        eq(messageReactions.messageId, messageId),
+        eq(messageReactions.reactedBy, reactedBy),
+        eq(messageReactions.reactionType, reactionType)
+      ));
+    return true;
+  }
+
+  async getReactionsByMessageId(messageId: string): Promise<MessageReaction[]> {
+    return db.select().from(messageReactions)
+      .where(eq(messageReactions.messageId, messageId))
+      .orderBy(desc(messageReactions.createdAt));
+  }
+
+  async getReactionsBySessionId(sessionId: string): Promise<MessageReaction[]> {
+    return db.select().from(messageReactions)
+      .where(eq(messageReactions.sessionId, sessionId))
+      .orderBy(desc(messageReactions.createdAt));
   }
 }
 

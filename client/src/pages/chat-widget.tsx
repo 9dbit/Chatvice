@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { MessageReactions, type Reaction } from "@/components/message-reactions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -323,6 +324,18 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const [emailError, setEmailError] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
+  // Reactions state
+  const [widgetReactions, setWidgetReactions] = useState<Reaction[]>([]);
+  const widgetReactionsLoadedRef = useRef(false);
+  useEffect(() => {
+    if (!sessionId || previewMode || widgetReactionsLoadedRef.current) return;
+    widgetReactionsLoadedRef.current = true;
+    fetch(`/api/reactions/${sessionId}`)
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setWidgetReactions(data); })
+      .catch(() => {});
+  }, [sessionId, previewMode]);
+
   // Inactivity timer for closing statement
   const [closingStatementSent, setClosingStatementSent] = useState(false);
   const lastActivityRef = useRef<number>(Date.now());
@@ -2660,10 +2673,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             )}
             {/* Add extra top padding when social panel is open to prevent overlap */}
             <div className={`space-y-4 p-4 ${socialIconsExpanded ? 'pt-16' : ''}`}>
-              {allMessages.map((msg, index) => (
+              {allMessages.map((msg, index) => {
+                const wIsCustomer = msg.from === "user";
+                const wIsLastAgentMsg = !wIsCustomer && index === allMessages.length - 1;
+                const wMsgReactions = widgetReactions.filter((r) => r.messageId === msg.id);
+                return (
             <div key={msg.id || index}>
               <div
-                className={`flex gap-2 ${msg.from === "user" ? "justify-end" : "justify-start"}`}
+                className={`group flex gap-2 ${wIsCustomer ? "justify-end" : "justify-start"}`}
               >
                 {msg.from !== "user" && (
                   <div
@@ -2690,11 +2707,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 )}
                 <div
                   className={`max-w-[80%] p-3 text-sm ${
-                    msg.from === "user"
+                    wIsCustomer
                       ? "rounded-2xl rounded-br-sm text-white"
                       : `rounded-2xl rounded-bl-sm ${applyEmbedStyles ? (widgetIsDark ? 'text-white' : 'text-gray-800') : 'bg-muted'}`
-                  }`}
-                  style={msg.from === "user" 
+                  } ${wIsLastAgentMsg && wMsgReactions.length === 0 ? 'transition-shadow duration-1000' : ''}`}
+                  style={{
+                    ...(wIsCustomer
                     ? applyEmbedStyles
                       ? { 
                           backgroundColor: `${primaryColor}B3`,
@@ -2711,7 +2729,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                             backgroundColor: 'rgba(0, 0, 0, 0.04)',
                             border: '1px solid rgba(0, 0, 0, 0.06)',
                           }
-                      : undefined}
+                      : undefined),
+                    ...(wIsLastAgentMsg && wMsgReactions.length === 0 ? { boxShadow: `0 0 10px ${primaryColor}40` } : {}),
+                  }}
                 >
                   {!((msg as any).messageType === "media" && (msg as any).payload?.url) && 
                    !((msg as any).messageType === "product_offer" && (msg as any).payload?.productCard) &&
@@ -2957,8 +2977,30 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   <ProductCarousel cards={productCards} />
                 </div>
               )}
+              {msg.id && !previewMode && (
+                <div className={`${wIsCustomer ? "mr-9" : "ml-9"}`}>
+                  <MessageReactions
+                    messageId={msg.id}
+                    sessionId={sessionId}
+                    reactions={wMsgReactions}
+                    reactedBy={customerName || sessionId}
+                    reactedByRole="customer"
+                    isOwnMessage={wIsCustomer}
+                    primaryColor={primaryColor}
+                    showHint={wIsLastAgentMsg && wMsgReactions.length === 0}
+                    isWidget={true}
+                    onReactionsChange={(updated) => {
+                      setWidgetReactions((prev) => [
+                        ...prev.filter((r) => r.messageId !== msg.id),
+                        ...updated,
+                      ]);
+                    }}
+                  />
+                </div>
+              )}
             </div>
-          ))}
+          );
+          })}
           {sendMessageMutation.isPending && (
             <div className="flex gap-2 justify-start">
               <div

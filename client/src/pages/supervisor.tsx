@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, Redirect, Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { MessageReactions, type Reaction } from "@/components/message-reactions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -258,6 +259,17 @@ export default function SupervisorPanel() {
     enabled: !!selectedSession,
     refetchInterval: 2000,
   });
+
+  const { data: sessionReactions } = useQuery<Reaction[]>({
+    queryKey: ["/api/reactions", selectedSession],
+    enabled: !!selectedSession,
+    refetchInterval: 3000,
+  });
+
+  const [localReactions, setLocalReactions] = useState<Reaction[]>([]);
+  useEffect(() => {
+    if (sessionReactions) setLocalReactions(sessionReactions);
+  }, [sessionReactions]);
 
   const [selectedLogDate, setSelectedLogDate] = useState<Date | undefined>(undefined);
   const { data: chatLogs, isLoading: chatLogsLoading } = useQuery<ChatLog[]>({
@@ -679,12 +691,16 @@ export default function SupervisorPanel() {
                         </div>
                       ) : messages && messages.length > 0 ? (
                         <div className="space-y-4">
-                          {messages.map((msg, index) => (
+                          {messages.map((msg, index) => {
+                            const isCustomer = msg.from === "user";
+                            const isLastCustomerMsg = isCustomer && index === messages.length - 1;
+                            const msgReactions = localReactions.filter((r) => r.messageId === msg.id);
+                            return (
                             <div
                               key={msg.id || index}
-                              className={`flex gap-3 ${msg.from === "user" ? "justify-end" : "justify-start"}`}
+                              className={`group flex gap-3 ${isCustomer ? "justify-end" : "justify-start"}`}
                             >
-                              {msg.from !== "user" && (
+                              {!isCustomer && (
                                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                                   {msg.from === "chatvice" ? (
                                     <Bot className="w-4 h-4 text-primary" />
@@ -693,31 +709,51 @@ export default function SupervisorPanel() {
                                   )}
                                 </div>
                               )}
-                              <div
-                                className={`max-w-[70%] p-3 ${
-                                  msg.from === "user"
-                                    ? "bg-muted rounded-2xl rounded-br-sm"
-                                    : msg.from === "supervisor"
-                                    ? "bg-primary text-primary-foreground rounded-2xl rounded-bl-sm"
-                                    : "bg-muted rounded-2xl rounded-bl-sm"
-                                }`}
-                              >
-                                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                                <p
-                                  className={`text-xs mt-1 ${
-                                    msg.from === "supervisor" ? "text-primary-foreground/70" : "text-muted-foreground"
-                                  }`}
+                              <div className="max-w-[70%]">
+                                <div
+                                  className={`p-3 ${
+                                    isCustomer
+                                      ? "bg-muted rounded-2xl rounded-br-sm"
+                                      : msg.from === "supervisor"
+                                      ? "bg-primary text-primary-foreground rounded-2xl rounded-bl-sm"
+                                      : "bg-muted rounded-2xl rounded-bl-sm"
+                                  } ${isLastCustomerMsg && msgReactions.length === 0 ? "ring-1 ring-primary/30 shadow-[0_0_8px_rgba(99,102,241,0.3)]" : ""}`}
                                 >
-                                  {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ""}
-                                </p>
+                                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                  <p
+                                    className={`text-xs mt-1 ${
+                                      msg.from === "supervisor" ? "text-primary-foreground/70" : "text-muted-foreground"
+                                    }`}
+                                  >
+                                    {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ""}
+                                  </p>
+                                </div>
+                                {msg.id && (
+                                  <MessageReactions
+                                    messageId={msg.id}
+                                    sessionId={selectedSession!}
+                                    reactions={msgReactions}
+                                    reactedBy={merchantId || "supervisor"}
+                                    reactedByRole="supervisor"
+                                    isOwnMessage={msg.from === "supervisor"}
+                                    showHint={isLastCustomerMsg && msgReactions.length === 0}
+                                    onReactionsChange={(updated) => {
+                                      setLocalReactions((prev) => [
+                                        ...prev.filter((r) => r.messageId !== msg.id),
+                                        ...updated,
+                                      ]);
+                                    }}
+                                  />
+                                )}
                               </div>
-                              {msg.from === "user" && (
+                              {isCustomer && (
                                 <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
                                   <User className="w-4 h-4" />
                                 </div>
                               )}
                             </div>
-                          ))}
+                          );
+                          })}
                           <div ref={messagesEndRef} />
                         </div>
                       ) : (

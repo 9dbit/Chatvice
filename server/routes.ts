@@ -5110,6 +5110,60 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  app.get("/api/reactions/:sessionId", async (req, res) => {
+    try {
+      const reactions = await storage.getReactionsBySessionId(req.params.sessionId);
+      res.json(reactions);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/messages/:messageId/reactions", async (req, res) => {
+    try {
+      const { sessionId, reactionType, reactedBy, reactedByRole } = req.body;
+      if (!sessionId || !reactionType || !reactedBy || !reactedByRole) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      const reaction = await storage.addMessageReaction({
+        messageId: req.params.messageId,
+        sessionId,
+        reactionType,
+        reactedBy,
+        reactedByRole,
+      });
+      broadcastToSession(sessionId, {
+        type: "message_reaction_added",
+        messageId: req.params.messageId,
+        sessionId,
+        reaction,
+      });
+      res.json(reaction);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.delete("/api/messages/:messageId/reactions", async (req, res) => {
+    try {
+      const { reactionType, reactedBy, sessionId } = req.body;
+      if (!reactionType || !reactedBy || !sessionId) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      await storage.removeMessageReaction(req.params.messageId, reactedBy, reactionType);
+      broadcastToSession(sessionId, {
+        type: "message_reaction_removed",
+        messageId: req.params.messageId,
+        sessionId,
+        reactionType,
+        reactedBy,
+      });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/transcript/:sessionId", requireMerchant, async (req, res) => {
     try {
       const session = await storage.getSession(req.params.sessionId);
