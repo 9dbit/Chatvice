@@ -2268,6 +2268,24 @@ export const insertChatMediaSchema = createInsertSchema(chatMedia).omit({ id: tr
 export type InsertChatMedia = z.infer<typeof insertChatMediaSchema>;
 export type ChatMedia = typeof chatMedia.$inferSelect;
 
+// Message Reactions - emoji reactions on chat messages
+export const messageReactions = pgTable("message_reactions", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  messageId: varchar("message_id", { length: 64 }).notNull(),
+  sessionId: varchar("session_id", { length: 64 }).notNull(),
+  reactionType: text("reaction_type").notNull(),
+  reactedBy: text("reacted_by").notNull(),
+  reactedByRole: text("reacted_by_role").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("reactions_message_id_idx").on(table.messageId),
+  index("reactions_session_id_idx").on(table.sessionId),
+]);
+
+export const insertMessageReactionSchema = createInsertSchema(messageReactions).omit({ id: true, createdAt: true });
+export type InsertMessageReaction = z.infer<typeof insertMessageReactionSchema>;
+export type MessageReaction = typeof messageReactions.$inferSelect;
+
 // Customer Stories - for profile updates and advertisements shown as circular thumbnails
 export const customerStories = pgTable("customer_stories", {
   id: varchar("id", { length: 32 }).primaryKey(),
