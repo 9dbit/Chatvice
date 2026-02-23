@@ -5656,8 +5656,9 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       });
       const { password: _, ...safeSupervisor } = supervisor;
       res.json({ success: true, supervisor: safeSupervisor });
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
+    } catch (error: any) {
+      console.error("[supervisor-add] Error creating supervisor:", error);
+      res.status(500).json({ error: error?.message || "Server error" });
     }
   });
 
