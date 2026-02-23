@@ -20,7 +20,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { PlanLimitPopup } from "@/components/plan-limit-popup";
 import { Users, Plus, Trash2, Mail, User, Camera, Loader2, Edit, Clock, Zap, Timer, AlertCircle, Bot, Check, Crown, ArrowUpRight, Link as LinkIcon, X } from "lucide-react";
 import { Link } from "wouter";
-import type { Supervisor, Agent, Merchant } from "@shared/schema";
+import type { Supervisor, Agent, Merchant, AgentSupervisor } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 
 type ResponseTimeRating = "excellent" | "fast" | "normal" | "slow";
@@ -103,6 +103,11 @@ export default function SupervisorsPage() {
 
   const { data: agents = [] } = useQuery<Agent[]>({
     queryKey: ["/api/agents"],
+    enabled: !!merchantId,
+  });
+
+  const { data: agentSupervisorMappings = [] } = useQuery<AgentSupervisor[]>({
+    queryKey: ["/api/agent-supervisor-mappings"],
     enabled: !!merchantId,
   });
 
@@ -295,37 +300,39 @@ export default function SupervisorsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
       queryClient.invalidateQueries({ queryKey: ["/api/supervisors", merchantId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agent-supervisor-mappings"] });
       setSelectedAgentId(null);
       toast({
-        title: "Supervisor assigned",
-        description: "The supervisor has been linked to this agent.",
+        title: "Agent assigned",
+        description: "Agent berhasil di-assign ke supervisor.",
       });
     },
     onError: (error: Error) => {
       toast({
-        title: "Failed to assign",
-        description: error.message || "Please try again.",
+        title: "Gagal assign agent",
+        description: error.message || "Silakan coba lagi.",
         variant: "destructive",
       });
     },
   });
 
   const unassignSupervisorMutation = useMutation({
-    mutationFn: async (agentId: string) => {
-      return apiRequest("POST", "/api/agents/unassign-supervisor", { agentId });
+    mutationFn: async (data: { agentId: string; supervisorId: string }) => {
+      return apiRequest("POST", "/api/agents/unassign-supervisor", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
       queryClient.invalidateQueries({ queryKey: ["/api/supervisors", merchantId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agent-supervisor-mappings"] });
       toast({
-        title: "Agent unassigned",
-        description: "The agent has been removed from this supervisor.",
+        title: "Agent di-unassign",
+        description: "Agent berhasil dihapus dari supervisor.",
       });
     },
     onError: () => {
       toast({
-        title: "Failed to unassign",
-        description: "Please try again.",
+        title: "Gagal unassign",
+        description: "Silakan coba lagi.",
         variant: "destructive",
       });
     },
@@ -356,7 +363,10 @@ export default function SupervisorsPage() {
   };
 
   const getAgentsForSupervisor = (supervisorId: string) => {
-    return agents.filter(a => a.supervisorId === supervisorId);
+    const mappedAgentIds = agentSupervisorMappings
+      .filter(m => m.supervisorId === supervisorId)
+      .map(m => m.agentId);
+    return agents.filter(a => mappedAgentIds.includes(a.id));
   };
 
   if (isLoading) {
@@ -651,7 +661,7 @@ export default function SupervisorsPage() {
                         Assigned Agents
                       </span>
                       <Badge variant="secondary" className="text-xs">
-                        {assignedAgents.length} / 3
+                        {assignedAgents.length}
                       </Badge>
                     </div>
 
@@ -664,7 +674,7 @@ export default function SupervisorsPage() {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                unassignSupervisorMutation.mutate(agent.id);
+                                unassignSupervisorMutation.mutate({ agentId: agent.id, supervisorId: supervisor.id });
                               }}
                               className="ml-0.5 p-0.5 rounded-full hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
                               title="Remove agent"
@@ -693,7 +703,7 @@ export default function SupervisorsPage() {
                       </SelectTrigger>
                       <SelectContent>
                         {agents
-                          .filter(a => a.supervisorId !== supervisor.id)
+                          .filter(a => !assignedAgents.some(aa => aa.id === a.id))
                           .map((agent) => (
                             <SelectItem key={agent.id} value={agent.id}>
                               {agent.name}

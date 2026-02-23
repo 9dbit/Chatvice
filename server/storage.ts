@@ -164,6 +164,7 @@ export interface IStorage {
   
   getAgentSupervisors(agentId: string): Promise<AgentSupervisor[]>;
   getSupervisorAgents(supervisorId: string): Promise<AgentSupervisor[]>;
+  getAgentSupervisorsByMerchant(merchantId: string): Promise<AgentSupervisor[]>;
   createAgentSupervisor(data: InsertAgentSupervisor): Promise<AgentSupervisor>;
   deleteAgentSupervisor(id: string): Promise<boolean>;
   deleteAgentSupervisorsByAgent(agentId: string): Promise<boolean>;
@@ -1493,6 +1494,11 @@ export class DatabaseStorage implements IStorage {
   async getSupervisorAgents(supervisorId: string): Promise<AgentSupervisor[]> {
     return db.select().from(agentSupervisors)
       .where(eq(agentSupervisors.supervisorId, supervisorId));
+  }
+
+  async getAgentSupervisorsByMerchant(merchantId: string): Promise<AgentSupervisor[]> {
+    return db.select().from(agentSupervisors)
+      .where(eq(agentSupervisors.merchantId, merchantId));
   }
 
   async createAgentSupervisor(data: InsertAgentSupervisor): Promise<AgentSupervisor> {

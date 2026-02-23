@@ -13615,15 +13615,22 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         return res.status(404).json({ error: "Supervisor not found" });
       }
       
-      // Check if supervisor already has 3 agents assigned (maximum limit)
-      const allAgents = await storage.getAgents(merchantId);
-      const supervisorAgentCount = allAgents.filter(a => a.supervisorId === supervisorId).length;
-      if (supervisorAgentCount >= 3) {
-        return res.status(400).json({ error: "Supervisor sudah menangani maksimum 3 agen. Silakan pilih supervisor lain." });
+      const existing = await storage.getSupervisorAgents(supervisorId);
+      if (existing.some(e => e.agentId === agentId)) {
+        return res.status(400).json({ error: "Agent sudah di-assign ke supervisor ini." });
       }
       
-      const updated = await storage.updateAgent(agentId, { supervisorId });
-      res.json({ success: true, agent: updated });
+      const mapping = await storage.createAgentSupervisor({
+        agentId,
+        supervisorId,
+        merchantId,
+      });
+      
+      if (!agent.supervisorId) {
+        await storage.updateAgent(agentId, { supervisorId });
+      }
+      
+      res.json({ success: true, mapping });
     } catch (error) {
       console.error("Assign supervisor error:", error);
       res.status(500).json({ error: "Server error" });
@@ -13634,7 +13641,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
   app.post("/api/agents/unassign-supervisor", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
-      const { agentId } = req.body;
+      const { agentId, supervisorId } = req.body;
       
       if (!agentId) {
         return res.status(400).json({ error: "Missing agentId" });
@@ -13645,10 +13652,53 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         return res.status(404).json({ error: "Agent not found" });
       }
       
-      const updated = await storage.updateAgent(agentId, { supervisorId: null });
-      res.json({ success: true, agent: updated });
+      if (supervisorId) {
+        const mappings = await storage.getSupervisorAgents(supervisorId);
+        const mapping = mappings.find(m => m.agentId === agentId);
+        if (mapping) {
+          await storage.deleteAgentSupervisor(mapping.id);
+        }
+        
+        if (agent.supervisorId === supervisorId) {
+          const remaining = await storage.getAgentSupervisors(agentId);
+          const newPrimary = remaining.length > 0 ? remaining[0].supervisorId : null;
+          await storage.updateAgent(agentId, { supervisorId: newPrimary });
+        }
+      } else {
+        await storage.deleteAgentSupervisorsByAgent(agentId);
+        await storage.updateAgent(agentId, { supervisorId: null });
+      }
+      
+      res.json({ success: true });
     } catch (error) {
       console.error("Unassign supervisor error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/supervisors/:supervisorId/agents", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { supervisorId } = req.params;
+      const mappings = await storage.getSupervisorAgents(supervisorId);
+      const allAgents = await storage.getAgents(merchantId);
+      const assignedAgents = allAgents.filter(a => 
+        mappings.some(m => m.agentId === a.id)
+      );
+      res.json(assignedAgents);
+    } catch (error) {
+      console.error("Error fetching supervisor agents:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/agent-supervisor-mappings", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const mappings = await storage.getAgentSupervisorsByMerchant(merchantId);
+      res.json(mappings);
+    } catch (error) {
+      console.error("Error fetching agent-supervisor mappings:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
