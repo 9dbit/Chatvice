@@ -123,6 +123,7 @@ export default function SupervisorsPage() {
     : plan.supervisorsLimit;
   const currentCount = supervisors.length;
   const canAddMore = supervisorLimit === -1 || currentCount < supervisorLimit;
+  const agentsPerSupervisorLimit = plan.supervisorsPerAgentLimit;
 
   const form = useForm<AddSupervisorData>({
     resolver: zodResolver(addSupervisorSchema),
@@ -661,7 +662,9 @@ export default function SupervisorsPage() {
                         Assigned Agents
                       </span>
                       <Badge variant="secondary" className="text-xs">
-                        {assignedAgents.length}
+                        {agentsPerSupervisorLimit === -1 
+                          ? assignedAgents.length 
+                          : `${assignedAgents.length} / ${agentsPerSupervisorLimit}`}
                       </Badge>
                     </div>
 
@@ -697,9 +700,14 @@ export default function SupervisorsPage() {
                           supervisorId: supervisor.id,
                         });
                       }}
+                      disabled={agentsPerSupervisorLimit !== -1 && assignedAgents.length >= agentsPerSupervisorLimit}
                     >
-                      <SelectTrigger className="text-xs h-8">
-                        <SelectValue placeholder="Assign to agent..." />
+                      <SelectTrigger className="text-xs h-8" data-testid={`select-assign-agent-${supervisor.id}`}>
+                        <SelectValue placeholder={
+                          agentsPerSupervisorLimit !== -1 && assignedAgents.length >= agentsPerSupervisorLimit
+                            ? `Batas ${agentsPerSupervisorLimit} agent tercapai`
+                            : "Assign to agent..."
+                        } />
                       </SelectTrigger>
                       <SelectContent>
                         {agents

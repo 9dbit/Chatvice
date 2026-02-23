@@ -13620,6 +13620,18 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         return res.status(400).json({ error: "Agent sudah di-assign ke supervisor ini." });
       }
       
+      const merchant = await storage.getMerchant(merchantId);
+      if (merchant) {
+        const planId = (merchant.subscriptionPlanId || 'free') as SubscriptionPlanId;
+        const plan = subscriptionPlans[planId] || subscriptionPlans.free;
+        const agentsPerSupervisorLimit = plan.supervisorsPerAgentLimit;
+        if (agentsPerSupervisorLimit !== -1 && existing.length >= agentsPerSupervisorLimit) {
+          return res.status(403).json({ 
+            error: `Supervisor sudah menangani maksimum ${agentsPerSupervisorLimit} agent sesuai paket ${planId} Anda. Upgrade paket untuk menambah lebih banyak.` 
+          });
+        }
+      }
+      
       const mapping = await storage.createAgentSupervisor({
         agentId,
         supervisorId,
