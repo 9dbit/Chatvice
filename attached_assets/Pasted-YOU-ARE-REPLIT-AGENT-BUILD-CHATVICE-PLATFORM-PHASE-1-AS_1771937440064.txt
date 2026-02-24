@@ -1,0 +1,410 @@
+YOU ARE REPLIT AGENT. BUILD “CHATVICE PLATFORM PHASE 1” AS A FULL WEB APPLICATION DEPLOYED AT web.chatvice.app, DESIGNED FROM DAY ONE TO EVOLVE INTO NATIVE iOS & ANDROID APPS (PHASE 2) WITHOUT CHANGING BACKEND CONTRACTS.
+
+THIS IS NOT A LANDING PAGE. THIS IS A COMPLETE CUSTOMER CHAT PLATFORM.
+
+PRIMARY CLIENT:
+- web.chatvice.app → Customer Chat Platform (Web App, Mobile Responsive)
+SECONDARY CLIENT:
+- chatvice.app → Merchant/Supervisor Web Panel
+
+FUTURE PHASE 2 CLIENTS:
+- iOS App (React Native)
+- Android App (React Native)
+
+NON-NEGOTIABLE ARCHITECTURAL PRINCIPLE:
+BACKEND = PERMANENT CORE
+CLIENTS = REPLACEABLE LAYERS
+
+=====================================================
+CORE FEATURE SET — PHASE 1
+=====================================================
+
+1) Customer authentication (phone OTP + PIN login)
+2) Real-time chat with AI + human supervisor escalation
+3) Inbox (WhatsApp-like)
+4) Multi-merchant directory & store branches
+5) Product cards inside chat
+6) Media upload (images/documents)
+7) Notification center (in-app)
+8) Customer settings
+9) Virtual number marketplace (100,000 numbers)
+10) Email verification via Resend
+11) Billing via KompasPay DEMO ($1.55/month)
+12) Shared backend for all future apps
+13) Frosted glass morphism purple UI
+14) Dark & Light mode
+15) Mobile-first responsive design
+
+=====================================================
+MONOREPO STRUCTURE (PNPM WORKSPACES)
+=====================================================
+
+/apps
+  /customer-web      (web.chatvice.app)
+  /merchant-web      (chatvice.app)
+/packages
+  /mobile-sdk        (RN-ready API + WS client used NOW by web)
+  /shared            (types, zod schemas, constants)
+  /ui                (glass design system)
+  /server            (Express API + WebSocket)
+  /db                (Drizzle schema)
+/docs
+  API_CONTRACT.md
+  MOBILE_READINESS.md
+  DIRECTORY.md
+  BILLING_KOMPASPAY_DEMO.md
+  RUNBOOK.md
+
+=====================================================
+TECH STACK
+=====================================================
+
+Backend:
+- Node.js + TypeScript
+- Express
+- ws WebSocket server
+- PostgreSQL
+- Drizzle ORM
+- zod validation
+- JWT auth
+- bcrypt for PIN
+- Twilio Verify (OTP)
+- Resend (email OTP)
+
+Frontend:
+- React + Vite + TypeScript
+- CSS variables theme system
+- No framework lock-in
+- Fully responsive mobile layout
+
+=====================================================
+STEP 1 — ENV CONFIG
+=====================================================
+
+.env.example:
+
+DATABASE_URL=
+JWT_ACCESS_SECRET=
+JWT_REFRESH_SECRET=
+CORS_ALLOWED_ORIGINS=http://localhost:5173,https://web.chatvice.app,https://chatvice.app
+
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_VERIFY_SERVICE_SID=
+
+RESEND_API_KEY=
+
+NUMBER_RESERVE_TTL_SECONDS=600
+EMAIL_OTP_TTL_SECONDS=300
+
+SUBSCRIPTION_PRICE_USD=1.55
+
+# KompasPay DEMO
+KOMPASPAY_DEMO_SECRET=
+KOMPASPAY_DEMO_WEBHOOK_SECRET=
+KOMPASPAY_DEMO_SUCCESS_URL=http://localhost:5173/numbers/success
+KOMPASPAY_DEMO_CANCEL_URL=http://localhost:5173/numbers/cancel
+KOMPASPAY_DEMO_PORTAL_URL=http://localhost:5173/billing/portal
+
+=====================================================
+STEP 2 — DATABASE DESIGN
+=====================================================
+
+Implement full schema including:
+
+CUSTOMERS
+- id
+- display_name
+- email
+- email_verified_at
+- phone_e164
+- identity_type ('phone','virtual')
+- virtual_number_id
+- pin_hash
+- language
+- theme
+- created_at
+
+CUSTOMER_DEVICES (mobile readiness)
+- platform ('ios','android','web')
+- push_token nullable
+- last_seen_at
+
+MERCHANTS
+STORE_BRANCHES
+STORE_CATEGORIES
+STORE_REVIEWS
+STORE_STATS
+
+CONVERSATIONS
+MESSAGES
+MESSAGE_READS
+TYPING_INDICATORS
+REACTIONS
+
+MEDIA_OBJECTS
+
+VIRTUAL_NUMBERS
+EMAIL_VERIFICATIONS
+SUBSCRIPTIONS
+BILLING_EVENTS
+BILLING_CHECKOUT_SESSIONS
+
+Seed database:
+- Demo merchants
+- Demo store branches
+- Categories
+- Reviews
+- Generate 100,000 virtual numbers:
+  display = "001-" + serial padded to 6 digits
+
+=====================================================
+STEP 3 — AUTH SYSTEM
+=====================================================
+
+Phone OTP flow:
+POST /auth/phone/send-otp
+POST /auth/phone/verify-otp
+
+Profile setup:
+POST /auth/profile/setup
+
+Login with PIN:
+POST /auth/login
+
+Token system:
+- Access token (short)
+- Refresh token (long)
+- Support BOTH bearer mode and cookie mode
+
+=====================================================
+STEP 4 — DIRECTORY (MULTI-MERCHANT)
+=====================================================
+
+Public browsing allowed.
+
+Endpoints:
+GET /directory/categories
+GET /directory/stores (filters: search, category, city, featured, rating, open_now)
+GET /directory/stores/:id
+POST /directory/stores/:id/reviews (auth)
+
+Each store includes:
+- Merchant info
+- Branch info
+- Gallery
+- Opening hours
+- Rating stats
+- Contact info
+- Location
+
+=====================================================
+STEP 5 — CHAT SYSTEM
+=====================================================
+
+Inbox:
+GET /conversations
+
+Start chat:
+POST /conversations { merchant_id, store_branch_id }
+
+Messages:
+POST /messages
+GET /conversations/:id/messages
+
+Support message types:
+- text
+- image
+- document
+- product_card
+- system
+
+Realtime via WebSocket:
+- message:new
+- message:read
+- typing:update
+- reaction:update
+- conversation:update
+
+=====================================================
+STEP 6 — MEDIA UPLOAD
+=====================================================
+
+Multipart upload:
+POST /media/upload
+
+Validate:
+- image max 5MB
+- document allowed types
+
+Store locally (MVP) and return permanent URL.
+
+=====================================================
+STEP 7 — VIRTUAL NUMBER MARKETPLACE
+=====================================================
+
+GET /numbers?seed=&page=&q=
+
+Random ordering using deterministic hash.
+
+Reserve:
+POST /numbers/:id/reserve
+
+Requires email verification before purchase.
+
+=====================================================
+STEP 8 — EMAIL OTP (RESEND)
+=====================================================
+
+POST /email/send-otp
+POST /email/verify-otp
+
+Return short-lived verified token.
+
+=====================================================
+STEP 9 — BILLING (KOMPASPAY DEMO)
+=====================================================
+
+Checkout:
+POST /numbers/:id/start-checkout
+
+Internal checkout page:
+GET /billing/kompaspay/checkout/:id
+
+Pay button:
+POST /billing/kompaspay/checkout/:id/pay
+
+Webhook:
+POST /webhooks/kompaspay
+
+On payment success:
+- Activate subscription
+- Activate virtual number
+- Assign number to customer
+
+Customer portal:
+GET /billing/portal
+
+=====================================================
+STEP 10 — NOTIFICATIONS (IN-APP)
+=====================================================
+
+notifications table:
+- id
+- customer_id
+- type
+- title
+- body
+- data json
+- is_read
+- created_at
+
+Endpoints:
+GET /notifications
+POST /notifications/:id/read
+
+=====================================================
+STEP 11 — MOBILE SDK (CRITICAL)
+=====================================================
+
+Create /packages/mobile-sdk:
+
+Exports:
+- createApiClient(baseUrl, getAccessToken)
+- createWsClient(wsUrl, getAccessToken)
+- typed methods:
+  login, sendMessage, listStores, reserveNumber, etc.
+
+CUSTOMER WEB MUST USE THIS SDK — NO DIRECT FETCH.
+
+=====================================================
+STEP 12 — CUSTOMER WEB UI (web.chatvice.app)
+=====================================================
+
+Pages:
+
+/
+- Featured stores
+- Quick search
+- CTA to login/signup
+
+/signup
+/login
+
+/stores
+/stores/:id
+
+/inbox
+/chat/:conversationId
+
+/numbers
+/numbers/success
+/numbers/cancel
+
+/billing/portal
+
+/settings
+/notifications
+
+UI STYLE:
+- Frosted glass morphism
+- Purple theme
+- Clean layout
+- Dark/light mode
+- Mobile-first responsive
+
+Touch-friendly components.
+
+=====================================================
+STEP 13 — MERCHANT WEB (chatvice.app)
+=====================================================
+
+Minimal Phase 1:
+
+/inbox
+/chat/:conversationId
+
+Realtime sync with customer app.
+
+=====================================================
+STEP 14 — MOBILE READINESS DOCUMENTATION
+=====================================================
+
+Create docs/MOBILE_READINESS.md explaining:
+
+- How React Native app will reuse mobile-sdk
+- Token storage strategy
+- Push notification integration plan
+- Deep link structure:
+  chatvice://chat/<id>
+- Offline messaging strategy (future)
+- Background sync considerations
+
+=====================================================
+STEP 15 — RUN INSTRUCTIONS
+=====================================================
+
+pnpm install
+pnpm db:migrate
+pnpm db:seed
+pnpm dev
+
+Ports:
+- Server: 3000
+- Customer web: 5173
+- Merchant web: 5174
+
+=====================================================
+TEST SCENARIOS
+=====================================================
+
+1) Browse directory without login
+2) Signup via OTP → setup PIN → start chat
+3) Realtime sync with merchant app
+4) Upload image/document
+5) Reserve virtual number → verify email → checkout → payment → activation
+6) Login using virtual number + PIN
+7) View notifications
+8) Change theme & settings
+
+DELIVER COMPLETE WORKING CODE. NO QUESTIONS.
