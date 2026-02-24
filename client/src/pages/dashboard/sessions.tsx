@@ -92,24 +92,24 @@ function HandlerAvatar({ mode, supervisorPhoto, agentPhoto }: {
 }) {
   if (mode === "HUMAN") {
     return (
-      <Avatar className="h-8 w-8 border-2 border-primary/20">
+      <Avatar className="h-12 w-12 border-2 border-primary/20">
         {supervisorPhoto ? (
           <AvatarImage src={supervisorPhoto} alt="Supervisor" />
         ) : null}
         <AvatarFallback className="bg-primary/10">
-          <HeadphonesIcon className="h-4 w-4 text-primary" />
+          <HeadphonesIcon className="h-6 w-6 text-primary" />
         </AvatarFallback>
       </Avatar>
     );
   }
   
   return (
-    <Avatar className="h-8 w-8 border-2 border-secondary/20">
+    <Avatar className="h-12 w-12 border-2 border-secondary/20">
       {agentPhoto ? (
         <AvatarImage src={agentPhoto} alt="AI Agent" />
       ) : null}
       <AvatarFallback className="bg-secondary">
-        <Bot className="h-4 w-4 text-secondary-foreground" />
+        <Bot className="h-6 w-6 text-secondary-foreground" />
       </AvatarFallback>
     </Avatar>
   );
@@ -720,12 +720,12 @@ export default function SessionsPage() {
                   {/* Agent thumbnail */}
                   {selectedSessionData.mode === "AI" && (
                     <div className="relative" title={`Agent: ${getAgentName(selectedSessionData.agentId)}`}>
-                      <Avatar className="h-7 w-7 border-2 border-green-500">
+                      <Avatar className="h-10 w-10 border-2 border-green-500">
                         {getAgentPhoto(selectedSessionData.agentId) ? (
                           <AvatarImage src={getAgentPhoto(selectedSessionData.agentId)!} alt="Agent" />
                         ) : null}
-                        <AvatarFallback className="bg-primary/10 text-[10px]">
-                          <Bot className="h-3.5 w-3.5 text-primary" />
+                        <AvatarFallback className="bg-primary/10 text-xs">
+                          <Bot className="h-5 w-5 text-primary" />
                         </AvatarFallback>
                       </Avatar>
                       <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
@@ -737,12 +737,12 @@ export default function SessionsPage() {
                   {/* Supervisor thumbnail */}
                   {selectedSessionData.mode === "HUMAN" && selectedSessionData.supervisorId && (
                     <div className="relative" title={`Supervisor: ${getSupervisorName(selectedSessionData.supervisorId, selectedSessionData.agentId)}`}>
-                      <Avatar className="h-7 w-7 border-2 border-green-500">
+                      <Avatar className="h-10 w-10 border-2 border-green-500">
                         {getSupervisorPhoto(selectedSessionData.supervisorId, selectedSessionData.agentId) ? (
                           <AvatarImage src={getSupervisorPhoto(selectedSessionData.supervisorId, selectedSessionData.agentId)!} alt="Supervisor" />
                         ) : null}
-                        <AvatarFallback className="bg-primary/10 text-[10px]">
-                          <HeadphonesIcon className="h-3.5 w-3.5 text-primary" />
+                        <AvatarFallback className="bg-primary/10 text-xs">
+                          <HeadphonesIcon className="h-5 w-5 text-primary" />
                         </AvatarFallback>
                       </Avatar>
                       <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
@@ -1029,9 +1029,12 @@ export default function SessionsPage() {
                             >
                               {/* Customer avatar on left */}
                               {isCustomerMessage && (
-                                <Avatar className="h-7 w-7 flex-shrink-0">
-                                  <AvatarFallback className="bg-muted text-xs">
-                                    <User className="h-3.5 w-3.5" />
+                                <Avatar className="h-10 w-10 flex-shrink-0">
+                                  {selectedSessionData?.customerAvatarUrl ? (
+                                    <AvatarImage src={selectedSessionData.customerAvatarUrl} alt={selectedSessionData?.customerName || "Customer"} />
+                                  ) : null}
+                                  <AvatarFallback className={`${getAvatarColor(selectedSessionData?.customerName || "Customer")} text-white text-sm font-semibold`}>
+                                    {getInitials(selectedSessionData?.customerName || "Customer")}
                                   </AvatarFallback>
                                 </Avatar>
                               )}
@@ -1256,7 +1259,7 @@ export default function SessionsPage() {
                               </div>
                               {/* Agent/Supervisor avatar on right */}
                               {!isCustomerMessage && (
-                                <Avatar className="h-7 w-7 flex-shrink-0">
+                                <Avatar className="h-10 w-10 flex-shrink-0">
                                   {msg.from === "chatvice" || msg.from === "bot" || msg.from === "ai" ? (
                                     getAgentPhoto(selectedSessionData?.agentId) ? (
                                       <AvatarImage src={getAgentPhoto(selectedSessionData?.agentId)!} alt="AI" />
@@ -1266,11 +1269,11 @@ export default function SessionsPage() {
                                       <AvatarImage src={getSupervisorPhoto(selectedSessionData?.supervisorId, selectedSessionData?.agentId)!} alt="Supervisor" />
                                     ) : null
                                   )}
-                                  <AvatarFallback className="bg-primary/10 text-xs">
+                                  <AvatarFallback className="bg-primary/10 text-sm">
                                     {msg.from === "chatvice" || msg.from === "bot" || msg.from === "ai" ? (
-                                      <Bot className="h-3.5 w-3.5 text-primary" />
+                                      <Bot className="h-5 w-5 text-primary" />
                                     ) : (
-                                      <HeadphonesIcon className="h-3.5 w-3.5 text-primary" />
+                                      <HeadphonesIcon className="h-5 w-5 text-primary" />
                                     )}
                                   </AvatarFallback>
                                 </Avatar>
@@ -1279,7 +1282,7 @@ export default function SessionsPage() {
                             {/* Product Cards Display - show when AI message matches product triggers */}
                             {!isCustomerMessage && (msg.from === "chatvice" || msg.from === "bot" || msg.from === "ai") && 
                              shouldShowProductsForMessage(msg.content) && productCards.filter(c => c.isActive).length > 0 && (
-                              <div className="flex justify-end mt-2 mr-9">
+                              <div className="flex justify-end mt-2 mr-12">
                                 <div>
                                   <div className="flex items-center gap-1.5 mb-2 justify-end">
                                     <ShoppingBag className="w-3.5 h-3.5 text-primary" />
