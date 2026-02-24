@@ -2143,6 +2143,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
   // ============ Widget Slug Utilities ============
   const RESERVED_SLUGS = new Set([
+    // App routes
     "login", "register", "dashboard", "admin", "supervisor", "widget", "embed",
     "widget-demo", "forgot-password", "reset-password", "verify-email",
     "verify-supervisor", "oauth-callback", "complete-profile", "profile-wizard",
@@ -2150,6 +2151,28 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     "changelog", "integrations", "privacy", "terms", "cookies", "gdpr",
     "security", "blog", "careers", "press", "partners", "affiliate",
     "contact", "status", "docs", "help", "topup", "demo", "chat", "api",
+    // Brand & system
+    "official", "chatvice", "domain", "hosting", "flag", "confirmation",
+    "verification", "verified", "pro", "enterprise", "premium", "capital",
+    "icon", "management", "support", "service", "system", "platform",
+    // Corporate titles & positions
+    "ceo", "cto", "cfo", "coo", "cmo", "cio", "cso", "cpo",
+    "director", "manager", "president", "chairman", "founder", "cofounder",
+    "owner", "partner", "associate", "executive", "officer", "lead",
+    "head", "chief", "vp", "svp", "evp", "avp", "bod",
+    "supervisor_head", "team_lead", "general_manager", "managing_director",
+    // Corporate divisions & departments
+    "hr", "finance", "marketing", "sales", "engineering", "legal",
+    "operations", "logistics", "procurement", "accounting", "treasury",
+    "compliance", "audit", "risk", "strategy", "innovation",
+    "research", "development", "product", "design", "qa", "devops",
+    "infrastructure", "it", "tech", "data", "analytics", "bi",
+    "customer_service", "public_relations", "corporate", "governance",
+    // Professional roles
+    "consultant", "analyst", "specialist", "coordinator", "administrator",
+    "secretary", "treasurer", "advisor", "counsel", "attorney",
+    "architect", "engineer", "developer", "programmer", "designer",
+    "recruiter", "trainer", "intern", "staff", "employee", "agent",
   ]);
 
   function isReservedSlug(slug: string): boolean {
