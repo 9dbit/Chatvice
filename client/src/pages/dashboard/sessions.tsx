@@ -825,15 +825,8 @@ export default function SessionsPage() {
                           data-testid={`button-session-${session.id}`}
                         >
                           <div className="flex items-start gap-2.5">
-                            <div className="relative flex-shrink-0">
-                              <HandlerAvatar 
-                                mode={session.mode as "AI" | "HUMAN"} 
-                                agentPhoto={getAgentPhoto(session.agentId)}
-                                supervisorPhoto={getSupervisorPhoto(session.supervisorId, session.agentId)}
-                              />
-                              <div className="absolute -bottom-0.5 -right-0.5">
-                                <StatusDot status={status} />
-                              </div>
+                            <div className="relative flex-shrink-0 mt-1">
+                              <StatusDot status={status} />
                             </div>
                             <div className="flex-1 min-w-0 space-y-0.5">
                               <div className="flex items-center justify-between gap-2">
@@ -846,12 +839,22 @@ export default function SessionsPage() {
                                     : ""}
                                 </span>
                               </div>
-                              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                                <span className="truncate">
-                                  {session.mode === "HUMAN" 
-                                    ? `Supervisor: ${getSupervisorName(session.supervisorId, session.agentId) || "Awaiting"}` 
-                                    : `Agent: ${getAgentName(session.agentId)}`}
-                                </span>
+                              <div className="flex items-center gap-1.5 text-xs font-medium">
+                                {session.mode === "HUMAN" ? (
+                                  <>
+                                    <HeadphonesIcon className="h-3 w-3 text-primary flex-shrink-0" />
+                                    <span className="truncate text-primary">
+                                      {getSupervisorName(session.supervisorId, session.agentId) || "Awaiting Supervisor"}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Bot className="h-3 w-3 text-secondary-foreground flex-shrink-0" />
+                                    <span className="truncate text-secondary-foreground">
+                                      {getAgentName(session.agentId)}
+                                    </span>
+                                  </>
+                                )}
                               </div>
                               <p className="text-xs text-muted-foreground line-clamp-1">
                                 <span className="text-foreground/70">Q:</span> {session.lastQuestion || "No messages yet"}

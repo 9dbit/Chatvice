@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,8 +11,47 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Clock, Calendar, Users, Moon, Sun, FileText, Edit2, UserCheck } from "lucide-react";
+import { Plus, Trash2, Clock, Calendar, Users, Moon, Sun, FileText, Edit2, UserCheck, Globe } from "lucide-react";
 import type { WorkShift, ShiftAssignment, WorkReport, Supervisor, Agent } from "@shared/schema";
+
+const TIMEZONE_OPTIONS = [
+  { value: "Asia/Jakarta", label: "WIB - Western Indonesia (Jakarta)", short: "WIB" },
+  { value: "Asia/Makassar", label: "WITA - Central Indonesia (Makassar)", short: "WITA" },
+  { value: "Asia/Jayapura", label: "WIT - Eastern Indonesia (Jayapura)", short: "WIT" },
+  { value: "Asia/Singapore", label: "SGT - Singapore", short: "SGT" },
+  { value: "Asia/Kuala_Lumpur", label: "MYT - Malaysia (Kuala Lumpur)", short: "MYT" },
+  { value: "Asia/Bangkok", label: "ICT - Thailand (Bangkok)", short: "ICT" },
+  { value: "Asia/Manila", label: "PHT - Philippines (Manila)", short: "PHT" },
+  { value: "Asia/Tokyo", label: "JST - Japan (Tokyo)", short: "JST" },
+  { value: "Asia/Seoul", label: "KST - Korea (Seoul)", short: "KST" },
+  { value: "Asia/Shanghai", label: "CST - China (Shanghai)", short: "CST" },
+  { value: "Asia/Kolkata", label: "IST - India (Kolkata)", short: "IST" },
+  { value: "Asia/Dubai", label: "GST - UAE (Dubai)", short: "GST" },
+  { value: "Australia/Sydney", label: "AEST - Australia (Sydney)", short: "AEST" },
+  { value: "Europe/London", label: "GMT/BST - United Kingdom (London)", short: "GMT" },
+  { value: "America/New_York", label: "EST/EDT - US Eastern (New York)", short: "EST" },
+  { value: "America/Los_Angeles", label: "PST/PDT - US Pacific (Los Angeles)", short: "PST" },
+  { value: "UTC", label: "UTC - Coordinated Universal Time", short: "UTC" },
+];
+
+function getTimezoneShort(tz: string): string {
+  const found = TIMEZONE_OPTIONS.find(o => o.value === tz);
+  return found?.short || tz;
+}
+
+function getCurrentTimeInTimezone(tz: string): string {
+  try {
+    return new Date().toLocaleTimeString("en-US", {
+      timeZone: tz,
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+  } catch {
+    return "--:--:--";
+  }
+}
 
 type ShiftFormData = {
   name: string;
@@ -34,6 +73,36 @@ export default function WorkSchedulerPage() {
     startTime: "09:00",
     endTime: "17:00",
     isNightShift: false,
+  });
+
+  const [currentTime, setCurrentTime] = useState("");
+
+  const { data: timezoneData } = useQuery<{ timezone: string }>({
+    queryKey: ["/api/work-scheduler/timezone"],
+  });
+
+  const merchantTimezone = timezoneData?.timezone || "Asia/Jakarta";
+  const tzShort = getTimezoneShort(merchantTimezone);
+
+  useEffect(() => {
+    setCurrentTime(getCurrentTimeInTimezone(merchantTimezone));
+    const interval = setInterval(() => {
+      setCurrentTime(getCurrentTimeInTimezone(merchantTimezone));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [merchantTimezone]);
+
+  const updateTimezoneMutation = useMutation({
+    mutationFn: async (timezone: string) => {
+      return apiRequest("PATCH", "/api/work-scheduler/timezone", { timezone });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/work-scheduler/timezone"] });
+      toast({ title: "Timezone updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update timezone", variant: "destructive" });
+    },
   });
 
   const { data: shifts = [], isLoading: shiftsLoading } = useQuery<WorkShift[]>({
@@ -200,6 +269,30 @@ export default function WorkSchedulerPage() {
           <h1 className="text-2xl font-bold" data-testid="text-page-title">Work Scheduler</h1>
           <p className="text-muted-foreground">Manage shift schedules for supervisors and AI agents</p>
         </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Globe className="w-4 h-4" />
+            <Select 
+              value={merchantTimezone} 
+              onValueChange={(v) => updateTimezoneMutation.mutate(v)}
+            >
+              <SelectTrigger className="w-[280px]" data-testid="select-timezone">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TIMEZONE_OPTIONS.map((tz) => (
+                  <SelectItem key={tz.value} value={tz.value}>
+                    {tz.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Badge variant="outline" className="font-mono text-sm" data-testid="badge-current-time">
+            <Clock className="w-3 h-3 mr-1.5" />
+            {currentTime} {tzShort}
+          </Badge>
+        </div>
         <Dialog open={isAddShiftOpen} onOpenChange={(open) => {
           setIsAddShiftOpen(open);
           if (!open) {
@@ -350,7 +443,7 @@ export default function WorkSchedulerPage() {
                     <div className="space-y-3">
                       <div className="flex items-center gap-2 text-sm">
                         <Clock className="w-4 h-4 text-muted-foreground" />
-                        <span>{shift.startTime} - {shift.endTime}</span>
+                        <span>{shift.startTime} - {shift.endTime} <span className="text-muted-foreground">({tzShort})</span></span>
                       </div>
                       <div className="text-sm text-muted-foreground">
                         {getAssignmentsByShift(shift.id).length} people assigned
@@ -431,6 +524,7 @@ export default function WorkSchedulerPage() {
                             <p className="font-medium">{getAssigneeName(assignment.assigneeId, assignment.assigneeType)}</p>
                             <p className="text-sm text-muted-foreground">
                               {assignment.assigneeType === "supervisor" ? "Supervisor" : "AI Agent"} • {shift?.name || "Unknown shift"}
+                              {shift ? ` (${shift.startTime} - ${shift.endTime} ${tzShort})` : ""}
                             </p>
                           </div>
                         </div>

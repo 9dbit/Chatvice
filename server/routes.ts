@@ -15860,6 +15860,32 @@ ${log.extractedKnowledge}` : ''}
   });
 
   // ============== WORK SCHEDULER ROUTES ==============
+
+  // Get merchant work timezone
+  app.get("/api/work-scheduler/timezone", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      res.json({ timezone: merchant?.workTimezone || "Asia/Jakarta" });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Update merchant work timezone
+  app.patch("/api/work-scheduler/timezone", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { timezone } = req.body;
+      if (!timezone || typeof timezone !== "string") {
+        return res.status(400).json({ error: "Invalid timezone" });
+      }
+      await storage.updateMerchant(merchantId, { workTimezone: timezone });
+      res.json({ success: true, timezone });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
   
   // Get all shifts for merchant
   app.get("/api/work-scheduler/shifts", requireMerchant, async (req, res) => {
