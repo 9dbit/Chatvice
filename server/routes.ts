@@ -2141,6 +2141,123 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // ============ Widget Slug Utilities ============
+  function generateSlug(name: string): string {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s_-]/g, "")
+      .replace(/[\s]+/g, "_")
+      .replace(/[_-]+/g, "_")
+      .replace(/^_|_$/g, "")
+      .slice(0, 50);
+  }
+
+  async function findAvailableSlug(baseSlug: string, excludeMerchantId?: string): Promise<string> {
+    let slug = baseSlug;
+    let counter = 1;
+    while (true) {
+      const existing = await storage.getMerchantByWidgetSlug(slug);
+      if (!existing || (excludeMerchantId && existing.id === excludeMerchantId)) {
+        return slug;
+      }
+      slug = `${baseSlug}_${counter}`;
+      counter++;
+      if (counter > 100) break;
+    }
+    return `${baseSlug}_${Date.now().toString(36)}`;
+  }
+
+  function generateSlugSuggestions(baseSlug: string): string[] {
+    const suffixes = [
+      "_official", "_store", "_shop", "_online", "_market",
+      "_id", "_hub", "_app", "_co", "_hq",
+      `_${Math.floor(Math.random() * 999)}`,
+      `_${Math.floor(Math.random() * 9999)}`,
+    ];
+    const shuffled = suffixes.sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 6).map(s => `${baseSlug}${s}`);
+  }
+
+  // Check widget slug availability + suggestions
+  app.post("/api/check-widget-slug", async (req, res) => {
+    try {
+      const { companyName, excludeMerchantId } = req.body;
+      if (!companyName || typeof companyName !== "string") {
+        return res.status(400).json({ error: "Company name is required" });
+      }
+
+      const slug = generateSlug(companyName);
+      if (!slug || slug.length < 2) {
+        return res.status(400).json({ error: "Company name must produce a valid URL slug (at least 2 characters)" });
+      }
+
+      const existing = await storage.getMerchantByWidgetSlug(slug);
+      const isAvailable = !existing || (excludeMerchantId && existing.id === excludeMerchantId);
+
+      if (isAvailable) {
+        return res.json({ available: true, slug });
+      }
+
+      // Generate suggestions
+      const candidates = generateSlugSuggestions(slug);
+      const suggestions: string[] = [];
+      for (const candidate of candidates) {
+        if (suggestions.length >= 3) break;
+        const exists = await storage.getMerchantByWidgetSlug(candidate);
+        if (!exists) {
+          suggestions.push(candidate);
+        }
+      }
+
+      // If we still need more suggestions, add numbered ones
+      let num = 1;
+      while (suggestions.length < 3 && num < 100) {
+        const candidate = `${slug}_${num}`;
+        const exists = await storage.getMerchantByWidgetSlug(candidate);
+        if (!exists) {
+          suggestions.push(candidate);
+        }
+        num++;
+      }
+
+      res.json({ available: false, slug, suggestions });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || "Failed to check slug" });
+    }
+  });
+
+  // Resolve widget slug or merchant ID to merchant
+  app.get("/api/widget/resolve/:slugOrId", async (req, res) => {
+    try {
+      const { slugOrId } = req.params;
+      let merchant;
+      
+      // First try by ID (starts with m_ or matches old format)
+      if (slugOrId.startsWith("m_") || slugOrId.length === 12) {
+        merchant = await storage.getMerchant(slugOrId);
+      }
+      
+      // If not found by ID, try by slug
+      if (!merchant) {
+        merchant = await storage.getMerchantByWidgetSlug(slugOrId);
+      }
+      
+      // Final fallback - try as ID anyway
+      if (!merchant) {
+        merchant = await storage.getMerchant(slugOrId);
+      }
+
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      res.json({ merchantId: merchant.id, slug: merchant.widgetSlug });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || "Failed to resolve merchant" });
+    }
+  });
+
   // Profile wizard step 1: Business info
   app.post("/api/profile/step1", async (req, res) => {
     try {
@@ -2151,14 +2268,19 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       
       const data = profileStep1Schema.parse(req.body);
       
+      // Generate widget slug from company name
+      const baseSlug = generateSlug(data.companyName);
+      const widgetSlug = baseSlug.length >= 2 ? await findAvailableSlug(baseSlug, merchantId) : undefined;
+      
       await storage.updateMerchant(merchantId, {
         companyName: data.companyName,
         officialWebsiteName: data.officialWebsiteName,
         websiteUrl: data.websiteUrl || "",
         profileStep: 1,
+        ...(widgetSlug ? { widgetSlug } : {}),
       });
       
-      res.json({ success: true, step: 1, message: "Business information saved" });
+      res.json({ success: true, step: 1, message: "Business information saved", widgetSlug });
     } catch (error: any) {
       if (error.issues) {
         const firstIssue = error.issues[0];
@@ -2605,6 +2727,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         });
       }
 
+      // Generate widget slug from company name
+      const baseSlug = generateSlug(data.companyName);
+      const widgetSlug = baseSlug.length >= 2 ? await findAvailableSlug(baseSlug, merchant.id) : undefined;
+
       // Update merchant profile
       await storage.updateMerchant(merchant.id, {
         username: data.username,
@@ -2612,6 +2738,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         officialWebsiteName: data.officialWebsiteName,
         officialDomain: data.officialDomain,
         profileCompleted: true,
+        ...(widgetSlug ? { widgetSlug } : {}),
       });
 
       // Register the domain
@@ -3864,7 +3991,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(403).json({ error: "Forbidden" });
       }
       
-      const merchant = await storage.getMerchant(req.params.merchantId);
+      const merchant = await resolveMerchant(req.params.merchantId);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
@@ -3875,6 +4002,20 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // Helper to resolve merchant by ID or widget slug
+  async function resolveMerchant(slugOrId: string): Promise<Merchant | undefined> {
+    // Try by ID first (format: m_xxx or old 12-char IDs)
+    if (slugOrId.startsWith("m_") || /^[A-Za-z0-9]{12}$/.test(slugOrId)) {
+      const m = await storage.getMerchant(slugOrId);
+      if (m) return m;
+    }
+    // Try by widget slug
+    const bySlug = await storage.getMerchantByWidgetSlug(slugOrId);
+    if (bySlug) return bySlug;
+    // Final fallback - try as ID
+    return await storage.getMerchant(slugOrId);
+  }
+
   app.get("/api/merchant/status/:merchantId", async (req, res) => {
     // Allow CORS for widget embed from any domain
     res.header("Access-Control-Allow-Origin", "*");
@@ -3882,7 +4023,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     res.header("Access-Control-Allow-Headers", "Content-Type");
     
     try {
-      const merchant = await storage.getMerchant(req.params.merchantId);
+      const merchant = await resolveMerchant(req.params.merchantId);
       if (!merchant) {
         return res.json({
           iconUrl: "",
@@ -5231,7 +5372,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(403).json({ error: "Forbidden" });
       }
       
-      const merchant = await storage.getMerchant(req.params.merchantId);
+      const merchant = await resolveMerchant(req.params.merchantId);
       let knowledgeData = null;
       
       if (merchant?.activeAgentId) {
@@ -8831,7 +8972,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
 
   app.get("/api/admin/merchants/:merchantId", requireAdmin, async (req, res) => {
     try {
-      const merchant = await storage.getMerchant(req.params.merchantId);
+      const merchant = await resolveMerchant(req.params.merchantId);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
@@ -8875,7 +9016,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         customMonthlyPrice,
         customAnnualPrice
       } = req.body;
-      const merchant = await storage.getMerchant(req.params.merchantId);
+      const merchant = await resolveMerchant(req.params.merchantId);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
@@ -8904,7 +9045,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
 
   app.delete("/api/admin/merchants/:merchantId", requireAdmin, async (req, res) => {
     try {
-      const merchant = await storage.getMerchant(req.params.merchantId);
+      const merchant = await resolveMerchant(req.params.merchantId);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
@@ -8920,7 +9061,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
   app.post("/api/admin/merchants/:merchantId/follow-up", requireAdmin, async (req, res) => {
     try {
       const { message } = req.body;
-      const merchant = await storage.getMerchant(req.params.merchantId);
+      const merchant = await resolveMerchant(req.params.merchantId);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
@@ -8951,7 +9092,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
   app.post("/api/admin/merchants/:merchantId/extend-trial", requireAdmin, async (req, res) => {
     try {
       const { days } = req.body;
-      const merchant = await storage.getMerchant(req.params.merchantId);
+      const merchant = await resolveMerchant(req.params.merchantId);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
@@ -14237,7 +14378,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
   // Public endpoint for widget to fetch suggested questions
   app.get("/api/widget/suggested-questions/:merchantId", async (req, res) => {
     try {
-      const merchant = await storage.getMerchant(req.params.merchantId);
+      const merchant = await resolveMerchant(req.params.merchantId);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }

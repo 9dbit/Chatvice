@@ -100,6 +100,7 @@ export interface IStorage {
   getMerchantByUsername(username: string): Promise<Merchant | undefined>;
   getMerchantByGoogleId(googleId: string): Promise<Merchant | undefined>;
   getMerchantByGithubId(githubId: string): Promise<Merchant | undefined>;
+  getMerchantByWidgetSlug(slug: string): Promise<Merchant | undefined>;
   createMerchant(merchant: InsertMerchant): Promise<Merchant>;
   updateMerchant(id: string, data: Partial<Merchant>): Promise<Merchant | undefined>;
 
@@ -545,6 +546,11 @@ export class DatabaseStorage implements IStorage {
 
   async getMerchantByGithubId(githubId: string): Promise<Merchant | undefined> {
     const result = await db.select().from(merchants).where(eq(merchants.githubId, githubId));
+    return result[0];
+  }
+
+  async getMerchantByWidgetSlug(slug: string): Promise<Merchant | undefined> {
+    const result = await db.select().from(merchants).where(eq(merchants.widgetSlug, slug.toLowerCase()));
     return result[0];
   }
 

@@ -112,6 +112,8 @@ export const merchants = pgTable("merchants", {
   pendingEmail: text("pending_email"),
   emailChangeOtp: text("email_change_otp"),
   emailChangeOtpExpiresAt: timestamp("email_change_otp_expires_at"),
+  // Widget slug (unique URL-friendly name for widget link)
+  widgetSlug: text("widget_slug").unique(),
   // Work scheduler timezone
   workTimezone: text("work_timezone").default("Asia/Jakarta"),
   // Storage usage tracking (in bytes)
