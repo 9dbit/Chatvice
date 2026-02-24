@@ -14567,6 +14567,17 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
           return res.json({ success: false, error: limitCheck.message });
         }
         
+        // Look up customer avatar by phone number from chat platform
+        let customerAvatarUrl: string | null = null;
+        if (customerPhone) {
+          try {
+            const existingCustomer = await storage.getCustomerByPhone(customerPhone);
+            if (existingCustomer?.avatarUrl) {
+              customerAvatarUrl = existingCustomer.avatarUrl;
+            }
+          } catch {}
+        }
+
         session = await storage.createSession({
           id: sessionId,
           merchantId,
@@ -14574,6 +14585,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
           customerName: sanitizedName,
           customerPhone: customerPhone || null,
           customerEmail: customerEmail?.trim() || null,
+          customerAvatarUrl,
           agentId: assignedAgentId,
           deviceFingerprint: deviceFingerprint || null,
           clientIp: clientIp || null,
@@ -14590,12 +14602,22 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
             error: "Chat session error. Please refresh and try again." 
           });
         }
-        await storage.updateSession(sessionId, { 
+        // Look up customer avatar by phone number from chat platform
+        const sessionUpdate: Record<string, any> = {
           customerName: sanitizedName,
           customerPhone: customerPhone || null,
           customerEmail: customerEmail?.trim() || null,
           lastActivity: new Date()
-        });
+        };
+        if (customerPhone) {
+          try {
+            const existingCustomer = await storage.getCustomerByPhone(customerPhone);
+            if (existingCustomer?.avatarUrl) {
+              sessionUpdate.customerAvatarUrl = existingCustomer.avatarUrl;
+            }
+          } catch {}
+        }
+        await storage.updateSession(sessionId, sessionUpdate);
       }
 
       // Get agent settings for personalized greeting
@@ -19412,6 +19434,27 @@ Please create a comprehensive help center article that would be useful for custo
       // Update customer avatar URL - use customer media endpoint
       const avatarUrl = `/api/customer/media/${media.id}`;
       await storage.updateCustomer(customerId, { avatarUrl });
+      
+      // Sync avatar to all non-archived chat sessions matching this customer's phone
+      try {
+        const customer = await storage.getCustomer(customerId);
+        if (customer?.phoneNumber) {
+          await db.update(sessions)
+            .set({ customerAvatarUrl: avatarUrl })
+            .where(
+              and(
+                eq(sessions.customerPhone, customer.phoneNumber),
+                or(
+                  eq(sessions.status, "active"),
+                  eq(sessions.status, "ended"),
+                  eq(sessions.status, "closed")
+                )
+              )
+            );
+        }
+      } catch (syncErr) {
+        console.error("Failed to sync avatar to sessions:", syncErr);
+      }
       
       res.json({ 
         success: true, 

@@ -213,6 +213,7 @@ export const sessions = pgTable("sessions", {
   customerName: text("customer_name").default("Customer"),
   customerEmail: text("customer_email"),
   customerPhone: text("customer_phone"),
+  customerAvatarUrl: text("customer_avatar_url"),
   bankRecords: jsonb("bank_records"), // {type: 'bank'|'ewallet'|'creditcard', name: string, number: string}[]
   leadStatus: text("lead_status").default("new"), // new, contacted, qualified, converted, lost
   lastActivity: timestamp("last_activity").defaultNow(),
