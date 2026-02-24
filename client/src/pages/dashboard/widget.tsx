@@ -33,6 +33,12 @@ export default function WidgetPage() {
   const merchantId = localStorage.getItem("merchantId") || "";
   const { toast } = useToast();
   const [copied, setCopied] = useState<string | null>(null);
+
+  const { data: merchantProfile } = useQuery<{ widgetSlug?: string }>({
+    queryKey: ["/api/merchant", merchantId],
+    enabled: !!merchantId,
+  });
+  const widgetSlug = merchantProfile?.widgetSlug;
   const [isUploading, setIsUploading] = useState(false);
   const [showSecretKey, setShowSecretKey] = useState(false);
   const [embedType, setEmbedType] = useState<"widget" | "iframe">("widget");
@@ -754,10 +760,12 @@ export default function WidgetPage() {
   const widgetEmbedCode = `<!-- Chatvice Chat Widget -->
 <script src="${baseUrl}/api/widget/chatvice.js?merchant=${merchantId}&v=${cacheVersion}" async></script>`;
 
+  const widgetPath = widgetSlug || merchantId;
+
   // Full-page iframe embed code (with cache-busting)
   const iframeEmbedCode = `<!-- Chatvice Chat Widget (iFrame) -->
 <iframe
-  src="${baseUrl}/widget/${merchantId}?showClose=true&embedded=true&v=${cacheVersion}"
+  src="${baseUrl}/${widgetPath}?showClose=true&embedded=true&v=${cacheVersion}"
   style="position:fixed;bottom:20px;right:20px;width:380px;height:550px;border:none;z-index:99999;"
   allow="microphone; camera"
 ></iframe>`;
@@ -2374,11 +2382,11 @@ async function handleLogin() {
               <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                 <Globe className="w-4 h-4" />
                 <span>Your widget URL:</span>
-                <code className="bg-muted px-2 py-0.5 rounded text-xs break-all">{baseUrl}/widget/{merchantId}</code>
+                <code className="bg-muted px-2 py-0.5 rounded text-xs break-all">{baseUrl}/{widgetPath}</code>
                 <Button
                   size="sm"
                   className="chatvice-gradient-btn text-white border-0"
-                  onClick={() => handleCopy(`${baseUrl}/widget/${merchantId}`, "Widget URL")}
+                  onClick={() => handleCopy(`${baseUrl}/${widgetPath}`, "Widget URL")}
                   data-testid="button-copy-widget-url"
                 >
                   {copied === "Widget URL" ? (

@@ -233,6 +233,24 @@ function MainRouter() {
       <Route path="/chat/settings/sounds" component={CustomerSoundSettingsPage} />
       <Route path="/chat/personal/:chatId" component={CustomerPersonalChatPage} />
 
+      {/* Short widget URL: chatvice.app/merchantname (must be last before NotFound) */}
+      <Route path="/:slug">
+        {(params) => {
+          const urlParams = new URLSearchParams(window.location.search);
+          const isExternalEmbed = urlParams.get("showClose") === "true";
+          
+          if (isExternalEmbed) {
+            return <ChatWidget merchantId={params.slug} embedded />;
+          }
+          
+          return (
+            <div className="h-screen w-screen overflow-hidden">
+              <ChatWidget merchantId={params.slug} embedded />
+            </div>
+          );
+        }}
+      </Route>
+
       <Route component={NotFound} />
     </Switch>
   );

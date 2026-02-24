@@ -2142,6 +2142,20 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   });
 
   // ============ Widget Slug Utilities ============
+  const RESERVED_SLUGS = new Set([
+    "login", "register", "dashboard", "admin", "supervisor", "widget", "embed",
+    "widget-demo", "forgot-password", "reset-password", "verify-email",
+    "verify-supervisor", "oauth-callback", "complete-profile", "profile-wizard",
+    "select-agent", "faq", "features", "pricing", "about", "api-docs",
+    "changelog", "integrations", "privacy", "terms", "cookies", "gdpr",
+    "security", "blog", "careers", "press", "partners", "affiliate",
+    "contact", "status", "docs", "help", "topup", "demo", "chat", "api",
+  ]);
+
+  function isReservedSlug(slug: string): boolean {
+    return RESERVED_SLUGS.has(slug.toLowerCase());
+  }
+
   function generateSlug(name: string): string {
     return name
       .toLowerCase()
@@ -2157,9 +2171,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     let slug = baseSlug;
     let counter = 1;
     while (true) {
-      const existing = await storage.getMerchantByWidgetSlug(slug);
-      if (!existing || (excludeMerchantId && existing.id === excludeMerchantId)) {
-        return slug;
+      if (!isReservedSlug(slug)) {
+        const existing = await storage.getMerchantByWidgetSlug(slug);
+        if (!existing || (excludeMerchantId && existing.id === excludeMerchantId)) {
+          return slug;
+        }
       }
       slug = `${baseSlug}_${counter}`;
       counter++;
@@ -2190,6 +2206,18 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const slug = generateSlug(companyName);
       if (!slug || slug.length < 2) {
         return res.status(400).json({ error: "Company name must produce a valid URL slug (at least 2 characters)" });
+      }
+
+      if (isReservedSlug(slug)) {
+        const suggestions: string[] = [];
+        for (const suffix of ["_official", "_store", "_shop"]) {
+          const candidate = slug + suffix;
+          if (!isReservedSlug(candidate)) {
+            const exists = await storage.getMerchantByWidgetSlug(candidate);
+            if (!exists) suggestions.push(candidate);
+          }
+        }
+        return res.json({ available: false, slug, reserved: true, suggestions });
       }
 
       const existing = await storage.getMerchantByWidgetSlug(slug);
