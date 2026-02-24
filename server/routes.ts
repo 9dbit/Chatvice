@@ -1302,6 +1302,28 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
     next();
   });
+
+  // CORS middleware for customer API endpoints (accessed from web.chatvice.app)
+  const ALLOWED_CUSTOMER_ORIGINS = [
+    "https://web.chatvice.app",
+    "http://localhost:5173",
+    "http://localhost:5000",
+  ];
+  app.use((req, res, next) => {
+    if (req.path.startsWith("/api/customer/")) {
+      const origin = req.headers.origin;
+      if (origin && ALLOWED_CUSTOMER_ORIGINS.includes(origin)) {
+        res.header("Access-Control-Allow-Origin", origin);
+        res.header("Access-Control-Allow-Credentials", "true");
+        res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+        res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        if (req.method === "OPTIONS") {
+          return res.sendStatus(200);
+        }
+      }
+    }
+    next();
+  });
   
   // Configure session with proper production settings
   // Extended session lifetime: 30 days to prevent unexpected logouts
@@ -1319,7 +1341,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       secure: isProduction,
       httpOnly: true,
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days instead of 24 hours
-      sameSite: "lax",
+      sameSite: isProduction ? "none" : "lax", // "none" required for cross-origin cookies from web.chatvice.app
     },
   };
   

@@ -635,41 +635,16 @@ Support dark and light mode:
 
 ---
 
-## BACKEND CORS UPDATE NEEDED (on chatvice.app project)
+## BACKEND CORS STATUS: ALREADY CONFIGURED
 
-Before this project works, CORS must be configured on the Chatvice backend (chatvice.app Replit project) to allow requests from `https://web.chatvice.app`. This requires changes in the **other** project, NOT in this one.
+CORS for `/api/customer/*` endpoints has been configured on the chatvice.app backend.
 
-The backend currently has CORS for widget endpoints (`/api/widget/*`). You need to add similar CORS handling for `/api/customer/*` endpoints:
+**What was done (on chatvice.app project):**
+1. Added CORS middleware allowing `https://web.chatvice.app` (and localhost dev origins) for all `/api/customer/*` endpoints with `Access-Control-Allow-Credentials: true`
+2. Updated session cookie `sameSite` to `"none"` in production (required for cross-origin cookies)
+3. `secure: true` already set in production
 
-```javascript
-// Add this to server/routes.ts in the chatvice.app project
-app.use((req, res, next) => {
-  if (req.path.startsWith("/api/customer/")) {
-    const origin = req.headers.origin;
-    if (origin && (origin === "https://web.chatvice.app" || origin.includes("chatvice"))) {
-      res.header("Access-Control-Allow-Origin", origin);
-      res.header("Access-Control-Allow-Credentials", "true");
-      res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-      res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-      if (req.method === "OPTIONS") {
-        return res.sendStatus(200);
-      }
-    }
-  }
-  next();
-});
-```
-
-Also ensure the session cookie settings allow cross-origin:
-```javascript
-// Session config must include:
-cookie: {
-  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-  secure: process.env.NODE_ENV === "production",
-}
-```
-
-**This CORS update must be done in the chatvice.app Replit project BEFORE the web.chatvice.app frontend can communicate with the backend.**
+**Result:** Cross-origin requests from `web.chatvice.app` to `chatvice.app/api/customer/*` will work with session cookies after publishing.
 
 ---
 
