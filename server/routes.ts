@@ -1888,6 +1888,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     next();
   });
 
+  // Redirect old /auth URL to /login (Google had crawled this)
+  app.get("/auth", (req, res) => {
+    res.redirect(301, "/login");
+  });
+
   // Dynamic sitemap.xml route
   app.get("/sitemap.xml", async (req, res) => {
     try {
@@ -1920,6 +1925,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         { url: "/cookies", priority: "0.3", changefreq: "yearly" },
         { url: "/gdpr", priority: "0.3", changefreq: "yearly" },
         { url: "/security", priority: "0.4", changefreq: "yearly" },
+        // Community & Affiliate
+        { url: "/affiliate", priority: "0.6", changefreq: "monthly" },
         // Demo
         { url: "/demo", priority: "0.7", changefreq: "monthly" },
       ];
@@ -1978,7 +1985,12 @@ Disallow: /verify-email
 Disallow: /verify-supervisor
 Disallow: /select-agent
 Disallow: /widget/
+Disallow: /embed/
+Disallow: /chat/
 Disallow: /topup
+Disallow: /complete-profile
+Disallow: /profile-wizard
+Disallow: /oauth-callback
 Disallow: /api/
 
 Sitemap: ${baseUrl}/sitemap.xml`;
