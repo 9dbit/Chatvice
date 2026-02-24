@@ -24,6 +24,8 @@ interface MerchantConfig {
   iconSize: number;
   iconWidth?: number;
   iconHeight?: number;
+  mobileIconWidth?: number;
+  mobileIconHeight?: number;
   useCustomIconDimensions?: boolean;
   welcomeMessage: string;
   companyName: string;
@@ -1173,8 +1175,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
   const primaryColor = merchantConfig?.primaryColor || "#6b5dfc";
   const iconSize = merchantConfig?.iconSize || 70;
-  const iconWidth = merchantConfig?.iconWidth || iconSize;
-  const iconHeight = merchantConfig?.iconHeight || iconSize;
+  const isMobileView = typeof window !== 'undefined' && window.innerWidth < 768;
+  const desktopIconWidth = merchantConfig?.iconWidth || iconSize;
+  const desktopIconHeight = merchantConfig?.iconHeight || iconSize;
+  const iconWidth = isMobileView && merchantConfig?.mobileIconWidth ? merchantConfig.mobileIconWidth : desktopIconWidth;
+  const iconHeight = isMobileView && merchantConfig?.mobileIconHeight ? merchantConfig.mobileIconHeight : desktopIconHeight;
   const useCustomIconDimensions = merchantConfig?.useCustomIconDimensions || false;
   const isOnline = merchantConfig?.online ?? true;
 
