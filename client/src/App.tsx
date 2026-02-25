@@ -83,27 +83,37 @@ function GlobalHelpBubble() {
     return null;
   }
   
-  const excludedPaths = [
-    '/dashboard',
-    '/supervisor',
-    '/admin',
-    '/widget',
-    '/widget-demo',
-    '/embed',
-    '/select-agent',
-    '/verify-supervisor',
-    '/verify-email',
-    '/reset-password',
+  const allowedPaths = [
+    '/',
+    '/login',
+    '/register',
     '/forgot-password',
-    '/oauth-callback',
-    '/complete-profile',
-    '/profile-wizard',
-    '/topup',
-    '/demo',
-    '/chat',
+    '/faq',
+    '/features',
+    '/pricing',
+    '/about',
+    '/api-docs',
+    '/changelog',
+    '/integrations',
+    '/privacy',
+    '/terms',
+    '/cookies',
+    '/gdpr',
+    '/security',
+    '/blog',
+    '/careers',
+    '/press',
+    '/partners',
+    '/affiliate',
+    '/contact',
+    '/status',
+    '/docs',
+    '/help',
   ];
   
-  const shouldShow = !excludedPaths.some(path => location.startsWith(path));
+  const shouldShow = allowedPaths.some(path => 
+    path === '/' ? location === '/' : location.startsWith(path)
+  );
   
   if (!shouldShow) return null;
   
