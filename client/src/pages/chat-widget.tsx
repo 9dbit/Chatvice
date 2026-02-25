@@ -18,6 +18,7 @@ import chatviceLogoLight from "../assets/chatvice-logo-light.png";
 import chatviceLogoDark from "../assets/chatvice-logo-dark.png";
 
 interface MerchantConfig {
+  merchantId?: string;
   online: boolean;
   primaryColor: string;
   iconUrl: string;
@@ -368,7 +369,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ 
                 sessionId, 
-                merchantId,
+                merchantId: resolvedMerchantId,
                 agentId: activeAgentIdRef.current,
               }),
             });
@@ -426,7 +427,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         const response = await fetch('/api/widget/find-session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ merchantId, deviceFingerprint }),
+          body: JSON.stringify({ merchantId: resolvedMerchantId, deviceFingerprint }),
         });
         const data = await response.json();
         
@@ -531,6 +532,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const { data: widgetStyleSettings } = useQuery<any>({
     queryKey: ["/api/widget-style"],
   });
+
+  const resolvedMerchantId = merchantConfig?.merchantId || merchantId;
 
   // Sync activeAgentIdRef when merchantConfig loads
   useEffect(() => {
@@ -797,7 +800,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const sendMessageMutation = useMutation({
     mutationFn: async ({ userMessage, clientId }: { userMessage: string; clientId: string }) => {
       const response = await apiRequest("POST", "/api/chat/ask", {
-        merchantId,
+        merchantId: resolvedMerchantId,
         sessionId,
         message: userMessage,
         clientMessageId: clientId,
@@ -874,7 +877,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const useSuggestedQuestionMutation = useMutation({
     mutationFn: async (sq: SuggestedQuestion) => {
       const response = await apiRequest("POST", "/api/widget/suggested-questions/use", {
-        merchantId,
+        merchantId: resolvedMerchantId,
         sessionId,
         questionId: sq.id,
       });
@@ -915,7 +918,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const startChatMutation = useMutation({
     mutationFn: async ({ name, phone, email, initialMessage, welcomeDescription, isQuickQuestion }: { name: string; phone: string; email: string; initialMessage: string; welcomeDescription?: string; isQuickQuestion?: boolean }) => {
       const response = await apiRequest("POST", "/api/widget/start-chat", {
-        merchantId,
+        merchantId: resolvedMerchantId,
         sessionId,
         customerName: name,
         customerPhone: phone,
@@ -1117,7 +1120,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("merchantId", merchantId);
+      formData.append("merchantId", resolvedMerchantId);
       formData.append("sessionId", sessionId);
       formData.append("type", type);
       

@@ -4163,6 +4163,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       };
       
       res.json({
+        merchantId: merchant.id,
         iconUrl: merchant.iconUrl || "",
         iconSize: merchant.iconSize ?? 70,
         iconWidth: merchant.iconWidth ?? 70,
@@ -4846,19 +4847,20 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const data = chatAskSchema.parse(req.body);
       const { merchantId, sessionId, message, clientMessageId } = data;
 
-      const merchant = await storage.getMerchant(merchantId);
+      const merchant = await resolveMerchant(merchantId);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
+      const resolvedMerchantId = merchant.id;
 
       const existingSession = await storage.getSession(sessionId);
       if (!existingSession) {
-        const limitCheck = await checkSubscriptionLimits(merchantId, 'conversation');
+        const limitCheck = await checkSubscriptionLimits(resolvedMerchantId, 'conversation');
         if (!limitCheck.allowed) {
           return res.status(403).json({ error: limitCheck.message });
         }
         const credits = storage.calculateCreditsFromCustomerId(sessionId);
-        await storage.incrementConversationUsage(merchantId, credits);
+        await storage.incrementConversationUsage(resolvedMerchantId, credits);
       }
 
       await storage.createMessage({
@@ -4870,7 +4872,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
       // Send Telegram notification for new customer message
       try {
-        const notificationSettings = await storage.getNotificationSettings(merchantId);
+        const notificationSettings = await storage.getNotificationSettings(resolvedMerchantId);
         if (notificationSettings?.telegramEnabled && notificationSettings?.telegramBotToken && notificationSettings?.telegramChatId) {
           const session = await storage.getSession(sessionId);
           const telegramMessage = formatChatNotification(
@@ -4889,7 +4891,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         console.error('[Telegram] Error checking notification settings:', telegramErr);
       }
 
-      const result = await askChatvice(sessionId, merchantId, message);
+      const result = await askChatvice(sessionId, resolvedMerchantId, message);
       
       // Check if AI wants to recommend products with specific product name
       // Format: [RECOMMEND_PRODUCT:Product Name] or [RECOMMEND_PRODUCT]
@@ -4922,7 +4924,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
       if (result.mode === "AI") {
         try {
-          const settings = await storage.getProductRecommendationSettings(merchantId);
+          const settings = await storage.getProductRecommendationSettings(resolvedMerchantId);
           if (settings?.aiAutoRecommendEnabled) {
             let matchedProductId: string | null = null;
             
@@ -4941,7 +4943,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             // Priority 1: AI smart recommendation via [RECOMMEND_PRODUCT:ProductName] tag
             if (hasProductRecommendTag) {
               console.log(`[Product Trigger] AI decided to recommend product. Specified: "${recommendedProductName || 'none'}"`);
-              const productCards = await storage.getProductCards(merchantId, merchant.activeAgentId || undefined);
+              const productCards = await storage.getProductCards(resolvedMerchantId, merchant.activeAgentId || undefined);
               const activeCards = productCards.filter(c => c.isActive);
               
               if (activeCards.length > 0) {
@@ -4982,7 +4984,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             
             // Priority 2: Specific product triggers (keyword -> specific product mapping)
             if (!matchedProductId) {
-              const productTriggers = await storage.getProductTriggers(merchantId, merchant.activeAgentId || undefined);
+              const productTriggers = await storage.getProductTriggers(resolvedMerchantId, merchant.activeAgentId || undefined);
               const lowerMessage = message.toLowerCase();
               const lowerAiResponse = cleanAnswer.toLowerCase();
               
@@ -5069,7 +5071,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             // Create new lead for sales agent session
             const session = await storage.getSession(sessionId);
             lead = await storage.createLead({
-              merchantId,
+              merchantId: resolvedMerchantId,
               sessionId,
               agentId: agent.id,
               customerName: session?.customerName || null,
@@ -14474,7 +14476,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         return res.json([]);
       }
 
-      const questions = await storage.getSuggestedQuestions(req.params.merchantId, merchant.activeAgentId || undefined);
+      const questions = await storage.getSuggestedQuestions(merchant.id, merchant.activeAgentId || undefined);
       // Return only active questions, limited to 5 for widget display
       const activeQuestions = questions.filter(q => q.isActive).slice(0, 5);
       res.json(activeQuestions);
@@ -14492,10 +14494,11 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         return res.status(400).json({ error: "Missing required fields" });
       }
 
-      const merchant = await storage.getMerchant(merchantId);
+      const merchant = await resolveMerchant(merchantId);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
+      const resolvedMerchantId = merchant.id;
 
       // Check if plan allows suggested questions
       const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
@@ -14508,7 +14511,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       if (!suggestedQuestion) {
         return res.status(404).json({ error: "Suggested question not found" });
       }
-      if (suggestedQuestion.merchantId !== merchantId) {
+      if (suggestedQuestion.merchantId !== resolvedMerchantId) {
         return res.status(403).json({ error: "Suggested question does not belong to this merchant" });
       }
       if (!suggestedQuestion.isActive) {
@@ -14523,7 +14526,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       if (currentSessionId) {
         // Validate session belongs to this merchant
         const existingSession = await storage.getSession(currentSessionId);
-        if (!existingSession || existingSession.merchantId !== merchantId) {
+        if (!existingSession || existingSession.merchantId !== resolvedMerchantId) {
           // Session doesn't exist or doesn't belong to this merchant, create a new one
           currentSessionId = null;
         }
@@ -14533,7 +14536,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         const newSessionId = `sq_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
         const session = await storage.createSession({
           id: newSessionId,
-          merchantId,
+          merchantId: resolvedMerchantId,
           agentId: merchant.activeAgentId || null,
           mode: "AI",
           customerName: "Customer",
@@ -14633,17 +14636,18 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         return res.json({ found: false });
       }
       
-      const merchant = await storage.getMerchant(merchantId);
+      const merchant = await resolveMerchant(merchantId);
       if (!merchant) {
         return res.json({ found: false });
       }
+      const resolvedMerchantId = merchant.id;
       
       // Find active session with matching device fingerprint within last 1 hour
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
       
       const existingSession = await db.query.sessions.findFirst({
         where: and(
-          eq(sessions.merchantId, merchantId),
+          eq(sessions.merchantId, resolvedMerchantId),
           eq(sessions.deviceFingerprint, deviceFingerprint),
           eq(sessions.status, "active"),
           gte(sessions.lastActivity, oneHourAgo)
@@ -14768,10 +14772,11 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         }
       }
 
-      const merchant = await storage.getMerchant(merchantId);
+      const merchant = await resolveMerchant(merchantId);
       if (!merchant) {
         return res.json({ success: false, error: "Chat service is not available. Please try again later." });
       }
+      const resolvedMerchantId = merchant.id;
 
       // Validate and sanitize customer name
       const nameResult = sanitizeCustomerName(customerName);
@@ -14784,11 +14789,11 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       // Create or update session with customer name
       let session = await storage.getSession(sessionId);
       // Pass customerName and deviceFingerprint for session continuity (returning users get same agent)
-      const assignedAgentId = await getNextAgentId(merchantId, sanitizedName, deviceFingerprint);
+      const assignedAgentId = await getNextAgentId(resolvedMerchantId, sanitizedName, deviceFingerprint);
       
       if (!session) {
         // Check subscription limits before creating session
-        const limitCheck = await checkSubscriptionLimits(merchantId, 'conversation');
+        const limitCheck = await checkSubscriptionLimits(resolvedMerchantId, 'conversation');
         if (!limitCheck.allowed) {
           return res.json({ success: false, error: limitCheck.message });
         }
@@ -14806,7 +14811,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
 
         session = await storage.createSession({
           id: sessionId,
-          merchantId,
+          merchantId: resolvedMerchantId,
           mode: "AI",
           customerName: sanitizedName,
           customerPhone: customerPhone || null,
@@ -14819,10 +14824,10 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         
         // Increment conversation usage for new sessions
         const credits = storage.calculateCreditsFromCustomerId(sessionId);
-        await storage.incrementConversationUsage(merchantId, credits);
+        await storage.incrementConversationUsage(resolvedMerchantId, credits);
       } else {
         // Security check: Verify session belongs to this merchant
-        if (session.merchantId !== merchantId) {
+        if (session.merchantId !== resolvedMerchantId) {
           return res.json({ 
             success: false, 
             error: "Chat session error. Please refresh and try again." 
@@ -14973,19 +14978,18 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
         return res.json({ success: false, error: "Session not found" });
       }
 
-      // Security: Verify the session belongs to the merchant
-      if (session.merchantId !== merchantId) {
+      // Security: Verify the session belongs to the merchant (resolve slug to actual ID)
+      const merchant = await resolveMerchant(merchantId);
+      if (!merchant) {
+        return res.json({ success: false, error: "Merchant not found" });
+      }
+      if (session.merchantId !== merchant.id) {
         return res.json({ success: false, error: "Unauthorized" });
       }
 
       // Don't send AI closing statement when supervisor is handling the chat
       if (session.mode === "HUMAN") {
         return res.json({ success: true, closingStatement: null, enabled: false });
-      }
-
-      const merchant = await storage.getMerchant(merchantId);
-      if (!merchant) {
-        return res.json({ success: false, error: "Merchant not found" });
       }
 
       // Get the agent settings
@@ -17327,7 +17331,9 @@ ${pageHtml.substring(0, 50000)}`
   // Public endpoint for widget
   app.get("/api/widget/:merchantId/welcome-bubble", async (req, res) => {
     try {
-      const { merchantId } = req.params;
+      const merchant = await resolveMerchant(req.params.merchantId);
+      if (!merchant) return res.json({ isEnabled: false });
+      const merchantId = merchant.id;
       const bubble = await storage.getWelcomeBubble(merchantId);
       if (!bubble || !bubble.isEnabled) {
         return res.json({ isEnabled: false });
@@ -17483,7 +17489,8 @@ Your Telegram integration is working correctly!`;
   // Get product recommendation settings for widget (public)
   app.get("/api/widget/:merchantId/product-recommendation-settings", async (req, res) => {
     try {
-      const { merchantId } = req.params;
+      const merchant = await resolveMerchant(req.params.merchantId);
+      const merchantId = merchant?.id || req.params.merchantId;
       const settings = await storage.getProductRecommendationSettings(merchantId);
       res.json({
         aiAutoRecommendEnabled: settings?.aiAutoRecommendEnabled ?? true,
@@ -17899,7 +17906,8 @@ Your Telegram integration is working correctly!`;
   // Get chat buttons for widget (public)
   app.get("/api/widget/:merchantId/chat-buttons", async (req, res) => {
     try {
-      const { merchantId } = req.params;
+      const merchant = await resolveMerchant(req.params.merchantId);
+      const merchantId = merchant?.id || req.params.merchantId;
       const buttons = await storage.getChatButtons(merchantId);
       const activeButtons = buttons.filter(b => b.isActive);
       res.json(activeButtons);
@@ -17911,7 +17919,8 @@ Your Telegram integration is working correctly!`;
   // Get product cards for widget (public)
   app.get("/api/widget/:merchantId/product-cards", async (req, res) => {
     try {
-      const { merchantId } = req.params;
+      const merchant = await resolveMerchant(req.params.merchantId);
+      const merchantId = merchant?.id || req.params.merchantId;
       const { agentId } = req.query;
       const cards = await storage.getProductCards(merchantId, agentId as string | undefined);
       const activeCards = cards.filter(c => c.isActive);
@@ -17933,7 +17942,8 @@ Your Telegram integration is working correctly!`;
   // Get notification settings for widget (public - just sound settings)
   app.get("/api/widget/:merchantId/notification-settings", async (req, res) => {
     try {
-      const { merchantId } = req.params;
+      const merchant = await resolveMerchant(req.params.merchantId);
+      const merchantId = merchant?.id || req.params.merchantId;
       const settings = await storage.getNotificationSettings(merchantId);
       res.json({
         incomingChatSound: settings?.incomingChatSound || "default",
@@ -17949,7 +17959,8 @@ Your Telegram integration is working correctly!`;
   // Get quick replies for widget (public)
   app.get("/api/widget/:merchantId/quick-replies", async (req, res) => {
     try {
-      const { merchantId } = req.params;
+      const merchant = await resolveMerchant(req.params.merchantId);
+      const merchantId = merchant?.id || req.params.merchantId;
       const replies = await storage.getQuickReplies(merchantId);
       const activeReplies = replies.filter(r => r.isActive);
       res.json(activeReplies);
