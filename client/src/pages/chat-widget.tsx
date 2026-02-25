@@ -2260,16 +2260,21 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       })()}
 
       {/* Customer name form - shown for new customers - frosted glass background */}
-      {isCheckingSession ? (
+      {isCheckingSession || (!hasSubmittedName && !serverMessages?.length && !merchantConfig) ? (
         <div 
-          className="flex-1 min-h-0 flex flex-col p-4 items-center justify-center"
+          className="flex-1 min-h-0 flex flex-col p-4 gap-4"
           style={frostedBodyStyle}
         >
-          <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
-          <p 
-            className="text-sm"
-            style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#374151' } : undefined}
-          >Loading...</p>
+          <div className="w-full h-40 rounded-md animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }} />
+          <div className="space-y-3 px-1">
+            <div className="h-5 w-24 rounded animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }} />
+            <div className="h-10 w-full rounded-md animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }} />
+            <div className="h-5 w-32 rounded animate-pulse mt-4" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }} />
+            <div className="h-10 w-full rounded-md animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }} />
+            <div className="h-5 w-28 rounded animate-pulse mt-4" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }} />
+            <div className="h-20 w-full rounded-md animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }} />
+          </div>
+          <div className="h-11 w-full rounded-md animate-pulse mt-2" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }} />
         </div>
       ) : !hasSubmittedName && !serverMessages?.length ? (
         <div 
