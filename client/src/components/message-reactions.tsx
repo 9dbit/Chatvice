@@ -245,23 +245,15 @@ export function MessageReactions({
         </div>
       )}
 
-      <div className={`flex ${isOwnMessage ? "justify-end" : "justify-start"} mt-0.5`}>
+      <div className={`flex ${isOwnMessage ? "justify-end" : "justify-start"} -mt-3 relative z-10`}>
         <button
           onClick={() => setPickerOpen(!pickerOpen)}
           className={`opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 rounded-full hover:bg-muted/80 ${
-            showHint ? "opacity-100 animate-pulse" : ""
+            showHint ? "opacity-100 reaction-vibrate" : ""
           } ${pickerOpen ? "opacity-100 bg-muted" : ""}`}
-          style={
-            showHint
-              ? {
-                  boxShadow: `0 0 ${8 + (hintCycle % 2) * 4}px ${primaryColor}80`,
-                  opacity: 1,
-                }
-              : undefined
-          }
           data-testid={`reaction-trigger-${messageId}`}
         >
-          <svg className="w-4 h-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg className="w-8 h-8 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="10" />
             <path d="M8 14s1.5 2 4 2 4-2 4-2" />
             <line x1="9" y1="9" x2="9.01" y2="9" />
@@ -324,6 +316,21 @@ export function MessageReactions({
         @keyframes reactionPickerSlide {
           0% { opacity: 0; transform: translateY(8px) scale(0.95); }
           100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes reactionVibrate {
+          0%, 25% {
+            transform: translateX(0);
+          }
+          5% { transform: translateX(-2px) rotate(-2deg); }
+          10% { transform: translateX(2px) rotate(2deg); }
+          15% { transform: translateX(-1px) rotate(-1deg); }
+          20% { transform: translateX(1px) rotate(1deg); }
+          25%, 100% {
+            transform: translateX(0) rotate(0deg);
+          }
+        }
+        .reaction-vibrate {
+          animation: reactionVibrate 2s ease-in-out infinite;
         }
       `}</style>
     </div>

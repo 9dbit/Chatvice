@@ -128,7 +128,34 @@ function parseMessageContent(content: string): ParsedPart[] {
     parts.push({ type: "text", content });
   }
   
-  return parts;
+  const finalParts: ParsedPart[] = [];
+  for (const part of parts) {
+    if (part.type === "text") {
+      const urlRegex = /(https?:\/\/[^\s<>"')\]]+)/g;
+      let textLastIndex = 0;
+      let urlMatch;
+      let hasUrl = false;
+      const text = part.content;
+      while ((urlMatch = urlRegex.exec(text)) !== null) {
+        hasUrl = true;
+        if (urlMatch.index > textLastIndex) {
+          finalParts.push({ type: "text", content: text.slice(textLastIndex, urlMatch.index) });
+        }
+        finalParts.push({ type: "link", content: urlMatch[1], url: urlMatch[1] });
+        textLastIndex = urlMatch.index + urlMatch[0].length;
+      }
+      if (hasUrl && textLastIndex < text.length) {
+        finalParts.push({ type: "text", content: text.slice(textLastIndex) });
+      }
+      if (!hasUrl) {
+        finalParts.push(part);
+      }
+    } else {
+      finalParts.push(part);
+    }
+  }
+  
+  return finalParts.length > 0 ? finalParts : [{ type: "text", content }];
 }
 
 // Generate a simple device fingerprint for session persistence
@@ -2723,7 +2750,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                     wIsCustomer
                       ? "rounded-2xl rounded-br-sm text-white"
                       : `rounded-2xl rounded-bl-sm ${applyEmbedStyles ? (widgetIsDark ? 'text-white' : 'text-gray-800') : 'bg-muted'}`
-                  } ${wIsLastAgentMsg && wMsgReactions.length === 0 ? 'transition-shadow duration-1000' : ''}`}
+                  }`}
                   style={{
                     ...(wIsCustomer
                     ? applyEmbedStyles
@@ -2743,16 +2770,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                             border: '1px solid rgba(0, 0, 0, 0.06)',
                           }
                       : undefined),
-                    ...(wIsLastAgentMsg && wMsgReactions.length === 0 ? { boxShadow: `0 0 10px ${primaryColor}40` } : {}),
+                    
                   }}
                 >
                   {!((msg as any).messageType === "media" && (msg as any).payload?.url) && 
                    !((msg as any).messageType === "product_offer" && (msg as any).payload?.productCard) &&
                    !msg.mediaUrl && (() => {
-                    const isAiMessage = msg.from === "chatvice" || msg.from === "supervisor";
-                    if (!isAiMessage) {
-                      return <p className="whitespace-pre-wrap">{msg.content}</p>;
-                    }
                     const parsed = parseMessageContent(msg.content);
                     const hasButtons = parsed.some(p => p.type === "button");
                     return (
@@ -2767,14 +2790,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                               <a
                                 key={partIndex}
                                 href={part.url}
-                                target={isExternal ? "_blank" : "_self"}
-                                rel={isExternal ? "noopener noreferrer" : undefined}
-                                className="inline-flex items-center gap-1 font-medium hover:underline"
-                                style={{ color: primaryColor }}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 font-medium italic hover:underline break-all"
+                                style={{ color: '#8b5cf6' }}
                                 data-testid={`link-widget-${partIndex}`}
                               >
                                 {part.content}
-                                {isExternal && <ExternalLink className="w-3 h-3" />}
+                                {isExternal && <ExternalLink className="w-3 h-3 shrink-0" />}
                               </a>
                             );
                           }
@@ -3317,7 +3340,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             href="/chat/login"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[10px] font-medium chatvice-gradient-text hover:opacity-80 transition-opacity"
+            className="inline-flex items-center justify-center text-[10px] font-semibold rounded-full px-3 py-1 text-white hover:opacity-90 transition-opacity"
+            style={{ background: 'linear-gradient(135deg, #a855f7, #d946ef, #8b5cf6)' }}
             data-testid="link-chat-signup-login"
           >
             Sign up / Login to Chat Platform
