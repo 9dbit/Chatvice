@@ -131,18 +131,25 @@ function parseMessageContent(content: string): ParsedPart[] {
   const finalParts: ParsedPart[] = [];
   for (const part of parts) {
     if (part.type === "text") {
-      const urlRegex = /(https?:\/\/[^\s<>"')\]]+)/g;
+      const urlRegex = /(https?:\/\/[^\s<>"')\]]+|(?:(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+(?:com|org|net|io|app|dev|id|co|me|info|biz|xyz|tech|store|shop|site|online|cloud|ai|gg|tv|cc|us|uk|eu|de|fr|jp|kr|cn|in|au|ca|br|ru|nl|se|no|fi|dk|pl|cz|at|ch|it|es|pt|be|ie|nz|sg|my|th|ph|vn|hk|tw|za|mx|ar|cl|co\.id|co\.uk|co\.jp|co\.kr|co\.nz|com\.au|com\.br|com\.sg|com\.my|com\.ph|ac\.id|or\.id|go\.id|web\.id|sch\.id))(?:\/[^\s<>"')\]]*)?)/gi;
       let textLastIndex = 0;
       let urlMatch;
       let hasUrl = false;
       const text = part.content;
       while ((urlMatch = urlRegex.exec(text)) !== null) {
-        hasUrl = true;
-        if (urlMatch.index > textLastIndex) {
-          finalParts.push({ type: "text", content: text.slice(textLastIndex, urlMatch.index) });
+        const matchStart = urlMatch.index;
+        const charBefore = matchStart > 0 ? text[matchStart - 1] : " ";
+        if (charBefore === "@" || charBefore === "/") {
+          continue;
         }
-        finalParts.push({ type: "link", content: urlMatch[1], url: urlMatch[1] });
-        textLastIndex = urlMatch.index + urlMatch[0].length;
+        hasUrl = true;
+        if (matchStart > textLastIndex) {
+          finalParts.push({ type: "text", content: text.slice(textLastIndex, matchStart) });
+        }
+        const matchedUrl = urlMatch[0];
+        const fullUrl = matchedUrl.startsWith("http") ? matchedUrl : `https://${matchedUrl}`;
+        finalParts.push({ type: "link", content: matchedUrl, url: fullUrl });
+        textLastIndex = matchStart + urlMatch[0].length;
       }
       if (hasUrl && textLastIndex < text.length) {
         finalParts.push({ type: "text", content: text.slice(textLastIndex) });
@@ -156,6 +163,60 @@ function parseMessageContent(content: string): ParsedPart[] {
   }
   
   return finalParts.length > 0 ? finalParts : [{ type: "text", content }];
+}
+
+function LinkPreview({ url }: { url: string }) {
+  const [preview, setPreview] = useState<{ title: string; description: string; image: string; favicon: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    let cancelled = false;
+    const fetchPreview = async () => {
+      try {
+        const res = await fetch(`/api/link-preview?url=${encodeURIComponent(url)}`);
+        const data = await res.json();
+        if (!cancelled && (data.image || data.favicon)) {
+          setPreview(data);
+        }
+      } catch {}
+      if (!cancelled) setLoading(false);
+    };
+    fetchPreview();
+    return () => { cancelled = true; };
+  }, [url]);
+  
+  if (loading || !preview || (!preview.image && !preview.favicon)) return null;
+  
+  const displayImage = preview.image || preview.favicon;
+  const isOgImage = !!preview.image;
+  
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block mt-1.5 rounded-lg overflow-hidden border border-border/40 hover:border-border/60 transition-colors max-w-[260px]"
+      data-testid="link-preview-card"
+    >
+      {isOgImage ? (
+        <div className="w-full aspect-[1.91/1] bg-muted/30 overflow-hidden">
+          <img src={displayImage} alt={preview.title || "Preview"} className="w-full h-full object-cover" />
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 px-3 pt-2">
+          <img src={displayImage} alt="" className="w-5 h-5 rounded-sm shrink-0" />
+        </div>
+      )}
+      {preview.title && (
+        <div className="px-3 py-1.5">
+          <p className="text-xs font-medium truncate" style={{ color: '#8b5cf6' }}>{preview.title}</p>
+          {preview.description && (
+            <p className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5">{preview.description}</p>
+          )}
+        </div>
+      )}
+    </a>
+  );
 }
 
 // Generate a simple device fingerprint for session persistence
@@ -2785,20 +2846,21 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                             return <span key={partIndex} className="whitespace-pre-wrap">{part.content}</span>;
                           }
                           if (part.type === "link") {
-                            const isExternal = part.url?.startsWith("http");
                             return (
-                              <a
-                                key={partIndex}
-                                href={part.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 font-medium italic hover:underline break-all"
-                                style={{ color: '#8b5cf6' }}
-                                data-testid={`link-widget-${partIndex}`}
-                              >
-                                {part.content}
-                                {isExternal && <ExternalLink className="w-3 h-3 shrink-0" />}
-                              </a>
+                              <span key={partIndex}>
+                                <a
+                                  href={part.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 font-medium italic hover:underline break-all"
+                                  style={{ color: '#8b5cf6' }}
+                                  data-testid={`link-widget-${partIndex}`}
+                                >
+                                  {part.content}
+                                  <ExternalLink className="w-3 h-3 shrink-0" />
+                                </a>
+                                {part.url && <LinkPreview url={part.url} />}
+                              </span>
                             );
                           }
                           return null;

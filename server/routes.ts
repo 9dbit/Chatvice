@@ -1104,6 +1104,20 @@ async function analyzeMediaWithAI(
     knowledgeContext = knowledge?.content || "";
   }
 
+  let conversationContext = "";
+  try {
+    const recentMessages = await storage.getMessages(sessionId);
+    const last10 = recentMessages.slice(-10);
+    if (last10.length > 0) {
+      conversationContext = last10.map((m: any) => {
+        const role = m.from === "user" ? "Customer" : m.from === "supervisor" ? "Supervisor" : "Agent";
+        return `${role}: ${m.content}`;
+      }).join("\n");
+    }
+  } catch (error) {
+    console.error("Error fetching conversation context for media analysis:", error);
+  }
+
   try {
     if (mediaType === "photo") {
       const localFilePath = path.join(process.cwd(), "uploads", fileUrl.replace("/uploads/", ""));
@@ -1139,27 +1153,30 @@ async function analyzeMediaWithAI(
           {
             role: "system",
             content: `You are ${agentName}, a helpful AI Customer Service Agent for ${companyName}.
-Your task is to analyze images sent by customers and offer relevant assistance.
+Your task is to analyze images sent by customers and relate them to the ongoing conversation topic.
 
 Instructions:
 1. FIRST, describe what you see in the image clearly and concisely so the customer knows you actually looked at it
-2. If it shows a product, damage, issue, or problem - acknowledge it specifically and offer help
-3. If it's a receipt, invoice, or document - summarize key information you can read
-4. If it's a screenshot - describe what's shown and ask how you can help
-5. Always confirm what you see and ask how you can assist further
-6. Respond in the same language the customer likely uses (detect from context or default to Indonesian)
-7. Use the knowledge base information below to provide accurate, customized responses about company products, services, and policies
+2. Relate the image to the topic currently being discussed in the conversation
+3. If it shows a product, damage, issue, or problem - acknowledge it specifically and offer help
+4. If it's a receipt, invoice, or document - summarize key information you can read
+5. If it's a screenshot - describe what's shown and ask how you can help
+6. Ask the customer what they want or need regarding this image, to continue the discussion naturally
+7. Respond in the same language the customer likely uses (detect from context or default to Indonesian)
+8. Use the knowledge base information below to provide accurate, customized responses about company products, services, and policies
 
 ${agentSystemPrompt ? `Custom Instructions: ${agentSystemPrompt}\n` : ""}
 Relevant Company Knowledge:
-${knowledgeContext || "No specific knowledge base configured yet."}`
+${knowledgeContext || "No specific knowledge base configured yet."}
+
+${conversationContext ? `Recent Conversation:\n${conversationContext}` : ""}`
           },
           {
             role: "user",
             content: [
               {
                 type: "text",
-                text: "Customer sent this image. Please describe what you see in detail and offer assistance."
+                text: "Customer sent this image in our ongoing conversation. Describe what you see, relate it to the topic we've been discussing, and ask what they'd like to do with it."
               },
               {
                 type: "image_url",
@@ -2313,6 +2330,123 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   });
 
   // Resolve widget slug or merchant ID to merchant
+  app.get("/api/link-preview", async (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type");
+    try {
+      const url = req.query.url as string;
+      if (!url) return res.status(400).json({ error: "URL required" });
+      
+      const targetUrl = url.startsWith("http") ? url : `https://${url}`;
+      
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(targetUrl);
+      } catch {
+        return res.json({ url: targetUrl, title: "", description: "", image: "", favicon: "" });
+      }
+      
+      if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+        return res.json({ url: targetUrl, title: "", description: "", image: "", favicon: "" });
+      }
+      
+      const hostname = parsedUrl.hostname;
+      const blockedPatterns = [
+        /^localhost$/i,
+        /^127\./,
+        /^10\./,
+        /^172\.(1[6-9]|2\d|3[01])\./,
+        /^192\.168\./,
+        /^0\./,
+        /^169\.254\./,
+        /^\[::1\]$/,
+        /^\[fc/i,
+        /^\[fd/i,
+        /^\[fe80/i,
+        /\.local$/i,
+        /\.internal$/i,
+        /metadata\.google/i,
+      ];
+      if (blockedPatterns.some(p => p.test(hostname))) {
+        return res.json({ url: targetUrl, title: "", description: "", image: "", favicon: "" });
+      }
+      
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      
+      const response = await fetch(targetUrl, {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; ChatviceBot/1.0)" },
+        signal: controller.signal,
+        redirect: "follow",
+      });
+      clearTimeout(timeout);
+      
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("text/html") && !contentType.includes("application/xhtml")) {
+        return res.json({ url: targetUrl, title: "", description: "", image: "", favicon: "" });
+      }
+      
+      const rawHtml = await response.text();
+      const html = rawHtml.substring(0, 100000);
+      const getMetaContent = (property: string): string => {
+        const patterns = [
+          new RegExp(`<meta[^>]*property=["']${property}["'][^>]*content=["']([^"']*)["']`, "i"),
+          new RegExp(`<meta[^>]*content=["']([^"']*)["'][^>]*property=["']${property}["']`, "i"),
+          new RegExp(`<meta[^>]*name=["']${property}["'][^>]*content=["']([^"']*)["']`, "i"),
+          new RegExp(`<meta[^>]*content=["']([^"']*)["'][^>]*name=["']${property}["']`, "i"),
+        ];
+        for (const p of patterns) {
+          const m = html.match(p);
+          if (m?.[1]) return m[1];
+        }
+        return "";
+      };
+      
+      const ogImage = getMetaContent("og:image");
+      const ogTitle = getMetaContent("og:title") || getMetaContent("title") || (html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1] || "");
+      const ogDescription = getMetaContent("og:description") || getMetaContent("description");
+      
+      let favicon = "";
+      if (!ogImage) {
+        const iconPatterns = [
+          /<link[^>]*rel=["'](?:icon|shortcut icon|apple-touch-icon)["'][^>]*href=["']([^"']*)["']/i,
+          /<link[^>]*href=["']([^"']*)["'][^>]*rel=["'](?:icon|shortcut icon|apple-touch-icon)["']/i,
+        ];
+        for (const p of iconPatterns) {
+          const m = html.match(p);
+          if (m?.[1]) {
+            favicon = m[1];
+            if (favicon.startsWith("/")) {
+              const parsedUrl = new URL(targetUrl);
+              favicon = `${parsedUrl.origin}${favicon}`;
+            } else if (!favicon.startsWith("http")) {
+              const parsedUrl = new URL(targetUrl);
+              favicon = `${parsedUrl.origin}/${favicon}`;
+            }
+            break;
+          }
+        }
+      }
+      
+      let resolvedOgImage = ogImage;
+      if (ogImage && ogImage.startsWith("/")) {
+        const parsedUrl = new URL(targetUrl);
+        resolvedOgImage = `${parsedUrl.origin}${ogImage}`;
+      }
+      
+      res.json({
+        url: targetUrl,
+        title: ogTitle,
+        description: ogDescription,
+        image: resolvedOgImage || "",
+        favicon: favicon || "",
+      });
+    } catch (error: any) {
+      res.json({ url: req.query.url, title: "", description: "", image: "", favicon: "" });
+    }
+  });
+
   app.get("/api/widget/resolve/:slugOrId", async (req, res) => {
     try {
       const { slugOrId } = req.params;

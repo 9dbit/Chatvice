@@ -115,19 +115,24 @@ interface PendingMessage {
 
 type DisplayMessage = Message | PendingMessage;
 
-const URL_REGEX = /(https?:\/\/[^\s]+)/g;
+const URL_REGEX = /(https?:\/\/[^\s<>"')\]]+|(?:(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+(?:com|org|net|io|app|dev|id|co|me|info|biz|xyz|tech|store|shop|site|online|cloud|ai|gg|tv|cc|us|uk|eu|de|fr|jp|kr|cn|in|au|ca|br|ru|nl|se|no|fi|dk|pl|cz|at|ch|it|es|pt|be|ie|nz|sg|my|th|ph|vn|hk|tw|za|mx|ar|cl|co\.id|co\.uk|com\.au|com\.br|ac\.id|or\.id|go\.id|web\.id|sch\.id))(?:\/[^\s<>"')\]]*)?)/gi;
 
-function parseMessageContent(content: string): (string | { type: 'link'; url: string })[] {
-  const parts: (string | { type: 'link'; url: string })[] = [];
+function parseMessageContent(content: string): (string | { type: 'link'; url: string; display: string })[] {
+  const parts: (string | { type: 'link'; url: string; display: string })[] = [];
   let lastIndex = 0;
   let match;
   
   while ((match = URL_REGEX.exec(content)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(content.slice(lastIndex, match.index));
+    const matchStart = match.index;
+    const charBefore = matchStart > 0 ? content[matchStart - 1] : " ";
+    if (charBefore === "@" || charBefore === "/") continue;
+    if (matchStart > lastIndex) {
+      parts.push(content.slice(lastIndex, matchStart));
     }
-    parts.push({ type: 'link', url: match[0] });
-    lastIndex = match.index + match[0].length;
+    const matchedUrl = match[0];
+    const fullUrl = matchedUrl.startsWith("http") ? matchedUrl : `https://${matchedUrl}`;
+    parts.push({ type: 'link', url: fullUrl, display: matchedUrl });
+    lastIndex = matchStart + match[0].length;
   }
   
   if (lastIndex < content.length) {
@@ -154,11 +159,12 @@ function MessageContent({ content }: { content: string }) {
             href={part.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-400 hover:underline"
+            className="font-medium italic hover:underline"
+            style={{ color: '#8b5cf6' }}
             onClick={(e) => e.stopPropagation()}
             data-testid={`link-${index}`}
           >
-            {part.url}
+            {part.display}
           </a>
         );
       })}

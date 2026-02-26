@@ -23,6 +23,41 @@ import { formatDistanceToNow } from "date-fns";
 import type { Session, Message, Supervisor, Agent, QuickReply, ProductCard, ProductCardButton } from "@shared/schema";
 import { playIncomingChatSound, playChatReplySound, playAngrySound } from "@/lib/sounds";
 
+function renderMessageWithLinks(content: string) {
+  const urlRegex = /(https?:\/\/[^\s<>"')\]]+|(?:(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+(?:com|org|net|io|app|dev|id|co|me|info|biz|xyz|tech|store|shop|site|online|cloud|ai|gg|tv|cc|us|uk|eu|de|fr|jp|kr|cn|in|au|ca|br|ru|nl|se|no|fi|dk|pl|cz|at|ch|it|es|pt|be|ie|nz|sg|my|th|ph|vn|hk|tw|za|mx|ar|cl|co\.id|co\.uk|co\.jp|co\.kr|co\.nz|com\.au|com\.br|com\.sg|com\.my|com\.ph|ac\.id|or\.id|go\.id|web\.id|sch\.id))(?:\/[^\s<>"')\]]*)?)/gi;
+  const parts: { type: "text" | "link"; content: string; url?: string }[] = [];
+  let lastIndex = 0;
+  let match;
+  while ((match = urlRegex.exec(content)) !== null) {
+    const matchStart = match.index;
+    const charBefore = matchStart > 0 ? content[matchStart - 1] : " ";
+    if (charBefore === "@" || charBefore === "/") continue;
+    if (matchStart > lastIndex) {
+      parts.push({ type: "text", content: content.slice(lastIndex, matchStart) });
+    }
+    const matchedUrl = match[1];
+    const fullUrl = matchedUrl.startsWith("http") ? matchedUrl : `https://${matchedUrl}`;
+    parts.push({ type: "link", content: matchedUrl, url: fullUrl });
+    lastIndex = matchStart + match[0].length;
+  }
+  if (lastIndex < content.length) {
+    parts.push({ type: "text", content: content.slice(lastIndex) });
+  }
+  if (parts.length === 0) return <span className="whitespace-pre-wrap">{content}</span>;
+  return (
+    <>
+      {parts.map((part, i) => part.type === "link" ? (
+        <a key={i} href={part.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium italic hover:underline break-all" style={{ color: '#8b5cf6' }}>
+          {part.content}
+          <ExternalLink className="w-3 h-3 shrink-0" />
+        </a>
+      ) : (
+        <span key={i} className="whitespace-pre-wrap">{part.content}</span>
+      ))}
+    </>
+  );
+}
+
 interface ProductCardWithButtons extends ProductCard {
   buttons?: ProductCardButton[];
 }
@@ -1070,7 +1105,7 @@ export default function SessionsPage() {
                                   )}
                                   {!((msg as any).messageType === "media" && ((msg as any).payload?.url || (msg as any).payload?.mediaUrl)) && 
                                    !((msg as any).messageType === "product_offer" && (msg as any).payload?.productCard) && (
-                                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{renderMessageWithLinks(msg.content)}</p>
                                   )}
                                   {(msg as any).messageType === "product_offer" && (msg as any).payload?.productCard && (
                                     <div className="mt-2 bg-background rounded-xl border shadow-sm overflow-hidden max-w-[300px]">
