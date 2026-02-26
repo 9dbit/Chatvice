@@ -14819,6 +14819,37 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
     res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
     res.header("Access-Control-Allow-Headers", "Content-Type");
     
+    const sanitizePhotoUrl = async (photoUrl: string | null | undefined, ownerId: string, ownerType: string): Promise<string> => {
+      if (!photoUrl) return "";
+      if (!photoUrl.startsWith("data:image")) return photoUrl;
+      try {
+        const mimeMatch = photoUrl.match(/^data:(image\/[a-z+]+);base64,/);
+        if (!mimeMatch) return "";
+        const mimeType = mimeMatch[1];
+        const ext = mimeType === "image/png" ? ".png" : mimeType === "image/gif" ? ".gif" : mimeType === "image/webp" ? ".webp" : ".jpg";
+        const base64Data = photoUrl.replace(/^data:image\/[a-z+]+;base64,/, "");
+        const fileId = `photo_${ownerType}_${ownerId.replace(/[^a-zA-Z0-9_]/g, "")}${ext}`;
+        await storage.storeFile({
+          id: fileId,
+          filename: `${ownerType}_photo${ext}`,
+          mimeType,
+          size: Math.ceil(base64Data.length * 3 / 4),
+          content: base64Data,
+          category: "photo",
+        });
+        const fileUrl = `/db-files/${fileId}`;
+        if (ownerType === "agent") {
+          await storage.updateAgent(ownerId, { photoUrl: fileUrl });
+        } else if (ownerType === "supervisor") {
+          await storage.updateSupervisor(ownerId, { photoUrl: fileUrl });
+        }
+        return fileUrl;
+      } catch (e) {
+        console.error(`Failed to convert base64 photo for ${ownerType} ${ownerId}:`, e);
+        return "";
+      }
+    };
+    
     try {
       const { sessionId } = req.params;
       const session = await storage.getSession(sessionId);
@@ -14830,21 +14861,17 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       let supervisorInfo: { id: string; name: string; photoUrl: string } | null = null;
       let agentInfo: { id: string; name: string; photoUrl: string } | null = null;
       
-      // If session is in HUMAN mode, get supervisor/merchant info
-      // supervisorId can be either a supervisor ID (sup_*) or merchant ID (m_*)
       if (session.mode === "HUMAN" && session.supervisorId) {
         if (session.supervisorId.startsWith("sup_")) {
-          // It's a supervisor
           const supervisor = await storage.getSupervisor(session.supervisorId);
           if (supervisor) {
             supervisorInfo = {
               id: supervisor.id,
               name: supervisor.name,
-              photoUrl: supervisor.photoUrl || "",
+              photoUrl: await sanitizePhotoUrl(supervisor.photoUrl, supervisor.id, "supervisor"),
             };
           }
         } else if (session.supervisorId.startsWith("m_")) {
-          // It's a merchant acting as supervisor
           const merchant = await storage.getMerchant(session.supervisorId);
           if (merchant) {
             supervisorInfo = {
@@ -14856,14 +14883,13 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         }
       }
       
-      // Get agent info for the assigned agent
       if (session.agentId) {
         const agent = await storage.getAgent(session.agentId);
         if (agent) {
           agentInfo = {
             id: agent.id,
             name: agent.name || "AI Agent",
-            photoUrl: agent.photoUrl || "",
+            photoUrl: await sanitizePhotoUrl(agent.photoUrl, agent.id, "agent"),
           };
         }
       }
