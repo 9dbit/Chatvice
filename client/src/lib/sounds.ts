@@ -41,8 +41,11 @@ function playSound(soundId: string) {
 
 interface NotificationSettings {
   incomingChatSound?: string;
+  incomingChatEnabled?: boolean;
   chatReplySound?: string;
+  chatReplyEnabled?: boolean;
   angryCustomerSound?: string;
+  angryCustomerEnabled?: boolean;
   browserPushEnabled?: boolean;
 }
 
@@ -94,6 +97,7 @@ async function fetchNotificationSettings(): Promise<NotificationSettings | null>
 
 export async function playIncomingChatSound(sessionInfo?: { customerName?: string }) {
   const settings = await fetchNotificationSettings();
+  if (settings?.incomingChatEnabled === false) return;
   const soundId = settings?.incomingChatSound || "sci-fi-confirm";
   playSound(soundId);
   
@@ -105,6 +109,7 @@ export async function playIncomingChatSound(sessionInfo?: { customerName?: strin
 
 export async function playChatReplySound(messageInfo?: { from?: string; content?: string }) {
   const settings = await fetchNotificationSettings();
+  if (settings?.chatReplyEnabled === false) return;
   const soundId = settings?.chatReplySound || "live-chat";
   playSound(soundId);
   
@@ -117,6 +122,7 @@ export async function playChatReplySound(messageInfo?: { from?: string; content?
 
 export async function playAngrySound(sessionInfo?: { customerName?: string; reason?: string }) {
   const settings = await fetchNotificationSettings();
+  if (settings?.angryCustomerEnabled === false) return;
   const soundId = settings?.angryCustomerSound || "notification-alert";
   playSound(soundId);
   
