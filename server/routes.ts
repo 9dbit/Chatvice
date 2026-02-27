@@ -1260,6 +1260,23 @@ ${knowledgeContext || "No specific knowledge base configured yet."}`
   }
 }
 
+function stripBase64Photos(obj: any): any {
+  if (!obj) return obj;
+  if (Array.isArray(obj)) return obj.map(stripBase64Photos);
+  if (typeof obj !== 'object') return obj;
+  const result: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (typeof value === 'string' && value.startsWith('data:image') && value.length > 200) {
+      result[key] = '';
+    } else if (typeof value === 'object' && value !== null) {
+      result[key] = stripBase64Photos(value);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   const MemoryStoreSession = MemoryStore(session);
   
@@ -4215,7 +4232,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(404).json({ error: "Merchant not found" });
       }
       const { password, ...safeData } = merchant;
-      res.json(safeData);
+      res.json(stripBase64Photos(safeData));
     } catch (error) {
       res.status(500).json({ error: "Server error" });
     }
@@ -4298,7 +4315,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       
       res.json({
         merchantId: merchant.id,
-        iconUrl: merchant.iconUrl || "",
+        iconUrl: (merchant.iconUrl && !merchant.iconUrl.startsWith('data:image')) ? merchant.iconUrl : "",
         iconSize: merchant.iconSize ?? 70,
         iconWidth: merchant.iconWidth ?? 70,
         iconHeight: merchant.iconHeight ?? 70,
@@ -4316,7 +4333,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         welcomeMessage: agentSettings.widgetWelcomeMessage || merchant.welcomeMessage || "Hi! How can I help you today?",
         companyName: merchant.companyName,
         agentName: agentSettings.name || merchant.agentName || "Chatvice",
-        agentPhotoUrl: agentSettings.photoUrl || merchant.agentPhotoUrl || "",
+        agentPhotoUrl: (() => {
+          const photo = agentSettings.photoUrl || merchant.agentPhotoUrl || "";
+          return photo.startsWith('data:image') ? '' : photo;
+        })(),
         widgetTheme: agentSettings.widgetTheme || merchant.widgetTheme || "light",
         bubblePosition: agentSettings.bubblePosition || merchant.bubblePosition || "right",
         socialMediaEnabled: merchant.socialMediaEnabled ?? false,
@@ -4327,7 +4347,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         socialWhatsapp: sanitizeUrl(merchant.socialWhatsapp),
         socialDiscord: sanitizeUrl(merchant.socialDiscord),
         welcomeDescription: merchant.welcomeDescription || "",
-        prechatBannerUrl: merchant.prechatBannerUrl || "",
+        prechatBannerUrl: (merchant.prechatBannerUrl && !merchant.prechatBannerUrl.startsWith('data:image')) ? merchant.prechatBannerUrl : "",
         quickMessageOptions: merchant.quickMessageOptions || [],
         chatWorkflow: merchant.chatWorkflow || "click_to_open",
       });
@@ -4341,7 +4361,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const merchantId = req.session.merchantId!;
       const { merchantId: _, ...config } = req.body;
       
-      console.log("Config save request:", JSON.stringify(config, null, 2));
+      console.log("Config save request for merchant:", req.session.merchantId);
       
       const validConfig = merchantConfigSchema.parse(config);
       
@@ -9185,7 +9205,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
           plan: effectivePlan,
         };
       });
-      res.json(safeMerchants);
+      res.json(stripBase64Photos(safeMerchants));
     } catch (error) {
       res.status(500).json({ error: "Server error" });
     }
@@ -9213,12 +9233,12 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         annualPrice: merchant.customAnnualPrice ?? basePlan.annualPrice,
       } : basePlan;
       
-      res.json({
+      res.json(stripBase64Photos({
         ...safeMerchant,
         plan: effectivePlan,
         sessionsCount: sessions.length,
         supervisorsCount: supervisors.length,
-      });
+      }));
     } catch (error) {
       res.status(500).json({ error: "Server error" });
     }
