@@ -21061,5 +21061,165 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
+  const EXTERNAL_ALLOWED_ORIGINS = [
+    "https://web.chatvice.app",
+    "https://chat.chatvice.app",
+    "http://localhost:3000",
+    "http://localhost:5173",
+  ];
+
+  function setExternalCors(req: Request, res: Response) {
+    const origin = req.headers.origin;
+    if (origin && EXTERNAL_ALLOWED_ORIGINS.includes(origin)) {
+      res.header("Access-Control-Allow-Origin", origin);
+    } else {
+      res.header("Access-Control-Allow-Origin", EXTERNAL_ALLOWED_ORIGINS[0]);
+    }
+    res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, X-API-Key");
+  }
+
+  function verifyExternalApiKey(req: Request, res: Response): boolean {
+    const apiKey = req.headers["x-api-key"] as string;
+    const expectedKey = process.env.EXTERNAL_API_KEY;
+    if (!expectedKey) {
+      return true;
+    }
+    if (!apiKey || apiKey !== expectedKey) {
+      res.status(401).json({ error: "Invalid or missing API key" });
+      return false;
+    }
+    return true;
+  }
+
+  function normalizePhone(phone: string): string {
+    return phone.replace(/[\s\-\(\)]/g, "");
+  }
+
+  app.options("/api/external/*", (req, res) => {
+    setExternalCors(req, res);
+    res.sendStatus(204);
+  });
+
+  app.post("/api/external/send-message", async (req, res) => {
+    setExternalCors(req, res);
+    if (!verifyExternalApiKey(req, res)) return;
+    try {
+      const { merchantSlug, customerPhone, customerName, content, mediaUrl } = req.body;
+
+      if (!merchantSlug || !customerPhone || !content || !content.trim()) {
+        return res.status(400).json({ error: "merchantSlug, customerPhone, and content are required" });
+      }
+
+      const normalizedPhone = normalizePhone(customerPhone);
+
+      const merchant = await resolveMerchant(merchantSlug);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      let session = await storage.getSessionByMerchantAndPhone(merchant.id, normalizedPhone);
+
+      if (!session) {
+        const assignedAgentId = await getNextAgentId(merchant.id);
+        session = await storage.createSession({
+          merchantId: merchant.id,
+          agentId: assignedAgentId || merchant.activeAgentId || undefined,
+          customerName: customerName || "Customer",
+          customerPhone: normalizedPhone,
+          mode: "AI",
+        });
+      }
+
+      const message = await storage.createMessage({
+        sessionId: session.id,
+        from: "customer",
+        content: content.trim(),
+        messageType: mediaUrl ? "media" : "text",
+        payload: mediaUrl ? { mediaUrl } : undefined,
+      });
+
+      broadcastToSession(session.id, {
+        type: "message",
+        message,
+      });
+
+      await storage.updateSession(session.id, { lastActivity: new Date() });
+
+      res.json({ success: true, sessionId: session.id, messageId: message.id });
+
+      const sessionId = session.id;
+      const merchantId = merchant.id;
+      (async () => {
+        try {
+          broadcastToSession(sessionId, { type: "typing", from: "ai", isTyping: true });
+          const aiResult = await askChatvice(sessionId, merchantId, content.trim());
+          broadcastToSession(sessionId, { type: "typing", from: "ai", isTyping: false });
+
+          if (aiResult.answer && aiResult.answer.trim()) {
+            const aiMessage = await storage.createMessage({
+              sessionId,
+              from: "chatvice",
+              content: aiResult.answer,
+              messageType: "text",
+            });
+            broadcastToSession(sessionId, { type: "message", message: aiMessage });
+          }
+        } catch (aiError) {
+          broadcastToSession(sessionId, { type: "typing", from: "ai", isTyping: false });
+          console.error("External send-message AI error:", aiError);
+        }
+      })();
+    } catch (error) {
+      console.error("External send-message error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/external/get-replies", async (req, res) => {
+    setExternalCors(req, res);
+    if (!verifyExternalApiKey(req, res)) return;
+    try {
+      const { merchantSlug, customerPhone, since } = req.query;
+
+      if (!merchantSlug || !customerPhone || !since) {
+        return res.status(400).json({ error: "merchantSlug, customerPhone, and since are required" });
+      }
+
+      const normalizedPhone = normalizePhone(customerPhone as string);
+
+      const merchant = await resolveMerchant(merchantSlug as string);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      const session = await storage.getSessionByMerchantAndPhone(merchant.id, normalizedPhone);
+      if (!session) {
+        return res.json({ replies: [] });
+      }
+
+      const sinceDate = new Date(since as string);
+      if (isNaN(sinceDate.getTime())) {
+        return res.status(400).json({ error: "Invalid since timestamp" });
+      }
+
+      const replies = await storage.getMessagesSince(session.id, sinceDate, "customer");
+
+      res.json({
+        replies: replies.map((msg) => ({
+          id: msg.id,
+          from: msg.from,
+          content: msg.content,
+          messageType: msg.messageType,
+          payload: msg.payload,
+          createdAt: msg.timestamp,
+        })),
+      });
+    } catch (error) {
+      console.error("External get-replies error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   return httpServer;
 }

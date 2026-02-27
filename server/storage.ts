@@ -79,7 +79,7 @@ import {
   messageReactions, type MessageReaction, type InsertMessageReaction,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, gte, and, or, lt, isNull, sql, count, inArray, ne } from "drizzle-orm";
+import { eq, desc, gte, gt, and, or, lt, isNull, sql, count, inArray, ne } from "drizzle-orm";
 import { randomBytes } from "crypto";
 
 export interface AnalyticsData {
@@ -113,11 +113,13 @@ export interface IStorage {
 
   getSession(id: string): Promise<Session | undefined>;
   getSessionsByMerchant(merchantId: string, activeOnly?: boolean): Promise<Session[]>;
+  getSessionByMerchantAndPhone(merchantId: string, customerPhone: string): Promise<Session | undefined>;
   createSession(session: InsertSession): Promise<Session>;
   updateSession(id: string, data: Partial<Session>): Promise<Session | undefined>;
 
   getMessages(sessionId: string): Promise<Message[]>;
   getMessage(id: string): Promise<Message | undefined>;
+  getMessagesSince(sessionId: string, since: Date, excludeFrom?: string): Promise<Message[]>;
   createMessage(message: InsertMessage): Promise<Message>;
   updateMessage(id: string, data: Partial<Message>): Promise<Message | undefined>;
 
@@ -680,9 +682,34 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+  async getSessionByMerchantAndPhone(merchantId: string, customerPhone: string): Promise<Session | undefined> {
+    const result = await db.select().from(sessions)
+      .where(and(
+        eq(sessions.merchantId, merchantId),
+        eq(sessions.customerPhone, customerPhone),
+        ne(sessions.status, "archived"),
+      ))
+      .orderBy(desc(sessions.createdAt))
+      .limit(1);
+    return result[0];
+  }
+
   async getMessages(sessionId: string): Promise<Message[]> {
     return db.select().from(messages)
       .where(eq(messages.sessionId, sessionId))
+      .orderBy(messages.timestamp);
+  }
+
+  async getMessagesSince(sessionId: string, since: Date, excludeFrom?: string): Promise<Message[]> {
+    const conditions = [
+      eq(messages.sessionId, sessionId),
+      gt(messages.timestamp, since),
+    ];
+    if (excludeFrom) {
+      conditions.push(ne(messages.from, excludeFrom));
+    }
+    return db.select().from(messages)
+      .where(and(...conditions))
       .orderBy(messages.timestamp);
   }
 
