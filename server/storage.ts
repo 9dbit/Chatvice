@@ -660,7 +660,7 @@ export class DatabaseStorage implements IStorage {
 
   async createSession(data: InsertSession): Promise<Session> {
     const result = await db.insert(sessions).values({
-      id: data.id,
+      id: data.id || generateId("sess_"),
       merchantId: data.merchantId,
       mode: data.mode || "AI",
       supervisorId: data.supervisorId || null,
