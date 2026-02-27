@@ -12,6 +12,14 @@ import { storage } from './storage';
 import { extractFAQContent } from './crawler';
 import { processKnowledgeBase } from './embeddings';
 
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught exception:', err.message, err.stack);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[FATAL] Unhandled rejection:', reason);
+});
+
 function killPortProcess(port: number): void {
   try {
     execSync(`fuser -k ${port}/tcp 2>/dev/null || true`, { stdio: 'ignore' });
@@ -175,24 +183,11 @@ export function log(message: string, source = "express") {
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
 
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        const responseStr = JSON.stringify(capturedJsonResponse);
-        logLine += ` :: ${responseStr.length > 500 ? responseStr.substring(0, 500) + '...[truncated]' : responseStr}`;
-      }
-
-      log(logLine);
+      log(`${req.method} ${path} ${res.statusCode} in ${duration}ms`);
     }
   });
 
@@ -522,21 +517,28 @@ async function runProductSourceSync(): Promise<void> {
   }
 }
 
+let backgroundJobsRunning = false;
+
+async function runAllBackgroundJobs(): Promise<void> {
+  if (backgroundJobsRunning) {
+    console.log("[sync] Background jobs already running, skipping");
+    return;
+  }
+  backgroundJobsRunning = true;
+  try {
+    await runBackgroundSync();
+    await runSourceSync();
+    await runProductSourceSync();
+    await runAutomaticChatCleanup();
+  } catch (error) {
+    console.error("[sync] Background jobs error:", error);
+  } finally {
+    backgroundJobsRunning = false;
+  }
+}
+
 function startBackgroundSync(): void {
-  // Run initial sync after 5 minutes of startup
-  setTimeout(() => {
-    runBackgroundSync();
-    runSourceSync();
-    runAutomaticChatCleanup();
-  }, 5 * 60 * 1000);
-  
-  // Then run every 60 minutes
-  setInterval(() => {
-    runBackgroundSync();
-    runSourceSync();
-    runProductSourceSync();
-    runAutomaticChatCleanup();
-  }, 60 * 60 * 1000);
-  
+  setTimeout(() => runAllBackgroundJobs(), 5 * 60 * 1000);
+  setInterval(() => runAllBackgroundJobs(), 60 * 60 * 1000);
   console.log("[sync] Background sync scheduler started (60 min interval)");
 }

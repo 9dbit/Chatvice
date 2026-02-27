@@ -16,13 +16,16 @@ const pool = new Pool({
   max: 20,
 });
 
-// Test database connection on startup
 pool.on('error', (err) => {
   console.error('Unexpected database pool error:', err);
 });
 
+let poolConnectLogged = false;
 pool.on('connect', () => {
-  console.log('Database pool connected');
+  if (!poolConnectLogged) {
+    console.log('Database pool connected');
+    poolConnectLogged = true;
+  }
 });
 
 export const db = drizzle(pool, { schema });

@@ -1260,6 +1260,25 @@ ${knowledgeContext || "No specific knowledge base configured yet."}`
   }
 }
 
+const responseCache = new Map<string, { data: any; expiresAt: number }>();
+
+function getCached(key: string): any | null {
+  const entry = responseCache.get(key);
+  if (entry && Date.now() < entry.expiresAt) return entry.data;
+  if (entry) responseCache.delete(key);
+  return null;
+}
+
+function setCache(key: string, data: any, ttlSeconds: number): void {
+  responseCache.set(key, { data, expiresAt: Date.now() + ttlSeconds * 1000 });
+}
+
+function invalidateCache(keyPrefix: string): void {
+  for (const key of responseCache.keys()) {
+    if (key.startsWith(keyPrefix)) responseCache.delete(key);
+  }
+}
+
 function stripBase64Photos(obj: any): any {
   if (!obj) return obj;
   if (Array.isArray(obj)) return obj.map(stripBase64Photos);
@@ -4253,12 +4272,14 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   }
 
   app.get("/api/merchant/status/:merchantId", async (req, res) => {
-    // Allow CORS for widget embed from any domain
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
     res.header("Access-Control-Allow-Headers", "Content-Type");
     
     try {
+      const cacheKey = `merchant-status:${req.params.merchantId}`;
+      const cached = getCached(cacheKey);
+      if (cached) return res.json(cached);
       const merchant = await resolveMerchant(req.params.merchantId);
       if (!merchant) {
         return res.json({
@@ -4313,7 +4334,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return "";
       };
       
-      res.json({
+      const statusResponse = {
         merchantId: merchant.id,
         iconUrl: (merchant.iconUrl && !merchant.iconUrl.startsWith('data:image')) ? merchant.iconUrl : "",
         iconSize: merchant.iconSize ?? 70,
@@ -4350,7 +4371,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         prechatBannerUrl: (merchant.prechatBannerUrl && !merchant.prechatBannerUrl.startsWith('data:image')) ? merchant.prechatBannerUrl : "",
         quickMessageOptions: merchant.quickMessageOptions || [],
         chatWorkflow: merchant.chatWorkflow || "click_to_open",
-      });
+      };
+      setCache(cacheKey, statusResponse, 30);
+      res.json(statusResponse);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
     }
@@ -4374,6 +4397,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!updated) {
         return res.status(404).json({ error: "Merchant not found" });
       }
+      invalidateCache("merchant-status:");
       res.json({ success: true, config: updated });
     } catch (error: any) {
       console.error("Config save error:", error);
@@ -11372,8 +11396,12 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
   // Landing Page Settings API (Admin only for update, public for read)
   app.get("/api/landing-settings", async (req, res) => {
     try {
+      const cached = getCached("landing-settings");
+      if (cached) return res.json(cached);
       const settings = await storage.getLandingPageSettings();
-      res.json(settings || {});
+      const result = settings || {};
+      setCache("landing-settings", result, 60);
+      res.json(result);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
     }
@@ -11382,6 +11410,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
   app.put("/api/admin/landing-settings", requireAdmin, async (req, res) => {
     try {
       const settings = await storage.updateLandingPageSettings(req.body);
+      invalidateCache("landing-settings");
       res.json(settings);
     } catch (error) {
       console.error("Error updating landing settings:", error);
@@ -11521,6 +11550,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         return res.status(400).json({ error: "Key is required" });
       }
       await storage.setPlatformSetting(key, value);
+      invalidateCache("platform-settings");
       
       // When trial_days is updated, recalculate trialEndsAt for existing trial merchants
       if (key === "trial_days") {
@@ -11545,6 +11575,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       for (const [key, value] of Object.entries(settings)) {
         await storage.setPlatformSetting(key, String(value));
       }
+      invalidateCache("platform-settings");
       
       // If trial_days was included in batch, recalculate trial expiry for active merchants
       if (settings.trial_days) {
@@ -11620,8 +11651,10 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
   // Get subscription plans (uses cached utility for consistent data)
   app.get("/api/subscription-plans", async (req, res) => {
     try {
-      // Use the centralized utility to get effective plans with DB overrides
+      const cached = getCached("subscription-plans");
+      if (cached) return res.json(cached);
       const plans = await getAllEffectiveSubscriptionPlans();
+      setCache("subscription-plans", plans, 300);
       res.json(plans);
     } catch (error) {
       console.error("Error fetching subscription plans:", error);
@@ -11664,6 +11697,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       
       // Clear the plan cache so changes take effect immediately
       clearPlanCache();
+      invalidateCache("subscription-plans");
       
       // Return the updated plan
       const defaultPlan = subscriptionPlans[planId as keyof typeof subscriptionPlans];
@@ -12119,8 +12153,9 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
   // Public endpoint to get platform settings for public pages
   app.get("/api/platform-settings", async (req, res) => {
     try {
+      const cached = getCached("platform-settings");
+      if (cached) return res.json(cached);
       const allSettings = await storage.getAllPlatformSettings();
-      // Filter to only return public settings (trial days, guide settings)
       const publicKeys = [
         'trial_days', 
         'guide_enabled', 
@@ -12146,6 +12181,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
           publicSettings[key] = allSettings[key];
         }
       }
+      setCache("platform-settings", publicSettings, 60);
       res.json(publicSettings);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
