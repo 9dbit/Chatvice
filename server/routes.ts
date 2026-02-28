@@ -21313,8 +21313,12 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
+  const serverStartTime = Date.now();
+
   app.get("/api/external/get-replies", async (req, res) => {
     setExternalCors(req, res);
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("Keep-Alive", "timeout=30");
     if (!verifyExternalApiKey(req, res)) return;
     try {
       const { merchantSlug, customerPhone, since } = req.query;
@@ -21328,7 +21332,20 @@ Please create a comprehensive help center article that would be useful for custo
       const cached = getCached(cacheKey);
       if (cached) return res.json(cached);
 
-      const merchant = await resolveMerchant(merchantSlug as string);
+      if (Date.now() - serverStartTime < 8000) {
+        const warmupResult = { replies: [], merchantIcon: "", merchantLogo: "", companyName: "" };
+        setCache(cacheKey, warmupResult, 3);
+        return res.json(warmupResult);
+      }
+
+      const merchantCacheKey = `ext-merchant:${merchantSlug}`;
+      let merchant = getCached(merchantCacheKey) as any;
+      if (!merchant) {
+        merchant = await resolveMerchant(merchantSlug as string);
+        if (merchant) {
+          setCache(merchantCacheKey, merchant, 300);
+        }
+      }
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
@@ -21343,7 +21360,7 @@ Please create a comprehensive help center article that would be useful for custo
       const session = await storage.getSessionByMerchantAndPhone(merchant.id, normalizedPhone);
       if (!session) {
         const emptyResult = { replies: [], merchantIcon, merchantLogo, companyName: merchant.companyName || "" };
-        setCache(cacheKey, emptyResult, 10);
+        setCache(cacheKey, emptyResult, 15);
         return res.json(emptyResult);
       }
 
@@ -21370,7 +21387,7 @@ Please create a comprehensive help center article that would be useful for custo
           }
         }
         agentInfo = { name: agentName, avatar: agentAvatar };
-        setCache(agentCacheKey, agentInfo, 120);
+        setCache(agentCacheKey, agentInfo, 300);
       }
 
       const svCacheKey = `ext-supervisor:${session.supervisorId || "none"}`;
@@ -21389,7 +21406,7 @@ Please create a comprehensive help center article that would be useful for custo
           }
         }
         svInfo = { name: supervisorName, avatar: supervisorAvatar };
-        setCache(svCacheKey, svInfo, 120);
+        setCache(svCacheKey, svInfo, 300);
       }
 
       const result = {
@@ -21408,7 +21425,7 @@ Please create a comprehensive help center article that would be useful for custo
         merchantLogo,
         companyName: merchant.companyName || "",
       };
-      setCache(cacheKey, result, 5);
+      setCache(cacheKey, result, 10);
       res.json(result);
     } catch (error) {
       console.error("External get-replies error:", error);
