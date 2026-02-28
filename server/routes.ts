@@ -21164,6 +21164,7 @@ Please create a comprehensive help center article that would be useful for custo
               messageType: "text",
             });
             broadcastToSession(sessionId, { type: "message", message: aiMessage });
+            invalidateCache("ext-replies:");
           }
         } catch (aiError) {
           broadcastToSession(sessionId, { type: "typing", from: "ai", isTyping: false });
@@ -21187,6 +21188,9 @@ Please create a comprehensive help center article that would be useful for custo
       }
 
       const normalizedPhone = normalizePhone(customerPhone as string);
+      const cacheKey = `ext-replies:${merchantSlug}:${normalizedPhone}:${since}`;
+      const cached = getCached(cacheKey);
+      if (cached) return res.json(cached);
 
       const merchant = await resolveMerchant(merchantSlug as string);
       if (!merchant) {
@@ -21195,7 +21199,9 @@ Please create a comprehensive help center article that would be useful for custo
 
       const session = await storage.getSessionByMerchantAndPhone(merchant.id, normalizedPhone);
       if (!session) {
-        return res.json({ replies: [] });
+        const emptyResult = { replies: [] };
+        setCache(cacheKey, emptyResult, 5);
+        return res.json(emptyResult);
       }
 
       const sinceDate = new Date(since as string);
@@ -21205,7 +21211,7 @@ Please create a comprehensive help center article that would be useful for custo
 
       const replies = await storage.getMessagesSince(session.id, sinceDate, "customer");
 
-      res.json({
+      const result = {
         replies: replies.map((msg) => ({
           id: msg.id,
           from: msg.from,
@@ -21214,7 +21220,9 @@ Please create a comprehensive help center article that would be useful for custo
           payload: msg.payload,
           createdAt: msg.timestamp,
         })),
-      });
+      };
+      setCache(cacheKey, result, 3);
+      res.json(result);
     } catch (error) {
       console.error("External get-replies error:", error);
       res.status(500).json({ error: "Server error" });
