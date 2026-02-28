@@ -21281,9 +21281,13 @@ Please create a comprehensive help center article that would be useful for custo
         return res.status(404).json({ error: "Merchant not found" });
       }
 
+      const merchantIcon = merchant.iconUrl
+        ? (merchant.iconUrl.startsWith('data:image') ? `/api/merchant/icon/${merchant.id}` : merchant.iconUrl)
+        : "";
+
       const session = await storage.getSessionByMerchantAndPhone(merchant.id, normalizedPhone);
       if (!session) {
-        const emptyResult = { replies: [] };
+        const emptyResult = { replies: [], merchantIcon, companyName: merchant.companyName || "" };
         setCache(cacheKey, emptyResult, 5);
         return res.json(emptyResult);
       }
@@ -21295,15 +21299,32 @@ Please create a comprehensive help center article that would be useful for custo
 
       const replies = await storage.getMessagesSince(session.id, sinceDate, "customer");
 
+      let agentName = "Chatvice";
+      let agentAvatar = "";
+      if (session.agentId) {
+        const agent = await storage.getAgent(session.agentId);
+        if (agent) {
+          agentName = agent.name || "Chatvice";
+          const photo = agent.photoUrl || merchant.agentPhotoUrl || "";
+          agentAvatar = photo.startsWith('data:image')
+            ? `/api/merchant/photo/${merchant.id}`
+            : photo;
+        }
+      }
+
       const result = {
         replies: replies.map((msg) => ({
           id: msg.id,
           from: msg.from,
           content: msg.content,
+          senderName: msg.from === "chatvice" ? agentName : msg.from === "supervisor" ? "Supervisor" : "System",
+          senderAvatar: msg.from === "chatvice" ? agentAvatar : "",
           messageType: msg.messageType,
           payload: msg.payload,
           createdAt: msg.timestamp,
         })),
+        merchantIcon,
+        companyName: merchant.companyName || "",
       };
       setCache(cacheKey, result, 3);
       res.json(result);
