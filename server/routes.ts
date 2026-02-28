@@ -21343,7 +21343,7 @@ Please create a comprehensive help center article that would be useful for custo
       const session = await storage.getSessionByMerchantAndPhone(merchant.id, normalizedPhone);
       if (!session) {
         const emptyResult = { replies: [], merchantIcon, merchantLogo, companyName: merchant.companyName || "" };
-        setCache(cacheKey, emptyResult, 5);
+        setCache(cacheKey, emptyResult, 10);
         return res.json(emptyResult);
       }
 
@@ -21354,30 +21354,42 @@ Please create a comprehensive help center article that would be useful for custo
 
       const replies = await storage.getMessagesSince(session.id, sinceDate, "customer");
 
-      let agentName = "Chatvice";
-      let agentAvatar = "";
-      if (session.agentId) {
-        const agent = await storage.getAgent(session.agentId);
-        if (agent) {
-          agentName = agent.name || "Chatvice";
-          const photo = agent.photoUrl || merchant.agentPhotoUrl || "";
-          agentAvatar = photo.startsWith('data:image')
-            ? `/api/merchant/photo/${merchant.id}`
-            : photo;
+      const agentCacheKey = `ext-agent:${session.agentId || "none"}`;
+      let agentInfo = getCached(agentCacheKey) as { name: string; avatar: string } | null;
+      if (!agentInfo) {
+        let agentName = "Chatvice";
+        let agentAvatar = "";
+        if (session.agentId) {
+          const agent = await storage.getAgent(session.agentId);
+          if (agent) {
+            agentName = agent.name || "Chatvice";
+            const photo = agent.photoUrl || merchant.agentPhotoUrl || "";
+            agentAvatar = photo.startsWith('data:image')
+              ? `/api/merchant/photo/${merchant.id}`
+              : photo;
+          }
         }
+        agentInfo = { name: agentName, avatar: agentAvatar };
+        setCache(agentCacheKey, agentInfo, 120);
       }
 
-      let supervisorName = "Supervisor";
-      let supervisorAvatar = "";
-      if (session.supervisorId) {
-        const supervisor = await storage.getSupervisor(session.supervisorId);
-        if (supervisor) {
-          supervisorName = supervisor.name || "Supervisor";
-          const sPhoto = supervisor.photoUrl || "";
-          supervisorAvatar = sPhoto.startsWith('data:image')
-            ? `/api/supervisor/photo/${supervisor.id}`
-            : sPhoto;
+      const svCacheKey = `ext-supervisor:${session.supervisorId || "none"}`;
+      let svInfo = getCached(svCacheKey) as { name: string; avatar: string } | null;
+      if (!svInfo) {
+        let supervisorName = "Supervisor";
+        let supervisorAvatar = "";
+        if (session.supervisorId) {
+          const supervisor = await storage.getSupervisor(session.supervisorId);
+          if (supervisor) {
+            supervisorName = supervisor.name || "Supervisor";
+            const sPhoto = supervisor.photoUrl || "";
+            supervisorAvatar = sPhoto.startsWith('data:image')
+              ? `/api/supervisor/photo/${supervisor.id}`
+              : sPhoto;
+          }
         }
+        svInfo = { name: supervisorName, avatar: supervisorAvatar };
+        setCache(svCacheKey, svInfo, 120);
       }
 
       const result = {
@@ -21385,8 +21397,8 @@ Please create a comprehensive help center article that would be useful for custo
           id: msg.id,
           from: msg.from,
           content: msg.content,
-          senderName: msg.from === "chatvice" ? agentName : msg.from === "supervisor" ? supervisorName : "System",
-          senderAvatar: msg.from === "chatvice" ? agentAvatar : msg.from === "supervisor" ? supervisorAvatar : "",
+          senderName: msg.from === "chatvice" ? agentInfo!.name : msg.from === "supervisor" ? svInfo!.name : "System",
+          senderAvatar: msg.from === "chatvice" ? agentInfo!.avatar : msg.from === "supervisor" ? svInfo!.avatar : "",
           senderRole: msg.from === "chatvice" ? "agent" : msg.from === "supervisor" ? "supervisor" : "admin",
           messageType: msg.messageType,
           payload: msg.payload,
@@ -21396,7 +21408,7 @@ Please create a comprehensive help center article that would be useful for custo
         merchantLogo,
         companyName: merchant.companyName || "",
       };
-      setCache(cacheKey, result, 3);
+      setCache(cacheKey, result, 5);
       res.json(result);
     } catch (error) {
       console.error("External get-replies error:", error);
