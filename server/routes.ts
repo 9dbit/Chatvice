@@ -4271,6 +4271,85 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     return await storage.getMerchant(slugOrId);
   }
 
+  app.get("/api/merchant/icon/:merchantId", async (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Cache-Control", "public, max-age=3600");
+    try {
+      const merchant = await resolveMerchant(req.params.merchantId);
+      if (!merchant || !merchant.iconUrl) {
+        return res.status(404).json({ error: "Icon not found" });
+      }
+      if (merchant.iconUrl.startsWith('data:image')) {
+        const match = merchant.iconUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+        if (match) {
+          const contentType = match[1];
+          const buffer = Buffer.from(match[2], 'base64');
+          res.setHeader("Content-Type", contentType);
+          res.setHeader("Content-Length", buffer.length);
+          return res.send(buffer);
+        }
+      }
+      if (merchant.iconUrl.startsWith('/') || merchant.iconUrl.startsWith('http')) {
+        return res.redirect(merchant.iconUrl);
+      }
+      res.status(404).json({ error: "Icon not found" });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/merchant/photo/:merchantId", async (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Cache-Control", "public, max-age=3600");
+    try {
+      const merchant = await resolveMerchant(req.params.merchantId);
+      if (!merchant) return res.status(404).json({ error: "Not found" });
+
+      const photo = merchant.agentPhotoUrl || "";
+      if (photo.startsWith('data:image')) {
+        const match = photo.match(/^data:(image\/[^;]+);base64,(.+)$/);
+        if (match) {
+          const buffer = Buffer.from(match[2], 'base64');
+          res.setHeader("Content-Type", match[1]);
+          res.setHeader("Content-Length", buffer.length);
+          return res.send(buffer);
+        }
+      }
+      if (photo.startsWith('/') || photo.startsWith('http')) {
+        return res.redirect(photo);
+      }
+      res.status(404).json({ error: "Photo not found" });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/merchant/banner/:merchantId", async (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Cache-Control", "public, max-age=3600");
+    try {
+      const merchant = await resolveMerchant(req.params.merchantId);
+      if (!merchant) return res.status(404).json({ error: "Not found" });
+
+      const banner = merchant.prechatBannerUrl || "";
+      if (banner.startsWith('data:image')) {
+        const match = banner.match(/^data:(image\/[^;]+);base64,(.+)$/);
+        if (match) {
+          const buffer = Buffer.from(match[2], 'base64');
+          res.setHeader("Content-Type", match[1]);
+          res.setHeader("Content-Length", buffer.length);
+          return res.send(buffer);
+        }
+      }
+      if (banner.startsWith('/') || banner.startsWith('http')) {
+        return res.redirect(banner);
+      }
+      res.status(404).json({ error: "Banner not found" });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/merchant/status/:merchantId", async (req, res) => {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
@@ -4336,7 +4415,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       
       const statusResponse = {
         merchantId: merchant.id,
-        iconUrl: (merchant.iconUrl && !merchant.iconUrl.startsWith('data:image')) ? merchant.iconUrl : "",
+        iconUrl: merchant.iconUrl
+          ? (merchant.iconUrl.startsWith('data:image') ? `/api/merchant/icon/${merchant.id}` : merchant.iconUrl)
+          : "",
         iconSize: merchant.iconSize ?? 70,
         iconWidth: merchant.iconWidth ?? 70,
         iconHeight: merchant.iconHeight ?? 70,
@@ -4356,7 +4437,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         agentName: agentSettings.name || merchant.agentName || "Chatvice",
         agentPhotoUrl: (() => {
           const photo = agentSettings.photoUrl || merchant.agentPhotoUrl || "";
-          return photo.startsWith('data:image') ? '' : photo;
+          if (photo.startsWith('data:image')) return `/api/merchant/photo/${merchant.id}`;
+          return photo;
         })(),
         widgetTheme: agentSettings.widgetTheme || merchant.widgetTheme || "light",
         bubblePosition: agentSettings.bubblePosition || merchant.bubblePosition || "right",
@@ -4368,7 +4450,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         socialWhatsapp: sanitizeUrl(merchant.socialWhatsapp),
         socialDiscord: sanitizeUrl(merchant.socialDiscord),
         welcomeDescription: merchant.welcomeDescription || "",
-        prechatBannerUrl: (merchant.prechatBannerUrl && !merchant.prechatBannerUrl.startsWith('data:image')) ? merchant.prechatBannerUrl : "",
+        prechatBannerUrl: merchant.prechatBannerUrl
+          ? (merchant.prechatBannerUrl.startsWith('data:image') ? `/api/merchant/banner/${merchant.id}` : merchant.prechatBannerUrl)
+          : "",
         quickMessageOptions: merchant.quickMessageOptions || [],
         chatWorkflow: merchant.chatWorkflow || "click_to_open",
       };
