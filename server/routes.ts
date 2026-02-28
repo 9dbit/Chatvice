@@ -4350,6 +4350,58 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  app.get("/api/merchant/logo/:merchantId", async (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Cache-Control", "public, max-age=3600");
+    try {
+      const merchant = await resolveMerchant(req.params.merchantId);
+      if (!merchant) return res.status(404).json({ error: "Not found" });
+
+      const logo = merchant.profilePhotoUrl || "";
+      if (logo.startsWith('data:image')) {
+        const match = logo.match(/^data:(image\/[^;]+);base64,(.+)$/);
+        if (match) {
+          const buffer = Buffer.from(match[2], 'base64');
+          res.setHeader("Content-Type", match[1]);
+          res.setHeader("Content-Length", buffer.length);
+          return res.send(buffer);
+        }
+      }
+      if (logo.startsWith('/') || logo.startsWith('http')) {
+        return res.redirect(logo);
+      }
+      res.status(404).json({ error: "Logo not found" });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/supervisor/photo/:supervisorId", async (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Cache-Control", "public, max-age=3600");
+    try {
+      const supervisor = await storage.getSupervisor(req.params.supervisorId);
+      if (!supervisor) return res.status(404).json({ error: "Not found" });
+
+      const photo = supervisor.photoUrl || "";
+      if (photo.startsWith('data:image')) {
+        const match = photo.match(/^data:(image\/[^;]+);base64,(.+)$/);
+        if (match) {
+          const buffer = Buffer.from(match[2], 'base64');
+          res.setHeader("Content-Type", match[1]);
+          res.setHeader("Content-Length", buffer.length);
+          return res.send(buffer);
+        }
+      }
+      if (photo.startsWith('/') || photo.startsWith('http')) {
+        return res.redirect(photo);
+      }
+      res.status(404).json({ error: "Photo not found" });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/merchant/status/:merchantId", async (req, res) => {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
@@ -21284,10 +21336,13 @@ Please create a comprehensive help center article that would be useful for custo
       const merchantIcon = merchant.iconUrl
         ? (merchant.iconUrl.startsWith('data:image') ? `/api/merchant/icon/${merchant.id}` : merchant.iconUrl)
         : "";
+      const merchantLogo = merchant.profilePhotoUrl
+        ? (merchant.profilePhotoUrl.startsWith('data:image') ? `/api/merchant/logo/${merchant.id}` : merchant.profilePhotoUrl)
+        : "";
 
       const session = await storage.getSessionByMerchantAndPhone(merchant.id, normalizedPhone);
       if (!session) {
-        const emptyResult = { replies: [], merchantIcon, companyName: merchant.companyName || "" };
+        const emptyResult = { replies: [], merchantIcon, merchantLogo, companyName: merchant.companyName || "" };
         setCache(cacheKey, emptyResult, 5);
         return res.json(emptyResult);
       }
@@ -21312,18 +21367,33 @@ Please create a comprehensive help center article that would be useful for custo
         }
       }
 
+      let supervisorName = "Supervisor";
+      let supervisorAvatar = "";
+      if (session.supervisorId) {
+        const supervisor = await storage.getSupervisor(session.supervisorId);
+        if (supervisor) {
+          supervisorName = supervisor.name || "Supervisor";
+          const sPhoto = supervisor.photoUrl || "";
+          supervisorAvatar = sPhoto.startsWith('data:image')
+            ? `/api/supervisor/photo/${supervisor.id}`
+            : sPhoto;
+        }
+      }
+
       const result = {
         replies: replies.map((msg) => ({
           id: msg.id,
           from: msg.from,
           content: msg.content,
-          senderName: msg.from === "chatvice" ? agentName : msg.from === "supervisor" ? "Supervisor" : "System",
-          senderAvatar: msg.from === "chatvice" ? agentAvatar : "",
+          senderName: msg.from === "chatvice" ? agentName : msg.from === "supervisor" ? supervisorName : "System",
+          senderAvatar: msg.from === "chatvice" ? agentAvatar : msg.from === "supervisor" ? supervisorAvatar : "",
+          senderRole: msg.from === "chatvice" ? "agent" : msg.from === "supervisor" ? "supervisor" : "admin",
           messageType: msg.messageType,
           payload: msg.payload,
           createdAt: msg.timestamp,
         })),
         merchantIcon,
+        merchantLogo,
         companyName: merchant.companyName || "",
       };
       setCache(cacheKey, result, 3);
