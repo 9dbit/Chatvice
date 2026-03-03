@@ -1279,16 +1279,18 @@ function invalidateCache(keyPrefix: string): void {
   }
 }
 
-function stripBase64Photos(obj: any): any {
+const BASE64_PRESERVE_KEYS = new Set(["iconUrl", "profilePhotoUrl", "photoUrl", "prechatBannerUrl", "agentPhotoUrl"]);
+
+function stripBase64Photos(obj: any, preserveKeys = false): any {
   if (!obj) return obj;
-  if (Array.isArray(obj)) return obj.map(stripBase64Photos);
+  if (Array.isArray(obj)) return obj.map(item => stripBase64Photos(item, preserveKeys));
   if (typeof obj !== 'object') return obj;
   const result: any = {};
   for (const [key, value] of Object.entries(obj)) {
     if (typeof value === 'string' && value.startsWith('data:image') && value.length > 200) {
-      result[key] = '';
+      result[key] = (preserveKeys && BASE64_PRESERVE_KEYS.has(key)) ? value : '';
     } else if (typeof value === 'object' && value !== null) {
-      result[key] = stripBase64Photos(value);
+      result[key] = stripBase64Photos(value, preserveKeys);
     } else {
       result[key] = value;
     }
@@ -4251,7 +4253,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(404).json({ error: "Merchant not found" });
       }
       const { password, ...safeData } = merchant;
-      res.json(stripBase64Photos(safeData));
+      res.json(stripBase64Photos(safeData, true));
     } catch (error) {
       res.status(500).json({ error: "Server error" });
     }
