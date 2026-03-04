@@ -316,6 +316,90 @@ export async function fetchGoogleDoc(url: string): Promise<ParseResult> {
   }
 }
 
+function parseCSVRow(line: string): string[] {
+  const cells: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  let i = 0;
+
+  while (i < line.length) {
+    const char = line[i];
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (i + 1 < line.length && line[i + 1] === '"') {
+          current += '"';
+          i += 2;
+        } else {
+          inQuotes = false;
+          i++;
+        }
+      } else {
+        current += char;
+        i++;
+      }
+    } else {
+      if (char === '"') {
+        inQuotes = true;
+        i++;
+      } else if (char === ',') {
+        cells.push(current.trim());
+        current = '';
+        i++;
+      } else {
+        current += char;
+        i++;
+      }
+    }
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
+function splitCSVLines(csv: string): string[] {
+  const lines: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < csv.length; i++) {
+    const char = csv[i];
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (i + 1 < csv.length && csv[i + 1] === '"') {
+          current += '""';
+          i++;
+        } else {
+          inQuotes = false;
+          current += char;
+        }
+      } else {
+        current += char;
+      }
+    } else {
+      if (char === '"') {
+        inQuotes = true;
+        current += char;
+      } else if (char === '\n') {
+        lines.push(current);
+        current = '';
+      } else if (char === '\r') {
+        if (i + 1 < csv.length && csv[i + 1] === '\n') {
+          i++;
+        }
+        lines.push(current);
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+  }
+  if (current.length > 0) {
+    lines.push(current);
+  }
+  return lines;
+}
+
 export async function fetchGoogleSheet(url: string): Promise<ParseResult> {
   try {
     const sheetIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
@@ -337,22 +421,39 @@ export async function fetchGoogleSheet(url: string): Promise<ParseResult> {
     
     const csvContent = await response.text();
     
-    const lines = csvContent.split('\n');
-    const formattedLines = lines.map(line => {
-      const cells = line.split(',').map(cell => cell.replace(/^"|"$/g, '').trim());
-      return cells.join(' | ');
-    });
+    const lines = splitCSVLines(csvContent).filter(line => line.trim().length > 0);
     
-    const content = formattedLines.join('\n').trim();
+    if (lines.length === 0) {
+      return { success: false, content: '', error: 'Google Sheet appears to be empty' };
+    }
+
+    const headers = parseCSVRow(lines[0]);
+    const outputLines: string[] = [];
+
+    outputLines.push('[Google Sheet Data]');
+    outputLines.push(`Headers: ${headers.join(', ')}`);
+
+    for (let i = 1; i < lines.length; i++) {
+      const cells = parseCSVRow(lines[i]);
+      if (cells.every(c => c === '')) continue;
+
+      const labeledCells = headers.map((header, idx) => {
+        const value = idx < cells.length ? cells[idx] : '';
+        return `${header}=${value}`;
+      });
+      outputLines.push(`Row ${i}: ${labeledCells.join(', ')}`);
+    }
+    
+    const content = outputLines.join('\n').trim();
     const wordCount = content.split(/\s+/).filter(w => w.length > 0).length;
-    const lineCount = formattedLines.length;
+    const dataRowCount = lines.length - 1;
     const summary = generateSummary(content, 'Google Sheet');
     
     return { 
       success: true, 
       content,
       metadata: {
-        lineCount,
+        lineCount: dataRowCount,
         wordCount,
         charCount: content.length,
         fileType: 'Google Sheet',

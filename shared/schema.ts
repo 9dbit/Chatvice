@@ -687,6 +687,8 @@ export const sources = pgTable("sources", {
   syncEnabled: boolean("sync_enabled").default(true),
   lastSyncedAt: timestamp("last_synced_at"),
   syncStatus: text("sync_status").default("idle"),
+  sourceSubtype: text("source_subtype"),
+  syncInterval: integer("sync_interval").default(60),
   charCount: integer("char_count").default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });

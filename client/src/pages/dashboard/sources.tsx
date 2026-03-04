@@ -18,7 +18,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
-import { FileText, Link2, Type, Globe, Plus, Trash2, Edit, Crown, ArrowUpRight, Download, Upload, CheckCircle2, Loader2 } from "lucide-react";
+import { FileText, Link2, Type, Globe, Plus, Trash2, Edit, Crown, ArrowUpRight, Download, Upload, CheckCircle2, Loader2, Table2, RefreshCw } from "lucide-react";
 import type { Source, Merchant } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 
@@ -229,14 +229,35 @@ export default function SourcesPage() {
   const totalChars = sources?.reduce((sum, s) => sum + (s.charCount || 0), 0) || 0;
   const activeCount = sources?.filter(s => s.isActive).length || 0;
 
-  const getSourceIcon = (type: string) => {
-    switch (type) {
+  const getSourceIcon = (source: Source) => {
+    if (source.sourceSubtype === "google_sheet") return Table2;
+    switch (source.type) {
       case "file": return FileText;
       case "text": return Type;
       case "website": return Globe;
       default: return FileText;
     }
   };
+
+  const refreshSourceMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("POST", `/api/sources/${id}/update`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
+      toast({
+        title: "Source updated",
+        description: "Source content has been refreshed.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Update failed",
+        description: "Could not refresh source content.",
+        variant: "destructive",
+      });
+    },
+  });
 
   if (isLoading) {
     return (
@@ -316,7 +337,7 @@ export default function SourcesPage() {
                           </SelectItem>
                           <SelectItem value="google-sheet">
                             <div className="flex items-center gap-2">
-                              <FileText className="w-4 h-4" />
+                              <Table2 className="w-4 h-4" />
                               Google Sheets
                             </div>
                           </SelectItem>
@@ -538,7 +559,9 @@ export default function SourcesPage() {
           {filteredSources.length > 0 ? (
             <div className="space-y-3">
               {filteredSources.map((source) => {
-                const Icon = getSourceIcon(source.type);
+                const Icon = getSourceIcon(source);
+                const isGoogleSheet = source.sourceSubtype === "google_sheet";
+                const canRefresh = source.type === "website" || isGoogleSheet;
                 return (
                   <Card key={source.id} className="hover-elevate" data-testid={`source-card-${source.id}`}>
                     <CardContent className="flex items-center justify-between p-4">
@@ -553,15 +576,31 @@ export default function SourcesPage() {
                         </div>
                         <div>
                           <p className="font-medium">{source.name}</p>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-2 flex-wrap text-sm text-muted-foreground">
                             <Badge variant="secondary" className="text-xs">
-                              {source.type}
+                              {isGoogleSheet ? "Google Sheet" : source.type}
                             </Badge>
+                            {isGoogleSheet && (
+                              <Badge variant="outline" className="text-xs" data-testid={`badge-autosync-${source.id}`}>
+                                Auto-sync every 1 min
+                              </Badge>
+                            )}
                             <span>{(source.charCount || 0).toLocaleString()} chars</span>
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
+                        {canRefresh && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => refreshSourceMutation.mutate(source.id)}
+                            disabled={refreshSourceMutation.isPending}
+                            data-testid={`button-refresh-source-${source.id}`}
+                          >
+                            <RefreshCw className={`w-4 h-4 ${refreshSourceMutation.isPending ? "animate-spin" : ""}`} />
+                          </Button>
+                        )}
                         <Switch
                           checked={source.isActive ?? false}
                           onCheckedChange={(checked) => updateMutation.mutate({ id: source.id, data: { isActive: checked } })}

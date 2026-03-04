@@ -157,6 +157,8 @@ export interface IStorage {
   updateSource(id: string, data: Partial<Source>): Promise<Source | undefined>;
   deleteSource(id: string): Promise<boolean>;
   getActiveSourcesForSync(): Promise<Source[]>;
+  getGoogleSheetSourcesForFastSync(): Promise<Source[]>;
+  getGoogleSheetSourcesByMerchant(merchantId: string): Promise<Source[]>;
   
   deleteMerchant(id: string): Promise<boolean>;
   deleteSession(id: string): Promise<boolean>;
@@ -1389,6 +1391,8 @@ export class DatabaseStorage implements IStorage {
       isActive: data.isActive ?? true,
       syncEnabled: data.syncEnabled ?? true,
       syncStatus: "idle",
+      sourceSubtype: data.sourceSubtype || null,
+      syncInterval: data.syncInterval ?? 60,
       charCount: data.charCount || 0,
     }).returning();
     return result[0];
@@ -1399,6 +1403,24 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         eq(sources.isActive, true),
         eq(sources.syncEnabled, true),
+      ));
+  }
+
+  async getGoogleSheetSourcesForFastSync(): Promise<Source[]> {
+    return db.select().from(sources)
+      .where(and(
+        eq(sources.isActive, true),
+        eq(sources.syncEnabled, true),
+        eq(sources.sourceSubtype, "google_sheet"),
+      ));
+  }
+
+  async getGoogleSheetSourcesByMerchant(merchantId: string): Promise<Source[]> {
+    return db.select().from(sources)
+      .where(and(
+        eq(sources.merchantId, merchantId),
+        eq(sources.isActive, true),
+        eq(sources.sourceSubtype, "google_sheet"),
       ));
   }
 

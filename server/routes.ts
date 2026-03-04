@@ -650,6 +650,66 @@ async function askChatvice(
     }
   }
 
+  // Detect transaction-related questions and inject Google Sheet data
+  const transactionKeywords = [
+    "cek transaksi", "status transaksi", "sudah masuk", "belum masuk",
+    "deposit", "transfer", "pembayaran", "payment status", "check transaction",
+    "cek deposit", "status deposit", "status pembayaran", "sudah bayar",
+    "konfirmasi pembayaran", "bukti transfer", "cek pembayaran",
+    "apakah sudah masuk", "dana masuk", "uang masuk", "saldo masuk",
+    "top up", "topup", "isi saldo", "transaksi saya", "my transaction",
+    "payment confirmation", "check deposit", "check payment"
+  ];
+  const isTransactionQuery = transactionKeywords.some(keyword => lowerMessage.includes(keyword));
+
+  if (isTransactionQuery) {
+    try {
+      const sheetSources = await storage.getGoogleSheetSourcesByMerchant(merchantId);
+      if (sheetSources.length > 0) {
+        let sheetData = sheetSources
+          .filter(s => s.content && s.content.trim())
+          .map(s => s.content)
+          .join("\n\n");
+
+        const MAX_SHEET_CHARS = 15000;
+        if (sheetData.length > MAX_SHEET_CHARS) {
+          const lines = sheetData.split("\n");
+          let truncated = "";
+          for (const line of lines) {
+            if ((truncated + line + "\n").length > MAX_SHEET_CHARS) break;
+            truncated += line + "\n";
+          }
+          sheetData = truncated.trim() + `\n[... data truncated, showing most recent ${truncated.split("\n").length} rows of ${lines.length} total]`;
+        }
+
+        if (sheetData.trim()) {
+          knowledgeContext += `\n\n--- TRANSACTION LOOKUP DATA ---
+IMPORTANT INSTRUCTIONS FOR TRANSACTION LOOKUP:
+You have access to the merchant's transaction records below. When the customer asks about a transaction status:
+1. Search the data below by username, ID, phone number, or any identifier the customer provides.
+2. If a matching record is found with status "confirmed", "success", "completed", or similar positive status:
+   - Inform the customer that their transaction of [amount] has been received/confirmed.
+   - Ask them to please wait 1-15 minutes for processing to complete.
+3. If a matching record is found with status "pending" or "processing":
+   - Inform the customer that their transaction is currently being processed.
+   - Ask them to wait and check again shortly.
+4. If a matching record is found with status "failed", "rejected", or "cancelled":
+   - Inform the customer about the failed status and suggest they contact support or try again.
+5. If NO matching record is found:
+   - Inform the customer that no transaction has been found yet for their username/ID.
+   - Ask them to double-check their username/ID or upload their transfer receipt/screenshot for verification.
+6. Always be helpful and empathetic. If the customer provides a screenshot/proof of transfer, analyze it and cross-reference with the data.
+7. Report the exact data found (amount, date, status) - do not make up or guess transaction details.
+
+TRANSACTION RECORDS:
+${sheetData}`;
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching transaction sheet data:", error);
+    }
+  }
+
   // Fetch product catalog for context-aware recommendations
   let productCatalogContext = "";
   try {
@@ -14650,6 +14710,8 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         name: name || "Google Sheet",
         content: result.content,
         url,
+        sourceSubtype: "google_sheet",
+        syncInterval: 1,
         charCount: result.content.length,
       });
       
@@ -14660,7 +14722,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
     }
   });
 
-  // Request update for website source (manual re-crawl)
+  // Request update for website or Google Sheet source (manual re-crawl/re-fetch)
   app.post("/api/sources/:id/update", requireMerchant, async (req, res) => {
     try {
       const source = await storage.getSource(req.params.id);
@@ -14668,39 +14730,77 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         return res.status(404).json({ error: "Source not found" });
       }
       
-      if (source.type !== "website") {
-        return res.status(400).json({ error: "Only website sources can be updated" });
+      const isWebsite = source.type === "website";
+      const isGoogleSheet = source.sourceSubtype === "google_sheet";
+      
+      if (!isWebsite && !isGoogleSheet) {
+        return res.status(400).json({ error: "Only website and Google Sheet sources can be updated" });
       }
       
       if (!source.url) {
-        return res.status(400).json({ error: "Source has no URL to crawl" });
+        return res.status(400).json({ error: "Source has no URL to fetch" });
       }
       
       // Mark as syncing
       await storage.updateSource(req.params.id, { isSyncing: true });
       
-      // Start crawling in background
+      const sourceId = req.params.id;
+      
+      // Start fetching in background
       (async () => {
         try {
-          const content = await fetchWebContent(source.url!);
+          let content: string | null = null;
+          
+          if (isGoogleSheet) {
+            const result = await fetchGoogleSheet(source.url!);
+            if (result.success && result.content) {
+              content = result.content;
+            }
+          } else {
+            content = await fetchWebContent(source.url!);
+          }
+          
           if (content && content.trim()) {
-            await storage.updateSource(req.params.id, {
+            await storage.updateSource(sourceId, {
               content,
               charCount: content.length,
               lastSyncedAt: new Date(),
               isSyncing: false,
               syncError: null,
             });
+            
+            if (source.agentId) {
+              const agentId = source.agentId;
+              const sourceName = source.name;
+              const existingKnowledge = await storage.getKnowledgeByAgent(agentId);
+              const existingContent = existingKnowledge?.content || "";
+              
+              const sourceMarker = `\n\n---\n[Source: ${sourceName}]\n`;
+              const escapedName = sourceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              
+              const newContent = existingContent.includes(`[Source: ${sourceName}]`)
+                ? existingContent.replace(
+                    new RegExp(`\\n\\n---\\n\\[Source: ${escapedName}\\][\\s\\S]*?(?=\\n\\n---\\n\\[Source:|$)`, 'g'),
+                    `${sourceMarker}${content}`
+                  )
+                : existingContent + sourceMarker + content;
+              
+              await storage.setKnowledge(source.merchantId, newContent, agentId);
+              
+              processKnowledgeBase(source.merchantId, newContent, agentId).catch(err => {
+                console.error("[source-update] Error processing knowledge embeddings:", err);
+              });
+            }
           } else {
-            await storage.updateSource(req.params.id, {
+            await storage.updateSource(sourceId, {
               isSyncing: false,
-              syncError: "No content extracted from website",
+              syncError: isGoogleSheet ? "No content extracted from Google Sheet" : "No content extracted from website",
             });
           }
         } catch (error: any) {
-          await storage.updateSource(req.params.id, {
+          await storage.updateSource(sourceId, {
             isSyncing: false,
-            syncError: error.message || "Crawling failed",
+            syncError: error.message || "Fetching failed",
           });
         }
       })();

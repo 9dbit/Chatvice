@@ -11,6 +11,7 @@ import { isPaymentGatewayConfigured, getActiveGatewayName } from './kompasPayCli
 import { storage } from './storage';
 import { extractFAQContent } from './crawler';
 import { processKnowledgeBase } from './embeddings';
+import { fetchGoogleSheet } from './fileParser';
 
 process.on('uncaughtException', (err) => {
   console.error('[FATAL] Uncaught exception:', err.message, err.stack);
@@ -517,6 +518,90 @@ async function runProductSourceSync(): Promise<void> {
   }
 }
 
+async function runGoogleSheetFastSync(): Promise<void> {
+  try {
+    const sheetSources = await storage.getGoogleSheetSourcesForFastSync();
+    const sourcesToSync = sheetSources.filter(s => s.agentId && s.url);
+
+    if (sourcesToSync.length === 0) return;
+
+    console.log(`[fast-sync] Starting Google Sheet fast sync for ${sourcesToSync.length} sources`);
+
+    for (const source of sourcesToSync) {
+      try {
+        await storage.updateSource(source.id, { syncStatus: "syncing" });
+
+        const result = await fetchGoogleSheet(source.url!);
+
+        if (!result.success) {
+          await storage.updateSource(source.id, { syncStatus: "error" });
+          console.log(`[fast-sync] Failed to sync Google Sheet "${source.name}": ${result.error}`);
+          continue;
+        }
+
+        const newContent = result.content || "";
+
+        if (newContent === source.content) {
+          await storage.updateSource(source.id, { syncStatus: "idle", lastSyncedAt: new Date() });
+          continue;
+        }
+
+        await storage.updateSource(source.id, {
+          content: newContent,
+          charCount: newContent.length,
+          syncStatus: "idle",
+          lastSyncedAt: new Date(),
+        });
+
+        const agentId = source.agentId!;
+        const sourceName = source.name;
+
+        const existingKnowledge = await storage.getKnowledgeByAgent(agentId);
+        const existingContent = existingKnowledge?.content || "";
+
+        const sourceMarker = `\n\n---\n[Source: ${sourceName}]\n`;
+        const escapedName = sourceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        const updatedKnowledge = existingContent.includes(`[Source: ${sourceName}]`)
+          ? existingContent.replace(
+              new RegExp(`\\n\\n---\\n\\[Source: ${escapedName}\\][\\s\\S]*?(?=\\n\\n---\\n\\[Source:|$)`, 'g'),
+              `${sourceMarker}${newContent}`
+            )
+          : existingContent + sourceMarker + newContent;
+
+        await storage.setKnowledge(source.merchantId, updatedKnowledge, agentId);
+
+        processKnowledgeBase(source.merchantId, updatedKnowledge, agentId).catch(err => {
+          console.error("[fast-sync] Error processing knowledge embeddings:", err);
+        });
+
+        console.log(`[fast-sync] Synced Google Sheet "${sourceName}" to agent ${agentId}`);
+      } catch (sourceError) {
+        console.error(`[fast-sync] Error syncing source ${source.id}:`, sourceError);
+        await storage.updateSource(source.id, { syncStatus: "error" }).catch(() => {});
+      }
+    }
+
+    console.log(`[fast-sync] Google Sheet fast sync completed`);
+  } catch (error) {
+    console.error("[fast-sync] Google Sheet fast sync error:", error);
+  }
+}
+
+let googleSheetFastSyncRunning = false;
+
+async function runGoogleSheetFastSyncJob(): Promise<void> {
+  if (googleSheetFastSyncRunning) return;
+  googleSheetFastSyncRunning = true;
+  try {
+    await runGoogleSheetFastSync();
+  } catch (error) {
+    console.error("[fast-sync] Fast sync job error:", error);
+  } finally {
+    googleSheetFastSyncRunning = false;
+  }
+}
+
 let backgroundJobsRunning = false;
 
 async function runAllBackgroundJobs(): Promise<void> {
@@ -541,4 +626,7 @@ function startBackgroundSync(): void {
   setTimeout(() => runAllBackgroundJobs(), 5 * 60 * 1000);
   setInterval(() => runAllBackgroundJobs(), 60 * 60 * 1000);
   console.log("[sync] Background sync scheduler started (60 min interval)");
+
+  setInterval(() => runGoogleSheetFastSyncJob(), 60 * 1000);
+  console.log("[fast-sync] Google Sheet fast sync scheduler started (1 min interval)");
 }
