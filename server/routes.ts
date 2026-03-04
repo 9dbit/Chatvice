@@ -689,17 +689,21 @@ You have access to the merchant's transaction records below. When the customer a
 1. Search the data below by username, ID, phone number, or any identifier the customer provides.
 2. If a matching record is found with status "confirmed", "success", "completed", or similar positive status:
    - Inform the customer that their transaction of [amount] has been received/confirmed.
+   - ALWAYS include the FULL timestamp with date AND time (hours:minutes:seconds) when confirming. Example: "Transaksi Anda tercatat pada 2025-03-01 pukul 14:23:45 sebesar Rp 500.000 dengan status confirmed."
    - Ask them to please wait 1-15 minutes for processing to complete.
 3. If a matching record is found with status "pending" or "processing":
    - Inform the customer that their transaction is currently being processed.
+   - Include the exact date and time (hours:minutes:seconds) the transaction was recorded.
    - Ask them to wait and check again shortly.
 4. If a matching record is found with status "failed", "rejected", or "cancelled":
-   - Inform the customer about the failed status and suggest they contact support or try again.
+   - Inform the customer about the failed status and include the exact date and time (hours:minutes:seconds).
+   - Suggest they contact support or try again.
 5. If NO matching record is found:
    - Inform the customer that no transaction has been found yet for their username/ID.
    - Ask them to double-check their username/ID or upload their transfer receipt/screenshot for verification.
 6. Always be helpful and empathetic. If the customer provides a screenshot/proof of transfer, analyze it and cross-reference with the data.
-7. Report the exact data found (amount, date, status) - do not make up or guess transaction details.
+7. Report the exact data found (amount, date, time, status) - do not make up or guess transaction details.
+8. CRITICAL: Always read and report the COMPLETE timestamp including hours, minutes, and seconds (HH:MM:SS). Never omit the time portion. If the data includes a Time or Timestamp column, always mention it in your response.
 
 TRANSACTION RECORDS:
 ${sheetData}`;
