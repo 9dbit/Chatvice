@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import transactionBannerPath from "@assets/generated_images/transaction_record_banner.png";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -475,7 +476,7 @@ export default function KnowledgePage() {
     },
   });
 
-  const TRANSACTION_TEMPLATE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTxbotSXWqCCH8br6tr4nsdACdbSV0uhiIbr0trbskpCyrSLTG3JSpWnujboyIOxRM00mmLcrXTiakk/pubhtml";
+  const TRANSACTION_TEMPLATE_URL = "https://docs.google.com/spreadsheets/d/1uaFvALDJH3VZR7hGXuxD5rRM-Dd7R7kfcEwyd90bmtc/edit?usp=drivesdk";
   const hasTransactionRecord = sources.some(s => s.sourceSubtype === "google_sheet" && s.name === "Transaction Record");
 
   const toggleSourceMutation = useMutation({
@@ -1956,50 +1957,55 @@ Example:
             </div>
             
             {/* Info note about Active Sources auto-sync */}
-            <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg" data-testid="info-active-sources-autosync">
-              <Globe className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                  Active Sources Auto-Sync
-                </p>
-                <p className="text-sm text-blue-600 dark:text-blue-400">
-                  <strong>Website URLs</strong> auto-sync every 60 minutes. <strong>Google Sheets</strong> auto-sync every 1 minute for real-time transaction data.
-                  File uploads (Excel, PDF, Word, CSV) and Google Docs do not support auto-sync — re-upload manually if content changes.
-                </p>
+            <div className="rounded-lg p-4" style={{ backgroundColor: "#27272a", color: "white" }} data-testid="info-active-sources-autosync">
+              <div className="flex items-start gap-3">
+                <Globe className="w-5 h-5 shrink-0 mt-0.5" style={{ color: "#d4d4d8" }} />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium" style={{ color: "white" }}>
+                    Active Sources Auto-Sync
+                  </p>
+                  <p className="text-sm" style={{ color: "#d4d4d8" }}>
+                    <strong style={{ color: "white" }}>Website URLs</strong> auto-sync every 60 minutes. <strong style={{ color: "white" }}>Google Sheets</strong> auto-sync every 1 minute for real-time transaction data.
+                    File uploads (Excel, PDF, Word, CSV) and Google Docs do not support auto-sync — re-upload manually if content changes.
+                  </p>
+                </div>
               </div>
             </div>
 
             {!hasTransactionRecord && (
-              <Card className="border-primary/20" data-testid="card-transaction-template">
-                <CardContent className="p-4 sm:p-6">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <Table2 className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold">Transaction Record Template</h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Track customer transactions with auto-sync every 1 minute. AI will automatically verify transaction status when customers ask.
-                      </p>
-                      <div className="flex flex-wrap items-center gap-1 mt-2">
-                        {["Username", "Amount", "Status", "Date", "Time"].map((col) => (
-                          <Badge key={col} variant="secondary" className="text-xs">{col}</Badge>
-                        ))}
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-3"
-                        onClick={() => setIsTransactionTemplateOpen(true)}
-                        data-testid="button-use-template"
-                      >
-                        <Copy className="w-4 h-4 mr-2" />
-                        Use this template
-                      </Button>
-                    </div>
+              <div className="rounded-lg bg-zinc-800 dark:bg-zinc-900 overflow-hidden" data-testid="card-transaction-template">
+                <div className="flex flex-col md:flex-row">
+                  <div className="md:w-48 md:shrink-0">
+                    <img
+                      src={transactionBannerPath}
+                      alt="Transaction Record Template"
+                      className="w-full h-32 md:h-full object-cover"
+                    />
                   </div>
-                </CardContent>
-              </Card>
+                  <div className="p-4 flex-1 min-w-0" style={{ color: "white" }}>
+                    <h3 className="font-semibold" style={{ color: "white" }}>Transaction Record Template</h3>
+                    <p className="text-sm mt-1" style={{ color: "#d4d4d8" }}>
+                      Track customer transactions with auto-sync every 1 minute. AI will automatically verify transaction status when customers ask.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-1 mt-2">
+                      {["Username", "Amount", "Status", "Date", "Time"].map((col) => (
+                        <span key={col} className="text-xs px-2 py-0.5 rounded-md" style={{ backgroundColor: "#3f3f46", color: "#e4e4e7", border: "1px solid #52525b" }}>{col}</span>
+                      ))}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3"
+                      style={{ borderColor: "#52525b", color: "white" }}
+                      onClick={() => setIsTransactionTemplateOpen(true)}
+                      data-testid="button-use-template"
+                    >
+                      <Copy className="w-4 h-4 mr-2" />
+                      Use this template
+                    </Button>
+                  </div>
+                </div>
+              </div>
             )}
 
             <Dialog open={isTransactionTemplateOpen} onOpenChange={(open) => { setIsTransactionTemplateOpen(open); if (!open) setTransactionTemplateUrl(""); }}>

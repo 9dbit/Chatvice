@@ -195,7 +195,7 @@ export default function SourcesPage() {
     },
   });
 
-  const TEMPLATE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTxbotSXWqCCH8br6tr4nsdACdbSV0uhiIbr0trbskpCyrSLTG3JSpWnujboyIOxRM00mmLcrXTiakk/pubhtml";
+  const TEMPLATE_URL = "https://docs.google.com/spreadsheets/d/1uaFvALDJH3VZR7hGXuxD5rRM-Dd7R7kfcEwyd90bmtc/edit?usp=drivesdk";
   const hasTransactionRecord = sources?.some(s => s.sourceSubtype === "google_sheet" && s.name === "Transaction Record");
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);

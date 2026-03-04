@@ -1474,13 +1474,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     saveUninitialized: false,
     rolling: true, // Refresh session on every request to prevent timeout
     store: new MemoryStoreSession({
-      checkPeriod: 86400000,
+      checkPeriod: 7 * 24 * 60 * 60 * 1000,
     }),
     cookie: {
       secure: isProduction,
       httpOnly: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days instead of 24 hours
-      sameSite: isProduction ? "none" : "lax", // "none" required for cross-origin cookies from web.chatvice.app
+      sameSite: isProduction ? "none" : "lax",
     },
   };
   

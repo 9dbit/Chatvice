@@ -24,7 +24,7 @@ Chatvice is a monorepo application structured with `/client`, `/server`, and `/s
 - **Product Offer Messages**: Supervisors and AI can recommend products as rich cards.
 - **Supervisor Panel**: Real-time interface for handling escalated conversations and team activity monitoring.
 - **Admin Menu Order Configuration**: Allows drag-and-drop reordering and enabling/disabling of merchant sidebar menu items, saved globally.
-- **Authentication & Authorization**: Session-based authentication with bcrypt, supporting Merchant and Supervisor roles with role-based permissions. OAuth via Google and GitHub.
+- **Authentication & Authorization**: Session-based authentication with bcrypt, supporting Merchant and Supervisor roles with role-based permissions. OAuth via Google and GitHub. Sessions persist until browser tab closes (no maxAge expiry) — only manual sign-out or closing the browser ends the session.
 - **Simplified Registration Flow**: Requires username, email, password, and email verification.
 - **Multi-Step Profile Wizard**: Guides new merchants through business info, contact info, and domain setup with real-time availability check.
 - **Domain Registration System**: Enforces unique business domains, with automatic normalization and Indonesian error messaging.
