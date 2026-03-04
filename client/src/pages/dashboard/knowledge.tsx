@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Save, Globe, Loader2, Plus, Bot, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, Sparkles, HelpCircle, Edit2, GripVertical, MessageSquare, Lock, Crown, BookOpen, Eye, Search, Filter, FileText, Tag, Clock, Upload, CheckCircle2, Type } from "lucide-react";
+import { Database, Save, Globe, Loader2, Plus, Bot, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, Sparkles, HelpCircle, Edit2, GripVertical, MessageSquare, Lock, Crown, BookOpen, Eye, Search, Filter, FileText, Tag, Clock, Upload, CheckCircle2, Type, Table2 } from "lucide-react";
 import { useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -150,6 +150,8 @@ export default function KnowledgePage() {
   
   // Sources state
   const [isSourceDialogOpen, setIsSourceDialogOpen] = useState(false);
+  const [isTransactionTemplateOpen, setIsTransactionTemplateOpen] = useState(false);
+  const [transactionTemplateUrl, setTransactionTemplateUrl] = useState("");
   const [uploadedFileName, setUploadedFileName] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -457,6 +459,24 @@ export default function KnowledgePage() {
       toast({ title: "Import failed", description: error.message || "Failed to import Google Sheet.", variant: "destructive" });
     },
   });
+
+  const transactionTemplateMutation = useMutation({
+    mutationFn: async (url: string) => {
+      return apiRequest("POST", "/api/sources/google-sheet", { url, name: "Transaction Record" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
+      setIsTransactionTemplateOpen(false);
+      setTransactionTemplateUrl("");
+      toast({ title: "Transaction Record added", description: "Google Sheet template imported. Auto-sync every 1 minute is active." });
+    },
+    onError: () => {
+      toast({ title: "Import failed", description: "Could not import Google Sheet. Make sure you've copied the template and set sharing to 'Anyone with the link can view'.", variant: "destructive" });
+    },
+  });
+
+  const TRANSACTION_TEMPLATE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTxbotSXWqCCH8br6tr4nsdACdbSV0uhiIbr0trbskpCyrSLTG3JSpWnujboyIOxRM00mmLcrXTiakk/pubhtml";
+  const hasTransactionRecord = sources.some(s => s.sourceSubtype === "google_sheet" && s.name === "Transaction Record");
 
   const toggleSourceMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
@@ -1263,7 +1283,7 @@ Example:
               <Badge variant="secondary">{crawledLinks.length} sources</Badge>
             </div>
             <CardDescription>
-              Websites synced to your AI knowledge base. Auto-refreshed every 60 minutes.
+              Websites synced to your AI knowledge base. Auto-refreshed every 60 minutes. Google Sheets sync every 1 minute.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -1943,12 +1963,118 @@ Example:
                   Active Sources Auto-Sync
                 </p>
                 <p className="text-sm text-blue-600 dark:text-blue-400">
-                  Fitur auto-sync (update otomatis setiap 60 menit) hanya tersedia untuk <strong>Website URL</strong>. 
-                  File upload (Excel, PDF, Word, CSV) dan Google Docs/Sheets tidak mendukung auto-sync - 
-                  data harus di-upload ulang secara manual jika ada perubahan.
+                  <strong>Website URLs</strong> auto-sync every 60 minutes. <strong>Google Sheets</strong> auto-sync every 1 minute for real-time transaction data.
+                  File uploads (Excel, PDF, Word, CSV) and Google Docs do not support auto-sync — re-upload manually if content changes.
                 </p>
               </div>
             </div>
+
+            {!hasTransactionRecord && (
+              <Card className="border-primary/20" data-testid="card-transaction-template">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <Table2 className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Transaction Record Template</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Track customer transactions with auto-sync every 1 minute. AI will automatically verify transaction status when customers ask.
+                        </p>
+                        <div className="flex items-center gap-1 mt-2 overflow-x-auto">
+                          {["Username", "Amount", "Status", "Date", "Time"].map((col) => (
+                            <Badge key={col} variant="secondary" className="text-xs shrink-0">{col}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="shrink-0"
+                      onClick={() => setIsTransactionTemplateOpen(true)}
+                      data-testid="button-use-template"
+                    >
+                      <Copy className="w-4 h-4 mr-2" />
+                      Use this template
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <Dialog open={isTransactionTemplateOpen} onOpenChange={(open) => { setIsTransactionTemplateOpen(open); if (!open) setTransactionTemplateUrl(""); }}>
+              <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Use Transaction Record Template</DialogTitle>
+                  <DialogDescription>
+                    Copy the template to your Google Drive, then paste your new sheet URL below.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="rounded-full w-6 h-6 flex items-center justify-center p-0 shrink-0">1</Badge>
+                      <span className="text-sm font-medium">Open & copy the template</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={() => window.open(TRANSACTION_TEMPLATE_URL, "_blank")}
+                      data-testid="button-open-template"
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Open Template in Google Sheets
+                    </Button>
+                    <p className="text-xs text-muted-foreground pl-8">
+                      After opening, go to <strong>File &gt; Make a copy</strong> to save it to your Google Drive.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="rounded-full w-6 h-6 flex items-center justify-center p-0 shrink-0">2</Badge>
+                      <span className="text-sm font-medium">Set sharing to public</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground pl-8">
+                      In your copied sheet, click <strong>Share &gt; Anyone with the link &gt; Viewer</strong>.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="rounded-full w-6 h-6 flex items-center justify-center p-0 shrink-0">3</Badge>
+                      <span className="text-sm font-medium">Paste your sheet URL</span>
+                    </div>
+                    <Input
+                      placeholder="https://docs.google.com/spreadsheets/d/..."
+                      value={transactionTemplateUrl}
+                      onChange={(e) => setTransactionTemplateUrl(e.target.value)}
+                      data-testid="input-template-url"
+                    />
+                  </div>
+                </div>
+                <DialogFooter className="gap-2 sm:gap-0">
+                  <Button variant="outline" onClick={() => { setIsTransactionTemplateOpen(false); setTransactionTemplateUrl(""); }}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => transactionTemplateMutation.mutate(transactionTemplateUrl)}
+                    disabled={!transactionTemplateUrl.includes("docs.google.com/spreadsheets") || transactionTemplateMutation.isPending}
+                    data-testid="button-add-template"
+                  >
+                    {transactionTemplateMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Adding...
+                      </>
+                    ) : (
+                      "Add as Source"
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             {sourcesLoading ? (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
