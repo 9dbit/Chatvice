@@ -18,7 +18,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
-import { FileText, Link2, Type, Globe, Plus, Trash2, Edit, Crown, ArrowUpRight, Download, Upload, CheckCircle2, Loader2, Table2, RefreshCw } from "lucide-react";
+import { FileText, Link2, Type, Globe, Plus, Trash2, Edit, Crown, ArrowUpRight, Download, Upload, CheckCircle2, Loader2, Table2, RefreshCw, ExternalLink, Copy } from "lucide-react";
 import type { Source, Merchant } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 
@@ -35,6 +35,8 @@ export default function SourcesPage() {
   const merchantId = localStorage.getItem("merchantId") || "";
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
+  const [templateSheetUrl, setTemplateSheetUrl] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [uploadedFileName, setUploadedFileName] = useState<string>("");
@@ -177,6 +179,24 @@ export default function SourcesPage() {
       toast({ title: "Import failed", description: "Could not import Google Sheet. Make sure it's publicly accessible.", variant: "destructive" });
     },
   });
+
+  const templateMutation = useMutation({
+    mutationFn: async (url: string) => {
+      return apiRequest("POST", "/api/sources/google-sheet", { url, name: "Transaction Record" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
+      setIsTemplateDialogOpen(false);
+      setTemplateSheetUrl("");
+      toast({ title: "Transaction Record added", description: "Google Sheet template imported successfully. Auto-sync every 1 minute is active." });
+    },
+    onError: () => {
+      toast({ title: "Import failed", description: "Could not import Google Sheet. Make sure you've copied the template and set sharing to 'Anyone with the link can view'.", variant: "destructive" });
+    },
+  });
+
+  const TEMPLATE_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTxbotSXWqCCH8br6tr4nsdACdbSV0uhiIbr0trbskpCyrSLTG3JSpWnujboyIOxRM00mmLcrXTiakk/pubhtml";
+  const hasTransactionRecord = sources?.some(s => s.sourceSubtype === "google_sheet" && s.name === "Transaction Record");
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -547,6 +567,113 @@ export default function SourcesPage() {
           </CardContent>
         </Card>
       </div>
+
+      {!hasTransactionRecord && (
+        <Card className="border-primary/20" data-testid="card-transaction-template">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <Table2 className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Transaction Record Template</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Track customer transactions with auto-sync every 1 minute. AI will automatically verify transaction status when customers ask.
+                  </p>
+                  <div className="flex items-center gap-1 mt-2 overflow-x-auto">
+                    {["Username", "Amount", "Status", "Date", "Time"].map((col) => (
+                      <Badge key={col} variant="secondary" className="text-xs shrink-0">{col}</Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                className="shrink-0"
+                onClick={() => setIsTemplateDialogOpen(true)}
+                data-testid="button-use-template"
+              >
+                <Copy className="w-4 h-4 mr-2" />
+                Use this template
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Dialog open={isTemplateDialogOpen} onOpenChange={(open) => { setIsTemplateDialogOpen(open); if (!open) setTemplateSheetUrl(""); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Use Transaction Record Template</DialogTitle>
+            <DialogDescription>
+              Copy the template to your Google Drive, then paste your new sheet URL below.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="rounded-full w-6 h-6 flex items-center justify-center p-0 shrink-0">1</Badge>
+                <span className="text-sm font-medium">Open & copy the template</span>
+              </div>
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => window.open(TEMPLATE_URL, "_blank")}
+                data-testid="button-open-template"
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Open Template in Google Sheets
+              </Button>
+              <p className="text-xs text-muted-foreground pl-8">
+                After opening, go to <strong>File &gt; Make a copy</strong> to save it to your Google Drive.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="rounded-full w-6 h-6 flex items-center justify-center p-0 shrink-0">2</Badge>
+                <span className="text-sm font-medium">Set sharing to public</span>
+              </div>
+              <p className="text-xs text-muted-foreground pl-8">
+                In your copied sheet, click <strong>Share &gt; Anyone with the link &gt; Viewer</strong>.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="rounded-full w-6 h-6 flex items-center justify-center p-0 shrink-0">3</Badge>
+                <span className="text-sm font-medium">Paste your sheet URL</span>
+              </div>
+              <Input
+                placeholder="https://docs.google.com/spreadsheets/d/..."
+                value={templateSheetUrl}
+                onChange={(e) => setTemplateSheetUrl(e.target.value)}
+                data-testid="input-template-url"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => { setIsTemplateDialogOpen(false); setTemplateSheetUrl(""); }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => templateMutation.mutate(templateSheetUrl)}
+              disabled={!templateSheetUrl.includes("docs.google.com/spreadsheets") || templateMutation.isPending}
+              data-testid="button-add-template"
+            >
+              {templateMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                "Add as Source"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
