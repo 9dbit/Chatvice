@@ -1972,32 +1972,31 @@ Example:
             {!hasTransactionRecord && (
               <Card className="border-primary/20" data-testid="card-transaction-template">
                 <CardContent className="p-4 sm:p-6">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                        <Table2 className="w-5 h-5 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold">Transaction Record Template</h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Track customer transactions with auto-sync every 1 minute. AI will automatically verify transaction status when customers ask.
-                        </p>
-                        <div className="flex items-center gap-1 mt-2 overflow-x-auto">
-                          {["Username", "Amount", "Status", "Date", "Time"].map((col) => (
-                            <Badge key={col} variant="secondary" className="text-xs shrink-0">{col}</Badge>
-                          ))}
-                        </div>
-                      </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <Table2 className="w-5 h-5 text-primary" />
                     </div>
-                    <Button
-                      variant="outline"
-                      className="shrink-0"
-                      onClick={() => setIsTransactionTemplateOpen(true)}
-                      data-testid="button-use-template"
-                    >
-                      <Copy className="w-4 h-4 mr-2" />
-                      Use this template
-                    </Button>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-semibold">Transaction Record Template</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Track customer transactions with auto-sync every 1 minute. AI will automatically verify transaction status when customers ask.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-1 mt-2">
+                        {["Username", "Amount", "Status", "Date", "Time"].map((col) => (
+                          <Badge key={col} variant="secondary" className="text-xs">{col}</Badge>
+                        ))}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-3"
+                        onClick={() => setIsTransactionTemplateOpen(true)}
+                        data-testid="button-use-template"
+                      >
+                        <Copy className="w-4 h-4 mr-2" />
+                        Use this template
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

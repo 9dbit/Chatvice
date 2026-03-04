@@ -284,7 +284,7 @@ function Navbar() {
     { labelKey: "nav.api", href: "/api-docs" },
     { labelKey: "nav.faq", href: "/faq" },
     { labelKey: "nav.about", href: "/about" },
-    { labelKey: "nav.chatPlatform", href: "https://chat.chatvice.app", external: true },
+    { labelKey: "nav.chatPlatform", href: "https://web.chatvice.app", external: true },
   ];
 
   return (
@@ -953,7 +953,7 @@ function HeroSection() {
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <a 
-                  href="https://chat.chatvice.app" 
+                  href="https://web.chatvice.app" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   data-testid="link-chat-platform-cta"
