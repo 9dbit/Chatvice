@@ -588,6 +588,56 @@ async function runGoogleSheetFastSync(): Promise<void> {
   }
 }
 
+export async function syncSingleGoogleSheetSource(sourceId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const source = await storage.getSource(sourceId);
+    if (!source || source.sourceSubtype !== "google_sheet") {
+      return { success: false, error: "Source not found or not a Google Sheet" };
+    }
+    if (!source.url || !source.agentId) {
+      return { success: false, error: "Source missing URL or agent assignment" };
+    }
+
+    await storage.updateSource(source.id, { syncStatus: "syncing" });
+
+    const result = await fetchGoogleSheet(source.url);
+    if (!result.success) {
+      await storage.updateSource(source.id, { syncStatus: "error" });
+      return { success: false, error: result.error || "Failed to fetch Google Sheet" };
+    }
+
+    const newContent = result.content || "";
+
+    await storage.updateSource(source.id, {
+      content: newContent,
+      charCount: newContent.length,
+      syncStatus: "idle",
+      lastSyncedAt: new Date(),
+    });
+
+    const agentId = source.agentId;
+    const sourceName = source.name;
+    const existingKnowledge = await storage.getKnowledgeByAgent(agentId);
+    const existingContent = existingKnowledge?.content || "";
+    const sourceMarker = `\n\n---\n[Source: ${sourceName}]\n`;
+    const escapedName = sourceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const updatedKnowledge = existingContent.includes(`[Source: ${sourceName}]`)
+      ? existingContent.replace(
+          new RegExp(`\\n\\n---\\n\\[Source: ${escapedName}\\][\\s\\S]*?(?=\\n\\n---\\n\\[Source:|$)`, 'g'),
+          `${sourceMarker}${newContent}`
+        )
+      : existingContent + sourceMarker + newContent;
+
+    await storage.setKnowledge(source.merchantId, updatedKnowledge, agentId);
+    processKnowledgeBase(source.merchantId, updatedKnowledge, agentId).catch(() => {});
+
+    return { success: true };
+  } catch (error: any) {
+    await storage.updateSource(sourceId, { syncStatus: "error" }).catch(() => {});
+    return { success: false, error: error.message || "Sync failed" };
+  }
+}
+
 let googleSheetFastSyncRunning = false;
 
 async function runGoogleSheetFastSyncJob(): Promise<void> {
@@ -627,6 +677,6 @@ function startBackgroundSync(): void {
   setInterval(() => runAllBackgroundJobs(), 60 * 60 * 1000);
   console.log("[sync] Background sync scheduler started (60 min interval)");
 
-  setInterval(() => runGoogleSheetFastSyncJob(), 60 * 1000);
-  console.log("[fast-sync] Google Sheet fast sync scheduler started (1 min interval)");
+  setInterval(() => runGoogleSheetFastSyncJob(), 10 * 1000);
+  console.log("[fast-sync] Google Sheet fast sync scheduler started (10s interval)");
 }

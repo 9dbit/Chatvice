@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Save, Globe, Loader2, Plus, Bot, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, Sparkles, HelpCircle, Edit2, GripVertical, MessageSquare, Lock, Crown, BookOpen, Eye, Search, Filter, FileText, Tag, Clock, Upload, CheckCircle2, Type, Table2 } from "lucide-react";
+import { Database, Save, Globe, Loader2, Plus, Bot, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, Sparkles, HelpCircle, Edit2, GripVertical, MessageSquare, Lock, Crown, BookOpen, Eye, Search, Filter, FileText, Tag, Clock, Upload, CheckCircle2, Type, Table2, Zap, Pencil } from "lucide-react";
 import { useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -106,6 +106,53 @@ function getCategoryLabel(businessType: string, category: string) {
 function getBusinessTypeLabel(businessType: string) {
   const found = BUSINESS_TYPES.find(t => t.value === businessType);
   return found?.label || businessType;
+}
+
+function SourceNameEditor({ sourceId, name, onSave }: { sourceId: string; name: string; onSave: (name: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setValue(name); }, [name]);
+  useEffect(() => { if (editing && inputRef.current) inputRef.current.focus(); }, [editing]);
+
+  const handleSave = () => {
+    setEditing(false);
+    const trimmed = value.trim();
+    if (trimmed && trimmed !== name) {
+      onSave(trimmed);
+    } else {
+      setValue(name);
+    }
+  };
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={(e) => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") { setValue(name); setEditing(false); } }}
+        className="text-sm font-semibold bg-transparent border-b outline-none w-full"
+        style={{ color: "white", borderColor: "#6366f1" }}
+        data-testid={`input-source-name-${sourceId}`}
+      />
+    );
+  }
+
+  return (
+    <button
+      onClick={() => setEditing(true)}
+      className="flex items-center gap-1 text-sm font-semibold truncate text-left hover:opacity-80 cursor-pointer bg-transparent border-none p-0"
+      style={{ color: "white" }}
+      title="Click to edit name"
+      data-testid={`button-edit-name-${sourceId}`}
+    >
+      <span className="truncate">{name}</span>
+      <Pencil className="w-3 h-3 shrink-0 opacity-50" />
+    </button>
+  );
 }
 
 export default function KnowledgePage() {
@@ -264,6 +311,7 @@ export default function KnowledgePage() {
   const { data: sources = [], isLoading: sourcesLoading } = useQuery<Source[]>({
     queryKey: ["/api/sources"],
     enabled: !!merchantId,
+    refetchInterval: 5000,
   });
 
   // Help Articles queries
@@ -515,6 +563,38 @@ export default function KnowledgePage() {
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message || "Failed to request update.", variant: "destructive" });
+    },
+  });
+
+  const [fetchingSourceIds, setFetchingSourceIds] = useState<Set<string>>(new Set());
+
+  const manualFetchMutation = useMutation({
+    mutationFn: async (id: string) => {
+      setFetchingSourceIds(prev => new Set(prev).add(id));
+      const res = await apiRequest("POST", `/api/sources/${id}/fetch`);
+      return res.json();
+    },
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
+      setFetchingSourceIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+      toast({ title: "Fetched successfully", description: "Source data has been updated." });
+    },
+    onError: (error: any, id) => {
+      setFetchingSourceIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+      toast({ title: "Fetch failed", description: error.message || "Could not fetch source data.", variant: "destructive" });
+    },
+  });
+
+  const updateNameMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const res = await apiRequest("PATCH", `/api/sources/${id}/name`, { name });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to update name.", variant: "destructive" });
     },
   });
 
@@ -1000,6 +1080,31 @@ export default function KnowledgePage() {
       setIsSourceDialogOpen(true);
     }
   };
+
+  const SYNC_INTERVAL_SECONDS = 10;
+
+  const getCountdown = (lastSyncedAt: string | Date | null | undefined): number => {
+    if (!lastSyncedAt) return 0;
+    const lastSync = new Date(lastSyncedAt).getTime();
+    const nextSync = lastSync + SYNC_INTERVAL_SECONDS * 1000;
+    const remaining = Math.max(0, Math.ceil((nextSync - Date.now()) / 1000));
+    return remaining;
+  };
+
+  const getTimeAgo = (date: string | Date | null | undefined): string => {
+    if (!date) return "Never";
+    const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+    if (seconds < 5) return "Just now";
+    if (seconds < 60) return `${seconds}s ago`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    return `${Math.floor(seconds / 3600)}h ago`;
+  };
+
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const getSourceTypeIcon = (type: string) => {
     switch (type) {
@@ -1965,48 +2070,46 @@ Example:
                     Active Sources Auto-Sync
                   </p>
                   <p className="text-sm" style={{ color: "#d4d4d8" }}>
-                    <strong style={{ color: "white" }}>Website URLs</strong> auto-sync every 60 minutes. <strong style={{ color: "white" }}>Google Sheets</strong> auto-sync every 1 minute for real-time transaction data.
+                    <strong style={{ color: "white" }}>Website URLs</strong> auto-sync every 60 minutes. <strong style={{ color: "white" }}>Google Sheets</strong> auto-sync every 10 seconds for real-time data.
                     File uploads (Excel, PDF, Word, CSV) and Google Docs do not support auto-sync — re-upload manually if content changes.
                   </p>
                 </div>
               </div>
             </div>
 
-            {!hasTransactionRecord && (
-              <div className="rounded-lg bg-zinc-800 dark:bg-zinc-900 overflow-hidden" data-testid="card-transaction-template">
-                <div className="flex flex-col md:flex-row">
-                  <div className="md:w-48 md:shrink-0">
-                    <img
-                      src={transactionBannerPath}
-                      alt="Transaction Record Template"
-                      className="w-full h-32 md:h-full object-cover"
-                    />
+            <div className="rounded-lg bg-zinc-800 dark:bg-zinc-900 overflow-hidden" data-testid="card-transaction-template">
+              <div className="flex flex-col md:flex-row">
+                <div className="md:w-48 md:shrink-0">
+                  <img
+                    src={transactionBannerPath}
+                    alt="Transaction Record Template"
+                    className="w-full h-32 md:h-full object-cover"
+                  />
+                </div>
+                <div className="p-4 flex-1 min-w-0" style={{ color: "white" }}>
+                  <h3 className="font-semibold" style={{ color: "white" }}>Transaction Record Template</h3>
+                  <p className="text-sm mt-1" style={{ color: "#d4d4d8" }}>
+                    Track customer transactions with auto-sync every 10 seconds. AI will automatically verify transaction status when customers ask. You can add multiple Google Sheet sources.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-1 mt-2">
+                    {["Username", "Amount", "Status", "Date", "Time"].map((col) => (
+                      <span key={col} className="text-xs px-2 py-0.5 rounded-md" style={{ backgroundColor: "#3f3f46", color: "#e4e4e7", border: "1px solid #52525b" }}>{col}</span>
+                    ))}
                   </div>
-                  <div className="p-4 flex-1 min-w-0" style={{ color: "white" }}>
-                    <h3 className="font-semibold" style={{ color: "white" }}>Transaction Record Template</h3>
-                    <p className="text-sm mt-1" style={{ color: "#d4d4d8" }}>
-                      Track customer transactions with auto-sync every 1 minute. AI will automatically verify transaction status when customers ask.
-                    </p>
-                    <div className="flex flex-wrap items-center gap-1 mt-2">
-                      {["Username", "Amount", "Status", "Date", "Time"].map((col) => (
-                        <span key={col} className="text-xs px-2 py-0.5 rounded-md" style={{ backgroundColor: "#3f3f46", color: "#e4e4e7", border: "1px solid #52525b" }}>{col}</span>
-                      ))}
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-3"
-                      style={{ borderColor: "#52525b", color: "white" }}
-                      onClick={() => setIsTransactionTemplateOpen(true)}
-                      data-testid="button-use-template"
-                    >
-                      <Copy className="w-4 h-4 mr-2" />
-                      Use this template
-                    </Button>
-                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    style={{ borderColor: "#52525b", color: "white" }}
+                    onClick={() => setIsTransactionTemplateOpen(true)}
+                    data-testid="button-use-template"
+                  >
+                    <Copy className="w-4 h-4 mr-2" />
+                    Use this template
+                  </Button>
                 </div>
               </div>
-            )}
+            </div>
 
             <Dialog open={isTransactionTemplateOpen} onOpenChange={(open) => { setIsTransactionTemplateOpen(open); if (!open) setTransactionTemplateUrl(""); }}>
               <DialogContent className="sm:max-w-lg">
@@ -2111,7 +2214,124 @@ Example:
               </Card>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {sources.map((source) => (
+                {sources.map((source) => {
+                  const isGoogleSheet = source.sourceSubtype === "google_sheet";
+                  const isFetching = fetchingSourceIds.has(source.id) || source.syncStatus === "syncing";
+                  const countdown = isGoogleSheet ? getCountdown(source.lastSyncedAt) : 0;
+                  const countdownProgress = isGoogleSheet ? ((SYNC_INTERVAL_SECONDS - countdown) / SYNC_INTERVAL_SECONDS) * 100 : 0;
+
+                  return isGoogleSheet ? (
+                    <div
+                      key={source.id}
+                      className={`rounded-lg overflow-hidden relative ${!(source.isActive ?? true) ? "opacity-60" : ""}`}
+                      style={{ backgroundColor: "#27272a" }}
+                      data-testid={`source-card-${source.id}`}
+                    >
+                      <div className="p-4 space-y-3" style={{ color: "white" }}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="relative flex h-3 w-3 shrink-0">
+                              {isFetching ? (
+                                <Loader2 className="w-3 h-3 animate-spin" style={{ color: "#22c55e" }} />
+                              ) : (source.isActive ?? true) ? (
+                                <>
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: "#22c55e" }}></span>
+                                  <span className="relative inline-flex rounded-full h-3 w-3" style={{ backgroundColor: "#22c55e" }}></span>
+                                </>
+                              ) : (
+                                <span className="relative inline-flex rounded-full h-3 w-3" style={{ backgroundColor: "#ef4444" }}></span>
+                              )}
+                            </span>
+                            <SourceNameEditor
+                              sourceId={source.id}
+                              name={source.name}
+                              onSave={(name) => updateNameMutation.mutate({ id: source.id, name })}
+                            />
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Switch
+                              checked={source.isActive ?? true}
+                              onCheckedChange={(checked) => toggleSourceMutation.mutate({ id: source.id, isActive: checked })}
+                              data-testid={`switch-source-${source.id}`}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 text-xs" style={{ color: "#a1a1aa" }}>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            Last: {getTimeAgo(source.lastSyncedAt)}
+                          </span>
+                          {(source.isActive ?? true) && countdown > 0 && !isFetching && (
+                            <span className="flex items-center gap-1">
+                              <Zap className="w-3 h-3" style={{ color: "#facc15" }} />
+                              Next in {countdown}s
+                            </span>
+                          )}
+                          {isFetching && (
+                            <span className="flex items-center gap-1" style={{ color: "#22c55e" }}>
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              Fetching...
+                            </span>
+                          )}
+                        </div>
+
+                        {source.url && (
+                          <p className="text-xs truncate" style={{ color: "#71717a" }}>{source.url}</p>
+                        )}
+
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            style={{ borderColor: "#52525b", color: "white" }}
+                            onClick={() => manualFetchMutation.mutate(source.id)}
+                            disabled={isFetching}
+                            data-testid={`button-fetch-${source.id}`}
+                          >
+                            {isFetching ? (
+                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                            ) : (
+                              <RefreshCw className="w-3 h-3 mr-1" />
+                            )}
+                            Fetch
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            asChild
+                          >
+                            <a href={source.url || "#"} target="_blank" rel="noopener noreferrer" style={{ color: "#a1a1aa" }}>
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            style={{ color: "#a1a1aa" }}
+                            onClick={() => {
+                              if (confirm("Delete this source?")) {
+                                deleteSourceMutation.mutate(source.id);
+                              }
+                            }}
+                            data-testid={`button-delete-source-${source.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="h-1 w-full" style={{ backgroundColor: "#3f3f46" }}>
+                        <div
+                          className="h-full transition-all duration-1000 ease-linear"
+                          style={{
+                            width: `${isFetching ? 100 : countdownProgress}%`,
+                            backgroundColor: isFetching ? "#22c55e" : "#6366f1",
+                            ...(isFetching ? { animation: "pulse 1s ease-in-out infinite" } : {}),
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
                   <Card key={source.id} className={!(source.isActive ?? true) ? "opacity-60" : ""}>
                     <CardHeader className="pb-2">
                       <div className="flex items-start justify-between gap-2">
@@ -2120,7 +2340,6 @@ Example:
                           <CardTitle className="text-base truncate">{source.name}</CardTitle>
                         </div>
                         <div className="flex items-center gap-1">
-                          {/* Status indicator dot - green animated for active, red for disabled */}
                           <span className="relative flex h-2.5 w-2.5" title={(source.isActive ?? true) ? "Active" : "Disabled"}>
                             {(source.isActive ?? true) ? (
                               <>
@@ -2131,7 +2350,7 @@ Example:
                               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
                             )}
                           </span>
-                          {source.isSyncing && (
+                          {source.syncStatus === "syncing" && (
                             <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                           )}
                         </div>
@@ -2169,11 +2388,11 @@ Example:
                             variant="ghost"
                             size="icon"
                             onClick={() => requestUpdateMutation.mutate(source.id)}
-                            disabled={requestUpdateMutation.isPending || source.isSyncing}
+                            disabled={requestUpdateMutation.isPending || source.syncStatus === "syncing"}
                             title="Request update"
                             data-testid={`button-update-source-${source.id}`}
                           >
-                            <RefreshCw className={`w-4 h-4 ${source.isSyncing ? "animate-spin" : ""}`} />
+                            <RefreshCw className={`w-4 h-4 ${source.syncStatus === "syncing" ? "animate-spin" : ""}`} />
                           </Button>
                         )}
                         <Button
@@ -2191,7 +2410,8 @@ Example:
                       </div>
                     </CardFooter>
                   </Card>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

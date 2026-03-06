@@ -14764,8 +14764,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         return res.status(400).json({ error: "Source has no URL to fetch" });
       }
       
-      // Mark as syncing
-      await storage.updateSource(req.params.id, { isSyncing: true });
+      await storage.updateSource(req.params.id, { syncStatus: "syncing" });
       
       const sourceId = req.params.id;
       
@@ -14788,8 +14787,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
               content,
               charCount: content.length,
               lastSyncedAt: new Date(),
-              isSyncing: false,
-              syncError: null,
+              syncStatus: "idle",
             });
             
             if (source.agentId) {
@@ -14816,14 +14814,12 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
             }
           } else {
             await storage.updateSource(sourceId, {
-              isSyncing: false,
-              syncError: isGoogleSheet ? "No content extracted from Google Sheet" : "No content extracted from website",
+              syncStatus: "error",
             });
           }
         } catch (error: any) {
           await storage.updateSource(sourceId, {
-            isSyncing: false,
-            syncError: error.message || "Fetching failed",
+            syncStatus: "error",
           });
         }
       })();
@@ -14831,6 +14827,47 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       res.json({ success: true, message: "Update started" });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/sources/:id/fetch", requireMerchant, async (req, res) => {
+    try {
+      const source = await storage.getSource(req.params.id);
+      if (!source || source.merchantId !== req.session.merchantId) {
+        return res.status(404).json({ error: "Source not found" });
+      }
+      if (source.sourceSubtype !== "google_sheet") {
+        return res.status(400).json({ error: "Only Google Sheet sources support manual fetch" });
+      }
+
+      const { syncSingleGoogleSheetSource } = await import("./index");
+      const result = await syncSingleGoogleSheetSource(source.id);
+
+      if (!result.success) {
+        return res.status(500).json({ error: result.error });
+      }
+
+      const updated = await storage.getSource(source.id);
+      res.json({ success: true, source: updated });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Fetch failed" });
+    }
+  });
+
+  app.patch("/api/sources/:id/name", requireMerchant, async (req, res) => {
+    try {
+      const source = await storage.getSource(req.params.id);
+      if (!source || source.merchantId !== req.session.merchantId) {
+        return res.status(404).json({ error: "Source not found" });
+      }
+      const { name } = req.body;
+      if (!name || typeof name !== "string" || !name.trim()) {
+        return res.status(400).json({ error: "Name is required" });
+      }
+      const updated = await storage.updateSource(source.id, { name: name.trim() });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Update failed" });
     }
   });
 
