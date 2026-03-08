@@ -79,7 +79,7 @@ interface PendingMessage {
 const generateClientId = () => `client_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
 interface ParsedPart {
-  type: "text" | "button" | "link";
+  type: "text" | "button" | "link" | "input_username";
   content: string;
   action?: string;
   url?: string;
@@ -87,7 +87,7 @@ interface ParsedPart {
 
 function parseMessageContent(content: string): ParsedPart[] {
   const parts: ParsedPart[] = [];
-  const regex = /\[BTN:([^\]:]+)(?::([^\]]+))?\]|\[LINK:([^\]:]+):([^\]]+)\]/g;
+  const regex = /\[BTN:([^\]:]+)(?::([^\]]+))?\]|\[LINK:([^\]:]+):([^\]]+)\]|\[INPUT_USERNAME\]/g;
   
   let lastIndex = 0;
   let match;
@@ -100,7 +100,12 @@ function parseMessageContent(content: string): ParsedPart[] {
       }
     }
     
-    if (match[1]) {
+    if (match[0] === "[INPUT_USERNAME]") {
+      parts.push({
+        type: "input_username",
+        content: "Username",
+      });
+    } else if (match[1]) {
       parts.push({ 
         type: "button", 
         content: match[1], 
@@ -216,6 +221,91 @@ function LinkPreview({ url }: { url: string }) {
         </div>
       )}
     </a>
+  );
+}
+
+function UsernameInlineInput({ inputKey, submittedValue, widgetIsDark, primaryColor, onSubmit, disabled }: {
+  inputKey: string;
+  submittedValue?: string;
+  widgetIsDark: boolean;
+  primaryColor: string;
+  onSubmit: (username: string) => void;
+  disabled: boolean;
+}) {
+  const [value, setValue] = useState("");
+  const inputFieldRef = useRef<HTMLInputElement>(null);
+
+  const handleSubmit = () => {
+    const trimmed = value.trim();
+    if (!trimmed || submittedValue || disabled) return;
+    onSubmit(trimmed);
+  };
+
+  if (submittedValue) {
+    return (
+      <div
+        className="mt-2 flex items-center gap-2 px-3 py-2 rounded-lg text-xs"
+        style={{
+          backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
+          border: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'}`,
+        }}
+        data-testid={`input-username-submitted-${inputKey}`}
+      >
+        <User className="w-3.5 h-3.5 shrink-0" style={{ color: primaryColor }} />
+        <span style={{ color: widgetIsDark ? '#9ca3af' : '#6b7280' }}>Username:</span>
+        <span className="font-medium" style={{ color: widgetIsDark ? '#ffffff' : '#111827' }}>{submittedValue}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="mt-2 rounded-lg overflow-hidden"
+      style={{
+        backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+        border: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+      }}
+      data-testid={`input-username-container-${inputKey}`}
+    >
+      <div className="flex items-center gap-2 px-3 py-2">
+        <User className="w-3.5 h-3.5 shrink-0" style={{ color: primaryColor }} />
+        <span className="text-xs font-medium shrink-0" style={{ color: widgetIsDark ? '#d1d5db' : '#374151' }}>
+          Username:
+        </span>
+        <input
+          ref={inputFieldRef}
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleSubmit();
+            }
+          }}
+          placeholder="Masukkan username..."
+          className="flex-1 bg-transparent border-none outline-none text-xs min-w-0"
+          style={{
+            color: widgetIsDark ? '#ffffff' : '#111827',
+            caretColor: primaryColor,
+          }}
+          disabled={disabled}
+          data-testid={`input-username-field-${inputKey}`}
+        />
+        <button
+          onClick={handleSubmit}
+          disabled={!value.trim() || disabled}
+          className="shrink-0 rounded-full p-1 transition-opacity"
+          style={{
+            backgroundColor: value.trim() ? primaryColor : (widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'),
+            opacity: value.trim() && !disabled ? 1 : 0.5,
+          }}
+          data-testid={`button-username-submit-${inputKey}`}
+        >
+          <Send className="w-3 h-3" style={{ color: value.trim() ? getContrastColor(primaryColor) : (widgetIsDark ? '#9ca3af' : '#6b7280') }} />
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -413,6 +503,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const [phoneError, setPhoneError] = useState("");
   const [emailValue, setEmailValue] = useState("");
   const [emailError, setEmailError] = useState("");
+  const [submittedUsernameInputs, setSubmittedUsernameInputs] = useState<Record<string, string>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Reactions state
@@ -2861,6 +2952,28 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                                 </a>
                                 {part.url && <LinkPreview url={part.url} />}
                               </span>
+                            );
+                          }
+                          if (part.type === "input_username") {
+                            const inputKey = `${msg.id || index}_${partIndex}`;
+                            const existingValue = submittedUsernameInputs[inputKey];
+                            return (
+                              <UsernameInlineInput
+                                key={partIndex}
+                                inputKey={inputKey}
+                                submittedValue={existingValue}
+                                widgetIsDark={widgetIsDark}
+                                primaryColor={primaryColor}
+                                onSubmit={(username: string) => {
+                                  setSubmittedUsernameInputs(prev => ({ ...prev, [inputKey]: username }));
+                                  const userMessage = `Username: ${username}`;
+                                  const clientId = generateClientId();
+                                  setPendingMessages(prev => [...prev, { clientId, from: "user", content: userMessage, timestamp: new Date() }]);
+                                  sendMessageMutation.mutate({ userMessage, clientId });
+                                  resetInactivityTimer();
+                                }}
+                                disabled={sendMessageMutation.isPending}
+                              />
                             );
                           }
                           return null;

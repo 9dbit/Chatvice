@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Save, Globe, Loader2, Plus, Bot, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, Sparkles, HelpCircle, Edit2, GripVertical, MessageSquare, Lock, Crown, BookOpen, Eye, Search, Filter, FileText, Tag, Clock, Upload, CheckCircle2, Type, Table2, Zap, Pencil, Link2, Unlink, Power } from "lucide-react";
+import { Database, Save, Globe, Loader2, Plus, Bot, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, ChevronRight, Sparkles, HelpCircle, Edit2, GripVertical, MessageSquare, Lock, Crown, BookOpen, Eye, Search, Filter, FileText, Tag, Clock, Upload, CheckCircle2, Type, Table2, Zap, Pencil, Link2, Unlink, Power } from "lucide-react";
 import { useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,6 +23,7 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { Merchant, CrawledLink, Agent, SuggestedQuestion, KnowledgebaseArticle, Source, KnowledgeEntry } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 
@@ -1364,7 +1365,7 @@ export default function KnowledgePage() {
               data-testid="button-add-entry"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Add Entry
+              Add Knowledge
             </Button>
           </div>
         </div>
@@ -1415,25 +1416,13 @@ export default function KnowledgePage() {
         )}
 
         {entriesLoading ? (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <Skeleton className="h-40 w-full" />
             <Skeleton className="h-40 w-full" />
             <Skeleton className="h-40 w-full" />
           </div>
-        ) : knowledgeEntries.length === 0 && !isAddingEntry ? (
-          <Card>
-            <CardContent className="py-8 text-center">
-              <Database className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-50" />
-              <p className="text-sm text-muted-foreground mb-3">
-                No knowledge entries yet. Add your first entry to start training your AI.
-              </p>
-              <Button onClick={() => setIsAddingEntry(true)} disabled={!selectedAgentId} data-testid="button-add-first-entry">
-                <Plus className="w-4 h-4 mr-2" />
-                Add First Entry
-              </Button>
-            </CardContent>
-          </Card>
         ) : (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {knowledgeEntries.map((entry) => {
               const localContent = entryContents[entry.id] ?? entry.content;
               const localName = entryNames[entry.id] ?? entry.name;
@@ -1441,85 +1430,93 @@ export default function KnowledgePage() {
               const hasChanges = localContent !== entry.content || localName !== entry.name;
 
               return (
-                <Card key={entry.id} className={`transition-opacity ${!entry.isActive ? "opacity-60" : ""}`} data-testid={`card-entry-${entry.id}`}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <Input
-                          value={localName}
-                          onChange={(e) => setEntryNames(prev => ({ ...prev, [entry.id]: e.target.value }))}
-                          className="font-semibold border-none shadow-none focus-visible:ring-1 h-8 text-base"
-                          data-testid={`input-entry-name-${entry.id}`}
-                        />
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {entry.isLinked && (
-                          <Badge variant="secondary" className="text-[10px] gap-1">
-                            <Link2 className="w-3 h-3" />
-                            All Agents
-                          </Badge>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => toggleEntryLinkMutation.mutate({ id: entry.id, agentId: selectedAgentId || undefined })}
-                          title={entry.isLinked ? "Unlink from all agents (make agent-specific)" : "Link to all agents (share across all)"}
-                          data-testid={`button-toggle-link-${entry.id}`}
-                        >
-                          {entry.isLinked ? <Link2 className="w-4 h-4 text-primary" /> : <Unlink className="w-4 h-4 text-muted-foreground" />}
-                        </Button>
-                        <div className="flex items-center gap-1.5">
-                          <Switch
-                            checked={entry.isActive}
-                            onCheckedChange={(checked) => toggleEntryActiveMutation.mutate({ id: entry.id, isActive: checked })}
-                            data-testid={`switch-entry-active-${entry.id}`}
-                          />
-                          <span className="text-xs text-muted-foreground">{entry.isActive ? "Active" : "Inactive"}</span>
+                <Collapsible key={entry.id} defaultOpen={true} asChild>
+                  <Card className={`transition-opacity ${!entry.isActive ? "opacity-60" : ""} flex flex-col`} data-testid={`card-entry-${entry.id}`}>
+                    <CollapsibleTrigger asChild>
+                      <CardHeader className="pb-2 cursor-pointer group">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-90 sm:hidden" />
+                            <Input
+                              value={localName}
+                              onChange={(e) => setEntryNames(prev => ({ ...prev, [entry.id]: e.target.value }))}
+                              onClick={(e) => e.stopPropagation()}
+                              className="font-semibold border-none shadow-none focus-visible:ring-1 h-8 text-base"
+                              data-testid={`input-entry-name-${entry.id}`}
+                            />
+                          </div>
+                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            {entry.isLinked && (
+                              <Badge variant="secondary" className="text-[10px] gap-1">
+                                <Link2 className="w-3 h-3" />
+                                All Agents
+                              </Badge>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => toggleEntryLinkMutation.mutate({ id: entry.id, agentId: selectedAgentId || undefined })}
+                              title={entry.isLinked ? "Unlink from all agents (make agent-specific)" : "Link to all agents (share across all)"}
+                              data-testid={`button-toggle-link-${entry.id}`}
+                            >
+                              {entry.isLinked ? <Link2 className="w-4 h-4 text-primary" /> : <Unlink className="w-4 h-4 text-muted-foreground" />}
+                            </Button>
+                            <div className="flex items-center gap-1.5">
+                              <Switch
+                                checked={entry.isActive}
+                                onCheckedChange={(checked) => toggleEntryActiveMutation.mutate({ id: entry.id, isActive: checked })}
+                                data-testid={`switch-entry-active-${entry.id}`}
+                              />
+                              <span className="text-xs text-muted-foreground">{entry.isActive ? "Active" : "Inactive"}</span>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeleteConfirmId(entry.id)}
+                              data-testid={`button-delete-entry-${entry.id}`}
+                            >
+                              <Trash2 className="w-4 h-4 text-muted-foreground" />
+                            </Button>
+                          </div>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDeleteConfirmId(entry.id)}
-                          data-testid={`button-delete-entry-${entry.id}`}
-                        >
-                          <Trash2 className="w-4 h-4 text-muted-foreground" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <Textarea
-                      placeholder="Enter knowledge content for this entry..."
-                      value={localContent}
-                      onChange={(e) => setEntryContents(prev => ({ ...prev, [entry.id]: e.target.value }))}
-                      className="min-h-[150px] resize-none"
-                      disabled={!entry.isActive}
-                      data-testid={`textarea-entry-content-${entry.id}`}
-                    />
-                    <div className="flex items-center justify-between mt-2">
-                      <p className="text-xs text-muted-foreground">
-                        {localContent.length} characters
-                      </p>
-                      <Button
-                        size="sm"
-                        onClick={() => saveEntryMutation.mutate({
-                          id: entry.id,
-                          content: localContent,
-                          name: localName,
-                        })}
-                        disabled={isSaving || !hasChanges}
-                        data-testid={`button-save-entry-${entry.id}`}
-                      >
-                        {isSaving ? (
-                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                        ) : (
-                          <Save className="w-4 h-4 mr-1" />
-                        )}
-                        {isSaving ? "Saving..." : "Save"}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                      </CardHeader>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <CardContent className="pt-0">
+                        <Textarea
+                          placeholder="Enter knowledge content for this entry..."
+                          value={localContent}
+                          onChange={(e) => setEntryContents(prev => ({ ...prev, [entry.id]: e.target.value }))}
+                          className="min-h-[300px] resize-none text-xs sm:text-sm"
+                          disabled={!entry.isActive}
+                          data-testid={`textarea-entry-content-${entry.id}`}
+                        />
+                        <div className="flex items-center justify-between mt-2">
+                          <p className="text-xs text-muted-foreground">
+                            {localContent.length} characters
+                          </p>
+                          <Button
+                            size="sm"
+                            onClick={() => saveEntryMutation.mutate({
+                              id: entry.id,
+                              content: localContent,
+                              name: localName,
+                            })}
+                            disabled={isSaving || !hasChanges}
+                            data-testid={`button-save-entry-${entry.id}`}
+                          >
+                            {isSaving ? (
+                              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                            ) : (
+                              <Save className="w-4 h-4 mr-1" />
+                            )}
+                            {isSaving ? "Saving..." : "Save"}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </CollapsibleContent>
+                  </Card>
+                </Collapsible>
               );
             })}
           </div>

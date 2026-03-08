@@ -701,7 +701,8 @@ When a customer contacts about deposit or withdraw issues, follow this workflow:
 STEP 1 - Identify the issue type:
   - Is this about a DEPOSIT (top up, payment, transfer masuk) or WITHDRAW (penarikan, tarik saldo, pencairan)?
 STEP 2 - Ask for username:
-  - If the customer has NOT provided their username/ID, ask: "Boleh saya tahu username Anda?"
+  - If the customer has NOT provided their username/ID, ask them to enter it using the special input tag: "Silakan masukkan username Anda di bawah ini:\n[INPUT_USERNAME]"
+  - IMPORTANT: Always use [INPUT_USERNAME] tag when asking for the customer's username. This will render a special input field in the chat widget.
   - For DEPOSIT complaints, also ask for proof of transfer: "Mohon kirimkan bukti transfer Anda."
 STEP 3 - Look up the data:
   - Search the transaction records below by the username/ID provided.
@@ -6235,21 +6236,23 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         if (!agent || agent.merchantId !== merchantId) {
           return res.json([]);
         }
+        let initialContent = "";
         const oldKnowledge = await storage.getKnowledgeByAgent(agentId);
         if (oldKnowledge && oldKnowledge.content && oldKnowledge.content.trim()) {
-          const id = "ke_" + crypto.randomBytes(8).toString("hex");
-          await storage.createKnowledgeEntry({
-            id,
-            merchantId,
-            agentId,
-            name: "General Knowledge",
-            content: oldKnowledge.content,
-            isActive: true,
-            isLinked: false,
-            sortOrder: 0,
-          });
-          entries = await storage.getKnowledgeEntries(merchantId, agentId);
+          initialContent = oldKnowledge.content;
         }
+        const id = "ke_" + crypto.randomBytes(8).toString("hex");
+        await storage.createKnowledgeEntry({
+          id,
+          merchantId,
+          agentId,
+          name: "General Knowledge",
+          content: initialContent,
+          isActive: true,
+          isLinked: false,
+          sortOrder: 0,
+        });
+        entries = await storage.getKnowledgeEntries(merchantId, agentId);
       }
 
       res.json(entries);
