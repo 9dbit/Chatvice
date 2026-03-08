@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Save, Globe, Loader2, Plus, Bot, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, Sparkles, HelpCircle, Edit2, GripVertical, MessageSquare, Lock, Crown, BookOpen, Eye, Search, Filter, FileText, Tag, Clock, Upload, CheckCircle2, Type, Table2, Zap, Pencil } from "lucide-react";
+import { Database, Save, Globe, Loader2, Plus, Bot, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, Sparkles, HelpCircle, Edit2, GripVertical, MessageSquare, Lock, Crown, BookOpen, Eye, Search, Filter, FileText, Tag, Clock, Upload, CheckCircle2, Type, Table2, Zap, Pencil, Link2, Unlink, Power } from "lucide-react";
 import { useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,7 +23,7 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
-import type { Merchant, CrawledLink, Agent, SuggestedQuestion, KnowledgebaseArticle, Source } from "@shared/schema";
+import type { Merchant, CrawledLink, Agent, SuggestedQuestion, KnowledgebaseArticle, Source, KnowledgeEntry } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 
 // Business type and category constants for Help Articles
@@ -300,6 +300,118 @@ export default function KnowledgePage() {
       ? [`/api/knowledge/agent/${selectedAgentId}`]
       : [`/api/knowledge/${merchantId}`],
     enabled: !!merchantId,
+  });
+
+  const { data: knowledgeEntries = [], isLoading: entriesLoading } = useQuery<KnowledgeEntry[]>({
+    queryKey: ["/api/knowledge-entries", selectedAgentId],
+    queryFn: async () => {
+      const url = selectedAgentId 
+        ? `/api/knowledge-entries?agentId=${selectedAgentId}` 
+        : `/api/knowledge-entries`;
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch entries");
+      return res.json();
+    },
+    enabled: !!merchantId && !!selectedAgentId,
+  });
+
+  const [entryContents, setEntryContents] = useState<Record<string, string>>({});
+  const [entryNames, setEntryNames] = useState<Record<string, string>>({});
+  const [savingEntryId, setSavingEntryId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [newEntryName, setNewEntryName] = useState("");
+  const [isAddingEntry, setIsAddingEntry] = useState(false);
+
+  useEffect(() => {
+    if (knowledgeEntries.length > 0) {
+      const contents: Record<string, string> = {};
+      const names: Record<string, string> = {};
+      knowledgeEntries.forEach(e => {
+        if (!(e.id in entryContents)) contents[e.id] = e.content;
+        if (!(e.id in entryNames)) names[e.id] = e.name;
+      });
+      setEntryContents(prev => ({ ...contents, ...prev }));
+      setEntryNames(prev => ({ ...names, ...prev }));
+    }
+  }, [knowledgeEntries]);
+
+  useEffect(() => {
+    setEntryContents({});
+    setEntryNames({});
+  }, [selectedAgentId]);
+
+  const createEntryMutation = useMutation({
+    mutationFn: async (data: { name: string; agentId?: string; isLinked?: boolean }) => {
+      const res = await apiRequest("POST", "/api/knowledge-entries", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge-entries", selectedAgentId] });
+      setNewEntryName("");
+      setIsAddingEntry(false);
+      toast({ title: "Entry created", description: "New knowledge entry has been added." });
+    },
+    onError: () => {
+      toast({ title: "Failed to create entry", description: "Please try again.", variant: "destructive" });
+    },
+  });
+
+  const saveEntryMutation = useMutation({
+    mutationFn: async ({ id, content, name }: { id: string; content?: string; name?: string }) => {
+      setSavingEntryId(id);
+      const res = await apiRequest("POST", `/api/knowledge-entries/${id}/save`, { content, name });
+      return res.json();
+    },
+    onSuccess: (_data, variables) => {
+      setSavingEntryId(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge-entries", selectedAgentId] });
+      toast({ title: "Entry saved", description: "Knowledge entry has been saved and AI updated." });
+    },
+    onError: () => {
+      setSavingEntryId(null);
+      toast({ title: "Save failed", description: "Please try again.", variant: "destructive" });
+    },
+  });
+
+  const toggleEntryActiveMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/knowledge-entries/${id}`, { isActive });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge-entries", selectedAgentId] });
+    },
+    onError: () => {
+      toast({ title: "Update failed", variant: "destructive" });
+    },
+  });
+
+  const toggleEntryLinkMutation = useMutation({
+    mutationFn: async ({ id, agentId }: { id: string; agentId?: string }) => {
+      const res = await apiRequest("POST", `/api/knowledge-entries/${id}/toggle-link`, { agentId });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge-entries", selectedAgentId] });
+      toast({ title: "Link status updated", description: "Entry sharing scope has been changed." });
+    },
+    onError: () => {
+      toast({ title: "Failed to update", variant: "destructive" });
+    },
+  });
+
+  const deleteEntryMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/knowledge-entries/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge-entries", selectedAgentId] });
+      setDeleteConfirmId(null);
+      toast({ title: "Entry deleted", description: "Knowledge entry has been removed." });
+    },
+    onError: () => {
+      toast({ title: "Delete failed", variant: "destructive" });
+    },
   });
 
   const { data: crawledLinks = [], isLoading: linksLoading } = useQuery<CrawledLink[]>({
@@ -1230,121 +1342,214 @@ export default function KnowledgePage() {
           )}
         </div>
 
-        {/* Knowledge Content Editor */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-2">
-                <Database className="w-5 h-5 text-primary" />
-                <CardTitle>Knowledge Content</CardTitle>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsTemplateDialogOpen(true)}
-                  data-testid="button-use-template"
-                >
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Use Template
-                </Button>
-                {otherAgents.length > 0 && (
-                  <Button
-                    variant="outline"
-                    onClick={() => setImportDialogOpen(true)}
-                    data-testid="button-import-from-agent"
-                  >
-                    <Copy className="w-4 h-4 mr-2" />
-                    Import from Agent
-                  </Button>
-                )}
-                <Button
-                  onClick={handleSave}
-                  disabled={saveMutation.isPending || isAnalyzing || saveStage !== "idle"}
-                  data-testid="button-save-knowledge"
-                >
-                  {saveMutation.isPending || isAnalyzing || saveStage !== "idle" ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Save className="w-4 h-4 mr-2" />
-                  )}
-                  {saveStage === "reading" ? "Reading..." :
-                   saveStage === "learning" ? "Learning..." :
-                   saveStage === "thinking" ? "Thinking..." :
-                   isAnalyzing ? "Analyzing..." : "Save"}
-                </Button>
-              </div>
-            </div>
-            
-            {/* AI Save/Analysis Progress Bar */}
-            {(isAnalyzing || saveStage !== "idle") && (
-              <div className="mt-4 space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                    <span className="font-medium">
-                      {saveStage === "reading" ? "Reading your content..." :
-                       saveStage === "learning" ? "AI is learning..." :
-                       saveStage === "thinking" ? "Processing knowledge..." :
-                       "Analyzing content..."}
-                    </span>
-                  </div>
-                  {isAnalyzing && <span className="text-muted-foreground">Est. {estimatedTime}s</span>}
-                </div>
-                
-                {/* 3-Stage Progress Indicator */}
-                <div className="flex gap-1">
-                  <div className={`flex-1 h-2 rounded-full transition-all duration-300 ${
-                    saveStage === "reading" || saveStage === "learning" || saveStage === "thinking" || analysisProgress >= 33
-                      ? "bg-primary" : "bg-muted"
-                  }`} />
-                  <div className={`flex-1 h-2 rounded-full transition-all duration-300 ${
-                    saveStage === "learning" || saveStage === "thinking" || analysisProgress >= 66
-                      ? "bg-primary" : "bg-muted"
-                  }`} />
-                  <div className={`flex-1 h-2 rounded-full transition-all duration-300 ${
-                    saveStage === "thinking" || analysisProgress >= 100
-                      ? "bg-primary" : "bg-muted"
-                  }`} />
-                </div>
-                
-                {/* Stage Labels */}
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span className={saveStage === "reading" ? "text-primary font-medium" : ""}>Reading</span>
-                  <span className={saveStage === "learning" ? "text-primary font-medium" : ""}>Learning</span>
-                  <span className={saveStage === "thinking" ? "text-primary font-medium" : ""}>Thinking</span>
-                </div>
-              </div>
-            )}
-            
-            <CardDescription>
-              Add information that Chatvice will use to answer customer questions.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-64 w-full" />
-            ) : (
-              <div className="space-y-3">
-                <Textarea
-                  placeholder="Enter your knowledge base content here...
+        {/* Knowledge Entries */}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Database className="w-5 h-5 text-primary" />
+            <h3 className="font-semibold text-lg">Knowledge Entries</h3>
+            <Badge variant="secondary">{knowledgeEntries.length}</Badge>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              onClick={() => setIsTemplateDialogOpen(true)}
+              data-testid="button-use-template"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Use Template
+            </Button>
+            <Button
+              onClick={() => setIsAddingEntry(true)}
+              disabled={!selectedAgentId}
+              data-testid="button-add-entry"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Entry
+            </Button>
+          </div>
+        </div>
 
-Example:
-- Our store hours are 9 AM to 9 PM, Monday through Saturday.
-- We offer free shipping on orders over $50.
-- Returns are accepted within 30 days of purchase.
-- Contact support at support@example.com"
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  className="min-h-[250px] resize-none"
-                  data-testid="textarea-knowledge-content"
+        <p className="text-sm text-muted-foreground">
+          Create multiple knowledge entries to organize your AI training data. Linked entries are shared across all agents.
+        </p>
+
+        {isAddingEntry && (
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Entry name (e.g. Return Policy, FAQ, Store Hours)"
+                  value={newEntryName}
+                  onChange={(e) => setNewEntryName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newEntryName.trim()) {
+                      createEntryMutation.mutate({ name: newEntryName.trim(), agentId: selectedAgentId || undefined });
+                    }
+                    if (e.key === "Escape") { setIsAddingEntry(false); setNewEntryName(""); }
+                  }}
+                  autoFocus
+                  data-testid="input-new-entry-name"
                 />
-                <p className="text-xs text-muted-foreground">
-                  {content.length} characters
-                </p>
+                <Button
+                  onClick={() => {
+                    if (newEntryName.trim()) {
+                      createEntryMutation.mutate({ name: newEntryName.trim(), agentId: selectedAgentId || undefined });
+                    }
+                  }}
+                  disabled={!newEntryName.trim() || createEntryMutation.isPending}
+                  data-testid="button-confirm-add-entry"
+                >
+                  {createEntryMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => { setIsAddingEntry(false); setNewEntryName(""); }}
+                  data-testid="button-cancel-add-entry"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
+
+        {entriesLoading ? (
+          <div className="space-y-4">
+            <Skeleton className="h-40 w-full" />
+            <Skeleton className="h-40 w-full" />
+          </div>
+        ) : knowledgeEntries.length === 0 && !isAddingEntry ? (
+          <Card>
+            <CardContent className="py-8 text-center">
+              <Database className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-50" />
+              <p className="text-sm text-muted-foreground mb-3">
+                No knowledge entries yet. Add your first entry to start training your AI.
+              </p>
+              <Button onClick={() => setIsAddingEntry(true)} disabled={!selectedAgentId} data-testid="button-add-first-entry">
+                <Plus className="w-4 h-4 mr-2" />
+                Add First Entry
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {knowledgeEntries.map((entry) => {
+              const localContent = entryContents[entry.id] ?? entry.content;
+              const localName = entryNames[entry.id] ?? entry.name;
+              const isSaving = savingEntryId === entry.id;
+              const hasChanges = localContent !== entry.content || localName !== entry.name;
+
+              return (
+                <Card key={entry.id} className={`transition-opacity ${!entry.isActive ? "opacity-60" : ""}`} data-testid={`card-entry-${entry.id}`}>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <Input
+                          value={localName}
+                          onChange={(e) => setEntryNames(prev => ({ ...prev, [entry.id]: e.target.value }))}
+                          className="font-semibold border-none shadow-none focus-visible:ring-1 h-8 text-base"
+                          data-testid={`input-entry-name-${entry.id}`}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {entry.isLinked && (
+                          <Badge variant="secondary" className="text-[10px] gap-1">
+                            <Link2 className="w-3 h-3" />
+                            All Agents
+                          </Badge>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => toggleEntryLinkMutation.mutate({ id: entry.id, agentId: selectedAgentId || undefined })}
+                          title={entry.isLinked ? "Unlink from all agents (make agent-specific)" : "Link to all agents (share across all)"}
+                          data-testid={`button-toggle-link-${entry.id}`}
+                        >
+                          {entry.isLinked ? <Link2 className="w-4 h-4 text-primary" /> : <Unlink className="w-4 h-4 text-muted-foreground" />}
+                        </Button>
+                        <div className="flex items-center gap-1.5">
+                          <Switch
+                            checked={entry.isActive}
+                            onCheckedChange={(checked) => toggleEntryActiveMutation.mutate({ id: entry.id, isActive: checked })}
+                            data-testid={`switch-entry-active-${entry.id}`}
+                          />
+                          <span className="text-xs text-muted-foreground">{entry.isActive ? "Active" : "Inactive"}</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteConfirmId(entry.id)}
+                          data-testid={`button-delete-entry-${entry.id}`}
+                        >
+                          <Trash2 className="w-4 h-4 text-muted-foreground" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <Textarea
+                      placeholder="Enter knowledge content for this entry..."
+                      value={localContent}
+                      onChange={(e) => setEntryContents(prev => ({ ...prev, [entry.id]: e.target.value }))}
+                      className="min-h-[150px] resize-none"
+                      disabled={!entry.isActive}
+                      data-testid={`textarea-entry-content-${entry.id}`}
+                    />
+                    <div className="flex items-center justify-between mt-2">
+                      <p className="text-xs text-muted-foreground">
+                        {localContent.length} characters
+                      </p>
+                      <Button
+                        size="sm"
+                        onClick={() => saveEntryMutation.mutate({
+                          id: entry.id,
+                          content: localContent,
+                          name: localName,
+                        })}
+                        disabled={isSaving || !hasChanges}
+                        data-testid={`button-save-entry-${entry.id}`}
+                      >
+                        {isSaving ? (
+                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                        ) : (
+                          <Save className="w-4 h-4 mr-1" />
+                        )}
+                        {isSaving ? "Saving..." : "Save"}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Delete Entry Confirmation Dialog */}
+        <Dialog open={!!deleteConfirmId} onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Knowledge Entry</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this entry? This action cannot be undone and the AI will no longer use this content.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteConfirmId(null)} data-testid="button-cancel-delete-entry">
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => { if (deleteConfirmId) deleteEntryMutation.mutate(deleteConfirmId); }}
+                disabled={deleteEntryMutation.isPending}
+                data-testid="button-confirm-delete-entry"
+              >
+                {deleteEntryMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Import from Website */}
         <Card>

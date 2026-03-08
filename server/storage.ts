@@ -44,6 +44,7 @@ import {
   type AdminNotification, type InsertAdminNotification,
   type ChatSecuritySettings, type InsertChatSecuritySettings,
   type ChatSecurityAlert, type InsertChatSecurityAlert,
+  type KnowledgeEntry, type InsertKnowledgeEntry,
   type KnowledgebaseArticle, type InsertKnowledgebaseArticle,
   type KnowledgebaseTemplate, type InsertKnowledgebaseTemplate,
   type ProductCrawlSource, type InsertProductCrawlSource,
@@ -64,7 +65,7 @@ import {
   emailVerificationTokens, passwordResetTokens, promotions, promotionUsage,
   widgetSites, siteDomains, coinOrders, topupNominals, merchantDomains, paymentGateways,
   paymentTransactions, adminNotifications, chatSecuritySettings, chatSecurityAlerts,
-  knowledgebaseArticles, knowledgebaseTemplates, productCrawlSources, crawledProducts, customPlanInvoices,
+  knowledgeEntries, knowledgebaseArticles, knowledgebaseTemplates, productCrawlSources, crawledProducts, customPlanInvoices,
   customPlanRequests, merchantNotifications, affiliates, affiliateReferrals, affiliateCommissions, affiliatePayouts, affiliatePaymentMethods, affiliateWithdrawalRequests,
   knowledgeTemplates, type KnowledgeTemplate, type InsertKnowledgeTemplate,
   merchantActivityLogs, type MerchantActivityLog, type InsertMerchantActivityLog,
@@ -159,6 +160,13 @@ export interface IStorage {
   getActiveSourcesForSync(): Promise<Source[]>;
   getGoogleSheetSourcesForFastSync(): Promise<Source[]>;
   getGoogleSheetSourcesByMerchant(merchantId: string): Promise<Source[]>;
+
+  getKnowledgeEntries(merchantId: string, agentId?: string): Promise<KnowledgeEntry[]>;
+  getKnowledgeEntry(id: string): Promise<KnowledgeEntry | undefined>;
+  createKnowledgeEntry(data: InsertKnowledgeEntry & { id: string }): Promise<KnowledgeEntry>;
+  updateKnowledgeEntry(id: string, data: Partial<KnowledgeEntry>): Promise<KnowledgeEntry | undefined>;
+  deleteKnowledgeEntry(id: string): Promise<boolean>;
+  getAllActiveKnowledgeContent(merchantId: string, agentId?: string): Promise<string>;
   
   deleteMerchant(id: string): Promise<boolean>;
   deleteSession(id: string): Promise<boolean>;
@@ -1422,6 +1430,73 @@ export class DatabaseStorage implements IStorage {
         eq(sources.isActive, true),
         eq(sources.sourceSubtype, "google_sheet"),
       ));
+  }
+
+  async getKnowledgeEntries(merchantId: string, agentId?: string): Promise<KnowledgeEntry[]> {
+    if (agentId) {
+      return db.select().from(knowledgeEntries)
+        .where(and(
+          eq(knowledgeEntries.merchantId, merchantId),
+          or(
+            eq(knowledgeEntries.agentId, agentId),
+            eq(knowledgeEntries.isLinked, true)
+          )
+        ))
+        .orderBy(knowledgeEntries.sortOrder);
+    }
+    return db.select().from(knowledgeEntries)
+      .where(eq(knowledgeEntries.merchantId, merchantId))
+      .orderBy(knowledgeEntries.sortOrder);
+  }
+
+  async getKnowledgeEntry(id: string): Promise<KnowledgeEntry | undefined> {
+    const result = await db.select().from(knowledgeEntries).where(eq(knowledgeEntries.id, id));
+    return result[0];
+  }
+
+  async createKnowledgeEntry(data: InsertKnowledgeEntry & { id: string }): Promise<KnowledgeEntry> {
+    const result = await db.insert(knowledgeEntries).values(data).returning();
+    return result[0];
+  }
+
+  async updateKnowledgeEntry(id: string, data: Partial<KnowledgeEntry>): Promise<KnowledgeEntry | undefined> {
+    const result = await db.update(knowledgeEntries)
+      .set(data)
+      .where(eq(knowledgeEntries.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteKnowledgeEntry(id: string): Promise<boolean> {
+    const result = await db.delete(knowledgeEntries).where(eq(knowledgeEntries.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getAllActiveKnowledgeContent(merchantId: string, agentId?: string): Promise<string> {
+    let entries: KnowledgeEntry[];
+    if (agentId) {
+      entries = await db.select().from(knowledgeEntries)
+        .where(and(
+          eq(knowledgeEntries.merchantId, merchantId),
+          eq(knowledgeEntries.isActive, true),
+          or(
+            eq(knowledgeEntries.agentId, agentId),
+            eq(knowledgeEntries.isLinked, true)
+          )
+        ))
+        .orderBy(knowledgeEntries.sortOrder);
+    } else {
+      entries = await db.select().from(knowledgeEntries)
+        .where(and(
+          eq(knowledgeEntries.merchantId, merchantId),
+          eq(knowledgeEntries.isActive, true),
+        ))
+        .orderBy(knowledgeEntries.sortOrder);
+    }
+    return entries
+      .filter(e => e.content && e.content.trim())
+      .map(e => `[${e.name}]\n${e.content}`)
+      .join("\n\n---\n\n");
   }
 
   async updateSource(id: string, data: Partial<Source>): Promise<Source | undefined> {

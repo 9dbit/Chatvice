@@ -284,6 +284,25 @@ export const insertKnowledgeSchema = createInsertSchema(knowledge).omit({ id: tr
 export type InsertKnowledge = z.infer<typeof insertKnowledgeSchema>;
 export type Knowledge = typeof knowledge.$inferSelect;
 
+export const knowledgeEntries = pgTable("knowledge_entries", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  agentId: varchar("agent_id", { length: 32 }),
+  name: text("name").notNull(),
+  content: text("content").notNull().default(""),
+  isActive: boolean("is_active").default(true),
+  isLinked: boolean("is_linked").default(false),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("knowledge_entries_merchant_id_idx").on(table.merchantId),
+  index("knowledge_entries_agent_id_idx").on(table.agentId),
+]);
+
+export const insertKnowledgeEntrySchema = createInsertSchema(knowledgeEntries).omit({ id: true, createdAt: true });
+export type InsertKnowledgeEntry = z.infer<typeof insertKnowledgeEntrySchema>;
+export type KnowledgeEntry = typeof knowledgeEntries.$inferSelect;
+
 export const knowledgeChunks = pgTable("knowledge_chunks", {
   id: varchar("id", { length: 32 }).primaryKey(),
   merchantId: varchar("merchant_id", { length: 32 }).notNull(),

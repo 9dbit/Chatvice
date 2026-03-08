@@ -650,7 +650,6 @@ async function askChatvice(
     }
   }
 
-  // Detect transaction-related questions and inject Google Sheet data
   const transactionKeywords = [
     "cek transaksi", "status transaksi", "sudah masuk", "belum masuk",
     "deposit", "transfer", "pembayaran", "payment status", "check transaction",
@@ -658,7 +657,11 @@ async function askChatvice(
     "konfirmasi pembayaran", "bukti transfer", "cek pembayaran",
     "apakah sudah masuk", "dana masuk", "uang masuk", "saldo masuk",
     "top up", "topup", "isi saldo", "transaksi saya", "my transaction",
-    "payment confirmation", "check deposit", "check payment"
+    "payment confirmation", "check deposit", "check payment",
+    "withdraw", "withdrawal", "tarik", "penarikan", "tarik saldo",
+    "cek withdraw", "status withdraw", "wd", "penarikan dana",
+    "withdraw status", "check withdraw", "tarik dana", "pencairan",
+    "cek penarikan", "status penarikan"
   ];
   const isTransactionQuery = transactionKeywords.some(keyword => lowerMessage.includes(keyword));
 
@@ -666,9 +669,16 @@ async function askChatvice(
     try {
       const sheetSources = await storage.getGoogleSheetSourcesByMerchant(merchantId);
       if (sheetSources.length > 0) {
-        let sheetData = sheetSources
+        const { syncSingleGoogleSheetSource } = await import("./index");
+        await Promise.all(
+          sheetSources.map(s => syncSingleGoogleSheetSource(s.id).catch(() => {}))
+        );
+
+        const freshSources = await storage.getGoogleSheetSourcesByMerchant(merchantId);
+
+        let sheetData = freshSources
           .filter(s => s.content && s.content.trim())
-          .map(s => s.content)
+          .map(s => `--- [${s.name}] ---\n${s.content}`)
           .join("\n\n");
 
         const MAX_SHEET_CHARS = 15000;
@@ -683,47 +693,62 @@ async function askChatvice(
         }
 
         if (sheetData.trim()) {
-          knowledgeContext += `\n\n--- TRANSACTION LOOKUP DATA ---
-IMPORTANT INSTRUCTIONS FOR TRANSACTION LOOKUP:
-You have access to the merchant's transaction records below. When the customer asks about a transaction status:
-1. Search the data below by username, ID, phone number, or any identifier the customer provides.
-2. If a matching record is found with status "confirmed", "success", "completed", or similar positive status:
-   - Inform the customer that their transaction of [amount] has been received/confirmed.
-   - ALWAYS include the FULL timestamp with date AND time (hours:minutes:seconds) when confirming. Example: "Transaksi Anda tercatat pada 2025-03-01 pukul 14:23:45 sebesar Rp 500.000 dengan status confirmed."
-   - Ask them to please wait 1-15 minutes for processing to complete.
-3. If a matching record is found with status "pending" or "processing":
-   - Inform the customer that their transaction is currently being processed.
-   - Include the exact date and time (hours:minutes:seconds) the transaction was recorded.
-   - Ask them to wait and check again shortly.
-4. If a matching record is found with status "failed", "rejected", or "cancelled":
-   - Inform the customer about the failed status and include the exact date and time (hours:minutes:seconds).
-   - Suggest they contact support or try again.
-5. If NO matching record is found:
-   - Inform the customer that no transaction has been found yet for their username/ID.
-   - Ask them to double-check their username/ID or upload their transfer receipt/screenshot for verification.
-6. Always be helpful and empathetic.
-7. Report the exact data found (amount, date, time, status) - do not make up or guess transaction details.
-8. CRITICAL: Always read and report the COMPLETE timestamp including hours, minutes, and seconds (HH:MM:SS). Never omit the time portion. If the data includes a Time or Timestamp column, always mention it in your response.
+          knowledgeContext += `\n\n--- TRANSACTION LOOKUP DATA (REAL-TIME) ---
+IMPORTANT: This data was fetched in REAL-TIME from the merchant's Google Sheets just now. It is the most current data available.
+
+DEPOSIT & WITHDRAW COMPLAINT WORKFLOW:
+When a customer contacts about deposit or withdraw issues, follow this workflow:
+STEP 1 - Identify the issue type:
+  - Is this about a DEPOSIT (top up, payment, transfer masuk) or WITHDRAW (penarikan, tarik saldo, pencairan)?
+STEP 2 - Ask for username:
+  - If the customer has NOT provided their username/ID, ask: "Boleh saya tahu username Anda?"
+  - For DEPOSIT complaints, also ask for proof of transfer: "Mohon kirimkan bukti transfer Anda."
+STEP 3 - Look up the data:
+  - Search the transaction records below by the username/ID provided.
+  - Check the relevant section: [Deposit] data for deposit queries, [WITHDRAW] data for withdraw queries.
+
+RESPONSE RULES BY STATUS:
+A. STATUS "confirmed" / "success" / "completed":
+   - Inform: "Transaksi Anda sebesar [amount] tercatat pada [date] pukul [time] dengan status confirmed."
+   - Tell customer to wait: "Silakan tunggu 1-15 menit untuk proses selesai."
+
+B. STATUS "pending" / "processing":
+   - Inform: "Transaksi Anda sebesar [amount] saat ini sedang diproses (pending)."
+   - Include full timestamp. Ask them to wait.
+
+C. STATUS "rejected" / "failed" / "cancelled" — WITHDRAW:
+   - Inform the status with full timestamp.
+   - Explain possible reason: "Kemungkinan syarat Turn Over (TO) belum terpenuhi. Pastikan Anda sudah memenuhi syarat turnover sebelum melakukan penarikan."
+   - Offer help: "Apakah ada yang bisa saya bantu lebih lanjut?"
+
+D. STATUS "rejected" / "failed" / "cancelled" — DEPOSIT:
+   - Inform the status with full timestamp.
+   - Explain possible reasons:
+     * "Nominal transfer tidak sesuai dengan jumlah deposit yang diminta."
+     * "Deposit tidak memenuhi syarat dan ketentuan."
+   - Offer terms button: [BTN:Syarat & Ketentuan Deposit]
+   - Ask: "Silakan periksa kembali apakah nominal transfer sudah sesuai."
+
+E. NO MATCHING RECORD FOUND:
+   - Inform: "Maaf, kami belum menemukan data transaksi untuk username [username]."
+   - Ask to double-check: "Mohon periksa kembali username Anda."
+   - For deposits: ask for proof of transfer if not yet provided.
+   - Offer escalation if needed.
+
+GENERAL RULES:
+1. ALWAYS report the COMPLETE timestamp including hours:minutes:seconds (HH:MM:SS).
+2. Report exact data — never make up or guess transaction details.
+3. Be helpful and empathetic.
+4. Each source section is labeled with its name (e.g., [Deposit], [WITHDRAW]) — use the correct section.
 
 SCREENSHOT / PROOF OF TRANSFER VERIFICATION:
-When the customer uploads a screenshot or image of their transfer receipt/proof of payment:
-9. Use your vision capability to READ the screenshot carefully. Extract the following from the image:
-   - Transfer timestamp (date AND time shown on the receipt)
-   - Amount transferred
-   - Sender name/account
-   - Reference number or transaction ID (if visible)
-10. CROSS-REFERENCE the screenshot timestamp with the "Time" column in the transaction records above:
-   - Compare the time on the screenshot with the Time recorded in the Google Sheet data.
-   - If the times are reasonably close (within a few minutes), this confirms the transaction is legitimate.
-   - If the screenshot timestamp is significantly different from the recorded Time, flag this discrepancy to the customer politely.
-11. CROSS-REFERENCE with conversation timing:
-   - Consider whether the transfer timestamp on the screenshot is reasonable relative to the current conversation time.
-   - If the screenshot shows a transfer from hours or days ago but no matching record exists, inform the customer that the transaction may not have been processed yet or the details may not match.
-   - If the screenshot shows a future date or a date that doesn't make sense, politely ask the customer to verify the screenshot.
-12. When reporting verification results, always state:
-   - "Berdasarkan bukti transfer yang Anda kirim, waktu transfer tercatat [time from screenshot]."
-   - "Data kami menunjukkan transaksi untuk [username] tercatat pada [time from sheet data]."
-   - Then confirm whether the times match or note any discrepancy.
+When the customer uploads a screenshot or image of their transfer receipt:
+5. Use vision to READ the screenshot. Extract: timestamp, amount, sender, reference number.
+6. CROSS-REFERENCE the screenshot with transaction records:
+   - Compare timestamp and amount from screenshot with the data.
+   - If they match (within a few minutes), confirm the transaction.
+   - If they don't match, politely flag the discrepancy.
+7. Report: "Berdasarkan bukti transfer, waktu transfer tercatat [time from screenshot]. Data kami menunjukkan transaksi untuk [username] tercatat pada [time from sheet]."
 
 TRANSACTION RECORDS:
 ${sheetData}`;
@@ -6196,6 +6221,175 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     } catch (error) {
       console.error("Knowledge sync error:", error);
       res.status(500).json({ error: "Failed to sync knowledge from URL" });
+    }
+  });
+
+  app.get("/api/knowledge-entries", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const agentId = req.query.agentId as string | undefined;
+      let entries = await storage.getKnowledgeEntries(merchantId, agentId || undefined);
+
+      if (entries.length === 0 && agentId) {
+        const agent = await storage.getAgent(agentId);
+        if (!agent || agent.merchantId !== merchantId) {
+          return res.json([]);
+        }
+        const oldKnowledge = await storage.getKnowledgeByAgent(agentId);
+        if (oldKnowledge && oldKnowledge.content && oldKnowledge.content.trim()) {
+          const id = "ke_" + crypto.randomBytes(8).toString("hex");
+          await storage.createKnowledgeEntry({
+            id,
+            merchantId,
+            agentId,
+            name: "General Knowledge",
+            content: oldKnowledge.content,
+            isActive: true,
+            isLinked: false,
+            sortOrder: 0,
+          });
+          entries = await storage.getKnowledgeEntries(merchantId, agentId);
+        }
+      }
+
+      res.json(entries);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/knowledge-entries", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { name, agentId, isLinked } = req.body;
+      if (!name || typeof name !== "string" || !name.trim()) {
+        return res.status(400).json({ error: "Name is required" });
+      }
+      const id = "ke_" + crypto.randomBytes(8).toString("hex");
+      const entry = await storage.createKnowledgeEntry({
+        id,
+        merchantId,
+        agentId: isLinked ? null : (agentId || null),
+        name: name.trim(),
+        content: "",
+        isActive: true,
+        isLinked: !!isLinked,
+        sortOrder: 0,
+      });
+      res.json(entry);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.patch("/api/knowledge-entries/:id", requireMerchant, async (req, res) => {
+    try {
+      const entry = await storage.getKnowledgeEntry(req.params.id);
+      if (!entry || entry.merchantId !== req.session.merchantId) {
+        return res.status(404).json({ error: "Entry not found" });
+      }
+      const updates: any = {};
+      if (req.body.name !== undefined) updates.name = req.body.name;
+      if (req.body.content !== undefined) updates.content = req.body.content;
+      if (req.body.isActive !== undefined) updates.isActive = req.body.isActive;
+      if (req.body.sortOrder !== undefined) updates.sortOrder = req.body.sortOrder;
+      const updated = await storage.updateKnowledgeEntry(req.params.id, updates);
+
+      if (req.body.isActive !== undefined) {
+        const merchantId = entry.merchantId;
+        const allAgents = await storage.getAgents(merchantId);
+        for (const agent of allAgents) {
+          const combinedContent = await storage.getAllActiveKnowledgeContent(merchantId, agent.id);
+          await storage.setKnowledge(merchantId, combinedContent || "", agent.id);
+          processKnowledgeBase(merchantId, combinedContent || "", agent.id).catch(() => {});
+        }
+      }
+
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/knowledge-entries/:id/toggle-link", requireMerchant, async (req, res) => {
+    try {
+      const entry = await storage.getKnowledgeEntry(req.params.id);
+      if (!entry || entry.merchantId !== req.session.merchantId) {
+        return res.status(404).json({ error: "Entry not found" });
+      }
+      const newLinked = !entry.isLinked;
+      const { agentId } = req.body;
+      const updated = await storage.updateKnowledgeEntry(req.params.id, {
+        isLinked: newLinked,
+        agentId: newLinked ? null : (agentId || entry.agentId),
+      });
+
+      const merchantId = entry.merchantId;
+      const allAgents = await storage.getAgents(merchantId);
+      for (const agent of allAgents) {
+        const combinedContent = await storage.getAllActiveKnowledgeContent(merchantId, agent.id);
+        await storage.setKnowledge(merchantId, combinedContent || "", agent.id);
+        processKnowledgeBase(merchantId, combinedContent || "", agent.id).catch(() => {});
+      }
+
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/knowledge-entries/:id/save", requireMerchant, async (req, res) => {
+    try {
+      const entry = await storage.getKnowledgeEntry(req.params.id);
+      if (!entry || entry.merchantId !== req.session.merchantId) {
+        return res.status(404).json({ error: "Entry not found" });
+      }
+      const merchantId = entry.merchantId;
+      if (req.body.content !== undefined) {
+        await storage.updateKnowledgeEntry(req.params.id, { content: req.body.content });
+      }
+      if (req.body.name !== undefined) {
+        await storage.updateKnowledgeEntry(req.params.id, { name: req.body.name });
+      }
+
+      const merchant = await storage.getMerchant(merchantId);
+      const allAgents = await storage.getAgents(merchantId);
+
+      for (const agent of allAgents) {
+        const combinedContent = await storage.getAllActiveKnowledgeContent(merchantId, agent.id);
+        await storage.setKnowledge(merchantId, combinedContent || "", agent.id);
+        processKnowledgeBase(merchantId, combinedContent || "", agent.id).catch(err => {
+          console.error("[knowledge-entries] Error processing embeddings:", err);
+        });
+      }
+
+      const updated = await storage.getKnowledgeEntry(req.params.id);
+      res.json({ success: true, entry: updated });
+    } catch (error) {
+      console.error("Knowledge entry save error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.delete("/api/knowledge-entries/:id", requireMerchant, async (req, res) => {
+    try {
+      const entry = await storage.getKnowledgeEntry(req.params.id);
+      if (!entry || entry.merchantId !== req.session.merchantId) {
+        return res.status(404).json({ error: "Entry not found" });
+      }
+      await storage.deleteKnowledgeEntry(req.params.id);
+
+      const merchantId = entry.merchantId;
+      const allAgents = await storage.getAgents(merchantId);
+      for (const agent of allAgents) {
+        const combinedContent = await storage.getAllActiveKnowledgeContent(merchantId, agent.id);
+        await storage.setKnowledge(merchantId, combinedContent || "", agent.id);
+        processKnowledgeBase(merchantId, combinedContent || "", agent.id).catch(() => {});
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
     }
   });
 
