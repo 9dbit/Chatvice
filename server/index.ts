@@ -594,8 +594,8 @@ export async function syncSingleGoogleSheetSource(sourceId: string): Promise<{ s
     if (!source || source.sourceSubtype !== "google_sheet") {
       return { success: false, error: "Source not found or not a Google Sheet" };
     }
-    if (!source.url || !source.agentId) {
-      return { success: false, error: "Source missing URL or agent assignment" };
+    if (!source.url) {
+      return { success: false, error: "Source missing URL" };
     }
 
     await storage.updateSource(source.id, { syncStatus: "syncing" });
@@ -615,21 +615,23 @@ export async function syncSingleGoogleSheetSource(sourceId: string): Promise<{ s
       lastSyncedAt: new Date(),
     });
 
-    const agentId = source.agentId;
-    const sourceName = source.name;
-    const existingKnowledge = await storage.getKnowledgeByAgent(agentId);
-    const existingContent = existingKnowledge?.content || "";
-    const sourceMarker = `\n\n---\n[Source: ${sourceName}]\n`;
-    const escapedName = sourceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const updatedKnowledge = existingContent.includes(`[Source: ${sourceName}]`)
-      ? existingContent.replace(
-          new RegExp(`\\n\\n---\\n\\[Source: ${escapedName}\\][\\s\\S]*?(?=\\n\\n---\\n\\[Source:|$)`, 'g'),
-          `${sourceMarker}${newContent}`
-        )
-      : existingContent + sourceMarker + newContent;
+    if (source.agentId) {
+      const agentId = source.agentId;
+      const sourceName = source.name;
+      const existingKnowledge = await storage.getKnowledgeByAgent(agentId);
+      const existingContent = existingKnowledge?.content || "";
+      const sourceMarker = `\n\n---\n[Source: ${sourceName}]\n`;
+      const escapedName = sourceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const updatedKnowledge = existingContent.includes(`[Source: ${sourceName}]`)
+        ? existingContent.replace(
+            new RegExp(`\\n\\n---\\n\\[Source: ${escapedName}\\][\\s\\S]*?(?=\\n\\n---\\n\\[Source:|$)`, 'g'),
+            `${sourceMarker}${newContent}`
+          )
+        : existingContent + sourceMarker + newContent;
 
-    await storage.setKnowledge(source.merchantId, updatedKnowledge, agentId);
-    processKnowledgeBase(source.merchantId, updatedKnowledge, agentId).catch(() => {});
+      await storage.setKnowledge(source.merchantId, updatedKnowledge, agentId);
+      processKnowledgeBase(source.merchantId, updatedKnowledge, agentId).catch(() => {});
+    }
 
     return { success: true };
   } catch (error: any) {
