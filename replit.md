@@ -30,7 +30,7 @@ Chatvice is a monorepo application with `/client`, `/server`, and `/shared` comp
 - **Landing Page & Feature Configuration**: Admin Panel allows non-technical customization of the public landing page and configuration of all plan feature limits (conversations, AI agents, supervisors, knowledge sources, etc.).
 - **Promotional Discount System**: Comprehensive promo code system with admin CRUD, plan targeting, and usage limits.
 - **Chat Security Monitoring**: AI-powered monitoring of supervisor conversations to detect suspicious activities using Gemini 2.5 Flash, with configurable sensitivity and real-time alerts.
-- **Knowledge Base Management**: Unified system with Training Data (multi-entry knowledge), Active Sources (URL sources with auto-sync), and Create with AI (AI-generated articles). Supports templates and auto-sync for crawled content.
+- **Knowledge Base Management**: Unified system with Training Data (multi-entry knowledge), Active Sources (URL sources with auto-sync), and Create with AI (AI-generated articles). Supports templates, auto-sync for crawled content, drag-and-drop card reordering (via @dnd-kit), and AI auto-formatting of knowledge content on save.
 - **Product Catalog Crawler**: AI-powered product scanning system for intelligent product recommendations. Uses Puppeteer for screenshots sent to OpenAI Vision (GPT-4.1) for product extraction, with mandatory human review.
 - **Custom Plan Request System**: Interactive budget simulator for merchants to configure and request custom plans.
 - **Closing Statement Feature**: Automatic or manual closing statements when chat becomes inactive, configurable to include business and customer names.

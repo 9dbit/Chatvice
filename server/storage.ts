@@ -163,6 +163,7 @@ export interface IStorage {
   getGoogleSheetSourcesByMerchant(merchantId: string): Promise<Source[]>;
 
   getKnowledgeEntries(merchantId: string, agentId?: string): Promise<KnowledgeEntry[]>;
+  getMaxSortOrder(merchantId: string, agentId?: string): Promise<number>;
   getKnowledgeEntry(id: string): Promise<KnowledgeEntry | undefined>;
   createKnowledgeEntry(data: InsertKnowledgeEntry & { id: string }): Promise<KnowledgeEntry>;
   updateKnowledgeEntry(id: string, data: Partial<KnowledgeEntry>): Promise<KnowledgeEntry | undefined>;
@@ -1453,11 +1454,17 @@ export class DatabaseStorage implements IStorage {
             eq(knowledgeEntries.isLinked, true)
           )
         ))
-        .orderBy(knowledgeEntries.sortOrder);
+        .orderBy(knowledgeEntries.sortOrder, knowledgeEntries.createdAt);
     }
     return db.select().from(knowledgeEntries)
       .where(eq(knowledgeEntries.merchantId, merchantId))
-      .orderBy(knowledgeEntries.sortOrder);
+      .orderBy(knowledgeEntries.sortOrder, knowledgeEntries.createdAt);
+  }
+
+  async getMaxSortOrder(merchantId: string, agentId?: string): Promise<number> {
+    const entries = await this.getKnowledgeEntries(merchantId, agentId);
+    if (entries.length === 0) return 0;
+    return Math.max(...entries.map(e => e.sortOrder ?? 0));
   }
 
   async getKnowledgeEntry(id: string): Promise<KnowledgeEntry | undefined> {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import transactionBannerPath from "@assets/generated_images/transaction_record_banner.png";
@@ -15,7 +15,10 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Save, Globe, Loader2, Plus, Bot, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, ChevronRight, Sparkles, HelpCircle, Edit2, GripVertical, MessageSquare, Lock, Crown, BookOpen, Eye, Search, Filter, FileText, Tag, Clock, Upload, CheckCircle2, Type, Table2, Zap, Pencil, Link2, Unlink, Power } from "lucide-react";
+import { Database, Save, Globe, Loader2, Plus, Bot, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, ChevronRight, Sparkles, HelpCircle, Edit2, GripVertical, MessageSquare, Lock, Crown, BookOpen, Eye, Search, Filter, FileText, Tag, Clock, Upload, CheckCircle2, Type, Table2, Zap, Pencil, Link2, Unlink, Power, Brain } from "lucide-react";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, useSortable, rectSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -153,6 +156,182 @@ function SourceNameEditor({ sourceId, name, onSave }: { sourceId: string; name: 
       <span className="truncate">{name}</span>
       <Pencil className="w-3 h-3 shrink-0 opacity-50" />
     </button>
+  );
+}
+
+type SaveStage = "saving" | "learning" | "thinking" | "done" | null;
+
+function SaveButtonContent({ stage }: { stage: SaveStage }) {
+  if (stage === "saving") {
+    return (
+      <>
+        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+        Saving...
+      </>
+    );
+  }
+  if (stage === "learning") {
+    return (
+      <>
+        <Brain className="w-4 h-4 mr-1 animate-pulse" />
+        AI Learning...
+      </>
+    );
+  }
+  if (stage === "thinking") {
+    return (
+      <>
+        <Sparkles className="w-4 h-4 mr-1 animate-spin" />
+        AI Thinking...
+      </>
+    );
+  }
+  if (stage === "done") {
+    return (
+      <>
+        <CheckCircle2 className="w-4 h-4 mr-1 text-green-500" />
+        Done
+      </>
+    );
+  }
+  return (
+    <>
+      <Save className="w-4 h-4 mr-1" />
+      Save
+    </>
+  );
+}
+
+interface SortableEntryCardProps {
+  entry: KnowledgeEntry;
+  localContent: string;
+  localName: string;
+  isSaving: boolean;
+  currentStage: SaveStage;
+  hasChanges: boolean;
+  onNameChange: (val: string) => void;
+  onContentChange: (val: string) => void;
+  onSave: () => void;
+  onDelete: () => void;
+  onToggleActive: (checked: boolean) => void;
+  onToggleLink: () => void;
+}
+
+function SortableEntryCard({
+  entry, localContent, localName, isSaving, currentStage, hasChanges,
+  onNameChange, onContentChange, onSave, onDelete, onToggleActive, onToggleLink,
+}: SortableEntryCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: entry.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+    opacity: isDragging ? 0.5 : undefined,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Collapsible defaultOpen={true} asChild>
+        <Card className={`transition-opacity ${!entry.isActive ? "opacity-60" : ""} flex flex-col`} data-testid={`card-entry-${entry.id}`}>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="pb-2 cursor-pointer group px-3 pt-3">
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div
+                    {...attributes}
+                    {...listeners}
+                    className="cursor-grab active:cursor-grabbing shrink-0 touch-none"
+                    onClick={(e) => e.stopPropagation()}
+                    data-testid={`drag-handle-${entry.id}`}
+                  >
+                    <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-90 sm:hidden" />
+                  <Input
+                    value={localName}
+                    onChange={(e) => onNameChange(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="font-medium border-none shadow-none focus-visible:ring-1 h-7 text-xs sm:text-sm"
+                    data-testid={`input-entry-name-${entry.id}`}
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-1" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {entry.isLinked && (
+                      <Badge variant="secondary" className="text-[9px] gap-0.5 px-1.5 py-0">
+                        <Link2 className="w-2.5 h-2.5" />
+                        All Agents
+                      </Badge>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={onToggleLink}
+                      title={entry.isLinked ? "Unlink from all agents (make agent-specific)" : "Link to all agents (share across all)"}
+                      data-testid={`button-toggle-link-${entry.id}`}
+                    >
+                      {entry.isLinked ? <Link2 className="w-3 h-3 text-primary" /> : <Unlink className="w-3 h-3 text-muted-foreground" />}
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Switch
+                        checked={entry.isActive}
+                        onCheckedChange={onToggleActive}
+                        className="h-4 w-7 [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-3"
+                        data-testid={`switch-entry-active-${entry.id}`}
+                      />
+                      <span className="text-[10px] text-muted-foreground">{entry.isActive ? "Active" : "Off"}</span>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={onDelete}
+                    data-testid={`button-delete-entry-${entry.id}`}
+                  >
+                    <Trash2 className="w-3 h-3 text-muted-foreground" />
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              <Textarea
+                placeholder="Enter knowledge content for this entry..."
+                value={localContent}
+                onChange={(e) => onContentChange(e.target.value)}
+                className="min-h-[300px] resize-none text-xs sm:text-sm"
+                disabled={!entry.isActive || isSaving}
+                data-testid={`textarea-entry-content-${entry.id}`}
+              />
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-xs text-muted-foreground">
+                  {localContent.length} characters
+                </p>
+                <Button
+                  size="sm"
+                  onClick={onSave}
+                  disabled={isSaving || !hasChanges}
+                  data-testid={`button-save-entry-${entry.id}`}
+                >
+                  <SaveButtonContent stage={currentStage} />
+                </Button>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+    </div>
   );
 }
 
@@ -319,9 +498,41 @@ export default function KnowledgePage() {
   const [entryContents, setEntryContents] = useState<Record<string, string>>({});
   const [entryNames, setEntryNames] = useState<Record<string, string>>({});
   const [savingEntryId, setSavingEntryId] = useState<string | null>(null);
+  const [savingStage, setSavingStage] = useState<"saving" | "learning" | "thinking" | "done" | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [newEntryName, setNewEntryName] = useState("");
   const [isAddingEntry, setIsAddingEntry] = useState(false);
+  const [localEntryOrder, setLocalEntryOrder] = useState<string[]>([]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
+  useEffect(() => {
+    if (knowledgeEntries.length > 0) {
+      setLocalEntryOrder(knowledgeEntries.map(e => e.id));
+    }
+  }, [knowledgeEntries]);
+
+  const sortedEntries = localEntryOrder.length > 0
+    ? localEntryOrder.map(id => knowledgeEntries.find(e => e.id === id)).filter(Boolean) as typeof knowledgeEntries
+    : knowledgeEntries;
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    setLocalEntryOrder(prev => {
+      const oldIndex = prev.indexOf(active.id as string);
+      const newIndex = prev.indexOf(over.id as string);
+      const newOrder = arrayMove(prev, oldIndex, newIndex);
+      const orders = newOrder.map((id, i) => ({ id, sortOrder: i }));
+      apiRequest("POST", "/api/knowledge-entries/reorder", { orders }).catch(() => {
+        toast({ title: "Reorder failed", description: "Could not save card order. Please try again.", variant: "destructive" });
+      });
+      return newOrder;
+    });
+  }, [toast]);
 
   useEffect(() => {
     if (knowledgeEntries.length > 0) {
@@ -339,6 +550,7 @@ export default function KnowledgePage() {
   useEffect(() => {
     setEntryContents({});
     setEntryNames({});
+    setLocalEntryOrder([]);
   }, [selectedAgentId]);
 
   const createEntryMutation = useMutation({
@@ -360,16 +572,36 @@ export default function KnowledgePage() {
   const saveEntryMutation = useMutation({
     mutationFn: async ({ id, content, name }: { id: string; content?: string; name?: string }) => {
       setSavingEntryId(id);
-      const res = await apiRequest("POST", `/api/knowledge-entries/${id}/save`, { content, name });
+      setSavingStage("saving");
+      const res = await apiRequest("POST", `/api/knowledge-entries/${id}/save`, { content, name, skipEmbeddings: true });
       return res.json();
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: async (_data, variables) => {
+      setSavingStage("learning");
+      await new Promise(r => setTimeout(r, 1000));
+
+      setSavingStage("thinking");
+      try {
+        const formatRes = await apiRequest("POST", `/api/knowledge-entries/${variables.id}/format`, {});
+        const result = await formatRes.json();
+        if (result.formatted) {
+          setEntryContents(prev => ({ ...prev, [variables.id]: result.formatted }));
+        }
+      } catch (e) {
+        console.error("Format failed:", e);
+      }
+
+      setSavingStage("done");
+      await new Promise(r => setTimeout(r, 800));
+
       setSavingEntryId(null);
+      setSavingStage(null);
       queryClient.invalidateQueries({ queryKey: ["/api/knowledge-entries", selectedAgentId] });
-      toast({ title: "Entry saved", description: "Knowledge entry has been saved and AI updated." });
+      toast({ title: "Entry saved", description: "Knowledge entry has been saved, formatted, and AI updated." });
     },
     onError: () => {
       setSavingEntryId(null);
+      setSavingStage(null);
       toast({ title: "Save failed", description: "Please try again.", variant: "destructive" });
     },
   });
@@ -1422,109 +1654,37 @@ export default function KnowledgePage() {
             <Skeleton className="h-40 w-full" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {knowledgeEntries.map((entry) => {
-              const localContent = entryContents[entry.id] ?? entry.content;
-              const localName = entryNames[entry.id] ?? entry.name;
-              const isSaving = savingEntryId === entry.id;
-              const hasChanges = localContent !== entry.content || localName !== entry.name;
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={sortedEntries.map(e => e.id)} strategy={rectSortingStrategy}>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {sortedEntries.map((entry) => {
+                  const localContent = entryContents[entry.id] ?? entry.content;
+                  const localName = entryNames[entry.id] ?? entry.name;
+                  const isSaving = savingEntryId === entry.id;
+                  const currentStage = isSaving ? savingStage : null;
+                  const hasChanges = localContent !== entry.content || localName !== entry.name;
 
-              return (
-                <Collapsible key={entry.id} defaultOpen={true} asChild>
-                  <Card className={`transition-opacity ${!entry.isActive ? "opacity-60" : ""} flex flex-col`} data-testid={`card-entry-${entry.id}`}>
-                    <CollapsibleTrigger asChild>
-                      <CardHeader className="pb-2 cursor-pointer group px-3 pt-3">
-                        <div className="flex flex-col gap-1.5">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <ChevronRight className="w-3.5 h-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-90 sm:hidden" />
-                            <Input
-                              value={localName}
-                              onChange={(e) => setEntryNames(prev => ({ ...prev, [entry.id]: e.target.value }))}
-                              onClick={(e) => e.stopPropagation()}
-                              className="font-medium border-none shadow-none focus-visible:ring-1 h-7 text-xs sm:text-sm"
-                              data-testid={`input-entry-name-${entry.id}`}
-                            />
-                          </div>
-                          <div className="flex items-center justify-between gap-1" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center gap-1 flex-wrap">
-                              {entry.isLinked && (
-                                <Badge variant="secondary" className="text-[9px] gap-0.5 px-1.5 py-0">
-                                  <Link2 className="w-2.5 h-2.5" />
-                                  All Agents
-                                </Badge>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={() => toggleEntryLinkMutation.mutate({ id: entry.id, agentId: selectedAgentId || undefined })}
-                                title={entry.isLinked ? "Unlink from all agents (make agent-specific)" : "Link to all agents (share across all)"}
-                                data-testid={`button-toggle-link-${entry.id}`}
-                              >
-                                {entry.isLinked ? <Link2 className="w-3 h-3 text-primary" /> : <Unlink className="w-3 h-3 text-muted-foreground" />}
-                              </Button>
-                              <div className="flex items-center gap-1">
-                                <Switch
-                                  checked={entry.isActive}
-                                  onCheckedChange={(checked) => toggleEntryActiveMutation.mutate({ id: entry.id, isActive: checked })}
-                                  className="h-4 w-7 [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-3"
-                                  data-testid={`switch-entry-active-${entry.id}`}
-                                />
-                                <span className="text-[10px] text-muted-foreground">{entry.isActive ? "Active" : "Off"}</span>
-                              </div>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={() => setDeleteConfirmId(entry.id)}
-                              data-testid={`button-delete-entry-${entry.id}`}
-                            >
-                              <Trash2 className="w-3 h-3 text-muted-foreground" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardHeader>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <CardContent className="pt-0">
-                        <Textarea
-                          placeholder="Enter knowledge content for this entry..."
-                          value={localContent}
-                          onChange={(e) => setEntryContents(prev => ({ ...prev, [entry.id]: e.target.value }))}
-                          className="min-h-[300px] resize-none text-xs sm:text-sm"
-                          disabled={!entry.isActive}
-                          data-testid={`textarea-entry-content-${entry.id}`}
-                        />
-                        <div className="flex items-center justify-between mt-2">
-                          <p className="text-xs text-muted-foreground">
-                            {localContent.length} characters
-                          </p>
-                          <Button
-                            size="sm"
-                            onClick={() => saveEntryMutation.mutate({
-                              id: entry.id,
-                              content: localContent,
-                              name: localName,
-                            })}
-                            disabled={isSaving || !hasChanges}
-                            data-testid={`button-save-entry-${entry.id}`}
-                          >
-                            {isSaving ? (
-                              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                            ) : (
-                              <Save className="w-4 h-4 mr-1" />
-                            )}
-                            {isSaving ? "Saving..." : "Save"}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </CollapsibleContent>
-                  </Card>
-                </Collapsible>
-              );
-            })}
-          </div>
+                  return (
+                    <SortableEntryCard
+                      key={entry.id}
+                      entry={entry}
+                      localContent={localContent}
+                      localName={localName}
+                      isSaving={isSaving}
+                      currentStage={currentStage}
+                      hasChanges={hasChanges}
+                      onNameChange={(val) => setEntryNames(prev => ({ ...prev, [entry.id]: val }))}
+                      onContentChange={(val) => setEntryContents(prev => ({ ...prev, [entry.id]: val }))}
+                      onSave={() => saveEntryMutation.mutate({ id: entry.id, content: localContent, name: localName })}
+                      onDelete={() => setDeleteConfirmId(entry.id)}
+                      onToggleActive={(checked) => toggleEntryActiveMutation.mutate({ id: entry.id, isActive: checked })}
+                      onToggleLink={() => toggleEntryLinkMutation.mutate({ id: entry.id, agentId: selectedAgentId || undefined })}
+                    />
+                  );
+                })}
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
 
         {/* Delete Entry Confirmation Dialog */}

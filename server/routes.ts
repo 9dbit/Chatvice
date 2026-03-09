@@ -6316,6 +6316,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       if (!name || typeof name !== "string" || !name.trim()) {
         return res.status(400).json({ error: "Name is required" });
       }
+      const maxSort = await storage.getMaxSortOrder(merchantId, isLinked ? undefined : (agentId || undefined));
       const id = "ke_" + crypto.randomBytes(8).toString("hex");
       const entry = await storage.createKnowledgeEntry({
         id,
@@ -6325,7 +6326,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         content: "",
         isActive: true,
         isLinked: !!isLinked,
-        sortOrder: 0,
+        sortOrder: maxSort + 1,
       });
       res.json(entry);
     } catch (error) {
@@ -6403,15 +6404,15 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         await storage.updateKnowledgeEntry(req.params.id, { name: req.body.name });
       }
 
-      const merchant = await storage.getMerchant(merchantId);
-      const allAgents = await storage.getAgents(merchantId);
-
-      for (const agent of allAgents) {
-        const combinedContent = await storage.getAllActiveKnowledgeContent(merchantId, agent.id);
-        await storage.setKnowledge(merchantId, combinedContent || "", agent.id);
-        processKnowledgeBase(merchantId, combinedContent || "", agent.id).catch(err => {
-          console.error("[knowledge-entries] Error processing embeddings:", err);
-        });
+      if (!req.body.skipEmbeddings) {
+        const allAgents = await storage.getAgents(merchantId);
+        for (const agent of allAgents) {
+          const combinedContent = await storage.getAllActiveKnowledgeContent(merchantId, agent.id);
+          await storage.setKnowledge(merchantId, combinedContent || "", agent.id);
+          processKnowledgeBase(merchantId, combinedContent || "", agent.id).catch(err => {
+            console.error("[knowledge-entries] Error processing embeddings:", err);
+          });
+        }
       }
 
       const updated = await storage.getKnowledgeEntry(req.params.id);
@@ -6440,6 +6441,75 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
 
       res.json({ success: true });
     } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/knowledge-entries/reorder", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { orders } = req.body;
+      if (!Array.isArray(orders)) {
+        return res.status(400).json({ error: "orders array is required" });
+      }
+      for (const { id, sortOrder } of orders) {
+        const entry = await storage.getKnowledgeEntry(id);
+        if (entry && entry.merchantId === merchantId) {
+          await storage.updateKnowledgeEntry(id, { sortOrder });
+        }
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/knowledge-entries/:id/format", requireMerchant, async (req, res) => {
+    try {
+      const entry = await storage.getKnowledgeEntry(req.params.id);
+      if (!entry || entry.merchantId !== req.session.merchantId) {
+        return res.status(404).json({ error: "Entry not found" });
+      }
+      if (!entry.content || entry.content.trim().length < 10) {
+        return res.json({ formatted: entry.content });
+      }
+      const response = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are a knowledge base content formatter. Your job is to take raw text content and format it into a clean, well-structured format using bullet points, numbering, and proper headings. Rules:
+- Keep ALL original information intact - do NOT add, remove, or modify any facts
+- Use numbered lists (1. 2. 3.) for sequential steps or ordered items
+- Use bullet points (•) for unordered lists of features, details, or options
+- Use clear section headings with "##" prefix when content has distinct topics
+- Add line breaks between sections for readability
+- Keep the same language as the original content
+- If content is already well-formatted, make minimal changes
+- Do NOT add any commentary or explanations - return ONLY the formatted content`
+          },
+          {
+            role: "user",
+            content: entry.content
+          }
+        ],
+        max_tokens: 4000,
+        temperature: 0.3,
+      });
+      const formatted = response.choices[0]?.message?.content || entry.content;
+      await storage.updateKnowledgeEntry(req.params.id, { content: formatted });
+
+      const merchantId = entry.merchantId;
+      const allAgents = await storage.getAgents(merchantId);
+      for (const agent of allAgents) {
+        const combinedContent = await storage.getAllActiveKnowledgeContent(merchantId, agent.id);
+        await storage.setKnowledge(merchantId, combinedContent || "", agent.id);
+        processKnowledgeBase(merchantId, combinedContent || "", agent.id).catch(() => {});
+      }
+
+      res.json({ formatted });
+    } catch (error) {
+      console.error("Knowledge entry format error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
