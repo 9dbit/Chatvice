@@ -693,7 +693,61 @@ async function runAllBackgroundJobs(): Promise<void> {
   }
 }
 
+async function migrateLegacyCrawledLinks(): Promise<void> {
+  try {
+    const legacyLinks = await storage.getLegacyCrawledLinks();
+    if (legacyLinks.length === 0) return;
+
+    console.log(`[migration] Found ${legacyLinks.length} legacy crawled links without knowledge entries`);
+    const affectedMerchantIds = new Set<string>();
+
+    for (const link of legacyLinks) {
+      if (!link.summarizedContent) continue;
+
+      const urlObj = new URL(link.url.startsWith('http') ? link.url : `https://${link.url}`);
+      const pathSegments = urlObj.pathname.split("/").filter((s: string) => s.length > 0);
+      const folderPart = pathSegments.length > 0
+        ? pathSegments[pathSegments.length - 1].replace(/[-_]/g, " ").replace(/\.\w+$/, "")
+        : "";
+      const entryName = folderPart
+        ? `${urlObj.hostname} - ${folderPart}`
+        : urlObj.hostname;
+
+      const entryId = "ke_" + crypto.randomBytes(8).toString("hex");
+      await storage.createKnowledgeEntry({
+        id: entryId,
+        merchantId: link.merchantId,
+        agentId: link.agentId || null,
+        name: entryName,
+        content: link.summarizedContent,
+        isActive: true,
+        isLinked: false,
+        sortOrder: 0,
+      });
+      await storage.updateCrawledLink(link.id, { knowledgeEntryId: entryId });
+      affectedMerchantIds.add(link.merchantId);
+      console.log(`[migration] Created entry "${entryName}" for ${link.url}`);
+    }
+
+    for (const merchantId of affectedMerchantIds) {
+      const allAgents = await storage.getAgents(merchantId);
+      for (const agent of allAgents) {
+        const combinedContent = await storage.getAllActiveKnowledgeContent(merchantId, agent.id);
+        await storage.setKnowledge(merchantId, combinedContent || "", agent.id);
+        processKnowledgeBase(merchantId, combinedContent || "", agent.id).catch(err => {
+          console.error("[migration] Error processing embeddings:", err);
+        });
+      }
+    }
+
+    console.log(`[migration] Completed migration for ${legacyLinks.length} links across ${affectedMerchantIds.size} merchants`);
+  } catch (error) {
+    console.error("[migration] Legacy crawled links migration error:", error);
+  }
+}
+
 function startBackgroundSync(): void {
+  setTimeout(() => migrateLegacyCrawledLinks(), 3000);
   setTimeout(() => runAllBackgroundJobs(), 5 * 60 * 1000);
   setInterval(() => runAllBackgroundJobs(), 60 * 60 * 1000);
   console.log("[sync] Background sync scheduler started (60 min interval)");

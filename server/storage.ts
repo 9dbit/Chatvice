@@ -150,6 +150,7 @@ export interface IStorage {
   updateCrawledLink(id: string, data: Partial<CrawledLink>): Promise<CrawledLink | undefined>;
   deleteCrawledLink(id: string): Promise<boolean>;
   getActiveCrawledLinksForSync(): Promise<CrawledLink[]>;
+  getLegacyCrawledLinks(): Promise<CrawledLink[]>;
   
   // Sources
   getSources(merchantId: string): Promise<Source[]>;
@@ -1315,6 +1316,16 @@ export class DatabaseStorage implements IStorage {
             isNull(crawledLinks.lastSyncedAt),
             lt(crawledLinks.lastSyncedAt, sixtyMinutesAgo)
           )
+        )
+      );
+  }
+
+  async getLegacyCrawledLinks(): Promise<CrawledLink[]> {
+    return db.select().from(crawledLinks)
+      .where(
+        and(
+          isNull(crawledLinks.knowledgeEntryId),
+          eq(crawledLinks.status, "completed")
         )
       );
   }
