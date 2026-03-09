@@ -322,6 +322,7 @@ export const crawledLinks = pgTable("crawled_links", {
   id: varchar("id", { length: 32 }).primaryKey(),
   merchantId: varchar("merchant_id", { length: 32 }).notNull(),
   agentId: varchar("agent_id", { length: 32 }),
+  knowledgeEntryId: varchar("knowledge_entry_id", { length: 32 }),
   url: text("url").notNull(),
   title: text("title"),
   status: text("status").default("pending"),

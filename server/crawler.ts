@@ -489,7 +489,7 @@ function stripHtml(html: string, keepContactSections: boolean = false): string {
     text = metaInfo + '\n\n---\n\n' + text;
   }
   
-  const maxLength = 25000;
+  const maxLength = 50000;
   if (text.length > maxLength) {
     text = text.substring(0, maxLength) + '\n\n[Content truncated...]';
   }
@@ -599,55 +599,66 @@ export async function extractFAQContent(url: string): Promise<{
       messages: [
         {
           role: "system",
-          content: `You are an expert at extracting comprehensive customer service information from websites for Indonesian and international businesses.
+          content: `You are an expert at extracting COMPLETE and DETAILED customer service information from websites for Indonesian and international businesses.
 
-Your task is to analyze the website content and extract ALL relevant information that would help a customer service AI respond accurately:
+Your task is to analyze the website content and extract EVERY SINGLE piece of information — do NOT summarize, shorten, or skip any detail. The goal is to create a COMPLETE knowledge base so that a customer service AI has full information to answer any question accurately.
+
+Extract ALL of the following categories thoroughly:
 
 1. **Products & Services**:
-   - Product names, descriptions, features
-   - Prices and price ranges (in any currency: Rp, IDR, $, etc.)
-   - Availability, stock status
-   - Categories and variants
+   - EVERY product name, description, feature, specification
+   - ALL prices and price ranges (in any currency: Rp, IDR, $, etc.)
+   - Availability, stock status, variants, sizes, colors
+   - Categories, subcategories, bundles, packages
 
 2. **Business Information**:
-   - Company name and description
-   - Operating hours / Jam operasional
-   - Physical address / Alamat
-   - Service areas / coverage
+   - Company name, full description, history, mission
+   - Operating hours / Jam operasional (every day listed)
+   - Physical address / Alamat (complete)
+   - Service areas / coverage / delivery zones
 
 3. **Contact Details**:
-   - Phone numbers (including WhatsApp)
-   - Email addresses
-   - Social media handles
+   - ALL phone numbers (including WhatsApp)
+   - ALL email addresses
+   - ALL social media handles and links
    - Live chat availability
 
 4. **Policies**:
-   - Return / Refund policies (Kebijakan pengembalian)
-   - Shipping / Delivery information (Pengiriman)
-   - Payment methods accepted (Metode pembayaran)
-   - Warranties and guarantees
+   - Complete return / refund policies (Kebijakan pengembalian)
+   - Full shipping / delivery information (Pengiriman) with rates
+   - ALL payment methods accepted (Metode pembayaran)
+   - Warranties, guarantees, terms and conditions
 
 5. **FAQs**:
-   - Common questions and answers
-   - Troubleshooting guides
-   - How-to information
+   - EVERY question and answer found on the page
+   - ALL troubleshooting guides and steps
+   - ALL how-to information and tutorials
 
 6. **Special Features**:
-   - Promotions / Discounts
-   - Membership programs
-   - Loyalty rewards
+   - ALL promotions, discounts, coupon codes
+   - Membership programs with full details
+   - Loyalty rewards, referral programs
+   - Any other unique features or services
+
+7. **Additional Content**:
+   - Testimonials, reviews
+   - Blog content, articles, guides
+   - Any other text content on the page
 
 Format the extracted information in a clear, well-organized manner using:
 - Clear section headings (##)
 - Bullet points for lists
 - Include both Indonesian and English terms where relevant
 
-IMPORTANT:
+CRITICAL RULES:
+- Extract EVERYTHING — do not skip, summarize, or abbreviate any information
 - Only include FACTUAL information found on the page
 - Do not make up or infer missing details
 - Preserve prices exactly as shown
 - Include operating hours in their original format
-- If structured data was provided, prioritize that information as it's usually more accurate`
+- Include FULL text of policies, not just summaries
+- If structured data was provided, prioritize that information as it's usually more accurate
+- If there are many items (products, FAQs, etc.), list ALL of them, not just a few examples`
         },
         {
           role: "user",
@@ -655,7 +666,7 @@ IMPORTANT:
         }
       ],
       temperature: 0.3,
-      max_tokens: 3000,
+      max_tokens: 8000,
     });
     
     const extractedContent = response.choices[0]?.message?.content || "";

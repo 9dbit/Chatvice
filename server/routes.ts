@@ -6016,12 +6016,13 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
 
   app.post("/api/knowledge/crawl", requireMerchant, async (req, res) => {
     try {
-      const { url } = req.body;
+      const rawUrl = req.body.url;
       const merchantId = req.session.merchantId!;
       
-      if (!url || typeof url !== "string") {
+      if (!rawUrl || typeof rawUrl !== "string") {
         return res.status(400).json({ error: "URL is required" });
       }
+      const url = rawUrl.trim();
       
       const merchant = await storage.getMerchant(merchantId);
       const agentId = merchant?.activeAgentId || undefined;
@@ -6048,6 +6049,26 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
       const summarizedContent = result.content || "";
       
+      const pathSegments = urlObj.pathname.split("/").filter(s => s.length > 0);
+      const folderPart = pathSegments.length > 0
+        ? pathSegments[pathSegments.length - 1].replace(/[-_]/g, " ").replace(/\.\w+$/, "")
+        : "";
+      const entryName = folderPart
+        ? `${urlObj.hostname} - ${folderPart}`
+        : urlObj.hostname;
+
+      const entryId = "ke_" + crypto.randomBytes(8).toString("hex");
+      await storage.createKnowledgeEntry({
+        id: entryId,
+        merchantId,
+        agentId: agentId || null,
+        name: entryName,
+        content: summarizedContent,
+        isActive: true,
+        isLinked: false,
+        sortOrder: 0,
+      });
+
       await storage.updateCrawledLink(crawledLink.id, {
         status: "completed",
         title: urlObj.hostname,
@@ -6055,28 +6076,19 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         summarizedContent,
         lastSyncedAt: new Date(),
         syncStatus: "idle",
+        knowledgeEntryId: entryId,
       });
       
-      if (agentId && summarizedContent) {
-        const existingKnowledge = await storage.getKnowledgeByAgent(agentId);
-        const existingContent = existingKnowledge?.content || "";
-        
-        const urlMarker = `\n\n---\n[Source: ${urlObj.hostname}]\n`;
-        const newContent = existingContent.includes(`[Source: ${urlObj.hostname}]`) 
-          ? existingContent.replace(
-              new RegExp(`\\n\\n---\\n\\[Source: ${urlObj.hostname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\][\\s\\S]*?(?=\\n\\n---\\n\\[Source:|$)`, 'g'),
-              `${urlMarker}${summarizedContent}`
-            )
-          : existingContent + urlMarker + summarizedContent;
-        
-        await storage.setKnowledge(merchantId, newContent, agentId);
-        
-        processKnowledgeBase(merchantId, newContent, agentId).catch(err => {
+      const allAgents = await storage.getAgents(merchantId);
+      for (const agent of allAgents) {
+        const combinedContent = await storage.getAllActiveKnowledgeContent(merchantId, agent.id);
+        await storage.setKnowledge(merchantId, combinedContent || "", agent.id);
+        processKnowledgeBase(merchantId, combinedContent || "", agent.id).catch(err => {
           console.error("Error processing knowledge embeddings:", err);
         });
       }
       
-      res.json({ success: true, content: summarizedContent, linkId: crawledLink.id });
+      res.json({ success: true, content: summarizedContent, linkId: crawledLink.id, knowledgeEntryId: entryId });
     } catch (error) {
       console.error("Crawl error:", error);
       res.status(500).json({ error: "Failed to extract content from URL" });
@@ -6114,10 +6126,27 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
 
   app.delete("/api/knowledge/links/:linkId", requireMerchant, async (req, res) => {
     try {
-      const deleted = await storage.deleteCrawledLink(req.params.linkId);
-      if (!deleted) {
+      const merchantId = req.session.merchantId!;
+      const link = await storage.getCrawledLink(req.params.linkId);
+      if (!link || link.merchantId !== merchantId) {
         return res.status(404).json({ error: "Link not found" });
       }
+
+      if (link.knowledgeEntryId) {
+        await storage.deleteKnowledgeEntry(link.knowledgeEntryId);
+      }
+
+      await storage.deleteCrawledLink(req.params.linkId);
+
+      const allAgents = await storage.getAgents(merchantId);
+      for (const agent of allAgents) {
+        const combinedContent = await storage.getAllActiveKnowledgeContent(merchantId, agent.id);
+        await storage.setKnowledge(merchantId, combinedContent || "", agent.id);
+        processKnowledgeBase(merchantId, combinedContent || "", agent.id).catch(err => {
+          console.error("Error processing knowledge embeddings after link delete:", err);
+        });
+      }
+
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -6159,22 +6188,41 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         syncStatus: "idle",
       });
       
-      const agentId = link.agentId;
-      if (agentId && summarizedContent) {
-        const existingKnowledge = await storage.getKnowledgeByAgent(agentId);
-        const existingContent = existingKnowledge?.content || "";
-        
-        const urlMarker = `\n\n---\n[Source: ${urlObj.hostname}]\n`;
-        const newContent = existingContent.includes(`[Source: ${urlObj.hostname}]`) 
-          ? existingContent.replace(
-              new RegExp(`\\n\\n---\\n\\[Source: ${urlObj.hostname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\][\\s\\S]*?(?=\\n\\n---\\n\\[Source:|$)`, 'g'),
-              `${urlMarker}${summarizedContent}`
-            )
-          : existingContent + urlMarker + summarizedContent;
-        
-        await storage.setKnowledge(merchantId, newContent, agentId);
-        
-        processKnowledgeBase(merchantId, newContent, agentId).catch(err => {
+      let entryFound = false;
+      if (link.knowledgeEntryId) {
+        const existingEntry = await storage.getKnowledgeEntry(link.knowledgeEntryId);
+        if (existingEntry) {
+          await storage.updateKnowledgeEntry(link.knowledgeEntryId, { content: summarizedContent });
+          entryFound = true;
+        }
+      }
+      if (!entryFound) {
+        const pathSegments = urlObj.pathname.split("/").filter((s: string) => s.length > 0);
+        const folderPart = pathSegments.length > 0
+          ? pathSegments[pathSegments.length - 1].replace(/[-_]/g, " ").replace(/\.\w+$/, "")
+          : "";
+        const entryName = folderPart
+          ? `${urlObj.hostname} - ${folderPart}`
+          : urlObj.hostname;
+        const entryId = "ke_" + crypto.randomBytes(8).toString("hex");
+        await storage.createKnowledgeEntry({
+          id: entryId,
+          merchantId,
+          agentId: link.agentId || null,
+          name: entryName,
+          content: summarizedContent,
+          isActive: true,
+          isLinked: false,
+          sortOrder: 0,
+        });
+        await storage.updateCrawledLink(linkId, { knowledgeEntryId: entryId });
+      }
+
+      const allAgents = await storage.getAgents(merchantId);
+      for (const agent of allAgents) {
+        const combinedContent = await storage.getAllActiveKnowledgeContent(merchantId, agent.id);
+        await storage.setKnowledge(merchantId, combinedContent || "", agent.id);
+        processKnowledgeBase(merchantId, combinedContent || "", agent.id).catch(err => {
           console.error("Error processing knowledge embeddings:", err);
         });
       }

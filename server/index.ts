@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
 import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
@@ -282,23 +283,41 @@ async function syncCrawledLink(linkId: string): Promise<void> {
       syncStatus: "idle",
     });
     
-    // Update the knowledge base if we have an agent
-    const agentId = link.agentId;
-    if (agentId && summarizedContent) {
-      const existingKnowledge = await storage.getKnowledgeByAgent(agentId);
-      const existingContent = existingKnowledge?.content || "";
-      
-      const urlMarker = `\n\n---\n[Source: ${urlObj.hostname}]\n`;
-      const newContent = existingContent.includes(`[Source: ${urlObj.hostname}]`) 
-        ? existingContent.replace(
-            new RegExp(`\\n\\n---\\n\\[Source: ${urlObj.hostname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\][\\s\\S]*?(?=\\n\\n---\\n\\[Source:|$)`, 'g'),
-            `${urlMarker}${summarizedContent}`
-          )
-        : existingContent + urlMarker + summarizedContent;
-      
-      await storage.setKnowledge(link.merchantId, newContent, agentId);
-      
-      processKnowledgeBase(link.merchantId, newContent, agentId).catch(err => {
+    let entryFound = false;
+    if (link.knowledgeEntryId) {
+      const existingEntry = await storage.getKnowledgeEntry(link.knowledgeEntryId);
+      if (existingEntry) {
+        await storage.updateKnowledgeEntry(link.knowledgeEntryId, { content: summarizedContent });
+        entryFound = true;
+      }
+    }
+    if (!entryFound && summarizedContent) {
+      const pathSegments = urlObj.pathname.split("/").filter((s: string) => s.length > 0);
+      const folderPart = pathSegments.length > 0
+        ? pathSegments[pathSegments.length - 1].replace(/[-_]/g, " ").replace(/\.\w+$/, "")
+        : "";
+      const entryName = folderPart
+        ? `${urlObj.hostname} - ${folderPart}`
+        : urlObj.hostname;
+      const entryId = "ke_" + crypto.randomBytes(8).toString("hex");
+      await storage.createKnowledgeEntry({
+        id: entryId,
+        merchantId: link.merchantId,
+        agentId: link.agentId || null,
+        name: entryName,
+        content: summarizedContent,
+        isActive: true,
+        isLinked: false,
+        sortOrder: 0,
+      });
+      await storage.updateCrawledLink(linkId, { knowledgeEntryId: entryId });
+    }
+
+    const allAgents = await storage.getAgents(link.merchantId);
+    for (const agent of allAgents) {
+      const combinedContent = await storage.getAllActiveKnowledgeContent(link.merchantId, agent.id);
+      await storage.setKnowledge(link.merchantId, combinedContent || "", agent.id);
+      processKnowledgeBase(link.merchantId, combinedContent || "", agent.id).catch(err => {
         console.error("[sync] Error processing knowledge embeddings:", err);
       });
     }
