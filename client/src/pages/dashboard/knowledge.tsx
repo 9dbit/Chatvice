@@ -1433,49 +1433,54 @@ export default function KnowledgePage() {
                 <Collapsible key={entry.id} defaultOpen={true} asChild>
                   <Card className={`transition-opacity ${!entry.isActive ? "opacity-60" : ""} flex flex-col`} data-testid={`card-entry-${entry.id}`}>
                     <CollapsibleTrigger asChild>
-                      <CardHeader className="pb-2 cursor-pointer group">
-                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-90 sm:hidden" />
+                      <CardHeader className="pb-2 cursor-pointer group px-3 pt-3">
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <ChevronRight className="w-3.5 h-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-90 sm:hidden" />
                             <Input
                               value={localName}
                               onChange={(e) => setEntryNames(prev => ({ ...prev, [entry.id]: e.target.value }))}
                               onClick={(e) => e.stopPropagation()}
-                              className="font-semibold border-none shadow-none focus-visible:ring-1 h-8 text-base"
+                              className="font-medium border-none shadow-none focus-visible:ring-1 h-7 text-xs sm:text-sm"
                               data-testid={`input-entry-name-${entry.id}`}
                             />
                           </div>
-                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                            {entry.isLinked && (
-                              <Badge variant="secondary" className="text-[10px] gap-1">
-                                <Link2 className="w-3 h-3" />
-                                All Agents
-                              </Badge>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => toggleEntryLinkMutation.mutate({ id: entry.id, agentId: selectedAgentId || undefined })}
-                              title={entry.isLinked ? "Unlink from all agents (make agent-specific)" : "Link to all agents (share across all)"}
-                              data-testid={`button-toggle-link-${entry.id}`}
-                            >
-                              {entry.isLinked ? <Link2 className="w-4 h-4 text-primary" /> : <Unlink className="w-4 h-4 text-muted-foreground" />}
-                            </Button>
-                            <div className="flex items-center gap-1.5">
-                              <Switch
-                                checked={entry.isActive}
-                                onCheckedChange={(checked) => toggleEntryActiveMutation.mutate({ id: entry.id, isActive: checked })}
-                                data-testid={`switch-entry-active-${entry.id}`}
-                              />
-                              <span className="text-xs text-muted-foreground">{entry.isActive ? "Active" : "Inactive"}</span>
+                          <div className="flex items-center justify-between gap-1" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {entry.isLinked && (
+                                <Badge variant="secondary" className="text-[9px] gap-0.5 px-1.5 py-0">
+                                  <Link2 className="w-2.5 h-2.5" />
+                                  All Agents
+                                </Badge>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => toggleEntryLinkMutation.mutate({ id: entry.id, agentId: selectedAgentId || undefined })}
+                                title={entry.isLinked ? "Unlink from all agents (make agent-specific)" : "Link to all agents (share across all)"}
+                                data-testid={`button-toggle-link-${entry.id}`}
+                              >
+                                {entry.isLinked ? <Link2 className="w-3 h-3 text-primary" /> : <Unlink className="w-3 h-3 text-muted-foreground" />}
+                              </Button>
+                              <div className="flex items-center gap-1">
+                                <Switch
+                                  checked={entry.isActive}
+                                  onCheckedChange={(checked) => toggleEntryActiveMutation.mutate({ id: entry.id, isActive: checked })}
+                                  className="h-4 w-7 [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-3"
+                                  data-testid={`switch-entry-active-${entry.id}`}
+                                />
+                                <span className="text-[10px] text-muted-foreground">{entry.isActive ? "Active" : "Off"}</span>
+                              </div>
                             </div>
                             <Button
                               variant="ghost"
                               size="icon"
+                              className="h-6 w-6"
                               onClick={() => setDeleteConfirmId(entry.id)}
                               data-testid={`button-delete-entry-${entry.id}`}
                             >
-                              <Trash2 className="w-4 h-4 text-muted-foreground" />
+                              <Trash2 className="w-3 h-3 text-muted-foreground" />
                             </Button>
                           </div>
                         </div>
