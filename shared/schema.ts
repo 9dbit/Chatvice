@@ -116,6 +116,8 @@ export const merchants = pgTable("merchants", {
   widgetSlug: text("widget_slug").unique(),
   // Work scheduler timezone
   workTimezone: text("work_timezone").default("Asia/Jakarta"),
+  // Live visitor tracking / proactive chat
+  proactiveChatEnabled: boolean("proactive_chat_enabled").default(false),
   // Storage usage tracking (in bytes)
   storageUsed: integer("storage_used").default(0),
   storageLimit: integer("storage_limit").default(104857600), // 100MB default
@@ -226,6 +228,11 @@ export const sessions = pgTable("sessions", {
   // Device fingerprint and IP for 24-hour session persistence
   deviceFingerprint: text("device_fingerprint"),
   clientIp: text("client_ip"),
+  // Live visitor tracking
+  visitorSession: boolean("visitor_session").default(false),
+  countryCode: text("country_code"),
+  countryName: text("country_name"),
+  pageUrl: text("page_url"),
   // Customer rating for session (1-5 stars)
   customerRating: integer("customer_rating"),
   ratingComment: text("rating_comment"),

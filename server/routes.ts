@@ -4668,6 +4668,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         collectCustomerPhone,
         customDomain,
         customDomainStatus,
+        proactiveChatEnabled,
       } = req.body;
       
       const updateData: Record<string, any> = {};
@@ -4680,6 +4681,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (collectCustomerPhone !== undefined) updateData.collectCustomerPhone = collectCustomerPhone;
       if (customDomain !== undefined) updateData.customDomain = customDomain;
       if (customDomainStatus !== undefined) updateData.customDomainStatus = customDomainStatus;
+      if (proactiveChatEnabled !== undefined) updateData.proactiveChatEnabled = proactiveChatEnabled;
       
       const updated = await storage.updateMerchant(merchantId, updateData);
       if (!updated) {
@@ -6876,10 +6878,81 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         return res.status(404).json({ error: "Supervisor not found" });
       }
       // Use activeOnly: true to only show sessions from the last 60 minutes
-      const sessions = await storage.getSessionsByMerchant(supervisor.merchantId, true);
-      const escalatedSessions = sessions.filter((s) => s.mode === "HUMAN");
+      const allSessions = await storage.getSessionsByMerchant(supervisor.merchantId, true);
+      const escalatedSessions = allSessions.filter((s) => s.mode === "HUMAN");
       res.json(escalatedSessions);
     } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.get("/api/supervisor/visitors/:supervisorId", requireSupervisor, async (req, res) => {
+    try {
+      if (req.session.userId !== req.params.supervisorId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      const supervisor = await storage.getSupervisor(req.params.supervisorId);
+      if (!supervisor) {
+        return res.status(404).json({ error: "Supervisor not found" });
+      }
+      const merchant = await storage.getMerchant(supervisor.merchantId);
+      if (!merchant || !merchant.proactiveChatEnabled) {
+        return res.json([]);
+      }
+      const allSessions = await storage.getSessionsByMerchant(supervisor.merchantId, true);
+      const visitorSessions = allSessions.filter((s) => s.visitorSession === true && s.status === "active");
+      res.json(visitorSessions);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/supervisor/proactive-chat", requireSupervisor, async (req, res) => {
+    try {
+      const { sessionId, supervisorId, message } = req.body;
+      if (req.session.userId !== supervisorId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      if (!sessionId || !message) {
+        return res.status(400).json({ error: "sessionId and message required" });
+      }
+
+      const targetSession = await storage.getSession(sessionId);
+      if (!targetSession) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+
+      const supervisor = await storage.getSupervisor(supervisorId);
+      if (!supervisor || supervisor.merchantId !== targetSession.merchantId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      await storage.updateSession(sessionId, {
+        visitorSession: false,
+        mode: "HUMAN",
+        supervisorId: supervisorId,
+      });
+
+      const createdMessage = await storage.createMessage({
+        sessionId,
+        from: "supervisor",
+        content: message,
+      });
+
+      broadcastToSession(sessionId, {
+        type: "message",
+        message: createdMessage,
+      });
+
+      broadcastToSession(sessionId, {
+        type: "proactive_chat",
+        sessionId,
+        supervisorName: supervisor.name,
+      });
+
+      res.json({ success: true, message: createdMessage });
+    } catch (error) {
+      console.error("[proactive-chat] Error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
@@ -13444,6 +13517,68 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
   // Initialize welcome bubble after a short delay
   setTimeout(initWelcomeBubble, 1000);
   
+  // --- Live Visitor Tracking ---
+  var visitorSessionId = null;
+  var visitorWs = null;
+
+  function getDeviceFingerprint() {
+    var nav = window.navigator;
+    var screen = window.screen;
+    var fp = [nav.userAgent, nav.language, screen.width, screen.height, screen.colorDepth, new Date().getTimezoneOffset()].join("|");
+    var hash = 0;
+    for (var i = 0; i < fp.length; i++) {
+      hash = ((hash << 5) - hash) + fp.charCodeAt(i);
+      hash = hash & hash;
+    }
+    return "fp_" + Math.abs(hash).toString(36);
+  }
+
+  function initVisitorTracking() {
+    var fp = getDeviceFingerprint();
+    var pingData = { merchantId: merchantId, deviceFingerprint: fp, pageUrl: window.location.href };
+
+    fetch(baseUrl + "/api/widget/visitor-ping", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(pingData)
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      if (!data.tracked) return;
+      visitorSessionId = data.sessionId;
+
+      // Connect WebSocket to listen for proactive messages
+      var wsProto = baseUrl.replace(/^http/, "ws");
+      visitorWs = new WebSocket(wsProto + "/ws?session=" + visitorSessionId + "&type=customer");
+      visitorWs.onmessage = function(evt) {
+        try {
+          var msg = JSON.parse(evt.data);
+          if (msg.type === "proactive_chat" || (msg.type === "message" && msg.message && msg.message.senderType === "supervisor")) {
+            // Auto-open widget with visitor session
+            iframe.src = baseUrl + "/widget/" + merchantId + "?session=" + visitorSessionId + "&showClose=true&embedded=true&visitorSession=true";
+            openWidget();
+          }
+        } catch(e) {}
+      };
+
+      // Keep-alive ping every 30 seconds
+      setInterval(function() {
+        if (visitorSessionId) {
+          fetch(baseUrl + "/api/widget/visitor-ping", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(pingData)
+          }).catch(function() {});
+        }
+      }, 30000);
+    }).catch(function() {});
+  }
+
+  // Start visitor tracking after config loads
+  if (configLoaded) {
+    initVisitorTracking();
+  } else {
+    setTimeout(initVisitorTracking, 2000);
+  }
+
   // Expose public API
   window.chatvice = {
     open: openWidget,
@@ -15429,6 +15564,121 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
     
     return { isValid: true, sanitizedName: sanitized };
   }
+
+  // --- Live Visitor Tracking / Proactive Chat ---
+  const geoCache = new Map<string, { countryCode: string; countryName: string; expiresAt: number }>();
+
+  async function getGeoFromIp(ip: string): Promise<{ countryCode: string; countryName: string }> {
+    const cached = geoCache.get(ip);
+    if (cached && cached.expiresAt > Date.now()) {
+      return { countryCode: cached.countryCode, countryName: cached.countryName };
+    }
+    try {
+      const cleanIp = ip.replace(/^::ffff:/, "");
+      if (cleanIp === "127.0.0.1" || cleanIp === "::1" || cleanIp === "unknown") {
+        return { countryCode: "XX", countryName: "Local" };
+      }
+      const res = await fetch(`http://ip-api.com/json/${cleanIp}?fields=status,country,countryCode`);
+      const data = await res.json() as any;
+      if (data.status === "success") {
+        const result = { countryCode: (data.countryCode || "XX").toLowerCase(), countryName: data.country || "Unknown" };
+        geoCache.set(ip, { ...result, expiresAt: Date.now() + 10 * 60 * 1000 });
+        return result;
+      }
+    } catch (e) {
+      console.error("[geo] IP lookup failed:", e);
+    }
+    return { countryCode: "xx", countryName: "Unknown" };
+  }
+
+  app.post("/api/widget/visitor-ping", async (req, res) => {
+    try {
+      const { merchantId, deviceFingerprint, pageUrl } = req.body;
+      if (!merchantId || !deviceFingerprint) {
+        return res.json({ tracked: false });
+      }
+
+      const merchant = await resolveMerchant(merchantId);
+      if (!merchant || !merchant.proactiveChatEnabled) {
+        return res.json({ tracked: false });
+      }
+      const resolvedMerchantId = merchant.id;
+
+      const clientIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+        req.socket.remoteAddress || "unknown";
+
+      const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000);
+      const existingSession = await db.query.sessions.findFirst({
+        where: and(
+          eq(sessions.merchantId, resolvedMerchantId),
+          eq(sessions.deviceFingerprint, deviceFingerprint),
+          eq(sessions.status, "active"),
+          eq(sessions.visitorSession, true),
+          gte(sessions.lastActivity, thirtyMinAgo)
+        ),
+        orderBy: [desc(sessions.lastActivity)],
+      });
+
+      if (existingSession) {
+        await storage.updateSession(existingSession.id, {
+          lastActivity: new Date(),
+          pageUrl: pageUrl || existingSession.pageUrl,
+        });
+        return res.json({
+          tracked: true,
+          sessionId: existingSession.id,
+          countryCode: existingSession.countryCode || "xx",
+          countryName: existingSession.countryName || "Unknown",
+        });
+      }
+
+      const geo = await getGeoFromIp(clientIp);
+      const assignedAgentId = await getNextAgentId(resolvedMerchantId, undefined, deviceFingerprint);
+
+      const sessionId = "sess_v_" + crypto.randomBytes(8).toString("hex");
+      await storage.createSession({
+        id: sessionId,
+        merchantId: resolvedMerchantId,
+        agentId: assignedAgentId || undefined,
+        mode: "AI",
+        status: "active",
+        customerName: clientIp.replace(/^::ffff:/, ""),
+        clientIp: clientIp,
+        deviceFingerprint: deviceFingerprint,
+        visitorSession: true,
+        countryCode: geo.countryCode,
+        countryName: geo.countryName,
+        pageUrl: pageUrl || "",
+      });
+
+      res.json({
+        tracked: true,
+        sessionId,
+        countryCode: geo.countryCode,
+        countryName: geo.countryName,
+      });
+    } catch (error) {
+      console.error("[visitor-ping] Error:", error);
+      res.json({ tracked: false });
+    }
+  });
+
+  app.post("/api/widget/visitor-upgrade", async (req, res) => {
+    try {
+      const { sessionId } = req.body;
+      if (!sessionId) return res.status(400).json({ error: "sessionId required" });
+
+      const session = await storage.getSession(sessionId);
+      if (!session) return res.status(404).json({ error: "Session not found" });
+
+      if (session.visitorSession) {
+        await storage.updateSession(sessionId, { visitorSession: false });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
 
   // Public endpoint to find existing session within 1 hour by device fingerprint
   app.post("/api/widget/find-session", async (req, res) => {

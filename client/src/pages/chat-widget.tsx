@@ -385,6 +385,7 @@ function getContrastColor(hexColor: string): string {
 export default function ChatWidget({ merchantId, sessionId: initialSessionId, embedded = false, previewMode = false }: ChatWidgetProps) {
   const urlParams = new URLSearchParams(window.location.search);
   const showCloseButton = urlParams.get("showClose") === "true";
+  const isVisitorSession = urlParams.get("visitorSession") === "true";
   // Widget is externally embedded when showClose=true (external widget shows close button)
   const isExternalEmbed = showCloseButton;
   
@@ -415,7 +416,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   }, [merchantId, previewMode, deviceFingerprint]);
   
   // Session can be resumed from existing session (24-hour persistence for all widgets)
-  const [isCheckingSession, setIsCheckingSession] = useState(!previewMode);
+  const [isCheckingSession, setIsCheckingSession] = useState(!previewMode && !isVisitorSession);
   const [resumedSessionId, setResumedSessionId] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
@@ -486,6 +487,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     }
   });
   const [hasSubmittedName, setHasSubmittedName] = useState(() => {
+    if (isVisitorSession) return true;
     if (previewMode) return false;
     try {
       return sessionStorage.getItem(`${customerNameKey}_submitted`) === "true";
@@ -589,6 +591,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   
   // Check for existing session on mount (24-hour persistence for all widgets)
   useEffect(() => {
+    // Visitor sessions already have their session from the URL
+    if (isVisitorSession) {
+      setIsCheckingSession(false);
+      return;
+    }
     // Wait for fingerprint to be generated
     if (previewMode) {
       setIsCheckingSession(false);

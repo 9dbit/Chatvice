@@ -42,6 +42,7 @@ Chatvice is a monorepo application with `/client`, `/server`, and `/shared` comp
 - **External Chat Bridge API**: Endpoints for sending customer messages to merchants and retrieving replies, secured via API key and CORS.
 - **Google Sheet Transaction Lookup**: AI agent detects transaction queries and performs real-time Google Sheet fetches to inject structured data into the prompt for accurate lookups.
 - **Base64 Image Serving Endpoints**: Dedicated endpoints for serving merchant and supervisor base64-encoded images stored in the database as binary responses with caching.
+- **Live Visitor Tracking & Proactive Chat**: Real-time website visitor tracking with IP geolocation (ip-api.com with in-memory cache). Supervisors see live visitors with country flags and can initiate proactive conversations before visitors start chatting. Widget auto-opens when supervisor sends a message. Feature is toggleable per-merchant via dashboard settings.
 
 ## External Dependencies
 - **AI Services**: OpenAI API (GPT-4.1-mini, text-embedding-3-small, Vision), Gemini 2.5 Flash.

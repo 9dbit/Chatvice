@@ -57,6 +57,7 @@ import {
   Eye,
   Users,
   Activity,
+  Globe,
   X,
 } from "lucide-react";
 import type { Session, Message, Notification, ChatLog } from "@shared/schema";
@@ -73,6 +74,7 @@ import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
 type SupervisorPage = 
   | "overview" 
   | "chat-sessions" 
+  | "live-visitors"
   | "chat-logs" 
   | "quick-replies" 
   | "chat-buttons" 
@@ -119,6 +121,7 @@ function renderMessageWithLinks(content: string) {
 const supervisorMenuItems: { id: SupervisorPage; title: string; icon: any }[] = [
   { id: "overview", title: "Overview", icon: LayoutDashboard },
   { id: "chat-sessions", title: "Chat Sessions", icon: MessageSquare },
+  { id: "live-visitors", title: "Live Visitors", icon: Eye },
   { id: "chat-logs", title: "Chat Logs", icon: FileText },
   { id: "quick-replies", title: "Quick Replies", icon: Reply },
   { id: "chat-buttons", title: "Chat Buttons", icon: MousePointer2 },
@@ -330,6 +333,35 @@ export default function SupervisorPanel() {
   const { data: teamActivity, isLoading: teamActivityLoading } = useQuery<any>({
     queryKey: ["/api/team/activity"],
     enabled: currentPage === "team-activity",
+  });
+
+  const { data: liveVisitors, isLoading: visitorsLoading } = useQuery<Session[]>({
+    queryKey: ["/api/supervisor/visitors", merchantId],
+    enabled: currentPage === "live-visitors",
+    refetchInterval: 5000,
+  });
+
+  const [proactiveChatMessage, setProactiveChatMessage] = useState("");
+  const [proactiveChatSessionId, setProactiveChatSessionId] = useState<string | null>(null);
+
+  const proactiveChatMutation = useMutation({
+    mutationFn: async (data: { sessionId: string; message: string }) => {
+      return apiRequest("POST", "/api/supervisor/proactive-chat", {
+        sessionId: data.sessionId,
+        supervisorId: merchantId,
+        message: data.message,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/supervisor/visitors", merchantId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/supervisor/sessions", merchantId] });
+      setProactiveChatMessage("");
+      setProactiveChatSessionId(null);
+      toast({ title: "Message sent", description: "Proactive chat started. The visitor will see your message." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to send proactive message", variant: "destructive" });
+    },
   });
 
   const sendMessageMutation = useMutation({
@@ -830,6 +862,134 @@ export default function SupervisorPanel() {
                 </CardContent>
               )}
             </Card>
+          </div>
+        );
+
+      case "live-visitors":
+        return (
+          <div className="flex-1 p-6 overflow-auto">
+            <div className="space-y-4 sm:space-y-6">
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+                  <Eye className="w-5 h-5 sm:w-6 sm:h-6" />
+                  Live Visitors
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  Website visitors currently browsing. Start a conversation before they do.
+                </p>
+              </div>
+
+              {visitorsLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-20 w-full" />
+                  ))}
+                </div>
+              ) : liveVisitors && liveVisitors.length > 0 ? (
+                <div className="space-y-3">
+                  {liveVisitors.map((visitor) => {
+                    const arrivalTime = visitor.createdAt ? new Date(visitor.createdAt) : new Date();
+                    const minutesAgo = Math.floor((Date.now() - arrivalTime.getTime()) / 60000);
+                    const timeLabel = minutesAgo < 1 ? "Just now" : minutesAgo < 60 ? `${minutesAgo}m ago` : `${Math.floor(minutesAgo / 60)}h ago`;
+                    const cc = (visitor.countryCode || "").toLowerCase();
+
+                    return (
+                      <Card key={visitor.id} data-testid={`card-visitor-${visitor.id}`}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between gap-4 flex-wrap">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                {cc ? (
+                                  <img
+                                    src={`https://flagcdn.com/16x12/${cc}.png`}
+                                    alt={visitor.countryName || cc}
+                                    className="w-4 h-3"
+                                  />
+                                ) : (
+                                  <Globe className="w-4 h-4 text-muted-foreground" />
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium flex items-center gap-2 flex-wrap">
+                                  <span data-testid={`text-visitor-name-${visitor.id}`}>{visitor.customerName || "Unknown"}</span>
+                                  {visitor.countryName && (
+                                    <Badge variant="outline" className="text-xs">{visitor.countryName}</Badge>
+                                  )}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate" data-testid={`text-visitor-page-${visitor.id}`}>
+                                  {visitor.pageUrl || "Unknown page"}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Activity className="w-3 h-3" />
+                                {timeLabel}
+                              </span>
+                              {proactiveChatSessionId === visitor.id ? (
+                                <div className="flex items-center gap-2">
+                                  <Input
+                                    placeholder="Type your message..."
+                                    value={proactiveChatMessage}
+                                    onChange={(e) => setProactiveChatMessage(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" && proactiveChatMessage.trim()) {
+                                        proactiveChatMutation.mutate({ sessionId: visitor.id, message: proactiveChatMessage.trim() });
+                                      }
+                                    }}
+                                    className="w-48"
+                                    data-testid={`input-proactive-message-${visitor.id}`}
+                                    autoFocus
+                                  />
+                                  <Button
+                                    size="sm"
+                                    onClick={() => {
+                                      if (proactiveChatMessage.trim()) {
+                                        proactiveChatMutation.mutate({ sessionId: visitor.id, message: proactiveChatMessage.trim() });
+                                      }
+                                    }}
+                                    disabled={proactiveChatMutation.isPending || !proactiveChatMessage.trim()}
+                                    data-testid={`button-send-proactive-${visitor.id}`}
+                                  >
+                                    <Send className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => { setProactiveChatSessionId(null); setProactiveChatMessage(""); }}
+                                    data-testid={`button-cancel-proactive-${visitor.id}`}
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  onClick={() => setProactiveChatSessionId(visitor.id)}
+                                  data-testid={`button-chat-visitor-${visitor.id}`}
+                                >
+                                  <MessageSquare className="w-3 h-3 mr-1" />
+                                  Chat
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Eye className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
+                  <p className="text-muted-foreground">No live visitors</p>
+                  <p className="text-sm text-muted-foreground">
+                    Visitors will appear here when they browse your website with the chat widget installed.
+                    Make sure "Live Visitor Tracking" is enabled in merchant settings.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         );
 
