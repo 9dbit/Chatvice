@@ -487,7 +487,6 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     }
   });
   const [hasSubmittedName, setHasSubmittedName] = useState(() => {
-    if (isVisitorSession) return true;
     if (previewMode) return false;
     try {
       return sessionStorage.getItem(`${customerNameKey}_submitted`) === "true";

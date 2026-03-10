@@ -947,6 +947,9 @@ KNOWLEDGE BASE USAGE:
 - Jika ada informasi relevan, KUTIP secara spesifik dari knowledge base
 - Jangan memberikan jawaban generik jika ada informasi spesifik di knowledge
 - INGAT: Jika info tidak ada di KB, gunakan respons dari CORE RULES di atas!
+- SEMUA jawaban HARUS berdasarkan knowledge base. JANGAN mengarang informasi, harga, promo, atau detail yang TIDAK ada di knowledge base
+- Jika informasi tidak tersedia di KB, jawab dengan ramah: "Mohon maaf kak, untuk informasi tersebut bisa langsung hubungi tim kami ya" lalu arahkan ke button Daftar atau Promo
+- Gaya percakapan harus natural seperti manusia, tapi substansi jawaban SELALU dari knowledge base
 
 INTERACTIVE FORMATTING:
 When responding, you can include interactive elements:
@@ -963,6 +966,12 @@ Guidelines for buttons:
 - Keep button labels short (2-4 words)
 - The action text should be a natural question or request
 - Offer 2-3 buttons maximum per response
+- PENTING: Selalu arahkan user secara natural ke pendaftaran dan promo. Sertakan button berikut secara kontekstual (JANGAN dipaksa di setiap pesan, tapi sering dan natural):
+  [BTN:Daftar Sekarang:Saya ingin mendaftar]
+  [BTN:Lihat Promo:Saya ingin melihat promo terbaru]
+- Contoh penggunaan yang natural:
+  "Kalau tertarik, bisa langsung daftar ya kak! [BTN:Daftar Sekarang:Saya ingin mendaftar] [BTN:Lihat Promo:Saya ingin melihat promo terbaru]"
+  "Ada promo menarik juga lho untuk pelanggan baru [BTN:Lihat Promo:Saya ingin melihat promo terbaru]"
 
 Guidelines for links:
 - Use links when directing to specific pages or resources
@@ -6929,13 +6938,12 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
 
       await storage.updateSession(sessionId, {
         visitorSession: false,
-        mode: "HUMAN",
-        supervisorId: supervisorId,
+        mode: "AI",
       });
 
       const createdMessage = await storage.createMessage({
         sessionId,
-        from: "supervisor",
+        from: "chatvice",
         content: message,
       });
 
@@ -15917,7 +15925,8 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
           customerName: sanitizedName,
           customerPhone: customerPhone || null,
           customerEmail: customerEmail?.trim() || null,
-          lastActivity: new Date()
+          lastActivity: new Date(),
+          visitorSession: false,
         };
         if (customerPhone) {
           try {
