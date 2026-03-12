@@ -254,7 +254,9 @@ function SupervisorSidebar({
 export default function SupervisorPanel() {
   const [, setLocation] = useLocation();
   const merchantId = localStorage.getItem("merchantId") || "";
-  const [supervisorUserId, setSupervisorUserId] = useState(() => localStorage.getItem("supervisorUserId") || merchantId);
+  const storedSupervisorId = localStorage.getItem("supervisorUserId");
+  const [supervisorUserId, setSupervisorUserId] = useState(storedSupervisorId || merchantId);
+  const [supervisorIdReady, setSupervisorIdReady] = useState(!!storedSupervisorId);
   const userType = localStorage.getItem("userType");
   const { toast } = useToast();
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
@@ -276,8 +278,11 @@ export default function SupervisorPanel() {
             localStorage.setItem("supervisorUserId", data.userId);
             setSupervisorUserId(data.userId);
           }
+          setSupervisorIdReady(true);
         })
-        .catch(() => {});
+        .catch(() => {
+          setSupervisorIdReady(true);
+        });
     }
   }, [userType]);
 
@@ -299,11 +304,13 @@ export default function SupervisorPanel() {
 
   const { data: notifications, isLoading: notificationsLoading } = useQuery<Notification[]>({
     queryKey: ["/api/supervisor/notifications", supervisorUserId],
+    enabled: supervisorIdReady,
     refetchInterval: 3000,
   });
 
   const { data: escalatedSessions, isLoading: sessionsLoading } = useQuery<Session[]>({
     queryKey: ["/api/supervisor/sessions", supervisorUserId],
+    enabled: supervisorIdReady,
     refetchInterval: 5000,
   });
 
@@ -352,7 +359,7 @@ export default function SupervisorPanel() {
 
   const { data: liveVisitors, isLoading: visitorsLoading } = useQuery<Session[]>({
     queryKey: ["/api/supervisor/visitors", supervisorUserId],
-    enabled: currentPage === "live-visitors",
+    enabled: supervisorIdReady && currentPage === "live-visitors",
     refetchInterval: 5000,
   });
 
