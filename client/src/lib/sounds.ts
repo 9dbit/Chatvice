@@ -98,7 +98,8 @@ async function fetchNotificationSettings(): Promise<NotificationSettings | null>
 export async function playIncomingChatSound(sessionInfo?: { customerName?: string }) {
   const settings = await fetchNotificationSettings();
   if (settings?.incomingChatEnabled === false) return;
-  const soundId = settings?.incomingChatSound || "sci-fi-confirm";
+  const raw = settings?.incomingChatSound;
+  const soundId = (raw && raw !== "default") ? raw : "sci-fi-confirm";
   playSound(soundId);
   
   if (settings?.browserPushEnabled) {
@@ -110,7 +111,8 @@ export async function playIncomingChatSound(sessionInfo?: { customerName?: strin
 export async function playChatReplySound(messageInfo?: { from?: string; content?: string }) {
   const settings = await fetchNotificationSettings();
   if (settings?.chatReplyEnabled === false) return;
-  const soundId = settings?.chatReplySound || "live-chat";
+  const raw = settings?.chatReplySound;
+  const soundId = (raw && raw !== "default") ? raw : "live-chat";
   playSound(soundId);
   
   if (settings?.browserPushEnabled) {
@@ -123,7 +125,8 @@ export async function playChatReplySound(messageInfo?: { from?: string; content?
 export async function playAngrySound(sessionInfo?: { customerName?: string; reason?: string }) {
   const settings = await fetchNotificationSettings();
   if (settings?.angryCustomerEnabled === false) return;
-  const soundId = settings?.angryCustomerSound || "notification-alert";
+  const raw = settings?.angryCustomerSound;
+  const soundId = (raw && raw !== "default") ? raw : "notification-alert";
   playSound(soundId);
   
   if (settings?.browserPushEnabled) {

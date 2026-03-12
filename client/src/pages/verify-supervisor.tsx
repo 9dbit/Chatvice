@@ -39,6 +39,9 @@ export default function VerifySupervisorPage() {
     onSuccess: (data) => {
       localStorage.setItem("merchantId", data.merchantId);
       localStorage.setItem("userType", "supervisor");
+      if (data.supervisorUserId) {
+        localStorage.setItem("supervisorUserId", data.supervisorUserId);
+      }
       toast({
         title: "Account Created",
         description: "Welcome! You can now access the dashboard.",

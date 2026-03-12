@@ -171,9 +171,12 @@ export function LoginPage() {
       }
       return responseData;
     },
-    onSuccess: (data: { success: boolean; merchantId: string; type: string; profileCompleted?: boolean }) => {
+    onSuccess: (data: { success: boolean; merchantId: string; type: string; profileCompleted?: boolean; supervisorUserId?: string }) => {
       localStorage.setItem("merchantId", data.merchantId);
       localStorage.setItem("userType", data.type || "merchant");
+      if (data.supervisorUserId) {
+        localStorage.setItem("supervisorUserId", data.supervisorUserId);
+      }
       toast({
         title: "Welcome back!",
         description: "You have successfully logged in.",

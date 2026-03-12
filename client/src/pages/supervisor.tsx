@@ -254,6 +254,7 @@ function SupervisorSidebar({
 export default function SupervisorPanel() {
   const [, setLocation] = useLocation();
   const merchantId = localStorage.getItem("merchantId") || "";
+  const [supervisorUserId, setSupervisorUserId] = useState(() => localStorage.getItem("supervisorUserId") || merchantId);
   const userType = localStorage.getItem("userType");
   const { toast } = useToast();
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
@@ -266,6 +267,20 @@ export default function SupervisorPanel() {
   });
   const [isAlertActive, setIsAlertActive] = useState(false);
   
+  useEffect(() => {
+    if (userType === "supervisor" && !localStorage.getItem("supervisorUserId")) {
+      fetch("/api/auth/me", { credentials: "include" })
+        .then(r => r.json())
+        .then(data => {
+          if (data.authenticated && data.userType === "supervisor" && data.userId) {
+            localStorage.setItem("supervisorUserId", data.userId);
+            setSupervisorUserId(data.userId);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [userType]);
+
   // Persist sound preference
   useEffect(() => {
     localStorage.setItem("supervisorSoundEnabled", String(soundEnabled));
@@ -283,12 +298,12 @@ export default function SupervisorPanel() {
   }
 
   const { data: notifications, isLoading: notificationsLoading } = useQuery<Notification[]>({
-    queryKey: ["/api/supervisor/notifications", merchantId],
+    queryKey: ["/api/supervisor/notifications", supervisorUserId],
     refetchInterval: 3000,
   });
 
   const { data: escalatedSessions, isLoading: sessionsLoading } = useQuery<Session[]>({
-    queryKey: ["/api/supervisor/sessions", merchantId],
+    queryKey: ["/api/supervisor/sessions", supervisorUserId],
     refetchInterval: 5000,
   });
 
@@ -336,7 +351,7 @@ export default function SupervisorPanel() {
   });
 
   const { data: liveVisitors, isLoading: visitorsLoading } = useQuery<Session[]>({
-    queryKey: ["/api/supervisor/visitors", merchantId],
+    queryKey: ["/api/supervisor/visitors", supervisorUserId],
     enabled: currentPage === "live-visitors",
     refetchInterval: 5000,
   });
@@ -348,13 +363,13 @@ export default function SupervisorPanel() {
     mutationFn: async (data: { sessionId: string; message: string }) => {
       return apiRequest("POST", "/api/supervisor/proactive-chat", {
         sessionId: data.sessionId,
-        supervisorId: merchantId,
+        supervisorId: supervisorUserId,
         message: data.message,
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/supervisor/visitors", merchantId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/supervisor/sessions", merchantId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/supervisor/visitors", supervisorUserId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/supervisor/sessions", supervisorUserId] });
       setProactiveChatMessage("");
       setProactiveChatSessionId(null);
       toast({ title: "Message sent", description: "Proactive chat started. The visitor will see your message." });
@@ -369,7 +384,7 @@ export default function SupervisorPanel() {
       return apiRequest("POST", "/api/supervisor/send", {
         sessionId: selectedSession,
         message,
-        supervisorId: merchantId,
+        supervisorId: supervisorUserId,
       });
     },
     onSuccess: () => {
@@ -382,11 +397,11 @@ export default function SupervisorPanel() {
     mutationFn: async (sessionId: string) => {
       return apiRequest("POST", "/api/supervisor/takeover", {
         sessionId,
-        supervisorId: merchantId,
+        supervisorId: supervisorUserId,
       });
     },
     onSuccess: (_, sessionId) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/supervisor/sessions", merchantId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/supervisor/sessions", supervisorUserId] });
       setSelectedSession(sessionId);
       setTakeoverDialogOpen(false);
       setSessionToTakeover(null);
@@ -401,11 +416,11 @@ export default function SupervisorPanel() {
     mutationFn: async (sessionId: string) => {
       return apiRequest("POST", "/api/supervisor/return-to-bot", {
         sessionId,
-        supervisorId: merchantId,
+        supervisorId: supervisorUserId,
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/supervisor/sessions", merchantId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/supervisor/sessions", supervisorUserId] });
       setSelectedSession(null);
       toast({
         title: "Returned to AI",
@@ -430,7 +445,7 @@ export default function SupervisorPanel() {
       return apiRequest("POST", `/api/supervisor/notifications/${notificationId}/seen`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/supervisor/notifications", merchantId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/supervisor/notifications", supervisorUserId] });
     },
   });
 
@@ -558,6 +573,7 @@ export default function SupervisorPanel() {
   const handleLogout = () => {
     localStorage.removeItem("merchantId");
     localStorage.removeItem("userType");
+    localStorage.removeItem("supervisorUserId");
     setLocation("/");
   };
 
@@ -800,7 +816,7 @@ export default function SupervisorPanel() {
                                     messageId={msg.id}
                                     sessionId={selectedSession!}
                                     reactions={msgReactions}
-                                    reactedBy={merchantId || "supervisor"}
+                                    reactedBy={supervisorUserId || "supervisor"}
                                     reactedByRole="supervisor"
                                     isOwnMessage={msg.from === "supervisor"}
                                     showHint={isLastCustomerMsg && msgReactions.length === 0}

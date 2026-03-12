@@ -2864,7 +2864,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         req.session.userId = supervisor.id;
         req.session.userType = "supervisor";
         req.session.merchantId = supervisor.merchantId;
-        return res.json({ success: true, merchantId: supervisor.merchantId, type: "supervisor" });
+        return res.json({ success: true, merchantId: supervisor.merchantId, supervisorUserId: supervisor.id, type: "supervisor" });
       }
 
       res.status(401).json({ error: "Invalid credentials" });
@@ -6799,6 +6799,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         success: true, 
         supervisor: safeSupervisor,
         merchantId: invitation.merchantId,
+        supervisorUserId: supervisor.id,
         message: "Account created successfully"
       });
     } catch (error) {
@@ -18434,16 +18435,16 @@ ${pageHtml.substring(0, 50000)}`
 
   // ============== NOTIFICATION SETTINGS ROUTES ==============
   
-  app.get("/api/notification-settings", requireMerchant, async (req, res) => {
+  app.get("/api/notification-settings", requireMerchantOrSupervisor, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
       const settings = await storage.getNotificationSettings(merchantId);
       res.json(settings || {
-        incomingChatSound: "default",
+        incomingChatSound: "sci-fi-confirm",
         incomingChatEnabled: true,
-        chatReplySound: "default",
+        chatReplySound: "live-chat",
         chatReplyEnabled: true,
-        angryCustomerSound: "alert",
+        angryCustomerSound: "notification-alert",
         angryCustomerEnabled: true,
         customSounds: [],
       });
