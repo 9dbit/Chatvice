@@ -536,28 +536,18 @@ export default function SupervisorPanel() {
   }, [escalatedSessions, soundEnabled, toast]);
 
   // Track messages for notification sounds in selected session
-  // Play reply sound for any new message after the first message of a session
+  // Only play chat reply sound for incoming customer messages
   useEffect(() => {
     if (!messages || messages.length === 0 || !selectedSession || !soundEnabled) return;
     
     const lastMessage = messages[messages.length - 1];
     if (!lastMessage?.id || lastProcessedMessageIdRef.current === lastMessage.id) return;
     
-    // Get previous message count for this session
     const prevCount = sessionMessageCountsRef.current.get(selectedSession) || 0;
     const currentCount = messages.length;
     
-    // Only process if we have new messages (regardless of sender)
-    if (currentCount > prevCount) {
-      if (prevCount === 0) {
-        // First message of session - play incoming chat sound (unless anger/trigger already played)
-        if (!soundPlayedForSessionRef.current.has(selectedSession)) {
-          playIncomingChatSound();
-        }
-      } else {
-        // Subsequent messages - play chat reply sound (for any sender)
-        playChatReplySound();
-      }
+    if (currentCount > prevCount && prevCount > 0 && lastMessage.from === "user") {
+      playChatReplySound({ from: "Customer", content: lastMessage.content || "" });
     }
     
     sessionMessageCountsRef.current.set(selectedSession, currentCount);
