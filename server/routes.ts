@@ -22282,7 +22282,8 @@ Please create a comprehensive help center article that would be useful for custo
       const senderTelegramId = String(update.message.from.id);
       const replyText = update.message.text;
 
-      const supervisor = await storage.getSupervisorByTelegramChatId(senderTelegramId);
+      const merchantSupervisors = await storage.getSupervisorsByMerchant(merchantId);
+      const supervisor = merchantSupervisors.find(s => s.telegramChatId === senderTelegramId);
       if (!supervisor) {
         return res.json({ ok: true });
       }
