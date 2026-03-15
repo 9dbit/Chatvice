@@ -535,7 +535,7 @@ export interface IStorage {
 
   // Messaging Bridge
   createMessagingBridgeSession(data: InsertMessagingBridgeSession): Promise<MessagingBridgeSession>;
-  getMessagingBridgeByAnchor(anchorMessageId: string, channel: string): Promise<MessagingBridgeSession | undefined>;
+  getMessagingBridgeByAnchor(anchorMessageId: string, channel: string, supervisorId?: string): Promise<MessagingBridgeSession | undefined>;
   getMessagingBridgesBySession(sessionId: string, channel: string): Promise<MessagingBridgeSession[]>;
   getSupervisorByTelegramChatId(telegramChatId: string): Promise<Supervisor | undefined>;
 }
@@ -3926,12 +3926,16 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
 
-  async getMessagingBridgeByAnchor(anchorMessageId: string, channel: string): Promise<MessagingBridgeSession | undefined> {
+  async getMessagingBridgeByAnchor(anchorMessageId: string, channel: string, supervisorId?: string): Promise<MessagingBridgeSession | undefined> {
+    const conditions = [
+      eq(messagingBridgeSessions.anchorMessageId, anchorMessageId),
+      eq(messagingBridgeSessions.channel, channel),
+    ];
+    if (supervisorId) {
+      conditions.push(eq(messagingBridgeSessions.supervisorId, supervisorId));
+    }
     const [row] = await db.select().from(messagingBridgeSessions)
-      .where(and(
-        eq(messagingBridgeSessions.anchorMessageId, anchorMessageId),
-        eq(messagingBridgeSessions.channel, channel),
-      ));
+      .where(and(...conditions));
     return row;
   }
 

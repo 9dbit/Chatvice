@@ -135,6 +135,7 @@ export function formatEscalationNotification(
   sessionId: string,
   businessName?: string,
   recentMessages?: Array<{ from: string; content: string }>,
+  supervisorPanelUrl?: string,
 ): string {
   const safeName = escapeHtml(customerName || 'Customer');
   const safeReason = escapeHtml(reason);
@@ -148,6 +149,8 @@ export function formatEscalationNotification(
     }).join('\n');
     messagesBlock = `\n\n<b>Recent messages:</b>\n<pre>${formatted}</pre>`;
   }
+
+  const panelLink = supervisorPanelUrl ? `\n<a href="${escapeHtml(supervisorPanelUrl)}">Open Supervisor Panel</a>` : '';
   
   return `<b>Chat Escalated to Human</b>${safeBusiness}
 
@@ -155,7 +158,7 @@ export function formatEscalationNotification(
 <b>Reason:</b> ${safeReason}${messagesBlock}
 
 <i>Session: ${sessionId.substring(0, 8)}...</i>
-
+${panelLink}
 Reply to this message to respond to the customer.`;
 }
 

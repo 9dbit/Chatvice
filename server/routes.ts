@@ -408,6 +408,12 @@ async function notifySupervisors(merchantId: string, sessionId: string, reason: 
     const recentMessages = await storage.getMessages(sessionId);
     const last3 = recentMessages.slice(-3).map(m => ({ from: m.from, content: m.content }));
 
+    const supervisorPanelUrl = process.env.REPLIT_DEV_DOMAIN
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}/supervisor`
+      : process.env.REPLIT_DOMAINS
+        ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}/supervisor`
+        : undefined;
+
     const telegramSupervisors = supervisorList.filter(s => s.telegramChatId);
     for (const sup of telegramSupervisors) {
       const escalationMsg = formatEscalationNotification(
@@ -416,6 +422,7 @@ async function notifySupervisors(merchantId: string, sessionId: string, reason: 
         sessionId,
         merchant?.businessName || undefined,
         last3,
+        supervisorPanelUrl,
       );
       const messageId = await sendTelegramMessage(
         notificationSettings.telegramBotToken,
@@ -5383,7 +5390,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                   sup.telegramChatId,
                   fwdMsg,
                   parseInt(bridge.anchorMessageId, 10) || undefined,
-                ).catch(err => console.error('[Telegram] Forward to supervisor error:', err));
+                ).then(async (fwdMsgId) => {
+                  if (fwdMsgId) {
+                    await storage.createMessagingBridgeSession({
+                      supervisorId: bridge.supervisorId,
+                      sessionId: bridge.sessionId,
+                      channel: "telegram",
+                      anchorMessageId: String(fwdMsgId),
+                    });
+                  }
+                }).catch(err => console.error('[Telegram] Forward to supervisor error:', err));
               }
             }
           }
@@ -22256,13 +22272,13 @@ Please create a comprehensive help center article that would be useful for custo
       const senderTelegramId = String(update.message.from.id);
       const replyText = update.message.text;
 
-      const bridge = await storage.getMessagingBridgeByAnchor(repliedToId, "telegram");
-      if (!bridge) {
+      const supervisor = await storage.getSupervisorByTelegramChatId(senderTelegramId);
+      if (!supervisor) {
         return res.json({ ok: true });
       }
 
-      const supervisor = await storage.getSupervisorByTelegramChatId(senderTelegramId);
-      if (!supervisor || supervisor.id !== bridge.supervisorId) {
+      const bridge = await storage.getMessagingBridgeByAnchor(repliedToId, "telegram", supervisor.id);
+      if (!bridge) {
         return res.json({ ok: true });
       }
 
@@ -22275,6 +22291,7 @@ Please create a comprehensive help center article that would be useful for custo
         sessionId: bridge.sessionId,
         from: "supervisor",
         content: replyText,
+        payload: JSON.stringify({ source: "telegram" }),
       });
 
       broadcastToSession(bridge.sessionId, {
@@ -22296,9 +22313,9 @@ Please create a comprehensive help center article that would be useful for custo
   });
 
   // ─── Supervisor Telegram linking ───
-  app.patch("/api/supervisor/telegram", requireMerchantOrSupervisor, async (req, res) => {
+  app.patch("/api/supervisor/telegram", requireSupervisor, async (req, res) => {
     try {
-      const supervisorId = (req as any).supervisorId;
+      const supervisorId = req.session.userId;
       if (!supervisorId) {
         return res.status(403).json({ error: "Supervisor access required" });
       }
@@ -22316,9 +22333,9 @@ Please create a comprehensive help center article that would be useful for custo
   });
 
   // ─── Get supervisor Telegram link status ───
-  app.get("/api/supervisor/telegram", requireMerchantOrSupervisor, async (req, res) => {
+  app.get("/api/supervisor/telegram", requireSupervisor, async (req, res) => {
     try {
-      const supervisorId = (req as any).supervisorId;
+      const supervisorId = req.session.userId;
       if (!supervisorId) {
         return res.status(403).json({ error: "Supervisor access required" });
       }
