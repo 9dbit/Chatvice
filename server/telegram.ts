@@ -79,7 +79,10 @@ export async function sendTelegramMessage(
 
 export function generateWebhookSecret(merchantId: string): string {
   const crypto = require('crypto');
-  const base = process.env.SESSION_SECRET || 'chatvice-webhook-fallback';
+  const base = process.env.SESSION_SECRET;
+  if (!base) {
+    throw new Error('SESSION_SECRET environment variable is required for Telegram webhook authentication');
+  }
   return crypto.createHmac('sha256', base).update(`tg-webhook-${merchantId}`).digest('hex').substring(0, 32);
 }
 
