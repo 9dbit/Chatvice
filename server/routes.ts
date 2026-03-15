@@ -22274,7 +22274,23 @@ Please create a comprehensive help center article that would be useful for custo
 
       const update = req.body;
 
-      if (!update?.message?.text || !update?.message?.reply_to_message) {
+      if (!update?.message?.text) {
+        return res.json({ ok: true });
+      }
+
+      const messageText = update.message.text.trim();
+      const senderChatId = String(update.message.chat.id);
+
+      if (messageText === '/start' || (!update.message.reply_to_message && messageText.startsWith('/'))) {
+        const notificationSettings = await storage.getNotificationSettings(merchantId);
+        if (notificationSettings?.telegramBotToken) {
+          const greeting = `Your Telegram Chat ID is: <code>${senderChatId}</code>\n\nCopy this ID and paste it in the Supervisor Panel under Notifications > Telegram Notifications to link your account.`;
+          await sendTelegramMessage(notificationSettings.telegramBotToken, senderChatId, greeting);
+        }
+        return res.json({ ok: true });
+      }
+
+      if (!update.message.reply_to_message) {
         return res.json({ ok: true });
       }
 
