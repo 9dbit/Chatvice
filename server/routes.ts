@@ -90,7 +90,7 @@ declare module "express-session" {
 
 // Import subscription plan utility with caching
 import { getEffectiveSubscriptionPlan, getAllEffectiveSubscriptionPlans, clearPlanCache } from './subscriptionPlanUtils';
-import { sendTelegramNotification, formatChatNotification, formatEscalationNotification } from './telegram';
+import { sendTelegramNotification, sendTelegramMessage, setTelegramWebhook, generateWebhookSecret, formatChatNotification, formatEscalationNotification, formatCustomerMessage } from './telegram';
 
 function getBaseUrl(req: Request): string {
   if (process.env.REPLIT_DEV_DOMAIN) {
@@ -384,19 +384,55 @@ async function checkUnansweredChatSessions(merchant: any) {
 }
 
 async function notifySupervisors(merchantId: string, sessionId: string, reason: "trigger" | "angry" | "manual" = "trigger") {
-  const supervisors = await storage.getSupervisorsByMerchant(merchantId);
+  const supervisorList = await storage.getSupervisorsByMerchant(merchantId);
   const reasonMessages: Record<string, string> = {
     trigger: "Customer needs assistance (trigger detected)",
     angry: "Customer needs assistance (anger detected)",
     manual: "Customer needs assistance (manual escalation)",
   };
-  for (const supervisor of supervisors) {
+  for (const supervisor of supervisorList) {
     await storage.createNotification({
       supervisorId: supervisor.id,
       sessionId,
       message: reasonMessages[reason] || reasonMessages.trigger,
       seen: false,
     });
+  }
+
+  try {
+    const notificationSettings = await storage.getNotificationSettings(merchantId);
+    if (!notificationSettings?.telegramEnabled || !notificationSettings?.telegramBotToken) return;
+
+    const session = await storage.getSession(sessionId);
+    const merchant = await storage.getMerchant(merchantId);
+    const recentMessages = await storage.getMessages(sessionId);
+    const last3 = recentMessages.slice(-3).map(m => ({ from: m.from, content: m.content }));
+
+    const telegramSupervisors = supervisorList.filter(s => s.telegramChatId);
+    for (const sup of telegramSupervisors) {
+      const escalationMsg = formatEscalationNotification(
+        session?.customerName || null,
+        reasonMessages[reason] || reasonMessages.trigger,
+        sessionId,
+        merchant?.businessName || undefined,
+        last3,
+      );
+      const messageId = await sendTelegramMessage(
+        notificationSettings.telegramBotToken,
+        sup.telegramChatId!,
+        escalationMsg,
+      );
+      if (messageId) {
+        await storage.createMessagingBridgeSession({
+          supervisorId: sup.id,
+          sessionId,
+          channel: "telegram",
+          anchorMessageId: String(messageId),
+        });
+      }
+    }
+  } catch (err) {
+    console.error('[Telegram] Error sending escalation to supervisors:', err);
   }
 }
 
@@ -5325,6 +5361,35 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         }
       } catch (telegramErr) {
         console.error('[Telegram] Error checking notification settings:', telegramErr);
+      }
+
+      // Forward customer messages to supervisors' Telegram DMs for HUMAN-mode sessions
+      try {
+        const currentSession = await storage.getSession(sessionId);
+        if (currentSession?.mode === 'HUMAN') {
+          const ns = await storage.getNotificationSettings(resolvedMerchantId);
+          if (ns?.telegramEnabled && ns?.telegramBotToken) {
+            const bridges = await storage.getMessagingBridgesBySession(sessionId, 'telegram');
+            for (const bridge of bridges) {
+              const sup = await storage.getSupervisor(bridge.supervisorId);
+              if (sup?.telegramChatId) {
+                const fwdMsg = formatCustomerMessage(
+                  currentSession.customerName || null,
+                  message,
+                  sessionId,
+                );
+                sendTelegramMessage(
+                  ns.telegramBotToken,
+                  sup.telegramChatId,
+                  fwdMsg,
+                  parseInt(bridge.anchorMessageId, 10) || undefined,
+                ).catch(err => console.error('[Telegram] Forward to supervisor error:', err));
+              }
+            }
+          }
+        }
+      } catch (fwdErr) {
+        console.error('[Telegram] Error forwarding to supervisor DMs:', fwdErr);
       }
 
       const result = await askChatvice(sessionId, resolvedMerchantId, message);
@@ -22166,6 +22231,123 @@ Please create a comprehensive help center article that would be useful for custo
       res.json(result);
     } catch (error) {
       console.error("External get-replies error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ─── Telegram Webhook (receives replies from supervisors via Telegram DM) ───
+  app.post("/api/telegram/webhook/:merchantId", async (req, res) => {
+    try {
+      const { merchantId } = req.params;
+
+      const expectedSecret = generateWebhookSecret(merchantId);
+      const receivedSecret = req.headers["x-telegram-bot-api-secret-token"];
+      if (!receivedSecret || receivedSecret !== expectedSecret) {
+        return res.status(401).json({ ok: false });
+      }
+
+      const update = req.body;
+
+      if (!update?.message?.text || !update?.message?.reply_to_message) {
+        return res.json({ ok: true });
+      }
+
+      const repliedToId = String(update.message.reply_to_message.message_id);
+      const senderTelegramId = String(update.message.from.id);
+      const replyText = update.message.text;
+
+      const bridge = await storage.getMessagingBridgeByAnchor(repliedToId, "telegram");
+      if (!bridge) {
+        return res.json({ ok: true });
+      }
+
+      const supervisor = await storage.getSupervisorByTelegramChatId(senderTelegramId);
+      if (!supervisor || supervisor.id !== bridge.supervisorId) {
+        return res.json({ ok: true });
+      }
+
+      const session = await storage.getSession(bridge.sessionId);
+      if (!session || session.merchantId !== merchantId) {
+        return res.json({ ok: true });
+      }
+
+      const newMsg = await storage.createMessage({
+        sessionId: bridge.sessionId,
+        from: "supervisor",
+        content: replyText,
+      });
+
+      broadcastToSession(bridge.sessionId, {
+        type: "message",
+        sessionId: bridge.sessionId,
+        message: newMsg,
+      });
+
+      if (session.mode !== "HUMAN") {
+        await storage.updateSession(bridge.sessionId, { mode: "HUMAN" });
+      }
+
+      console.log(`[Telegram] Supervisor ${supervisor.id} replied to session ${bridge.sessionId} via Telegram`);
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("[Telegram] Webhook error:", err);
+      res.json({ ok: true });
+    }
+  });
+
+  // ─── Supervisor Telegram linking ───
+  app.patch("/api/supervisor/telegram", requireMerchantOrSupervisor, async (req, res) => {
+    try {
+      const supervisorId = (req as any).supervisorId;
+      if (!supervisorId) {
+        return res.status(403).json({ error: "Supervisor access required" });
+      }
+      const { telegramChatId } = req.body;
+      if (telegramChatId !== null && telegramChatId !== undefined && typeof telegramChatId !== "string") {
+        return res.status(400).json({ error: "Invalid telegramChatId" });
+      }
+      const trimmed = telegramChatId?.trim() || null;
+      await storage.updateSupervisor(supervisorId, { telegramChatId: trimmed });
+      res.json({ success: true });
+    } catch (err) {
+      console.error("[Telegram] Error linking supervisor:", err);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ─── Get supervisor Telegram link status ───
+  app.get("/api/supervisor/telegram", requireMerchantOrSupervisor, async (req, res) => {
+    try {
+      const supervisorId = (req as any).supervisorId;
+      if (!supervisorId) {
+        return res.status(403).json({ error: "Supervisor access required" });
+      }
+      const supervisor = await storage.getSupervisor(supervisorId);
+      res.json({ telegramChatId: supervisor?.telegramChatId || null });
+    } catch (err) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // ─── Merchant: Setup Telegram webhook for supervisor bridge ───
+  app.post("/api/merchant/telegram/setup-webhook", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = (req as any).merchantId;
+      const notificationSettings = await storage.getNotificationSettings(merchantId);
+      if (!notificationSettings?.telegramBotToken) {
+        return res.status(400).json({ error: "Telegram bot token not configured" });
+      }
+      const baseUrl = getBaseUrl(req);
+      const webhookUrl = `${baseUrl}/api/telegram/webhook/${merchantId}`;
+      const secretToken = generateWebhookSecret(merchantId);
+      const success = await setTelegramWebhook(notificationSettings.telegramBotToken, webhookUrl, secretToken);
+      if (success) {
+        res.json({ success: true, webhookUrl });
+      } else {
+        res.status(500).json({ error: "Failed to set webhook" });
+      }
+    } catch (err) {
+      console.error("[Telegram] Setup webhook error:", err);
       res.status(500).json({ error: "Server error" });
     }
   });

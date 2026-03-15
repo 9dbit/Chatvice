@@ -68,6 +68,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Calendar as CalendarIcon, Download, ExternalLink } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
+import { SiTelegram } from "react-icons/si";
 import chatviceLogoLight from "@assets/Chatvice-02_1769691434945.png";
 import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
 
@@ -248,6 +249,98 @@ function SupervisorSidebar({
         </div>
       </SidebarFooter>
     </Sidebar>
+  );
+}
+
+function TelegramLinkingCard() {
+  const { toast } = useToast();
+  const [telegramId, setTelegramId] = useState("");
+
+  const { data: telegramData, isLoading } = useQuery<{ telegramChatId: string | null }>({
+    queryKey: ["/api/supervisor/telegram"],
+  });
+
+  useEffect(() => {
+    if (telegramData?.telegramChatId) {
+      setTelegramId(telegramData.telegramChatId);
+    }
+  }, [telegramData]);
+
+  const linkMutation = useMutation({
+    mutationFn: async (chatId: string | null) => {
+      await apiRequest("PATCH", "/api/supervisor/telegram", { telegramChatId: chatId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/supervisor/telegram"] });
+      toast({ title: telegramId ? "Telegram linked" : "Telegram unlinked" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update Telegram ID", variant: "destructive" });
+    },
+  });
+
+  const isLinked = !!telegramData?.telegramChatId;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 flex-wrap">
+          <SiTelegram className="w-5 h-5 text-[#0088cc]" />
+          Telegram Notifications
+        </CardTitle>
+        <CardDescription>
+          Receive escalated chat notifications and reply to customers directly from Telegram.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isLoading ? (
+          <Skeleton className="h-10 w-full" />
+        ) : (
+          <>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Input
+                placeholder="Your Telegram Chat ID"
+                value={telegramId}
+                onChange={(e) => setTelegramId(e.target.value)}
+                className="max-w-xs"
+                data-testid="input-telegram-chat-id"
+              />
+              <Button
+                onClick={() => linkMutation.mutate(telegramId || null)}
+                disabled={linkMutation.isPending}
+                data-testid="button-save-telegram-id"
+              >
+                {linkMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+              {isLinked && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setTelegramId("");
+                    linkMutation.mutate(null);
+                  }}
+                  disabled={linkMutation.isPending}
+                  data-testid="button-unlink-telegram"
+                >
+                  Unlink
+                </Button>
+              )}
+            </div>
+            {isLinked && (
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span className="text-sm text-muted-foreground">
+                  Telegram linked (ID: {telegramData?.telegramChatId})
+                </span>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              To find your Chat ID, message @userinfobot on Telegram. When a chat is escalated, you will receive a DM from the merchant's bot. Reply to the message to respond to the customer.
+            </p>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1347,6 +1440,7 @@ export default function SupervisorPanel() {
               </h1>
               <p className="text-muted-foreground">Your alerts and notifications</p>
             </div>
+            <TelegramLinkingCard />
             <Card>
               <CardHeader>
                 <CardTitle>All Notifications</CardTitle>

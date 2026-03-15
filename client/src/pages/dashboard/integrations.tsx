@@ -451,6 +451,28 @@ export default function IntegrationsPage() {
               Send Test Notification
             </Button>
 
+            <Button 
+              className="w-full" 
+              variant="outline"
+              onClick={async () => {
+                try {
+                  const res = await apiRequest("POST", "/api/merchant/telegram/setup-webhook");
+                  const data = await res.json();
+                  if (data.success) {
+                    toast({ title: "Telegram webhook set up for supervisor replies" });
+                  } else {
+                    toast({ title: "Failed to set webhook", variant: "destructive" });
+                  }
+                } catch {
+                  toast({ title: "Failed to set webhook", variant: "destructive" });
+                }
+              }}
+              data-testid="button-setup-telegram-webhook"
+            >
+              <Plug className="w-4 h-4 mr-2" />
+              Enable Supervisor Telegram Replies
+            </Button>
+
             <div className="text-xs text-muted-foreground bg-muted p-3 rounded-lg">
               <p className="font-medium mb-1">Setup Steps:</p>
               <ol className="list-decimal list-inside space-y-0.5">
@@ -459,6 +481,7 @@ export default function IntegrationsPage() {
                 <li>Get your Chat ID from @userinfobot</li>
                 <li>Start a chat with your bot first</li>
                 <li>Enable & test the notification</li>
+                <li>Click "Enable Supervisor Telegram Replies" to allow supervisors to reply via Telegram</li>
               </ol>
             </div>
           </div>

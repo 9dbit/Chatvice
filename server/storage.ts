@@ -78,6 +78,7 @@ import {
   chatMedia, type ChatMedia, type InsertChatMedia,
   customerStories, type CustomerStory, type InsertCustomerStory,
   messageReactions, type MessageReaction, type InsertMessageReaction,
+  messagingBridgeSessions, type MessagingBridgeSession, type InsertMessagingBridgeSession,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, gt, and, or, lt, isNull, sql, count, inArray, ne } from "drizzle-orm";
@@ -531,6 +532,12 @@ export interface IStorage {
   removeMessageReaction(messageId: string, reactedBy: string, reactionType: string): Promise<boolean>;
   getReactionsByMessageId(messageId: string): Promise<MessageReaction[]>;
   getReactionsBySessionId(sessionId: string): Promise<MessageReaction[]>;
+
+  // Messaging Bridge
+  createMessagingBridgeSession(data: InsertMessagingBridgeSession): Promise<MessagingBridgeSession>;
+  getMessagingBridgeByAnchor(anchorMessageId: string, channel: string): Promise<MessagingBridgeSession | undefined>;
+  getMessagingBridgesBySession(sessionId: string, channel: string): Promise<MessagingBridgeSession[]>;
+  getSupervisorByTelegramChatId(telegramChatId: string): Promise<Supervisor | undefined>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -3912,6 +3919,34 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(messageReactions)
       .where(eq(messageReactions.sessionId, sessionId))
       .orderBy(desc(messageReactions.createdAt));
+  }
+
+  async createMessagingBridgeSession(data: InsertMessagingBridgeSession): Promise<MessagingBridgeSession> {
+    const [row] = await db.insert(messagingBridgeSessions).values(data).returning();
+    return row;
+  }
+
+  async getMessagingBridgeByAnchor(anchorMessageId: string, channel: string): Promise<MessagingBridgeSession | undefined> {
+    const [row] = await db.select().from(messagingBridgeSessions)
+      .where(and(
+        eq(messagingBridgeSessions.anchorMessageId, anchorMessageId),
+        eq(messagingBridgeSessions.channel, channel),
+      ));
+    return row;
+  }
+
+  async getMessagingBridgesBySession(sessionId: string, channel: string): Promise<MessagingBridgeSession[]> {
+    return db.select().from(messagingBridgeSessions)
+      .where(and(
+        eq(messagingBridgeSessions.sessionId, sessionId),
+        eq(messagingBridgeSessions.channel, channel),
+      ));
+  }
+
+  async getSupervisorByTelegramChatId(telegramChatId: string): Promise<Supervisor | undefined> {
+    const [row] = await db.select().from(supervisors)
+      .where(eq(supervisors.telegramChatId, telegramChatId));
+    return row;
   }
 }
 

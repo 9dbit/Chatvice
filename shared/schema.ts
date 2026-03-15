@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, boolean, integer, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, integer, timestamp, jsonb, index, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -184,6 +184,7 @@ export const supervisors = pgTable("supervisors", {
   isVerified: boolean("is_verified").default(false),
   verifiedAt: timestamp("verified_at"),
   invitedById: varchar("invited_by_id", { length: 32 }),
+  telegramChatId: text("telegram_chat_id"),
 });
 
 export const insertSupervisorSchema = createInsertSchema(supervisors).omit({ id: true });
@@ -2342,4 +2343,20 @@ export const customerStories = pgTable("customer_stories", {
 export const insertCustomerStorySchema = createInsertSchema(customerStories).omit({ id: true, createdAt: true });
 export type InsertCustomerStory = z.infer<typeof insertCustomerStorySchema>;
 export type CustomerStory = typeof customerStories.$inferSelect;
+
+export const messagingBridgeSessions = pgTable("messaging_bridge_sessions", {
+  id: serial("id").primaryKey(),
+  supervisorId: varchar("supervisor_id", { length: 32 }).notNull(),
+  sessionId: varchar("session_id", { length: 64 }).notNull(),
+  channel: text("channel").notNull(),
+  anchorMessageId: text("anchor_message_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  sessionIdx: index("mbs_session_idx").on(table.sessionId),
+  anchorIdx: index("mbs_anchor_idx").on(table.anchorMessageId, table.channel),
+}));
+
+export const insertMessagingBridgeSessionSchema = createInsertSchema(messagingBridgeSessions).omit({ id: true, createdAt: true });
+export type InsertMessagingBridgeSession = z.infer<typeof insertMessagingBridgeSessionSchema>;
+export type MessagingBridgeSession = typeof messagingBridgeSessions.$inferSelect;
 
