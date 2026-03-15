@@ -48,7 +48,7 @@ export async function sendTelegramMessage(
   try {
     const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
     
-    const body: any = {
+    const body: Record<string, string | number> = {
       chat_id: chatId,
       text: message,
       parse_mode: 'HTML',
@@ -86,7 +86,7 @@ export function generateWebhookSecret(merchantId: string): string {
 export async function setTelegramWebhook(botToken: string, webhookUrl: string, secretToken?: string): Promise<boolean> {
   try {
     const url = `https://api.telegram.org/bot${botToken}/setWebhook`;
-    const body: any = { url: webhookUrl };
+    const body: Record<string, string> = { url: webhookUrl };
     if (secretToken) {
       body.secret_token = secretToken;
     }

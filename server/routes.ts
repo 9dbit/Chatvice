@@ -5377,8 +5377,18 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           const ns = await storage.getNotificationSettings(resolvedMerchantId);
           if (ns?.telegramEnabled && ns?.telegramBotToken) {
             const bridges = await storage.getMessagingBridgesBySession(sessionId, 'telegram');
+            const seenSupervisors = new Set<string>();
+            const latestBridgeBySupervisor = new Map<string, typeof bridges[0]>();
             for (const bridge of bridges) {
-              const sup = await storage.getSupervisor(bridge.supervisorId);
+              const existing = latestBridgeBySupervisor.get(bridge.supervisorId);
+              if (!existing || bridge.id > existing.id) {
+                latestBridgeBySupervisor.set(bridge.supervisorId, bridge);
+              }
+            }
+            for (const [supId, bridge] of latestBridgeBySupervisor) {
+              if (seenSupervisors.has(supId)) continue;
+              seenSupervisors.add(supId);
+              const sup = await storage.getSupervisor(supId);
               if (sup?.telegramChatId) {
                 const fwdMsg = formatCustomerMessage(
                   currentSession.customerName || null,
@@ -5393,7 +5403,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                 ).then(async (fwdMsgId) => {
                   if (fwdMsgId) {
                     await storage.createMessagingBridgeSession({
-                      supervisorId: bridge.supervisorId,
+                      supervisorId: supId,
                       sessionId: bridge.sessionId,
                       channel: "telegram",
                       anchorMessageId: String(fwdMsgId),

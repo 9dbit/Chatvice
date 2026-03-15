@@ -901,7 +901,7 @@ export default function SupervisorPanel() {
                                     <span className="text-xs">
                                       {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ""}
                                     </span>
-                                    {msg.from === "supervisor" && msg.payload && typeof msg.payload === "object" && (msg.payload as any).source === "telegram" && (
+                                    {msg.from === "supervisor" && msg.payload && typeof msg.payload === "object" && (msg.payload as Record<string, unknown>).source === "telegram" && (
                                       <span className="flex items-center gap-0.5 text-xs opacity-80" data-testid={`badge-telegram-source-${msg.id}`}>
                                         <SiTelegram className="w-3 h-3" />
                                         via Telegram
