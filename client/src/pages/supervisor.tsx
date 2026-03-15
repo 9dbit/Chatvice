@@ -335,7 +335,7 @@ function TelegramLinkingCard() {
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              To find your Chat ID, message @userinfobot on Telegram. When a chat is escalated, you will receive a DM from the merchant's bot. Reply to the message to respond to the customer.
+              To link your Telegram: open the merchant's bot on Telegram and send /start. The bot will show your Chat ID. Paste it above and save. When a chat is escalated, you will receive a DM from the bot. Reply to the message to respond to the customer directly.
             </p>
           </>
         )}
@@ -893,13 +893,21 @@ export default function SupervisorPanel() {
                                   } ${isLastCustomerMsg && msgReactions.length === 0 ? "ring-1 ring-primary/30 shadow-[0_0_8px_rgba(99,102,241,0.3)]" : ""}`}
                                 >
                                   <p className="text-sm whitespace-pre-wrap">{renderMessageWithLinks(msg.content)}</p>
-                                  <p
-                                    className={`text-xs mt-1 ${
+                                  <div
+                                    className={`flex items-center gap-1 mt-1 ${
                                       msg.from === "supervisor" ? "text-primary-foreground/70" : "text-muted-foreground"
                                     }`}
                                   >
-                                    {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ""}
-                                  </p>
+                                    <span className="text-xs">
+                                      {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ""}
+                                    </span>
+                                    {msg.from === "supervisor" && msg.payload && typeof msg.payload === "object" && (msg.payload as any).source === "telegram" && (
+                                      <span className="flex items-center gap-0.5 text-xs opacity-80" data-testid={`badge-telegram-source-${msg.id}`}>
+                                        <SiTelegram className="w-3 h-3" />
+                                        via Telegram
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                                 {msg.id && (
                                   <MessageReactions

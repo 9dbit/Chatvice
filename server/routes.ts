@@ -22291,7 +22291,7 @@ Please create a comprehensive help center article that would be useful for custo
         sessionId: bridge.sessionId,
         from: "supervisor",
         content: replyText,
-        payload: JSON.stringify({ source: "telegram" }),
+        payload: { source: "telegram" },
       });
 
       broadcastToSession(bridge.sessionId, {
@@ -22349,7 +22349,10 @@ Please create a comprehensive help center article that would be useful for custo
   // ─── Merchant: Setup Telegram webhook for supervisor bridge ───
   app.post("/api/merchant/telegram/setup-webhook", requireMerchant, async (req, res) => {
     try {
-      const merchantId = (req as any).merchantId;
+      const merchantId = req.session?.userId;
+      if (!merchantId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
       const notificationSettings = await storage.getNotificationSettings(merchantId);
       if (!notificationSettings?.telegramBotToken) {
         return res.status(400).json({ error: "Telegram bot token not configured" });
@@ -22368,6 +22371,35 @@ Please create a comprehensive help center article that would be useful for custo
       res.status(500).json({ error: "Server error" });
     }
   });
+
+  // ─── Auto-register Telegram webhooks on startup for configured merchants ───
+  (async () => {
+    try {
+      const allMerchants = await storage.getAllMerchants();
+      for (const merchant of allMerchants) {
+        try {
+          const ns = await storage.getNotificationSettings(merchant.id);
+          if (ns?.telegramEnabled && ns?.telegramBotToken) {
+            const baseUrl = process.env.REPLIT_DEV_DOMAIN
+              ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+              : process.env.REPLIT_DOMAINS
+                ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
+                : null;
+            if (baseUrl) {
+              const webhookUrl = `${baseUrl}/api/telegram/webhook/${merchant.id}`;
+              const secretToken = generateWebhookSecret(merchant.id);
+              await setTelegramWebhook(ns.telegramBotToken, webhookUrl, secretToken);
+              console.log(`[Telegram] Webhook registered for merchant ${merchant.id}`);
+            }
+          }
+        } catch (e) {
+          // skip individual merchant errors
+        }
+      }
+    } catch (e) {
+      console.error('[Telegram] Auto-register webhooks error:', e);
+    }
+  })();
 
   return httpServer;
 }
