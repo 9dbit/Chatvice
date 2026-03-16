@@ -728,24 +728,48 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   }, [merchantConfig?.activeAgentId]);
 
   const isAutoOpen = merchantConfig?.chatWorkflow === "auto_open";
+  const autoOpenTriggeredRef = useRef(false);
 
-  // Auto-open chat when chatWorkflow is "auto_open"
+  // Auto-open chat when chatWorkflow is "auto_open" — bypass welcome bubble and name screen
   useEffect(() => {
-    if (isAutoOpen && !embedded && !previewMode) {
+    if (isAutoOpen && !previewMode && !autoOpenTriggeredRef.current) {
       setIsOpen(true);
       if (!hasSubmittedName) {
+        autoOpenTriggeredRef.current = true;
         const guestName = `Visitor_${sessionId.slice(-6)}`;
         setCustomerName(guestName);
         setHasSubmittedName(true);
-        if (!previewMode) {
-          try {
-            sessionStorage.setItem(customerNameKey, guestName);
-            sessionStorage.setItem(`${customerNameKey}_submitted`, "true");
-          } catch {}
-        }
+        try {
+          sessionStorage.setItem(customerNameKey, guestName);
+          sessionStorage.setItem(`${customerNameKey}_submitted`, "true");
+        } catch {}
+        // Server-backed session start with anonymous identity
+        apiRequest("POST", "/api/widget/start-chat", {
+          merchantId: resolvedMerchantId,
+          sessionId,
+          customerName: guestName,
+          customerPhone: "",
+          customerEmail: "",
+          initialMessage: merchantConfig?.welcomeMessage || "Hello",
+          deviceFingerprint,
+        }).then(res => res.json()).then((data: any) => {
+          if (data.success) {
+            const msgs: PendingMessage[] = [];
+            if (data.welcomeMessage) {
+              msgs.push({ clientId: generateClientId(), from: "chatvice", content: data.welcomeMessage, timestamp: new Date(Date.now() - 1000) });
+            }
+            if (data.answer) {
+              msgs.push({ clientId: generateClientId(), from: "chatvice", content: data.answer, timestamp: new Date() });
+            }
+            if (msgs.length > 0) {
+              setPendingMessages(msgs);
+            }
+            queryClient.invalidateQueries({ queryKey: ["/api/messages", sessionId] });
+          }
+        }).catch(() => {});
       }
     }
-  }, [isAutoOpen, embedded, previewMode]);
+  }, [isAutoOpen, previewMode, hasSubmittedName]);
 
   const { data: serverMessages } = useQuery<Message[]>({
     queryKey: ["/api/messages", sessionId],
@@ -760,12 +784,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
   const { data: welcomeBubble } = useQuery<WelcomeBubble>({
     queryKey: [`/api/widget/${merchantId}/welcome-bubble`],
-    enabled: !!merchantId && !isOpen,
+    enabled: !!merchantId && !isOpen && !isAutoOpen,
   });
 
   const reappearIntervalMs = (welcomeBubble?.reappearInterval ?? 60) * 1000;
-  const showWelcomeBubble = welcomeBubbleDismissedAt === null || 
-    (Date.now() - welcomeBubbleDismissedAt >= reappearIntervalMs);
+  const showWelcomeBubble = !isAutoOpen && (welcomeBubbleDismissedAt === null || 
+    (Date.now() - welcomeBubbleDismissedAt >= reappearIntervalMs));
 
   useEffect(() => {
     if (welcomeBubbleDismissedAt !== null && reappearIntervalMs > 0) {
@@ -1038,12 +1062,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   }, [pendingMessages, serverMessages]);
 
   useEffect(() => {
-    if (isOpen && pendingMessages.length === 0 && merchantConfig?.welcomeMessage && !serverMessages?.length) {
+    if (isOpen && !isAutoOpen && pendingMessages.length === 0 && merchantConfig?.welcomeMessage && !serverMessages?.length) {
       setPendingMessages([
         { clientId: "welcome", from: "chatvice", content: merchantConfig.welcomeMessage, timestamp: new Date() },
       ]);
     }
-  }, [isOpen, merchantConfig, serverMessages, pendingMessages.length]);
+  }, [isOpen, isAutoOpen, merchantConfig, serverMessages, pendingMessages.length]);
 
   // Notify parent frame that widget is ready for communication
   useEffect(() => {
