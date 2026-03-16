@@ -104,6 +104,7 @@ export default function WidgetPage() {
     bubblePosition: "right" as "left" | "right",
     allowedDomains: "",
     chatWorkflow: "click_to_open" as "click_to_open" | "auto_open",
+    proactiveChatEnabled: false,
   });
 
   const [socialConfig, setSocialConfig] = useState({
@@ -325,6 +326,7 @@ export default function WidgetPage() {
         bubblePosition: (agentWidgetSettings.bubblePosition as "left" | "right") || "right",
         allowedDomains: (merchant as any).allowedDomains || "",
         chatWorkflow: ((merchant as any).chatWorkflow as "click_to_open" | "auto_open") || "click_to_open",
+        proactiveChatEnabled: (merchant as any).proactiveChatEnabled || false,
       });
     } else if (merchant && !merchant.activeAgentId) {
       setConfig({
@@ -351,6 +353,7 @@ export default function WidgetPage() {
         bubblePosition: (merchant.bubblePosition as "left" | "right") || "right",
         allowedDomains: (merchant as any).allowedDomains || "",
         chatWorkflow: ((merchant as any).chatWorkflow as "click_to_open" | "auto_open") || "click_to_open",
+        proactiveChatEnabled: (merchant as any).proactiveChatEnabled || false,
       });
     }
   }, [merchant, agentWidgetSettings]);
@@ -626,6 +629,7 @@ export default function WidgetPage() {
         iconAnimationSpeed: config.iconAnimationSpeed,
         online: config.online,
         chatWorkflow: config.chatWorkflow,
+        proactiveChatEnabled: config.proactiveChatEnabled,
       };
       await apiRequest("POST", "/api/merchant/config", merchantIconConfig);
       
@@ -1820,6 +1824,20 @@ async function handleLogin() {
                             : "Chat window opens automatically when visitor enters the page. Pre-chat banner and welcome message appear directly in the chat area."
                           }
                         </p>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <Label>Live Visitor Tracking</Label>
+                          <p className="text-xs text-muted-foreground">
+                            Track visitors on your website in real-time. Supervisors can start conversations proactively before visitors initiate chat.
+                          </p>
+                        </div>
+                        <Switch
+                          checked={config.proactiveChatEnabled}
+                          onCheckedChange={(checked) => setConfig({ ...config, proactiveChatEnabled: checked })}
+                          data-testid="switch-proactive-chat"
+                        />
                       </div>
                     </div>
 

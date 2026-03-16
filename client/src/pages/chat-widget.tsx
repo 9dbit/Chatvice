@@ -727,12 +727,25 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     }
   }, [merchantConfig?.activeAgentId]);
 
+  const isAutoOpen = merchantConfig?.chatWorkflow === "auto_open";
+
   // Auto-open chat when chatWorkflow is "auto_open"
   useEffect(() => {
-    if (merchantConfig?.chatWorkflow === "auto_open" && !embedded && !previewMode) {
+    if (isAutoOpen && !embedded && !previewMode) {
       setIsOpen(true);
+      if (!hasSubmittedName) {
+        const guestName = `Visitor_${sessionId.slice(-6)}`;
+        setCustomerName(guestName);
+        setHasSubmittedName(true);
+        if (!previewMode) {
+          try {
+            sessionStorage.setItem(customerNameKey, guestName);
+            sessionStorage.setItem(`${customerNameKey}_submitted`, "true");
+          } catch {}
+        }
+      }
     }
-  }, [merchantConfig?.chatWorkflow, embedded, previewMode]);
+  }, [isAutoOpen, embedded, previewMode]);
 
   const { data: serverMessages } = useQuery<Message[]>({
     queryKey: ["/api/messages", sessionId],

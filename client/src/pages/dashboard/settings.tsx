@@ -56,7 +56,7 @@ export default function SettingsPage() {
   const [rateLimitWindow, setRateLimitWindow] = useState(60);
   const [collectCustomerEmail, setCollectCustomerEmail] = useState(false);
   const [collectCustomerPhone, setCollectCustomerPhone] = useState(false);
-  const [proactiveChatEnabled, setProactiveChatEnabled] = useState(false);
+
   const [customDomain, setCustomDomain] = useState("");
   const [isCheckingDomain, setIsCheckingDomain] = useState(false);
   const [domainAvailable, setDomainAvailable] = useState<boolean | null>(null);
@@ -201,7 +201,7 @@ export default function SettingsPage() {
       setRateLimitWindow(merchant.rateLimitWindow || 60);
       setCollectCustomerEmail(merchant.collectCustomerEmail || false);
       setCollectCustomerPhone(merchant.collectCustomerPhone || false);
-      setProactiveChatEnabled((merchant as any).proactiveChatEnabled || false);
+
       setCustomDomain(merchant.customDomain || "");
       setTwoFactorEnabled((merchant as any).twoFactorEnabled || false);
     }
@@ -326,7 +326,6 @@ export default function SettingsPage() {
       rateLimitWindow,
       collectCustomerEmail,
       collectCustomerPhone,
-      proactiveChatEnabled,
     });
   };
 
@@ -854,19 +853,6 @@ export default function SettingsPage() {
                     checked={collectCustomerPhone}
                     onCheckedChange={setCollectCustomerPhone}
                     data-testid="switch-collect-phone"
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Live Visitor Tracking</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Track visitors on your website in real-time. Supervisors can start conversations proactively before visitors initiate chat.
-                    </p>
-                  </div>
-                  <Switch
-                    checked={proactiveChatEnabled}
-                    onCheckedChange={setProactiveChatEnabled}
-                    data-testid="switch-proactive-chat"
                   />
                 </div>
               </CardContent>

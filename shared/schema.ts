@@ -418,6 +418,7 @@ export const merchantConfigSchema = z.object({
   prechatBannerUrl: z.string().optional(),
   quickMessageOptions: z.array(z.string()).optional(),
   chatWorkflow: z.enum(["click_to_open", "auto_open"]).optional(),
+  proactiveChatEnabled: z.boolean().optional(),
 });
 export type MerchantConfig = z.infer<typeof merchantConfigSchema>;
 

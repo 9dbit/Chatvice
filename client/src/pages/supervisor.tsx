@@ -34,6 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import {
   Bot,
@@ -71,6 +72,29 @@ import { useTheme } from "@/components/theme-provider";
 import { SiTelegram } from "react-icons/si";
 import chatviceLogoLight from "@assets/Chatvice-02_1769691434945.png";
 import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
+
+const CUSTOMER_AVATAR_COLORS = [
+  "bg-rose-500", "bg-pink-500", "bg-fuchsia-500", "bg-purple-500",
+  "bg-violet-500", "bg-indigo-500", "bg-blue-500", "bg-sky-500",
+  "bg-cyan-500", "bg-teal-500", "bg-emerald-500", "bg-green-500",
+  "bg-lime-600", "bg-amber-500", "bg-orange-500", "bg-red-500",
+];
+
+function getCustomerAvatarColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return CUSTOMER_AVATAR_COLORS[Math.abs(hash) % CUSTOMER_AVATAR_COLORS.length];
+}
+
+function getCustomerInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return (parts[0]?.[0] || "C").toUpperCase();
+}
 
 type SupervisorPage = 
   | "overview" 
@@ -768,9 +792,11 @@ export default function SupervisorPanel() {
                           >
                             <div className="flex items-center justify-between gap-2 mb-2">
                               <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full bg-status-away/20 flex items-center justify-center">
-                                  <User className="w-4 h-4 text-status-away" />
-                                </div>
+                                <Avatar className="h-8 w-8">
+                                  <AvatarFallback className={`${getCustomerAvatarColor(session.customerName || "Customer")} text-white text-xs font-semibold`}>
+                                    {getCustomerInitials(session.customerName || "Customer")}
+                                  </AvatarFallback>
+                                </Avatar>
                                 <div>
                                   <p className="text-sm font-medium">{session.customerName || "Customer"}</p>
                                   <p className="text-xs text-muted-foreground font-mono">
@@ -824,9 +850,11 @@ export default function SupervisorPanel() {
                   <CardHeader className="border-b pb-3">
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <User className="w-5 h-5 text-primary" />
-                        </div>
+                        <Avatar className="h-10 w-10">
+                          <AvatarFallback className={`${getCustomerAvatarColor(selectedSessionData?.customerName || "Customer")} text-white text-sm font-semibold`}>
+                            {getCustomerInitials(selectedSessionData?.customerName || "Customer")}
+                          </AvatarFallback>
+                        </Avatar>
                         <div>
                           <CardTitle className="text-lg">
                             {selectedSessionData?.customerName || "Customer"}
