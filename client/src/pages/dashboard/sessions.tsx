@@ -993,22 +993,24 @@ export default function SessionsPage() {
                         </div>
                       </div>
                     </div>
-                    {/* RIGHT: agent/supervisor avatar + name + action buttons */}
-                    <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-                      {/* Agent or Supervisor avatar with name below */}
-                      <div className="flex flex-col items-center gap-0.5">
-                        <HandlerAvatar 
-                          mode={selectedSessionData?.mode as "AI" | "HUMAN"} 
-                          agentPhoto={getAgentPhoto(selectedSessionData?.agentId)}
-                          supervisorPhoto={getSupervisorPhoto(selectedSessionData?.supervisorId, selectedSessionData?.agentId)}
-                        />
-                        <p className="text-[10px] text-muted-foreground text-center whitespace-nowrap" data-testid="text-handler-name">
-                          {selectedSessionData?.mode === "AI" 
-                            ? getAgentName(selectedSessionData?.agentId)
-                            : getSupervisorName(selectedSessionData?.supervisorId, selectedSessionData?.agentId) || "Awaiting"}
-                        </p>
+                    {/* RIGHT: agent/supervisor avatar + name stacked above action buttons */}
+                    <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                      {/* Agent or Supervisor avatar with name — stacked above buttons */}
+                      <div className="flex items-center gap-2">
+                        <div className="flex flex-col items-center gap-0.5">
+                          <HandlerAvatar 
+                            mode={selectedSessionData?.mode as "AI" | "HUMAN"} 
+                            agentPhoto={getAgentPhoto(selectedSessionData?.agentId)}
+                            supervisorPhoto={getSupervisorPhoto(selectedSessionData?.supervisorId, selectedSessionData?.agentId)}
+                          />
+                          <p className="text-[10px] text-muted-foreground text-center whitespace-nowrap" data-testid="text-handler-name">
+                            {selectedSessionData?.mode === "AI" 
+                              ? getAgentName(selectedSessionData?.agentId)
+                              : getSupervisorName(selectedSessionData?.supervisorId, selectedSessionData?.agentId) || "Awaiting"}
+                          </p>
+                        </div>
                       </div>
-                      {/* Action buttons */}
+                      {/* Action buttons below */}
                       <div className="flex flex-col items-end gap-1">
                         <div className="flex items-center gap-1 sm:gap-1.5">
                           <Button
