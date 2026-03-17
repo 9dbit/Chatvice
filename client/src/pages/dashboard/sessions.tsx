@@ -953,6 +953,7 @@ export default function SessionsPage() {
               <>
                 <CardHeader className="flex-shrink-0 border-b py-2 sm:py-3 px-3 sm:px-4">
                   <div className="flex items-center justify-between gap-2 sm:gap-3">
+                    {/* LEFT: back button + customer avatar + customer name/time */}
                     <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                       <Button
                         size="icon"
@@ -963,11 +964,15 @@ export default function SessionsPage() {
                       >
                         <ArrowLeft className="w-4 h-4" />
                       </Button>
-                      <HandlerAvatar 
-                        mode={selectedSessionData?.mode as "AI" | "HUMAN"} 
-                        agentPhoto={getAgentPhoto(selectedSessionData?.agentId)}
-                        supervisorPhoto={getSupervisorPhoto(selectedSessionData?.supervisorId, selectedSessionData?.agentId)}
-                      />
+                      {/* Customer avatar with colored initials */}
+                      <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
+                        {selectedSessionData?.customerAvatarUrl ? (
+                          <AvatarImage src={selectedSessionData.customerAvatarUrl} alt={selectedSessionData?.customerName || "Customer"} />
+                        ) : null}
+                        <AvatarFallback className={`${getAvatarColor(selectedSessionData?.customerName || "Customer")} text-white text-sm font-semibold`}>
+                          {getInitials(selectedSessionData?.customerName || "Customer")}
+                        </AvatarFallback>
+                      </Avatar>
                       <div className="min-w-0">
                         <CardTitle className="text-sm sm:text-base truncate" data-testid="text-selected-customer">
                           {selectedSessionData?.customerName || "Customer"}
@@ -988,59 +993,70 @@ export default function SessionsPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                      <div className="flex items-center gap-1 sm:gap-1.5">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => refetchMessages()}
-                          title="Refresh"
-                          className="h-7 w-7 sm:h-8 sm:w-8"
-                          data-testid="button-refresh-messages"
-                        >
-                          <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                        </Button>
-                        {selectedSessionData?.mode === "AI" ? (
-                          <Button
-                            size="sm"
-                            onClick={() => takeoverMutation.mutate(selectedSession)}
-                            disabled={takeoverMutation.isPending}
-                            className="h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3"
-                            data-testid="button-takeover-session"
-                          >
-                            <Hand className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-1.5" />
-                            <span className="hidden sm:inline">Take Over</span>
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => returnToBotMutation.mutate(selectedSession)}
-                            disabled={returnToBotMutation.isPending}
-                            className="h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3"
-                            data-testid="button-return-to-bot"
-                          >
-                            <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-1.5" />
-                            <span className="hidden sm:inline">Return to Bot</span>
-                          </Button>
-                        )}
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={handleExportTranscript}
-                          title="Export"
-                          className="h-7 w-7 sm:h-8 sm:w-8"
-                          data-testid="button-export-transcript"
-                        >
-                          <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                        </Button>
+                    {/* RIGHT: agent/supervisor avatar + name + action buttons */}
+                    <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                      {/* Agent or Supervisor avatar with name below */}
+                      <div className="flex flex-col items-center gap-0.5">
+                        <HandlerAvatar 
+                          mode={selectedSessionData?.mode as "AI" | "HUMAN"} 
+                          agentPhoto={getAgentPhoto(selectedSessionData?.agentId)}
+                          supervisorPhoto={getSupervisorPhoto(selectedSessionData?.supervisorId, selectedSessionData?.agentId)}
+                        />
+                        <p className="text-[10px] text-muted-foreground text-center whitespace-nowrap" data-testid="text-handler-name">
+                          {selectedSessionData?.mode === "AI" 
+                            ? getAgentName(selectedSessionData?.agentId)
+                            : getSupervisorName(selectedSessionData?.supervisorId, selectedSessionData?.agentId) || "Awaiting"}
+                        </p>
                       </div>
-                      {/* Agent/Supervisor name below buttons */}
-                      <p className="text-[10px] text-muted-foreground" data-testid="text-handler-name">
-                        {selectedSessionData?.mode === "AI" 
-                          ? `Agent: ${getAgentName(selectedSessionData?.agentId)}`
-                          : `Supervisor: ${getSupervisorName(selectedSessionData?.supervisorId, selectedSessionData?.agentId) || "Awaiting"}`}
-                      </p>
+                      {/* Action buttons */}
+                      <div className="flex flex-col items-end gap-1">
+                        <div className="flex items-center gap-1 sm:gap-1.5">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => refetchMessages()}
+                            title="Refresh"
+                            className="h-7 w-7 sm:h-8 sm:w-8"
+                            data-testid="button-refresh-messages"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          </Button>
+                          {selectedSessionData?.mode === "AI" ? (
+                            <Button
+                              size="sm"
+                              onClick={() => takeoverMutation.mutate(selectedSession)}
+                              disabled={takeoverMutation.isPending}
+                              className="h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3"
+                              data-testid="button-takeover-session"
+                            >
+                              <Hand className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-1.5" />
+                              <span className="hidden sm:inline">Take Over</span>
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => returnToBotMutation.mutate(selectedSession)}
+                              disabled={returnToBotMutation.isPending}
+                              className="h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3"
+                              data-testid="button-return-to-bot"
+                            >
+                              <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-1.5" />
+                              <span className="hidden sm:inline">Return to Bot</span>
+                            </Button>
+                          )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={handleExportTranscript}
+                            title="Export"
+                            className="h-7 w-7 sm:h-8 sm:w-8"
+                            data-testid="button-export-transcript"
+                          >
+                            <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </CardHeader>

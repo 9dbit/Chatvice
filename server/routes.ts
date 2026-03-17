@@ -5832,7 +5832,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(403).json({ error: "Forbidden" });
       }
       
-      const sessions = await storage.getSessionsByMerchant(req.params.merchantId);
+      const allSessions = await storage.getSessionsByMerchant(req.params.merchantId);
+      // Exclude visitor-tracking-only sessions from the conversation list
+      const sessions = allSessions.filter((s) => !s.visitorSession);
       
       const sessionsWithPreview = await Promise.all(
         sessions.map(async (session) => {
