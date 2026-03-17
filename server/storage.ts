@@ -660,7 +660,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSessionsByMerchant(merchantId: string, activeOnly: boolean = false): Promise<Session[]> {
-    // If activeOnly is true, only return sessions from the last 60 minutes
+    // If activeOnly is true, return all session types from the last 60 minutes
+    // (including visitor sessions — needed for live visitor tracking)
     if (activeOnly) {
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
       return db.select().from(sessions)
@@ -671,9 +672,15 @@ export class DatabaseStorage implements IStorage {
         .orderBy(desc(sessions.lastActivity));
     }
     
-    // Default: return all sessions for historical viewing
+    // Default: return all sessions for merchant's conversation history.
+    // Exclude pure visitor-tracking sessions (visitorSession = true) which have no customer messages.
+    // Use or(isNull, eq false) instead of ne(true) because SQL NULL != true evaluates to NULL,
+    // which would incorrectly exclude legacy sessions where visitorSession is null.
     return db.select().from(sessions)
-      .where(eq(sessions.merchantId, merchantId))
+      .where(and(
+        eq(sessions.merchantId, merchantId),
+        or(isNull(sessions.visitorSession), eq(sessions.visitorSession, false)),
+      ))
       .orderBy(desc(sessions.lastActivity));
   }
 

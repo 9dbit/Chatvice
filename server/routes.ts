@@ -15698,14 +15698,11 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
   ): Promise<void> {
     setTimeout(async () => {
       try {
-        // Re-fetch session to make sure it still exists and hasn't been upgraded already
+        // Re-fetch session to make sure it still exists and is still a visitor session
         const session = await storage.getSession(sessionId);
-        if (!session || !session.visitorSession || session.proactiveGreetingSent) {
-          return; // Session gone, already a real session, or greeting already sent
+        if (!session || !session.visitorSession) {
+          return; // Session gone or visitor already started chatting
         }
-
-        // Mark greeting as sent immediately to prevent duplicate greetings from keep-alive pings
-        await storage.updateSession(sessionId, { proactiveGreetingSent: true });
 
         // Gather context: agent knowledge base + system prompt
         const [merchant, knowledgeContent] = await Promise.all([
@@ -15860,6 +15857,9 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
         countryName: geo.countryName,
         pageUrl: pageUrl || "",
       });
+
+      // Mark greeting as scheduled immediately to prevent race conditions with keep-alive pings
+      await storage.updateSession(sessionId, { proactiveGreetingSent: true });
 
       // Schedule AI auto-proactive greeting after 8 seconds
       scheduleAiProactiveGreeting(sessionId, resolvedMerchantId, assignedAgentId || null, pageUrl || "");
