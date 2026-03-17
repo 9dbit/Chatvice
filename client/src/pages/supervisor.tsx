@@ -1029,11 +1029,25 @@ export default function SupervisorPanel() {
                 </div>
               ) : liveVisitors && liveVisitors.length > 0 ? (
                 <div className="space-y-3">
-                  {liveVisitors.map((visitor) => {
-                    const arrivalTime = visitor.createdAt ? new Date(visitor.createdAt) : new Date();
-                    const minutesAgo = Math.floor((Date.now() - arrivalTime.getTime()) / 60000);
-                    const timeLabel = minutesAgo < 1 ? "Just now" : minutesAgo < 60 ? `${minutesAgo}m ago` : `${Math.floor(minutesAgo / 60)}h ago`;
-                    const cc = (visitor.countryCode || "").toLowerCase();
+                  {(() => {
+                    // Count how many times each customerName (IP) appears to detect same-IP / different-device cases
+                    const nameCount: Record<string, number> = {};
+                    const nameIndex: Record<string, number> = {};
+                    for (const v of liveVisitors) {
+                      const name = v.customerName || "Unknown";
+                      nameCount[name] = (nameCount[name] || 0) + 1;
+                    }
+                    return liveVisitors.map((visitor) => {
+                      const arrivalTime = visitor.createdAt ? new Date(visitor.createdAt) : new Date();
+                      const minutesAgo = Math.floor((Date.now() - arrivalTime.getTime()) / 60000);
+                      const timeLabel = minutesAgo < 1 ? "Just now" : minutesAgo < 60 ? `${minutesAgo}m ago` : `${Math.floor(minutesAgo / 60)}h ago`;
+                      const cc = (visitor.countryCode || "").toLowerCase();
+                      const baseName = visitor.customerName || "Unknown";
+                      let displayName = baseName;
+                      if (nameCount[baseName] > 1) {
+                        nameIndex[baseName] = (nameIndex[baseName] || 0) + 1;
+                        displayName = `${baseName} #${nameIndex[baseName]}`;
+                      }
 
                     return (
                       <Card key={visitor.id} data-testid={`card-visitor-${visitor.id}`}>
@@ -1053,7 +1067,7 @@ export default function SupervisorPanel() {
                               </div>
                               <div className="min-w-0">
                                 <p className="text-sm font-medium flex items-center gap-2 flex-wrap">
-                                  <span data-testid={`text-visitor-name-${visitor.id}`}>{visitor.customerName || "Unknown"}</span>
+                                  <span data-testid={`text-visitor-name-${visitor.id}`}>{displayName}</span>
                                   {visitor.countryName && (
                                     <Badge variant="outline" className="text-xs">{visitor.countryName}</Badge>
                                   )}
@@ -1119,7 +1133,8 @@ export default function SupervisorPanel() {
                         </CardContent>
                       </Card>
                     );
-                  })}
+                  });
+                  })()}
                 </div>
               ) : (
                 <div className="text-center py-12">

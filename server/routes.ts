@@ -7002,7 +7002,18 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       }
       const allSessions = await storage.getSessionsByMerchant(supervisor.merchantId, true);
       const visitorSessions = allSessions.filter((s) => s.visitorSession === true && s.status === "active");
-      res.json(visitorSessions);
+
+      // Deduplicate by deviceFingerprint (fall back to clientIp), keeping only the most recently active session per device
+      const dedupMap = new Map<string, typeof visitorSessions[number]>();
+      for (const session of visitorSessions) {
+        const key = session.deviceFingerprint || session.clientIp || session.id;
+        const existing = dedupMap.get(key);
+        if (!existing || (session.lastActivity && (!existing.lastActivity || session.lastActivity > existing.lastActivity))) {
+          dedupMap.set(key, session);
+        }
+      }
+
+      res.json(Array.from(dedupMap.values()));
     } catch (error) {
       res.status(500).json({ error: "Server error" });
     }
