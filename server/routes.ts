@@ -7008,7 +7008,9 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       for (const session of visitorSessions) {
         const key = session.deviceFingerprint || session.clientIp || session.id;
         const existing = dedupMap.get(key);
-        if (!existing || (session.lastActivity && (!existing.lastActivity || session.lastActivity > existing.lastActivity))) {
+        const sessionTime = (session.lastActivity ?? session.createdAt ?? new Date(0)).getTime();
+        const existingTime = existing ? (existing.lastActivity ?? existing.createdAt ?? new Date(0)).getTime() : -1;
+        if (!existing || sessionTime > existingTime) {
           dedupMap.set(key, session);
         }
       }
