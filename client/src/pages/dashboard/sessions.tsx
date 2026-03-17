@@ -120,31 +120,35 @@ function getInitials(name: string): string {
   return (parts[0]?.[0] || "C").toUpperCase();
 }
 
-function HandlerAvatar({ mode, supervisorPhoto, agentPhoto }: { 
+function HandlerAvatar({ mode, supervisorPhoto, agentPhoto, size = "md" }: { 
   mode: "AI" | "HUMAN";
   supervisorPhoto?: string | null;
   agentPhoto?: string | null;
+  size?: "sm" | "md";
 }) {
+  const avatarCls = size === "sm" ? "h-8 w-8 border border-primary/20" : "h-12 w-12 border-2 border-primary/20";
+  const iconCls  = size === "sm" ? "h-4 w-4" : "h-6 w-6";
+
   if (mode === "HUMAN") {
     return (
-      <Avatar className="h-12 w-12 border-2 border-primary/20">
+      <Avatar className={`${avatarCls} border-primary/20`}>
         {supervisorPhoto ? (
           <AvatarImage src={supervisorPhoto} alt="Supervisor" />
         ) : null}
         <AvatarFallback className="bg-primary/10">
-          <HeadphonesIcon className="h-6 w-6 text-primary" />
+          <HeadphonesIcon className={`${iconCls} text-primary`} />
         </AvatarFallback>
       </Avatar>
     );
   }
   
   return (
-    <Avatar className="h-12 w-12 border-2 border-secondary/20">
+    <Avatar className={`${avatarCls} border-secondary/20`}>
       {agentPhoto ? (
         <AvatarImage src={agentPhoto} alt="AI Agent" />
       ) : null}
       <AvatarFallback className="bg-secondary">
-        <Bot className="h-6 w-6 text-secondary-foreground" />
+        <Bot className={`${iconCls} text-secondary-foreground`} />
       </AvatarFallback>
     </Avatar>
   );
@@ -649,6 +653,32 @@ export default function SessionsPage() {
     return bTime - aTime;
   });
 
+  // Merge sessions with the same client IP into a single list entry (show most recent; badge shows count)
+  const displayedSessions = sortedSessions ? (() => {
+    const ipMap = new Map<string, SessionWithPreview & { sessionCount: number }>();
+    for (const session of sortedSessions) {
+      const key = session.clientIp || session.id;
+      const existing = ipMap.get(key);
+      if (!existing) {
+        ipMap.set(key, { ...session, sessionCount: 1 });
+      } else {
+        // Prefer the session with "better" status (lower statusOrder) then more recent activity
+        const statusOrder = { needs_response: 0, angry: 1, active: 2, ended: 3 };
+        const existingRank = statusOrder[getSessionStatus(existing) as keyof typeof statusOrder] ?? 3;
+        const newRank     = statusOrder[getSessionStatus(session)  as keyof typeof statusOrder] ?? 3;
+        const existingTime = existing.lastActivity ? new Date(existing.lastActivity).getTime() : 0;
+        const newTime      = session.lastActivity  ? new Date(session.lastActivity).getTime()  : 0;
+        const count = existing.sessionCount + 1;
+        if (newRank < existingRank || (newRank === existingRank && newTime > existingTime)) {
+          ipMap.set(key, { ...session, sessionCount: count });
+        } else {
+          existing.sessionCount = count;
+        }
+      }
+    }
+    return Array.from(ipMap.values());
+  })() : undefined;
+
   const handleSendMessage = () => {
     if (newMessage.trim()) {
       sendMessageMutation.mutate(newMessage.trim());
@@ -739,7 +769,7 @@ export default function SessionsPage() {
       <div className="flex-shrink-0 pb-2 sm:pb-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mb-2 sm:mb-4">
           <div>
-            <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
               <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2 sm:gap-3" data-testid="text-page-title">
                 Chat Sessions
                 {(statusCounts.needsResponse > 0 || statusCounts.angry > 0) && (
@@ -749,6 +779,22 @@ export default function SessionsPage() {
                   </span>
                 )}
               </h1>
+              {/* Handler avatar + name to the right of title — shown when a session is selected */}
+              {selectedSession && selectedSessionData && (
+                <div className="flex items-center gap-2" data-testid="handler-identity">
+                  <HandlerAvatar
+                    size="sm"
+                    mode={selectedSessionData.mode as "AI" | "HUMAN"}
+                    agentPhoto={getAgentPhoto(selectedSessionData.agentId)}
+                    supervisorPhoto={getSupervisorPhoto(selectedSessionData.supervisorId, selectedSessionData.agentId)}
+                  />
+                  <span className="text-sm text-muted-foreground" data-testid="text-handler-name">
+                    {selectedSessionData.mode === "AI"
+                      ? getAgentName(selectedSessionData.agentId)
+                      : getSupervisorName(selectedSessionData.supervisorId, selectedSessionData.agentId) || "Awaiting"}
+                  </span>
+                </div>
+              )}
             </div>
             <p className="text-muted-foreground text-xs sm:text-sm hidden sm:block">View and manage customer conversations</p>
           </div>
@@ -827,8 +873,8 @@ export default function SessionsPage() {
                         <Skeleton key={i} className="h-16 w-full mx-2" />
                       ))}
                     </>
-                  ) : sortedSessions && sortedSessions.length > 0 ? (
-                    sortedSessions.map((session) => {
+                  ) : displayedSessions && displayedSessions.length > 0 ? (
+                    displayedSessions.map((session) => {
                       const status = getSessionStatus(session);
                       const isSelected = selectedSession === session.id;
                       
@@ -859,9 +905,16 @@ export default function SessionsPage() {
                             </div>
                             <div className="flex-1 min-w-0 space-y-0.5">
                               <div className="flex items-center justify-between gap-2">
-                                <span className="text-sm font-medium truncate">
-                                  {session.customerName || "Customer"}
-                                </span>
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="text-sm font-medium truncate">
+                                    {session.customerName || session.clientIp || "Customer"}
+                                  </span>
+                                  {session.sessionCount > 1 && (
+                                    <span className="flex-shrink-0 text-[10px] font-semibold bg-muted text-muted-foreground rounded px-1 py-0.5 leading-none">
+                                      {session.sessionCount}
+                                    </span>
+                                  )}
+                                </div>
                                 <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                                   {session.lastActivity 
                                     ? formatDistanceToNow(new Date(session.lastActivity), { addSuffix: false })
@@ -954,24 +1007,8 @@ export default function SessionsPage() {
                         </div>
                       </div>
                     </div>
-                    {/* RIGHT: agent/supervisor avatar + name stacked above action buttons */}
+                    {/* RIGHT: action buttons */}
                     <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                      {/* Agent or Supervisor avatar with name — stacked above buttons */}
-                      <div className="flex items-center gap-2">
-                        <div className="flex flex-col items-center gap-0.5">
-                          <HandlerAvatar 
-                            mode={selectedSessionData?.mode as "AI" | "HUMAN"} 
-                            agentPhoto={getAgentPhoto(selectedSessionData?.agentId)}
-                            supervisorPhoto={getSupervisorPhoto(selectedSessionData?.supervisorId, selectedSessionData?.agentId)}
-                          />
-                          <p className="text-[10px] text-muted-foreground text-center whitespace-nowrap" data-testid="text-handler-name">
-                            {selectedSessionData?.mode === "AI" 
-                              ? getAgentName(selectedSessionData?.agentId)
-                              : getSupervisorName(selectedSessionData?.supervisorId, selectedSessionData?.agentId) || "Awaiting"}
-                          </p>
-                        </div>
-                      </div>
-                      {/* Action buttons below */}
                       <div className="flex flex-col items-end gap-1">
                         <div className="flex items-center gap-1 sm:gap-1.5">
                           <Button
