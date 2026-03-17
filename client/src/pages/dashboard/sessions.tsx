@@ -749,45 +749,6 @@ export default function SessionsPage() {
                   </span>
                 )}
               </h1>
-              {/* Active handlers thumbnails */}
-              {selectedSessionData && (
-                <div className="flex items-center gap-1.5 ml-2" data-testid="active-handlers">
-                  {/* Agent thumbnail */}
-                  {selectedSessionData.mode === "AI" && (
-                    <div className="relative" title={`Agent: ${getAgentName(selectedSessionData.agentId)}`}>
-                      <Avatar className="h-10 w-10 border-2 border-green-500">
-                        {getAgentPhoto(selectedSessionData.agentId) ? (
-                          <AvatarImage src={getAgentPhoto(selectedSessionData.agentId)!} alt="Agent" />
-                        ) : null}
-                        <AvatarFallback className="bg-primary/10 text-xs">
-                          <Bot className="h-5 w-5 text-primary" />
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500" />
-                      </span>
-                    </div>
-                  )}
-                  {/* Supervisor thumbnail */}
-                  {selectedSessionData.mode === "HUMAN" && selectedSessionData.supervisorId && (
-                    <div className="relative" title={`Supervisor: ${getSupervisorName(selectedSessionData.supervisorId, selectedSessionData.agentId)}`}>
-                      <Avatar className="h-10 w-10 border-2 border-green-500">
-                        {getSupervisorPhoto(selectedSessionData.supervisorId, selectedSessionData.agentId) ? (
-                          <AvatarImage src={getSupervisorPhoto(selectedSessionData.supervisorId, selectedSessionData.agentId)!} alt="Supervisor" />
-                        ) : null}
-                        <AvatarFallback className="bg-primary/10 text-xs">
-                          <HeadphonesIcon className="h-5 w-5 text-primary" />
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500" />
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
             <p className="text-muted-foreground text-xs sm:text-sm hidden sm:block">View and manage customer conversations</p>
           </div>

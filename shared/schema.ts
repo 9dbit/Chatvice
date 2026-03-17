@@ -231,6 +231,7 @@ export const sessions = pgTable("sessions", {
   clientIp: text("client_ip"),
   // Live visitor tracking
   visitorSession: boolean("visitor_session").default(false),
+  proactiveGreetingSent: boolean("proactive_greeting_sent").default(false),
   countryCode: text("country_code"),
   countryName: text("country_name"),
   pageUrl: text("page_url"),

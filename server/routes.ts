@@ -5342,6 +5342,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         await storage.incrementConversationUsage(resolvedMerchantId, credits);
       }
 
+      // If this session was a visitor-tracking session, upgrade it to a real session now
+      // that the customer has sent their first message
+      if (existingSession?.visitorSession === true) {
+        await storage.updateSession(sessionId, { visitorSession: false });
+      }
+
       await storage.createMessage({
         sessionId,
         from: "customer",
@@ -5834,7 +5840,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       
       const allSessions = await storage.getSessionsByMerchant(req.params.merchantId);
       // Exclude visitor-tracking-only sessions from the conversation list
-      const sessions = allSessions.filter((s) => !s.visitorSession);
+      // Use !== true (not !s.visitorSession) to also handle legacy sessions with visitorSession=null
+      const sessions = allSessions.filter((s) => s.visitorSession !== true);
       
       const sessionsWithPreview = await Promise.all(
         sessions.map(async (session) => {
@@ -7042,11 +7049,6 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
       if (!supervisor || supervisor.merchantId !== targetSession.merchantId) {
         return res.status(403).json({ error: "Forbidden" });
       }
-
-      await storage.updateSession(sessionId, {
-        visitorSession: false,
-        mode: "AI",
-      });
 
       const createdMessage = await storage.createMessage({
         sessionId,
@@ -15683,6 +15685,99 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
   // --- Live Visitor Tracking / Proactive Chat ---
   const geoCache = new Map<string, { countryCode: string; countryName: string; expiresAt: number }>();
 
+  /**
+   * Generate and send an AI greeting message to a new visitor session.
+   * Fires after an 8-second delay so the visitor has time to browse the page first.
+   * Uses the agent's knowledge base and system prompt to produce a contextual, on-brand greeting.
+   */
+  async function scheduleAiProactiveGreeting(
+    sessionId: string,
+    merchantId: string,
+    agentId: string | null,
+    pageUrl: string,
+  ): Promise<void> {
+    setTimeout(async () => {
+      try {
+        // Re-fetch session to make sure it still exists and hasn't been upgraded already
+        const session = await storage.getSession(sessionId);
+        if (!session || !session.visitorSession || session.proactiveGreetingSent) {
+          return; // Session gone, already a real session, or greeting already sent
+        }
+
+        // Mark greeting as sent immediately to prevent duplicate greetings from keep-alive pings
+        await storage.updateSession(sessionId, { proactiveGreetingSent: true });
+
+        // Gather context: agent knowledge base + system prompt
+        const [merchant, knowledgeContent] = await Promise.all([
+          storage.getMerchant(merchantId),
+          agentId
+            ? storage.getAllActiveKnowledgeContent(merchantId, agentId)
+            : storage.getAllActiveKnowledgeContent(merchantId),
+        ]);
+
+        if (!merchant) return;
+
+        // Build a short context snippet (cap at 1500 chars to save tokens)
+        const kbSnippet = knowledgeContent ? knowledgeContent.slice(0, 1500) : "";
+        const agentPrompt = agentId
+          ? (await storage.getAgent(agentId))?.systemPrompt || ""
+          : "";
+
+        const systemCtx = [agentPrompt, kbSnippet].filter(Boolean).join("\n\n");
+
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4.1-mini",
+          messages: [
+            {
+              role: "system",
+              content: `You are a friendly customer service AI for a business. 
+Based on the business context below, craft ONE short, warm greeting (1-2 sentences max) for a website visitor who just arrived.
+The greeting should naturally reflect the business and invite the visitor to ask anything.
+Do NOT introduce yourself with a name. Do NOT use generic phrases like "How can I help you today?" alone — be specific about what you offer.
+Respond ONLY with the greeting text, no quotes, no extra explanation.
+
+Business context:
+${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsiteName || "us"}`}`,
+            },
+            {
+              role: "user",
+              content: `Generate a proactive greeting for a visitor who just landed on: ${pageUrl || "our website"}`,
+            },
+          ],
+          max_tokens: 80,
+          temperature: 0.7,
+        });
+
+        const greetingText = completion.choices[0]?.message?.content?.trim();
+        if (!greetingText) return;
+
+        // Store the greeting as an AI message
+        const greetingMessage = await storage.createMessage({
+          sessionId,
+          from: "ai",
+          content: greetingText,
+        });
+
+        // Broadcast the greeting to the visitor's WebSocket connection
+        broadcastToSession(sessionId, {
+          type: "message",
+          message: greetingMessage,
+        });
+
+        // Signal widget to auto-open (reuse the proactive_chat event that the embedded JS already handles)
+        broadcastToSession(sessionId, {
+          type: "proactive_chat",
+          sessionId,
+          supervisorName: "AI Agent",
+        });
+
+        console.log(`[ai-proactive] Greeting sent to session ${sessionId}`);
+      } catch (err) {
+        console.error("[ai-proactive] Failed to send greeting:", err);
+      }
+    }, 8000);
+  }
+
   async function getGeoFromIp(ip: string): Promise<{ countryCode: string; countryName: string }> {
     const cached = geoCache.get(ip);
     if (cached && cached.expiresAt > Date.now()) {
@@ -15765,6 +15860,9 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         countryName: geo.countryName,
         pageUrl: pageUrl || "",
       });
+
+      // Schedule AI auto-proactive greeting after 8 seconds
+      scheduleAiProactiveGreeting(sessionId, resolvedMerchantId, assignedAgentId || null, pageUrl || "");
 
       res.json({
         tracked: true,
