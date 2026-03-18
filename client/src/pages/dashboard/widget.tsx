@@ -1273,10 +1273,10 @@ async function handleLogin() {
                       <div className="pt-3 border-t">
                         <Label className="text-sm font-medium mb-3 block">Choose from Templates</Label>
                         
-                        <div className="space-y-3">
-                          <div>
+                        <div className="flex gap-4 overflow-x-auto pb-1">
+                          <div className="flex-shrink-0">
                             <p className="text-xs font-medium text-muted-foreground mb-1.5">Men</p>
-                            <div className="flex flex-wrap gap-1.5">
+                            <div className="flex gap-1.5">
                               {[
                                 { id: 'male-cs-blue-shirt', name: 'CS Blue Shirt', ext: 'webp' },
                                 { id: 'male-cs-suit', name: 'CS Suit', ext: 'webp' },
@@ -1312,9 +1312,9 @@ async function handleLogin() {
                             </div>
                           </div>
 
-                          <div>
+                          <div className="flex-shrink-0">
                             <p className="text-xs font-medium text-muted-foreground mb-1.5">Women</p>
-                            <div className="flex flex-wrap gap-1.5">
+                            <div className="flex gap-1.5">
                               {[
                                 { id: 'female-cs-red', name: 'CS Red', ext: 'png' },
                                 { id: 'female-cs-white', name: 'CS White', ext: 'png' },
@@ -1350,9 +1350,9 @@ async function handleLogin() {
                             </div>
                           </div>
 
-                          <div>
+                          <div className="flex-shrink-0">
                             <p className="text-xs font-medium text-muted-foreground mb-1.5">Icons</p>
-                            <div className="flex flex-wrap gap-1.5">
+                            <div className="flex gap-1.5">
                               {[
                                 { id: 'astronaut', name: 'Astronaut', ext: 'png' },
                                 { id: 'rocket', name: 'Rocket', ext: 'webp' },
