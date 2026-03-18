@@ -1092,7 +1092,7 @@ async function handleLogin() {
                               )}
                             </div>
                             {config.iconUrl && (
-                              <div className="hidden md:flex items-center gap-1.5 shrink-0 flex-wrap">
+                              <div className="hidden md:flex items-center gap-1.5 shrink-0 overflow-x-auto">
                                 <Button
                                   variant="outline"
                                   size="sm"
