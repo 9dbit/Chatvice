@@ -7009,7 +7009,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         return res.status(404).json({ error: "Supervisor not found" });
       }
       const merchant = await storage.getMerchant(supervisor.merchantId);
-      if (!merchant || !merchant.proactiveChatEnabled) {
+      if (!merchant) {
         return res.json([]);
       }
       const allSessions = await storage.getSessionsByMerchant(supervisor.merchantId, true);
