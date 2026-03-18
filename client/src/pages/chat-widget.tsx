@@ -74,6 +74,8 @@ interface PendingMessage {
   timestamp: Date;
   mediaUrl?: string;
   mediaType?: string;
+  messageType?: string;
+  payload?: any;
 }
 
 const generateClientId = () => `client_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -743,18 +745,25 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           sessionStorage.setItem(customerNameKey, guestName);
           sessionStorage.setItem(`${customerNameKey}_submitted`, "true");
         } catch {}
-        // Server-backed session start with anonymous identity
+        // Server-backed session start with anonymous identity (auto-open / proactive flow)
         apiRequest("POST", "/api/widget/start-chat", {
           merchantId: resolvedMerchantId,
           sessionId,
           customerName: guestName,
           customerPhone: "",
           customerEmail: "",
-          initialMessage: merchantConfig?.welcomeMessage || "Hello",
           deviceFingerprint,
+          isAutoOpen: true,
         }).then(res => res.json()).then((data: any) => {
           if (data.success) {
             const msgs: PendingMessage[] = [];
+            if (data.prechatBannerUrl) {
+              const isVideo = /\.mp4/i.test(data.prechatBannerUrl);
+              msgs.push({ clientId: generateClientId(), from: "ai", content: "[Prechat Banner]", timestamp: new Date(Date.now() - 3000), messageType: "media", payload: { type: isVideo ? "video" : "photo", url: data.prechatBannerUrl, filename: "Prechat Banner" } });
+            }
+            if (data.welcomeMessageText) {
+              msgs.push({ clientId: generateClientId(), from: "ai", content: data.welcomeMessageText, timestamp: new Date(Date.now() - 2000) });
+            }
             if (data.welcomeMessage) {
               msgs.push({ clientId: generateClientId(), from: "chatvice", content: data.welcomeMessage, timestamp: new Date(Date.now() - 1000) });
             }

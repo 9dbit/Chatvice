@@ -13183,6 +13183,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
 
   // Fetch merchant config and apply custom styles with retry
   var configLoaded = false;
+  var chatWorkflow = "click_to_open";
   function fetchConfig(retryCount) {
     retryCount = retryCount || 0;
     // Fetch both merchant config and widget style settings in parallel
@@ -13193,6 +13194,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         var config = results[0];
         if (results[1]) wsSettings = results[1];
         widgetTheme = config.widgetTheme || "light";
+        chatWorkflow = config.chatWorkflow || "click_to_open";
         configLoaded = true;
         updateButtonStyles(config);
         applyAnimations(config);
@@ -13651,6 +13653,8 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
   }
 
   function initVisitorTracking() {
+    // In auto_open mode the widget opens immediately — no proactive session needed
+    if (chatWorkflow === "auto_open") return;
     var fp = getDeviceFingerprint();
     var pingData = { merchantId: merchantId, deviceFingerprint: fp, pageUrl: window.location.href };
 
@@ -13669,9 +13673,11 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         try {
           var msg = JSON.parse(evt.data);
           if (msg.type === "proactive_chat" || (msg.type === "message" && msg.message && msg.message.senderType === "supervisor")) {
-            // Auto-open widget with visitor session
-            iframe.src = baseUrl + "/widget/" + merchantId + "?session=" + visitorSessionId + "&showClose=true&embedded=true&visitorSession=true";
-            openWidget();
+            // Only open widget if it is not already open — prevents reloading an active chat session
+            if (!isOpen) {
+              iframe.src = baseUrl + "/widget/" + merchantId + "?session=" + visitorSessionId + "&showClose=true&embedded=true&visitorSession=true";
+              openWidget();
+            }
           }
         } catch(e) {}
       };
@@ -15722,6 +15728,34 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
 
         const systemCtx = [agentPrompt, kbSnippet].filter(Boolean).join("\n\n");
 
+        // --- Send prechat banner image first (if configured) ---
+        const rawBannerUrl = merchant.prechatBannerUrl || "";
+        const bannerUrl = rawBannerUrl
+          ? (rawBannerUrl.startsWith('data:') ? `/api/merchant/banner/${merchant.id}` : rawBannerUrl)
+          : "";
+        if (bannerUrl) {
+          const isVideo = /\.mp4/i.test(bannerUrl);
+          const bannerMsg = await storage.createMessage({
+            sessionId,
+            from: "ai",
+            content: "[Prechat Banner]",
+            messageType: "media",
+            payload: { type: isVideo ? "video" : "photo", url: bannerUrl, filename: "Prechat Banner" },
+          });
+          broadcastToSession(sessionId, { type: "message", message: bannerMsg });
+        }
+
+        // --- Send configured welcome message second (if set) ---
+        const welcomeText = merchant.welcomeMessage || "";
+        if (welcomeText) {
+          const welcomeMsg = await storage.createMessage({
+            sessionId,
+            from: "ai",
+            content: welcomeText,
+          });
+          broadcastToSession(sessionId, { type: "message", message: welcomeMsg });
+        }
+
         const completion = await openai.chat.completions.create({
           model: "gpt-4.1-mini",
           messages: [
@@ -16044,7 +16078,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
   app.post("/api/widget/start-chat", async (req, res) => {
     // CORS is handled by the middleware at line 907-926 for /api/widget/ routes
     try {
-      const { merchantId, sessionId, customerName, customerPhone, customerEmail, initialMessage, deviceFingerprint, welcomeDescription, isQuickQuestion } = req.body;
+      const { merchantId, sessionId, customerName, customerPhone, customerEmail, initialMessage, deviceFingerprint, welcomeDescription, isQuickQuestion, isAutoOpen } = req.body;
       
       // Get client IP from request
       const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || 
@@ -16052,7 +16086,8 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
                        'unknown';
       
       // Return 200 with success:false for validation errors so widget can display user-friendly messages
-      if (!merchantId || !sessionId || !customerName || !customerPhone) {
+      // isAutoOpen sessions are anonymous — phone is not required
+      if (!merchantId || !sessionId || !customerName || (!customerPhone && !isAutoOpen)) {
         return res.json({ success: false, error: "Please enter your name and phone number" });
       }
       
@@ -16168,6 +16203,88 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
         });
       }
 
+      let aiGreeting = "";
+
+      if (isAutoOpen) {
+        // ---- AUTO-OPEN flow: AI proactively greets the anonymous visitor ----
+        // No customer message is stored. Instead we store: banner → welcome text → AI greeting.
+
+        const rawBannerUrl2 = merchant.prechatBannerUrl || "";
+        const bannerUrl = rawBannerUrl2
+          ? (rawBannerUrl2.startsWith('data:') ? `/api/merchant/banner/${resolvedMerchantId}` : rawBannerUrl2)
+          : "";
+        if (bannerUrl) {
+          const isVideo = /\.mp4/i.test(bannerUrl);
+          await storage.createMessage({
+            sessionId,
+            from: "ai",
+            content: "[Prechat Banner]",
+            messageType: "media",
+            payload: { type: isVideo ? "video" : "photo", url: bannerUrl, filename: "Prechat Banner" },
+          });
+        }
+
+        const merchantWelcome = merchant.welcomeMessage || "";
+        if (merchantWelcome) {
+          await storage.createMessage({
+            sessionId,
+            from: "ai",
+            content: merchantWelcome,
+          });
+        }
+
+        // Generate a proactive AI greeting (same logic as scheduleAiProactiveGreeting)
+        const kbContent = activeAgentId
+          ? await storage.getAllActiveKnowledgeContent(resolvedMerchantId, activeAgentId)
+          : await storage.getAllActiveKnowledgeContent(resolvedMerchantId);
+        const kbSnippet = kbContent ? kbContent.slice(0, 1500) : "";
+        const systemCtx = [agentSystemPrompt, kbSnippet].filter(Boolean).join("\n\n");
+        const fallbackGreeting = `Halo! Selamat datang di ${merchant.companyName || "layanan kami"}. Ada yang bisa saya bantu?`;
+
+        try {
+          const response = await openai.chat.completions.create({
+            model: "gpt-4.1-mini",
+            messages: [
+              {
+                role: "system",
+                content: `You are a friendly customer service AI for a business.
+Based on the business context below, craft ONE short, warm greeting (1-2 sentences max) for a website visitor who just arrived.
+The greeting should naturally reflect the business and invite the visitor to ask anything.
+Do NOT use generic phrases like "How can I help you today?" alone — be specific about what you offer.
+Respond ONLY with the greeting text, no quotes, no extra explanation.
+
+Business context:
+${systemCtx || `Business name: ${merchant.companyName || "us"}`}`,
+              },
+              {
+                role: "user",
+                content: "Generate a proactive greeting for a visitor who just opened the chat.",
+              },
+            ],
+            max_tokens: 80,
+            temperature: 0.7,
+          });
+          aiGreeting = response.choices[0]?.message?.content?.trim() || fallbackGreeting;
+        } catch {
+          aiGreeting = fallbackGreeting;
+        }
+
+        await storage.createMessage({
+          sessionId,
+          from: "chatvice",
+          content: aiGreeting,
+        });
+
+        return res.json({
+          success: true,
+          answer: aiGreeting,
+          sanitizedName,
+          prechatBannerUrl: bannerUrl || undefined,
+          welcomeMessageText: merchantWelcome || undefined,
+        });
+      }
+
+      // ---- NORMAL (click_to_open) flow ----
       // Store the initial message from customer
       const finalMessage = initialMessage || "Halo kak, ada yang mau saya tanyakan";
       await storage.createMessage({
@@ -16219,7 +16336,7 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
         fallbackResponse = `Halo ${sanitizedName}! Terima kasih sudah menghubungi kami. Ada yang bisa saya bantu hari ini?`;
       }
 
-      let aiGreeting = fallbackResponse;
+      aiGreeting = fallbackResponse;
 
       try {
         const response = await openai.chat.completions.create({
