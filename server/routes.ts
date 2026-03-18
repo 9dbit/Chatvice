@@ -29,7 +29,7 @@ import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./payp
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient, sendMerchantAuthNotification, sendEmailChangeOtp } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, or, isNotNull, gte, sql } from "drizzle-orm";
+import { eq, desc, and, or, isNull, isNotNull, gte, sql } from "drizzle-orm";
 import { messages, sessions, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts } from "@shared/schema";
 import crypto from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
@@ -15872,6 +15872,23 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
           countryCode: existingSession.countryCode || "xx",
           countryName: existingSession.countryName || "Unknown",
         });
+      }
+
+      // If the device already has an active chat session (upgraded from visitor),
+      // keepalive pings should not create new visitor sessions for the same device.
+      const existingChatSession = await db.query.sessions.findFirst({
+        where: and(
+          eq(sessions.merchantId, resolvedMerchantId),
+          eq(sessions.deviceFingerprint, deviceFingerprint),
+          eq(sessions.status, "active"),
+          or(isNull(sessions.visitorSession), eq(sessions.visitorSession, false)),
+          gte(sessions.lastActivity, thirtyMinAgo)
+        ),
+        orderBy: [desc(sessions.lastActivity)],
+      });
+
+      if (existingChatSession) {
+        return res.json({ tracked: false });
       }
 
       const geo = await getGeoFromIp(clientIp);
