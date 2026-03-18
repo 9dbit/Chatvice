@@ -731,6 +731,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
   const isAutoOpen = merchantConfig?.chatWorkflow === "auto_open";
   const autoOpenTriggeredRef = useRef(false);
+  const visitorUpgradedRef = useRef(false);
 
   // Auto-open chat when chatWorkflow is "auto_open" — bypass welcome bubble and name screen
   useEffect(() => {
@@ -1061,6 +1062,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         playNotificationSound("reply");
       }
       queryClient.invalidateQueries({ queryKey: ["/api/messages", sessionId] });
+      // Upgrade visitor session to active chat session on first message sent
+      if (isVisitorSession && !visitorUpgradedRef.current) {
+        visitorUpgradedRef.current = true;
+        apiRequest("POST", "/api/widget/visitor-upgrade", { sessionId }).catch(() => {});
+      }
     },
   });
 
