@@ -4669,6 +4669,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           ? (merchant.prechatBannerUrl.startsWith('data:image') ? `/api/merchant/banner/${merchant.id}` : merchant.prechatBannerUrl)
           : "",
         quickMessageOptions: merchant.quickMessageOptions || [],
+        // chatWorkflow is always "click_to_open" — proactive auto-open is driven by
+        // visitor tracking WS (proactive_chat event) rather than the React auto-open flow.
+        // proactiveChatEnabled controls whether AI greeting is scheduled for tracked visitors.
         chatWorkflow: "click_to_open",
       };
       setCache(cacheKey, statusResponse, 30);
