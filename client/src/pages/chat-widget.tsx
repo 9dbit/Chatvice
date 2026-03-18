@@ -592,9 +592,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   
   // Check for existing session on mount (24-hour persistence for all widgets)
   useEffect(() => {
-    // Visitor sessions already have their session from the URL
+    // Visitor sessions already have their session from the URL — mark as ready
     if (isVisitorSession) {
       setIsCheckingSession(false);
+      setHasSubmittedName(true);
       return;
     }
     // Wait for fingerprint to be generated

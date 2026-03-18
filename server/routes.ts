@@ -4669,7 +4669,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           ? (merchant.prechatBannerUrl.startsWith('data:image') ? `/api/merchant/banner/${merchant.id}` : merchant.prechatBannerUrl)
           : "",
         quickMessageOptions: merchant.quickMessageOptions || [],
-        chatWorkflow: merchant.proactiveChatEnabled ? "auto_open" : "click_to_open",
+        chatWorkflow: "click_to_open",
       };
       setCache(cacheKey, statusResponse, 30);
       res.json(statusResponse);
