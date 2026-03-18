@@ -4669,7 +4669,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           ? (merchant.prechatBannerUrl.startsWith('data:image') ? `/api/merchant/banner/${merchant.id}` : merchant.prechatBannerUrl)
           : "",
         quickMessageOptions: merchant.quickMessageOptions || [],
-        chatWorkflow: merchant.chatWorkflow || "click_to_open",
+        chatWorkflow: merchant.proactiveChatEnabled ? "auto_open" : "click_to_open",
       };
       setCache(cacheKey, statusResponse, 30);
       res.json(statusResponse);
@@ -13653,8 +13653,6 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
   }
 
   function initVisitorTracking() {
-    // In auto_open mode the widget opens immediately — no proactive session needed
-    if (chatWorkflow === "auto_open") return;
     var fp = getDeviceFingerprint();
     var pingData = { merchantId: merchantId, deviceFingerprint: fp, pageUrl: window.location.href };
 
@@ -15840,7 +15838,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
       }
 
       const merchant = await resolveMerchant(merchantId);
-      if (!merchant || !merchant.proactiveChatEnabled) {
+      if (!merchant) {
         return res.json({ tracked: false });
       }
       const resolvedMerchantId = merchant.id;
@@ -15892,11 +15890,12 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
         pageUrl: pageUrl || "",
       });
 
-      // Mark greeting as scheduled immediately to prevent race conditions with keep-alive pings
-      await storage.updateSession(sessionId, { proactiveGreetingSent: true });
-
-      // Schedule AI auto-proactive greeting after 8 seconds
-      scheduleAiProactiveGreeting(sessionId, resolvedMerchantId, assignedAgentId || null, pageUrl || "");
+      // Schedule AI proactive greeting only when proactive chat is enabled
+      if (merchant.proactiveChatEnabled) {
+        // Mark greeting as scheduled immediately to prevent race conditions with keep-alive pings
+        await storage.updateSession(sessionId, { proactiveGreetingSent: true });
+        scheduleAiProactiveGreeting(sessionId, resolvedMerchantId, assignedAgentId || null, pageUrl || "");
+      }
 
       res.json({
         tracked: true,

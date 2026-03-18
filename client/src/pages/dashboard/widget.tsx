@@ -103,7 +103,6 @@ export default function WidgetPage() {
     widgetTheme: "light" as "light" | "dark",
     bubblePosition: "right" as "left" | "right",
     allowedDomains: "",
-    chatWorkflow: "click_to_open" as "click_to_open" | "auto_open",
     proactiveChatEnabled: false,
   });
 
@@ -325,7 +324,6 @@ export default function WidgetPage() {
         widgetTheme: (agentWidgetSettings.widgetTheme as "light" | "dark") || "light",
         bubblePosition: (agentWidgetSettings.bubblePosition as "left" | "right") || "right",
         allowedDomains: (merchant as any).allowedDomains || "",
-        chatWorkflow: ((merchant as any).chatWorkflow as "click_to_open" | "auto_open") || "click_to_open",
         proactiveChatEnabled: (merchant as any).proactiveChatEnabled || false,
       });
     } else if (merchant && !merchant.activeAgentId) {
@@ -352,7 +350,6 @@ export default function WidgetPage() {
         widgetTheme: (merchant.widgetTheme as "light" | "dark") || "light",
         bubblePosition: (merchant.bubblePosition as "left" | "right") || "right",
         allowedDomains: (merchant as any).allowedDomains || "",
-        chatWorkflow: ((merchant as any).chatWorkflow as "click_to_open" | "auto_open") || "click_to_open",
         proactiveChatEnabled: (merchant as any).proactiveChatEnabled || false,
       });
     }
@@ -628,7 +625,6 @@ export default function WidgetPage() {
         iconAnimationRotation: config.iconAnimationRotation,
         iconAnimationSpeed: config.iconAnimationSpeed,
         online: config.online,
-        chatWorkflow: config.chatWorkflow,
         proactiveChatEnabled: config.proactiveChatEnabled,
       };
       await apiRequest("POST", "/api/merchant/config", merchantIconConfig);
@@ -1764,33 +1760,11 @@ async function handleLogin() {
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <Label>Chat Workflow</Label>
-                        <Select
-                          value={config.chatWorkflow}
-                          onValueChange={(value: "click_to_open" | "auto_open") => setConfig({ ...config, chatWorkflow: value })}
-                        >
-                          <SelectTrigger data-testid="select-chat-workflow">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="click_to_open">Click to Open (Standard)</SelectItem>
-                            <SelectItem value="auto_open">Auto Open Chat</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <p className="text-xs text-muted-foreground">
-                          {config.chatWorkflow === "click_to_open" 
-                            ? "Visitor clicks the chat icon or welcome bubble button to open the chat window."
-                            : "Chat window opens automatically when visitor enters the page. Pre-chat banner and welcome message appear directly in the chat area."
-                          }
-                        </p>
-                      </div>
-
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <Label>Live Visitor Tracking</Label>
+                          <Label>Proactive Chat</Label>
                           <p className="text-xs text-muted-foreground">
-                            Track visitors on your website in real-time. Supervisors can start conversations proactively before visitors initiate chat.
+                            Automatically greet visitors with an AI message after they spend a few seconds on your page. Visitor tracking is always active so supervisors can see live visitors.
                           </p>
                         </div>
                         <Switch
