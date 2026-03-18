@@ -1092,163 +1092,123 @@ async function handleLogin() {
                               )}
                             </div>
                             {config.iconUrl && (
-                              <div className="flex items-center gap-1 shrink-0">
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="icon"
-                                      className="h-8 w-8"
-                                      onClick={() => handleFlipImage("horizontal")}
-                                      disabled={isProcessingImage}
-                                      data-testid="button-flip-horizontal-desktop"
-                                    >
-                                      {isProcessingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowLeftRight className="w-3.5 h-3.5" />}
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom">
-                                    <p>Flip image horizontally (mirror left-right)</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="icon"
-                                      className="h-8 w-8"
-                                      onClick={() => handleFlipImage("vertical")}
-                                      disabled={isProcessingImage}
-                                      data-testid="button-flip-vertical-desktop"
-                                    >
-                                      {isProcessingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowUpDown className="w-3.5 h-3.5" />}
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom">
-                                    <p>Flip image vertically (mirror top-bottom)</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="icon"
-                                      className="h-8 w-8"
-                                      onClick={handleConvertToWebP}
-                                      disabled={isProcessingImage || config.iconUrl.startsWith('data:image/webp')}
-                                      data-testid="button-convert-webp-desktop"
-                                    >
-                                      {isProcessingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5" />}
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom">
-                                    <p>Convert image to WebP format for smaller file size</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="icon"
-                                      className="h-8 w-8"
-                                      onClick={handleRemoveBackground}
-                                      disabled={isRemovingBg || (bgRemovalStatus !== null && bgRemovalStatus.limit >= 0 && bgRemovalStatus.used >= bgRemovalStatus.limit)}
-                                      data-testid="button-remove-bg-desktop"
-                                    >
-                                      {isRemovingBg ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Frame className="w-3.5 h-3.5" />}
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom">
-                                    <p>Remove background using AI {bgRemovalStatus && bgRemovalStatus.limit > 0 && `(${bgRemovalStatus.limit - bgRemovalStatus.used} remaining)`}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-destructive"
-                                      onClick={() => setConfig({ ...config, iconUrl: "" })}
-                                      data-testid="button-remove-icon"
-                                    >
-                                      <X className="w-3.5 h-3.5" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom">
-                                    <p>Remove custom icon</p>
-                                  </TooltipContent>
-                                </Tooltip>
+                              <div className="hidden md:flex items-center gap-1.5 shrink-0 flex-wrap">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleFlipImage("horizontal")}
+                                  disabled={isProcessingImage}
+                                  data-testid="button-flip-horizontal-desktop"
+                                >
+                                  {isProcessingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowLeftRight className="w-3.5 h-3.5" />}
+                                  Flip H
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleFlipImage("vertical")}
+                                  disabled={isProcessingImage}
+                                  data-testid="button-flip-vertical-desktop"
+                                >
+                                  {isProcessingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowUpDown className="w-3.5 h-3.5" />}
+                                  Flip V
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={handleConvertToWebP}
+                                  disabled={isProcessingImage || config.iconUrl.startsWith('data:image/webp')}
+                                  data-testid="button-convert-webp-desktop"
+                                >
+                                  {isProcessingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5" />}
+                                  Save WebP
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={handleRemoveBackground}
+                                  disabled={isRemovingBg || (bgRemovalStatus !== null && bgRemovalStatus.limit >= 0 && bgRemovalStatus.used >= bgRemovalStatus.limit)}
+                                  data-testid="button-remove-bg-desktop"
+                                >
+                                  {isRemovingBg ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Frame className="w-3.5 h-3.5" />}
+                                  Remove BG
+                                  {bgRemovalStatus && bgRemovalStatus.limit > 0 && (
+                                    <span className="text-[10px] text-muted-foreground ml-0.5">({bgRemovalStatus.limit - bgRemovalStatus.used})</span>
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive"
+                                  onClick={() => setConfig({ ...config, iconUrl: "" })}
+                                  data-testid="button-remove-icon"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                  Remove
+                                </Button>
                               </div>
                             )}
                           </div>
-                          {/* Mobile: action buttons row */}
+                          {/* Mobile: action buttons grid */}
                           {config.iconUrl && (
-                            <div className="flex flex-wrap gap-1.5 md:hidden">
-                              <button
+                            <div className="grid grid-cols-2 gap-2 md:hidden">
+                              <Button
+                                variant="outline"
+                                size="sm"
                                 onClick={() => handleFlipImage("horizontal")}
                                 disabled={isProcessingImage}
                                 data-testid="button-flip-horizontal"
-                                className="relative inline-flex items-center justify-center px-2 py-1 text-[10px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
-                                style={{
-                                  background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
-                                  backgroundSize: '200% 200%',
-                                  animation: 'gradient-shift 3s ease infinite',
-                                }}
+                                className="w-full justify-start"
                               >
-                                <span className="relative z-10 flex items-center whitespace-nowrap">
-                                  {isProcessingImage ? <Loader2 className="w-2.5 h-2.5 animate-spin mr-0.5" /> : <ArrowUpRight className="w-2.5 h-2.5 mr-0.5 -scale-x-100" />}
-                                  Flip H
-                                </span>
-                              </button>
-                              <button
+                                {isProcessingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowLeftRight className="w-3.5 h-3.5" />}
+                                Flip Horizontal
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
                                 onClick={() => handleFlipImage("vertical")}
                                 disabled={isProcessingImage}
                                 data-testid="button-flip-vertical"
-                                className="relative inline-flex items-center justify-center px-2 py-1 text-[10px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
-                                style={{
-                                  background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
-                                  backgroundSize: '200% 200%',
-                                  animation: 'gradient-shift 3s ease infinite',
-                                }}
+                                className="w-full justify-start"
                               >
-                                <span className="relative z-10 flex items-center whitespace-nowrap">
-                                  {isProcessingImage ? <Loader2 className="w-2.5 h-2.5 animate-spin mr-0.5" /> : <ArrowUpRight className="w-2.5 h-2.5 mr-0.5 -scale-y-100" />}
-                                  Flip V
-                                </span>
-                              </button>
-                              <button
+                                {isProcessingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowUpDown className="w-3.5 h-3.5" />}
+                                Flip Vertical
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
                                 onClick={handleConvertToWebP}
                                 disabled={isProcessingImage || config.iconUrl.startsWith('data:image/webp')}
                                 data-testid="button-convert-webp"
-                                className="relative inline-flex items-center justify-center px-2 py-1 text-[10px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
-                                style={{
-                                  background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #7c3aed 100%)',
-                                  backgroundSize: '200% 200%',
-                                  animation: 'gradient-shift 3s ease infinite',
-                                }}
+                                className="w-full justify-start"
                               >
-                                <span className="relative z-10 flex items-center whitespace-nowrap">
-                                  {isProcessingImage ? <Loader2 className="w-2.5 h-2.5 animate-spin mr-0.5" /> : <ImageIcon className="w-2.5 h-2.5 mr-0.5" />}
-                                  WebP
-                                </span>
-                              </button>
-                              <button
+                                {isProcessingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5" />}
+                                Save as WebP
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
                                 onClick={handleRemoveBackground}
                                 disabled={isRemovingBg || (bgRemovalStatus !== null && bgRemovalStatus.limit >= 0 && bgRemovalStatus.used >= bgRemovalStatus.limit)}
                                 data-testid="button-remove-bg"
-                                className="relative inline-flex items-center justify-center px-2 py-1 text-[10px] font-medium text-white rounded-md overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
-                                style={{
-                                  background: 'linear-gradient(135deg, #7c3aed 0%, #ec4899 50%, #7c3aed 100%)',
-                                  backgroundSize: '200% 200%',
-                                  animation: 'gradient-shift 3s ease infinite',
-                                }}
+                                className="w-full justify-start"
                               >
-                                <span className="relative z-10 flex items-center whitespace-nowrap">
-                                  {isRemovingBg ? <Loader2 className="w-2.5 h-2.5 animate-spin mr-0.5" /> : <Frame className="w-2.5 h-2.5 mr-0.5" />}
-                                  Rm BG {bgRemovalStatus && bgRemovalStatus.limit > 0 && (
-                                    <span className="text-[9px] opacity-70 ml-0.5">({bgRemovalStatus.limit - bgRemovalStatus.used})</span>
-                                  )}
-                                </span>
-                              </button>
+                                {isRemovingBg ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Frame className="w-3.5 h-3.5" />}
+                                Remove BG
+                                {bgRemovalStatus && bgRemovalStatus.limit > 0 && (
+                                  <span className="text-[10px] text-muted-foreground ml-0.5">({bgRemovalStatus.limit - bgRemovalStatus.used})</span>
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setConfig({ ...config, iconUrl: "" })}
+                                data-testid="button-remove-icon-mobile"
+                                className="w-full justify-start text-destructive col-span-2"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                                Remove Icon
+                              </Button>
                             </div>
                           )}
                           {bgRemovalStatus && bgRemovalStatus.limit === 0 && (
