@@ -4673,7 +4673,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         // visitor tracking WS (proactive_chat event) rather than the React auto-open flow.
         // proactiveChatEnabled controls whether AI greeting is scheduled for tracked visitors.
         chatWorkflow: "click_to_open",
+        proactiveChatEnabled: (merchant as any).proactiveChatEnabled ?? false,
         proactiveChatDingEnabled: (merchant as any).proactiveChatDingEnabled ?? false,
+        proactiveChatGreetingDelay: (merchant as any).proactiveChatGreetingDelay ?? 8,
+        proactiveChatTemplates: (merchant as any).proactiveChatTemplates ?? [],
       };
       setCache(cacheKey, statusResponse, 30);
       res.json(statusResponse);

@@ -45,6 +45,10 @@ interface MerchantConfig {
   quickMessageOptions?: string[];
   activeAgentId?: string;
   chatWorkflow?: "click_to_open" | "auto_open";
+  proactiveChatEnabled?: boolean;
+  proactiveChatDingEnabled?: boolean;
+  proactiveChatGreetingDelay?: number;
+  proactiveChatTemplates?: string[];
 }
 
 interface NotificationSettings {
@@ -948,6 +952,25 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     }
   };
   
+  const playProactiveDing = useCallback(() => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.4, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.4);
+      osc.onended = () => ctx.close();
+    } catch (e) {
+      console.warn("Proactive ding failed:", e);
+    }
+  }, []);
+
   const handleWidgetOpen = () => {
     initAudio();
     setIsOpen(true);
@@ -1519,8 +1542,16 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         // This is a new message from supervisor/AI that came via polling (not mutation)
         playNotificationSound("reply");
         
-        // Increment unread count if widget is minimized
-        if (!isOpen && !embedded) {
+        // Proactive greeting auto-open: if widget is closed, there are no customer messages
+        // yet (pure AI-initiated session), and proactive chat is enabled → auto-open + ding
+        const hasCustomerMessages = serverMessages.some(m => m.from === "customer");
+        const isProactiveGreeting = !hasCustomerMessages && merchantConfig?.proactiveChatEnabled;
+        if (isProactiveGreeting && !isOpen && !embedded) {
+          setIsOpen(true);
+          if (merchantConfig?.proactiveChatDingEnabled) {
+            playProactiveDing();
+          }
+        } else if (!isOpen && !embedded) {
           setUnreadCount(prev => prev + 1);
         }
       }
@@ -1528,7 +1559,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     
     const lastMsg = serverMessages[serverMessages.length - 1];
     if (lastMsg?.id) lastProcessedServerMsgId.current = lastMsg.id;
-  }, [serverMessages, isOpen, embedded, pendingMessages]);
+  }, [serverMessages, isOpen, embedded, pendingMessages, merchantConfig, playProactiveDing]);
 
   // Clear unread count when widget opens
   useEffect(() => {
