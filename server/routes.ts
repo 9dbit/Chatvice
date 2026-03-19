@@ -4743,10 +4743,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (collectCustomerPhone !== undefined) updateData.collectCustomerPhone = collectCustomerPhone;
       if (customDomain !== undefined) updateData.customDomain = customDomain;
       if (customDomainStatus !== undefined) updateData.customDomainStatus = customDomainStatus;
-      if (proactiveChatEnabled !== undefined) updateData.proactiveChatEnabled = proactiveChatEnabled;
-      if (proactiveChatGreetingDelay !== undefined) updateData.proactiveChatGreetingDelay = proactiveChatGreetingDelay;
-      if (proactiveChatDingEnabled !== undefined) updateData.proactiveChatDingEnabled = proactiveChatDingEnabled;
-      if (proactiveChatTemplates !== undefined) updateData.proactiveChatTemplates = proactiveChatTemplates;
+      if (proactiveChatEnabled !== undefined) updateData.proactiveChatEnabled = Boolean(proactiveChatEnabled);
+      if (proactiveChatGreetingDelay !== undefined) {
+        const delay = Number(proactiveChatGreetingDelay);
+        updateData.proactiveChatGreetingDelay = Math.max(5, Math.min(120, isNaN(delay) ? 8 : delay));
+      }
+      if (proactiveChatDingEnabled !== undefined) updateData.proactiveChatDingEnabled = Boolean(proactiveChatDingEnabled);
+      if (proactiveChatTemplates !== undefined) {
+        const tpls = Array.isArray(proactiveChatTemplates) ? proactiveChatTemplates : [];
+        updateData.proactiveChatTemplates = tpls.slice(0, 5).map((t: any) => String(t).slice(0, 500));
+      }
       
       const updated = await storage.updateMerchant(merchantId, updateData);
       if (!updated) {
