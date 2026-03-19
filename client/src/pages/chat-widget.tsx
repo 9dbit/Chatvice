@@ -730,57 +730,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     }
   }, [merchantConfig?.activeAgentId]);
 
-  const isAutoOpen = merchantConfig?.chatWorkflow === "auto_open";
-  const autoOpenTriggeredRef = useRef(false);
   const visitorUpgradedRef = useRef(false);
-
-  // Auto-open chat when chatWorkflow is "auto_open" — bypass welcome bubble and name screen
-  useEffect(() => {
-    if (isAutoOpen && !previewMode && !autoOpenTriggeredRef.current) {
-      setIsOpen(true);
-      if (!hasSubmittedName) {
-        autoOpenTriggeredRef.current = true;
-        const guestName = `Visitor_${sessionId.slice(-6)}`;
-        setCustomerName(guestName);
-        setHasSubmittedName(true);
-        try {
-          sessionStorage.setItem(customerNameKey, guestName);
-          sessionStorage.setItem(`${customerNameKey}_submitted`, "true");
-        } catch {}
-        // Server-backed session start with anonymous identity (auto-open / proactive flow)
-        apiRequest("POST", "/api/widget/start-chat", {
-          merchantId: resolvedMerchantId,
-          sessionId,
-          customerName: guestName,
-          customerPhone: "",
-          customerEmail: "",
-          deviceFingerprint,
-          isAutoOpen: true,
-        }).then(res => res.json()).then((data: any) => {
-          if (data.success) {
-            const msgs: PendingMessage[] = [];
-            if (data.prechatBannerUrl) {
-              const isVideo = /\.mp4/i.test(data.prechatBannerUrl);
-              msgs.push({ clientId: generateClientId(), from: "ai", content: "[Prechat Banner]", timestamp: new Date(Date.now() - 3000), messageType: "media", payload: { type: isVideo ? "video" : "photo", url: data.prechatBannerUrl, filename: "Prechat Banner" } });
-            }
-            if (data.welcomeMessageText) {
-              msgs.push({ clientId: generateClientId(), from: "ai", content: data.welcomeMessageText, timestamp: new Date(Date.now() - 2000) });
-            }
-            if (data.welcomeMessage) {
-              msgs.push({ clientId: generateClientId(), from: "chatvice", content: data.welcomeMessage, timestamp: new Date(Date.now() - 1000) });
-            }
-            if (data.answer) {
-              msgs.push({ clientId: generateClientId(), from: "chatvice", content: data.answer, timestamp: new Date() });
-            }
-            if (msgs.length > 0) {
-              setPendingMessages(msgs);
-            }
-            queryClient.invalidateQueries({ queryKey: ["/api/messages", sessionId] });
-          }
-        }).catch(() => {});
-      }
-    }
-  }, [isAutoOpen, previewMode, hasSubmittedName]);
 
   const { data: serverMessages } = useQuery<Message[]>({
     queryKey: ["/api/messages", sessionId],
@@ -795,11 +745,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
   const { data: welcomeBubble } = useQuery<WelcomeBubble>({
     queryKey: [`/api/widget/${merchantId}/welcome-bubble`],
-    enabled: !!merchantId && !isOpen && !isAutoOpen,
+    enabled: !!merchantId && !isOpen,
   });
 
   const reappearIntervalMs = (welcomeBubble?.reappearInterval ?? 60) * 1000;
-  const showWelcomeBubble = !isAutoOpen && (welcomeBubbleDismissedAt === null || 
+  const showWelcomeBubble = (welcomeBubbleDismissedAt === null || 
     (Date.now() - welcomeBubbleDismissedAt >= reappearIntervalMs));
 
   useEffect(() => {
@@ -1078,12 +1028,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   }, [pendingMessages, serverMessages]);
 
   useEffect(() => {
-    if (isOpen && !isAutoOpen && pendingMessages.length === 0 && merchantConfig?.welcomeMessage && !serverMessages?.length) {
+    if (isOpen && pendingMessages.length === 0 && merchantConfig?.welcomeMessage && !serverMessages?.length) {
       setPendingMessages([
         { clientId: "welcome", from: "chatvice", content: merchantConfig.welcomeMessage, timestamp: new Date() },
       ]);
     }
-  }, [isOpen, isAutoOpen, merchantConfig, serverMessages, pendingMessages.length]);
+  }, [isOpen, merchantConfig, serverMessages, pendingMessages.length]);
 
   // Notify parent frame that widget is ready for communication
   useEffect(() => {
