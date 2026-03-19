@@ -15845,7 +15845,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
             console.error("[ai-proactive] OpenAI failed, using fallback greeting:", aiErr);
           }
           // Use AI-generated text or fall back to a generic Indonesian greeting
-          greetingText = generated || "Ada yang bisa kami bantu? Kami siap membantu Anda.";
+          greetingText = generated || "Ada yang bisa kami bantu hari ini? Kami siap membantu Anda.";
         }
 
         // Store the greeting as an AI message
