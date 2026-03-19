@@ -103,7 +103,6 @@ export default function WidgetPage() {
     widgetTheme: "light" as "light" | "dark",
     bubblePosition: "right" as "left" | "right",
     allowedDomains: "",
-    proactiveChatEnabled: false,
   });
 
   const [socialConfig, setSocialConfig] = useState({
@@ -324,7 +323,6 @@ export default function WidgetPage() {
         widgetTheme: (agentWidgetSettings.widgetTheme as "light" | "dark") || "light",
         bubblePosition: (agentWidgetSettings.bubblePosition as "left" | "right") || "right",
         allowedDomains: (merchant as any).allowedDomains || "",
-        proactiveChatEnabled: (merchant as any).proactiveChatEnabled || false,
       });
     } else if (merchant && !merchant.activeAgentId) {
       setConfig({
@@ -350,7 +348,6 @@ export default function WidgetPage() {
         widgetTheme: (merchant.widgetTheme as "light" | "dark") || "light",
         bubblePosition: (merchant.bubblePosition as "left" | "right") || "right",
         allowedDomains: (merchant as any).allowedDomains || "",
-        proactiveChatEnabled: (merchant as any).proactiveChatEnabled || false,
       });
     }
   }, [merchant, agentWidgetSettings]);
@@ -625,7 +622,6 @@ export default function WidgetPage() {
         iconAnimationRotation: config.iconAnimationRotation,
         iconAnimationSpeed: config.iconAnimationSpeed,
         online: config.online,
-        proactiveChatEnabled: config.proactiveChatEnabled,
       };
       await apiRequest("POST", "/api/merchant/config", merchantIconConfig);
       

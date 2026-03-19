@@ -4673,10 +4673,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         // visitor tracking WS (proactive_chat event) rather than the React auto-open flow.
         // proactiveChatEnabled controls whether AI greeting is scheduled for tracked visitors.
         chatWorkflow: "click_to_open",
-        proactiveChatEnabled: (merchant as any).proactiveChatEnabled ?? false,
-        proactiveChatDingEnabled: (merchant as any).proactiveChatDingEnabled ?? false,
-        proactiveChatGreetingDelay: (merchant as any).proactiveChatGreetingDelay ?? 8,
-        proactiveChatTemplates: (merchant as any).proactiveChatTemplates ?? [],
+        proactiveChatEnabled: merchant.proactiveChatEnabled ?? false,
+        proactiveChatDingEnabled: merchant.proactiveChatDingEnabled ?? false,
+        proactiveChatGreetingDelay: merchant.proactiveChatGreetingDelay ?? 8,
+        proactiveChatTemplates: merchant.proactiveChatTemplates ?? [],
       };
       setCache(cacheKey, statusResponse, 30);
       res.json(statusResponse);
@@ -15766,7 +15766,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         const systemCtx = [agentPrompt, kbSnippet].filter(Boolean).join("\n\n");
 
         // Pick a random template from the merchant's configured templates (if any)
-        const templates: string[] = (merchant as any).proactiveChatTemplates || [];
+        const templates: string[] = merchant.proactiveChatTemplates || [];
         const templateText = templates.length > 0
           ? templates[Math.floor(Math.random() * templates.length)]
           : null;
@@ -15963,7 +15963,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
       if (merchant.proactiveChatEnabled) {
         // Mark greeting as scheduled immediately to prevent race conditions with keep-alive pings
         await storage.updateSession(sessionId, { proactiveGreetingSent: true });
-        scheduleAiProactiveGreeting(sessionId, resolvedMerchantId, assignedAgentId || null, pageUrl || "", (merchant as any).proactiveChatGreetingDelay ?? 8);
+        scheduleAiProactiveGreeting(sessionId, resolvedMerchantId, assignedAgentId || null, pageUrl || "", merchant.proactiveChatGreetingDelay ?? 8);
       }
 
       res.json({

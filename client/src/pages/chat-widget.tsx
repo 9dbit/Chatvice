@@ -392,6 +392,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const urlParams = new URLSearchParams(window.location.search);
   const showCloseButton = urlParams.get("showClose") === "true";
   const isVisitorSession = urlParams.get("visitorSession") === "true";
+  // Session from URL — used when widget is loaded by injected JS for visitor sessions
+  const urlSessionId = urlParams.get("session") || null;
   // Widget is externally embedded when showClose=true (external widget shows close button)
   const isExternalEmbed = showCloseButton;
   
@@ -954,7 +956,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   
   const playProactiveDing = useCallback(() => {
     try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const ctx = audioContextRef.current;
+      if (!ctx) return;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);
@@ -965,7 +968,6 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.4);
-      osc.onended = () => ctx.close();
     } catch (e) {
       console.warn("Proactive ding failed:", e);
     }
@@ -981,6 +983,52 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     setIsFullscreen(false);
     setIsOpen(false);
   }, []);
+
+  // WebSocket listener for proactive_chat events — handles auto-open and optional ding
+  // when the widget is used standalone (direct URL, without the injected JS wrapper)
+  const wsProactiveRef = useRef<WebSocket | null>(null);
+  const isOpenRef = useRef(isOpen);
+  const merchantConfigRef = useRef(merchantConfig);
+  useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
+  useEffect(() => { merchantConfigRef.current = merchantConfig; }, [merchantConfig]);
+
+  useEffect(() => {
+    // Skip in preview mode, skip if already embedded (injected JS handles it), skip without session
+    if (previewMode || embedded) return;
+    const wsSession = urlSessionId || sessionId;
+    if (!wsSession) return;
+
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws?session=${wsSession}&type=customer`;
+
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket(wsUrl);
+    } catch {
+      return;
+    }
+    wsProactiveRef.current = ws;
+
+    ws.onmessage = (evt) => {
+      try {
+        const data = JSON.parse(evt.data);
+        if (data.type === "proactive_chat") {
+          if (!isOpenRef.current) {
+            setIsOpen(true);
+            if (merchantConfigRef.current?.proactiveChatDingEnabled) {
+              initAudio();
+              playProactiveDing();
+            }
+          }
+        }
+      } catch {}
+    };
+
+    return () => {
+      ws.close();
+      wsProactiveRef.current = null;
+    };
+  }, [sessionId, urlSessionId, previewMode, embedded, initAudio, playProactiveDing]);
 
   const findMatchingButtons = (messageContent: string): ChatButton[] => {
     if (!chatButtons.length) return [];
