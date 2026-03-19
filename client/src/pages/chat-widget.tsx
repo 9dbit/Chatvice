@@ -478,7 +478,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       }
     };
   }, [isExternalEmbed, embedded]);
-  const [generatedSessionId] = useState(() => initialSessionId || `sess_${Math.random().toString(36).substring(2, 12)}`);
+  // When opened by the injected JS for a proactive visitor session, the URL carries
+  // the actual visitor session ID (?session=sess_v_xyz). Use it so that polls land
+  // on the correct session where the proactive greeting was stored.
+  const [generatedSessionId] = useState(() => {
+    if (isVisitorSession && urlSessionId) return urlSessionId;
+    return initialSessionId || `sess_${Math.random().toString(36).substring(2, 12)}`;
+  });
   // Use resumed session ID if available, otherwise use generated one
   const sessionId = resumedSessionId || generatedSessionId;
   const [message, setMessage] = useState("");

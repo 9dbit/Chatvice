@@ -4758,6 +4758,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!updated) {
         return res.status(404).json({ error: "Merchant not found" });
       }
+      // Invalidate the merchant status cache so the embedded widget picks up
+      // changes to proactiveChatEnabled and related fields immediately
+      invalidateCache(`merchant-status:${merchantId}`);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
