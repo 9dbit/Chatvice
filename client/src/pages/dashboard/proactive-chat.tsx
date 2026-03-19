@@ -34,7 +34,7 @@ import {
   Info,
   CheckCircle2,
 } from "lucide-react";
-import proactiveBanner from "@assets/proactive-chat-banner.png";
+import proactiveBanner from "../../assets/proactive-chat-banner.png";
 import type { Merchant } from "@shared/schema";
 
 const MIN_DELAY = 5;
@@ -61,10 +61,10 @@ export default function ProactiveChatPage() {
 
   useEffect(() => {
     if (merchant) {
-      setEnabled((merchant as any).proactiveChatEnabled ?? false);
-      setGreetingDelay((merchant as any).proactiveChatGreetingDelay ?? DEFAULT_DELAY);
-      setDingEnabled((merchant as any).proactiveChatDingEnabled ?? false);
-      const tpl: string[] = (merchant as any).proactiveChatTemplates ?? [];
+      setEnabled(merchant.proactiveChatEnabled ?? false);
+      setGreetingDelay(merchant.proactiveChatGreetingDelay ?? DEFAULT_DELAY);
+      setDingEnabled(merchant.proactiveChatDingEnabled ?? false);
+      const tpl: string[] = merchant.proactiveChatTemplates ?? [];
       setTemplates(tpl.length > 0 ? tpl : [""]);
     }
   }, [merchant]);
