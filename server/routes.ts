@@ -15814,12 +15814,16 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
           // Use the merchant's pre-set template directly (no AI generation needed)
           greetingText = templateText;
         } else {
-          const completion = await openai.chat.completions.create({
-            model: "gpt-4.1-mini",
-            messages: [
-              {
-                role: "system",
-                content: `You are a friendly customer service AI for a business. 
+          // Wrap OpenAI call in its own try-catch so a failure never prevents
+          // the proactive_chat event from firing — always use fallback if needed
+          let generated = "";
+          try {
+            const completion = await openai.chat.completions.create({
+              model: "gpt-4.1-mini",
+              messages: [
+                {
+                  role: "system",
+                  content: `You are a friendly customer service AI for a business. 
 Based on the business context below, craft ONE short, warm greeting (1-2 sentences max) for a website visitor who just arrived.
 The greeting should naturally reflect the business and invite the visitor to ask anything.
 Do NOT introduce yourself with a name. Do NOT use generic phrases like "How can I help you today?" alone — be specific about what you offer.
@@ -15827,18 +15831,21 @@ Respond ONLY with the greeting text, no quotes, no extra explanation.
 
 Business context:
 ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsiteName || "us"}`}`,
-              },
-              {
-                role: "user",
-                content: `Generate a proactive greeting for a visitor who just landed on: ${pageUrl || "our website"}`,
-              },
-            ],
-            max_tokens: 80,
-            temperature: 0.7,
-          });
-          const generated = completion.choices[0]?.message?.content?.trim();
-          if (!generated) return;
-          greetingText = generated;
+                },
+                {
+                  role: "user",
+                  content: `Generate a proactive greeting for a visitor who just landed on: ${pageUrl || "our website"}`,
+                },
+              ],
+              max_tokens: 80,
+              temperature: 0.7,
+            });
+            generated = completion.choices[0]?.message?.content?.trim() || "";
+          } catch (aiErr) {
+            console.error("[ai-proactive] OpenAI failed, using fallback greeting:", aiErr);
+          }
+          // Use AI-generated text or fall back to a generic Indonesian greeting
+          greetingText = generated || "Ada yang bisa kami bantu? Kami siap membantu Anda.";
         }
 
         // Store the greeting as an AI message

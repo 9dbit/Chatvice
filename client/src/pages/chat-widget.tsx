@@ -502,6 +502,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   });
   const [hasSubmittedName, setHasSubmittedName] = useState(() => {
     if (previewMode) return false;
+    // Visitor sessions never go through name collection — skip it from the very first render
+    if (isVisitorSession) return true;
     try {
       return sessionStorage.getItem(`${customerNameKey}_submitted`) === "true";
     } catch {
@@ -1105,6 +1107,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   }, [pendingMessages, serverMessages]);
 
   useEffect(() => {
+    // Visitor sessions load all messages from DB — skip client-side injection to avoid duplication
+    // (scheduleAiProactiveGreeting already stores welcomeMessage as a DB message for these sessions)
+    if (isVisitorSession) return;
     if (isOpen && pendingMessages.length === 0 && merchantConfig?.welcomeMessage && !serverMessages?.length) {
       setPendingMessages([
         { clientId: "welcome", from: "chatvice", content: merchantConfig.welcomeMessage, timestamp: new Date() },
