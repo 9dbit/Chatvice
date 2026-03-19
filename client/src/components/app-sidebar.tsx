@@ -47,6 +47,7 @@ import {
   DollarSign,
   Target,
   HardDrive,
+  Radio,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -141,6 +142,7 @@ const menuItemsMap: Record<string, MenuItem> = {
   "settings": { id: "settings", title: "Settings", url: "/dashboard/settings", icon: Settings, permission: "settings" },
   "widget": { id: "widget", title: "Widget", url: "/dashboard/widget", icon: Palette, permission: "widgetSettings" },
   "welcome-bubble": { id: "welcome-bubble", title: "Welcome Bubble", url: "/dashboard/welcome-bubble", icon: MessageCircle, permission: "widgetSettings" },
+  "proactive-chat": { id: "proactive-chat", title: "Proactive Chat", url: "/dashboard/proactive-chat", icon: Radio, permission: "widgetSettings" },
   "product-cards": { id: "product-cards", title: "Product Cards", url: "/dashboard/product-cards", icon: Package, permission: "productCards" },
   "supervisors": { id: "supervisors", title: "Supervisors", url: "/dashboard/supervisors", icon: Users, permission: "supervisors" },
   "team-activity": { id: "team-activity", title: "Team Activity", url: "/dashboard/team-activity", icon: Activity, permission: "teamActivity" },
@@ -168,6 +170,7 @@ const defaultMainMenuItems: MenuItem[] = [
 const defaultWidgetSettingItems: MenuItem[] = [
   menuItemsMap["widget"],
   menuItemsMap["welcome-bubble"],
+  menuItemsMap["proactive-chat"],
   menuItemsMap["product-cards"],
 ];
 
@@ -202,6 +205,7 @@ const defaultGroupForItem: Record<string, "main" | "widgetSetting" | "messageSet
   "settings": "main",
   "widget": "widgetSetting",
   "welcome-bubble": "widgetSetting",
+  "proactive-chat": "widgetSetting",
   "product-cards": "widgetSetting",
   "quick-replies": "messageSetting",
   "chat-buttons": "messageSetting",

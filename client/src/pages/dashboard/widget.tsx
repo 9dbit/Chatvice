@@ -1760,18 +1760,18 @@ async function handleLogin() {
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="space-y-0.5 flex-1">
                           <Label>Proactive Chat</Label>
                           <p className="text-xs text-muted-foreground">
-                            Automatically greet visitors with an AI message after they spend a few seconds on your page. Visitor tracking is always active so supervisors can see live visitors.
+                            Configure AI proactive greetings, greeting delay timer, ding sound, and welcome message templates.
                           </p>
                         </div>
-                        <Switch
-                          checked={config.proactiveChatEnabled}
-                          onCheckedChange={(checked) => setConfig({ ...config, proactiveChatEnabled: checked })}
-                          data-testid="switch-proactive-chat"
-                        />
+                        <Link href="/dashboard/proactive-chat">
+                          <Button variant="outline" size="sm" data-testid="button-go-proactive-chat">
+                            Configure
+                          </Button>
+                        </Link>
                       </div>
                     </div>
 

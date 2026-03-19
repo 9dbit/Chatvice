@@ -4673,6 +4673,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         // visitor tracking WS (proactive_chat event) rather than the React auto-open flow.
         // proactiveChatEnabled controls whether AI greeting is scheduled for tracked visitors.
         chatWorkflow: "click_to_open",
+        proactiveChatDingEnabled: (merchant as any).proactiveChatDingEnabled ?? false,
       };
       setCache(cacheKey, statusResponse, 30);
       res.json(statusResponse);
@@ -4724,6 +4725,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         customDomain,
         customDomainStatus,
         proactiveChatEnabled,
+        proactiveChatGreetingDelay,
+        proactiveChatDingEnabled,
+        proactiveChatTemplates,
       } = req.body;
       
       const updateData: Record<string, any> = {};
@@ -4737,6 +4741,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (customDomain !== undefined) updateData.customDomain = customDomain;
       if (customDomainStatus !== undefined) updateData.customDomainStatus = customDomainStatus;
       if (proactiveChatEnabled !== undefined) updateData.proactiveChatEnabled = proactiveChatEnabled;
+      if (proactiveChatGreetingDelay !== undefined) updateData.proactiveChatGreetingDelay = proactiveChatGreetingDelay;
+      if (proactiveChatDingEnabled !== undefined) updateData.proactiveChatDingEnabled = proactiveChatDingEnabled;
+      if (proactiveChatTemplates !== undefined) updateData.proactiveChatTemplates = proactiveChatTemplates;
       
       const updated = await storage.updateMerchant(merchantId, updateData);
       if (!updated) {
@@ -13187,6 +13194,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
   // Fetch merchant config and apply custom styles with retry
   var configLoaded = false;
   var chatWorkflow = "click_to_open";
+  var proactiveDingEnabled = false;
   function fetchConfig(retryCount) {
     retryCount = retryCount || 0;
     // Fetch both merchant config and widget style settings in parallel
@@ -13198,6 +13206,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         if (results[1]) wsSettings = results[1];
         widgetTheme = config.widgetTheme || "light";
         chatWorkflow = config.chatWorkflow || "click_to_open";
+        proactiveDingEnabled = config.proactiveChatDingEnabled === true;
         configLoaded = true;
         updateButtonStyles(config);
         applyAnimations(config);
@@ -13655,6 +13664,27 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     return "fp_" + Math.abs(hash).toString(36);
   }
 
+  // Play a short "Ding" notification sound using Web Audio API
+  function playProactiveDing() {
+    try {
+      var AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      var ctx = new AudioCtx();
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.35, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.6);
+      osc.onended = function() { ctx.close(); };
+    } catch(e) {}
+  }
+
   function initVisitorTracking() {
     var fp = getDeviceFingerprint();
     var pingData = { merchantId: merchantId, deviceFingerprint: fp, pageUrl: window.location.href };
@@ -13676,6 +13706,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
           if (msg.type === "proactive_chat" || (msg.type === "message" && msg.message && msg.message.senderType === "supervisor")) {
             // Only open widget if it is not already open — prevents reloading an active chat session
             if (!isOpen) {
+              if (proactiveDingEnabled) { playProactiveDing(); }
               iframe.src = baseUrl + "/widget/" + merchantId + "?session=" + visitorSessionId + "&showClose=true&embedded=true&visitorSession=true";
               openWidget();
             }
@@ -15702,7 +15733,9 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
     merchantId: string,
     agentId: string | null,
     pageUrl: string,
+    greetingDelaySeconds?: number,
   ): Promise<void> {
+    const delayMs = ((greetingDelaySeconds ?? 8) * 1000);
     setTimeout(async () => {
       try {
         // Re-fetch session to make sure it still exists and is still a visitor session
@@ -15728,6 +15761,12 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
           : "";
 
         const systemCtx = [agentPrompt, kbSnippet].filter(Boolean).join("\n\n");
+
+        // Pick a random template from the merchant's configured templates (if any)
+        const templates: string[] = (merchant as any).proactiveChatTemplates || [];
+        const templateText = templates.length > 0
+          ? templates[Math.floor(Math.random() * templates.length)]
+          : null;
 
         // --- Send prechat banner image first (if configured) ---
         const rawBannerUrl = merchant.prechatBannerUrl || "";
@@ -15757,12 +15796,18 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
           broadcastToSession(sessionId, { type: "message", message: welcomeMsg });
         }
 
-        const completion = await openai.chat.completions.create({
-          model: "gpt-4.1-mini",
-          messages: [
-            {
-              role: "system",
-              content: `You are a friendly customer service AI for a business. 
+        let greetingText: string;
+
+        if (templateText) {
+          // Use the merchant's pre-set template directly (no AI generation needed)
+          greetingText = templateText;
+        } else {
+          const completion = await openai.chat.completions.create({
+            model: "gpt-4.1-mini",
+            messages: [
+              {
+                role: "system",
+                content: `You are a friendly customer service AI for a business. 
 Based on the business context below, craft ONE short, warm greeting (1-2 sentences max) for a website visitor who just arrived.
 The greeting should naturally reflect the business and invite the visitor to ask anything.
 Do NOT introduce yourself with a name. Do NOT use generic phrases like "How can I help you today?" alone — be specific about what you offer.
@@ -15770,18 +15815,19 @@ Respond ONLY with the greeting text, no quotes, no extra explanation.
 
 Business context:
 ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsiteName || "us"}`}`,
-            },
-            {
-              role: "user",
-              content: `Generate a proactive greeting for a visitor who just landed on: ${pageUrl || "our website"}`,
-            },
-          ],
-          max_tokens: 80,
-          temperature: 0.7,
-        });
-
-        const greetingText = completion.choices[0]?.message?.content?.trim();
-        if (!greetingText) return;
+              },
+              {
+                role: "user",
+                content: `Generate a proactive greeting for a visitor who just landed on: ${pageUrl || "our website"}`,
+              },
+            ],
+            max_tokens: 80,
+            temperature: 0.7,
+          });
+          const generated = completion.choices[0]?.message?.content?.trim();
+          if (!generated) return;
+          greetingText = generated;
+        }
 
         // Store the greeting as an AI message
         const greetingMessage = await storage.createMessage({
@@ -15807,7 +15853,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
       } catch (err) {
         console.error("[ai-proactive] Failed to send greeting:", err);
       }
-    }, 8000);
+    }, delayMs);
   }
 
   async function getGeoFromIp(ip: string): Promise<{ countryCode: string; countryName: string }> {
@@ -15914,7 +15960,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
       if (merchant.proactiveChatEnabled) {
         // Mark greeting as scheduled immediately to prevent race conditions with keep-alive pings
         await storage.updateSession(sessionId, { proactiveGreetingSent: true });
-        scheduleAiProactiveGreeting(sessionId, resolvedMerchantId, assignedAgentId || null, pageUrl || "");
+        scheduleAiProactiveGreeting(sessionId, resolvedMerchantId, assignedAgentId || null, pageUrl || "", (merchant as any).proactiveChatGreetingDelay ?? 8);
       }
 
       res.json({

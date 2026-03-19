@@ -118,6 +118,9 @@ export const merchants = pgTable("merchants", {
   workTimezone: text("work_timezone").default("Asia/Jakarta"),
   // Live visitor tracking / proactive chat
   proactiveChatEnabled: boolean("proactive_chat_enabled").default(false),
+  proactiveChatGreetingDelay: integer("proactive_chat_greeting_delay").default(8),
+  proactiveChatDingEnabled: boolean("proactive_chat_ding_enabled").default(false),
+  proactiveChatTemplates: text("proactive_chat_templates").array().default([]),
   // Storage usage tracking (in bytes)
   storageUsed: integer("storage_used").default(0),
   storageLimit: integer("storage_limit").default(104857600), // 100MB default
@@ -420,6 +423,9 @@ export const merchantConfigSchema = z.object({
   quickMessageOptions: z.array(z.string()).optional(),
   chatWorkflow: z.enum(["click_to_open", "auto_open"]).optional(),
   proactiveChatEnabled: z.boolean().optional(),
+  proactiveChatGreetingDelay: z.number().int().min(5).max(120).optional(),
+  proactiveChatDingEnabled: z.boolean().optional(),
+  proactiveChatTemplates: z.array(z.string()).optional(),
 });
 export type MerchantConfig = z.infer<typeof merchantConfigSchema>;
 

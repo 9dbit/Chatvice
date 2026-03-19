@@ -34,6 +34,7 @@ import ProfilePage from "./profile";
 import AffiliatePage from "./affiliate";
 import LeadsPage from "./leads";
 import DataUsagePage from "./data-usage";
+import ProactiveChatPage from "./proactive-chat";
 import type { Merchant } from "@shared/schema";
 
 const pageNames: Record<string, string> = {
@@ -65,6 +66,7 @@ const pageNames: Record<string, string> = {
   "checkout": "Checkout",
   "chat-monitoring": "Chat Monitoring",
   "data-usage": "Data Usage",
+  "proactive-chat": "Proactive Chat",
 };
 
 function Breadcrumb({ location }: { location: string }) {
@@ -162,6 +164,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/settings" component={SettingsPage} />
               <Route path="/dashboard/chat-monitoring" component={ChatMonitoringPage} />
               <Route path="/dashboard/data-usage" component={DataUsagePage} />
+              <Route path="/dashboard/proactive-chat" component={ProactiveChatPage} />
               <Route path="/dashboard/leads" component={LeadsPage} />
               <Route path="/dashboard/help-articles">
                 <Redirect to="/dashboard/knowledge" />
