@@ -12675,6 +12675,8 @@ function BlogManagementTab({ toast }: { toast: any }) {
                       <TableCell>
                         {log.status === "success"
                           ? <Badge className="bg-green-500/20 text-green-700 dark:text-green-400"><CheckCircle className="w-3 h-3 mr-1" />Success</Badge>
+                          : log.status === "skipped"
+                          ? <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />Skipped</Badge>
                           : <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Error</Badge>
                         }
                       </TableCell>
