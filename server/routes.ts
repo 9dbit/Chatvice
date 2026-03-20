@@ -6729,7 +6729,11 @@ Rules:
 
       // Use originalSnippet for removal (if provided, e.g. when user modified the text in the UI)
       // so the exact original text is found and removed from source
-      const snippetToRemove = originalSnippet || contentSnippet;
+      const snippetToRemove = (originalSnippet || contentSnippet).trim();
+      if (!sourceEntry.content.includes(snippetToRemove)) {
+        return res.status(400).json({ error: "Snippet not found in source entry — it may have already been moved or the text no longer matches." });
+      }
+
       const newSourceContent = sourceEntry.content.replace(snippetToRemove, "").replace(/\n{3,}/g, "\n\n").trim();
       const newTargetContent = targetEntry.content
         ? targetEntry.content + "\n\n" + contentSnippet.trim()

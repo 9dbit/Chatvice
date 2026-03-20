@@ -1714,7 +1714,7 @@ export default function KnowledgePage() {
             </Button>
             <Button
               variant="outline"
-              onClick={() => { setIsReviewOpen(true); setReviewSuggestions([]); setDismissedSuggestions(new Set()); setReviewAnalyzed(false); }}
+              onClick={() => { setReviewSuggestions([]); setDismissedSuggestions(new Set()); setReviewAnalyzed(false); setIsReviewOpen(true); handleRunReview(); }}
               disabled={!selectedAgentId || knowledgeEntries.length < 2}
               data-testid="button-review-organize"
             >
