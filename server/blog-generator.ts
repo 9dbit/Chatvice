@@ -34,7 +34,7 @@ function getCompetitorForDay(date: Date): string {
   const dayOfYear = Math.floor(
     (date.getTime() - new Date(date.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24)
   );
-  return COMPETITORS[dayOfYear % COMPETITORS.length];
+  return COMPETITORS[(dayOfYear - 1) % COMPETITORS.length];
 }
 
 function getHeroImageKey(category: string, date: Date): string {
@@ -103,6 +103,21 @@ export async function generateDailyBlogPosts(): Promise<void> {
 
   for (const category of CATEGORIES) {
     try {
+      const existingLogs = await storage.getBlogGenerationLogs(200);
+      const alreadyGenerated = existingLogs.some(
+        (log) => log.date === dateStr && log.category === category && log.status === "success"
+      );
+      if (alreadyGenerated) {
+        console.log(`[blog-gen] Skipping ${category} — already generated for ${dateStr}`);
+        await storage.createBlogGenerationLog({
+          date: dateStr,
+          category,
+          status: "skipped",
+          errorMessage: "Already generated for today",
+        }).catch(() => {});
+        continue;
+      }
+
       const prompt = buildPrompt(category, competitor, today);
 
       const openai = getOpenAI();
