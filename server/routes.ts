@@ -6647,7 +6647,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     }
   });
 
-  app.post("/api/knowledge-entries/review-duplicates", requireMerchant, async (req, res) => {
+  app.post("/api/knowledge/review-duplicates", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
       const { agentId } = req.body;
@@ -6708,7 +6708,7 @@ Rules:
     }
   });
 
-  app.post("/api/knowledge-entries/apply-suggestion", requireMerchant, async (req, res) => {
+  app.post("/api/knowledge/apply-suggestion", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
       const { sourceEntryId, targetEntryId, contentSnippet, originalSnippet } = req.body;
@@ -6752,7 +6752,7 @@ Rules:
     }
   });
 
-  app.post("/api/knowledge-entries/search-replace", requireMerchant, async (req, res) => {
+  app.post("/api/knowledge/search-replace", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
       const { searchText, replaceText, entryIds, agentId } = req.body;
@@ -6771,7 +6771,7 @@ Rules:
         let totalReplacements = 0;
 
         for (const entry of targetEntries) {
-          const regex = new RegExp(searchText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g");
+          const regex = new RegExp(searchText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
           const matches = (entry.content.match(regex) || []).length;
           if (matches > 0) {
             const newContent = entry.content.replace(regex, replaceText);

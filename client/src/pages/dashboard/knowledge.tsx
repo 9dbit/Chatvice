@@ -682,7 +682,7 @@ export default function KnowledgePage() {
     setDismissedSuggestions(new Set());
     setReviewAnalyzed(false);
     try {
-      const res = await apiRequest("POST", "/api/knowledge-entries/review-duplicates", { agentId: selectedAgentId });
+      const res = await apiRequest("POST", "/api/knowledge/review-duplicates", { agentId: selectedAgentId });
       const data = await res.json();
       setReviewSuggestions(data.suggestions || []);
       setReviewAnalyzed(true);
@@ -696,7 +696,7 @@ export default function KnowledgePage() {
   const handleApplySuggestion = async (suggestion: KbSuggestion, index: number, snippetOverride?: string) => {
     setApplyingIndex(index);
     try {
-      await apiRequest("POST", "/api/knowledge-entries/apply-suggestion", {
+      await apiRequest("POST", "/api/knowledge/apply-suggestion", {
         sourceEntryId: suggestion.sourceEntryId,
         targetEntryId: suggestion.targetEntryId,
         contentSnippet: snippetOverride ?? suggestion.contentSnippet,
@@ -727,7 +727,7 @@ export default function KnowledgePage() {
     setIsSearching(true);
     searchDebounceRef.current = setTimeout(async () => {
       try {
-        const res = await apiRequest("POST", "/api/knowledge-entries/search-replace", { searchText: value, replaceText: "", agentId: selectedAgentId });
+        const res = await apiRequest("POST", "/api/knowledge/search-replace", { searchText: value, replaceText: "", agentId: selectedAgentId });
         const data = await res.json();
         setSearchResults(data.results || []);
       } catch {
@@ -744,7 +744,7 @@ export default function KnowledgePage() {
       : searchResults.map(r => r.entryId);
     setIsReplacing(true);
     try {
-      await apiRequest("POST", "/api/knowledge-entries/search-replace", {
+      await apiRequest("POST", "/api/knowledge/search-replace", {
         searchText,
         replaceText,
         entryIds,
@@ -2115,7 +2115,7 @@ export default function KnowledgePage() {
                           onClick={async () => {
                             setIsReplacing(true);
                             try {
-                              await apiRequest("POST", "/api/knowledge-entries/search-replace", {
+                              await apiRequest("POST", "/api/knowledge/search-replace", {
                                 searchText,
                                 replaceText,
                                 entryIds: [result.entryId],
