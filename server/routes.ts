@@ -6659,7 +6659,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         return res.json({ suggestions: [], message: "Need at least 2 active entries with content to analyze." });
       }
 
-      const entryList = activeEntries.map(e => `ENTRY [${e.id}] "${e.name}":\n${e.content.slice(0, 2000)}`).join("\n\n---\n\n");
+      const entryList = activeEntries.map(e => `ENTRY [${e.id}] "${e.name}":\n${e.content.slice(0, 4000)}`).join("\n\n---\n\n");
 
       const response = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
@@ -6695,8 +6695,20 @@ Rules:
       const raw = response.choices[0]?.message?.content?.trim() || "[]";
       let suggestions: any[] = [];
       try {
-        suggestions = JSON.parse(raw);
-        if (!Array.isArray(suggestions)) suggestions = [];
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          const validEntryIds = new Set(activeEntries.map(e => e.id));
+          suggestions = parsed.filter((s: any) =>
+            s &&
+            typeof s.sourceEntryId === "string" && validEntryIds.has(s.sourceEntryId) &&
+            typeof s.targetEntryId === "string" && validEntryIds.has(s.targetEntryId) &&
+            typeof s.sourceEntryName === "string" && s.sourceEntryName.length > 0 &&
+            typeof s.targetEntryName === "string" && s.targetEntryName.length > 0 &&
+            typeof s.contentSnippet === "string" && s.contentSnippet.trim().length > 0 &&
+            typeof s.reason === "string" && s.reason.trim().length > 0 &&
+            s.sourceEntryId !== s.targetEntryId
+          );
+        }
       } catch {
         suggestions = [];
       }
