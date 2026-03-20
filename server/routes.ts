@@ -6647,6 +6647,179 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     }
   });
 
+  app.post("/api/knowledge-entries/review-duplicates", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { agentId } = req.body;
+
+      const entries = await storage.getKnowledgeEntries(merchantId, agentId || undefined);
+      const activeEntries = entries.filter(e => e.isActive && e.content && e.content.trim().length > 50);
+
+      if (activeEntries.length < 2) {
+        return res.json({ suggestions: [], message: "Need at least 2 active entries with content to analyze." });
+      }
+
+      const entryList = activeEntries.map(e => `ENTRY [${e.id}] "${e.name}":\n${e.content.slice(0, 2000)}`).join("\n\n---\n\n");
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are a knowledge base organization expert. Analyze the provided knowledge entries and identify content that appears to be in the wrong entry — for example, a deposit/withdrawal rule buried in "General Knowledge" instead of "Transaction Rules", or FAQ content mixed into a policy entry.
+
+Return ONLY a JSON array of suggestion objects. Each suggestion must have:
+- "sourceEntryId": the ID of the entry where misplaced content currently lives
+- "sourceEntryName": the name of that entry
+- "targetEntryId": the ID of the entry where the content should be moved
+- "targetEntryName": the name of the target entry
+- "contentSnippet": the EXACT verbatim text excerpt (1-5 sentences) that should be moved
+- "reason": a brief explanation (1-2 sentences) of why this content belongs in the target entry
+
+Rules:
+- Only suggest moves where the content clearly belongs in a different entry
+- The contentSnippet must be verbatim text that appears in the source entry
+- Do not suggest moves for content that fits fine where it is
+- If nothing needs reorganizing, return an empty array []
+- Return ONLY valid JSON, no markdown fences, no extra text`
+          },
+          {
+            role: "user",
+            content: entryList
+          }
+        ],
+        max_tokens: 3000,
+        temperature: 0.2,
+      });
+
+      const raw = response.choices[0]?.message?.content?.trim() || "[]";
+      let suggestions: any[] = [];
+      try {
+        suggestions = JSON.parse(raw);
+        if (!Array.isArray(suggestions)) suggestions = [];
+      } catch {
+        suggestions = [];
+      }
+
+      res.json({ suggestions });
+    } catch (error) {
+      console.error("KB review-duplicates error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/knowledge-entries/apply-suggestion", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { sourceEntryId, targetEntryId, contentSnippet } = req.body;
+
+      if (!sourceEntryId || !targetEntryId || !contentSnippet) {
+        return res.status(400).json({ error: "sourceEntryId, targetEntryId, and contentSnippet are required" });
+      }
+
+      const sourceEntry = await storage.getKnowledgeEntry(sourceEntryId);
+      const targetEntry = await storage.getKnowledgeEntry(targetEntryId);
+
+      if (!sourceEntry || sourceEntry.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Source entry not found" });
+      }
+      if (!targetEntry || targetEntry.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Target entry not found" });
+      }
+
+      const newSourceContent = sourceEntry.content.replace(contentSnippet, "").replace(/\n{3,}/g, "\n\n").trim();
+      const newTargetContent = targetEntry.content
+        ? targetEntry.content + "\n\n" + contentSnippet.trim()
+        : contentSnippet.trim();
+
+      await storage.updateKnowledgeEntry(sourceEntryId, { content: newSourceContent });
+      await storage.updateKnowledgeEntry(targetEntryId, { content: newTargetContent });
+
+      const allAgents = await storage.getAgents(merchantId);
+      for (const agent of allAgents) {
+        const combinedContent = await storage.getAllActiveKnowledgeContent(merchantId, agent.id);
+        await storage.setKnowledge(merchantId, combinedContent || "", agent.id);
+        processKnowledgeBase(merchantId, combinedContent || "", agent.id).catch(() => {});
+      }
+
+      res.json({ success: true, sourceContent: newSourceContent, targetContent: newTargetContent });
+    } catch (error) {
+      console.error("KB apply-suggestion error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/knowledge-entries/search-replace", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { searchText, replaceText, entryIds, agentId } = req.body;
+
+      if (!searchText || typeof searchText !== "string") {
+        return res.status(400).json({ error: "searchText is required" });
+      }
+      if (replaceText === undefined || typeof replaceText !== "string") {
+        return res.status(400).json({ error: "replaceText is required" });
+      }
+
+      const entries = await storage.getKnowledgeEntries(merchantId, agentId || undefined);
+
+      if (Array.isArray(entryIds) && entryIds.length > 0) {
+        const targetEntries = entries.filter(e => entryIds.includes(e.id));
+        let totalReplacements = 0;
+
+        for (const entry of targetEntries) {
+          const regex = new RegExp(searchText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g");
+          const matches = (entry.content.match(regex) || []).length;
+          if (matches > 0) {
+            const newContent = entry.content.replace(regex, replaceText);
+            await storage.updateKnowledgeEntry(entry.id, { content: newContent });
+            totalReplacements += matches;
+          }
+        }
+
+        const allAgents = await storage.getAgents(merchantId);
+        for (const agent of allAgents) {
+          const combinedContent = await storage.getAllActiveKnowledgeContent(merchantId, agent.id);
+          await storage.setKnowledge(merchantId, combinedContent || "", agent.id);
+          processKnowledgeBase(merchantId, combinedContent || "", agent.id).catch(() => {});
+        }
+
+        return res.json({ success: true, replacements: totalReplacements });
+      }
+
+      const results: { entryId: string; entryName: string; matchCount: number; contexts: string[] }[] = [];
+      const regex = new RegExp(searchText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+
+      for (const entry of entries) {
+        if (!entry.content) continue;
+        const matches = entry.content.match(regex);
+        if (!matches || matches.length === 0) continue;
+
+        const contexts: string[] = [];
+        let match;
+        const plainRegex = new RegExp(searchText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+        while ((match = plainRegex.exec(entry.content)) !== null && contexts.length < 3) {
+          const start = Math.max(0, match.index - 60);
+          const end = Math.min(entry.content.length, match.index + match[0].length + 60);
+          const snippet = entry.content.slice(start, end);
+          contexts.push(snippet);
+        }
+
+        results.push({
+          entryId: entry.id,
+          entryName: entry.name,
+          matchCount: matches.length,
+          contexts,
+        });
+      }
+
+      res.json({ results });
+    } catch (error) {
+      console.error("KB search-replace error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/triggers/:merchantId", requireMerchant, async (req, res) => {
     try {
       if (req.session.merchantId !== req.params.merchantId) {
