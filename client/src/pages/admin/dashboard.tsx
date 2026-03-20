@@ -12438,7 +12438,6 @@ function KnowledgeTemplatesTab({ toast }: { toast: any }) {
   );
 }
 
-// Activity Logs Tab - View all merchant activity logs
 function BlogManagementTab({ toast }: { toast: any }) {
   interface BlogPost {
     id: string;

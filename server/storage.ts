@@ -3986,9 +3986,17 @@ export class DatabaseStorage implements IStorage {
     const conditions = [];
     if (publishedOnly) conditions.push(eq(blogPosts.published, true));
     if (category) conditions.push(eq(blogPosts.category, category));
-    const q = db.select().from(blogPosts);
-    if (conditions.length > 0) q.where(and(...conditions));
-    return q.orderBy(desc(blogPosts.generatedAt)).limit(limit).offset(offset);
+    if (conditions.length > 0) {
+      return db.select().from(blogPosts)
+        .where(and(...conditions))
+        .orderBy(desc(blogPosts.generatedAt))
+        .limit(limit)
+        .offset(offset);
+    }
+    return db.select().from(blogPosts)
+      .orderBy(desc(blogPosts.generatedAt))
+      .limit(limit)
+      .offset(offset);
   }
 
   async getBlogPost(slug: string): Promise<BlogPost | undefined> {
