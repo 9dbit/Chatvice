@@ -515,6 +515,7 @@ export default function KnowledgePage() {
   };
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [isReviewLoading, setIsReviewLoading] = useState(false);
+  const [reviewAnalyzed, setReviewAnalyzed] = useState(false);
   const [reviewSuggestions, setReviewSuggestions] = useState<KbSuggestion[]>([]);
   const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<number>>(new Set());
   const [approveDialog, setApproveDialog] = useState<{ suggestion: KbSuggestion; index: number } | null>(null);
@@ -679,10 +680,12 @@ export default function KnowledgePage() {
     setIsReviewLoading(true);
     setReviewSuggestions([]);
     setDismissedSuggestions(new Set());
+    setReviewAnalyzed(false);
     try {
       const res = await apiRequest("POST", "/api/knowledge-entries/review-duplicates", { agentId: selectedAgentId });
       const data = await res.json();
       setReviewSuggestions(data.suggestions || []);
+      setReviewAnalyzed(true);
     } catch {
       toast({ title: "Review failed", description: "Could not analyze knowledge base. Please try again.", variant: "destructive" });
     } finally {
@@ -697,6 +700,7 @@ export default function KnowledgePage() {
         sourceEntryId: suggestion.sourceEntryId,
         targetEntryId: suggestion.targetEntryId,
         contentSnippet: snippetOverride ?? suggestion.contentSnippet,
+        originalSnippet: suggestion.contentSnippet,
       });
       setDismissedSuggestions(prev => new Set([...prev, index]));
       queryClient.invalidateQueries({ queryKey: ["/api/knowledge-entries", selectedAgentId] });
@@ -1704,12 +1708,13 @@ export default function KnowledgePage() {
               disabled={!selectedAgentId || knowledgeEntries.length === 0}
               data-testid="button-search-replace"
             >
-              <Search className="w-4 h-4 mr-2" />
+              <Search className="w-3.5 h-3.5 mr-1" />
+              <Edit2 className="w-3 h-3 mr-2" />
               Search & Replace
             </Button>
             <Button
               variant="outline"
-              onClick={() => { setIsReviewOpen(true); setReviewSuggestions([]); setDismissedSuggestions(new Set()); }}
+              onClick={() => { setIsReviewOpen(true); setReviewSuggestions([]); setDismissedSuggestions(new Set()); setReviewAnalyzed(false); }}
               disabled={!selectedAgentId || knowledgeEntries.length < 2}
               data-testid="button-review-organize"
             >
@@ -1847,7 +1852,7 @@ export default function KnowledgePage() {
         </Dialog>
 
         {/* Review & Organize Dialog */}
-        <Dialog open={isReviewOpen} onOpenChange={(open) => { if (!open) { setIsReviewOpen(false); setReviewSuggestions([]); } }}>
+        <Dialog open={isReviewOpen} onOpenChange={(open) => { if (!open) { setIsReviewOpen(false); setReviewSuggestions([]); setReviewAnalyzed(false); } }}>
           <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -1859,7 +1864,7 @@ export default function KnowledgePage() {
               </DialogDescription>
             </DialogHeader>
             <div className="flex-1 overflow-y-auto">
-              {reviewSuggestions.length === 0 && !isReviewLoading && (
+              {!isReviewLoading && !reviewAnalyzed && (
                 <div className="flex flex-col items-center justify-center py-10 gap-4">
                   <Brain className="w-12 h-12 text-muted-foreground" />
                   <p className="text-muted-foreground text-sm text-center">
@@ -1877,9 +1882,20 @@ export default function KnowledgePage() {
                   <p className="text-muted-foreground text-sm">Analyzing knowledge base...</p>
                 </div>
               )}
-              {!isReviewLoading && reviewSuggestions.length > 0 && (() => {
-                const visibleSuggestions = reviewSuggestions.filter((_, i) => !dismissedSuggestions.has(i));
-                if (visibleSuggestions.length === 0) {
+              {!isReviewLoading && reviewAnalyzed && reviewSuggestions.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-10 gap-3" data-testid="review-well-organized">
+                  <CheckCircle2 className="w-10 h-10 text-green-500" />
+                  <p className="font-medium">Knowledge base looks well organized!</p>
+                  <p className="text-sm text-muted-foreground">No misplaced content was detected.</p>
+                  <Button variant="outline" onClick={handleRunReview} data-testid="button-rerun-review-empty">
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Re-analyze
+                  </Button>
+                </div>
+              )}
+              {!isReviewLoading && reviewAnalyzed && reviewSuggestions.length > 0 && (() => {
+                const allDismissed = reviewSuggestions.every((_, i) => dismissedSuggestions.has(i));
+                if (allDismissed) {
                   return (
                     <div className="flex flex-col items-center justify-center py-10 gap-3">
                       <CheckCircle2 className="w-10 h-10 text-green-500" />
@@ -1895,10 +1911,14 @@ export default function KnowledgePage() {
                 return (
                   <div className="space-y-3 py-1">
                     {reviewSuggestions.map((suggestion, index) => {
-                      if (dismissedSuggestions.has(index)) return null;
+                      const isDismissed = dismissedSuggestions.has(index);
                       const isApplying = applyingIndex === index;
                       return (
-                        <Card key={index} className="border" data-testid={`card-suggestion-${index}`}>
+                        <Card
+                          key={index}
+                          className={`border transition-all duration-300 ${isDismissed ? "opacity-40 line-through pointer-events-none" : ""}`}
+                          data-testid={`card-suggestion-${index}`}
+                        >
                           <CardContent className="pt-4 space-y-3">
                             <div className="flex items-center gap-2 text-sm font-medium flex-wrap">
                               <Badge variant="secondary" className="max-w-[140px] truncate">{suggestion.sourceEntryName}</Badge>
@@ -1909,37 +1929,39 @@ export default function KnowledgePage() {
                               {suggestion.contentSnippet}
                             </div>
                             <p className="text-xs text-muted-foreground">{suggestion.reason}</p>
-                            <div className="flex gap-2 flex-wrap">
-                              <Button
-                                size="sm"
-                                onClick={() => setApproveDialog({ suggestion, index })}
-                                disabled={isApplying}
-                                data-testid={`button-approve-suggestion-${index}`}
-                              >
-                                {isApplying ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Check className="w-3 h-3 mr-1" />}
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => { setModifyContent(suggestion.contentSnippet); setModifyDialog({ suggestion, index }); }}
-                                disabled={isApplying}
-                                data-testid={`button-modify-suggestion-${index}`}
-                              >
-                                <Edit2 className="w-3 h-3 mr-1" />
-                                Modify
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => setDismissedSuggestions(prev => new Set([...prev, index]))}
-                                disabled={isApplying}
-                                data-testid={`button-decline-suggestion-${index}`}
-                              >
-                                <X className="w-3 h-3 mr-1" />
-                                Decline
-                              </Button>
-                            </div>
+                            {!isDismissed && (
+                              <div className="flex gap-2 flex-wrap">
+                                <Button
+                                  size="sm"
+                                  onClick={() => setApproveDialog({ suggestion, index })}
+                                  disabled={isApplying}
+                                  data-testid={`button-approve-suggestion-${index}`}
+                                >
+                                  {isApplying ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Check className="w-3 h-3 mr-1" />}
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => { setModifyContent(suggestion.contentSnippet); setModifyDialog({ suggestion, index }); }}
+                                  disabled={isApplying}
+                                  data-testid={`button-modify-suggestion-${index}`}
+                                >
+                                  <Edit2 className="w-3 h-3 mr-1" />
+                                  Modify
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setDismissedSuggestions(prev => new Set([...prev, index]))}
+                                  disabled={isApplying}
+                                  data-testid={`button-decline-suggestion-${index}`}
+                                >
+                                  <X className="w-3 h-3 mr-1" />
+                                  Decline
+                                </Button>
+                              </div>
+                            )}
                           </CardContent>
                         </Card>
                       );
@@ -1947,7 +1969,6 @@ export default function KnowledgePage() {
                   </div>
                 );
               })()}
-              {!isReviewLoading && reviewSuggestions.length === 0 && false && null}
             </div>
             {!isReviewLoading && reviewSuggestions.length > 0 && dismissedSuggestions.size < reviewSuggestions.length && (
               <DialogFooter className="mt-2">
@@ -2087,6 +2108,34 @@ export default function KnowledgePage() {
                           <span className="font-medium text-sm truncate">{result.entryName}</span>
                           <Badge variant="secondary" className="shrink-0">{result.matchCount} match{result.matchCount !== 1 ? "es" : ""}</Badge>
                         </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={isReplacing}
+                          onClick={async () => {
+                            setIsReplacing(true);
+                            try {
+                              await apiRequest("POST", "/api/knowledge-entries/search-replace", {
+                                searchText,
+                                replaceText,
+                                entryIds: [result.entryId],
+                                agentId: selectedAgentId,
+                              });
+                              queryClient.invalidateQueries({ queryKey: ["/api/knowledge-entries", selectedAgentId] });
+                              toast({ title: "Replaced", description: `Replaced ${result.matchCount} occurrence${result.matchCount !== 1 ? "s" : ""} in "${result.entryName}".` });
+                              setSearchResults(prev => prev.filter(r => r.entryId !== result.entryId));
+                              setSelectedReplaceEntries(prev => { const n = new Set(prev); n.delete(result.entryId); return n; });
+                            } catch {
+                              toast({ title: "Replace failed", variant: "destructive" });
+                            } finally {
+                              setIsReplacing(false);
+                            }
+                          }}
+                          data-testid={`button-replace-entry-${result.entryId}`}
+                        >
+                          <RefreshCw className="w-3 h-3 mr-1" />
+                          Replace
+                        </Button>
                       </div>
                       <div className="space-y-1">
                         {result.contexts.map((ctx, ci) => (

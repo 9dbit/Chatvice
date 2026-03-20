@@ -6711,7 +6711,7 @@ Rules:
   app.post("/api/knowledge-entries/apply-suggestion", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
-      const { sourceEntryId, targetEntryId, contentSnippet } = req.body;
+      const { sourceEntryId, targetEntryId, contentSnippet, originalSnippet } = req.body;
 
       if (!sourceEntryId || !targetEntryId || !contentSnippet) {
         return res.status(400).json({ error: "sourceEntryId, targetEntryId, and contentSnippet are required" });
@@ -6727,7 +6727,10 @@ Rules:
         return res.status(404).json({ error: "Target entry not found" });
       }
 
-      const newSourceContent = sourceEntry.content.replace(contentSnippet, "").replace(/\n{3,}/g, "\n\n").trim();
+      // Use originalSnippet for removal (if provided, e.g. when user modified the text in the UI)
+      // so the exact original text is found and removed from source
+      const snippetToRemove = originalSnippet || contentSnippet;
+      const newSourceContent = sourceEntry.content.replace(snippetToRemove, "").replace(/\n{3,}/g, "\n\n").trim();
       const newTargetContent = targetEntry.content
         ? targetEntry.content + "\n\n" + contentSnippet.trim()
         : contentSnippet.trim();
