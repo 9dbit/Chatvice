@@ -13,6 +13,7 @@ import { storage } from './storage';
 import { extractFAQContent } from './crawler';
 import { processKnowledgeBase } from './embeddings';
 import { fetchGoogleSheet } from './fileParser';
+import { generateDailyBlogPosts, seedBlogPostsFromStaticData } from './blog-generator';
 
 process.on('uncaughtException', (err) => {
   console.error('[FATAL] Uncaught exception:', err.message, err.stack);
@@ -746,6 +747,24 @@ async function migrateLegacyCrawledLinks(): Promise<void> {
   }
 }
 
+function scheduleDailyBlogGeneration(): void {
+  const now = new Date();
+  const next01UTC = new Date(Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate() + (now.getUTCHours() >= 1 ? 1 : 0),
+    1, 0, 0, 0,
+  ));
+  const msUntilNext = next01UTC.getTime() - now.getTime();
+  console.log(`[blog-gen] Next daily generation scheduled in ${Math.round(msUntilNext / 60000)} minutes`);
+  setTimeout(() => {
+    generateDailyBlogPosts().catch(err => console.error("[blog-gen] Scheduled generation error:", err));
+    setInterval(() => {
+      generateDailyBlogPosts().catch(err => console.error("[blog-gen] Scheduled generation error:", err));
+    }, 24 * 60 * 60 * 1000);
+  }, msUntilNext);
+}
+
 function startBackgroundSync(): void {
   setTimeout(() => migrateLegacyCrawledLinks(), 3000);
   setTimeout(() => runAllBackgroundJobs(), 5 * 60 * 1000);
@@ -754,4 +773,7 @@ function startBackgroundSync(): void {
 
   setInterval(() => runGoogleSheetFastSyncJob(), 10 * 1000);
   console.log("[fast-sync] Google Sheet fast sync scheduler started (10s interval)");
+
+  setTimeout(() => seedBlogPostsFromStaticData().catch(err => console.error("[blog-gen] Seed error:", err)), 8000);
+  scheduleDailyBlogGeneration();
 }

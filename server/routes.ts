@@ -22910,6 +22910,100 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
+  // ─── Public Blog API ───
+  app.get("/api/blog/posts", async (req, res) => {
+    try {
+      const { category, limit = "50", offset = "0" } = req.query;
+      const posts = await storage.getBlogPosts({
+        publishedOnly: true,
+        category: category as string | undefined,
+        limit: Math.min(parseInt(limit as string) || 50, 100),
+        offset: parseInt(offset as string) || 0,
+      });
+      res.json(posts);
+    } catch (err) {
+      console.error("[blog] GET /api/blog/posts error:", err);
+      res.status(500).json({ error: "Failed to fetch blog posts" });
+    }
+  });
+
+  app.get("/api/blog/posts/:slug", async (req, res) => {
+    try {
+      const post = await storage.getBlogPost(req.params.slug);
+      if (!post || !post.published) return res.status(404).json({ error: "Not found" });
+      res.json(post);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch blog post" });
+    }
+  });
+
+  app.get("/api/blog/categories", async (req, res) => {
+    try {
+      const posts = await storage.getBlogPosts({ publishedOnly: true, limit: 1000 });
+      const counts: Record<string, number> = {};
+      for (const p of posts) {
+        counts[p.category] = (counts[p.category] || 0) + 1;
+      }
+      res.json(Object.entries(counts).map(([name, count]) => ({ name, count })));
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch categories" });
+    }
+  });
+
+  // ─── Admin Blog API ───
+  app.get("/api/admin/blog/posts", requireAdmin, async (req, res) => {
+    try {
+      const posts = await storage.getBlogPosts({ publishedOnly: false, limit: 200 });
+      res.json(posts);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch blog posts" });
+    }
+  });
+
+  app.patch("/api/admin/blog/posts/:id", requireAdmin, async (req, res) => {
+    try {
+      const { published, featured } = req.body;
+      const update: Record<string, boolean> = {};
+      if (typeof published === "boolean") update.published = published;
+      if (typeof featured === "boolean") update.featured = featured;
+      const post = await storage.updateBlogPost(req.params.id, update);
+      if (!post) return res.status(404).json({ error: "Not found" });
+      res.json(post);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to update blog post" });
+    }
+  });
+
+  app.delete("/api/admin/blog/posts/:id", requireAdmin, async (req, res) => {
+    try {
+      const ok = await storage.deleteBlogPost(req.params.id);
+      if (!ok) return res.status(404).json({ error: "Not found" });
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to delete blog post" });
+    }
+  });
+
+  app.post("/api/admin/blog/generate", requireAdmin, async (_req, res) => {
+    try {
+      const { generateDailyBlogPosts } = await import("./blog-generator");
+      generateDailyBlogPosts().catch(err => console.error("[blog-gen] Manual trigger error:", err));
+      res.json({ success: true, message: "Blog generation started in background" });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to trigger blog generation" });
+    }
+  });
+
+  app.get("/api/admin/blog/logs", requireAdmin, async (req, res) => {
+    try {
+      const limit = parseInt((req.query.limit as string) || "100");
+      const logs = await storage.getBlogGenerationLogs(limit);
+      res.json(logs);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch generation logs" });
+    }
+  });
+
   // ─── Auto-register Telegram webhooks on startup for configured merchants ───
   (async () => {
     try {

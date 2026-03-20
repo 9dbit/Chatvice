@@ -2368,3 +2368,44 @@ export const insertMessagingBridgeSessionSchema = createInsertSchema(messagingBr
 export type InsertMessagingBridgeSession = z.infer<typeof insertMessagingBridgeSessionSchema>;
 export type MessagingBridgeSession = typeof messagingBridgeSessions.$inferSelect;
 
+export const blogPosts = pgTable("blog_posts", {
+  id: varchar("id", { length: 40 }).primaryKey(),
+  slug: text("slug").notNull().unique(),
+  title: text("title").notNull(),
+  excerpt: text("excerpt").notNull(),
+  metaDescription: text("meta_description").notNull(),
+  content: text("content").notNull(),
+  category: text("category").notNull(),
+  author: text("author").notNull().default("Chatvice Team"),
+  tags: text("tags").array().notNull().default([]),
+  featured: boolean("featured").notNull().default(false),
+  published: boolean("published").notNull().default(true),
+  heroImageKey: text("hero_image_key"),
+  generatedAt: timestamp("generated_at").defaultNow(),
+  publishedAt: timestamp("published_at"),
+}, (table) => ({
+  slugIdx: index("blog_slug_idx").on(table.slug),
+  categoryIdx: index("blog_category_idx").on(table.category),
+  publishedIdx: index("blog_published_idx").on(table.published),
+}));
+
+export const insertBlogPostSchema = createInsertSchema(blogPosts).omit({ generatedAt: true });
+export type InsertBlogPost = z.infer<typeof insertBlogPostSchema>;
+export type BlogPost = typeof blogPosts.$inferSelect;
+
+export const blogGenerationLogs = pgTable("blog_generation_logs", {
+  id: serial("id").primaryKey(),
+  date: text("date").notNull(),
+  category: text("category").notNull(),
+  status: text("status").notNull(),
+  postId: varchar("post_id", { length: 40 }),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  dateIdx: index("blog_gen_date_idx").on(table.date),
+}));
+
+export const insertBlogGenerationLogSchema = createInsertSchema(blogGenerationLogs).omit({ id: true, createdAt: true });
+export type InsertBlogGenerationLog = z.infer<typeof insertBlogGenerationLogSchema>;
+export type BlogGenerationLog = typeof blogGenerationLogs.$inferSelect;
+

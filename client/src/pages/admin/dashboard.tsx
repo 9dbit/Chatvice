@@ -370,6 +370,7 @@ export default function AdminDashboard() {
     { id: "affiliates", label: "Affiliates", icon: Share2 },
     { id: "withdrawals", label: "Withdrawals", icon: Wallet },
     { id: "knowledge-templates", label: "Knowledge Templates", icon: BookOpen },
+    { id: "blog-management", label: "Blog Management", icon: FileText },
     { id: "activity-logs", label: "Activity Logs", icon: Activity },
     { id: "user-data", label: "Customer Data", icon: Users },
     { id: "chat-sessions", label: "Chat Sessions", icon: MessageSquare },
@@ -567,6 +568,8 @@ export default function AdminDashboard() {
             {activeTab === "withdrawals" && <WithdrawalsTab toast={toast} />}
             
             {activeTab === "knowledge-templates" && <KnowledgeTemplatesTab toast={toast} />}
+            
+            {activeTab === "blog-management" && <BlogManagementTab toast={toast} />}
             
             {activeTab === "activity-logs" && <ActivityLogsTab toast={toast} />}
             
@@ -12436,6 +12439,261 @@ function KnowledgeTemplatesTab({ toast }: { toast: any }) {
 }
 
 // Activity Logs Tab - View all merchant activity logs
+function BlogManagementTab({ toast }: { toast: any }) {
+  interface BlogPost {
+    id: string;
+    slug: string;
+    title: string;
+    excerpt: string;
+    category: string;
+    author: string;
+    featured: boolean;
+    published: boolean;
+    heroImageKey: string | null;
+    generatedAt: string | null;
+    publishedAt: string | null;
+    tags: string[];
+  }
+
+  interface BlogGenLog {
+    id: number;
+    date: string;
+    category: string;
+    status: string;
+    postId: string | null;
+    errorMessage: string | null;
+    createdAt: string;
+  }
+
+  const { data: posts = [], isLoading, refetch } = useQuery<BlogPost[]>({
+    queryKey: ["/api/admin/blog/posts"],
+  });
+
+  const { data: logs = [], refetch: refetchLogs } = useQuery<BlogGenLog[]>({
+    queryKey: ["/api/admin/blog/logs"],
+  });
+
+  const [filterCategory, setFilterCategory] = useState("All");
+  const [generatingNow, setGeneratingNow] = useState(false);
+
+  const categories = ["All", "Product", "Tutorial", "Industry", "Comparison", "Insights"];
+
+  const filteredPosts = filterCategory === "All"
+    ? posts
+    : posts.filter(p => p.category === filterCategory);
+
+  const togglePublished = useMutation({
+    mutationFn: async ({ id, published }: { id: string; published: boolean }) => {
+      return apiRequest(`/api/admin/blog/posts/${id}`, { method: "PATCH", body: JSON.stringify({ published }) });
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/blog/posts"] }); },
+    onError: () => toast({ title: "Failed to update post", variant: "destructive" }),
+  });
+
+  const toggleFeatured = useMutation({
+    mutationFn: async ({ id, featured }: { id: string; featured: boolean }) => {
+      return apiRequest(`/api/admin/blog/posts/${id}`, { method: "PATCH", body: JSON.stringify({ featured }) });
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/blog/posts"] }); },
+    onError: () => toast({ title: "Failed to update post", variant: "destructive" }),
+  });
+
+  const deletePost = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest(`/api/admin/blog/posts/${id}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/blog/posts"] });
+      toast({ title: "Article deleted" });
+    },
+    onError: () => toast({ title: "Failed to delete post", variant: "destructive" }),
+  });
+
+  const handleGenerate = async () => {
+    setGeneratingNow(true);
+    try {
+      await apiRequest("/api/admin/blog/generate", { method: "POST" });
+      toast({ title: "Blog generation started", description: "5 articles are being generated in the background" });
+      setTimeout(() => { refetch(); refetchLogs(); setGeneratingNow(false); }, 5000);
+    } catch {
+      toast({ title: "Failed to start generation", variant: "destructive" });
+      setGeneratingNow(false);
+    }
+  };
+
+  const formatDate = (str: string | null) => {
+    if (!str) return "-";
+    return new Date(str).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold">Blog Management</h2>
+          <p className="text-sm text-muted-foreground">Manage AI-generated blog articles. New posts are auto-generated daily at 01:00 UTC.</p>
+        </div>
+        <Button
+          onClick={handleGenerate}
+          disabled={generatingNow}
+          data-testid="button-generate-blog-posts"
+        >
+          {generatingNow ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+          Generate Today's Posts
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {categories.map(cat => (
+          <Button
+            key={cat}
+            variant={filterCategory === cat ? "default" : "outline"}
+            size="sm"
+            onClick={() => setFilterCategory(cat)}
+            data-testid={`filter-blog-${cat.toLowerCase()}`}
+          >
+            {cat}
+          </Button>
+        ))}
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Articles ({filteredPosts.length})</CardTitle>
+          <CardDescription>Click the toggles to publish/unpublish or feature articles</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-3">
+              {[1,2,3].map(i => <Skeleton key={i} className="h-12" />)}
+            </div>
+          ) : filteredPosts.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <BookOpen className="w-10 h-10 mx-auto mb-3" />
+              <p>No articles found. Click "Generate Today's Posts" to create new articles.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Published</TableHead>
+                    <TableHead>Featured</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredPosts.map(post => (
+                    <TableRow key={post.id} data-testid={`row-blog-${post.id}`}>
+                      <TableCell>
+                        <div className="max-w-sm">
+                          <p className="font-medium text-sm truncate">{post.title}</p>
+                          <p className="text-xs text-muted-foreground truncate">{post.slug}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{post.category}</Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {formatDate(post.publishedAt || post.generatedAt)}
+                      </TableCell>
+                      <TableCell>
+                        <Switch
+                          checked={post.published}
+                          onCheckedChange={(val) => togglePublished.mutate({ id: post.id, published: val })}
+                          data-testid={`switch-published-${post.id}`}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Switch
+                          checked={post.featured}
+                          onCheckedChange={(val) => toggleFeatured.mutate({ id: post.id, featured: val })}
+                          data-testid={`switch-featured-${post.id}`}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <a href={`/blog/${post.slug}`} target="_blank" rel="noopener noreferrer">
+                            <Button variant="ghost" size="icon" data-testid={`button-view-${post.id}`}>
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </a>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" data-testid={`button-delete-${post.id}`}>
+                                <Trash2 className="w-4 h-4 text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Article?</AlertDialogTitle>
+                                <AlertDialogDescription>This will permanently delete "{post.title}". This cannot be undone.</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => deletePost.mutate(post.id)}>Delete</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Generation Logs</CardTitle>
+          <CardDescription>History of AI blog generation runs</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {logs.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">No generation logs yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Notes</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {logs.slice(0, 50).map(log => (
+                    <TableRow key={log.id}>
+                      <TableCell className="text-sm">{log.date}</TableCell>
+                      <TableCell><Badge variant="secondary">{log.category}</Badge></TableCell>
+                      <TableCell>
+                        {log.status === "success"
+                          ? <Badge className="bg-green-500/20 text-green-700 dark:text-green-400"><CheckCircle className="w-3 h-3 mr-1" />Success</Badge>
+                          : <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Error</Badge>
+                        }
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
+                        {log.errorMessage || (log.postId ? `Post ID: ${log.postId}` : "-")}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 function ActivityLogsTab({ toast }: { toast: any }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<string>("all");

@@ -1,7 +1,9 @@
 import { Link, useParams } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Popover,
   PopoverContent,
@@ -45,18 +47,74 @@ const blogImages: Record<string, string> = {
   "chatvice-vs-livechat-zendesk-intercom": comparisonImage,
 };
 
+interface BlogPost {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string;
+  metaDescription: string;
+  content: string;
+  category: string;
+  author: string;
+  generatedAt: string | null;
+  publishedAt: string | null;
+  readTime?: string;
+  featured: boolean;
+  heroImageKey: string | null;
+  tags: string[];
+}
+
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+}
+
+function getHeroImage(slug: string, heroImageKey: string | null): string | null {
+  if (heroImageKey && blogImages[heroImageKey]) return blogImages[heroImageKey];
+  if (blogImages[slug]) return blogImages[slug];
+  return null;
+}
+
 export default function BlogArticlePage() {
   const params = useParams();
   const slug = params.slug as string;
   const { toast } = useToast();
   const [shareOpen, setShareOpen] = useState(false);
-  
-  const article = blogArticles.find(a => a.slug === slug);
-  
-  const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/blog/${slug}` : `https://chatvice.app/blog/${slug}`;
-  const shareTitle = article?.title || 'Chatvice Blog';
-  const shareText = article?.metaDescription || '';
-  
+
+  const { data: dbPost, isLoading } = useQuery<BlogPost>({
+    queryKey: ["/api/blog/posts", slug],
+    queryFn: async () => {
+      const res = await fetch(`/api/blog/posts/${slug}`);
+      if (!res.ok) throw new Error("Not found");
+      return res.json();
+    },
+    retry: false,
+  });
+
+  const staticArticle = blogArticles.find((a) => a.slug === slug);
+
+  const article = dbPost || (staticArticle ? {
+    id: staticArticle.slug,
+    slug: staticArticle.slug,
+    title: staticArticle.title,
+    excerpt: staticArticle.excerpt,
+    metaDescription: staticArticle.metaDescription,
+    content: staticArticle.content,
+    category: staticArticle.category,
+    author: staticArticle.author,
+    generatedAt: staticArticle.date,
+    publishedAt: staticArticle.date,
+    readTime: staticArticle.readTime,
+    featured: staticArticle.featured,
+    heroImageKey: staticArticle.slug,
+    tags: staticArticle.tags,
+  } as BlogPost : null);
+
+  const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/blog/${slug}` : `https://chatvice.app/blog/${slug}`;
+  const shareTitle = article?.title || "Chatvice Blog";
+  const shareText = article?.metaDescription || "";
+
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);
@@ -66,7 +124,7 @@ export default function BlogArticlePage() {
       toast({ title: "Failed to copy", variant: "destructive" });
     }
   };
-  
+
   type ShareOption = {
     name: string;
     icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
@@ -74,7 +132,7 @@ export default function BlogArticlePage() {
     href?: string;
     color?: string;
   };
-  
+
   const shareOptions: ShareOption[] = [
     { name: "Copy Link", icon: Copy, action: copyLink },
     { name: "WhatsApp", icon: SiWhatsapp, href: `https://wa.me/?text=${encodeURIComponent(`${shareTitle}\n${shareUrl}`)}`, color: "#25D366" },
@@ -87,7 +145,20 @@ export default function BlogArticlePage() {
     { name: "ChatGPT", icon: ExternalLink, href: `https://chat.openai.com/?q=${encodeURIComponent(`Summarize this article: ${shareUrl}`)}`, color: "#10A37F" },
     { name: "Gemini", icon: ExternalLink, href: `https://gemini.google.com/app?q=${encodeURIComponent(`Summarize this article: ${shareUrl}`)}`, color: "#8E75B2" },
   ];
-  
+
+  if (isLoading) {
+    return (
+      <PublicPageLayout>
+        <div className="max-w-4xl mx-auto px-4 py-12 space-y-6">
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-12 w-3/4" />
+          <Skeleton className="h-64 w-full rounded-xl" />
+          <Skeleton className="h-96 w-full" />
+        </div>
+      </PublicPageLayout>
+    );
+  }
+
   if (!article) {
     return (
       <PublicPageLayout>
@@ -103,9 +174,16 @@ export default function BlogArticlePage() {
     );
   }
 
-  const relatedArticles = blogArticles
-    .filter(a => a.slug !== slug && a.category === article.category)
-    .slice(0, 3);
+  const relatedPosts = blogArticles
+    .filter((a) => a.slug !== slug && a.category === article.category)
+    .slice(0, 3)
+    .map((a) => ({
+      id: a.slug,
+      slug: a.slug,
+      title: a.title,
+      category: a.category,
+      heroImageKey: a.slug,
+    }));
 
   return (
     <PublicPageLayout
@@ -135,11 +213,11 @@ export default function BlogArticlePage() {
               </span>
               <span className="flex items-center gap-1">
                 <Calendar className="w-4 h-4" />
-                {article.date}
+                {formatDate(article.publishedAt || article.generatedAt)}
               </span>
               <span className="flex items-center gap-1">
                 <Clock className="w-4 h-4" />
-                {article.readTime}
+                {article.readTime || "5 min read"}
               </span>
             </div>
             <div className="flex gap-2">
@@ -152,13 +230,13 @@ export default function BlogArticlePage() {
                 </PopoverTrigger>
                 <PopoverContent className="w-56 p-2" align="start">
                   <div className="grid gap-1">
-                    {shareOptions.map((option, idx) => (
+                    {shareOptions.map((option, idx) =>
                       option.action ? (
                         <button
                           key={idx}
                           onClick={option.action}
                           className="flex items-center gap-3 w-full px-3 py-2 text-xs rounded-md hover-elevate text-left"
-                          data-testid={`button-share-${option.name.toLowerCase().replace(/\s+/g, '-')}`}
+                          data-testid={`button-share-${option.name.toLowerCase().replace(/\s+/g, "-")}`}
                         >
                           <option.icon className="w-4 h-4" style={option.color ? { color: option.color } : undefined} />
                           <span>{option.name}</span>
@@ -171,13 +249,13 @@ export default function BlogArticlePage() {
                           rel="noopener noreferrer"
                           onClick={() => setShareOpen(false)}
                           className="flex items-center gap-3 w-full px-3 py-2 text-xs rounded-md hover-elevate"
-                          data-testid={`button-share-${option.name.toLowerCase().replace(/\s+/g, '-')}`}
+                          data-testid={`button-share-${option.name.toLowerCase().replace(/\s+/g, "-")}`}
                         >
                           <option.icon className="w-4 h-4" style={option.color ? { color: option.color } : undefined} />
                           <span>{option.name}</span>
                         </a>
                       )
-                    ))}
+                    )}
                   </div>
                 </PopoverContent>
               </Popover>
@@ -188,11 +266,11 @@ export default function BlogArticlePage() {
             </div>
           </header>
 
-          {article.heroImage && (
+          {(article.heroImageKey || blogImages[slug]) && (
             <div className="aspect-video rounded-xl mb-8 overflow-hidden">
-              {blogImages[slug] ? (
-                <img 
-                  src={blogImages[slug]} 
+              {getHeroImage(slug, article.heroImageKey) ? (
+                <img
+                  src={getHeroImage(slug, article.heroImageKey)!}
                   alt={article.title}
                   className="w-full h-full object-cover"
                 />
@@ -204,12 +282,12 @@ export default function BlogArticlePage() {
             </div>
           )}
 
-          <div 
+          <div
             className="prose prose-lg dark:prose-invert max-w-none mb-12"
             dangerouslySetInnerHTML={{ __html: article.content }}
           />
 
-          {article.tags && (
+          {article.tags && article.tags.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-8 pt-8 border-t">
               {article.tags.map((tag, i) => (
                 <Badge key={i} variant="secondary">{tag}</Badge>
@@ -237,17 +315,17 @@ export default function BlogArticlePage() {
             </div>
           </Card>
 
-          {relatedArticles.length > 0 && (
+          {relatedPosts.length > 0 && (
             <section>
               <h2 className="text-2xl font-bold mb-6">Related Articles</h2>
               <div className="grid md:grid-cols-3 gap-6">
-                {relatedArticles.map((post, index) => (
-                  <Link key={index} href={`/blog/${post.slug}`}>
+                {relatedPosts.map((post) => (
+                  <Link key={post.id} href={`/blog/${post.slug}`}>
                     <Card className="overflow-hidden hover-elevate group h-full">
                       <div className="aspect-video overflow-hidden">
-                        {blogImages[post.slug] ? (
-                          <img 
-                            src={blogImages[post.slug]} 
+                        {getHeroImage(post.slug, post.heroImageKey) ? (
+                          <img
+                            src={getHeroImage(post.slug, post.heroImageKey)!}
                             alt={post.title}
                             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                           />

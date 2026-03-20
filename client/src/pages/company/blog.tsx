@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   BookOpen,
   Calendar,
@@ -29,16 +31,73 @@ const blogImages: Record<string, string> = {
   "chatvice-vs-livechat-zendesk-intercom": comparisonImage,
 };
 
+interface BlogPost {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string;
+  metaDescription: string;
+  category: string;
+  author: string;
+  generatedAt: string | null;
+  publishedAt: string | null;
+  readTime?: string;
+  featured: boolean;
+  heroImageKey: string | null;
+  tags: string[];
+}
+
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+}
+
+function estimateReadTime(post: BlogPost): string {
+  return "5 min read";
+}
+
+function getHeroImage(post: BlogPost): string | null {
+  if (post.heroImageKey && blogImages[post.heroImageKey]) return blogImages[post.heroImageKey];
+  if (blogImages[post.slug]) return blogImages[post.slug];
+  return null;
+}
+
+function mergeWithStaticFallback(dbPosts: BlogPost[]): BlogPost[] {
+  if (dbPosts.length > 0) return dbPosts;
+  return blogArticles.map((a) => ({
+    id: a.slug,
+    slug: a.slug,
+    title: a.title,
+    excerpt: a.excerpt,
+    metaDescription: a.metaDescription,
+    category: a.category,
+    author: a.author,
+    generatedAt: a.date,
+    publishedAt: a.date,
+    readTime: a.readTime,
+    featured: a.featured,
+    heroImageKey: a.slug,
+    tags: a.tags,
+  }));
+}
+
 export default function BlogPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const categories = ["All", "Product", "Tutorial", "Industry", "Insights", "Comparison"];
 
-  const filteredArticles = selectedCategory === "All" 
-    ? blogArticles 
-    : blogArticles.filter(article => article.category === selectedCategory);
+  const { data: rawPosts = [], isLoading } = useQuery<BlogPost[]>({
+    queryKey: ["/api/blog/posts"],
+  });
 
-  const featuredArticles = filteredArticles.filter(p => p.featured);
-  const regularArticles = filteredArticles.filter(p => !p.featured);
+  const posts = mergeWithStaticFallback(rawPosts);
+
+  const filteredArticles = selectedCategory === "All"
+    ? posts
+    : posts.filter((article) => article.category === selectedCategory);
+
+  const featuredArticles = filteredArticles.filter((p) => p.featured);
+  const regularArticles = filteredArticles.filter((p) => !p.featured);
 
   return (
     <PublicPageLayout
@@ -76,102 +135,113 @@ export default function BlogPage() {
             ))}
           </div>
 
-          {featuredArticles.map((post, index) => (
-            <Link key={index} href={`/blog/${post.slug}`}>
-              <Card className="p-8 mb-12 hover-elevate cursor-pointer" data-testid={`card-featured-${post.slug}`}>
-                <div className="grid md:grid-cols-2 gap-8 items-center">
-                  <div className="aspect-video rounded-xl overflow-hidden">
-                    {blogImages[post.slug] ? (
-                      <img 
-                        src={blogImages[post.slug]} 
-                        alt={post.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 flex items-center justify-center">
-                        <BookOpen className="w-16 h-16 text-purple-600" />
+          {isLoading ? (
+            <div className="space-y-6">
+              <Skeleton className="h-64 w-full rounded-xl" />
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3].map((i) => <Skeleton key={i} className="h-48 rounded-xl" />)}
+              </div>
+            </div>
+          ) : (
+            <>
+              {featuredArticles.map((post) => (
+                <Link key={post.id} href={`/blog/${post.slug}`}>
+                  <Card className="p-8 mb-12 hover-elevate cursor-pointer" data-testid={`card-featured-${post.slug}`}>
+                    <div className="grid md:grid-cols-2 gap-8 items-center">
+                      <div className="aspect-video rounded-xl overflow-hidden">
+                        {getHeroImage(post) ? (
+                          <img
+                            src={getHeroImage(post)!}
+                            alt={post.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 flex items-center justify-center">
+                            <BookOpen className="w-16 h-16 text-purple-600" />
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  <div>
-                    <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
-                      Featured
-                    </Badge>
-                    <h2 className="text-2xl font-bold mb-3" data-testid={`text-title-${post.slug}`}>{post.title}</h2>
-                    <p className="text-muted-foreground mb-4">{post.excerpt}</p>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                      <span className="flex items-center gap-1">
-                        <User className="w-4 h-4" />
-                        {post.author}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        {post.date}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-4 h-4" />
-                        {post.readTime}
-                      </span>
-                    </div>
-                    <Button className="bg-purple-600 hover:bg-purple-700" data-testid={`button-read-${post.slug}`}>
-                      Read Article
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            </Link>
-          ))}
-
-          {regularArticles.length > 0 && (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {regularArticles.map((post, index) => (
-                <Link key={index} href={`/blog/${post.slug}`}>
-                  <Card className="overflow-hidden hover-elevate group cursor-pointer h-full" data-testid={`card-article-${post.slug}`}>
-                    <div className="aspect-video overflow-hidden">
-                      {blogImages[post.slug] ? (
-                        <img 
-                          src={blogImages[post.slug]} 
-                          alt={post.title}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 flex items-center justify-center">
-                          <BookOpen className="w-12 h-12 text-purple-600" />
+                      <div>
+                        <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
+                          Featured
+                        </Badge>
+                        <h2 className="text-2xl font-bold mb-3" data-testid={`text-title-${post.slug}`}>{post.title}</h2>
+                        <p className="text-muted-foreground mb-4">{post.excerpt}</p>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+                          <span className="flex items-center gap-1">
+                            <User className="w-4 h-4" />
+                            {post.author}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            {formatDate(post.publishedAt || post.generatedAt)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-4 h-4" />
+                            {post.readTime || estimateReadTime(post)}
+                          </span>
                         </div>
-                      )}
-                    </div>
-                    <div className="p-6">
-                      <Badge variant="secondary" className="mb-3">{post.category}</Badge>
-                      <h3 className="font-semibold mb-2 group-hover:text-purple-600 transition-colors" data-testid={`text-title-${post.slug}`}>
-                        {post.title}
-                      </h3>
-                      <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                        {post.excerpt}
-                      </p>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {post.date}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {post.readTime}
-                        </span>
+                        <Button className="bg-purple-600 hover:bg-purple-700" data-testid={`button-read-${post.slug}`}>
+                          Read Article
+                          <ArrowRight className="w-4 h-4 ml-2" />
+                        </Button>
                       </div>
                     </div>
                   </Card>
                 </Link>
               ))}
-            </div>
-          )}
 
-          {filteredArticles.length === 0 && (
-            <div className="text-center py-12">
-              <BookOpen className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No articles found</h3>
-              <p className="text-muted-foreground">Try selecting a different category</p>
-            </div>
+              {regularArticles.length > 0 && (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {regularArticles.map((post) => (
+                    <Link key={post.id} href={`/blog/${post.slug}`}>
+                      <Card className="overflow-hidden hover-elevate group cursor-pointer h-full" data-testid={`card-article-${post.slug}`}>
+                        <div className="aspect-video overflow-hidden">
+                          {getHeroImage(post) ? (
+                            <img
+                              src={getHeroImage(post)!}
+                              alt={post.title}
+                              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 flex items-center justify-center">
+                              <BookOpen className="w-12 h-12 text-purple-600" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-6">
+                          <Badge variant="secondary" className="mb-3">{post.category}</Badge>
+                          <h3 className="font-semibold mb-2 group-hover:text-purple-600 transition-colors" data-testid={`text-title-${post.slug}`}>
+                            {post.title}
+                          </h3>
+                          <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                            {post.excerpt}
+                          </p>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {formatDate(post.publishedAt || post.generatedAt)}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {post.readTime || estimateReadTime(post)}
+                            </span>
+                          </div>
+                        </div>
+                      </Card>
+                    </Link>
+                  ))}
+                </div>
+              )}
+
+              {filteredArticles.length === 0 && (
+                <div className="text-center py-12">
+                  <BookOpen className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">No articles found</h3>
+                  <p className="text-muted-foreground">Try selecting a different category</p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>
@@ -183,7 +253,7 @@ export default function BlogPage() {
             <p className="text-muted-foreground">Explore our most read categories</p>
           </div>
           <div className="grid md:grid-cols-4 gap-6">
-            <Card 
+            <Card
               className="p-6 text-center hover-elevate cursor-pointer"
               onClick={() => setSelectedCategory("Product")}
             >
@@ -193,7 +263,7 @@ export default function BlogPage() {
               <h3 className="font-semibold mb-2">AI Chatbots</h3>
               <p className="text-sm text-muted-foreground">Compare Chatvice with Chatbase, Tidio, and more</p>
             </Card>
-            <Card 
+            <Card
               className="p-6 text-center hover-elevate cursor-pointer"
               onClick={() => setSelectedCategory("Tutorial")}
             >
@@ -203,7 +273,7 @@ export default function BlogPage() {
               <h3 className="font-semibold mb-2">Tutorials</h3>
               <p className="text-sm text-muted-foreground">Best practices for support teams</p>
             </Card>
-            <Card 
+            <Card
               className="p-6 text-center hover-elevate cursor-pointer"
               onClick={() => setSelectedCategory("Industry")}
             >
@@ -213,7 +283,7 @@ export default function BlogPage() {
               <h3 className="font-semibold mb-2">Industry Insights</h3>
               <p className="text-sm text-muted-foreground">Trends in Indonesia and Southeast Asia</p>
             </Card>
-            <Card 
+            <Card
               className="p-6 text-center hover-elevate cursor-pointer"
               onClick={() => setSelectedCategory("Comparison")}
             >

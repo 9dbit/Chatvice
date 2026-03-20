@@ -79,6 +79,8 @@ import {
   customerStories, type CustomerStory, type InsertCustomerStory,
   messageReactions, type MessageReaction, type InsertMessageReaction,
   messagingBridgeSessions, type MessagingBridgeSession, type InsertMessagingBridgeSession,
+  blogPosts, type BlogPost, type InsertBlogPost,
+  blogGenerationLogs, type BlogGenerationLog, type InsertBlogGenerationLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, gt, and, or, lt, isNull, sql, count, inArray, ne } from "drizzle-orm";
@@ -538,6 +540,17 @@ export interface IStorage {
   getMessagingBridgeByAnchor(anchorMessageId: string, channel: string, supervisorId?: string): Promise<MessagingBridgeSession | undefined>;
   getMessagingBridgesBySession(sessionId: string, channel: string): Promise<MessagingBridgeSession[]>;
   getSupervisorByTelegramChatId(telegramChatId: string): Promise<Supervisor | undefined>;
+
+  // Blog
+  getBlogPosts(options?: { category?: string; publishedOnly?: boolean; limit?: number; offset?: number }): Promise<BlogPost[]>;
+  getBlogPost(slug: string): Promise<BlogPost | undefined>;
+  getBlogPostById(id: string): Promise<BlogPost | undefined>;
+  createBlogPost(data: InsertBlogPost): Promise<BlogPost>;
+  updateBlogPost(id: string, data: Partial<BlogPost>): Promise<BlogPost | undefined>;
+  deleteBlogPost(id: string): Promise<boolean>;
+  createBlogGenerationLog(data: InsertBlogGenerationLog): Promise<BlogGenerationLog>;
+  getBlogGenerationLogs(limit?: number): Promise<BlogGenerationLog[]>;
+  countBlogPosts(): Promise<number>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -3966,6 +3979,55 @@ export class DatabaseStorage implements IStorage {
     const [row] = await db.select().from(supervisors)
       .where(eq(supervisors.telegramChatId, telegramChatId));
     return row;
+  }
+
+  async getBlogPosts(options: { category?: string; publishedOnly?: boolean; limit?: number; offset?: number } = {}): Promise<BlogPost[]> {
+    const { category, publishedOnly = false, limit = 50, offset = 0 } = options;
+    const conditions = [];
+    if (publishedOnly) conditions.push(eq(blogPosts.published, true));
+    if (category) conditions.push(eq(blogPosts.category, category));
+    const q = db.select().from(blogPosts);
+    if (conditions.length > 0) q.where(and(...conditions));
+    return q.orderBy(desc(blogPosts.generatedAt)).limit(limit).offset(offset);
+  }
+
+  async getBlogPost(slug: string): Promise<BlogPost | undefined> {
+    const [row] = await db.select().from(blogPosts).where(eq(blogPosts.slug, slug));
+    return row;
+  }
+
+  async getBlogPostById(id: string): Promise<BlogPost | undefined> {
+    const [row] = await db.select().from(blogPosts).where(eq(blogPosts.id, id));
+    return row;
+  }
+
+  async createBlogPost(data: InsertBlogPost): Promise<BlogPost> {
+    const [row] = await db.insert(blogPosts).values(data).returning();
+    return row;
+  }
+
+  async updateBlogPost(id: string, data: Partial<BlogPost>): Promise<BlogPost | undefined> {
+    const [row] = await db.update(blogPosts).set(data).where(eq(blogPosts.id, id)).returning();
+    return row;
+  }
+
+  async deleteBlogPost(id: string): Promise<boolean> {
+    const result = await db.delete(blogPosts).where(eq(blogPosts.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async createBlogGenerationLog(data: InsertBlogGenerationLog): Promise<BlogGenerationLog> {
+    const [row] = await db.insert(blogGenerationLogs).values(data).returning();
+    return row;
+  }
+
+  async getBlogGenerationLogs(limit: number = 50): Promise<BlogGenerationLog[]> {
+    return db.select().from(blogGenerationLogs).orderBy(desc(blogGenerationLogs.createdAt)).limit(limit);
+  }
+
+  async countBlogPosts(): Promise<number> {
+    const [result] = await db.select({ cnt: count() }).from(blogPosts);
+    return result?.cnt ?? 0;
   }
 }
 
