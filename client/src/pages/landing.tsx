@@ -151,11 +151,11 @@ function FlippingHeroText() {
 }
 import chatviceLogoLight from "@assets/Chatvice-02_1769691434945.png";
 import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
-import advancedReportingImage from "@assets/IMG_0311_1765160576065.jpeg";
+import advancedReportingImage from "@assets/banner_human_analytics.png";
 import compareAiModelsImage from "@assets/compare-ai-models_1764865696016.webp";
-import designedForSimplicityImage from "@assets/IMG_0320_1765160576065.jpeg";
-import engineeredForSecurityImage from "@assets/IMG_0318_1765160576065.jpeg";
-import purposeBuiltForLlmsImage from "@assets/IMG_0315_1765160576065.jpeg";
+import designedForSimplicityImage from "@assets/banner_human_simplicity.png";
+import engineeredForSecurityImage from "@assets/banner_human_security.png";
+import purposeBuiltForLlmsImage from "@assets/banner_human_ai_engine.png";
 import maleAvatar from "@assets/345c6d52234bbc72407ea25d49ad945e_1764867029228.jpg";
 import femaleAvatar from "@assets/b80ad9fd48f0b1e8d404775c495633be_1764867029228.jpg";
 import heroBackgroundImage from "@assets/IMG_0185_1764870218768.jpeg";
