@@ -4,8 +4,9 @@ import { randomBytes } from "crypto";
 import { blogArticles } from "../client/src/pages/company/blog-data";
 
 function getOpenAI(): OpenAI {
-  if (!process.env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not set");
-  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const apiKey = process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  if (!apiKey) throw new Error("OpenAI API key not set");
+  return new OpenAI({ apiKey });
 }
 
 const CATEGORIES = ["Product", "Tutorial", "Industry", "Comparison", "Insights"];

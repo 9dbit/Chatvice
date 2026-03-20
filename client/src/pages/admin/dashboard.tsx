@@ -12484,7 +12484,7 @@ function BlogManagementTab({ toast }: { toast: any }) {
 
   const togglePublished = useMutation({
     mutationFn: async ({ id, published }: { id: string; published: boolean }) => {
-      return apiRequest(`/api/admin/blog/posts/${id}`, { method: "PATCH", body: JSON.stringify({ published }) });
+      return apiRequest("PATCH", `/api/admin/blog/posts/${id}`, { published });
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/blog/posts"] }); },
     onError: () => toast({ title: "Failed to update post", variant: "destructive" }),
@@ -12492,7 +12492,7 @@ function BlogManagementTab({ toast }: { toast: any }) {
 
   const toggleFeatured = useMutation({
     mutationFn: async ({ id, featured }: { id: string; featured: boolean }) => {
-      return apiRequest(`/api/admin/blog/posts/${id}`, { method: "PATCH", body: JSON.stringify({ featured }) });
+      return apiRequest("PATCH", `/api/admin/blog/posts/${id}`, { featured });
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin/blog/posts"] }); },
     onError: () => toast({ title: "Failed to update post", variant: "destructive" }),
@@ -12500,7 +12500,7 @@ function BlogManagementTab({ toast }: { toast: any }) {
 
   const deletePost = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest(`/api/admin/blog/posts/${id}`, { method: "DELETE" });
+      return apiRequest("DELETE", `/api/admin/blog/posts/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/blog/posts"] });
@@ -12512,7 +12512,7 @@ function BlogManagementTab({ toast }: { toast: any }) {
   const handleGenerate = async () => {
     setGeneratingNow(true);
     try {
-      await apiRequest("/api/admin/blog/generate", { method: "POST" });
+      await apiRequest("POST", "/api/admin/blog/generate");
       toast({ title: "Blog generation started", description: "5 articles are being generated in the background" });
       setTimeout(() => { refetch(); refetchLogs(); setGeneratingNow(false); }, 5000);
     } catch {
