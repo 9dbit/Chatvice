@@ -29,7 +29,7 @@ import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./payp
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient, sendMerchantAuthNotification, sendEmailChangeOtp } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, or, isNull, isNotNull, gte, sql } from "drizzle-orm";
+import { eq, desc, and, or, isNull, isNotNull, gte, sql, not, like } from "drizzle-orm";
 import { messages, sessions, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts } from "@shared/schema";
 import crypto from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
@@ -15748,12 +15748,14 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
     greetingDelaySeconds?: number,
   ): Promise<void> {
     const delayMs = ((greetingDelaySeconds ?? 8) * 1000);
+    console.log(`[ai-proactive] Greeting scheduled for session ${sessionId} in ${greetingDelaySeconds ?? 8}s`);
     setTimeout(async () => {
       try {
         // Re-fetch session to make sure it still exists and is still a visitor session
         const session = await storage.getSession(sessionId);
         if (!session || !session.visitorSession) {
-          return; // Session gone or visitor already started chatting
+          console.log(`[ai-proactive] Skipped — session ${sessionId} gone or visitor already chatting (visitorSession=${session?.visitorSession})`);
+          return;
         }
 
         // Gather context: agent knowledge base + system prompt
@@ -15939,14 +15941,17 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
         });
       }
 
-      // If the device already has an active chat session (upgraded from visitor),
+      // If the device already has an active REAL chat session (upgraded from visitor),
       // keepalive pings should not create new visitor sessions for the same device.
+      // Defensive: exclude sess_v_ prefixed sessions even if visitor_session flag is
+      // somehow false (belt-and-suspenders against schema default confusion).
       const existingChatSession = await db.query.sessions.findFirst({
         where: and(
           eq(sessions.merchantId, resolvedMerchantId),
           eq(sessions.deviceFingerprint, deviceFingerprint),
           eq(sessions.status, "active"),
           or(isNull(sessions.visitorSession), eq(sessions.visitorSession, false)),
+          not(like(sessions.id, "sess_v_%")),
           gte(sessions.lastActivity, thirtyMinAgo)
         ),
         orderBy: [desc(sessions.lastActivity)],

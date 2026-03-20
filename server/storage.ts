@@ -689,6 +689,7 @@ export class DatabaseStorage implements IStorage {
       id: data.id || generateId("sess_"),
       merchantId: data.merchantId,
       mode: data.mode || "AI",
+      status: data.status || "active",
       supervisorId: data.supervisorId || null,
       customerName: data.customerName || "Customer",
       customerPhone: data.customerPhone || null,
@@ -696,6 +697,13 @@ export class DatabaseStorage implements IStorage {
       agentId: data.agentId || null,
       deviceFingerprint: data.deviceFingerprint || null,
       clientIp: data.clientIp || null,
+      // Visitor tracking fields — must be persisted so scheduleAiProactiveGreeting
+      // can confirm the session is still a visitor session before sending the greeting
+      visitorSession: data.visitorSession ?? false,
+      proactiveGreetingSent: data.proactiveGreetingSent ?? false,
+      countryCode: data.countryCode || null,
+      countryName: data.countryName || null,
+      pageUrl: data.pageUrl || null,
     }).returning();
     return result[0];
   }
