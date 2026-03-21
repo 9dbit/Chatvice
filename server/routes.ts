@@ -16538,20 +16538,29 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
         }
 
         // Generate a proactive AI greeting (same logic as scheduleAiProactiveGreeting)
-        const kbContent = activeAgentId
-          ? await storage.getAllActiveKnowledgeContent(resolvedMerchantId, activeAgentId)
-          : await storage.getAllActiveKnowledgeContent(resolvedMerchantId);
-        const kbSnippet = kbContent ? kbContent.slice(0, 1500) : "";
-        const systemCtx = [agentSystemPrompt, kbSnippet].filter(Boolean).join("\n\n");
-        const fallbackGreeting = `Halo! Selamat datang di ${merchant.companyName || "layanan kami"}. Ada yang bisa saya bantu?`;
+        // Check configured templates first — use them directly if available (no AI needed)
+        const proactiveTemplates: string[] = merchant.proactiveChatTemplates || [];
+        const pickedTemplate = proactiveTemplates.length > 0
+          ? proactiveTemplates[Math.floor(Math.random() * proactiveTemplates.length)]
+          : null;
 
-        try {
-          const response = await openai.chat.completions.create({
-            model: "gpt-4.1-mini",
-            messages: [
-              {
-                role: "system",
-                content: `You are a friendly customer service AI for a business.
+        if (pickedTemplate) {
+          aiGreeting = pickedTemplate;
+        } else {
+          const kbContent = activeAgentId
+            ? await storage.getAllActiveKnowledgeContent(resolvedMerchantId, activeAgentId)
+            : await storage.getAllActiveKnowledgeContent(resolvedMerchantId);
+          const kbSnippet = kbContent ? kbContent.slice(0, 1500) : "";
+          const systemCtx = [agentSystemPrompt, kbSnippet].filter(Boolean).join("\n\n");
+          const fallbackGreeting = `Halo! Selamat datang di ${merchant.companyName || "layanan kami"}. Ada yang bisa saya bantu?`;
+
+          try {
+            const response = await openai.chat.completions.create({
+              model: "gpt-4.1-mini",
+              messages: [
+                {
+                  role: "system",
+                  content: `You are a friendly customer service AI for a business.
 Based on the business context below, craft ONE short, warm greeting (1-2 sentences max) for a website visitor who just arrived.
 The greeting should naturally reflect the business and invite the visitor to ask anything.
 Do NOT use generic phrases like "How can I help you today?" alone — be specific about what you offer.
@@ -16559,18 +16568,19 @@ Respond ONLY with the greeting text, no quotes, no extra explanation.
 
 Business context:
 ${systemCtx || `Business name: ${merchant.companyName || "us"}`}`,
-              },
-              {
-                role: "user",
-                content: "Generate a proactive greeting for a visitor who just opened the chat.",
-              },
-            ],
-            max_tokens: 80,
-            temperature: 0.7,
-          });
-          aiGreeting = response.choices[0]?.message?.content?.trim() || fallbackGreeting;
-        } catch {
-          aiGreeting = fallbackGreeting;
+                },
+                {
+                  role: "user",
+                  content: "Generate a proactive greeting for a visitor who just opened the chat.",
+                },
+              ],
+              max_tokens: 80,
+              temperature: 0.7,
+            });
+            aiGreeting = response.choices[0]?.message?.content?.trim() || fallbackGreeting;
+          } catch {
+            aiGreeting = fallbackGreeting;
+          }
         }
 
         await storage.createMessage({
