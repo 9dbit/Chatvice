@@ -6740,13 +6740,36 @@ Rules:
       }
 
       // Use originalSnippet for removal (if provided, e.g. when user modified the text in the UI)
-      // so the exact original text is found and removed from source
       const snippetToRemove = (originalSnippet || contentSnippet).trim();
-      if (!sourceEntry.content.includes(snippetToRemove)) {
-        return res.status(400).json({ error: "Snippet not found in source entry — it may have already been moved or the text no longer matches." });
+
+      // Build a regex that matches the snippet with flexible whitespace to handle AI whitespace tweaks
+      function buildFlexRegex(snippet: string): RegExp {
+        const words = snippet.trim().split(/\s+/);
+        const escapedWords = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+        return new RegExp(escapedWords.join("\\s+"), "i");
       }
 
-      const newSourceContent = sourceEntry.content.replace(snippetToRemove, "").replace(/\n{3,}/g, "\n\n").trim();
+      let newSourceContent: string;
+      if (sourceEntry.content.includes(snippetToRemove)) {
+        newSourceContent = sourceEntry.content.replace(snippetToRemove, "").replace(/\n{3,}/g, "\n\n").trim();
+      } else {
+        // Fall back to flex-whitespace regex matching
+        const flexRegex = buildFlexRegex(snippetToRemove);
+        if (!flexRegex.test(sourceEntry.content)) {
+          // Last resort: try matching just the first 8 significant words
+          const sigWords = snippetToRemove.trim().split(/\s+/).filter(w => w.length > 3).slice(0, 8);
+          if (sigWords.length < 3) {
+            return res.status(400).json({ error: "Snippet not found in source entry — it may have already been moved or the text no longer matches." });
+          }
+          const lenientRegex = buildFlexRegex(sigWords.join(" "));
+          if (!lenientRegex.test(sourceEntry.content)) {
+            return res.status(400).json({ error: "Snippet not found in source entry — it may have already been moved or the text no longer matches." });
+          }
+          newSourceContent = sourceEntry.content.replace(lenientRegex, "").replace(/\n{3,}/g, "\n\n").trim();
+        } else {
+          newSourceContent = sourceEntry.content.replace(flexRegex, "").replace(/\n{3,}/g, "\n\n").trim();
+        }
+      }
       const newTargetContent = targetEntry.content
         ? targetEntry.content + "\n\n" + contentSnippet.trim()
         : contentSnippet.trim();
