@@ -1108,7 +1108,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
   useEffect(() => {
     // Visitor sessions load all messages from DB — skip client-side injection to avoid duplication
-    // (scheduleAiProactiveGreeting already stores welcomeMessage as a DB message for these sessions)
+    // (proactive greeting is already stored as a DB message; welcome is suppressed server-side too)
     if (isVisitorSession) return;
     // When proactive chat is active the proactive greeting is the only opening message — suppress welcome
     if (merchantConfig?.proactiveChatEnabled) return;

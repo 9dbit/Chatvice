@@ -16488,7 +16488,8 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
 
       if (isAutoOpen) {
         // ---- AUTO-OPEN flow: AI proactively greets the anonymous visitor ----
-        // No customer message is stored. Instead we store: banner → welcome text → AI greeting.
+        // Only the AI proactive greeting is stored as a chat message.
+        // Banner and welcome text are NOT stored as chat messages (see comments below).
 
         // Compute bannerUrl for the response payload (the widget UI renders it from this URL).
         // Do NOT send it as a chat media message — the widget already displays it in the prechat area.
