@@ -1110,6 +1110,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     // Visitor sessions load all messages from DB — skip client-side injection to avoid duplication
     // (scheduleAiProactiveGreeting already stores welcomeMessage as a DB message for these sessions)
     if (isVisitorSession) return;
+    // When proactive chat is active the proactive greeting is the only opening message — suppress welcome
+    if (merchantConfig?.proactiveChatEnabled) return;
     if (isOpen && pendingMessages.length === 0 && merchantConfig?.welcomeMessage && !serverMessages?.length) {
       setPendingMessages([
         { clientId: "welcome", from: "chatvice", content: merchantConfig.welcomeMessage, timestamp: new Date() },

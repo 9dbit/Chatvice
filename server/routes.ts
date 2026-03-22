@@ -15997,33 +15997,10 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
           ? templates[Math.floor(Math.random() * templates.length)]
           : null;
 
-        // --- Send prechat banner image first (if configured) ---
-        const rawBannerUrl = merchant.prechatBannerUrl || "";
-        const bannerUrl = rawBannerUrl
-          ? (rawBannerUrl.startsWith('data:') ? `/api/merchant/banner/${merchant.id}` : rawBannerUrl)
-          : "";
-        if (bannerUrl) {
-          const isVideo = /\.mp4/i.test(bannerUrl);
-          const bannerMsg = await storage.createMessage({
-            sessionId,
-            from: "ai",
-            content: "[Prechat Banner]",
-            messageType: "media",
-            payload: { type: isVideo ? "video" : "photo", url: bannerUrl, filename: "Prechat Banner" },
-          });
-          broadcastToSession(sessionId, { type: "message", message: bannerMsg });
-        }
-
-        // --- Send configured welcome message second (if set) ---
-        const welcomeText = merchant.welcomeMessage || "";
-        if (welcomeText) {
-          const welcomeMsg = await storage.createMessage({
-            sessionId,
-            from: "ai",
-            content: welcomeText,
-          });
-          broadcastToSession(sessionId, { type: "message", message: welcomeMsg });
-        }
+        // Prechat banner is rendered in the widget UI directly from merchantConfig.prechatBannerUrl —
+        // sending it again as a chat media message causes a duplicate video/image player in the thread.
+        // Welcome message is also suppressed here: when proactive chat is active the greeting is the
+        // only opening message the customer should see.
 
         let greetingText: string;
 
@@ -16513,22 +16490,10 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
         // ---- AUTO-OPEN flow: AI proactively greets the anonymous visitor ----
         // No customer message is stored. Instead we store: banner → welcome text → AI greeting.
 
-        const rawBannerUrl2 = merchant.prechatBannerUrl || "";
-        const bannerUrl = rawBannerUrl2
-          ? (rawBannerUrl2.startsWith('data:') ? `/api/merchant/banner/${resolvedMerchantId}` : rawBannerUrl2)
-          : "";
-        if (bannerUrl) {
-          const isVideo = /\.mp4/i.test(bannerUrl);
-          await storage.createMessage({
-            sessionId,
-            from: "ai",
-            content: "[Prechat Banner]",
-            messageType: "media",
-            payload: { type: isVideo ? "video" : "photo", url: bannerUrl, filename: "Prechat Banner" },
-          });
-        }
-
-        const merchantWelcome = merchant.welcomeMessage || "";
+        // Prechat banner is already rendered in the widget UI — do NOT send as a chat media message.
+        // Welcome message is suppressed when proactive chat is active; the proactive greeting is the
+        // only opening message. When proactive is off this path is not reached, so always skip here.
+        const merchantWelcome = merchant.proactiveChatEnabled ? "" : (merchant.welcomeMessage || "");
         if (merchantWelcome) {
           await storage.createMessage({
             sessionId,
