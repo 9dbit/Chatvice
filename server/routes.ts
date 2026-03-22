@@ -16490,9 +16490,15 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
         // ---- AUTO-OPEN flow: AI proactively greets the anonymous visitor ----
         // No customer message is stored. Instead we store: banner → welcome text → AI greeting.
 
-        // Prechat banner is already rendered in the widget UI — do NOT send as a chat media message.
+        // Compute bannerUrl for the response payload (the widget UI renders it from this URL).
+        // Do NOT send it as a chat media message — the widget already displays it in the prechat area.
+        const rawBannerUrl2 = merchant.prechatBannerUrl || "";
+        const bannerUrl = rawBannerUrl2
+          ? (rawBannerUrl2.startsWith('data:') ? `/api/merchant/banner/${resolvedMerchantId}` : rawBannerUrl2)
+          : "";
+
         // Welcome message is suppressed when proactive chat is active; the proactive greeting is the
-        // only opening message. When proactive is off this path is not reached, so always skip here.
+        // only opening message the customer should see.
         const merchantWelcome = merchant.proactiveChatEnabled ? "" : (merchant.welcomeMessage || "");
         if (merchantWelcome) {
           await storage.createMessage({
