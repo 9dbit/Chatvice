@@ -16123,10 +16123,15 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
       });
 
       if (existingSession) {
-        await storage.updateSession(existingSession.id, {
+        const updatePayload: Record<string, any> = {
           lastActivity: new Date(),
           pageUrl: pageUrl || existingSession.pageUrl,
-        });
+        };
+        const incomingUa = (req.headers["user-agent"] as string) || "";
+        if (incomingUa && !existingSession.userAgent) {
+          updatePayload.userAgent = incomingUa;
+        }
+        await storage.updateSession(existingSession.id, updatePayload);
         return res.json({
           tracked: true,
           sessionId: existingSession.id,

@@ -960,7 +960,7 @@ export default function SessionsPage() {
                                       {session.sessionCount}
                                     </span>
                                   )}
-                                  {session.visitorSession && (
+                                  {session.visitorSession && session.proactiveGreetingSent && (
                                     <span className="flex-shrink-0 text-[9px] font-semibold bg-primary/15 text-primary rounded px-1 py-0.5 leading-none">
                                       Proactive
                                     </span>
