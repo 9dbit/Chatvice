@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import {
   SiAndroid, SiApple, SiLinux,
-  SiGooglechrome, SiFirefox, SiSafari, SiMicrosoftedge, SiOpera,
+  SiGooglechrome, SiFirefox, SiSafari, SiOpera,
 } from "react-icons/si";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
@@ -155,7 +155,7 @@ function DeviceIcon({ userAgent }: { userAgent?: string | null }) {
 function BrowserIcon({ userAgent }: { userAgent?: string | null }) {
   if (!userAgent) return <Globe className="w-3 h-3 text-muted-foreground" />;
   const ua = userAgent.toLowerCase();
-  if (/edg\//i.test(ua)) return <SiMicrosoftedge className="w-3 h-3 text-blue-500" title="Edge" />;
+  if (/edg\//i.test(ua)) return <Globe className="w-3 h-3 text-blue-500" title="Edge" />;
   if (/opr\//i.test(ua) || /opera/i.test(ua)) return <SiOpera className="w-3 h-3 text-red-500" title="Opera" />;
   if (/chrome/i.test(ua) && !/chromium/i.test(ua)) return <SiGooglechrome className="w-3 h-3 text-yellow-500" title="Chrome" />;
   if (/firefox/i.test(ua)) return <SiFirefox className="w-3 h-3 text-orange-500" title="Firefox" />;
