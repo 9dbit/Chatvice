@@ -5861,9 +5861,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       }
       
       const allSessions = await storage.getSessionsByMerchant(req.params.merchantId);
-      // Exclude visitor-tracking-only sessions from the conversation list
-      // Use !== true (not !s.visitorSession) to also handle legacy sessions with visitorSession=null
-      const sessions = allSessions.filter((s) => s.visitorSession !== true);
+      // Include: normal sessions (visitorSession != true) AND proactive sessions that have sent a greeting
+      // Exclude: pure visitor-tracking sessions that haven't sent any greeting yet
+      const sessions = allSessions.filter((s) =>
+        s.visitorSession !== true || (s.visitorSession === true && s.proactiveGreetingSent === true)
+      );
       
       const sessionsWithPreview = await Promise.all(
         sessions.map(async (session) => {
@@ -16157,6 +16159,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
       const assignedAgentId = await getNextAgentId(resolvedMerchantId, undefined, deviceFingerprint);
 
       const sessionId = "sess_v_" + crypto.randomBytes(8).toString("hex");
+      const visitorUserAgent = (req.headers["user-agent"] as string) || "";
       await storage.createSession({
         id: sessionId,
         merchantId: resolvedMerchantId,
@@ -16170,6 +16173,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
         countryCode: geo.countryCode,
         countryName: geo.countryName,
         pageUrl: pageUrl || "",
+        userAgent: visitorUserAgent,
       });
 
       // Schedule AI proactive greeting only when proactive chat is enabled
@@ -16428,6 +16432,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
           agentId: assignedAgentId,
           deviceFingerprint: deviceFingerprint || null,
           clientIp: clientIp || null,
+          userAgent: (req.headers["user-agent"] as string) || null,
         });
         
         // Increment conversation usage for new sessions

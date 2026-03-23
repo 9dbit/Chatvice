@@ -238,6 +238,7 @@ export const sessions = pgTable("sessions", {
   countryCode: text("country_code"),
   countryName: text("country_name"),
   pageUrl: text("page_url"),
+  userAgent: text("user_agent"),
   // Customer rating for session (1-5 stars)
   customerRating: integer("customer_rating"),
   ratingComment: text("rating_comment"),

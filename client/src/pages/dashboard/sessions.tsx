@@ -15,8 +15,12 @@ import {
   MessageSquare, Bot, HeadphonesIcon, Send, Search, User, Download, 
   Hand, ArrowLeft, Clock, Edit, Check, X, Loader2, RefreshCw, AlertCircle,
   CheckCircle2, Circle, XCircle, Filter, ShoppingBag, Plus, ImageIcon, Video, FileText,
-  ExternalLink, Maximize2, Minimize2, MapPin, Volume2, VolumeX
+  ExternalLink, Maximize2, Minimize2, MapPin, Volume2, VolumeX, Monitor, Globe, Smartphone, Radio
 } from "lucide-react";
+import {
+  SiAndroid, SiApple, SiWindows, SiLinux,
+  SiGooglechrome, SiFirefox, SiSafari, SiMicrosoftedge, SiOpera,
+} from "react-icons/si";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
@@ -118,6 +122,45 @@ function getInitials(name: string): string {
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
   return (parts[0]?.[0] || "C").toUpperCase();
+}
+
+function CountryFlag({ code, name }: { code?: string | null; name?: string | null }) {
+  if (!code || code === "xx" || code === "XX") return null;
+  const lower = code.toLowerCase();
+  return (
+    <img
+      src={`https://flagcdn.com/16x12/${lower}.png`}
+      alt={name || code.toUpperCase()}
+      title={name || code.toUpperCase()}
+      width={16}
+      height={12}
+      className="inline-block rounded-sm flex-shrink-0"
+      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+    />
+  );
+}
+
+function DeviceIcon({ userAgent }: { userAgent?: string | null }) {
+  if (!userAgent) return <Monitor className="w-3 h-3 text-muted-foreground" />;
+  const ua = userAgent.toLowerCase();
+  if (/android/i.test(ua)) return <SiAndroid className="w-3 h-3 text-green-500" title="Android" />;
+  if (/iphone|ipad|ipod/i.test(ua)) return <SiApple className="w-3 h-3 text-muted-foreground" title="iOS" />;
+  if (/windows/i.test(ua)) return <SiWindows className="w-3 h-3 text-blue-400" title="Windows" />;
+  if (/macintosh|mac os x/i.test(ua)) return <SiApple className="w-3 h-3 text-muted-foreground" title="macOS" />;
+  if (/linux/i.test(ua)) return <SiLinux className="w-3 h-3 text-yellow-500" title="Linux" />;
+  if (/mobile|tablet/i.test(ua)) return <Smartphone className="w-3 h-3 text-muted-foreground" />;
+  return <Monitor className="w-3 h-3 text-muted-foreground" />;
+}
+
+function BrowserIcon({ userAgent }: { userAgent?: string | null }) {
+  if (!userAgent) return <Globe className="w-3 h-3 text-muted-foreground" />;
+  const ua = userAgent.toLowerCase();
+  if (/edg\//i.test(ua)) return <SiMicrosoftedge className="w-3 h-3 text-blue-500" title="Edge" />;
+  if (/opr\//i.test(ua) || /opera/i.test(ua)) return <SiOpera className="w-3 h-3 text-red-500" title="Opera" />;
+  if (/chrome/i.test(ua) && !/chromium/i.test(ua)) return <SiGooglechrome className="w-3 h-3 text-yellow-500" title="Chrome" />;
+  if (/firefox/i.test(ua)) return <SiFirefox className="w-3 h-3 text-orange-500" title="Firefox" />;
+  if (/safari/i.test(ua) && !/chrome/i.test(ua)) return <SiSafari className="w-3 h-3 text-blue-400" title="Safari" />;
+  return <Globe className="w-3 h-3 text-muted-foreground" />;
 }
 
 function HandlerAvatar({ mode, supervisorPhoto, agentPhoto, size = "md" }: { 
@@ -834,7 +877,7 @@ export default function SessionsPage() {
       </div>
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-0">
-        <div className={`lg:col-span-4 xl:col-span-3 flex flex-col min-h-0 ${selectedSession ? 'hidden lg:flex' : 'flex'}`}>
+        <div className={`lg:col-span-5 xl:col-span-4 flex flex-col min-h-0 ${selectedSession ? 'hidden lg:flex' : 'flex'}`}>
           <Card className="flex flex-col h-full">
             <CardHeader className="flex-shrink-0 py-3 px-4 space-y-2">
               <div className="relative">
@@ -891,12 +934,14 @@ export default function SessionsPage() {
                         >
                           <div className="flex items-start gap-2.5">
                             <div className="relative flex-shrink-0">
-                              <Avatar className="h-9 w-9">
+                              <Avatar className={`h-9 w-9 ${session.visitorSession ? 'ring-2 ring-primary/40' : ''}`}>
                                 {session.customerAvatarUrl ? (
                                   <AvatarImage src={session.customerAvatarUrl} alt={session.customerName || "Customer"} />
                                 ) : null}
                                 <AvatarFallback className={`${getAvatarColor(session.customerName || "Customer")} text-white text-xs font-semibold`}>
-                                  {getInitials(session.customerName || "Customer")}
+                                  {session.visitorSession
+                                    ? <Radio className="w-4 h-4 text-white" />
+                                    : getInitials(session.customerName || "Customer")}
                                 </AvatarFallback>
                               </Avatar>
                               <div className="absolute -bottom-0.5 -right-0.5">
@@ -906,12 +951,18 @@ export default function SessionsPage() {
                             <div className="flex-1 min-w-0 space-y-0.5">
                               <div className="flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-1.5 min-w-0">
+                                  <CountryFlag code={session.countryCode} name={session.countryName} />
                                   <span className="text-sm font-medium truncate">
                                     {session.customerName || session.clientIp || "Customer"}
                                   </span>
                                   {session.sessionCount > 1 && (
                                     <span className="flex-shrink-0 text-[10px] font-semibold bg-muted text-muted-foreground rounded px-1 py-0.5 leading-none">
                                       {session.sessionCount}
+                                    </span>
+                                  )}
+                                  {session.visitorSession && (
+                                    <span className="flex-shrink-0 text-[9px] font-semibold bg-primary/15 text-primary rounded px-1 py-0.5 leading-none">
+                                      Proactive
                                     </span>
                                   )}
                                 </div>
@@ -939,11 +990,19 @@ export default function SessionsPage() {
                                 )}
                               </div>
                               <p className="text-xs text-muted-foreground line-clamp-1">
-                                <span className="text-foreground/70">Q:</span> {session.lastQuestion || "No messages yet"}
+                                <span className="text-foreground/70">Q:</span> {session.lastQuestion || (session.visitorSession ? "Proactive greeting sent" : "No messages yet")}
                               </p>
                               <p className="text-xs text-muted-foreground line-clamp-1">
                                 <span className="text-primary/70">A:</span> {session.lastMessage || "Awaiting reply..."}
                               </p>
+                              {/* Device & browser info row */}
+                              <div className="flex items-center gap-1.5 pt-0.5">
+                                <DeviceIcon userAgent={session.userAgent} />
+                                <BrowserIcon userAgent={session.userAgent} />
+                                {session.countryName && session.countryCode !== "xx" && session.countryCode !== "XX" && (
+                                  <span className="text-[10px] text-muted-foreground truncate">{session.countryName}</span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </button>
@@ -961,7 +1020,7 @@ export default function SessionsPage() {
           </Card>
         </div>
 
-        <div className={`lg:col-span-8 xl:col-span-9 flex min-h-0 gap-3 ${selectedSession ? 'flex' : 'hidden lg:flex'}`}>
+        <div className={`lg:col-span-7 xl:col-span-8 flex min-h-0 gap-3 ${selectedSession ? 'flex' : 'hidden lg:flex'}`}>
           <Card className={`flex flex-col h-full transition-all duration-300 ${previewContent ? 'flex-1' : 'w-full'}`}>
             {selectedSession ? (
               <>
