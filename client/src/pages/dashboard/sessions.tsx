@@ -18,7 +18,7 @@ import {
   ExternalLink, Maximize2, Minimize2, MapPin, Volume2, VolumeX, Monitor, Globe, Smartphone, Radio
 } from "lucide-react";
 import {
-  SiAndroid, SiApple, SiWindows, SiLinux,
+  SiAndroid, SiApple, SiLinux,
   SiGooglechrome, SiFirefox, SiSafari, SiMicrosoftedge, SiOpera,
 } from "react-icons/si";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -145,7 +145,7 @@ function DeviceIcon({ userAgent }: { userAgent?: string | null }) {
   const ua = userAgent.toLowerCase();
   if (/android/i.test(ua)) return <SiAndroid className="w-3 h-3 text-green-500" title="Android" />;
   if (/iphone|ipad|ipod/i.test(ua)) return <SiApple className="w-3 h-3 text-muted-foreground" title="iOS" />;
-  if (/windows/i.test(ua)) return <SiWindows className="w-3 h-3 text-blue-400" title="Windows" />;
+  if (/windows/i.test(ua)) return <Monitor className="w-3 h-3 text-blue-400" title="Windows" />;
   if (/macintosh|mac os x/i.test(ua)) return <SiApple className="w-3 h-3 text-muted-foreground" title="macOS" />;
   if (/linux/i.test(ua)) return <SiLinux className="w-3 h-3 text-yellow-500" title="Linux" />;
   if (/mobile|tablet/i.test(ua)) return <Smartphone className="w-3 h-3 text-muted-foreground" />;
