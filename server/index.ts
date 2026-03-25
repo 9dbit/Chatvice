@@ -3,7 +3,7 @@ import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import cookieParser from "cookie-parser";
-import { registerRoutes } from "./routes";
+import { registerRoutes, cleanupStaleVisitorSessions } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { execSync } from "child_process";
@@ -770,6 +770,11 @@ function startBackgroundSync(): void {
   setTimeout(() => runAllBackgroundJobs(), 5 * 60 * 1000);
   setInterval(() => runAllBackgroundJobs(), 60 * 60 * 1000);
   console.log("[sync] Background sync scheduler started (60 min interval)");
+
+  // Archive stale visitor sessions every 60s (handles browser crashes / no beforeunload).
+  // Visitor sessions inactive for >3min with no customer messages are cleaned up.
+  setInterval(() => cleanupStaleVisitorSessions().catch(err => console.error("[visitor-cleanup] Error:", err)), 60 * 1000);
+  console.log("[visitor-cleanup] Stale visitor session cleanup started (60s interval)");
 
   setInterval(() => runGoogleSheetFastSyncJob(), 10 * 1000);
   console.log("[fast-sync] Google Sheet fast sync scheduler started (10s interval)");

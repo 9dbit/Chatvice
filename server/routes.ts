@@ -29,7 +29,7 @@ import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./payp
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient, sendMerchantAuthNotification, sendEmailChangeOtp } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, or, isNull, isNotNull, gte, sql, not, like } from "drizzle-orm";
+import { eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like } from "drizzle-orm";
 import { messages, sessions, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts } from "@shared/schema";
 import crypto from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
@@ -1458,6 +1458,37 @@ function stripBase64Photos(obj: any, preserveKeys = false): any {
     }
   }
   return result;
+}
+
+// Cleanup stale visitor sessions that have no customer messages and haven't pinged in >3 minutes.
+// Called every 60s from server/index.ts. Handles cases where beforeunload didn't fire (e.g. crash, network loss).
+export async function cleanupStaleVisitorSessions(): Promise<void> {
+  try {
+    const threeMinAgo = new Date(Date.now() - 3 * 60 * 1000);
+    const staleSessions = await db.query.sessions.findMany({
+      where: and(
+        eq(sessions.visitorSession, true),
+        eq(sessions.status, "active"),
+        lt(sessions.lastActivity, threeMinAgo)
+      ),
+    });
+
+    for (const session of staleSessions) {
+      const msgs = await storage.getMessages(session.id);
+      const hasCustomerMessages = msgs.some(
+        (m) => m.from === "user" || m.from === "customer"
+      );
+      if (!hasCustomerMessages) {
+        await storage.updateSession(session.id, { status: "archived" });
+      }
+    }
+
+    if (staleSessions.length > 0) {
+      console.log(`[visitor-cleanup] Archived ${staleSessions.length} stale visitor session(s)`);
+    }
+  } catch (error) {
+    console.error("[visitor-cleanup] Error:", error);
+  }
 }
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
@@ -5861,11 +5892,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       }
       
       const allSessions = await storage.getSessionsByMerchant(req.params.merchantId);
-      // Include: normal sessions (visitorSession != true) AND proactive sessions that have sent a greeting
-      // Exclude: pure visitor-tracking sessions that haven't sent any greeting yet
-      const sessions = allSessions.filter((s) =>
-        s.visitorSession !== true || (s.visitorSession === true && s.proactiveGreetingSent === true)
-      );
+      // Include ALL sessions: normal chat sessions AND all active visitor sessions (regardless of proactive greeting status).
+      // Visitor sessions with no interaction are cleaned up by the stale-visitor cleanup job (every 60s).
+      const sessions = allSessions;
       
       const sessionsWithPreview = await Promise.all(
         sessions.map(async (session) => {
@@ -13953,6 +13982,24 @@ Rules:
           }).catch(function() {});
         }
       }, 30000);
+
+      // Signal server immediately when the visitor closes the tab/browser
+      window.addEventListener("beforeunload", function() {
+        if (visitorSessionId) {
+          var leaveData = JSON.stringify({ sessionId: visitorSessionId });
+          // sendBeacon is non-blocking and survives page unload
+          if (navigator.sendBeacon) {
+            navigator.sendBeacon(baseUrl + "/api/widget/visitor-leave", new Blob([leaveData], { type: "application/json" }));
+          } else {
+            fetch(baseUrl + "/api/widget/visitor-leave", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: leaveData,
+              keepalive: true
+            }).catch(function() {});
+          }
+        }
+      });
     }).catch(function() {});
   }
 
@@ -16197,6 +16244,36 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
     } catch (error) {
       console.error("[visitor-ping] Error:", error);
       res.json({ tracked: false });
+    }
+  });
+
+  // Called by beforeunload (sendBeacon) when a visitor closes the browser without chatting.
+  // Only archives the session if the visitor sent zero customer messages — ensures real chats are preserved.
+  app.post("/api/widget/visitor-leave", async (req, res) => {
+    try {
+      const { sessionId } = req.body;
+      if (!sessionId) return res.json({ archived: false });
+
+      const session = await storage.getSession(sessionId);
+      // Only archive visitor-tracking sessions that haven't been upgraded to a real chat
+      if (!session || !session.visitorSession || session.status !== "active") {
+        return res.json({ archived: false });
+      }
+
+      // Check if any real customer messages exist — if so, this is a real chat, don't archive
+      const msgs = await storage.getMessages(sessionId);
+      const hasCustomerMessages = msgs.some(
+        (m) => m.from === "user" || m.from === "customer"
+      );
+      if (hasCustomerMessages) {
+        return res.json({ archived: false });
+      }
+
+      await storage.updateSession(sessionId, { status: "archived" });
+      res.json({ archived: true });
+    } catch (error) {
+      console.error("[visitor-leave] Error:", error);
+      res.json({ archived: false });
     }
   });
 
