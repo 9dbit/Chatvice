@@ -140,27 +140,37 @@ function CountryFlag({ code, name }: { code?: string | null; name?: string | nul
   );
 }
 
-function DeviceIcon({ userAgent }: { userAgent?: string | null }) {
-  if (!userAgent) return <Monitor className="w-3 h-3 text-muted-foreground" />;
+function DeviceIcon({ userAgent, size = "sm" }: { userAgent?: string | null; size?: "sm" | "md" }) {
+  const cls = size === "md" ? "w-4 h-4" : "w-3.5 h-3.5";
+  if (!userAgent) return <Monitor className={`${cls} text-muted-foreground`} />;
   const ua = userAgent.toLowerCase();
-  if (/android/i.test(ua)) return <SiAndroid className="w-3 h-3 text-green-500" title="Android" />;
-  if (/iphone|ipad|ipod/i.test(ua)) return <SiApple className="w-3 h-3 text-muted-foreground" title="iOS" />;
-  if (/windows/i.test(ua)) return <Monitor className="w-3 h-3 text-blue-400" title="Windows" />;
-  if (/macintosh|mac os x/i.test(ua)) return <SiApple className="w-3 h-3 text-muted-foreground" title="macOS" />;
-  if (/linux/i.test(ua)) return <SiLinux className="w-3 h-3 text-yellow-500" title="Linux" />;
-  if (/mobile|tablet/i.test(ua)) return <Smartphone className="w-3 h-3 text-muted-foreground" />;
-  return <Monitor className="w-3 h-3 text-muted-foreground" />;
+  if (/android|iphone|ipad|ipod|mobile|tablet/i.test(ua))
+    return <Smartphone className={`${cls} text-muted-foreground`} title="Mobile" />;
+  return <Monitor className={`${cls} text-muted-foreground`} title="Desktop" />;
 }
 
-function BrowserIcon({ userAgent }: { userAgent?: string | null }) {
-  if (!userAgent) return <Globe className="w-3 h-3 text-muted-foreground" />;
+function OsIcon({ userAgent, size = "sm" }: { userAgent?: string | null; size?: "sm" | "md" }) {
+  const cls = size === "md" ? "w-4 h-4" : "w-3.5 h-3.5";
+  if (!userAgent) return null;
   const ua = userAgent.toLowerCase();
-  if (/edg\//i.test(ua)) return <Globe className="w-3 h-3 text-blue-500" title="Edge" />;
-  if (/opr\//i.test(ua) || /opera/i.test(ua)) return <SiOpera className="w-3 h-3 text-red-500" title="Opera" />;
-  if (/chrome/i.test(ua) && !/chromium/i.test(ua)) return <SiGooglechrome className="w-3 h-3 text-yellow-500" title="Chrome" />;
-  if (/firefox/i.test(ua)) return <SiFirefox className="w-3 h-3 text-orange-500" title="Firefox" />;
-  if (/safari/i.test(ua) && !/chrome/i.test(ua)) return <SiSafari className="w-3 h-3 text-blue-400" title="Safari" />;
-  return <Globe className="w-3 h-3 text-muted-foreground" />;
+  if (/android/i.test(ua)) return <SiAndroid className={`${cls} text-green-500`} title="Android" />;
+  if (/iphone|ipad|ipod/i.test(ua)) return <SiApple className={`${cls} text-muted-foreground`} title="iOS" />;
+  if (/windows/i.test(ua)) return <Monitor className={`${cls} text-blue-400`} title="Windows" />;
+  if (/macintosh|mac os x/i.test(ua)) return <SiApple className={`${cls} text-muted-foreground`} title="macOS" />;
+  if (/linux/i.test(ua)) return <SiLinux className={`${cls} text-yellow-500`} title="Linux" />;
+  return null;
+}
+
+function BrowserIcon({ userAgent, size = "sm" }: { userAgent?: string | null; size?: "sm" | "md" }) {
+  const cls = size === "md" ? "w-4 h-4" : "w-3.5 h-3.5";
+  if (!userAgent) return <Globe className={`${cls} text-muted-foreground`} />;
+  const ua = userAgent.toLowerCase();
+  if (/edg\//i.test(ua)) return <Globe className={`${cls} text-blue-500`} title="Edge" />;
+  if (/opr\//i.test(ua) || /opera/i.test(ua)) return <SiOpera className={`${cls} text-red-500`} title="Opera" />;
+  if (/chrome/i.test(ua) && !/chromium/i.test(ua)) return <SiGooglechrome className={`${cls} text-yellow-500`} title="Chrome" />;
+  if (/firefox/i.test(ua)) return <SiFirefox className={`${cls} text-orange-500`} title="Firefox" />;
+  if (/safari/i.test(ua) && !/chrome/i.test(ua)) return <SiSafari className={`${cls} text-blue-400`} title="Safari" />;
+  return <Globe className={`${cls} text-muted-foreground`} />;
 }
 
 function HandlerAvatar({ mode, supervisorPhoto, agentPhoto, size = "md" }: { 
@@ -949,12 +959,18 @@ export default function SessionsPage() {
                               </div>
                             </div>
                             <div className="flex-1 min-w-0 space-y-0.5">
+                              {/* Row 1: Flag + IP/Name + icons + time */}
                               <div className="flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-1.5 min-w-0">
                                   <CountryFlag code={session.countryCode} name={session.countryName} />
-                                  <span className="text-sm font-medium truncate">
-                                    {session.customerName || session.clientIp || "Customer"}
+                                  <span className="text-sm font-semibold truncate font-mono">
+                                    {session.clientIp || session.customerName || "Customer"}
                                   </span>
+                                  <div className="flex items-center gap-1 flex-shrink-0">
+                                    <DeviceIcon userAgent={session.userAgent} />
+                                    <OsIcon userAgent={session.userAgent} />
+                                    <BrowserIcon userAgent={session.userAgent} />
+                                  </div>
                                   {session.sessionCount > 1 && (
                                     <span className="flex-shrink-0 text-[10px] font-semibold bg-muted text-muted-foreground rounded px-1 py-0.5 leading-none">
                                       {session.sessionCount}
@@ -966,12 +982,19 @@ export default function SessionsPage() {
                                     </span>
                                   )}
                                 </div>
-                                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                                <span className="text-[10px] text-muted-foreground whitespace-nowrap flex-shrink-0">
                                   {session.lastActivity 
                                     ? formatDistanceToNow(new Date(session.lastActivity), { addSuffix: false })
                                     : ""}
                                 </span>
                               </div>
+                              {/* Row 2: Customer name */}
+                              {session.customerName && (
+                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                  <span className="truncate">{session.customerName}</span>
+                                </div>
+                              )}
+                              {/* Row 3: Handler */}
                               <div className="flex items-center gap-1.5 text-xs font-medium">
                                 {session.mode === "HUMAN" ? (
                                   <>
@@ -995,14 +1018,6 @@ export default function SessionsPage() {
                               <p className="text-xs text-muted-foreground line-clamp-1">
                                 <span className="text-primary/70">A:</span> {session.lastMessage || "Awaiting reply..."}
                               </p>
-                              {/* Device & browser info row */}
-                              <div className="flex items-center gap-1.5 pt-0.5">
-                                <DeviceIcon userAgent={session.userAgent} />
-                                <BrowserIcon userAgent={session.userAgent} />
-                                {session.countryName && session.countryCode !== "xx" && session.countryCode !== "XX" && (
-                                  <span className="text-[10px] text-muted-foreground truncate">{session.countryName}</span>
-                                )}
-                              </div>
                             </div>
                           </div>
                         </button>
@@ -1050,15 +1065,27 @@ export default function SessionsPage() {
                         <CardTitle className="text-sm sm:text-base truncate" data-testid="text-selected-customer">
                           {selectedSessionData?.customerName || "Customer"}
                         </CardTitle>
-                        <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground">
-                          <span className="font-mono truncate max-w-[80px] sm:max-w-[120px] hidden sm:inline">
-                            {selectedSession.slice(0, 12)}...
-                          </span>
+                        {/* Client info row: flag + IP + device + OS + browser + country */}
+                        <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                          <CountryFlag code={selectedSessionData?.countryCode} name={selectedSessionData?.countryName} />
+                          {selectedSessionData?.clientIp && (
+                            <span className="font-mono text-[11px] sm:text-xs text-muted-foreground">
+                              {selectedSessionData.clientIp}
+                            </span>
+                          )}
+                          <DeviceIcon userAgent={selectedSessionData?.userAgent} size="md" />
+                          <OsIcon userAgent={selectedSessionData?.userAgent} size="md" />
+                          <BrowserIcon userAgent={selectedSessionData?.userAgent} size="md" />
+                          {selectedSessionData?.countryName && selectedSessionData.countryCode !== "xx" && selectedSessionData.countryCode !== "XX" && (
+                            <span className="text-[11px] sm:text-xs text-muted-foreground">
+                              {selectedSessionData.countryName}
+                            </span>
+                          )}
                           {selectedSessionData?.lastActivity && (
                             <>
-                              <span className="text-muted-foreground/50 hidden sm:inline">|</span>
-                              <Clock className="w-3 h-3" />
-                              <span>
+                              <span className="text-muted-foreground/40">·</span>
+                              <Clock className="w-3 h-3 text-muted-foreground" />
+                              <span className="text-[11px] sm:text-xs text-muted-foreground">
                                 {formatDistanceToNow(new Date(selectedSessionData.lastActivity), { addSuffix: true })}
                               </span>
                             </>
