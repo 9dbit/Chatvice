@@ -164,6 +164,7 @@ export function PublicFooter() {
       { label: "FAQ", href: "/faq" },
       { label: "Contact", href: "mailto:hello@chatvice.app" },
       { label: "Status", href: "/status" },
+      { label: "Marketing Tools", href: "/marketing-tools" },
     ],
     legal: [
       { label: "Privacy Policy", href: "/privacy" },

@@ -39,6 +39,7 @@ import PressPage from "@/pages/company/press";
 import PartnersPage from "@/pages/company/partners";
 import AffiliatePage from "@/pages/company/affiliate";
 
+import MarketingToolsPage from "@/pages/marketing/marketing-tools";
 import ContactPage from "@/pages/resources/contact";
 import StatusPage from "@/pages/resources/status";
 import DocsPage from "@/pages/resources/docs";
@@ -109,6 +110,7 @@ function GlobalHelpBubble() {
     '/status',
     '/docs',
     '/help',
+    '/marketing-tools',
   ];
   
   const shouldShow = allowedPaths.some(path => 
@@ -221,6 +223,8 @@ function MainRouter() {
       <Route path="/press" component={PressPage} />
       <Route path="/partners" component={PartnersPage} />
       <Route path="/affiliate" component={AffiliatePage} />
+
+      <Route path="/marketing-tools" component={MarketingToolsPage} />
 
       <Route path="/contact" component={ContactPage} />
       <Route path="/status" component={StatusPage} />
