@@ -60,6 +60,7 @@ export function PublicNavbar() {
     { label: "API", href: "/api-docs" },
     { label: "FAQ", href: "/faq" },
     { label: "About", href: "/about" },
+    { label: "Marketing Tools", href: "/marketing-tools" },
   ];
 
   return (

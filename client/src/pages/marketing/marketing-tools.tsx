@@ -1,1231 +1,786 @@
-import { useRef, useState } from "react";
-import { Link } from "wouter";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useQuery } from "@tanstack/react-query";
-import {
-  Download,
-  Loader2,
-  Zap,
-  TrendingUp,
-  DollarSign,
-  Check,
-  X,
-  ShoppingCart,
-  Hotel,
-  Gamepad2,
-  Building2,
-  ArrowRight,
-  MessageCircle,
-  Brain,
-  Shield,
-  BarChart3,
-  CreditCard,
-  Bot,
-  Globe,
-  Rocket,
-  Sparkles,
-} from "lucide-react";
+import { Download, Loader2, FileText, Check } from "lucide-react";
 import PublicPageLayout from "../public-layout";
-import { useTheme } from "@/components/theme-provider";
-import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
-import heroBackgroundImage from "@assets/IMG_0185_1764870218768.jpeg";
-import analyticsImage from "@assets/banner_human_analytics.png";
-import simplicityImage from "@assets/banner_human_simplicity.png";
-import securityImage from "@assets/banner_human_security.png";
-import aiEngineImage from "@assets/banner_human_ai_engine.png";
 
-interface DbPlan {
-  id: string;
-  monthlyPrice: number;
-  annualPrice: number;
-  agentsLimit: number;
-  supervisorsLimit: number;
-  conversationsLimit: number;
-  sourcesLimit: number;
-  suggestedQuestionsLimit: number;
-  chatRetentionHours: number;
-}
+async function generateProposalPDF() {
+  const { default: jsPDF } = await import("jspdf");
 
-interface PlanFeature {
-  text: string;
-  ok: boolean;
-}
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const W = 210;
+  const H = 297;
 
-interface PlanCard {
-  name: string;
-  price: string;
-  priceSub: string;
-  yearlyNote?: string;
-  color: string;
-  badge: string | null;
-  features: PlanFeature[];
-}
+  const PURPLE = [109, 40, 217] as const;
+  const PURPLE_LIGHT = [237, 233, 254] as const;
+  const WHITE = [255, 255, 255] as const;
+  const DARK = [24, 24, 27] as const;
+  const GRAY = [113, 113, 122] as const;
+  const GRAY_LIGHT = [244, 244, 245] as const;
+  const GREEN = [22, 163, 74] as const;
+  const RED = [220, 38, 38] as const;
+  const AMBER = [217, 119, 6] as const;
 
-function formatLimit(value: number, suffix = ""): string {
-  if (value === -1) return "Unlimited";
-  return value.toLocaleString() + suffix;
-}
+  function setFont(
+    size: number,
+    style: "normal" | "bold" = "normal",
+    color: readonly [number, number, number] = DARK
+  ) {
+    pdf.setFontSize(size);
+    pdf.setFont("helvetica", style);
+    pdf.setTextColor(...color);
+  }
 
-function formatRetention(hours: number): string {
-  if (hours === -1) return "Unlimited";
-  if (hours < 24) return `${hours} hr${hours !== 1 ? "s" : ""}`;
-  const days = hours / 24;
-  return `${days} day${days !== 1 ? "s" : ""} chat history`;
-}
+  function fill(color: readonly [number, number, number]) {
+    pdf.setFillColor(...color);
+  }
 
-function buildPlans(dbPlans: DbPlan[]): PlanCard[] {
-  const get = (id: string) => dbPlans.find((p) => p.id === id);
+  function drawRect(
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    color: readonly [number, number, number]
+  ) {
+    fill(color);
+    pdf.rect(x, y, w, h, "F");
+  }
 
-  const free = get("free");
-  const starter = get("starter");
-  const pro = get("pro");
-  const enterprise = get("enterprise");
+  function drawPageHeader(
+    slideNum: number,
+    title: string,
+    bgColor: readonly [number, number, number] = PURPLE
+  ) {
+    drawRect(0, 0, W, H, WHITE);
+    drawRect(0, 0, W, 42, bgColor);
+    setFont(8, "normal", [255, 255, 255] as const);
+    pdf.text(`CHATVICE · PRODUCT PROPOSAL  ·  SLIDE ${slideNum} / 13`, 14, 10);
+    setFont(22, "bold", [255, 255, 255] as const);
+    pdf.text(title, 14, 30);
+    drawRect(0, 42, W, 0.5, [200, 200, 200] as const);
+  }
 
-  const freeAgents = free?.agentsLimit ?? 1;
-  const freeConvs = free?.conversationsLimit ?? 20;
-  const freeSources = free?.sourcesLimit ?? 1;
-  const freeRetention = free?.chatRetentionHours ?? 1;
+  function bullet(
+    x: number,
+    y: number,
+    text: string,
+    ok: boolean | null = null
+  ): number {
+    if (ok === true) {
+      pdf.setTextColor(...GREEN);
+      pdf.text("✓", x, y);
+    } else if (ok === false) {
+      pdf.setTextColor(...RED);
+      pdf.text("✗", x, y);
+    } else {
+      pdf.setTextColor(...PURPLE);
+      pdf.text("•", x, y);
+    }
+    setFont(9, "normal", DARK);
+    const lines = pdf.splitTextToSize(text, W - x - 24);
+    pdf.text(lines, x + 6, y);
+    return (lines.length - 1) * 4.5;
+  }
 
-  const starterAgents = starter?.agentsLimit ?? 1;
-  const starterConvs = starter?.conversationsLimit ?? 2000;
-  const starterSources = starter?.sourcesLimit ?? 5;
-  const starterRetention = starter?.chatRetentionHours ?? 24;
-  const starterMonthly = starter?.monthlyPrice ?? 29;
-  const starterYearly = starter?.annualPrice ?? 24;
+  function tag(x: number, y: number, label: string) {
+    const tw = (pdf.getStringUnitWidth(label) * 9) / pdf.internal.scaleFactor;
+    drawRect(x, y - 4, tw + 6, 6, PURPLE_LIGHT);
+    pdf.setTextColor(...PURPLE);
+    pdf.setFontSize(8);
+    pdf.text(label, x + 3, y);
+  }
 
-  const proAgents = pro?.agentsLimit ?? 3;
-  const proSups = pro?.supervisorsLimit ?? 3;
-  const proConvs = pro?.conversationsLimit ?? 10000;
-  const proSources = pro?.sourcesLimit ?? 20;
-  const proRetention = pro?.chatRetentionHours ?? 48;
-  const proMonthly = pro?.monthlyPrice ?? 99;
-  const proYearly = pro?.annualPrice ?? 83;
+  // ─────────────────────────────────────────────
+  // SLIDE 1 — COVER
+  // ─────────────────────────────────────────────
+  drawRect(0, 0, W, H, PURPLE);
+  drawRect(0, H - 60, W, 60, [88, 28, 185] as const);
+  setFont(11, "bold", [255, 255, 255] as const);
+  pdf.text("CHATVICE", 14, 24);
+  setFont(9, "normal", [196, 181, 253] as const);
+  pdf.text("AI CUSTOMER SERVICE PLATFORM", 14, 32);
+  setFont(28, "bold", [255, 255, 255] as const);
+  const headline = pdf.splitTextToSize(
+    "Turn Every Visitor\nInto Revenue —\nInstantly.",
+    W - 28
+  );
+  pdf.text(headline, 14, 70);
+  setFont(11, "normal", [196, 181, 253] as const);
+  pdf.text("AI Live Chat  ·  Automation  ·  Conversion Engine", 14, 130);
 
-  const entAgents = enterprise?.agentsLimit ?? 10;
-  const entSups = enterprise?.supervisorsLimit ?? 5;
-  const entConvs = enterprise?.conversationsLimit ?? 50000;
-  const entSources = enterprise?.sourcesLimit ?? -1;
-  const entRetention = enterprise?.chatRetentionHours ?? 168;
-  const entMonthly = enterprise?.monthlyPrice ?? 499;
-  const entYearly = enterprise?.annualPrice ?? 416;
+  const stats = [
+    ["< 1 sec", "Response Time"],
+    ["+30%", "Conversion Rate"],
+    ["−70%", "Support Cost"],
+  ];
+  stats.forEach(([val, label], i) => {
+    const bx = 14 + i * 62;
+    drawRect(bx, 148, 56, 28, [88, 28, 185] as const);
+    setFont(16, "bold", [255, 255, 255] as const);
+    pdf.text(val, bx + 28, 161, { align: "center" });
+    setFont(7, "normal", [196, 181, 253] as const);
+    pdf.text(label, bx + 28, 169, { align: "center" });
+  });
 
-  return [
+  setFont(8, "normal", [196, 181, 253] as const);
+  pdf.text("chatvice.app  ·  hello@chatvice.app", 14, H - 14);
+  setFont(8, "normal", [196, 181, 253] as const);
+  pdf.text("CONFIDENTIAL — FOR PARTNER USE ONLY", W - 14, H - 14, {
+    align: "right",
+  });
+
+  // ─────────────────────────────────────────────
+  // SLIDE 2 — THE PROBLEM
+  // ─────────────────────────────────────────────
+  pdf.addPage();
+  drawPageHeader(2, "The Problem");
+  setFont(13, "bold", DARK);
+  pdf.text(
+    "Most Businesses Lose Customers Before They Even Say Hello.",
+    14,
+    58
+  );
+
+  const problems = [
+    "Slow response (>5 min) causes 78% of leads to abandon",
+    "Human CS teams cannot scale beyond business hours",
+    "High operational cost — 1 CS agent = Rp 4–6 juta/month",
+    "No visibility into what customers are asking or why they leave",
+    "Inconsistent answers damage brand trust and repeat purchases",
+  ];
+  problems.forEach((p, i) => {
+    drawRect(14, 68 + i * 24, W - 28, 20, GRAY_LIGHT);
+    setFont(9, "normal", DARK);
+    bullet(20, 81 + i * 24, p, false);
+  });
+
+  drawRect(14, 200, W - 28, 20, PURPLE);
+  setFont(12, "bold", [255, 255, 255] as const);
+  pdf.text('"Speed is revenue. Delay is loss."', W / 2, 213, {
+    align: "center",
+  });
+
+  // ─────────────────────────────────────────────
+  // SLIDE 3 — THE SOLUTION
+  // ─────────────────────────────────────────────
+  pdf.addPage();
+  drawPageHeader(3, "The Solution");
+
+  drawRect(14, 50, W - 28, 30, PURPLE_LIGHT);
+  setFont(14, "bold", PURPLE);
+  pdf.text("AI-Powered Conversations That Convert.", 14 + (W - 28) / 2, 69, {
+    align: "center",
+  });
+
+  const solutions = [
+    ["AI Chatbot 24/7", "Answers every customer instantly, even at 3am"],
+    ["In-Chat Payments", "Close transactions without leaving the conversation"],
+    ["Human Escalation", "Seamlessly hand off to supervisors when needed"],
+    ["Embeds Anywhere", "1 line of code — live on your website in 5 minutes"],
+  ];
+  solutions.forEach(([title, desc], i) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const bx = 14 + col * 91;
+    const by = 92 + row * 56;
+    drawRect(bx, by, 85, 50, GRAY_LIGHT);
+    setFont(10, "bold", PURPLE);
+    pdf.text(title, bx + 8, by + 14);
+    setFont(8, "normal", GRAY);
+    const lines = pdf.splitTextToSize(desc, 68);
+    pdf.text(lines, bx + 8, by + 24);
+  });
+
+  drawRect(14, 210, W - 28, 20, DARK);
+  setFont(12, "bold", [255, 255, 255] as const);
+  pdf.text('"Your AI Sales Team — Working 24/7"', W / 2, 223, {
+    align: "center",
+  });
+
+  // ─────────────────────────────────────────────
+  // SLIDE 4 — PRODUCT OVERVIEW
+  // ─────────────────────────────────────────────
+  pdf.addPage();
+  drawPageHeader(4, "Product Overview");
+  setFont(12, "bold", DARK);
+  pdf.text("How Chatvice Works — 3 Simple Steps", 14, 58);
+
+  const steps = [
+    [
+      "01  Install Widget",
+      "Paste one line of code. Live on your website in under 5 minutes. No developer needed.",
+    ],
+    [
+      "02  Train Knowledge Base",
+      "Feed Chatvice your FAQs, product info, and docs. The AI learns your business instantly.",
+    ],
+    [
+      "03  Monitor & Convert",
+      "Track conversations, escalate complex queries to supervisors, and analyze performance.",
+    ],
+  ];
+  steps.forEach(([title, desc], i) => {
+    drawRect(14, 68 + i * 48, W - 28, 42, i === 1 ? PURPLE_LIGHT : GRAY_LIGHT);
+    setFont(11, "bold", i === 1 ? PURPLE : DARK);
+    pdf.text(title, 22, 83 + i * 48);
+    setFont(9, "normal", GRAY);
+    const lines = pdf.splitTextToSize(desc, W - 50);
+    pdf.text(lines, 22, 93 + i * 48);
+  });
+
+  setFont(9, "normal", GRAY);
+  pdf.text(
+    "Chatvice integrates with your existing website via a lightweight JavaScript snippet.",
+    14,
+    220
+  );
+  pdf.text(
+    "No backend changes required. Works with WordPress, Shopify, custom HTML, and more.",
+    14,
+    228
+  );
+
+  // ─────────────────────────────────────────────
+  // SLIDE 5 — CORE FEATURES
+  // ─────────────────────────────────────────────
+  pdf.addPage();
+  drawPageHeader(5, "Core Features");
+
+  const features = [
+    [
+      "AI Chat Engine (LEXA1)",
+      "Auto-reply with natural language. Multi-language. Learns from your knowledge base via semantic search.",
+    ],
+    [
+      "Live Chat System",
+      "Real-time WebSocket messaging with typing indicators. Multi-agent supervisor dashboard.",
+    ],
+    [
+      "Smart Automation",
+      "Auto follow-up, behavior-based triggers, lead qualification — running while you sleep.",
+    ],
+    [
+      "In-Chat Transactions",
+      "Payment links, QRIS, VA, e-wallets — all inside the chat. Auto-confirmation via webhook.",
+    ],
+    [
+      "Analytics & Insight",
+      "Chat history, conversion tracking, customer behavior reports. Know what's working.",
+    ],
+    [
+      "Enterprise Security",
+      "Domain binding, identity verification, allowed-domains control, SLA-grade infrastructure.",
+    ],
+  ];
+  features.forEach(([title, desc], i) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const bx = 14 + col * 91;
+    const by = 50 + row * 64;
+    drawRect(bx, by, 85, 58, GRAY_LIGHT);
+    drawRect(bx, by, 85, 4, PURPLE);
+    setFont(9, "bold", PURPLE);
+    pdf.text(title, bx + 6, by + 16);
+    setFont(8, "normal", GRAY);
+    const lines = pdf.splitTextToSize(desc, 72);
+    pdf.text(lines, bx + 6, by + 26);
+  });
+
+  // ─────────────────────────────────────────────
+  // SLIDE 6 — POSITIONING
+  // ─────────────────────────────────────────────
+  pdf.addPage();
+  drawPageHeader(6, "Positioning");
+  setFont(13, "bold", DARK);
+  pdf.text("Chatvice Is Not Just a Chatbot.", 14, 58);
+
+  const notItems = ["Chatbot AI", "Live Chat Tool", "Customer Service Tool"];
+  const isItems = [
+    "AI Conversation Infrastructure",
+    "Revenue Automation Layer",
+    "AI Sales & Support Engine",
+  ];
+
+  setFont(9, "bold", RED);
+  pdf.text("What we are NOT", 14, 74);
+  notItems.forEach((item, i) => {
+    drawRect(14, 78 + i * 22, 85, 18, GRAY_LIGHT);
+    setFont(9, "normal", GRAY);
+    bullet(20, 90 + i * 22, item, false);
+  });
+
+  setFont(9, "bold", GREEN);
+  pdf.text("What we ARE", 106, 74);
+  isItems.forEach((item, i) => {
+    drawRect(106, 78 + i * 22, 90, 18, PURPLE_LIGHT);
+    setFont(9, "normal", DARK);
+    bullet(112, 90 + i * 22, item, true);
+  });
+
+  drawRect(14, 152, W - 28, 24, PURPLE);
+  setFont(13, "bold", [255, 255, 255] as const);
+  pdf.text('"From Chat → Conversion → Revenue"', W / 2, 167, {
+    align: "center",
+  });
+
+  setFont(9, "normal", GRAY);
+  pdf.text(
+    "Chatvice is the revenue layer between your website and your customer's wallet.",
+    14,
+    192
+  );
+
+  // ─────────────────────────────────────────────
+  // SLIDE 7 — COMPETITIVE ADVANTAGE
+  // ─────────────────────────────────────────────
+  pdf.addPage();
+  drawPageHeader(7, "Competitive Advantage");
+  setFont(12, "bold", DARK);
+  pdf.text("Why Chatvice Wins", 14, 58);
+
+  const tableHeaders = ["Feature", "Chatvice", "Traditional Live Chat", "WhatsApp CS"];
+  const colW = [52, 46, 58, 40];
+  const colX = [14, 66, 112, 170];
+
+  drawRect(14, 64, W - 28, 10, PURPLE);
+  tableHeaders.forEach((h, i) => {
+    setFont(8, "bold", [255, 255, 255] as const);
+    pdf.text(h, colX[i] + 2, 71);
+  });
+
+  const rows = [
+    ["Response Speed", "⚡ Instant AI", "Human delay", "Manual"],
+    ["Operational Cost", "Low", "High", "High"],
+    ["24/7 Availability", "Yes", "No", "No"],
+    ["Automation", "Advanced", "Limited", "None"],
+    ["In-chat Payment", "Yes", "No", "No"],
+    ["Human Escalation", "Seamless", "Yes", "No"],
+    ["Analytics", "Advanced", "Basic", "No"],
+  ];
+  rows.forEach((row, ri) => {
+    const bg = ri % 2 === 0 ? WHITE : GRAY_LIGHT;
+    drawRect(14, 74 + ri * 14, W - 28, 14, bg);
+    drawRect(colX[1], 74 + ri * 14, colW[1], 14, PURPLE_LIGHT);
+    row.forEach((cell, ci) => {
+      const isYes = cell === "Yes" || cell === "Seamless" || cell.startsWith("⚡");
+      const isNo = cell === "No";
+      const textColor =
+        ci === 1 ? PURPLE : isYes ? GREEN : isNo ? RED : DARK;
+      setFont(ci === 0 ? 8 : 8, ci === 0 ? "normal" : "normal", textColor);
+      pdf.text(cell, colX[ci] + 2, 83 + ri * 14);
+    });
+  });
+
+  // ─────────────────────────────────────────────
+  // SLIDE 8 — VALUE PROPOSITION
+  // ─────────────────────────────────────────────
+  pdf.addPage();
+  drawPageHeader(8, "Value Proposition");
+  setFont(12, "bold", DARK);
+  pdf.text("The Business Case for Chatvice", 14, 58);
+
+  const vProps = [
     {
-      name: "Free",
-      price: "$0/mo",
-      priceSub: "forever",
-      color: "border-border",
-      badge: null,
-      features: [
-        { text: `${formatLimit(freeAgents)} AI Agent`, ok: true },
-        { text: "1 Supervisor", ok: true },
-        { text: `${formatLimit(freeConvs)} conversations/month`, ok: true },
-        { text: `${formatLimit(freeSources)} Knowledge source`, ok: true },
-        { text: formatRetention(freeRetention), ok: true },
-        { text: "Basic widget customization", ok: true },
-        { text: "Community support", ok: true },
-        { text: "Remove Chatvice branding", ok: false },
-        { text: "Analytics", ok: false },
-        { text: "API access", ok: false },
+      title: "Cost Effective",
+      color: GREEN,
+      bg: [240, 253, 244] as const,
+      points: ["Replace 3–5 CS staff", "Reduce opex up to 70%", "No overtime, no sick days"],
+    },
+    {
+      title: "Instant Response",
+      color: AMBER,
+      bg: [255, 251, 235] as const,
+      points: ["<1 second reply time", "Zero missed leads", "Always available 24/7"],
+    },
+    {
+      title: "More Conversions",
+      color: PURPLE,
+      bg: PURPLE_LIGHT,
+      points: ["Instant engagement", "Guided purchase flow", "AI upsell suggestions"],
+    },
+  ];
+  vProps.forEach(({ title, color, bg, points }, i) => {
+    const bx = 14 + i * 61;
+    drawRect(bx, 66, 55, 88, bg);
+    setFont(9, "bold", color);
+    pdf.text(title, bx + 4, 78);
+    points.forEach((p, j) => {
+      setFont(8, "normal", DARK);
+      bullet(bx + 4, 90 + j * 18, p, true);
+    });
+  });
+
+  drawRect(14, 168, W - 28, 32, DARK);
+  setFont(11, "bold", [255, 255, 255] as const);
+  pdf.text(
+    '"Your customers don\'t wait. Why should your response?"',
+    W / 2,
+    180,
+    { align: "center" }
+  );
+  setFont(8, "normal", [161, 161, 170] as const);
+  pdf.text("1 CS staff = ±Rp 4–6 juta/bulan", W / 2, 190, {
+    align: "center",
+  });
+  pdf.text("Chatvice = mulai dari Free (Rp 0)", W / 2, 197, {
+    align: "center",
+  });
+
+  // ─────────────────────────────────────────────
+  // SLIDE 9 — USE CASES
+  // ─────────────────────────────────────────────
+  pdf.addPage();
+  drawPageHeader(9, "Use Cases");
+  setFont(12, "bold", DARK);
+  pdf.text("Built for Every Industry", 14, 58);
+
+  const useCases = [
+    {
+      title: "E-Commerce",
+      color: [59, 130, 246] as const,
+      points: [
+        "Auto product Q&A & recommendations",
+        "Checkout & order status in chat",
+        "Cart abandonment follow-up",
       ],
     },
     {
-      name: "Starter",
-      price: `$${starterMonthly}/mo`,
-      priceSub: "billed monthly",
-      yearlyNote: `$${starterYearly}/mo billed yearly — save 20%`,
-      color: "border-purple-300 dark:border-purple-700",
-      badge: null,
-      features: [
-        { text: `${formatLimit(starterAgents)} AI Agent`, ok: true },
-        { text: "1 Supervisor", ok: true },
-        { text: `${formatLimit(starterConvs)} conversations/month`, ok: true },
-        { text: `${formatLimit(starterSources)} Knowledge sources`, ok: true },
-        { text: formatRetention(starterRetention), ok: true },
-        { text: "5 Suggested questions", ok: true },
-        { text: "Full widget customization", ok: true },
-        { text: "Remove Chatvice branding", ok: true },
-        { text: "Basic analytics", ok: true },
-        { text: "Email support", ok: true },
-        { text: "Custom domain", ok: false },
-        { text: "API access", ok: false },
-        { text: "Identity verification", ok: false },
+      title: "Hospitality",
+      color: [20, 184, 166] as const,
+      points: [
+        "Room booking & availability",
+        "AI concierge for guests 24/7",
+        "Service request handling",
       ],
     },
     {
-      name: "Pro",
-      price: `$${proMonthly}/mo`,
-      priceSub: "billed monthly",
-      yearlyNote: `$${proYearly}/mo billed yearly — save 20%`,
-      color: "border-purple-500",
-      badge: "Most Popular",
-      features: [
-        { text: `${formatLimit(proAgents)} AI Agents`, ok: true },
-        { text: `${formatLimit(proSups)} Supervisors`, ok: true },
-        { text: `${formatLimit(proConvs)} conversations/month`, ok: true },
-        { text: `${formatLimit(proSources)} Knowledge sources`, ok: true },
-        { text: formatRetention(proRetention), ok: true },
-        { text: "Advanced analytics", ok: true },
-        { text: "Priority email support", ok: true },
-        { text: "Custom triggers", ok: true },
-        { text: "API access", ok: true },
-        { text: "Custom domain", ok: true },
-        { text: "Identity verification", ok: true },
-        { text: "Allowed domains control", ok: true },
-        { text: "White-label", ok: false },
-        { text: "SLA guarantee", ok: false },
+      title: "Gaming / Top-Up",
+      color: PURPLE,
+      points: [
+        "Automated deposit flow in-chat",
+        "Anti-fraud domain binding",
+        "Instant transaction confirmation",
       ],
     },
     {
-      name: "Enterprise",
-      price: `$${entMonthly}/mo`,
-      priceSub: "billed monthly",
-      yearlyNote: `$${entYearly}/mo billed yearly — save 20%`,
-      color: "border-amber-400 dark:border-amber-600",
-      badge: null,
-      features: [
-        { text: `${formatLimit(entAgents)} AI Agents`, ok: true },
-        { text: `${formatLimit(entSups)} Supervisors`, ok: true },
-        { text: `${formatLimit(entConvs)} conversations/month`, ok: true },
-        { text: `${formatLimit(entSources)} knowledge sources`, ok: true },
-        { text: formatRetention(entRetention), ok: true },
-        { text: "Advanced analytics", ok: true },
-        { text: "Dedicated support manager", ok: true },
-        { text: "Custom integrations", ok: true },
-        { text: "SLA guarantee", ok: true },
-        { text: "White-label solution", ok: true },
-        { text: "Custom domain", ok: true },
-        { text: "Identity verification", ok: true },
-        { text: "Priority queue", ok: true },
-        { text: "On-premise option", ok: false },
-      ],
-    },
-    {
-      name: "Custom",
-      price: "Custom",
-      priceSub: "pricing",
-      color: "border-rose-400 dark:border-rose-600",
-      badge: "Enterprise+",
-      features: [
-        { text: "Everything in Enterprise", ok: true },
-        { text: "Unlimited AI Agents", ok: true },
-        { text: "Unlimited Supervisors", ok: true },
-        { text: "Unlimited conversations", ok: true },
-        { text: "Custom architecture & workflow", ok: true },
-        { text: "Dedicated account manager", ok: true },
-        { text: "Custom SLA", ok: true },
-        { text: "On-premise deployment", ok: true },
-        { text: "24/7 Premium support", ok: true },
-        { text: "Personalized onboarding", ok: true },
+      title: "Corporate / Service",
+      color: AMBER,
+      points: [
+        "Intelligent lead generation",
+        "Appointment booking automation",
+        "Internal helpdesk & support",
       ],
     },
   ];
-}
+  useCases.forEach(({ title, color, points }, i) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const bx = 14 + col * 97;
+    const by = 66 + row * 76;
+    drawRect(bx, by, 89, 70, GRAY_LIGHT);
+    drawRect(bx, by, 89, 6, color);
+    setFont(10, "bold", color);
+    pdf.text(title, bx + 6, by + 18);
+    points.forEach((p, j) => {
+      setFont(8, "normal", DARK);
+      bullet(bx + 6, by + 30 + j * 14, p, true);
+    });
+  });
 
-function SectionWrapper({
-  id,
-  className,
-  children,
-}: {
-  id: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div id={id} className={`pdf-section ${className ?? ""}`}>
-      {children}
-    </div>
-  );
-}
+  // ─────────────────────────────────────────────
+  // SLIDE 10 — PRICING
+  // ─────────────────────────────────────────────
+  pdf.addPage();
+  drawPageHeader(10, "Pricing");
+  setFont(11, "bold", DARK);
+  pdf.text("Simple, Transparent Pricing", 14, 54);
+  setFont(8, "normal", GRAY);
+  pdf.text("All plans include a 14-day free trial. Annual billing saves 20%.", 14, 62);
 
-function SectionLabel({ number, title }: { number: number; title: string }) {
-  return (
-    <div className="flex items-center gap-3 mb-3">
-      <span className="w-7 h-7 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
-        {number}
-      </span>
-      <span className="text-xs font-semibold uppercase tracking-widest text-purple-600">
-        {title}
-      </span>
-    </div>
+  const pricingPlans = [
+    { name: "Free", price: "$0/mo", note: "forever", color: GRAY_LIGHT, textColor: DARK },
+    { name: "Starter", price: "$29/mo", note: "→ $24 annual", color: PURPLE_LIGHT, textColor: PURPLE },
+    { name: "Pro", price: "$99/mo", note: "→ $83 annual", color: PURPLE, textColor: [255, 255, 255] as const },
+    { name: "Enterprise", price: "$499/mo", note: "→ $416 annual", color: [254, 243, 199] as const, textColor: AMBER },
+    { name: "Custom", price: "Custom", note: "pricing", color: DARK, textColor: [255, 255, 255] as const },
+  ];
+  pricingPlans.forEach(({ name, price, note, color, textColor }, i) => {
+    const bx = 14 + i * 38;
+    drawRect(bx, 68, 35, 70, color);
+    setFont(8, "bold", textColor);
+    pdf.text(name, bx + 17.5, 78, { align: "center" });
+    setFont(11, "bold", textColor);
+    pdf.text(price, bx + 17.5, 92, { align: "center" });
+    setFont(7, "normal", textColor);
+    pdf.text(note, bx + 17.5, 100, { align: "center" });
+  });
+
+  const planFeatures = [
+    ["AI Agents", "1", "1", "3", "10", "Unlimited"],
+    ["Conversations/mo", "20", "2,000", "10,000", "50,000", "Unlimited"],
+    ["Supervisors", "1", "1", "3", "5", "Unlimited"],
+    ["Knowledge Sources", "1", "5", "20", "Unlimited", "Unlimited"],
+    ["Remove Branding", "No", "Yes", "Yes", "Yes", "Yes"],
+    ["Analytics", "No", "Basic", "Advanced", "Advanced", "Custom"],
+    ["API Access", "No", "No", "Yes", "Yes", "Yes"],
+    ["SLA Guarantee", "No", "No", "No", "Yes", "Custom"],
+  ];
+  planFeatures.forEach((row, ri) => {
+    const bg = ri % 2 === 0 ? WHITE : GRAY_LIGHT;
+    drawRect(14, 144 + ri * 12, W - 28, 12, bg);
+    row.forEach((cell, ci) => {
+      const bx = ci === 0 ? 14 : 14 + (ci) * 38;
+      const isYes = cell === "Yes" || cell === "Advanced" || cell === "Unlimited" || cell === "Custom";
+      const isNo = cell === "No";
+      const color = isYes ? GREEN : isNo ? RED : DARK;
+      setFont(ci === 0 ? 7 : 7, "normal", color);
+      pdf.text(cell, ci === 0 ? bx + 2 : bx + 17.5 + 2, 152 + ri * 12, ci === 0 ? {} : { align: "center" });
+    });
+  });
+
+  setFont(8, "italic", GRAY);
+  pdf.text(
+    '"Less than 1 coffee per month — for a 24/7 AI sales team."',
+    W / 2,
+    244,
+    { align: "center" }
   );
+
+  // ─────────────────────────────────────────────
+  // SLIDE 11 — DEMO FLOW
+  // ─────────────────────────────────────────────
+  pdf.addPage();
+  drawPageHeader(11, "Demo Flow");
+  setFont(12, "bold", DARK);
+  pdf.text("From Visitor to Payment — In One Conversation.", 14, 58);
+
+  const demoSteps = [
+    ["01", "Visitor enters your website", "The Chatvice widget loads instantly — no page speed impact."],
+    ["02", "AI greets the visitor", "LEXA1 sends a personalized greeting based on the page they're viewing."],
+    ["03", "Visitor asks a question", "Natural language conversation — feels like chatting with a real expert."],
+    ["04", "AI answers & recommends", "Pulls from your knowledge base, recommends products or services."],
+    ["05", "Visitor clicks 'Buy'", "The AI presents payment options directly inside the chat."],
+    ["06", "Payment processed", "QRIS / VA / e-wallet — transaction completed without leaving the chat."],
+    ["07", "AI confirms the order", "Instant confirmation message with order details. Deal closed."],
+  ];
+  demoSteps.forEach(([num, title, desc], i) => {
+    const by = 66 + i * 28;
+    drawRect(14, by, 12, 22, PURPLE);
+    setFont(9, "bold", [255, 255, 255] as const);
+    pdf.text(num, 20, by + 14, { align: "center" });
+    drawRect(28, by, W - 42, 22, i % 2 === 0 ? GRAY_LIGHT : PURPLE_LIGHT);
+    setFont(9, "bold", i % 2 === 0 ? DARK : PURPLE);
+    pdf.text(title, 34, by + 9);
+    setFont(8, "normal", GRAY);
+    pdf.text(desc, 34, by + 17);
+  });
+
+  // ─────────────────────────────────────────────
+  // SLIDE 12 — VISION
+  // ─────────────────────────────────────────────
+  pdf.addPage();
+  drawPageHeader(12, "Future Vision");
+  setFont(12, "bold", DARK);
+  pdf.text("The Big Play — Chatvice Roadmap", 14, 58);
+  setFont(9, "normal", GRAY);
+  pdf.text(
+    "Chatvice is building the AI communication infrastructure for the next generation of businesses.",
+    14,
+    68
+  );
+
+  const visions = [
+    ["AI Memory", "Personalized, behavior-based responses. Chatvice remembers every customer interaction across sessions."],
+    ["Scheduled AI Follow-up", "Smart reminders and re-engagement — automated but personal. No lead goes cold."],
+    ["Cross-Platform Expansion", "Web → Mobile → WhatsApp → API. Meet customers wherever they are."],
+    ["Behavior Prediction", "Trigger conversations before the customer asks. Proactive, not reactive engagement."],
+  ];
+  visions.forEach(([title, desc], i) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const bx = 14 + col * 97;
+    const by = 78 + row * 72;
+    drawRect(bx, by, 89, 66, GRAY_LIGHT);
+    drawRect(bx, by, 8, 66, PURPLE);
+    setFont(9, "bold", PURPLE);
+    pdf.text(title, bx + 14, by + 14);
+    setFont(8, "normal", GRAY);
+    const lines = pdf.splitTextToSize(desc, 72);
+    pdf.text(lines, bx + 14, by + 24);
+  });
+
+  drawRect(14, 226, W - 28, 18, PURPLE_LIGHT);
+  setFont(9, "bold", PURPLE);
+  pdf.text(
+    "Goal: Become the #1 AI Revenue Platform for Southeast Asia by 2026",
+    W / 2,
+    237,
+    { align: "center" }
+  );
+
+  // ─────────────────────────────────────────────
+  // SLIDE 13 — CTA
+  // ─────────────────────────────────────────────
+  pdf.addPage();
+  drawRect(0, 0, W, H, PURPLE);
+  drawRect(0, H - 50, W, 50, [88, 28, 185] as const);
+
+  setFont(10, "bold", [196, 181, 253] as const);
+  pdf.text("CHATVICE · SLIDE 13 / 13", 14, 14);
+
+  setFont(26, "bold", [255, 255, 255] as const);
+  const cta = pdf.splitTextToSize("Start Converting\nYour Visitors Today.", W - 28);
+  pdf.text(cta, W / 2, 60, { align: "center" });
+
+  setFont(11, "normal", [196, 181, 253] as const);
+  pdf.text("14-day free trial. No credit card required. Live in 5 minutes.", W / 2, 105, {
+    align: "center",
+  });
+
+  const actions = [
+    ["Try Free (No CC)", "chatvice.app/register"],
+    ["Start Free Trial", "chatvice.app/register"],
+    ["Contact Sales", "hello@chatvice.app"],
+  ];
+  actions.forEach(([label, url], i) => {
+    const bx = 14 + i * 62;
+    drawRect(bx, 118, 56, 22, [255, 255, 255, 30] as any);
+    setFont(9, "bold", [255, 255, 255] as const);
+    pdf.text(label, bx + 28, 127, { align: "center" });
+    setFont(7, "normal", [196, 181, 253] as const);
+    pdf.text(url, bx + 28, 134, { align: "center" });
+  });
+
+  const contactItems = [
+    "🌐  chatvice.app",
+    "✉  hello@chatvice.app",
+    "📍  Indonesia",
+  ];
+  setFont(9, "normal", [255, 255, 255] as const);
+  contactItems.forEach((item, i) => {
+    pdf.text(item, W / 2, 160 + i * 12, { align: "center" });
+  });
+
+  setFont(8, "normal", [196, 181, 253] as const);
+  pdf.text("© 2025 Chatvice. All rights reserved.", W / 2, H - 18, {
+    align: "center",
+  });
+  pdf.text("CONFIDENTIAL — FOR PARTNER USE ONLY", W / 2, H - 10, {
+    align: "center",
+  });
+
+  pdf.save("Chatvice-Product-Proposal.pdf");
 }
 
 export default function MarketingToolsPage() {
   const [isGenerating, setIsGenerating] = useState(false);
-  const proposalRef = useRef<HTMLDivElement>(null);
-  const { resolvedTheme } = useTheme();
+  const [error, setError] = useState<string | null>(null);
 
-  const { data: dbPlans = [] } = useQuery<DbPlan[]>({
-    queryKey: ["/api/subscription-plans"],
-  });
-
-  const plans = buildPlans(dbPlans);
-
-  const handleDownloadPDF = async () => {
+  const handleDownload = async () => {
     setIsGenerating(true);
+    setError(null);
+    await new Promise((r) => setTimeout(r, 80));
     try {
-      const { default: jsPDF } = await import("jspdf");
-      const { default: html2canvas } = await import("html2canvas");
-
-      const sections = proposalRef.current?.querySelectorAll(".pdf-section");
-      if (!sections || sections.length === 0) return;
-
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const pageWidth = 210;
-      const pageHeight = 297;
-      const margin = 10;
-      const contentWidth = pageWidth - margin * 2;
-
-      let firstPage = true;
-
-      for (let i = 0; i < sections.length; i++) {
-        const section = sections[i] as HTMLElement;
-        const canvas = await html2canvas(section, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: resolvedTheme === "dark" ? "#09090b" : "#ffffff",
-          logging: false,
-        });
-
-        const imgData = canvas.toDataURL("image/jpeg", 0.92);
-        const imgHeight = (canvas.height * contentWidth) / canvas.width;
-
-        if (!firstPage) {
-          pdf.addPage();
-        }
-        firstPage = false;
-
-        if (imgHeight <= pageHeight - margin * 2) {
-          const yOffset = margin + (pageHeight - margin * 2 - imgHeight) / 2;
-          pdf.addImage(imgData, "JPEG", margin, yOffset, contentWidth, imgHeight);
-        } else {
-          const slicePixels = Math.round(
-            (canvas.width * (pageHeight - margin * 2)) / contentWidth
-          );
-          let yPos = 0;
-          while (yPos < canvas.height) {
-            const sliceH = Math.min(canvas.height - yPos, slicePixels);
-            const sliceCanvas = document.createElement("canvas");
-            sliceCanvas.width = canvas.width;
-            sliceCanvas.height = sliceH;
-            const ctx = sliceCanvas.getContext("2d");
-            if (ctx) ctx.drawImage(canvas, 0, -yPos);
-            const sliceData = sliceCanvas.toDataURL("image/jpeg", 0.92);
-            const sliceImgH = (sliceH * contentWidth) / canvas.width;
-            if (yPos > 0) pdf.addPage();
-            pdf.addImage(sliceData, "JPEG", margin, margin, contentWidth, sliceImgH);
-            yPos += sliceH;
-          }
-        }
-      }
-
-      pdf.save("Chatvice-Product-Proposal.pdf");
+      await generateProposalPDF();
     } catch (err) {
       console.error("PDF generation failed:", err);
+      setError("PDF generation failed. Please try again.");
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const DownloadButton = ({ testId }: { testId: string }) => (
-    <Button
-      size="lg"
-      className="bg-purple-600 hover:bg-purple-700 text-white shadow-lg"
-      onClick={handleDownloadPDF}
-      disabled={isGenerating}
-      data-testid={testId}
-    >
-      {isGenerating ? (
-        <>
-          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          Generating PDF…
-        </>
-      ) : (
-        <>
-          <Download className="w-4 h-4 mr-2" />
-          Download PDF
-        </>
-      )}
-    </Button>
-  );
-
   return (
     <PublicPageLayout
       title="Marketing Tools — Product Proposal | Chatvice"
-      description="Download Chatvice's official product proposal PDF. A complete sales deck covering features, pricing, use cases, and competitive advantages."
+      description="Download Chatvice's official product proposal PDF. A complete 13-slide sales deck covering features, pricing, use cases, and competitive advantages."
     >
-      {/* ── Hero header ── */}
-      <section className="bg-purple-600 text-white py-16">
-        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
-          <Badge className="bg-white/20 text-white mb-4">
-            <Download className="w-3 h-3 mr-1" />
-            Marketing Tools
+      {/* Hero */}
+      <section className="bg-purple-600 text-white py-20">
+        <div className="max-w-3xl mx-auto px-6 sm:px-8 text-center">
+          <Badge className="bg-white/20 text-white mb-5">
+            <FileText className="w-3 h-3 mr-1" />
+            Sales Deck
           </Badge>
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            Product Proposal Deck
+          <h1 className="text-4xl md:text-5xl font-black mb-4 leading-tight">
+            Chatvice Product Proposal
           </h1>
-          <p className="text-lg text-purple-100 max-w-2xl mb-8">
-            A complete sales deck ready to share with clients, partners, and prospects.
-            Read it below or download the full PDF to your device.
+          <p className="text-lg text-purple-100 max-w-xl mx-auto">
+            A complete 13-slide proposal deck — ready to share with clients,
+            partners, and investors. Download the PDF instantly.
           </p>
-          <Button
-            size="lg"
-            className="bg-white text-purple-600 hover:bg-purple-50"
-            onClick={handleDownloadPDF}
-            disabled={isGenerating}
-            data-testid="button-download-pdf-hero"
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Generating PDF…
-              </>
-            ) : (
-              <>
-                <Download className="w-4 h-4 mr-2" />
-                Download PDF
-              </>
-            )}
-          </Button>
         </div>
       </section>
 
-      {/* ── Sticky download bar ── */}
-      <div
-        className="sticky top-16 z-40 bg-background/95 backdrop-blur-md border-b border-border shadow-sm"
-        data-testid="sticky-download-bar"
-      >
-        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 py-3 flex items-center justify-between gap-4 flex-wrap">
-          <span className="text-sm font-medium text-muted-foreground hidden sm:block">
-            Chatvice — Product Proposal Deck (13 slides)
-          </span>
-          <DownloadButton testId="button-download-pdf-top" />
-        </div>
-      </div>
-
-      {/* ── Proposal Preview ── */}
-      <div
-        className="max-w-[900px] mx-auto px-4 sm:px-6 py-12 space-y-4"
-        ref={proposalRef}
-      >
-        {/* SLIDE 1 – COVER */}
-        <SectionWrapper
-          id="slide-cover"
-          className="relative rounded-xl overflow-hidden min-h-[480px] flex flex-col justify-end"
-        >
-          <img
-            src={heroBackgroundImage}
-            alt="Chatvice hero"
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-black/30" />
-          <div className="relative z-10 p-10 md:p-14">
-            <img
-              src={chatviceLogoDark}
-              alt="Chatvice"
-              className="h-10 mb-8 brightness-0 invert"
-            />
-            <h1 className="text-4xl md:text-6xl font-black text-white leading-tight mb-4">
-              Turn Every Visitor
-              <br />
-              Into Revenue —<br />
-              <span className="text-purple-400">Instantly.</span>
-            </h1>
-            <p className="text-lg text-white/80 mb-8">
-              AI Live Chat + Automation + Conversion Engine
-            </p>
-            <div className="flex flex-wrap gap-4">
-              {[
-                { icon: Zap, label: "Response < 1 sec" },
-                { icon: TrendingUp, label: "Conversion +30%" },
-                { icon: DollarSign, label: "Cost ↓ up to 70%" },
-              ].map(({ icon: Icon, label }) => (
-                <div
-                  key={label}
-                  className="flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg px-4 py-2 text-white text-sm font-medium"
-                >
-                  <Icon className="w-4 h-4 text-purple-400" />
-                  {label}
-                </div>
-              ))}
+      {/* Download card */}
+      <section className="py-20 bg-background">
+        <div className="max-w-xl mx-auto px-6">
+          <div className="border border-border rounded-xl p-10 text-center bg-card shadow-sm">
+            <div className="w-16 h-16 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mx-auto mb-6">
+              <FileText className="w-8 h-8 text-purple-600" />
             </div>
-          </div>
-        </SectionWrapper>
 
-        {/* SLIDE 2 – PROBLEM */}
-        <SectionWrapper
-          id="slide-problem"
-          className="bg-card border border-border rounded-xl p-10"
-        >
-          <SectionLabel number={2} title="The Problem" />
-          <h2 className="text-3xl md:text-4xl font-bold mb-4 leading-tight">
-            Most Businesses Lose Customers
-            <br />
-            <span className="text-purple-600">Before They Even Say Hello.</span>
-          </h2>
-          <div className="grid sm:grid-cols-2 gap-4 mt-8">
-            {[
-              "Slow response loses leads instantly",
-              "Lost leads — not followed up",
-              "High manpower cost at scale",
-              "24/7 support is impossible for humans",
-              "No visibility into customer behavior",
-            ].map((label) => (
-              <div
-                key={label}
-                className="flex items-start gap-3 p-4 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-100 dark:border-red-900/30"
-              >
-                <X className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                <span className="text-sm font-medium">{label}</span>
-              </div>
-            ))}
-          </div>
-          <p className="mt-8 text-center text-xl font-bold text-muted-foreground">
-            "Speed is revenue. Delay is loss."
-          </p>
-        </SectionWrapper>
-
-        {/* SLIDE 3 – SOLUTION */}
-        <SectionWrapper
-          id="slide-solution"
-          className="bg-purple-600 text-white rounded-xl p-10"
-        >
-          <SectionLabel number={3} title="The Solution" />
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">
-            AI-Powered Conversations
-            <br />
-            That Convert.
-          </h2>
-          <div className="grid sm:grid-cols-2 gap-4">
-            {[
-              { icon: Bot, text: "Automates customer replies 24/7" },
-              { icon: CreditCard, text: "Closes transactions directly in chat" },
-              { icon: MessageCircle, text: "Escalates seamlessly to human agents" },
-              { icon: Globe, text: "Embeds on any website in minutes" },
-            ].map(({ icon: Icon, text }) => (
-              <div
-                key={text}
-                className="flex items-start gap-3 bg-white/10 rounded-lg p-4"
-              >
-                <Icon className="w-5 h-5 text-purple-200 shrink-0 mt-0.5" />
-                <span className="text-white/90 text-sm font-medium">{text}</span>
-              </div>
-            ))}
-          </div>
-          <div className="mt-8 pt-6 border-t border-white/20 text-center">
-            <p className="text-xl font-bold text-purple-200">
-              "Your AI Sales Team — Working 24/7"
+            <h2 className="text-xl font-bold mb-2">
+              Chatvice-Product-Proposal.pdf
+            </h2>
+            <p className="text-sm text-muted-foreground mb-8">
+              13 slides · A4 · English · PDF format
             </p>
-          </div>
-        </SectionWrapper>
 
-        {/* SLIDE 4 – PRODUCT OVERVIEW */}
-        <SectionWrapper
-          id="slide-overview"
-          className="bg-card border border-border rounded-xl p-10"
-        >
-          <SectionLabel number={4} title="Product Overview" />
-          <h2 className="text-3xl font-bold mb-8">How Chatvice Works</h2>
-          <div className="grid sm:grid-cols-3 gap-6 mb-10">
-            {[
-              {
-                step: "01",
-                icon: Globe,
-                title: "Install Widget",
-                desc: "Paste one line of code. Goes live on your website in under 5 minutes. No developer needed.",
-              },
-              {
-                step: "02",
-                icon: Brain,
-                title: "Train AI Knowledge Base",
-                desc: "Feed Chatvice your FAQs, product info, and docs. The AI learns your business instantly.",
-              },
-              {
-                step: "03",
-                icon: BarChart3,
-                title: "Monitor & Escalate",
-                desc: "Track conversations, escalate complex queries to supervisors, and analyze performance.",
-              },
-            ].map(({ step, icon: Icon, title, desc }) => (
-              <div key={step} className="flex flex-col gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 text-sm font-bold flex items-center justify-center shrink-0">
-                    {step}
-                  </span>
-                  <Icon className="w-5 h-5 text-purple-600" />
-                </div>
-                <h3 className="font-bold">{title}</h3>
-                <p className="text-sm text-muted-foreground">{desc}</p>
-              </div>
-            ))}
-          </div>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <img
-              src={simplicityImage}
-              alt="Easy setup"
-              className="rounded-lg w-full object-cover h-40"
-            />
-            <img
-              src={aiEngineImage}
-              alt="AI engine"
-              className="rounded-lg w-full object-cover h-40"
-            />
-          </div>
-        </SectionWrapper>
-
-        {/* SLIDE 5 – CORE FEATURES */}
-        <SectionWrapper
-          id="slide-features"
-          className="bg-card border border-border rounded-xl p-10"
-        >
-          <SectionLabel number={5} title="Core Features" />
-          <h2 className="text-3xl font-bold mb-8">
-            Everything You Need to Convert
-          </h2>
-          <div className="grid sm:grid-cols-2 gap-6">
-            {[
-              {
-                icon: Bot,
-                img: aiEngineImage,
-                title: "AI Chat Engine (LEXA1)",
-                desc: "Auto-reply with natural language. Multi-language support. Learns from your knowledge base with semantic search.",
-              },
-              {
-                icon: MessageCircle,
-                img: simplicityImage,
-                title: "Live Chat System",
-                desc: "Real-time WebSocket messaging with typing indicators. Multi-agent dashboard for your support team.",
-              },
-              {
-                icon: Zap,
-                img: null,
-                title: "Smart Automation",
-                desc: "Auto follow-up, behavior-based triggers, lead qualification — all running while you sleep.",
-              },
-              {
-                icon: CreditCard,
-                img: null,
-                title: "In-Chat Transactions",
-                desc: "Payment links, QRIS, VA, e-wallets — all inside the chat. Auto-confirmation via webhook. Your unique edge.",
-              },
-              {
-                icon: BarChart3,
-                img: analyticsImage,
-                title: "Analytics & Insight",
-                desc: "Chat history, conversion tracking, customer behavior reports. Know what's working.",
-              },
-              {
-                icon: Shield,
-                img: securityImage,
-                title: "Enterprise Security",
-                desc: "Domain binding, identity verification, allowed-domains control, SLA-grade infrastructure.",
-              },
-            ].map(({ icon: Icon, img, title, desc }) => (
-              <div
-                key={title}
-                className="border border-border rounded-lg overflow-hidden"
-              >
-                {img && (
-                  <img
-                    src={img}
-                    alt={title}
-                    className="w-full h-28 object-cover"
-                  />
-                )}
-                <div className="p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Icon className="w-4 h-4 text-purple-600" />
-                    <h3 className="font-bold text-sm">{title}</h3>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </SectionWrapper>
-
-        {/* SLIDE 6 – POSITIONING */}
-        <SectionWrapper
-          id="slide-positioning"
-          className="bg-card border border-border rounded-xl p-10"
-        >
-          <SectionLabel number={6} title="Positioning" />
-          <h2 className="text-3xl font-bold mb-8">
-            Chatvice Is Not Just a Chatbot.
-          </h2>
-          <div className="grid sm:grid-cols-2 gap-6">
-            <div>
-              <p className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wide">
-                What we are NOT
+            {error && (
+              <p className="text-sm text-destructive mb-4 p-3 bg-destructive/10 rounded-lg">
+                {error}
               </p>
-              <div className="space-y-3">
-                {["Chatbot AI", "Live Chat Tool", "Customer Service Tool"].map(
-                  (label) => (
-                    <div
-                      key={label}
-                      className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg"
-                    >
-                      <X className="w-4 h-4 text-red-500 shrink-0" />
-                      <span className="text-sm text-muted-foreground line-through">
-                        {label}
-                      </span>
-                    </div>
-                  )
-                )}
-              </div>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-purple-600 mb-4 uppercase tracking-wide">
-                What we ARE
-              </p>
-              <div className="space-y-3">
-                {[
-                  { label: "AI Conversation Infrastructure", icon: Brain },
-                  { label: "Revenue Automation Layer", icon: TrendingUp },
-                  { label: "AI Sales & Support Engine", icon: Rocket },
-                ].map(({ label, icon: Icon }) => (
-                  <div
-                    key={label}
-                    className="flex items-center gap-3 p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg border border-purple-100 dark:border-purple-900/30"
-                  >
-                    <Icon className="w-4 h-4 text-purple-600 shrink-0" />
-                    <span className="text-sm font-medium">{label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="mt-8 p-6 bg-purple-600 rounded-xl text-center">
-            <p className="text-white font-bold text-lg">
-              "From Chat → Conversion → Revenue"
+            )}
+
+            <Button
+              size="lg"
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white h-14 text-base"
+              onClick={handleDownload}
+              disabled={isGenerating}
+              data-testid="button-download-pdf"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Generating PDF…
+                </>
+              ) : (
+                <>
+                  <Download className="w-5 h-5 mr-2" />
+                  Download Proposal PDF
+                </>
+              )}
+            </Button>
+
+            <p className="text-xs text-muted-foreground mt-4">
+              Free download · No sign-up required
             </p>
           </div>
-        </SectionWrapper>
 
-        {/* SLIDE 7 – COMPETITIVE ADVANTAGE */}
-        <SectionWrapper
-          id="slide-competitive"
-          className="bg-card border border-border rounded-xl p-10"
-        >
-          <SectionLabel number={7} title="Competitive Advantage" />
-          <h2 className="text-3xl font-bold mb-8">Why Chatvice Wins</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
-                    Feature
-                  </th>
-                  <th className="text-center py-3 px-4 font-bold text-purple-600 bg-purple-50 dark:bg-purple-950/20">
-                    Chatvice
-                  </th>
-                  <th className="text-center py-3 px-4 font-semibold text-muted-foreground">
-                    Traditional Live Chat
-                  </th>
-                  <th className="text-center py-3 px-4 font-semibold text-muted-foreground">
-                    WhatsApp CS
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {(
-                  [
-                    {
-                      feature: "Response Speed",
-                      chatvice: "⚡ Instant AI",
-                      traditional: "Human delay",
-                      whatsapp: "Manual",
-                    },
-                    {
-                      feature: "Cost",
-                      chatvice: "Low",
-                      traditional: "High",
-                      whatsapp: "High",
-                    },
-                    {
-                      feature: "24/7 Availability",
-                      chatvice: true,
-                      traditional: false,
-                      whatsapp: false,
-                    },
-                    {
-                      feature: "Automation",
-                      chatvice: "Advanced",
-                      traditional: "Limited",
-                      whatsapp: "None",
-                    },
-                    {
-                      feature: "In-chat Payment",
-                      chatvice: true,
-                      traditional: false,
-                      whatsapp: false,
-                    },
-                    {
-                      feature: "Human Escalation",
-                      chatvice: "Seamless",
-                      traditional: "Yes",
-                      whatsapp: false,
-                    },
-                    {
-                      feature: "Analytics",
-                      chatvice: "Advanced",
-                      traditional: "Basic",
-                      whatsapp: false,
-                    },
-                  ] as const
-                ).map((row, i) => (
-                  <tr key={i} className="border-b border-border last:border-0">
-                    <td className="py-3 px-4 font-medium">{row.feature}</td>
-                    <td className="py-3 px-4 bg-purple-50 dark:bg-purple-950/20 text-center">
-                      {typeof row.chatvice === "boolean" ? (
-                        row.chatvice ? (
-                          <Check className="w-4 h-4 text-purple-600 mx-auto" />
-                        ) : (
-                          <X className="w-4 h-4 text-muted-foreground/40 mx-auto" />
-                        )
-                      ) : (
-                        <span className="text-purple-700 dark:text-purple-300 font-medium">
-                          {row.chatvice}
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-center text-muted-foreground">
-                      {typeof row.traditional === "boolean" ? (
-                        row.traditional ? (
-                          <Check className="w-4 h-4 text-green-600 mx-auto" />
-                        ) : (
-                          <X className="w-4 h-4 text-muted-foreground/40 mx-auto" />
-                        )
-                      ) : (
-                        row.traditional
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-center text-muted-foreground">
-                      {typeof row.whatsapp === "boolean" ? (
-                        row.whatsapp ? (
-                          <Check className="w-4 h-4 text-green-600 mx-auto" />
-                        ) : (
-                          <X className="w-4 h-4 text-muted-foreground/40 mx-auto" />
-                        )
-                      ) : (
-                        row.whatsapp
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </SectionWrapper>
-
-        {/* SLIDE 8 – VALUE PROPOSITION */}
-        <SectionWrapper
-          id="slide-value"
-          className="bg-card border border-border rounded-xl p-10"
-        >
-          <SectionLabel number={8} title="Value Proposition" />
-          <h2 className="text-3xl font-bold mb-8">
-            The Business Case for Chatvice
-          </h2>
-          <div className="grid sm:grid-cols-3 gap-6 mb-8">
-            {[
-              {
-                icon: DollarSign,
-                color: "text-green-600",
-                bg: "bg-green-50 dark:bg-green-950/20 border-green-100 dark:border-green-900/30",
-                title: "Cost Effective",
-                points: [
-                  "Replace 3–5 CS staff",
-                  "Reduce opex up to 70%",
-                  "No overtime, no sick days",
-                ],
-              },
-              {
-                icon: Zap,
-                color: "text-yellow-600",
-                bg: "bg-yellow-50 dark:bg-yellow-950/20 border-yellow-100 dark:border-yellow-900/30",
-                title: "Instant Response",
-                points: [
-                  "<1 second reply time",
-                  "Zero missed leads",
-                  "Always available 24/7",
-                ],
-              },
-              {
-                icon: TrendingUp,
-                color: "text-purple-600",
-                bg: "bg-purple-50 dark:bg-purple-950/20 border-purple-100 dark:border-purple-900/30",
-                title: "More Conversions",
-                points: [
-                  "Instant engagement",
-                  "Guided purchase flow",
-                  "AI upsell suggestions",
-                ],
-              },
-            ].map(({ icon: Icon, color, bg, title, points }) => (
-              <div key={title} className={`border rounded-xl p-5 ${bg}`}>
-                <Icon className={`w-6 h-6 ${color} mb-3`} />
-                <h3 className="font-bold mb-3">{title}</h3>
-                <ul className="space-y-1">
-                  {points.map((p) => (
-                    <li
-                      key={p}
-                      className="text-xs text-muted-foreground flex items-center gap-2"
-                    >
-                      <Check className="w-3 h-3 shrink-0" />
-                      {p}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-          <div className="bg-purple-600 rounded-xl p-6 text-white">
-            <p className="text-lg font-bold mb-3 text-center">
-              "Your customers don't wait. Why should your response?"
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-purple-100">
-              <span>1 CS staff = ±Rp 4–6 juta/bulan</span>
-              <span className="text-purple-300 font-bold">vs</span>
-              <span>Chatvice = mulai dari Free</span>
-            </div>
-          </div>
-        </SectionWrapper>
-
-        {/* SLIDE 9 – USE CASES */}
-        <SectionWrapper
-          id="slide-usecases"
-          className="bg-card border border-border rounded-xl p-10"
-        >
-          <SectionLabel number={9} title="Use Cases" />
-          <h2 className="text-3xl font-bold mb-8">Built for Every Industry</h2>
-          <div className="grid sm:grid-cols-2 gap-6">
-            {[
-              {
-                icon: ShoppingCart,
-                color:
-                  "bg-blue-50 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900/30",
-                iconColor: "text-blue-600",
-                title: "E-Commerce",
-                points: [
-                  "Auto product Q&A & recommendations",
-                  "Checkout & order status in chat",
-                  "Cart abandonment follow-up",
-                ],
-              },
-              {
-                icon: Hotel,
-                color:
-                  "bg-teal-50 dark:bg-teal-950/20 border-teal-100 dark:border-teal-900/30",
-                iconColor: "text-teal-600",
-                title: "Hospitality",
-                points: [
-                  "Room booking & availability via chat",
-                  "AI concierge for guests",
-                  "Service request handling 24/7",
-                ],
-              },
-              {
-                icon: Gamepad2,
-                color:
-                  "bg-purple-50 dark:bg-purple-950/20 border-purple-100 dark:border-purple-900/30",
-                iconColor: "text-purple-600",
-                title: "Gaming / Top-Up",
-                points: [
-                  "Automated deposit flow in-chat",
-                  "Anti-fraud domain binding",
-                  "Instant transaction confirmation",
-                ],
-              },
-              {
-                icon: Building2,
-                color:
-                  "bg-amber-50 dark:bg-amber-950/20 border-amber-100 dark:border-amber-900/30",
-                iconColor: "text-amber-600",
-                title: "Corporate / Service",
-                points: [
-                  "Intelligent lead generation",
-                  "Appointment booking automation",
-                  "Internal helpdesk & support",
-                ],
-              },
-            ].map(({ icon: Icon, color, iconColor, title, points }) => (
-              <div key={title} className={`border rounded-xl p-5 ${color}`}>
-                <div className="flex items-center gap-3 mb-3">
-                  <Icon className={`w-5 h-5 ${iconColor}`} />
-                  <h3 className="font-bold">{title}</h3>
-                </div>
-                <ul className="space-y-2">
-                  {points.map((p) => (
-                    <li
-                      key={p}
-                      className="text-sm text-muted-foreground flex items-start gap-2"
-                    >
-                      <Check className="w-3 h-3 shrink-0 mt-0.5" />
-                      {p}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </SectionWrapper>
-
-        {/* SLIDE 10 – PRICING */}
-        <SectionWrapper
-          id="slide-pricing"
-          className="bg-card border border-border rounded-xl p-10"
-        >
-          <SectionLabel number={10} title="Pricing" />
-          <h2 className="text-3xl font-bold mb-2">
-            Simple, Transparent Pricing
-          </h2>
-          <p className="text-muted-foreground mb-8">
-            All plans include a 14-day free trial. Annual billing saves 20%.
-          </p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            {plans.map((plan) => (
-              <div
-                key={plan.name}
-                className={`relative border-2 rounded-xl p-5 flex flex-col gap-3 ${plan.color} ${plan.badge === "Most Popular" ? "shadow-lg shadow-purple-500/10" : ""}`}
-                data-testid={`pricing-card-${plan.name.toLowerCase()}`}
-              >
-                {plan.badge && (
-                  <Badge
-                    className={`absolute -top-3 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap ${plan.badge === "Most Popular" ? "bg-purple-600" : "bg-rose-500"}`}
-                  >
-                    {plan.badge}
-                  </Badge>
-                )}
-                <div>
-                  <h3 className="font-bold text-lg">{plan.name}</h3>
-                  <div className="flex items-baseline gap-1 mt-1">
-                    <span className="text-2xl font-black">{plan.price}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {plan.priceSub}
-                    </span>
-                  </div>
-                  {plan.yearlyNote && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {plan.yearlyNote}
-                    </p>
-                  )}
-                </div>
-                <ul className="space-y-1.5 flex-1">
-                  {plan.features.map((f) => (
-                    <li
-                      key={f.text}
-                      className={`flex items-start gap-2 text-xs ${f.ok ? "" : "text-muted-foreground/50"}`}
-                    >
-                      {f.ok ? (
-                        <Check className="w-3 h-3 text-purple-600 shrink-0 mt-0.5" />
-                      ) : (
-                        <X className="w-3 h-3 text-muted-foreground/30 shrink-0 mt-0.5" />
-                      )}
-                      {f.text}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-          <p className="text-center text-sm text-muted-foreground italic">
-            "Less than 1 coffee per month — for a 24/7 AI sales team."
-          </p>
-        </SectionWrapper>
-
-        {/* SLIDE 11 – DEMO FLOW */}
-        <SectionWrapper
-          id="slide-demo"
-          className="bg-card border border-border rounded-xl p-10"
-        >
-          <SectionLabel number={11} title="Demo Flow" />
-          <h2 className="text-3xl font-bold mb-8">
-            From Visitor to Payment — In One Conversation.
-          </h2>
-          <div className="relative">
-            <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-purple-200 dark:bg-purple-800" />
-            <div className="space-y-4">
+          {/* What's inside */}
+          <div className="mt-10">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-widest mb-4 text-center">
+              What's inside
+            </h3>
+            <ul className="space-y-3">
               {[
-                {
-                  step: "01",
-                  title: "Visitor enters your website",
-                  desc: "The Chatvice widget loads instantly — no page speed impact.",
-                },
-                {
-                  step: "02",
-                  title: "AI greets the visitor",
-                  desc: "LEXA1 sends a personalized greeting based on the page they're viewing.",
-                },
-                {
-                  step: "03",
-                  title: "Visitor asks a question",
-                  desc: "Natural language conversation — feels like chatting with a real expert.",
-                },
-                {
-                  step: "04",
-                  title: "AI answers & recommends",
-                  desc: "Pulls from your knowledge base, recommends products or services.",
-                },
-                {
-                  step: "05",
-                  title: "Visitor clicks 'Buy'",
-                  desc: "The AI presents payment options directly inside the chat.",
-                },
-                {
-                  step: "06",
-                  title: "Payment processed",
-                  desc: "QRIS / VA / e-wallet — transaction completed without leaving the chat.",
-                },
-                {
-                  step: "07",
-                  title: "AI confirms the order",
-                  desc: "Instant confirmation message with order details. Deal closed.",
-                },
-              ].map(({ step, title, desc }) => (
-                <div
-                  key={step}
-                  className="relative flex items-start gap-4 pl-12"
+                "Cover, Problem & Solution overview",
+                "Product features, positioning & competitive advantages",
+                "Use cases for e-commerce, hospitality, gaming & corporate",
+                "Full pricing table: Free, Starter, Pro, Enterprise, Custom",
+                "Live demo flow (visitor → payment) & future vision",
+              ].map((item) => (
+                <li
+                  key={item}
+                  className="flex items-start gap-3 text-sm text-muted-foreground"
                 >
-                  <div className="absolute left-3 w-7 h-7 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center z-10 -translate-x-1/2">
-                    {step}
-                  </div>
-                  <div className="bg-muted/30 rounded-lg p-4 flex-1">
-                    <h3 className="font-bold text-sm">{title}</h3>
-                    <p className="text-xs text-muted-foreground mt-1">{desc}</p>
-                  </div>
-                </div>
+                  <Check className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                  {item}
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
-        </SectionWrapper>
-
-        {/* SLIDE 12 – VISION */}
-        <SectionWrapper
-          id="slide-vision"
-          className="bg-card border border-border rounded-xl p-10"
-        >
-          <SectionLabel number={12} title="Future Vision" />
-          <h2 className="text-3xl font-bold mb-4">The Big Play</h2>
-          <p className="text-muted-foreground mb-8">
-            Chatvice is building the AI communication infrastructure for the next
-            generation of businesses.
-          </p>
-          <div className="grid sm:grid-cols-2 gap-4">
-            {[
-              {
-                icon: Brain,
-                title: "AI Memory",
-                desc: "Personalized, behavior-based responses. Chatvice remembers every customer interaction.",
-              },
-              {
-                icon: Sparkles,
-                title: "Scheduled AI Follow-up",
-                desc: "Smart reminders and re-engagement — automated but personal.",
-              },
-              {
-                icon: Globe,
-                title: "Cross-Platform",
-                desc: "Web → Mobile → WhatsApp → API. Meet customers wherever they are.",
-              },
-              {
-                icon: Zap,
-                title: "Behavior Prediction",
-                desc: "Trigger conversations before the customer asks. Proactive, not reactive.",
-              },
-            ].map(({ icon: Icon, title, desc }) => (
-              <div
-                key={title}
-                className="flex items-start gap-4 p-5 border border-border rounded-xl bg-muted/20"
-              >
-                <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
-                  <Icon className="w-5 h-5 text-purple-600" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm mb-1">{title}</h3>
-                  <p className="text-xs text-muted-foreground">{desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </SectionWrapper>
-
-        {/* SLIDE 13 – CTA */}
-        <SectionWrapper
-          id="slide-cta"
-          className="bg-purple-600 text-white rounded-xl p-10 text-center"
-        >
-          <SectionLabel number={13} title="Get Started" />
-          <h2 className="text-4xl md:text-5xl font-black mb-4">
-            Start Converting Your
-            <br />
-            Visitors Today.
-          </h2>
-          <p className="text-purple-100 text-lg mb-8 max-w-xl mx-auto">
-            14-day free trial. No credit card required. Live in 5 minutes.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-4 mb-10">
-            <Link href="/register">
-              <Button
-                size="lg"
-                className="bg-white text-purple-600 hover:bg-purple-50"
-                data-testid="button-cta-try-free"
-              >
-                Try Free
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
-            <Link href="/register">
-              <Button
-                size="lg"
-                variant="outline"
-                className="border-white/50 text-white backdrop-blur-sm"
-                data-testid="button-cta-start-trial"
-              >
-                Start Free Trial
-              </Button>
-            </Link>
-            <a href="mailto:hello@chatvice.app">
-              <Button
-                size="lg"
-                variant="outline"
-                className="border-white/50 text-white backdrop-blur-sm"
-                data-testid="button-cta-contact-sales"
-              >
-                Contact Sales
-              </Button>
-            </a>
-          </div>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-purple-200">
-            <span className="flex items-center gap-1">
-              <Globe className="w-4 h-4" />
-              chatvice.app
-            </span>
-            <span className="flex items-center gap-1">
-              <MessageCircle className="w-4 h-4" />
-              hello@chatvice.app
-            </span>
-          </div>
-        </SectionWrapper>
-      </div>
-
-      {/* ── Bottom CTA ── */}
-      <section className="py-16 bg-muted/30 border-t border-border">
-        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 text-center">
-          <h2 className="text-2xl font-bold mb-3">
-            Ready to share this proposal?
-          </h2>
-          <p className="text-muted-foreground mb-6 max-w-lg mx-auto">
-            Download the full PDF and send it to clients, partners, or your team.
-          </p>
-          <DownloadButton testId="button-download-pdf-bottom" />
-          <p className="text-xs text-muted-foreground mt-4">
-            Multi-page A4 PDF · Includes all 13 sections · Instant browser
-            download
-          </p>
         </div>
       </section>
     </PublicPageLayout>
