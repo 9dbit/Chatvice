@@ -23,7 +23,7 @@ async function generateProposalPDF() {
 
   function setFont(
     size: number,
-    style: "normal" | "bold" = "normal",
+    style: "normal" | "bold" | "italic" = "normal",
     color: readonly [number, number, number] = DARK
   ) {
     pdf.setFontSize(size);
@@ -644,7 +644,7 @@ async function generateProposalPDF() {
   ];
   actions.forEach(([label, url], i) => {
     const bx = 14 + i * 62;
-    drawRect(bx, 118, 56, 22, [255, 255, 255, 30] as any);
+    drawRect(bx, 118, 56, 22, [140, 90, 230] as const);
     setFont(9, "bold", [255, 255, 255] as const);
     pdf.text(label, bx + 28, 127, { align: "center" });
     setFont(7, "normal", [196, 181, 253] as const);
