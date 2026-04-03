@@ -82,14 +82,6 @@ async function generateProposalPDF() {
     return (lines.length - 1) * 4.5;
   }
 
-  function tag(x: number, y: number, label: string) {
-    const tw = (pdf.getStringUnitWidth(label) * 9) / pdf.internal.scaleFactor;
-    drawRect(x, y - 4, tw + 6, 6, PURPLE_LIGHT);
-    pdf.setTextColor(...PURPLE);
-    pdf.setFontSize(8);
-    pdf.text(label, x + 3, y);
-  }
-
   // ─────────────────────────────────────────────
   // SLIDE 1 — COVER
   // ─────────────────────────────────────────────
