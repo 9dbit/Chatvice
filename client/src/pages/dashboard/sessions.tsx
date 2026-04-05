@@ -846,11 +846,11 @@ export default function SessionsPage() {
         const data = await res.json();
         const translatedText: string = data.translated || text;
 
-        if (translatedText && translatedText !== text) {
-          sendMessageMutation.mutate({ message: translatedText, payload: { originalText: text } });
-        } else {
-          sendMessageMutation.mutate({ message: text });
-        }
+        // Always store originalText on the translated send path for audit trail
+        sendMessageMutation.mutate({
+          message: translatedText,
+          payload: { originalText: text },
+        });
       } catch {
         // Fallback to sending original on error
         sendMessageMutation.mutate({ message: text });
