@@ -976,8 +976,10 @@ export default function SessionsPage() {
                               <div className="flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-1.5 min-w-0">
                                   <CountryFlag code={session.countryCode} name={session.countryName} />
-                                  <span className="text-sm font-semibold truncate font-mono">
-                                    {session.clientIp || getVisitorDisplayName(session.customerName)}
+                                  <span className="text-sm font-semibold truncate">
+                                    {session.customerName && !isIpAddress(session.customerName)
+                                      ? session.customerName
+                                      : session.clientIp || getVisitorDisplayName(session.customerName)}
                                   </span>
                                   <div className="flex items-center gap-1 flex-shrink-0">
                                     <DeviceIcon userAgent={session.userAgent} />
@@ -1001,12 +1003,14 @@ export default function SessionsPage() {
                                     : ""}
                                 </span>
                               </div>
-                              {/* Row 2: Customer name (suppressed when customerName is an IP address since Row 1 already shows clientIp) */}
-                              {session.customerName && !isIpAddress(session.customerName) && (
-                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                  <span className="truncate">{session.customerName}</span>
-                                </div>
-                              )}
+                              {/* Row 2: IP address when customer has a real name; hidden when customerName is IP */}
+                              {session.customerName && !isIpAddress(session.customerName) ? (
+                                session.clientIp && (
+                                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
+                                    <span className="truncate">{session.clientIp}</span>
+                                  </div>
+                                )
+                              ) : null}
                               {/* Row 3: Handler */}
                               <div className="flex items-center gap-1.5 text-xs font-medium">
                                 {session.mode === "HUMAN" ? (
