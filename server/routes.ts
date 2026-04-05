@@ -545,6 +545,8 @@ async function askChatvice(
 ): Promise<{ answer: string; mode: "AI" | "HUMAN"; isAngry?: boolean; triggerHit?: boolean; isNewSession?: boolean }> {
   let session = await storage.getSession(sessionId);
   let isNewSession = false;
+  // Hoisted so it can be reused for both isNewSession detection and transaction-context fallback
+  let sessionMessages: Awaited<ReturnType<typeof storage.getMessages>> = [];
   
   if (!session) {
     // Use round-robin agent assignment for new sessions
@@ -557,10 +559,11 @@ async function askChatvice(
       agentId: assignedAgentId,
     });
     isNewSession = true;
+    // sessionMessages stays [] — no prior messages for a brand-new session
   } else {
-    // Check if this is the first message in an existing session
-    const existingMessages = await storage.getMessages(sessionId);
-    isNewSession = existingMessages.length === 0;
+    // Fetch once; reused below for isNewSession check and transaction-context fallback
+    sessionMessages = await storage.getMessages(sessionId);
+    isNewSession = sessionMessages.length === 0;
   }
 
   if (session.mode === "HUMAN") {
@@ -740,25 +743,21 @@ async function askChatvice(
 
   // If not detected from current message, check conversation history for transaction context.
   // This handles follow-up messages like "Username: Haha11" sent in response to [INPUT_USERNAME].
-  if (!isTransactionQuery) {
-    try {
-      const recentMsgs = await storage.getMessages(sessionId);
-      const last6 = recentMsgs.slice(-6);
-      // (a) Any recent customer message contained a transaction keyword
-      const hasRecentTxQuery = last6.some(m =>
-        (m.from === "user" || m.from === "customer") &&
-        transactionKeywords.some(kw => m.content.toLowerCase().includes(kw))
-      );
-      // (b) Current message is a username submission AND bot previously displayed [INPUT_USERNAME]
-      const isUsernameReply = /^username[:\s]/i.test(message.trim());
-      const hasPendingUsernameRequest = isUsernameReply && last6.some(m =>
-        m.from === "chatvice" && m.content.includes("[INPUT_USERNAME]")
-      );
-      if (hasRecentTxQuery || hasPendingUsernameRequest) {
-        isTransactionQuery = true;
-      }
-    } catch {
-      // If history check fails, continue without transaction context
+  // Uses sessionMessages already fetched above — no additional DB round-trip.
+  if (!isTransactionQuery && sessionMessages.length > 0) {
+    const last6 = sessionMessages.slice(-6);
+    // (a) Any recent customer message contained a transaction keyword
+    const hasRecentTxQuery = last6.some(m =>
+      (m.from === "user" || m.from === "customer") &&
+      transactionKeywords.some(kw => m.content.toLowerCase().includes(kw))
+    );
+    // (b) Current message is a username submission AND bot previously displayed [INPUT_USERNAME]
+    const isUsernameReply = /^username[:\s]/i.test(message.trim());
+    const hasPendingUsernameRequest = isUsernameReply && last6.some(m =>
+      m.from === "chatvice" && m.content.includes("[INPUT_USERNAME]")
+    );
+    if (hasRecentTxQuery || hasPendingUsernameRequest) {
+      isTransactionQuery = true;
     }
   }
 
