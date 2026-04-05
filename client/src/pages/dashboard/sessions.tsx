@@ -976,7 +976,7 @@ export default function SessionsPage() {
                               <div className="flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-1.5 min-w-0">
                                   <CountryFlag code={session.countryCode} name={session.countryName} />
-                                  <span className="text-sm font-semibold truncate">
+                                  <span className={`text-sm font-semibold truncate${session.customerName && !isIpAddress(session.customerName) ? "" : " font-mono"}`}>
                                     {session.customerName && !isIpAddress(session.customerName)
                                       ? session.customerName
                                       : session.clientIp || getVisitorDisplayName(session.customerName)}
