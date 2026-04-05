@@ -594,9 +594,8 @@ export default function SessionsPage() {
   useEffect(() => {
     if (!autoTranslateEnabled || !messages || messages.length === 0) return;
     messages.forEach(msg => {
-      const id = String(msg.id);
-      if (msg.content?.trim() && msg.from !== "system") {
-        fetchTranslation(id, msg.content, translateLang);
+      if (msg.content?.trim()) {
+        fetchTranslation(String(msg.id), msg.content, translateLang);
       }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1547,11 +1546,14 @@ export default function SessionsPage() {
                                     );
                                   })()}
                                   {/* "Originally sent as" — shows supervisor's pre-translate original text */}
-                                  {msg.from === "supervisor" && (msg as any).payload?.originalText && (
-                                    <p className="text-[10px] mt-1.5 pt-1 border-t border-primary-foreground/20 text-primary-foreground/50 italic leading-snug">
-                                      Originally: {(msg as any).payload.originalText}
-                                    </p>
-                                  )}
+                                  {msg.from === "supervisor" && (() => {
+                                    const msgPayload = msg.payload as { originalText?: string } | null | undefined;
+                                    return msgPayload?.originalText ? (
+                                      <p className="text-[10px] mt-1.5 pt-1 border-t border-primary-foreground/20 text-primary-foreground/50 italic leading-snug">
+                                        Originally: {msgPayload.originalText}
+                                      </p>
+                                    ) : null;
+                                  })()}
                                   <p className={`text-[10px] mt-1 ${msg.from === "user" ? "text-muted-foreground" : "text-primary-foreground/60"}`}>
                                     {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
                                   </p>
@@ -1592,7 +1594,7 @@ export default function SessionsPage() {
                               )}
                             </div>
                             {/* Auto-translate: show translated text below message bubble */}
-                            {autoTranslateEnabled && msg.content?.trim() && msg.from !== "system" && (
+                            {autoTranslateEnabled && msg.content?.trim() && (
                               <div className={`flex mt-0.5 ${isCustomerMessage ? "justify-start pl-12" : "justify-end pr-12"}`}>
                                 <div className="flex items-start gap-1 text-[11px] text-muted-foreground italic max-w-[75%]">
                                   {translatingIds.has(String(msg.id)) ? (
@@ -1603,6 +1605,7 @@ export default function SessionsPage() {
                                   ) : translations.has(String(msg.id)) ? (
                                     <>
                                       <Languages className="w-3 h-3 mt-0.5 flex-shrink-0 text-muted-foreground/70" />
+                                      <span className="not-italic font-medium text-muted-foreground/60 mr-0.5">Translated:</span>
                                       <span className="leading-snug">{translations.get(String(msg.id))}</span>
                                     </>
                                   ) : null}
