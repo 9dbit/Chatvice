@@ -754,7 +754,7 @@ async function askChatvice(
     // (b) Current message is a username submission AND bot previously displayed [INPUT_USERNAME]
     const isUsernameReply = /^username[:\s]/i.test(message.trim());
     const hasPendingUsernameRequest = isUsernameReply && last6.some(m =>
-      m.from === "chatvice" && m.content.includes("[INPUT_USERNAME]")
+      (m.from === "chatvice" || m.from === "bot" || m.from === "ai") && m.content.includes("[INPUT_USERNAME]")
     );
     if (hasRecentTxQuery || hasPendingUsernameRequest) {
       isTransactionQuery = true;
