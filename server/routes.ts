@@ -731,21 +731,22 @@ async function askChatvice(
     "cair blm", "cair belum", "cair ga", "cair gak",
     "udah bayar", "sdh bayar", "udh bayar", "dah bayar",
     "belum bayar", "blm bayar", "blom bayar",
-    "a/n", "atas nama",
+    "a/n", "atas nama", "an ",
   ];
   const isTransactionQuery = transactionKeywords.some(keyword => lowerMessage.includes(keyword));
 
   // Server-side username pre-extraction from common Indonesian message patterns
   let mentionedUsername: string | null = null;
   if (isTransactionQuery) {
-    const COMMON_WORDS = new Set(["saya", "aku", "gue", "gw", "ane", "dia", "kamu", "anda", "kami", "kita", "lo", "lu", "ini", "itu", "nama", "akun"]);
+    const COMMON_WORDS = new Set(["saya", "aku", "gue", "gw", "ane", "dia", "kamu", "anda", "kami", "kita", "lo", "lu", "ini", "itu"]);
     const usernamePatterns = [
-      /atas\s+nama\s+(\S+)/i,        // "atas nama TCL"
-      /a\/n\s+(\S+)/i,               // "a/n TCL"
-      /username\s*[:\s]\s*(\S+)/i,   // "username: TCL" or "username TCL"
-      /user\s*:\s*(\S+)/i,           // "user: TCL" (colon required to avoid false positives)
-      /akun\s*[:\s]\s*(\S+)/i,       // "akun: TCL" or "akun TCL"
-      /\bid\s*:\s*([A-Za-z0-9_]+)/i, // "id: TCL" (colon required)
+      /atas\s+nama\s+(\w+)/i,          // "atas nama TCL"
+      /a\/n\s+(\w+)/i,                 // "a/n TCL"
+      /username[:\s]+(\w+)/i,          // "username: TCL" or "username TCL"
+      /user[:\s]+(\w+)/i,              // "user: TCL" or "user TCL"
+      /akun[:\s]+(\w+)/i,              // "akun: TCL" or "akun TCL"
+      /\bid[:\s]+(\w+)/i,              // "id: TCL" or "id TCL"
+      /\bnama\s+(\w+)/i,               // "nama TCL"
     ];
     for (const pattern of usernamePatterns) {
       const match = lowerMessage.match(pattern);
