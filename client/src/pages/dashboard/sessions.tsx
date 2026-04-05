@@ -18,7 +18,7 @@ import {
   Hand, ArrowLeft, Clock, Edit, Check, X, Loader2, RefreshCw, AlertCircle,
   CheckCircle2, Circle, XCircle, Filter, ShoppingBag, Plus, ImageIcon, Video, FileText,
   ExternalLink, Maximize2, Minimize2, MapPin, Volume2, VolumeX, Monitor, Globe, Smartphone, Radio,
-  Languages
+  Languages, Wand2, Settings2
 } from "lucide-react";
 import {
   SiAndroid, SiApple, SiLinux,
@@ -315,6 +315,15 @@ export default function SessionsPage() {
   const [isSendingWithTranslate, setIsSendingWithTranslate] = useState(false);
   const translationFetchingRef = useRef<Set<string>>(new Set());
   const translationsDoneRef = useRef<Set<string>>(new Set()); // IDs that already have a result
+
+  // Auto-refine state
+  const [autoRefineEnabled, setAutoRefineEnabled] = useState(false);
+  const [isRefining, setIsRefining] = useState(false);
+  const [refineSuggestion, setRefineSuggestion] = useState<string | null>(null);
+  const [refineOriginalText, setRefineOriginalText] = useState<string | null>(null);
+
+  // Mobile settings popover state
+  const [showMobileSettings, setShowMobileSettings] = useState(false);
 
   // Clear preview when session changes
   useEffect(() => {
@@ -824,20 +833,16 @@ export default function SessionsPage() {
     return Array.from(ipMap.values());
   })() : undefined;
 
-  const handleSendMessage = async () => {
-    const text = newMessage.trim();
-    if (!text) return;
-
+  // Sends the final text (after refine/translate decisions) via the mutation
+  const dispatchSend = useCallback(async (text: string) => {
     if (autoTranslateEnabled && selectedSessionData?.mode === "HUMAN") {
       setIsSendingWithTranslate(true);
       try {
-        // Gather recent customer messages as context for language detection
         const contextText = (messages || [])
           .filter(m => m.from === "customer" || m.from === "user")
           .slice(-3)
           .map(m => m.content)
           .join("\n");
-
         const res = await apiRequest("POST", "/api/translate", {
           text,
           targetLang: "auto",
@@ -845,14 +850,11 @@ export default function SessionsPage() {
         });
         const data = await res.json();
         const translatedText: string = data.translated || text;
-
-        // Always store originalText on the translated send path for audit trail
         sendMessageMutation.mutate({
           message: translatedText,
           payload: { originalText: text },
         });
       } catch {
-        // Fallback to sending original on error
         sendMessageMutation.mutate({ message: text });
       } finally {
         setIsSendingWithTranslate(false);
@@ -860,6 +862,38 @@ export default function SessionsPage() {
     } else {
       sendMessageMutation.mutate({ message: text });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoTranslateEnabled, selectedSessionData?.mode, messages, sendMessageMutation]);
+
+  const handleSendMessage = async () => {
+    const text = newMessage.trim();
+    if (!text) return;
+
+    // Auto Refine: intercept send, show suggestion popup
+    if (autoRefineEnabled && selectedSessionData?.mode === "HUMAN") {
+      setIsRefining(true);
+      try {
+        const res = await apiRequest("POST", "/api/refine-message", {
+          message: text,
+          sessionId: selectedSession,
+        });
+        if (!res.ok) throw new Error("Refinement failed");
+        const data = await res.json();
+        const refined: string = data.refined?.trim() || text;
+        setRefineOriginalText(text);
+        setRefineSuggestion(refined);
+        // Don't send yet — wait for supervisor to approve/reject
+      } catch {
+        toast({ title: "Refinement failed", description: "Sending your original message.", variant: "destructive" });
+        await dispatchSend(text);
+        setNewMessage("");
+      } finally {
+        setIsRefining(false);
+      }
+      return;
+    }
+
+    await dispatchSend(text);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -1235,10 +1269,38 @@ export default function SessionsPage() {
                           >
                             <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                           </Button>
-                          {/* Auto-translate toggle */}
+
+                          {/* Desktop: Auto Refine toggle (hidden on mobile) */}
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <div className="flex items-center gap-1" data-testid="auto-translate-controls">
+                              <div className="hidden sm:flex items-center gap-1" data-testid="auto-refine-controls">
+                                <Switch
+                                  id="auto-refine-toggle"
+                                  checked={autoRefineEnabled}
+                                  onCheckedChange={setAutoRefineEnabled}
+                                  disabled={selectedSessionData?.mode !== "HUMAN"}
+                                  className="scale-75 origin-center"
+                                  data-testid="switch-auto-refine"
+                                />
+                                <label
+                                  htmlFor="auto-refine-toggle"
+                                  className="flex items-center gap-0.5 text-[11px] text-muted-foreground cursor-pointer select-none"
+                                >
+                                  <Wand2 className="w-3 h-3" />
+                                </label>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">
+                              {selectedSessionData?.mode !== "HUMAN"
+                                ? <p>Available when you take over</p>
+                                : <p>Auto Refine Message</p>}
+                            </TooltipContent>
+                          </Tooltip>
+
+                          {/* Desktop: Auto-translate toggle (hidden on mobile) */}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="hidden sm:flex items-center gap-1" data-testid="auto-translate-controls">
                                 <Switch
                                   id="auto-translate-toggle"
                                   checked={autoTranslateEnabled}
@@ -1248,7 +1310,7 @@ export default function SessionsPage() {
                                 />
                                 <label
                                   htmlFor="auto-translate-toggle"
-                                  className="hidden sm:flex items-center gap-0.5 text-[11px] text-muted-foreground cursor-pointer select-none"
+                                  className="flex items-center gap-0.5 text-[11px] text-muted-foreground cursor-pointer select-none"
                                 >
                                   <Languages className="w-3 h-3" />
                                 </label>
@@ -1261,7 +1323,7 @@ export default function SessionsPage() {
                           {autoTranslateEnabled && (
                             <Select value={translateLang} onValueChange={setTranslateLang}>
                               <SelectTrigger
-                                className="h-7 sm:h-8 text-[11px] sm:text-xs w-24 sm:w-28 px-1.5 sm:px-2"
+                                className="hidden sm:flex h-7 sm:h-8 text-[11px] sm:text-xs w-24 sm:w-28 px-1.5 sm:px-2"
                                 data-testid="select-translate-lang"
                               >
                                 <SelectValue />
@@ -1275,16 +1337,18 @@ export default function SessionsPage() {
                               </SelectContent>
                             </Select>
                           )}
+
+                          {/* Desktop: Take Over / Return to Bot (hidden on mobile) */}
                           {selectedSessionData?.mode === "AI" ? (
                             <Button
                               size="sm"
                               onClick={() => takeoverMutation.mutate(selectedSession)}
                               disabled={takeoverMutation.isPending}
-                              className="h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3"
+                              className="hidden sm:flex h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3"
                               data-testid="button-takeover-session"
                             >
-                              <Hand className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-1.5" />
-                              <span className="hidden sm:inline">Take Over</span>
+                              <Hand className="w-3.5 h-3.5 sm:mr-1.5" />
+                              <span>Take Over</span>
                             </Button>
                           ) : (
                             <Button
@@ -1292,13 +1356,100 @@ export default function SessionsPage() {
                               variant="outline"
                               onClick={() => returnToBotMutation.mutate(selectedSession)}
                               disabled={returnToBotMutation.isPending}
-                              className="h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3"
+                              className="hidden sm:flex h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3"
                               data-testid="button-return-to-bot"
                             >
-                              <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-1.5" />
-                              <span className="hidden sm:inline">Return to Bot</span>
+                              <Bot className="w-3.5 h-3.5 sm:mr-1.5" />
+                              <span>Return to Bot</span>
                             </Button>
                           )}
+
+                          {/* Mobile gear icon: opens settings + actions dropdown */}
+                          <Popover open={showMobileSettings} onOpenChange={setShowMobileSettings}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="flex sm:hidden h-7 w-7"
+                                data-testid="button-mobile-settings"
+                              >
+                                <Settings2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent side="bottom" align="end" className="w-60 p-3">
+                              <div className="flex flex-col gap-3">
+                                {/* Auto Translate */}
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-1.5">
+                                    <Languages className="w-3.5 h-3.5 text-muted-foreground" />
+                                    <span className="text-sm">Auto Translate</span>
+                                  </div>
+                                  <Switch
+                                    checked={autoTranslateEnabled}
+                                    onCheckedChange={setAutoTranslateEnabled}
+                                    data-testid="switch-auto-translate-mobile"
+                                  />
+                                </div>
+                                {autoTranslateEnabled && (
+                                  <Select value={translateLang} onValueChange={setTranslateLang}>
+                                    <SelectTrigger className="h-8 text-xs" data-testid="select-translate-lang-mobile">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {TRANSLATE_LANGUAGES.map(lang => (
+                                        <SelectItem key={lang.code} value={lang.name} className="text-xs">
+                                          {lang.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                                {/* Auto Refine */}
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-1.5">
+                                    <Wand2 className="w-3.5 h-3.5 text-muted-foreground" />
+                                    <span className="text-sm">Auto Refine</span>
+                                  </div>
+                                  <Switch
+                                    checked={autoRefineEnabled}
+                                    onCheckedChange={setAutoRefineEnabled}
+                                    disabled={selectedSessionData?.mode !== "HUMAN"}
+                                    data-testid="switch-auto-refine-mobile"
+                                  />
+                                </div>
+                                {selectedSessionData?.mode !== "HUMAN" && (
+                                  <p className="text-[11px] text-muted-foreground">Auto Refine is available when you take over.</p>
+                                )}
+                                <div className="border-t" />
+                                {/* Take Over / Return to Bot */}
+                                {selectedSessionData?.mode === "AI" ? (
+                                  <Button
+                                    size="sm"
+                                    className="w-full"
+                                    onClick={() => { takeoverMutation.mutate(selectedSession); setShowMobileSettings(false); }}
+                                    disabled={takeoverMutation.isPending}
+                                    data-testid="button-takeover-session-mobile"
+                                  >
+                                    <Hand className="w-3.5 h-3.5 mr-1.5" />
+                                    Take Over
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full"
+                                    onClick={() => { returnToBotMutation.mutate(selectedSession); setShowMobileSettings(false); }}
+                                    disabled={returnToBotMutation.isPending}
+                                    data-testid="button-return-to-bot-mobile"
+                                  >
+                                    <Bot className="w-3.5 h-3.5 mr-1.5" />
+                                    Return to Bot
+                                  </Button>
+                                )}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+
                           <Button
                             size="icon"
                             variant="ghost"
@@ -1726,6 +1877,53 @@ export default function SessionsPage() {
                         }}
                         data-testid="input-file-document"
                       />
+                      {/* Refine suggestion popup — overlays the entire input row */}
+                      {refineSuggestion !== null && (
+                        <div
+                          className="mb-2 p-3 bg-popover border border-border rounded-md shadow-md flex flex-col gap-2"
+                          data-testid="refine-suggestion-popup"
+                        >
+                          <div className="flex items-start gap-2">
+                            <Wand2 className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                            <span className="text-xs font-medium text-muted-foreground">Refined suggestion</span>
+                          </div>
+                          <p className="text-sm leading-snug max-h-28 overflow-y-auto whitespace-pre-wrap" data-testid="text-refine-suggestion">
+                            {refineSuggestion}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              className="flex-1 h-8 gap-1.5"
+                              onClick={async () => {
+                                const approved = refineSuggestion;
+                                setRefineSuggestion(null);
+                                setRefineOriginalText(null);
+                                setNewMessage("");
+                                await dispatchSend(approved);
+                              }}
+                              data-testid="button-refine-approve"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Send refined
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 h-8 gap-1.5"
+                              onClick={() => {
+                                const original = refineOriginalText ?? "";
+                                setRefineSuggestion(null);
+                                setRefineOriginalText(null);
+                                setNewMessage(original);
+                              }}
+                              data-testid="button-refine-reject"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                              Keep original
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                       <div className="flex gap-2 relative">
                         <Popover 
                           open={showPlusMenu} 
@@ -1894,11 +2092,11 @@ export default function SessionsPage() {
                         </div>
                         <Button
                           onClick={handleSendMessage}
-                          disabled={sendMessageMutation.isPending || isSendingWithTranslate || !newMessage.trim() || showQuickReplyPopup}
+                          disabled={sendMessageMutation.isPending || isSendingWithTranslate || isRefining || refineSuggestion !== null || !newMessage.trim() || showQuickReplyPopup}
                           className="h-9"
                           data-testid="button-send-message"
                         >
-                          {(sendMessageMutation.isPending || isSendingWithTranslate) ? (
+                          {(sendMessageMutation.isPending || isSendingWithTranslate || isRefining) ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
                           ) : (
                             <Send className="w-4 h-4" />

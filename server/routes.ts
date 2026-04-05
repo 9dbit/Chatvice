@@ -7817,6 +7817,69 @@ Rules:
     }
   });
 
+  // POST /api/refine-message — refine a supervisor message via OpenAI using KB context
+  app.post("/api/refine-message", requireMerchantOrSupervisor, async (req, res) => {
+    try {
+      const { message, sessionId } = req.body;
+      const merchantId = req.session.merchantId!;
+
+      if (!message || typeof message !== "string" || !sessionId || typeof sessionId !== "string") {
+        return res.status(400).json({ error: "message and sessionId are required" });
+      }
+
+      // Resolve agentId from session
+      const session = await storage.getSession(sessionId);
+      if (!session || session.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      const agentId = session.agentId || null;
+
+      // Fetch KB content (same pattern as /api/chat/ask)
+      let kbContext = "";
+      try {
+        const chunks = await searchKnowledge(merchantId, message, 3, agentId);
+        if (chunks.length > 0) {
+          kbContext = chunks.join("\n\n---\n\n").slice(0, 2000);
+        } else {
+          const knowledge = agentId
+            ? await storage.getKnowledgeByAgent(agentId)
+            : await storage.getKnowledge(merchantId);
+          kbContext = (knowledge?.content || "").slice(0, 2000);
+        }
+      } catch {
+        const knowledge = agentId
+          ? await storage.getKnowledgeByAgent(agentId)
+          : await storage.getKnowledge(merchantId);
+        kbContext = (knowledge?.content || "").slice(0, 2000);
+      }
+
+      const systemPrompt = [
+        "You are a professional customer service writing assistant.",
+        "Refine the following message to fix grammar, typos, and improve professional tone.",
+        kbContext
+          ? `If a knowledge base guide is provided, match the communication style and vocabulary it describes.\n\nKnowledge base guide:\n${kbContext}`
+          : "",
+        "Return ONLY the refined message text, no explanations, no labels, no quotes.",
+      ].filter(Boolean).join("\n");
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: message.slice(0, 2000) },
+        ],
+        temperature: 0.2,
+        max_tokens: 800,
+      });
+
+      const refined = completion.choices[0]?.message?.content?.trim() || message;
+      return res.json({ refined });
+    } catch (error) {
+      console.error("[RefineMessage] Error:", error);
+      return res.status(500).json({ error: "Refinement failed" });
+    }
+  });
+
   app.post("/api/session/send-message", requireMerchantOrSupervisor, async (req, res) => {
     try {
       const { sessionId, message, messageType, payload, mediaId } = req.body;
