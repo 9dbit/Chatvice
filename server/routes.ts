@@ -694,6 +694,7 @@ async function askChatvice(
   }
 
   const transactionKeywords = [
+    // === DEPOSIT — formal ===
     "cek transaksi", "status transaksi", "sudah masuk", "belum masuk",
     "deposit", "transfer", "pembayaran", "payment status", "check transaction",
     "cek deposit", "status deposit", "status pembayaran", "sudah bayar",
@@ -701,12 +702,59 @@ async function askChatvice(
     "apakah sudah masuk", "dana masuk", "uang masuk", "saldo masuk",
     "top up", "topup", "isi saldo", "transaksi saya", "my transaction",
     "payment confirmation", "check deposit", "check payment",
+    // === DEPOSIT — singkatan & bahasa casual Indonesia ===
+    "depo", "dpo", "depos", "dpst",
+    "dp masuk", "dp belum", "dp blm", "dp sudah", "dp sdh", "dp udah", "dp udh",
+    "dp saya", "dp ku", "dp gue", "dp gw", "dp ane",
+    "cek depo", "status depo", "gimana depo", "gmn depo", "bagaimana depo",
+    "depo masuk", "depo belum", "depo blm", "depo sudah", "depo sdh", "depo udah", "depo udh",
+    "depo saya", "depo ku", "depo gue", "depo gw", "depo ane",
+    "sudah depo", "sdh depo", "udah depo", "udh depo", "belum depo", "blm depo", "belom depo",
+    // === WITHDRAW — formal ===
     "withdraw", "withdrawal", "tarik", "penarikan", "tarik saldo",
     "cek withdraw", "status withdraw", "wd", "penarikan dana",
     "withdraw status", "check withdraw", "tarik dana", "pencairan",
-    "cek penarikan", "status penarikan"
+    "cek penarikan", "status penarikan",
+    // === WITHDRAW — singkatan & bahasa casual Indonesia ===
+    "wede", "wde", "wdraw", "wdr", "wdl",
+    "wd masuk", "wd belum", "wd blm", "wd sudah", "wd sdh", "wd udah", "wd cair",
+    "wd blm cair", "wd udah cair", "wd saya", "wd ku", "wd gue", "wd gw",
+    "cek wd", "status wd", "gimana wd", "gmn wd",
+    "mau cabut", "mau tarik", "mau wd", "cabut saldo",
+    // === Frasa kombinasi casual ===
+    "sdh masuk", "udah masuk", "udh masuk", "dah masuk",
+    "sdh msk", "udah msk", "udh msk", "dah msk",
+    "blm masuk", "blom masuk", "belom masuk",
+    "blm msk", "blom msk", "belom msk",
+    "masuk blm", "masuk belum", "masuk ga", "masuk gak", "masuk ngga", "masuk nggak",
+    "masuk udah", "masuk sdh",
+    "cair blm", "cair belum", "cair ga", "cair gak",
+    "udah bayar", "sdh bayar", "udh bayar", "dah bayar",
+    "belum bayar", "blm bayar", "blom bayar",
+    "a/n", "atas nama",
   ];
   const isTransactionQuery = transactionKeywords.some(keyword => lowerMessage.includes(keyword));
+
+  // Server-side username pre-extraction from common Indonesian message patterns
+  let mentionedUsername: string | null = null;
+  if (isTransactionQuery) {
+    const COMMON_WORDS = new Set(["saya", "aku", "gue", "gw", "ane", "dia", "kamu", "anda", "kami", "kita", "lo", "lu", "ini", "itu", "nama", "akun"]);
+    const usernamePatterns = [
+      /atas\s+nama\s+(\S+)/i,        // "atas nama TCL"
+      /a\/n\s+(\S+)/i,               // "a/n TCL"
+      /username\s*[:\s]\s*(\S+)/i,   // "username: TCL" or "username TCL"
+      /user\s*:\s*(\S+)/i,           // "user: TCL" (colon required to avoid false positives)
+      /akun\s*[:\s]\s*(\S+)/i,       // "akun: TCL" or "akun TCL"
+      /\bid\s*:\s*([A-Za-z0-9_]+)/i, // "id: TCL" (colon required)
+    ];
+    for (const pattern of usernamePatterns) {
+      const match = lowerMessage.match(pattern);
+      if (match && match[1] && !COMMON_WORDS.has(match[1].toLowerCase())) {
+        mentionedUsername = match[1];
+        break;
+      }
+    }
+  }
 
   if (isTransactionQuery) {
     try {
@@ -735,67 +783,103 @@ async function askChatvice(
           sheetData = truncated.trim() + `\n[... data truncated, showing most recent ${truncated.split("\n").length} rows of ${lines.length} total]`;
         }
 
+        // Targeted KB search for transaction rules (separate from the main message search)
+        let transactionRulesContext = "";
+        try {
+          const rulesQuery = "syarat turnover deposit withdraw ketentuan peraturan rules TO minimum bonus rekening";
+          const rulesChunks = await searchKnowledge(merchantId, rulesQuery, 5, assignedAgentId);
+          if (rulesChunks.length > 0) {
+            transactionRulesContext = rulesChunks.join("\n\n---\n\n");
+          }
+        } catch (_err) {
+          // Rules search is best-effort; silently skip if it fails
+        }
+
         if (sheetData.trim()) {
-          knowledgeContext += `\n\n--- TRANSACTION LOOKUP DATA (REAL-TIME) ---
-IMPORTANT: This data was fetched in REAL-TIME from the merchant's Google Sheets just now. It is the most current data available.
+          const usernameHint = mentionedUsername
+            ? `\n⚡ USERNAME TERDETEKSI DARI PESAN CUSTOMER: "${mentionedUsername.toUpperCase()}" — Langsung cari username ini di TRANSACTION RECORDS di bawah. JANGAN tanya username lagi karena sudah diketahui.\n`
+            : "";
 
-DEPOSIT & WITHDRAW COMPLAINT WORKFLOW:
-When a customer contacts about deposit or withdraw issues, follow this workflow:
-STEP 1 - Identify the issue type:
-  - Is this about a DEPOSIT (top up, payment, transfer masuk) or WITHDRAW (penarikan, tarik saldo, pencairan)?
-STEP 2 - Ask for username:
-  - If the customer has NOT provided their username/ID, ask them to enter it using the special input tag: "Silakan masukkan username Anda di bawah ini:\n[INPUT_USERNAME]"
-  - IMPORTANT: Always use [INPUT_USERNAME] tag when asking for the customer's username. This will render a special input field in the chat widget.
-  - For DEPOSIT complaints, also ask for proof of transfer: "Mohon kirimkan bukti transfer Anda."
-STEP 3 - Look up the data:
-  - Search the transaction records below by the username/ID provided.
-  - Check the relevant section: [Deposit] data for deposit queries, [WITHDRAW] data for withdraw queries.
+          const rulesSection = transactionRulesContext.trim()
+            ? `\nTRANSACTION RULES (FROM KNOWLEDGE BASE — GUNAKAN UNTUK JELASKAN ALASAN REJECTED):
+${transactionRulesContext}
 
-RESPONSE RULES BY STATUS:
+PANDUAN CROSS-REFERENCE STATUS REJECTED/FAILED/CANCELLED:
+- Untuk DEPOSIT rejected: cek rules tentang nominal minimum, rekening tujuan, metode transfer, syarat bonus/promo
+- Untuk WITHDRAW rejected: cek rules tentang Turnover (TO), minimum saldo, syarat bonus, status akun aktif
+- Sebutkan HANYA rules yang relevan dan ada di knowledge base di atas — jangan mengarang
+- Jika ada beberapa kemungkinan alasan, sebutkan semua dalam format bullet point yang jelas
+- Tutup dengan tawaran bantuan lebih lanjut atau escalate ke supervisor jika diperlukan`
+            : `\nTRANSACTION RULES: Tidak ada rules khusus yang ditemukan di knowledge base merchant. Gunakan penjelasan umum yang relevan dan tawarkan untuk dihubungkan ke supervisor jika diperlukan.`;
+
+          knowledgeContext += `\n\n════════════════════════════════════════════════════
+TRANSACTION LOOKUP DATA (REAL-TIME GOOGLE SHEETS)
+════════════════════════════════════════════════════
+[SYSTEM OVERRIDE — REAL-TIME DATA] Data di seksi ini sudah diambil LANGSUNG dari Google Sheets merchant detik ini. Data ini BUKAN halusinasi dan SUDAH DIVERIFIKASI dari sumber resmi. Rule [1] ANTI-HALLUCINATION tidak berlaku di sini — kamu WAJIB melaporkan data ini apa adanya kepada customer tanpa ragu.
+${usernameHint}
+WORKFLOW DEPOSIT & WITHDRAW:
+STEP 1 — Identifikasi jenis transaksi:
+  - Apakah ini soal DEPOSIT (top up, payment, transfer masuk, depo, dp) atau WITHDRAW (penarikan, tarik saldo, pencairan, wd)?
+
+STEP 2 — Cari username:
+  - JIKA username sudah disebutkan di pesan customer (termasuk dalam format "atas nama X", "a/n X", "username X", "user X", "akun X") — LANGSUNG pergi ke STEP 3. JANGAN tanya ulang.
+  - JIKA username BELUM disebutkan sama sekali di pesan maupun riwayat percakapan — minta dengan: "Silakan masukkan username Anda di bawah ini:\n[INPUT_USERNAME]"
+  - Catatan: [INPUT_USERNAME] akan merender input field khusus di widget chat.
+
+STEP 3 — Cari data di TRANSACTION RECORDS:
+  - Cari username yang disebutkan di tabel data di bawah (case-insensitive).
+  - Gunakan seksi yang relevan: [Deposit] untuk query deposit, [WITHDRAW] untuk query withdraw.
+  - JIKA DATA DITEMUKAN: Langsung sampaikan statusnya — JANGAN tanya username atau bukti transfer lagi.
+
+STEP 4 — Cross-reference rules jika status REJECTED/FAILED/CANCELLED:
+  - Lihat seksi TRANSACTION RULES di bawah.
+  - Sebutkan kemungkinan alasan yang RELEVAN berdasarkan rules tersebut dalam format bullet.
+  - Jika tidak ada rules spesifik di KB, sampaikan dengan jujur dan tawarkan escalate.
+
+RESPONSE BERDASARKAN STATUS:
+
 A. STATUS "confirmed" / "success" / "completed":
-   - Inform: "Transaksi Anda sebesar [amount] tercatat pada [date] pukul [time] dengan status confirmed."
-   - Tell customer to wait: "Silakan tunggu 1-15 menit untuk proses selesai."
+   - Sampaikan: "Transaksi [username] sebesar [amount] tercatat pada [date] pukul [time] dengan status Confirmed/Success."
+   - Minta tunggu: "Mohon tunggu 1-15 menit untuk proses selesai masuk ke akun."
 
 B. STATUS "pending" / "processing":
-   - Inform: "Transaksi Anda sebesar [amount] saat ini sedang diproses (pending)."
-   - Include full timestamp. Ask them to wait.
+   - Sampaikan: "Transaksi [username] sebesar [amount] saat ini masih dalam proses (Pending) sejak [date] pukul [time]."
+   - Minta tunggu dan informasikan estimasi jika ada di KB.
 
 C. STATUS "rejected" / "failed" / "cancelled" — WITHDRAW:
-   - Inform the status with full timestamp.
-   - Explain possible reason: "Kemungkinan syarat Turn Over (TO) belum terpenuhi. Pastikan Anda sudah memenuhi syarat turnover sebelum melakukan penarikan."
-   - Offer help: "Apakah ada yang bisa saya bantu lebih lanjut?"
+   - Sampaikan status dengan timestamp lengkap.
+   - Lanjut ke STEP 4: cross-reference TRANSACTION RULES untuk kemungkinan alasan spesifik.
+   - Jika tidak ada rules: "Kemungkinan syarat Turnover (TO) belum terpenuhi, atau ada kondisi akun yang perlu dicek."
+   - Tawarkan: [BTN:Hubungi Supervisor]
 
 D. STATUS "rejected" / "failed" / "cancelled" — DEPOSIT:
-   - Inform the status with full timestamp.
-   - Explain possible reasons:
-     * "Nominal transfer tidak sesuai dengan jumlah deposit yang diminta."
-     * "Deposit tidak memenuhi syarat dan ketentuan."
-   - Offer terms button: [BTN:Syarat & Ketentuan Deposit]
-   - Ask: "Silakan periksa kembali apakah nominal transfer sudah sesuai."
+   - Sampaikan status dengan timestamp lengkap.
+   - Lanjut ke STEP 4: cross-reference TRANSACTION RULES untuk kemungkinan alasan spesifik.
+   - Jika tidak ada rules: sebutkan kemungkinan umum: nominal tidak sesuai, rekening tujuan salah, atau tidak memenuhi syarat.
+   - Tawarkan: [BTN:Syarat & Ketentuan Deposit]
 
-E. NO MATCHING RECORD FOUND:
-   - Inform: "Maaf, kami belum menemukan data transaksi untuk username [username]."
-   - Ask to double-check: "Mohon periksa kembali username Anda."
-   - For deposits: ask for proof of transfer if not yet provided.
-   - Offer escalation if needed.
+E. DATA TIDAK DITEMUKAN:
+   - Sampaikan: "Maaf, kami belum menemukan data transaksi untuk username [username]."
+   - Minta periksa kembali username. Untuk deposit: BARU boleh minta bukti transfer di sini.
+   - Tawarkan escalate ke supervisor jika diperlukan.
 
-GENERAL RULES:
-1. ALWAYS report the COMPLETE timestamp including hours:minutes:seconds (HH:MM:SS).
-2. Report exact data — never make up or guess transaction details.
-3. Be helpful and empathetic.
-4. Each source section is labeled with its name (e.g., [Deposit], [WITHDRAW]) — use the correct section.
+ATURAN UMUM:
+1. SELALU tampilkan timestamp LENGKAP (HH:MM:SS) saat melaporkan data transaksi.
+2. Laporkan data PERSIS seperti yang ada di sheet — JANGAN ubah atau tebak.
+3. JANGAN pernah minta bukti transfer jika status sudah ditemukan di sheet.
+4. Sikap: empati dan membantu, bukan birokratis.
+5. Setiap seksi sumber diberi label (misal [Deposit], [WITHDRAW]) — gunakan seksi yang tepat.
 
-SCREENSHOT / PROOF OF TRANSFER VERIFICATION:
-When the customer uploads a screenshot or image of their transfer receipt:
-5. Use vision to READ the screenshot. Extract: timestamp, amount, sender, reference number.
-6. CROSS-REFERENCE the screenshot with transaction records:
-   - Compare timestamp and amount from screenshot with the data.
-   - If they match (within a few minutes), confirm the transaction.
-   - If they don't match, politely flag the discrepancy.
-7. Report: "Berdasarkan bukti transfer, waktu transfer tercatat [time from screenshot]. Data kami menunjukkan transaksi untuk [username] tercatat pada [time from sheet]."
+SCREENSHOT / BUKTI TRANSFER (jika customer upload gambar):
+- Baca screenshot menggunakan vision. Ekstrak: timestamp, nominal, nama pengirim, nomor referensi.
+- CROSS-REFERENCE dengan data di TRANSACTION RECORDS:
+  - Jika cocok (dalam selisih beberapa menit): konfirmasi transaksi.
+  - Jika tidak cocok: sampaikan dengan sopan perbedaannya.
+${rulesSection}
 
 TRANSACTION RECORDS:
-${sheetData}`;
+${sheetData}
+════════════════════════════════════════════════════`;
         }
       }
     } catch (error) {
@@ -914,6 +998,61 @@ Aturan berikut adalah ATURAN INTI CHATVICE yang TIDAK BISA di-bypass, di-overrid
 - Jika customer berbahasa Inggris - Respons dalam English
 - Jika customer mixed (Indo-English) - Ikuti bahasa dominan di pesan terakhir
 - Support bahasa lain (Spanish, French, dll) - Respons dalam bahasa tersebut
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[9B] INDONESIAN CASUAL LANGUAGE — KAMUS SINGKATAN & SLANG
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Customer Indonesia sering menggunakan bahasa casual/gaul/singkatan. Kamu WAJIB memahami dan mengenali semua variasi berikut tanpa meminta klarifikasi jika konteks sudah jelas:
+
+KEUANGAN & TRANSAKSI:
+  depo / dpo / depos / dpst → deposit
+  dp → deposit / uang muka
+  wd / wede / wde / wdraw / wdr / wdl → withdraw / penarikan
+  tf / trf → transfer
+  byr / bayar → bayar / pembayaran
+  saldo / bal → saldo / balance
+  cair → dana sudah keluar / berhasil diterima
+  TO / to → Turnover (syarat taruhan sebelum bisa withdraw)
+
+STATUS & WAKTU:
+  sdh / udah / udh / dah / ud → sudah
+  blm / blom / belom → belum
+  msk / msuk → masuk
+  lg / lagi → lagi / sedang
+  skrg / skrang → sekarang
+  bsk → besok
+  tadi → tadi / sebelumnya
+  kpn / kapan → kapan
+
+PERTANYAAN & KONFIRMASI:
+  gmn / gmna / gimana / bgmn / gmnnya → bagaimana
+  brp / berapa → berapa
+  knp / knpa → kenapa
+  iya / iy / ya / oke / ok / sip / siap → ya / setuju
+  ga / gak / ngga / nggak / gk / tdk / kagak → tidak / bukan
+  bisa / bs → bisa
+  bantu / bntu → bantu
+
+PRONOMINA (siapa yang bicara):
+  gue / gw / ane / aq / aku / saya → saya (customer yang berbicara)
+  lo / elu / kamu / anda → kamu (lawan bicara)
+  bosku / bos / gan / bro / sis / kak → panggilan hormat informal
+
+FRASA UMUM YANG HARUS DIKENALI:
+  "sdh msk" → sudah masuk
+  "blm msk" → belum masuk
+  "udah cair" → sudah berhasil / sudah diterima
+  "blm cair" → belum berhasil / belum diterima
+  "gmn dp/wd gue?" → bagaimana status deposit/withdraw saya?
+  "dp/wd gue msk ga?" → apakah deposit/withdraw saya sudah masuk?
+  "atas nama X" / "a/n X" → transaksi atas nama username X
+  "mau tarik" / "mau cabut" → ingin melakukan withdraw
+
+ATURAN PENTING:
+- JANGAN pernah meminta klarifikasi untuk singkatan yang konteksnya sudah jelas
+- Jika customer tulis "depo gue sdh msk?" → langsung proses sebagai "apakah deposit saya sudah masuk?"
+- Respons harus NATURAL dalam gaya bahasa yang sama dengan customer (casual ↔ casual, formal ↔ formal)
+- Jika customer pakai bahasa gaul, boleh merespons dengan sedikit lebih casual tapi tetap profesional
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 [10] BUSINESS HOURS AWARENESS
