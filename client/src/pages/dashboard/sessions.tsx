@@ -1012,22 +1012,6 @@ export default function SessionsPage() {
                   </span>
                 )}
               </h1>
-              {/* Handler avatar + name to the right of title — shown when a session is selected */}
-              {selectedSession && selectedSessionData && (
-                <div className="flex items-center gap-2" data-testid="handler-identity">
-                  <HandlerAvatar
-                    size="sm"
-                    mode={selectedSessionData.mode as "AI" | "HUMAN"}
-                    agentPhoto={getAgentPhoto(selectedSessionData.agentId)}
-                    supervisorPhoto={getSupervisorPhoto(selectedSessionData.supervisorId, selectedSessionData.agentId)}
-                  />
-                  <span className="text-sm text-muted-foreground" data-testid="text-handler-name">
-                    {selectedSessionData.mode === "AI"
-                      ? getAgentName(selectedSessionData.agentId)
-                      : getSupervisorName(selectedSessionData.supervisorId, selectedSessionData.agentId) || "Awaiting"}
-                  </span>
-                </div>
-              )}
             </div>
             <p className="text-muted-foreground text-xs sm:text-sm hidden sm:block">View and manage customer conversations</p>
           </div>
@@ -1062,6 +1046,22 @@ export default function SessionsPage() {
             >
               {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
             </Button>
+            {/* Handler avatar + name: right of sound button, right-aligned */}
+            {selectedSession && selectedSessionData && (
+              <div className="flex items-center gap-1.5 ml-auto" data-testid="handler-identity">
+                <HandlerAvatar
+                  size="sm"
+                  mode={selectedSessionData.mode as "AI" | "HUMAN"}
+                  agentPhoto={getAgentPhoto(selectedSessionData.agentId)}
+                  supervisorPhoto={getSupervisorPhoto(selectedSessionData.supervisorId, selectedSessionData.agentId)}
+                />
+                <span className="text-xs text-muted-foreground" data-testid="text-handler-name">
+                  {selectedSessionData.mode === "AI"
+                    ? getAgentName(selectedSessionData.agentId)
+                    : getSupervisorName(selectedSessionData.supervisorId, selectedSessionData.agentId) || "Awaiting"}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1246,9 +1246,17 @@ export default function SessionsPage() {
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0">
-                        <CardTitle className="text-sm sm:text-base truncate" data-testid="text-selected-customer">
-                          {getVisitorDisplayName(selectedSessionData?.customerName)}
-                        </CardTitle>
+                        <div className="flex items-center justify-between gap-2">
+                          <CardTitle className="text-sm sm:text-base truncate" data-testid="text-selected-customer">
+                            {getVisitorDisplayName(selectedSessionData?.customerName)}
+                          </CardTitle>
+                          {selectedSessionData?.lastActivity && (
+                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground flex-shrink-0">
+                              <Clock className="w-3 h-3" />
+                              {formatDistanceToNow(new Date(selectedSessionData.lastActivity), { addSuffix: true })}
+                            </span>
+                          )}
+                        </div>
                         {/* Client info row: flag + IP + device + OS + browser + country */}
                         <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                           <CountryFlag code={selectedSessionData?.countryCode} name={selectedSessionData?.countryName} />
@@ -1264,15 +1272,6 @@ export default function SessionsPage() {
                             <span className="text-[11px] sm:text-xs text-muted-foreground">
                               {selectedSessionData.countryName}
                             </span>
-                          )}
-                          {selectedSessionData?.lastActivity && (
-                            <>
-                              <span className="text-muted-foreground/40">·</span>
-                              <Clock className="w-3 h-3 text-muted-foreground" />
-                              <span className="text-[11px] sm:text-xs text-muted-foreground">
-                                {formatDistanceToNow(new Date(selectedSessionData.lastActivity), { addSuffix: true })}
-                              </span>
-                            </>
                           )}
                         </div>
                       </div>
