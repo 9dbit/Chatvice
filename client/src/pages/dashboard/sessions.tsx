@@ -352,6 +352,8 @@ export default function SessionsPage() {
     refetchInterval: 5000,
   });
 
+  const selectedSessionData = sessions?.find((s) => s.id === selectedSession);
+
   const { data: messages, isLoading: messagesLoading, refetch: refetchMessages } = useQuery<Message[]>({
     queryKey: ["/api/messages", selectedSession],
     enabled: !!selectedSession,
@@ -987,8 +989,6 @@ export default function SessionsPage() {
       });
     }
   };
-
-  const selectedSessionData = sessions?.find((s) => s.id === selectedSession);
 
   const statusCounts = {
     angry: sortedSessions?.filter(s => getSessionStatus(s) === "angry").length || 0,
