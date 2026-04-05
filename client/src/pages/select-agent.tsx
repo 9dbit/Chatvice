@@ -172,7 +172,7 @@ export default function SelectAgentPage() {
             </div>
             <ThemeToggle />
           </header>
-          <main className="flex-1 overflow-auto bg-background">
+          <main className="flex-1 overflow-auto bg-gradient-to-b from-background to-muted/30">
 
             <div className="p-4 sm:p-6" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom, 0px))' }}>
             {isLoading ? (

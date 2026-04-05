@@ -279,8 +279,6 @@ export default function AgentsPage() {
     );
   }
 
-  const hasNoAgents = !agents || agents.length === 0;
-
   return (
     <div className="space-y-4 sm:space-y-6">
 
