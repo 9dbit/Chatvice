@@ -821,14 +821,29 @@ export default function SessionsPage() {
       if (!existing) {
         ipMap.set(key, { ...session, sessionCount: 1 });
       } else {
-        // Prefer the session with "better" status (lower statusOrder) then more recent activity
+        // Prefer the session with "better" status (lower statusOrder) then more recent activity.
+        // IMPORTANT: Always prefer sessions with actual messages over visitor-only tracking sessions
+        // (which can be "active" but have no messages, causing a blank chat panel when clicked).
         const statusOrder = { needs_response: 0, angry: 1, active: 2, ended: 3 };
         const existingRank = statusOrder[getSessionStatus(existing) as keyof typeof statusOrder] ?? 3;
         const newRank     = statusOrder[getSessionStatus(session)  as keyof typeof statusOrder] ?? 3;
         const existingTime = existing.lastActivity ? new Date(existing.lastActivity).getTime() : 0;
         const newTime      = session.lastActivity  ? new Date(session.lastActivity).getTime()  : 0;
         const count = existing.sessionCount + 1;
-        if (newRank < existingRank || (newRank === existingRank && newTime > existingTime)) {
+        const existingHasMessages = !!(existing.lastQuestion || existing.lastMessage);
+        const newHasMessages      = !!(session.lastQuestion  || session.lastMessage);
+        let shouldReplace = false;
+        if (newHasMessages && !existingHasMessages) {
+          // New session has messages but existing doesn't — always prefer the one with messages
+          shouldReplace = true;
+        } else if (!newHasMessages && existingHasMessages) {
+          // Existing has messages but new doesn't — keep existing
+          shouldReplace = false;
+        } else {
+          // Both have messages or both have none — fall back to status + recency comparison
+          shouldReplace = newRank < existingRank || (newRank === existingRank && newTime > existingTime);
+        }
+        if (shouldReplace) {
           ipMap.set(key, { ...session, sessionCount: count });
         } else {
           existing.sessionCount = count;
