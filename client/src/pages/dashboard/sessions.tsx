@@ -921,6 +921,8 @@ export default function SessionsPage() {
     
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      // Block Enter when refine is in progress or awaiting decision
+      if (isRefining || refineSuggestion !== null) return;
       handleSendMessage();
     }
   };
@@ -1287,6 +1289,7 @@ export default function SessionsPage() {
                                   className="flex items-center gap-0.5 text-[11px] text-muted-foreground cursor-pointer select-none"
                                 >
                                   <Wand2 className="w-3 h-3" />
+                                  <span>Refine</span>
                                 </label>
                               </div>
                             </TooltipTrigger>
@@ -1843,7 +1846,7 @@ export default function SessionsPage() {
                     </div>
                   </ScrollArea>
                   {selectedSessionData?.mode === "HUMAN" && (
-                    <div className="flex-shrink-0 p-3 border-t bg-background">
+                    <div className="flex-shrink-0 p-3 border-t bg-background relative">
                       <input
                         type="file"
                         ref={fileInputRef}
@@ -1877,10 +1880,10 @@ export default function SessionsPage() {
                         }}
                         data-testid="input-file-document"
                       />
-                      {/* Refine suggestion popup — overlays the entire input row */}
+                      {/* Refine suggestion popup — absolute overlay blocking the input row */}
                       {refineSuggestion !== null && (
                         <div
-                          className="mb-2 p-3 bg-popover border border-border rounded-md shadow-md flex flex-col gap-2"
+                          className="absolute inset-x-0 bottom-full mb-1 z-50 p-3 bg-popover border border-border rounded-md shadow-md flex flex-col gap-2"
                           data-testid="refine-suggestion-popup"
                         >
                           <div className="flex items-start gap-2">
