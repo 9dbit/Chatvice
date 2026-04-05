@@ -731,7 +731,7 @@ async function askChatvice(
     "cair blm", "cair belum", "cair ga", "cair gak",
     "udah bayar", "sdh bayar", "udh bayar", "dah bayar",
     "belum bayar", "blm bayar", "blom bayar",
-    "a/n", "atas nama", "an ",
+    "a/n", "atas nama",
   ];
   const isTransactionQuery = transactionKeywords.some(keyword => lowerMessage.includes(keyword));
 
