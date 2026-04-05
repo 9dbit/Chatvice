@@ -736,7 +736,31 @@ async function askChatvice(
     "belum bayar", "blm bayar", "blom bayar",
     "a/n", "atas nama",
   ];
-  const isTransactionQuery = transactionKeywords.some(keyword => lowerMessage.includes(keyword));
+  let isTransactionQuery = transactionKeywords.some(keyword => lowerMessage.includes(keyword));
+
+  // If not detected from current message, check conversation history for transaction context.
+  // This handles follow-up messages like "Username: Haha11" sent in response to [INPUT_USERNAME].
+  if (!isTransactionQuery) {
+    try {
+      const recentMsgs = await storage.getMessages(sessionId);
+      const last6 = recentMsgs.slice(-6);
+      // (a) Any recent customer message contained a transaction keyword
+      const hasRecentTxQuery = last6.some(m =>
+        (m.from === "user" || m.from === "customer") &&
+        transactionKeywords.some(kw => m.content.toLowerCase().includes(kw))
+      );
+      // (b) Current message is a username submission AND bot previously displayed [INPUT_USERNAME]
+      const isUsernameReply = /^username[:\s]/i.test(message.trim());
+      const hasPendingUsernameRequest = isUsernameReply && last6.some(m =>
+        m.from === "chatvice" && m.content.includes("[INPUT_USERNAME]")
+      );
+      if (hasRecentTxQuery || hasPendingUsernameRequest) {
+        isTransactionQuery = true;
+      }
+    } catch {
+      // If history check fails, continue without transaction context
+    }
+  }
 
   // Server-side username pre-extraction from common Indonesian message patterns
   let mentionedUsername: string | null = null;
